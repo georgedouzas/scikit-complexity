@@ -60,12 +60,14 @@ and builds fast numeric functions that its solvers advance.
 
 Choose the parts of a system in this order: time and space, then elements, then interactions, then the solver. Each
 choice narrows the next, and you can ask every part what it needs before you build anything. The
-[compatibility page](compatibility.md) lists the same facts for every class.
+[compatibility page](compatibility.md) lists every element and interaction of the core, with the kinds and states each
+needs, so start there to find candidates. Then check a candidate in code, as this section shows.
 
 ### Time and space
 
-An interaction states the time and the space its laws run in. `RateInteraction` returns rates, so it needs continuous
-time and accepts any space. `MapInteraction` returns updates and rules, so it needs discrete time.
+An interaction states the time and the space its laws run in, and an empty `space` means any space. `RateInteraction`
+returns rates, so it needs continuous time and accepts any space. `MapInteraction` returns updates and rules, so it
+needs discrete time.
 
 ```python
 from typing import Annotated
@@ -91,7 +93,13 @@ print([law.__name__ for law in needs.laws])
 ### Elements
 
 An element carries the states you declare, and `get_states()` returns them with their specs. A `GroupElement` returns
-the states of its members.
+the states of its members. Every element is of one kind, which is what a role accepts or rejects.
+
+- `Element` is of the kind `element`, one member with its states.
+- `GroupElement` is of the kind `group`, many identical members. With `variable=True` it is a `variable-group`, whose
+  members appear and disappear.
+- A group on a space is a `site-group`, an `edge-group`, or a `hyperedge-group`, by what its members sit on. A
+  `LatticeElement` and a `FieldElement` are site groups.
 
 ```python continuation
 class PopulationElement(Element):
@@ -108,7 +116,7 @@ print(list(rabbits.get_states()))
 
 An interaction names what each of its roles needs. `get_requirements().roles` holds, for every role, the kinds of
 element it accepts and the states it reads for the arguments you passed, so you can compare them with what the element
-carries.
+carries. The kind `any` accepts every kind of element.
 
 ```python continuation
 target = needs.roles['target']
@@ -130,7 +138,8 @@ assert not walk.accepts(ElementKind.ELEMENT)
 ### When a part does not fit
 
 Validation reports a role filled by an unsuitable element as the issue `role-element`, with the other problems of the
-system. Here the rate reads the state `n` of a tank that carries `level`.
+system, each with a path, a message, and a fix. `PassCompiler(...).check().prepare(system).report_` holds the report
+before you run. Here the rate reads the state `n` of a tank that carries `level`.
 
 ```python continuation
 class TankElement(Element):
@@ -156,10 +165,49 @@ The role 'target' of growth reads the state 'n', but the element tank bound to i
 Bind the role to an element that carries the state, declare the state on the element, or read another state. `get_requirements()` of an interaction and `get_states()` of an element show what they need and carry.
 ```
 
+A role that rejects the kind of its element gets the same issue, and a law in the wrong time gets `law-time`.
+
+```python continuation
+kinds = System(elements=[TankElement('tank')], interactions=[MovementInteraction('walk', target='tank')])
+print(PassCompiler().check().prepare(kinds).report_.issues[0].message)
+times = System(
+    elements=[TankElement('tank')],
+    interactions=[RateInteraction('grow', target='tank', state='level', rate=1.0)],
+    time=DiscreteTime(),
+)
+print(PassCompiler().check().prepare(times).report_.issues[0].message)
+```
+
+This prints the following.
+
+```text
+The role 'target' of walk accepts group, variable-group, but tank is of kind element.
+The RateLaw of grow needs ContinuousTime, but its system declares DiscreteTime.
+```
+
+If you do not read the report first, `prepare` of a `Simulation` raises it as an error that lists every problem.
+
+```python continuation
+from skcomplex.engine.runtime import Simulation
+from skcomplex.errors import RoleElementError
+
+try:
+    Simulation(wrong, dt=0.1).check().prepare()
+except RoleElementError as error:
+    print(error)
+```
+
+This prints the following.
+
+```text
+The system is not valid, with 1 error(s):
+- growth: The role 'target' of growth reads the state 'n', but the element tank bound to it carries level. Bind the role to an element that carries the state, declare the state on the element, or read another state. `get_requirements()` of an interaction and `get_states()` of an element show what they need and carry. [role-element]
+```
+
 An interaction of your own gets the same report. A `RoleSpec(states=('n',))` states the read in advance, so
 `get_requirements()` shows it. An interaction that declares nothing is still reported when validation builds its laws
-and a law reads a state that the element does not have. A function you pass, such as the `rate` above, is covered in
-the same way. An error of another kind inside a law reaches you unchanged.
+and a law reads a state that the element does not have. A function you pass, such as the `rate` of `growth`, is covered
+in the same way. An error of another kind inside a law reaches you unchanged.
 
 ### The solver
 
@@ -169,7 +217,6 @@ what every solver supports.
 
 ```python continuation
 from skcomplex.engine.compile import compile_system
-from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import IterationSolver, RK4Solver
 
 system = System(elements=[rabbits], interactions=[growth])
@@ -994,17 +1041,14 @@ modes grows combinatorially, so the enumeration stops after `timeout` seconds wi
 
 ### Metabolism
 
-The family `skcomplex.models.biology.common.metabolism` holds what metabolic models share:
+The metabolic models of the catalog, such as `flux_balance`, `dynamic_fba`, `community_fba`, and `comets`, are built
+from the parts above. A metabolic network is an element whose data are its reactions, with one algebraic state per
+reaction, one adaptive switch per gene, and one lower and one upper bound parameter per reaction.
 
-- `MetabolicNetworkElement` takes `ReactionSpec`s as data and declares one algebraic state per reaction, one adaptive
-  switch per gene, and one lower and one upper bound parameter per reaction. `metabolic_network_type` returns a function
-  that creates one for a set of reactions. A group takes the element class and gives the reactions in its `values`.
-- `FluxVariabilityAnalysis`, `ProductionScanAnalysis`, and the kind `'steadycom'` of `CommunityAnalysis` run on the
-  solve of the core, in the default install.
-- `load_network`, `save_network`, `from_cobra`, `to_cobra`, `CobraAnalysis`, `StrainDesignAnalysis`, and the kind
-  `'tradeoff'` of `CommunityAnalysis` need the extra `metabolism`, as does every model on the E. coli core model, which
-  COBRApy bundles. Install it with `pip install 'scikit-complexity[metabolism]'`. Without it they raise
-  `MissingExtraError`.
+`elementary_flux_modes` runs on the default install. The models on the E. coli core model, which COBRApy bundles, need
+the extra `metabolism`: `flux_balance`, `dynamic_fba`, `regulatory_fba`, `metabolic_perturbations`, `community_fba`,
+`dynamic_multispecies_fba`, and `comets`. Install it with `pip install 'scikit-complexity[metabolism]'`. Without it
+they raise `MissingExtraError`.
 
 The extra holds COBRApy, StrainDesign, and MICOM. COBRApy brings GLPK into the environment, which is under the GPL-3.0.
 The package imports no module of GLPK, and it points COBRApy to the `hybrid` solver interface. The extra also holds
@@ -1012,11 +1056,10 @@ pandas below version 3, since COBRApy caps it.
 
 ### Isotope labelling
 
-`skcomplex.models.biology.systems_biology` holds isotope labelling, which only the model `carbon_13_mfa` uses.
-`AtomMapSpec` gives the atom transitions of a reaction, `TracerSpec` the isotopomer fractions of a substrate, and
-`FragmentSpec` a measured fragment. `LabellingAnalysis` simulates the mass isotopomer distributions by elementary
-metabolite units, and with the kind `'estimation'` fits the fluxes to `LabelMeasurementSpec`s from seeded starts, with
-95% intervals and a chi-square test.
+Only the model `carbon_13_mfa` uses isotope labelling. From the atom transitions of the reactions, the isotopomer
+fractions of a substrate, and the measured fragments, it simulates the mass isotopomer distributions by elementary
+metabolite units, and it fits the fluxes to the measurements from seeded starts, with 95% intervals and a chi-square
+test. Select it with `create('carbon_13_mfa')`.
 
 ## Composing systems
 
@@ -1905,8 +1948,8 @@ print(LoopAnalysis('flow-matrix').check().prepare(monitored).run().matrix_.sum(a
 `distributed_delay(value, time, order, conserved=True)` is a material delay of any order, hidden stocks in series whose
 outflow it returns, and with `conserved=False` an information smoothing. It adds hidden stocks
 `<element path>.<kind>_delay<order>_<index>` to rate laws of single elements and interactions, starting in
-equilibrium with their input. The system-dynamics names `delay1`, `delay3`, `smooth`, and `smooth3` are its
-realizations in `skcomplex.models.engineering.processes`.
+equilibrium with their input. The system-dynamics names `delay1`, `delay3`, and `smooth` of
+`skcomplex.core.laws.utils` are its cases.
 
 `LoopAnalysis('loops')` derives the signed dependency graph of a system from the laws, and lists its feedback loops
 with their polarity, and `LoopAnalysis('dominance')` ranks the loops by their gains at every frame of a trajectory. An
@@ -2193,13 +2236,12 @@ print([issue.code for issue in PassCompiler(solver=PontryaginSolver()).check().p
 
 ### Feedback controllers
 
-Feedback controllers are realizations of the control models, in `skcomplex.models.engineering.control`, so the core
-holds none. `PIDInteraction(label, plant=, integrator=, control=, measure=, kp=, ki=, kd=, setpoint=)` sets the
-control input `control` of the plant to `kp e + ki ∫ e dt - kd y'` from the error `e = setpoint - y` of its state
-`measure`, with the integral of the error in an `IntegratorElement` element. `StateFeedbackInteraction(label, plant=,
-control=, states=, gain=)` sets it to `-K x`. Both set the control after every solver step, as boundary laws, so a
-fixed-step solver with small steps makes them close to continuous controllers. The engineering models
-`pid_inverted_pendulum` and `lqr_oscillator` use them.
+The core holds no feedback controller, because a controller is an `Interaction` of your own. Its control input is an
+adaptive parameter of the plant, and it sets that parameter with a `BoundaryLaw`. A proportional-integral-derivative
+controller sets it to `kp e + ki ∫ e dt - kd y'` from the error `e = setpoint - y` of a measured state, and adds a
+`RateLaw` for the integral of the error on an element of its own. A state feedback controller sets it to `-K x`. A
+boundary law sets the control after every solver step, so a fixed-step solver with small steps makes the controller
+close to a continuous one. The models `pid_inverted_pendulum` and `lqr_oscillator` are built this way.
 
 ### Linear analysis
 
@@ -2258,9 +2300,6 @@ library of ready-made models built from the other four, and none of them imports
 `skcomplex.core` defines what a system is, and nothing about how it runs. Its modules are listed in their import
 order, so a module imports only the modules above it.
 
-- `errors`: the errors of the package, such as `ValidationError`, `RoleError`, and `SolverError`.
-- `specs`: the specs that annotate states, parameters, and roles, such as `StateSpec`, `ParameterSpec`, and `RoleSpec`,
-  and the specs of runs and structures, such as `ObservableSpec`, `WienerProcessSpec`, and `RequirementSpec`.
 - `types`: the types that annotations share.
 - `base`: `BasePart`, the base of every part, with the verbs `check`, `prepare`, and `run`.
 - `spaces`: the continuous, lattice, network, mesh, and Cayley spaces, their neighbourhoods, and the kinds of time.
@@ -2270,6 +2309,13 @@ order, so a module imports only the modules above it.
   bases `Interaction`, `NeighborInteraction`, `PairInteraction`, and `HyperedgeInteraction` with the general
   interactions built on them.
 - `system`: `System`.
+- `specs`: the specs that name classes of the core, as a compilation reads them.
+
+Every package shares the root modules. `skcomplex.errors` holds the errors, such as `ValidationError`, `RoleError`,
+`SolverError`, and `RewritingError`. `skcomplex.specs` holds the specs that annotate states, parameters, and roles, such
+as `StateSpec`, `ParameterSpec`, and `RoleSpec`, the specs of runs and structures, such as `ObservableSpec` and
+`WienerProcessSpec`, and the specs of rules, domains, and geometries, such as `TableSpec`, `LinearRuleSpec`,
+`SubshiftSpec`, and `GeometrySpec`. `skcomplex.types` holds the types of the package.
 
 ### The engine
 
@@ -2296,9 +2342,9 @@ visuals are parts of the engine, beside those of every other kind.
 | Kind | Core | Engine |
 | --- | --- | --- |
 | agents | `RuleLaw`, `MatchLaw` | the agents passes, `MesaSolver` |
-| lattices | `LocalRuleLaw`, `DriveLaw`, `CascadeLaw`, `ExtremalLaw`, `LatticeElement`, `LatticeSpace`, `ObjectiveSpec`, `SamplerSpec` | `LatticeSolver`, `MonteCarloSolver` |
+| lattices | `LocalRuleLaw`, `LocalRuleInteraction`, `DriveLaw`, `CascadeLaw`, `ExtremalLaw`, `LatticeElement`, `LatticeSpace`, `ObjectiveSpec`, `SamplerSpec` | `LatticeSolver`, `MonteCarloSolver` |
 | finitely generated groups | `CayleySpace` | `CayleyVisual` |
-| rewriting, in `skcomplex.models.mathematics.fractals` | `ProductionLaw`, `SubstitutionLaw`, `WordElement`, `PatchElement` | `RewritingCompiler`, `RewritingSolver`, `GeometryVisual` |
+| rewriting | `ProductionLaw`, `SubstitutionLaw`, `WordElement`, `PatchElement` | `RewritingCompiler`, `RewritingSolver`, `GeometryVisual` |
 | operator | `GeneratorLaw`, `DissipatorLaw`, `HilbertSpec` | a system compiler, `UnitarySolver`, `LindbladSolver`, `JumpTrajectoriesSolver` |
 | fields | `FieldElement`, `FluxLaw`, `MeshSpace`, `laplacian` and the other operators | the fields passes, `IMEXEulerSolver`, `CrankNicolsonSolver`, `SSPRKSolver` |
 | kinetics | `EncounterLaw`, `moment` | the encounter passes, `KineticSolver` |
@@ -2312,8 +2358,8 @@ sets `report_`, the issues it found, and `run(initial_state)` raises the errors 
 sets `solver_`, the solver it names for the problem. `Simulation` and `compile_system` take the compiler as the
 `compiler` setting. The default `PassCompiler` compiles every system but operator ones through its passes, which lower
 each law to the problem of its form, and names the compiler a system needs when it is another. An operator system takes
-`compiler=OperatorCompiler()`, and a model package can bring the compiler of a form of its own, with the solver it
-names, as the fractal models do for rewriting.
+`compiler=OperatorCompiler()`, and a rewriting system `compiler=RewritingCompiler()`. A package of your own can bring the
+compiler of a form of its own, with the solver it names.
 
 ### Writing a law
 
@@ -2402,10 +2448,9 @@ A class enters the core when it is a fundamental paradigm, such as a variational
 Markov jump process, a reaction network, or imitation dynamics, and when it applies in principle to other domains than
 the one that first needs it. How many fields use it today does not decide it.
 
-A case of one field is a thin subclass of a general class in `skcomplex.models`, even when it only renames arguments.
-It lives with the one model package that uses it, or in `skcomplex.models.<field>.common.<family>` when several
-packages of the field share it, such as `physics.common.particles` or `biology.common.populations`. These subclasses
-are also the examples of how to build a part of your own.
+A case of one field is a thin subclass of a general class in the model library, even when it only renames arguments.
+It lives with the one model that uses it, or with the code its field shares when several models use it. These
+subclasses are also the examples of how to build a part of your own, and the page of a model shows them.
 
 ```python
 from skcomplex.core.interactions import RateInteraction
@@ -2923,8 +2968,8 @@ print([(event.label, round(event.time, 3)) for event in events])
 
 `SamplingInteraction(target, state, objective, move='flip', intensity=1.0)` runs Monte Carlo sweeps whose moves are
 accepted from the change of an objective with probability `exp(-intensity * change)`, or Wolff cluster flips with
-`move='cluster'`. Physics models read an energy at a temperature through its thin subclass
-`ThermalSamplingInteraction` of `skcomplex.models.physics.common.spins`, which gives the core one over the temperature.
+`move='cluster'`. To sample an energy at a temperature, pass the energy as the objective and one over the temperature
+as the intensity.
 
 ```python
 from typing import Annotated
@@ -3533,9 +3578,9 @@ terms of the independent ones, and a `RateLaw` on it takes a matrix.
 - `symmetric_part(M)` and `antisymmetric_part(M)` split a matrix, so the strain rate of a velocity is
   `symmetric_part(vector_gradient(u))`.
 - `T.apply_map(laplacian)` is the Laplacian of a matrix, entry by entry, as `v.apply_map(laplacian)` is that of a vector.
-- `corotational(T, u, xi)` of `skcomplex.models.physics.common.fields` is the transport of a symmetric tensor or a vector
-  that advects it, rotates it with the vorticity, and aligns it with the strain rate by `xi`. `upper_convected(T, u)` is
-  the upper-convected transport. A law subtracts them from its rate.
+- The transport of a tensor or a vector by a flow, which advects it, rotates it with the vorticity, and aligns it with
+  the strain rate, is an expression of `advection`, `vector_gradient`, `symmetric_part`, and `antisymmetric_part`. A law
+  subtracts it from its rate.
 - `leray_projection(v)` is the divergence-free part of a vector, `v - gradient(inverse_laplacian(divergence(v)))`, exact
   on spectral fields of periodic lattices. A velocity odd about the middle of an axis, set by the `symmetry` of the field,
   gives walls there.
@@ -3765,8 +3810,8 @@ print(trajectory.agents('queues', 1).values['orders'].tolist())
 
 ## The model library
 
-`skcomplex.models` is the library of ready-made models, organised by scientific field and subfield as
-`skcomplex.models.<field>.<subfield>`.
+`skcomplex.models` is the library of ready-made models. Each has a field path `<field>/<subfield>`, which `catalog` takes
+as a filter.
 
 | Field | Subfields |
 | --- | --- |
@@ -3793,7 +3838,7 @@ it.
 | --- | --- | --- | --- |
 | `structures` | Biopython | `fuzzy_oil_drop`, `early_stage_folding_intermediate` | Biopython 1.88 publishes no wheel for macOS on Intel, so the extra builds it from source there with a C compiler. |
 | `rna` | ViennaRNA | `rna_neutral_networks` | The licence of ViennaRNA allows research and commercial use, forbids redistribution for a fee, and is not OSI approved, so the default install never brings it. |
-| `trajectories` | MDTraj | none, `read_trajectory` of the systems biology models | MDTraj is under the LGPL. |
+| `trajectories` | MDTraj | none, it reads molecular dynamics trajectories for the systems biology models | MDTraj is under the LGPL. |
 
 ### The model catalog
 
@@ -3820,48 +3865,8 @@ The models are examples of the core interface, not a separate one, so each is al
 The page of every field, under Models in the documentation, shows each model's factory, its element and interaction
 types with their states, parameters, and laws as written, and, for differential equations and maps, its equations as
 `SymbolicAnalysis('equations')` returns them. A model of your own follows the same steps: declare the element and
-interaction types, write a factory that returns the system, and register it with `register_model`.
-
-```python
-from typing import Annotated
-
-from sage.all__sagemath_symbolics import oo
-from sage.sets.real_set import RealSet
-
-from skcomplex.core.elements import Element
-from skcomplex.core.laws import RateLaw
-from skcomplex.specs import ParameterSpec, StateSpec
-from skcomplex.core.system import System
-from skcomplex.models import create, register_model
-
-
-class TankElement(Element):
-    def __init__(
-        self,
-        label,
-        *,
-        level: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        k: Annotated[float, ParameterSpec()] = 0.5,
-    ):
-        super().__init__(label)
-        self.level = level
-        self.k = k
-
-    def _get_laws(self, s):
-        return [RateLaw(s.level, -s.k * s.level)]
-
-
-@register_model(field='examples/processes', references=('Torricelli 1643',), defaults={'until': 5})
-def draining_tank(level: float = 2.0) -> System:
-    """Return a tank that drains at a rate proportional to its level."""
-    return System(elements=[TankElement('tank', level=level)])
-
-
-print(create('draining_tank').elements[0].level)
-```
-
-Every registered factory needs defaults for all of its arguments, so the catalog can create, compile, simulate,
-visualize, and clone every model through the same interface.
+interaction types, and write a function that returns the system. The
+[contributing guide](../development/contributing.md#adding-a-model-to-the-catalog) covers adding a model to the catalog.
 
 ### Inventory
 
@@ -4255,7 +4260,7 @@ print(space.size_, space.shape_, space.periodic_, space.positions_[4].tolist())
 **Local rules.** `LocalRuleLaw(targets, over, rule)` computes a cell's next value from the ordered values of its
 neighbourhood. `MooreNeighborhood`, `VonNeumannNeighborhood`, `BoxNeighborhood`, or `LatticeNeighborhood(offsets)`
 give the offsets. A rule is a `TableSpec` of patterns, a `TotalisticSpec` or `OuterTotalisticSpec` rule from
-`skcomplex.core.laws.utils`, a rule code whose `table()` returns a table, such as `Wolfram` of the automata models, or
+`skcomplex.core.laws.utils`, a rule code whose `table()` returns a table, or
 a function of NumPy arrays, one per neighbour, that also receives the parameters it names and, for stochastic rules,
 uniform random numbers. Tables and totalistic rules run as lookups, fused into one compiled loop on the Numba backend.
 
@@ -4496,9 +4501,8 @@ Square lattice groups stream to Rerun as images colored by value, and triangular
 sites with `SiteVisual`: hexagonal cells at the site positions, or nodes colored by state with their edges logged
 once. The library has `elementary_automaton`, `game_of_life`, `majority_rule`, `langtons_ant`,
 `nagel_schreckenberg`, `hodgepodge`, `sandpile`, `forest_fire`, `hexagonal_forest_fire`, `earthquakes`, `ising`,
-`graph_ising`, `potts`, `xy`, `fhp_lattice_gas`, and `bak_sneppen`, each in the subfield of its science, such as
-`skcomplex.models.computer_science.automata` for `game_of_life` and `skcomplex.models.physics.statistical_mechanics`
-for `ising`.
+`graph_ising`, `potts`, `xy`, `fhp_lattice_gas`, and `bak_sneppen`, each under the field path of its science, such as
+`computer_science/automata` for `game_of_life` and `physics/statistical_mechanics` for `ising`.
 
 ## Networks
 
@@ -5359,9 +5363,8 @@ binned = GroupElement('wealth', element=WealthDensityElement, size=classes.size,
 print(round(float(density.sum()), 6), round(float(density @ classes), 3), round(float(traders.values['w'].mean()), 3))
 ```
 
-The library has `kinetic_wealth_welfare` in `skcomplex.models.economics.econophysics`, `immune_competition` in
-`skcomplex.models.biology.oncology`, `kinetic_opinion` in `skcomplex.models.social.opinion_dynamics`, and `evacuation`
-and `criminality` in `skcomplex.models.social.crowds`. `evacuation` holds a crowd on a network of rooms as a site group
+The library has `kinetic_wealth_welfare`, `immune_competition`, `kinetic_opinion`, `evacuation`, and `criminality`.
+`evacuation` holds a crowd on a network of rooms as a site group
 on a two-dimensional lattice indexed by room and speed class, whose walking encounters read the doors of the building.
 
 ### Automata on groups
@@ -5383,9 +5386,9 @@ works:
 - A free group, `libgap.FreeGroup(['a', 'b'])`, reduces its words directly, and a finitely presented group,
   `free / relators`, is solved by Knuth-Bendix completion with KBMAG in GAP. A presentation it cannot complete raises
   `SpaceError`, which asks for a finite quotient.
-- An automaton group of the AutomGrp package, such as `libgap.AutomatonGroup('t = (1, t)(1, 2)')` for the adding
-  machine, has its elements told apart by their action on a level of the tree, and `libgap.PermGroupOnLevel(group, n)`
-  is its finite quotient on level `n`.
+- An automaton group of the AutomGrp package, which `libgap.LoadPackage('automgrp')` loads, such as
+  `libgap.AutomatonGroup('t = (1, t)(1, 2)')` for the adding machine, has its elements told apart by their action on a
+  level of the tree, and `libgap.PermGroupOnLevel(group, n)` is its finite quotient on level `n`.
 - A Sage `PermutationGroup` or `MatrixGroup` compares its elements directly.
 
 GAP comes with the `passagemath-gap` dependency and starts on the first ball that needs it. A ball whose size bound
@@ -5429,26 +5432,28 @@ print(tree.ball_sizes_, Simulation(majority, dt=1).check().prepare().run(until=3
 print(CayleySpace(PermutationGroup([[(1, 2)], [(1, 2, 3)]])).check().prepare().words_)
 ```
 
-Named groups are realizations of the automata models: `free_group`, `heisenberg`, `lamplighter`, `baumslag_solitar`,
-and `grigorchuk_group` of `skcomplex.models.computer_science.automata`. The Grigorchuk group, which acts on the binary
-tree by `a = (1, 1)(0 1)`, `b = (a, c)`, `c = (a, d)`, `d = (1, b)`, is not finitely presented, and its balls grow
-faster than any polynomial and slower than any exponential. Its action on level 3 of the tree is a finite quotient.
+The core names no specific group, so you write a named group in one of these forms. The Grigorchuk group, which acts on
+the binary tree by `a = (1, 1)(1, 2)`, `b = (a, c)`, `c = (a, d)`, `d = (1, b)`, is an automaton group. It is not
+finitely presented, and its balls grow faster than any polynomial and slower than any exponential. Its action on
+level 3 of the tree is a finite quotient.
 
 ```python
 from sage.all__sagemath_gap import libgap
 
 from skcomplex.core.spaces import CayleySpace
-from skcomplex.models.computer_science.automata import grigorchuk_group
 
-ball = CayleySpace(grigorchuk_group(), ball=6).check().prepare()
-quotient = CayleySpace(libgap.PermGroupOnLevel(grigorchuk_group(), 3)).check().prepare()
+libgap.LoadPackage('automgrp')
+grigorchuk = libgap.AutomatonGroup('a = (1, 1)(1, 2), b = (a, c), c = (a, d), d = (1, b)')
+ball = CayleySpace(grigorchuk, ball=6).check().prepare()
+quotient = CayleySpace(libgap.PermGroupOnLevel(grigorchuk, 3)).check().prepare()
 print(ball.ball_sizes_, quotient.size_)
 ```
 
 **Theory of automata.** `skcomplex.analysis` decides the properties the theory studies on finite universes, where
 they are decidable: periodic configurations on a torus or a finite quotient, and patterns on windows. The checks do
-not decide them on infinite groups. A cellular automaton is a `System` with a `LocalRuleInteraction`, the run of a
-`LocalRuleLaw` is one step of the map on configurations, and `AutomatonAnalysis` prepares on the system.
+not decide them on infinite groups. A cellular automaton is a `System` with a `LocalRuleInteraction`, and
+`AutomatonAnalysis` prepares on the system. The `run` of a `LocalRuleLaw` is one step of the map on configurations, so
+several steps are a loop over that `run` or a `Simulation` of the system.
 
 - The kinds `'injective'` and `'surjective'`, which agree on a finite universe, enumerate the configurations of small
   universes and solve a SAT encoding with PySAT on larger ones. `'pre-injective'` asks whether two configurations that
@@ -5469,6 +5474,7 @@ from skcomplex.core.interactions import LocalRuleInteraction
 from skcomplex.core.laws import LocalRuleLaw
 from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace, MooreNeighborhood
 from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
 from skcomplex.specs import OuterTotalisticSpec, StateSpec, TableSpec
 
 
@@ -5493,6 +5499,16 @@ back = AutomatonAnalysis('inverse').check().prepare(shift).run().inverse_
 composition = AutomatonAnalysis('compose', second=back).check().prepare(shift).run().composition_.interactions[0]
 law = LocalRuleLaw(var('alive'), composition.neighborhood, composition.rule).check().prepare()
 print(law.run({'space': ring, 'alive': [1, 0, 1, 1, 0, 0, 0, 1]}).value_.tolist())
+
+step = LocalRuleLaw(var('alive'), shift.interactions[0].neighborhood, shift.interactions[0].rule).check().prepare()
+cells = [1, 0, 1, 1, 0, 0, 0, 0]
+for _ in range(2):
+    cells = step.run({'space': ring, 'alive': cells}).value_
+start = LatticeElement('cells', element=CellElement, space=ring, values={'alive': [1, 0, 1, 1, 0, 0, 0, 0]})
+started = System(elements=[start], interactions=shift.interactions)
+frames = Simulation(started, dt=1).check().prepare().run(until=2).trajectory_.values('cells.alive')
+print(cells.tolist(), frames[-1].astype(int).tolist())
+assert cells.tolist() == frames[-1].astype(int).tolist()
 ```
 
 **Linear automata and subshifts.** The rule `LinearRuleSpec(coefficients, field)` is the element
@@ -5500,9 +5516,10 @@ print(law.run({'space': ring, 'alive': [1, 0, 1, 1, 0, 0, 0, 1]}).value_.tolist(
 injectivity, surjectivity, and pre-injectivity together, and on `Z^d`, with `infinite=True`, its Laurent polynomial
 decides them: it is invertible when the polynomial is a monomial and surjective when it is not zero.
 The kinds `'matrix'` and `'polynomial'` of `AutomatonAnalysis` give them. `SubshiftSpec(neighborhood, forbidden)` is the
-domain of a state whose configurations hold no forbidden pattern. The kinds `'admissible'` and `'violations'` check a
-configuration, `'count'` counts the admissible ones of a window, and `'sample'` samples them by a Markov chain of
-single-cell moves.
+domain of a state whose configurations hold no forbidden pattern. Admissibility is an analysis kind, and a run does not
+enforce it: a run checks only that every cell holds a value of the alphabet, so it runs from a configuration with a
+forbidden pattern. The kinds `'admissible'` and `'violations'` check a configuration, `'count'` counts the admissible
+ones of a window, and `'sample'` samples them by a Markov chain of single-cell moves.
 `AutomatonAnalysis('entropy', windows=windows)` gives `log |X_F| / |F|` along windows `F`, and
 `AutomatonAnalysis('difference')` the cells where two runs differ after one cell changes.
 `EntropyAnalysis('rate')` of the frames of a run as columns gives the spatial entropy rate of every frame, which never
@@ -5518,7 +5535,8 @@ from skcomplex.core.elements import Element, LatticeElement
 from skcomplex.core.interactions import LocalRuleInteraction
 from skcomplex.core.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.core.system import System
-from skcomplex.specs import LinearRuleSpec, StateSpec, SubshiftSpec
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import LinearRuleSpec, StateSpec, SubshiftSpec, TableSpec
 
 
 class CellElement(Element):
@@ -5564,11 +5582,24 @@ print(
 windows = [LatticeSpace(24, boundary='fixed')]
 system = golden(windows[0])
 print(AutomatonAnalysis('entropy', windows=windows).check().prepare(system).run().entropy_.round(3))
+
+forbidden = [1, 1, 0, 0, 0]
+cells = LatticeElement('cells', element=GoldenCellElement, space=LatticeSpace(5), values={'alive': forbidden})
+keep = LocalRuleInteraction(
+    'keep',
+    target='cells',
+    state='alive',
+    rule=TableSpec({(1,): 1}),
+    neighborhood=LatticeNeighborhood(((0,),)),
+)
+held = System(elements=[cells], interactions=[keep])
+print(AutomatonAnalysis('admissible', configuration=forbidden).check().prepare(held).run().admissible_)
+print(Simulation(held, dt=1).check().prepare().run(until=2).trajectory_.values('cells.alive')[-1].astype(int).tolist())
 ```
 
 The library has `free_group_automaton`, `lamplighter_automaton`, `heisenberg_automaton`, `baumslag_solitar_automaton`,
-`grigorchuk_automaton`, the Laplacian `linear_ring_automaton`, and the golden mean shift `subshifts` in
-`skcomplex.models.computer_science.automata`.
+`grigorchuk_automaton`, the Laplacian `linear_ring_automaton`, and the golden mean shift `subshifts`, under the field
+path `computer_science/automata`. Their groups are written in the forms above.
 
 ## Fields
 
@@ -5630,8 +5661,7 @@ Agents on a grid of the same shape couple to a field in co-simulation. A rule re
 `model.field('ground/pheromone.level', cell)` and adds to it with `model.deposit(name, cell, amount)`, and the
 deposits reach the field at the next synchronisation point. Lattice fields stream to Rerun as images. The library has
 `heat_diffusion`, `fisher_kpp`, `gray_scott`, `brusselator`, `fitzhugh_nagumo`, `schnakenberg`, and
-`pheromone_foraging`, such as `gray_scott` in `skcomplex.models.chemistry.pattern_formation` and `heat_diffusion` in
-`skcomplex.models.physics.heat`.
+`pheromone_foraging`, which you select by name, such as `create('gray_scott')`.
 
 ### Discretizations and stiff solvers
 
@@ -5717,11 +5747,9 @@ On Fisher-KPP on 4000 points, whose largest eigenvalue is about 1600, run to `t 
 0.8 s for `CrankNicolsonSolver(dt=0.01)`. Spectral fields keep `ETDRK4Solver` and the IMEX steppers, which win there
 because their linear part is diagonal in Fourier space while its pattern is dense.
 
-`skcomplex.models.physics.fluids.incompressible_flow(shape, size, nu=..., forcing=..., buoyancy=...)` builds
-two-dimensional incompressible flow in vorticity-streamfunction form, with Boussinesq convection when `buoyancy` gives
-`Ra` and `Pr`. The library has `kuramoto_sivashinsky`, `complex_ginzburg_landau`, `swift_hohenberg`, and `heat_l_shape`
-in the subfields `fluids`, `pattern_formation`, and `heat` of `skcomplex.models.physics`, and `burgers`,
-`shallow_water`, `decaying_turbulence`, and `rayleigh_benard` in `skcomplex.models.physics.fluids`.
+The model `decaying_turbulence` is two-dimensional incompressible flow in vorticity-streamfunction form, and
+`rayleigh_benard` adds Boussinesq convection, with `Ra` and `Pr`. The library also has `kuramoto_sivashinsky`,
+`complex_ginzburg_landau`, `swift_hohenberg`, `heat_l_shape`, `burgers`, and `shallow_water`.
 
 ### Nonlocal operators
 
@@ -6130,7 +6158,8 @@ law it cannot run. The translation is the following.
 | a class in `fixes` | its native fix, such as `fix addforce`, `fix viscous`, or `fix langevin` |
 | any other interaction that only changes the derivatives of the positions | `fix external`, evaluated by the framework every step |
 
-`LangevinThermostatInteraction` becomes `fix langevin`, seeded from the simulation's random state.
+A function in `fixes` reads a seed from the simulation's random state with `fix.seed()`, for a stochastic fix such as
+`fix langevin`.
 
 ## Agent-based models
 
@@ -6212,8 +6241,8 @@ print(int(trajectory.values('foragers.count')[-1]), len(trajectory.agents('forag
   agents on the nodes of a NetworkX graph, and `ContinuousSpace` finds neighbours within a radius.
 - Frames and trajectories hold every group's agents with their ids, states, and locations, through
   `trajectory.agents(group, frame)`, and the count of every group as the reporter `<group>.count`.
-- `skcomplex.models.social` has Schelling segregation and the voter model, `skcomplex.models.economics.econophysics`
-  has Boltzmann wealth exchange, and `skcomplex.models.biology.ecology` has the wolf and sheep model.
+- The catalog has Schelling segregation as `schelling`, the voter model as `voter_model`, Boltzmann wealth exchange as
+  `boltzmann_wealth`, and the wolf and sheep model as `wolf_sheep`.
 
 ```python
 from typing import Annotated
@@ -6316,8 +6345,8 @@ agents learn from their past.
   `model.report(name, value)`. `model.storage` keeps private values of an element or an interaction across the steps of
   a run.
 - Learning blocks: `agent.lags(state, window)`, a method of the agent view a rule receives, returns the past values of a
-  state declared with lags, `StateSpec(lags=m)`. In `skcomplex.models.economics.common.forecasting`, `heuristics` has
-  adaptive, trend-following, anchoring, and fundamentalist forecasts. In `skcomplex.core.interactions`,
+  state declared with lags, `StateSpec(lags=m)`. A rule writes adaptive, trend-following, anchoring, and fundamentalist
+  forecasts from these values, as the model `brock_hommes` does. In `skcomplex.core.interactions`,
   `ChoiceInteraction(form='agent')` draws an option by the logit, Metropolis, Fermi, or best rule from a utility
   `utility(agent, model, option)` that can read `model.history` and `model.storage`, `ReinforcementInteraction` moves
   the scores of options towards their realized payoffs, or with `chosen` only the score of the option a member chose,
@@ -6733,15 +6762,15 @@ in the bounds the element declares or that its first tiles give.
 
 ## Quantum systems
 
-The core names this machinery for its mathematics, linear operator dynamics on tensor products, and physics keeps
-its words in `skcomplex.models.physics.common.quantum`. `GeneratorLaw` takes a Hermitian operator.
+The core names this machinery for its mathematics, linear operator dynamics on tensor products, and the physics models
+keep the words of physics. `GeneratorLaw` takes a Hermitian operator.
 
 A quantum system is a set of quantum subsystems whose state is one vector of their joint Hilbert space. Every
-subsystem holds its state `psi` in the Hilbert space of a `HilbertSpec`, which names its operators. The realizations of
-`skcomplex.models.physics.common.quantum` hold the common subsystems: `SpinElement` has the components `x`, `y`,
-`z` and the ladder operators `plus` and `minus` of spin `j`, `QubitElement` has the Pauli matrices, `ModeElement` has
-`annihilate`, `create`, and `number` truncated at `quanta`, and `SiteElement` is a particle on the sites of a lattice
-or a network with its `laplacian` and its `adjacency`. A group of subsystems, such as a `LatticeElement` of spins, is
+subsystem holds its state `psi` in the Hilbert space of a `HilbertSpec`, which names its operators, so you declare a
+subsystem of your own with the operators it needs. A spin has the components `x`, `y`, `z` and the ladder operators
+`plus` and `minus` of spin `j`, a qubit has the Pauli matrices, a mode has `annihilate`, `create`, and `number`
+truncated at `quanta`, and a particle on the sites of a lattice or a network has its `laplacian` and its `adjacency`.
+A group of subsystems, such as a `LatticeElement` of spins, is
 the tensor product of its members' spaces in member order, and the initial state of every subsystem is a basis label,
 an index, or a vector.
 
@@ -7242,7 +7271,7 @@ print(round(float(trajectory.values('decay/unit.a')[-1]), 3), bool(trajectory.va
 - Local learning rules, such as Hebb's and Oja's, change a weight from its own activity, so they are update or rate
   laws on weight states, as in the `hopfield` model, and need no training interaction.
 
-`elman_network` of `skcomplex.models.computer_science.neural_networks` trains Elman's simple recurrent network on the
+The model `elman_network` trains Elman's simple recurrent network on the
 temporal XOR stream. Its visual draws the loss and the metrics as the first view and the trained matrices as heat maps
 through `MatrixVisual`, chosen by `VisualSpec('matrix')`.
 
@@ -7258,8 +7287,8 @@ binds a single element reports the issue `parameter-shape`, with the fix of bind
 A role repeated `k` times, `shape=('target',) * k`, gives a coupling tensor of order `k` among the members of a group,
 and `contraction(T, a, b)` of `skcomplex.core.laws.utils` returns `sum_jk T_ijk a_j b_k` for every member `i`, with one
 expression per index after the first. Matrices keep `total(x, weights=W)`. A tensor of order `k` over `N` members
-holds `N^k` entries, a million for order 3 over 100 members. `higher_order_random_lotka_volterra` of
-`skcomplex.models.biology.ecology` builds the random community of Sidhom and Galla (2024) on such a tensor.
+holds `N^k` entries, a million for order 3 over 100 members. The model `higher_order_random_lotka_volterra` builds the
+random community of Sidhom and Galla (2024) on such a tensor.
 
 ```python
 from typing import Annotated
@@ -7422,8 +7451,7 @@ print(EventAnalysis().check().prepare([0, 2, 3, 0, 0, 1, 0]).run().sizes_.tolist
 coefficient fitted over a chosen range of lags. The fluctuation analyses come from `nolds`: detrended
 fluctuation of any order, which gives `H + 1` for an integrated series such as a random walk, or the rescaled range.
 `RollingAnalysis` gives the variance, the lag-one autocorrelation, or the skewness in rolling windows with its
-trend, and `EarlyWarningAnalysis` of `skcomplex.models.physics.climate` gathers them with spectral reddening as early
-warnings of tipping.
+trend, and a rising trend of these is an early warning of tipping.
 `InformationAnalysis` measures structure and information flow by its `kind`, such as `'mutual'` and `'transfer'`, as in
 Lindgren's information theory of complex systems, and `EntropyAnalysis` gives the Shannon, block, rate, excess,
 permutation, and Lempel-Ziv entropies by its `kind`. Its setting `symbols` turns real series into symbols first: bins of
@@ -7791,8 +7819,9 @@ with `'wavelength'`, and the interfaces between domains with `'interface-density
 `ScalingAnalysis('variance-mean')` the number fluctuations of density fields in boxes of growing side. `ClusterAnalysis`
 with the kinds `'sizes'`, `'percolation'`, and `'spanning'` describes clusters of grids and components of graphs, and
 `DistributionAnalysis('moment-ratio')` with `CollapseAnalysis` of the kinds `'crossings'` and `'scaling'` locate
-transitions by finite-size scaling. `SusceptibilityAnalysis` of `skcomplex.models.physics.statistical_mechanics`
-locates the peak of the susceptibility over a temperature sweep of the spin models.
+transitions by finite-size scaling. The variance from `DistributionAnalysis('moments', absolute=True)` of an order
+parameter, scaled by the system size, is the susceptibility, and its peak over a temperature sweep of a spin model
+locates the transition too.
 `StabilityAnalysis('dispersion')` predicts patterns from a field model's laws before running it: it linearises them
 around a uniform state, turns every Laplacian into its eigenvalue on each Fourier mode of the lattice, and returns the
 growth rate and frequency of every mode, exact for the model's discretization. A band of growing modes is a Turing
@@ -7820,9 +7849,9 @@ print(DistributionAnalysis('moment-ratio').check().prepare(samples).run().cumula
 `AlignmentAnalysis` measures the alignment of every frame of agents, of a field of angles or vectors, or of series of
 phases, by the length of the mean vector, the mean rotation, the axial order, or the mean phase. The active matter
 models name them the polar, milling, and nematic orders, and the synchronization models the Kuramoto order.
-`DistributionAnalysis` and `FitAnalysis` read the speeds of moving agents, and `KineticTemperatureAnalysis` and
-`MaxwellBoltzmannAnalysis`, next to the gases of `skcomplex.models.physics.statistical_mechanics`, compare velocities
-with the Maxwell-Boltzmann law of their dimension. `NeighborAnalysis` describes point patterns in
+`DistributionAnalysis` and `FitAnalysis` read the speeds of moving agents, so `FitAnalysis(law='maxwell')` in three
+dimensions and `FitAnalysis(law='rayleigh')` in two compare the speeds of a gas, such as the model `ideal_gas`, with the
+Maxwell-Boltzmann law. `NeighborAnalysis` describes point patterns in
 open or periodic boxes by their nearest-neighbour `'distances'`, their `'clark-evans'` ratio, and their
 `'radial-distribution'`, and `CoarseGrainAnalysis` turns agents into density or polarization fields for the field
 analyses. `NeighborAnalysis('like-share')` and `DomainAnalysis('interface-density')` measure segregation on grids and
@@ -7848,8 +7877,9 @@ print(ratio.round(1).tolist(), float(field.sum()))
 `EventAnalysis('excursions')` extracts avalanches from activity series or relaxation records, and
 `FitAnalysis(law='power')` fits their size and duration laws. `EventAnalysis('branching')` estimates the branching
 ratio by the multistep regression of `mrestimator`, which stays unbiased under subsampling.
-`CracklingNoiseAnalysis` of `skcomplex.models.physics.criticality` checks the scaling relation between the exponents of
-the sandpiles' avalanches and collapses their mean shapes. `DistributionAnalysis('moments')` gives the
+The exponents `tau_S` of the sizes and `tau_T` of the durations predict the mean size against the duration,
+`<S>(T) ~ T^((tau_T - 1) / (tau_S - 1))`, the crackling-noise relation of avalanches such as those of the model
+`sandpile`. `DistributionAnalysis('moments')` gives the
 order parameter and its variance over a sweep, `ScalingAnalysis('power')` fits the order-parameter exponent, and
 `CorrelationAnalysis('overlap')` compares replicas.
 

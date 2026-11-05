@@ -68,6 +68,52 @@ The next steps should be followed during development:
 - `pdm tests` to run the tests.
 - `pdm docs serve` if you updated the documentation or the project dependencies to check that everything looks as expected.
 
+### Adding a model to the catalog
+
+A model of the library is a function that returns a system, registered with `register_model`. Declare the element and
+interaction types, write the function, and register it with its field path, references, and default run settings.
+
+```python
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from skcomplex.core.elements import Element
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.system import System
+from skcomplex.models import create, register_model
+from skcomplex.specs import ParameterSpec, StateSpec
+
+
+class TankElement(Element):
+    def __init__(
+        self,
+        label,
+        *,
+        level: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        k: Annotated[float, ParameterSpec()] = 0.5,
+    ):
+        super().__init__(label)
+        self.level = level
+        self.k = k
+
+    def _get_laws(self, s):
+        return [RateLaw(s.level, -s.k * s.level)]
+
+
+@register_model(field='examples/processes', references=('Torricelli 1643',), defaults={'until': 5})
+def draining_tank(level: float = 2.0) -> System:
+    """Return a tank that drains at a rate proportional to its level."""
+    return System(elements=[TankElement('tank', level=level)])
+
+
+print(create('draining_tank').elements[0].level)
+```
+
+Every registered function needs defaults for all of its arguments, so the catalog can create, compile, simulate,
+visualize, and clone every model through the same interface.
+
 ## Model gallery
 
 Every registered model has one example in the gallery of the documentation. The example runs the model, streams it to
