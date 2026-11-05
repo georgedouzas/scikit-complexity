@@ -6,18 +6,34 @@ import networkx as nx
 import pytest
 from sage.all__sagemath_symbolics import SR, cos, identity_matrix, sin, sqrt
 
-from skcomplex.core.elements import Element, FieldElement
-from skcomplex.core.interactions import Interaction
+from skcomplex.core.elements import Element, FieldElement, GroupElement
+from skcomplex.core.interactions import Interaction, RateInteraction, SamplingInteraction
 from skcomplex.core.laws import RateLaw
-from skcomplex.core.laws.utils import convolve, displacement, inverse_helmholtz, laplacian, tensor_divergence
-from skcomplex.core.spaces import LatticeSpace, NetworkSpace
+from skcomplex.core.laws.utils import (
+    codifferential,
+    convolve,
+    displacement,
+    exterior_derivative,
+    hodge_star,
+    inverse_helmholtz,
+    laplacian,
+    neighbors,
+    tensor_divergence,
+)
+from skcomplex.core.spaces import (
+    CellComplexSpace,
+    CofaceNeighborhood,
+    ContinuousTime,
+    DiscreteTime,
+    LatticeSpace,
+    NetworkSpace,
+)
 from skcomplex.core.system import System
-from skcomplex.engine.compile import OperatorCompiler, PassCompiler
+from skcomplex.engine.compile import OperatorCompiler, PassCompiler, RewritingCompiler
 from skcomplex.engine.problems import ProblemSpec
 from skcomplex.engine.solvers import GillespieSolver
 from skcomplex.errors import NotCheckedError, SolverError, ValidationError
 from skcomplex.models.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-from skcomplex.models.mathematics.fractals import RewritingCompiler
 from skcomplex.models.physics.common.quantum import QubitElement
 from skcomplex.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, ValidationReportSpec, VisualSpec
 
@@ -252,3 +268,144 @@ def test_prepare_reports_the_tensor_divergence_of_a_scalar():
     assert [issue.code for issue in issues] == ['law-domain']
     assert 'tensor_divergence' in issues[0].message
     assert 'u_film' in issues[0].message
+
+
+class _CellSiteElement(Element):
+    """Site with a value `u`."""
+
+    def __init__(self, label, visual=None, *, u: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label, visual=visual)
+        self.u = u
+
+
+class _CellLinkElement(Element):
+    """Link with a value `a`."""
+
+    def __init__(self, label, visual=None, *, a: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label, visual=visual)
+        self.a = a
+
+
+class _CellFaceElement(Element):
+    """Face with a value `f`."""
+
+    def __init__(self, label, visual=None, *, f: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label, visual=visual)
+        self.f = f
+
+
+def _cell_groups():
+    """Return groups on the sites, the edges, and the hyperedges of the complex of a lattice."""
+    space = CellComplexSpace(LatticeSpace((4, 4)))
+    return [
+        GroupElement('sites', element=_CellSiteElement, space=space, on='sites'),
+        GroupElement('links', element=_CellLinkElement, space=space, on='edges'),
+        GroupElement('faces', element=_CellFaceElement, space=space, on='hyperedges'),
+    ]
+
+
+def _report_of(system):
+    """Return the report of a system."""
+    return PassCompiler().check().prepare(system).report_
+
+
+def test_report_holds_one_degree_issue_per_law_with_its_own_path_and_fix():
+    """Test that a codifferential of a site state and a sampling of a hyperedge group give two issues."""
+    interactions = [
+        RateInteraction('down', target='sites', state='u', rate=lambda n: codifferential(n.target.u)),
+        SamplingInteraction(
+            'sample',
+            target='faces',
+            state='f',
+            objective=lambda n: n.target.f**2,
+            move='gaussian',
+            schedule='colored',
+        ),
+    ]
+    system = System(elements=_cell_groups(), interactions=interactions, time=ContinuousTime())
+    issues = [issue for issue in _report_of(system).issues if issue.code == 'law-degree']
+    assert sorted(issue.path for issue in issues) == ['down', 'sample']
+    assert 'exterior_derivative' in issues[0].fix
+    assert 'edges' in issues[1].fix
+
+
+def test_report_holds_a_degree_issue_for_an_exterior_derivative_of_the_highest_degree():
+    """Test that an exterior derivative of a hyperedge state on a complex of dimension 2 is reported."""
+    rate = RateInteraction('up', target='faces', state='f', rate=lambda n: exterior_derivative(n.target.f))
+    issues = _report_of(System(elements=_cell_groups(), interactions=[rate])).issues
+    assert [issue.code for issue in issues if issue.path == 'up'] == ['law-degree']
+    assert 'codifferential' in next(issue.fix for issue in issues if issue.path == 'up')
+
+
+def test_report_holds_a_degree_issue_for_a_value_of_another_degree():
+    """Test that a rate of a state from a value of another degree is reported, with or without an operation."""
+    twice = RateInteraction(
+        'twice',
+        target='links',
+        state='a',
+        rate=lambda n: exterior_derivative(exterior_derivative(n.target.a)),
+    )
+    bare = RateInteraction('bare', target='sites', state='u', sources=['faces'], rate=lambda n: n.sources[0].f)
+    wrong = RateInteraction(
+        'wrong',
+        target='sites',
+        state='u',
+        sources=['links'],
+        rate=lambda n: hodge_star(n.sources[0].a),
+    )
+    for interaction in (twice, bare, wrong):
+        issues = _report_of(System(elements=_cell_groups(), interactions=[interaction])).issues
+        assert [issue.path for issue in issues if issue.code == 'law-degree'] == [interaction.label]
+
+
+def test_report_holds_no_degree_issue_for_operations_of_the_right_degree():
+    """Test that a curl of a curl on links and a gradient of a site state are not reported."""
+    interactions = [
+        RateInteraction(
+            'curl',
+            target='links',
+            state='a',
+            rate=lambda n: codifferential(exterior_derivative(n.target.a)),
+        ),
+        RateInteraction(
+            'gradient',
+            target='links',
+            state='a',
+            sources=['sites'],
+            rate=lambda n: exterior_derivative(n.sources[0].u),
+        ),
+    ]
+    issues = _report_of(System(elements=_cell_groups(), interactions=interactions)).issues
+    assert not [issue for issue in issues if issue.code == 'law-degree']
+
+
+def test_report_holds_a_space_issue_for_cofaces_outside_a_cell_complex():
+    """Test that a coface reduction of a rate or of a sampling outside a cell complex is a law-space issue."""
+    space = NetworkSpace(nx.cycle_graph(4))
+    sites = GroupElement('sites', element=_CellSiteElement, space=space, on='sites')
+    rate = RateInteraction(
+        'rate',
+        target='sites',
+        state='u',
+        rate=lambda n: neighbors(n.target.u, over=CofaceNeighborhood()),
+    )
+    sampling = SamplingInteraction(
+        'sample',
+        target='sites',
+        state='u',
+        objective=lambda n: neighbors(n.target.u, over=CofaceNeighborhood()),
+        move='gaussian',
+        schedule='colored',
+    )
+    issues = _report_of(System(elements=[sites], interactions=[rate])).issues
+    assert [issue.code for issue in issues if issue.path == 'rate'] == ['law-space']
+    issues = _report_of(System(elements=[sites], interactions=[sampling], time=DiscreteTime())).issues
+    assert [issue.code for issue in issues if issue.path == 'sample'] == ['law-space']
+
+
+def test_report_holds_a_space_issue_for_the_exterior_calculus_outside_a_cell_complex():
+    """Test that an exterior derivative of a state of a plain network is reported as a law-space issue."""
+    sites = GroupElement('sites', element=_CellSiteElement, space=NetworkSpace(nx.cycle_graph(4)), on='sites')
+    rate = RateInteraction('rate', target='sites', state='u', rate=lambda n: exterior_derivative(n.target.u))
+    issues = _report_of(System(elements=[sites], interactions=[rate])).issues
+    assert [issue.code for issue in issues if issue.path == 'rate'] == ['law-space']

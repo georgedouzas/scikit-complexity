@@ -54,7 +54,8 @@ class SampleLaw(BaseLaw):
         """Return the lattice state the moves change."""
         return (self.move.target,)
 
-    def _get_requirements(self) -> RequirementSpec:
+    @classmethod
+    def _get_requirements(cls) -> RequirementSpec:
         """Return what the sweep requires of a system: discrete time on a lattice or a network."""
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 

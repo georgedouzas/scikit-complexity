@@ -17,9 +17,19 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.symbolic.operators import add_vararg, mul_vararg
 
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
-from ....core.laws.utils import both, contractions_in, hyperedges_in, maximum, neighborhoods_in, reductions_in
+from ....core.laws.utils import (
+    both,
+    cell_operations_in,
+    contractions_in,
+    hyperedges_in,
+    maximum,
+    neighborhoods_in,
+    reductions_in,
+)
 from ....core.spaces import (
     AdjacencyNeighborhood,
+    CellComplexSpace,
+    CofaceNeighborhood,
     ConeNeighborhood,
     LatticeNeighborhood,
     MemoryNeighborhood,
@@ -50,6 +60,7 @@ from .._base import BaseLowering, BasePass
 from .._compilation import Compilation
 from .._complex import _modulus_form
 from .._observables import _HeldElement
+from ._cells import DEGREES, CellTables
 from ._hyperedges import HyperedgeTables
 from ._mask_requests import MaskRequestsPass
 from ._specs import SpecsPass
@@ -89,6 +100,9 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
 
         sequence_:
             The compiled reductions and neighbourhood reductions in the order they are evaluated.
+
+        cells_:
+            The degree and the cell complex of the value of every placeholder of the exterior calculus.
     """
 
     declarations_: DeclarationsSpec
@@ -99,6 +113,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
     neighbourhoods_: dict[tuple[object, ...], NeighborhoodKernel]
     local_: dict[Expression, NeighborhoodKernel]
     sequence_: list[ReductionKernel | NeighborhoodKernel]
+    cells_: dict[Expression, tuple[int, CellComplexSpace]]
 
     def _prepare(self, context: Compilation | None) -> None:
         """Read the layout and the drawn values of the compilation, with no reduction collected yet.
@@ -113,6 +128,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         self.drawn_ = draws.size if draws else 0
         self.found_, self.by_symbol_, self.readers_ = {}, {}, {}
         self.neighbourhoods_, self.local_, self.sequence_ = {}, {}, []
+        self.cells_ = {}
 
     def _run(self, inputs: list[tuple[KernelSpec, list[BaseLaw]]] | None) -> None:
         """Set the laws of every kernel spec with every reduction replaced by its placeholder.
@@ -171,9 +187,11 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         local = neighborhoods_in(value)
         around = hyperedges_in(value)
         contracted = contractions_in(value)
-        if not found and not local and not around and not contracted:
+        cells = cell_operations_in(value)
+        if not found and not local and not around and not contracted and not cells:
             return value
         placeholders = {call: self._contraction(call, spec) for call in contracted}
+        placeholders.update({call: self._cell_operation(call, spec) for call in cells})
         placeholders.update({item.call: self._placeholder(item, spec) for item in found})
         placeholders.update({item.call: self._neighborhood(item, spec) for item in local})
         placeholders.update({item.call: self._hyperedges(item, spec) for item in around})
@@ -901,8 +919,168 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         image = getattr(search, 'periods', None) is not None and entry == getattr(search, 'positions', None)
         return PairReadSpec(read, 'other', image)
 
+    def _cell_place(self, item: Expression, spec: KernelSpec) -> tuple[int, CellComplexSpace] | None:
+        """Return the degree and the cell complex of a symbol, or `None` for a value shared by every cell."""
+        if item in self.cells_:
+            return self.cells_[item]
+        reference = self._reference_of(item, spec)
+        if reference is None or reference.source is ReadKind.SINGLE:
+            return None
+        block = self.declarations_.blocks.get(reference.entry.name.rpartition('.')[0])
+        space = block.node.space if block is not None else None
+        part = getattr(block.node.component, 'on', None) if block is not None else None
+        if not isinstance(space, CellComplexSpace) or part not in DEGREES:
+            error_msg = (
+                f'A law of {spec.owner} applies the exterior calculus to {item}, which lives on no part of a cell '
+                'complex. Place its group on the sites, edges, or hyperedges of a `CellComplexSpace`.'
+            )
+            raise ValidationError(error_msg)
+        return DEGREES[part], space
+
+    def _cell_argument(self, argument: Expression, spec: KernelSpec) -> tuple[int, CellComplexSpace]:
+        """Return the one degree and cell complex of the symbols of the argument of the exterior calculus."""
+        symbols = symbols_of([argument]) - {self.declarations_.time}
+        places = {place for place in (self._cell_place(item, spec) for item in symbols) if place is not None}
+        if len({(degree, id(space)) for degree, space in places}) != 1:
+            error_msg = (
+                f'A law of {spec.owner} applies the exterior calculus to {argument}, which needs the states of cells '
+                f'of one degree of one complex, but it reads {len(places)}.'
+            )
+            raise ValidationError(error_msg)
+        return next(iter(places))
+
+    def _cell_read(self, item: Expression, spec: KernelSpec, reader: str | None = None) -> PairReadSpec:
+        """Return how a kernel over the cells of a matrix reads one symbol: shared, of the cell, or of the reader."""
+        if item in self.local_:
+            local = self.local_[item]
+            indices = (local.entry.start + np.arange(local.entry.size)).astype(np.intp)
+            return PairReadSpec(ReadSpec(False, indices, local.entry), 'reader' if local.group == reader else 'other')
+        if item in self.by_symbol_:
+            return PairReadSpec(self._read(item, spec, None, 1), 'shared')
+        reference = self._reference_of(item, spec)
+        if reference is None or reference.source not in {ReadKind.MEMBER, ReadKind.SINGLE, ReadKind.OTHER}:
+            error_msg = (
+                f'The exterior calculus of {spec.owner} reads {item}, which is not a state or parameter of a member of '
+                'a group on a cell complex or of an element.'
+            )
+            raise ValidationError(error_msg)
+        if reference.source is ReadKind.SINGLE:
+            read = ReadSpec(reference.is_state, reference.index, reference.entry, reference.column)
+            return PairReadSpec(read, 'shared')
+        entry = reference.entry
+        indices = (entry.start + np.arange(entry.rows) * entry.columns + reference.column).astype(np.intp)
+        side = 'reader' if entry.name.rpartition('.')[0] == reader else 'other'
+        return PairReadSpec(ReadSpec(reference.is_state, indices, entry, reference.column, entry.columns), side)
+
+    def _cell_kernel(
+        self,
+        key: tuple[object, ...],
+        spec: KernelSpec,
+        terms: tuple[str, Expression, Expression, str],
+        matrix: scipy.sparse.csr_array,
+        *,
+        signed: bool = True,
+    ) -> Expression:
+        """Return the placeholder of a kernel of one value per row of a matrix, compiled the first time it is found.
+
+        Args:
+            key:
+                The key of the kernel, unique among the neighbourhood reductions.
+
+            spec:
+                The kernel spec that reads it.
+
+            terms:
+                The kind, the argument, and the weight of the reduction, and the path of the group of its rows.
+
+            matrix:
+                The pairs of every row, with the factors of the kernel as its data.
+
+            signed:
+                Whether the data of the matrix are factors of the pairs.
+
+        Returns:
+            placeholder:
+                The placeholder of the kernel.
+        """
+        kind, argument, weight, group = terms
+        if key not in self.neighbourhoods_:
+            symbols = symbols_of([argument, weight]) - {self.declarations_.time}
+            reads = {
+                item: self._cell_read(item, spec, group if not signed else None) for item in sorted(symbols, key=str)
+            }
+            indptr = matrix.indptr.astype(np.intp)
+            search = StaticSearch(indptr, matrix.indices.astype(np.intp)).check().prepare()
+            index = len(self.neighbourhoods_)
+            entry = EntrySpec(f'__neighbours_{index}', self.extent_, (matrix.shape[0],), RR, matrix.shape[0])
+            compiled = (
+                NeighborhoodKernel(
+                    symbol(f'_neighbours_{index}'),
+                    kind,
+                    argument,
+                    weight,
+                    entry,
+                    group=group,
+                    search=search,
+                    reads=reads,
+                    time=self.declarations_.time,
+                    coefficients=np.asarray(matrix.data, dtype=float) if signed else None,
+                )
+                .check()
+                .prepare()
+            )
+            self.neighbourhoods_[key] = compiled
+            self.sequence_.append(compiled)
+            self.local_[compiled.symbol] = compiled
+            self.readers_[compiled.symbol] = group
+        compiled = self.neighbourhoods_[key]
+        self._add_reference(spec, compiled.symbol, ReferenceSpec(compiled.entry, False, 0, ReadKind.REDUCED))
+        return compiled.symbol
+
+    def _cell_operation(self, call: Expression, spec: KernelSpec) -> Expression:
+        """Return the placeholder of a call of the exterior calculus, or 0 for an exterior derivative applied twice."""
+        name = call.operator().name()
+        inner = SR(call.operands()[0])
+        twice = name == 'exterior_derivative' and getattr(inner.operator(), 'name', lambda: '')() == name
+        argument = SR(self._lower(inner.operands()[0] if twice else inner, spec))
+        degree, space = self._cell_argument(argument, spec)
+        if twice:
+            CellTables.exterior_derivative_of(space, degree + 1)
+            return SR(0)
+        if name == 'exterior_derivative':
+            matrix, reached = CellTables.exterior_derivative_of(space, degree), degree + 1
+        elif name == 'codifferential':
+            matrix, reached = CellTables.codifferential_of(space, degree, self.declarations_), degree - 1
+        else:
+            matrix, reached = CellTables.hodge_star_of(space, degree, self.declarations_), degree
+        group = CellTables.group_at(space, reached, self.declarations_)
+        key = ('cell', name, str(argument), degree, id(space))
+        placeholder = self._cell_kernel(key, spec, ('sum', argument, SR(1), group), matrix)
+        self.cells_[placeholder] = (reached, space)
+        return placeholder
+
+    def _coface(self, reduction: NeighborReductionSpec, spec: KernelSpec) -> Expression:
+        """Return the placeholder of a reduction over the cofaces of every member of a group on a cell complex."""
+        group = spec.group
+        block = self.declarations_.blocks.get(group) if group is not None else None
+        space = block.node.space if block is not None else None
+        part = getattr(block.node.component, 'on', None) if block is not None else None
+        if group is None or not isinstance(space, CellComplexSpace) or part not in DEGREES:
+            error_msg = (
+                f'The reduction {reduction.call} of {spec.owner} runs over cofaces, which needs a group on the sites, '
+                'edges, or hyperedges of a `CellComplexSpace`.'
+            )
+            raise ValidationError(error_msg)
+        argument = SR(self._lower(reduction.argument, spec))
+        weight = SR(1) if reduction.weight is None else SR(self._lower(reduction.weight, spec))
+        matrix = abs(CellTables.exterior_derivative_of(space, DEGREES[part])).T.tocsr()
+        key = ('coface', reduction.kind, str(argument), str(weight), group)
+        return self._cell_kernel(key, spec, (reduction.kind, argument, weight, group), matrix, signed=False)
+
     def _neighborhood(self, reduction: NeighborReductionSpec, spec: KernelSpec) -> Expression:
         """Return the placeholder of a neighbourhood reduction, compiling it the first time it is found."""
+        if isinstance(reduction.over, CofaceNeighborhood):
+            return self._coface(reduction, spec)
         argument = SR(self._lower(reduction.argument, spec))
         weight = SR(1) if reduction.weight is None else SR(self._lower(reduction.weight, spec))
         if argument.has(I) or weight.has(I):

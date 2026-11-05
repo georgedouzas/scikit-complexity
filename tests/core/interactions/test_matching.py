@@ -225,6 +225,37 @@ def test_match_stable_leaves_no_blocking_pair(clear):
             assert not (requester_prefers and provider_prefers)
 
 
+def test_match_stable_keeps_the_pairs_of_its_reference(clear):
+    """Test that the pairs and their order keep values from the previous library, without what cannot match.
+
+    The provider of limit 20 is above every requester, the provider of limit 6 has nothing left, and the requester of
+    limit 3 is below every provider. The requester of limit 8 loses out to the others.
+    """
+    matches = clear(
+        StableMatchingSpec(),
+        {'limit': [10.0, 12.0, 8.0, 3.0, 9.0]},
+        {'limit': [5.0, 7.0, 20.0, 6.0], 'quantity': [2.0, 1.0, 1.0, 0.0]},
+    )
+    assert matches == [(12.0, 5.0, 0.0, 1.0, 5.0), (10.0, 5.0, 0.0, 1.0, 5.0), (9.0, 7.0, 0.0, 1.0, 7.0)]
+
+
+def test_match_stable_keeps_the_pairs_of_its_reference_with_preferences(clear):
+    """Test that preferences and larger capacities keep the pairs and their order from the previous library."""
+    rule = StableMatchingSpec(requester_preference=_closeness, provider_preference=_closeness)
+    matches = clear(
+        rule,
+        {'limit': [10.0, 11.0, 12.0, 13.0, 14.0, 15.0], 'value': [1.0, 4.0, 9.0, 2.0, 7.0, 5.0]},
+        {'limit': [0.0, 1.0, 2.0], 'value': [3.0, 6.0, 8.0], 'quantity': [1.0, 3.0, 1.0]},
+    )
+    assert matches == [
+        (13.0, 0.0, 3.0, 1.0, 0.0),
+        (15.0, 1.0, 6.0, 1.0, 1.0),
+        (14.0, 1.0, 6.0, 1.0, 1.0),
+        (11.0, 1.0, 6.0, 1.0, 1.0),
+        (12.0, 2.0, 8.0, 1.0, 2.0),
+    ]
+
+
 def _lowest_limit(requester, provider):
     """Return the score of a provider, higher for a lower limit."""
     del requester

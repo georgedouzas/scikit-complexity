@@ -1,0 +1,54 @@
+{UTF-8}
+Delay Time=
+	6
+	~	Weeks
+	~	The mean time of the delay.
+	|
+
+Orders=
+	10 + STEP(5, 4)
+	~	Units/Week
+	~	The orders, which rise at week 4.
+	|
+
+Shipments=
+	DELAY3(Orders, Delay Time)
+	~	Units/Week
+	~	The orders after the delay.
+	|
+
+Backlog= INTEG (
+	Orders - Shipments,
+		60)
+	~	Units
+	~	The orders not yet shipped.
+	|
+
+********************************************************
+	.Control
+********************************************************~
+		Simulation Control Parameters
+	|
+
+FINAL TIME  = 30
+	~	Weeks
+	~	The final time for the simulation.
+	|
+
+INITIAL TIME  = 0
+	~	Weeks
+	~	The initial time for the simulation.
+	|
+
+SAVEPER  = 0.25
+	~	Weeks
+	~	The frequency with which output is stored.
+	|
+
+TIME STEP  = 0.0625
+	~	Weeks
+	~	The time step for the simulation.
+	|
+
+\\\---/// Sketch information - do not modify anything except names
+V300  Do not put anything below this section - it will be ignored

@@ -6,6 +6,149 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 <!-- insertion marker -->
+## [0.4.0](https://github.com/georgedouzas/scikit-complexity/releases/tag/0.4.0) - 2026-11-05
+
+<small>[Compare with 0.3.0](https://github.com/georgedouzas/scikit-complexity/compare/0.3.0...0.4.0)</small>
+
+### Features
+
+- Run one step of a local rule through its law, with linear rules and subshift domains as specs ([a08548a](https://github.com/georgedouzas/scikit-complexity/commit/a08548ac6430be4d37808963afdf50ddfa4fbe17) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Report a role filled by an unsuitable element ([69dbf8e](https://github.com/georgedouzas/scikit-complexity/commit/69dbf8e6e522449c756cc1d9637831c993c0d00b) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Declare what interactions need from their roles ([37a7a5a](https://github.com/georgedouzas/scikit-complexity/commit/37a7a5acd196678bd2fa01c2289d3653976443bf) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Translate Vensim and XMILE files into model modules, and add the explicit Euler solver that reproduces their runs ([66efcd9](https://github.com/georgedouzas/scikit-complexity/commit/66efcd9c3d9c196cc9fc58b4f69c44dec32ac41d) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Run comets by alternating growth and diffusion at the published values ([aba82f3](https://github.com/georgedouzas/scikit-complexity/commit/aba82f351ff448aa98244a659016d20d66c3881c) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Let split solvers keep linear programs in the remainder of the rates ([391b8de](https://github.com/georgedouzas/scikit-complexity/commit/391b8de669c26040297d7e6eae515fb638435667) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Let an element declare its states and parameters from data ([798acb2](https://github.com/georgedouzas/scikit-complexity/commit/798acb21f53ab5599b3acf03a5e908871f16f26e) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add the nine constraint-based models with their inventory entries and gallery examples ([208b9f0](https://github.com/georgedouzas/scikit-complexity/commit/208b9f0d10d448e03951e8ab056ea3ef91318009) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add the metabolism family and isotope labelling to the biology models ([2c8941b](https://github.com/georgedouzas/scikit-complexity/commit/2c8941b9edc2728a192726c28295e9dee7cd0b51) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add the visual of linear programs and the enumeration of elementary modes ([2e71419](https://github.com/georgedouzas/scikit-complexity/commit/2e71419781119da2708e74d0f38261ea1318ee4a) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add structures, backbone geometry, and the models fuzzy_oil_drop and early_stage_folding_intermediate ([f8f306a](https://github.com/georgedouzas/scikit-complexity/commit/f8f306a2b5877037e5d198d6587f9b75f1891873) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add RNA folds, neutral network analysis, and the model rna_neutral_networks ([cf28db6](https://github.com/georgedouzas/scikit-complexity/commit/cf28db66be77e7b24c187d333ee73aa9ed2b9b8b) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Let a row score take the heat-bath rule, and test the names of the core for molecular terms ([9d283c4](https://github.com/georgedouzas/scikit-complexity/commit/9d283c4c998da70fdcf80998a1871cb584d177f1) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add flocking with active and passive agents, and the gallery review of the models ([67ae8bc](https://github.com/georgedouzas/scikit-complexity/commit/67ae8bc3f556abbd0d9317d8930480cc6e88d2c7) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add popularity-similarity growth and the urban scaling of interactions ([27b17d1](https://github.com/georgedouzas/scikit-complexity/commit/27b17d131026278c8ffb081d6eeb89902ba20732) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add network renormalization and allometric scaling to the analyses ([723d8c2](https://github.com/georgedouzas/scikit-complexity/commit/723d8c2696733b54df716590a0530d74c438edb2) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add the Szabó cells, Koopman predictive control, and next-generation reservoir models ([3f5800b](https://github.com/georgedouzas/scikit-complexity/commit/3f5800be1a8d92c35b80e465f393da23cb5015da) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add linear program laws, their lowering, and their coupling to dynamics ([f2a0738](https://github.com/georgedouzas/scikit-complexity/commit/f2a0738e4ccabb3571b1f15e21c743fa4eff47ad) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add the dependencies and the errors of constraint-based models ([3f14f34](https://github.com/georgedouzas/scikit-complexity/commit/3f14f34388802f93318d7978531db0632230162e) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Sample rows of a lattice by their score, at any intensity up to infinity, and replay drives by time ([f1a7bdf](https://github.com/georgedouzas/scikit-complexity/commit/f1a7bdf5c8de7e541a680ecaf27150fdd52d3c9b) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Let topology weights and growth conditions read the node a new edge starts from ([e02dc51](https://github.com/georgedouzas/scikit-complexity/commit/e02dc51bbe0c7b7d892ac814cd8b4cb3aa013f81) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Fit mode decompositions with control inputs through PyDMD's DMDc ([ff6ab3c](https://github.com/georgedouzas/scikit-complexity/commit/ff6ab3cda2d8a7a219abdac74456da8350ab4e49) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add the lattice gauge, topological Kuramoto, gauge arbitrage, and gauge network models ([b48f041](https://github.com/georgedouzas/scikit-complexity/commit/b48f04131aa73e0f0814a9ffaa76f2190e03aa69) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add the mechatronics models and document connected components ([748707b](https://github.com/georgedouzas/scikit-complexity/commit/748707b77b0fbd3879e7c55eaa665528ee17874c) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add the analysis and the visual of cell complexes ([5cce173](https://github.com/georgedouzas/scikit-complexity/commit/5cce17342bd27265c13afe52765a9964c8a3aa90) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add the exterior calculus, coface reductions, and sampling of link states ([03dd105](https://github.com/georgedouzas/scikit-complexity/commit/03dd10557d7bb6d626c098ef11b30166efaa8b66) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add boids in three dimensions and the Kauai population model on region layers ([356c137](https://github.com/georgedouzas/scikit-complexity/commit/356c1375e9e6394b54878e9caea71a41f614d6c4) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add algebraic states, ports, connections, and the solve of connected equations ([4fea46b](https://github.com/georgedouzas/scikit-complexity/commit/4fea46b3f9149d9189f093288697740d52fddf20) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add cell complexes of lattices and networks ([7c43c18](https://github.com/georgedouzas/scikit-complexity/commit/7c43c18cbdfa38a5c89caf784d9dd21d87c10934) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Draw agents in three dimensions and region layers under them ([779ebad](https://github.com/georgedouzas/scikit-complexity/commit/779ebad4d3f47396c35718c1d07b5b38b4584bc3) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Run agents in three-dimensional continuous spaces and region layers ([bf07377](https://github.com/georgedouzas/scikit-complexity/commit/bf07377093f5807d89cd7fa2eb24f76eaa92dede) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+### Bug Fixes
+
+- Commit the system dynamics references, and expect the report of an unsuitable element ([767f7d7](https://github.com/georgedouzas/scikit-complexity/commit/767f7d71da3bf87a3b3c0fdcc5c88606784e2911) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Type the field values of stability analysis without errors ([c01e114](https://github.com/georgedouzas/scikit-complexity/commit/c01e11416d31564cfaaaded4049ed5a0e95d96d7) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Leave a coefficient that a state gives out of the linear terms of a field ([ae5912c](https://github.com/georgedouzas/scikit-complexity/commit/ae5912cd3d30425f95caaf869ad38cf8db12eb20) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Keep the member that stability analysis reads the laws of ([0e10228](https://github.com/georgedouzas/scikit-complexity/commit/0e102281754b65e4fe3a928db3bdde31293d56aa) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Let a function observable read the names of its own system, and name the generators rng ([eb2b64a](https://github.com/georgedouzas/scikit-complexity/commit/eb2b64ab93e990234598b46b19daa05d36eb960f) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Weigh the angle of a geometric supernode by the degrees of its nodes ([3587d43](https://github.com/georgedouzas/scikit-complexity/commit/3587d4368ae6f57c8a85b3f57376ef4b2481ff3c) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Correct the Duffing input and the training of koopman_model_predictive_control ([b0b0eef](https://github.com/georgedouzas/scikit-complexity/commit/b0b0eef2fb4526653634172c28dafc36546f0299) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Give next_generation_reservoir the values of Gauthier et al. ([53ce70a](https://github.com/georgedouzas/scikit-complexity/commit/53ce70a1455667951dfbd14733ea3d639a5dc47c) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Build active_passive_flocking from Charbonneau's chapter 10 and correct what gathers ([05d30c2](https://github.com/georgedouzas/scikit-complexity/commit/05d30c2f198628ada15d0b54c2fba90f5a7fd17c) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Keep the bounds of a linear program among the kinds of the engine, and teach deptry the extra ([70c9a55](https://github.com/georgedouzas/scikit-complexity/commit/70c9a559fed5d54d70b6b0b050b4e9fceb9c691c) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Count evolvability as Raman states it, and settle the ellipse and lazy import rules ([379b3e0](https://github.com/georgedouzas/scikit-complexity/commit/379b3e0fa8cb80a5809b0aca273926cd6a787db3) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Keep libSBML apart from the libraries of GAP on Linux ([11b8daa](https://github.com/georgedouzas/scikit-complexity/commit/11b8daadfe6bcdf885773ac45ba71b2bca665ec2) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Match flux variability, MoMA, ROOM, community FBA, and SteadyCom to their sources ([cfaa255](https://github.com/georgedouzas/scikit-complexity/commit/cfaa255ba77156cb96c5d1b9268c616c5714506f) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Keep reversible exchanges free and independent in extreme pathways ([69fe63f](https://github.com/georgedouzas/scikit-complexity/commit/69fe63f476e386eb4191ce6139fbc6ec995eafd2) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Take the signs of the gauge market from the book, and correct the Kuramoto source ([be0cbf6](https://github.com/georgedouzas/scikit-complexity/commit/be0cbf61079ebf19476438aacb1036f5d2453498) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Give the Kauai population the sentiment rule of its chapter ([4f70f18](https://github.com/georgedouzas/scikit-complexity/commit/4f70f185206586fb9adf0bf552bc77f3b5ec045b) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Normalise the complement of the fuzzy oil drop profile as Eq. 1.9 prints it ([a1a91dd](https://github.com/georgedouzas/scikit-complexity/commit/a1a91dd90b2cec474ddd0a86e41cdf298190e925) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Name the bounds of a linear program with an enumeration ([2a7d75e](https://github.com/georgedouzas/scikit-complexity/commit/2a7d75e72ee0e80ff25f54967a925aa74ad8276b) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Join the extras in one table and import the metabolism extra without a suppression ([3934b6e](https://github.com/georgedouzas/scikit-complexity/commit/3934b6ebcca2f630e5f0c1bd432c3366a0a3ea16) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Let laws read an observable written with the time of the system ([6a1a5de](https://github.com/georgedouzas/scikit-complexity/commit/6a1a5ded3814cc1242933daf6984f834f7d59e43) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+### Docs
+
+- Archive the declared elements and guide changes, after the full suite passed ([6dc495a](https://github.com/georgedouzas/scikit-complexity/commit/6dc495ae8fbdec886e87a1e052bb656901e36fa2) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Tick the verified tasks of the open changes, and archive the alternating lattice and system dynamics changes ([310fa54](https://github.com/georgedouzas/scikit-complexity/commit/310fa54ab483da885ed47284e5f0dda84ef109f5) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Remove a reference to a model that writes no forecasts from lags ([dcb8237](https://github.com/georgedouzas/scikit-complexity/commit/dcb8237ded3eb6f2a7e714f537148b0152e2fdf0) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Tick the verified tasks of the guide, and wrap two lines of the guide ([6b96cda](https://github.com/georgedouzas/scikit-complexity/commit/6b96cda98a6260a70261fdfed90675dd5f3dcf6c) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add the delta specs of the moved rewriting and automata classes, and correct stale counts ([0202cd5](https://github.com/georgedouzas/scikit-complexity/commit/0202cd5ca393e230680403a213b75fda3ceea2c6) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Name nothing from a field module in the guide, and move register_model to the contributing guide ([852055e](https://github.com/georgedouzas/scikit-complexity/commit/852055ec1a67c2ae04d5ae69b201903ce1c769ff) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Write the automata examples and guide blocks from systems and specs ([bd9883f](https://github.com/georgedouzas/scikit-complexity/commit/bd9883f3ac15f08abb21d6167cde253f2eec73f0) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Plan the move of rewriting systems and automata to elements, laws, and specs of the core ([276521d](https://github.com/georgedouzas/scikit-complexity/commit/276521de2521a2a8d634666c74bbabfba16f8966) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Open the guide with the two paths and explain compatible components ([2f3e359](https://github.com/georgedouzas/scikit-complexity/commit/2f3e35985649047024d4a89bd9d4110ae0526f5e) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Build the examples of the guide from the core or select them by name ([375307e](https://github.com/georgedouzas/scikit-complexity/commit/375307ebf822d055a20e572855e8c4d6a05dae3b) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Remove imports the blocks of the guide never use ([b520b78](https://github.com/georgedouzas/scikit-complexity/commit/b520b788cc6b2942900fcf2b3c0e35da5508dca4) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Open the README with the two paths through the library ([5d9bdf4](https://github.com/georgedouzas/scikit-complexity/commit/5d9bdf448d9f36dc59d1a3566804bd2ad1646cb2) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Generate compatible components and a catalog of the models ([b6d8e76](https://github.com/georgedouzas/scikit-complexity/commit/b6d8e7605c1866903a88d35b095409f701f88292) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Document the nested functions of the Euler solver ([3619621](https://github.com/georgedouzas/scikit-complexity/commit/36196216119e7970f1b1ecc5443a370de5068e6d) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Scope the source check of declared elements to parts ([4894527](https://github.com/georgedouzas/scikit-complexity/commit/4894527184bf368da38d9ddd3ba1a996f5d69c23) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Set the estimated fluxes of the carbon-13 example by name ([e8c0115](https://github.com/georgedouzas/scikit-complexity/commit/e8c01151e25690e8bf60f84733a65ee359f67d21) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Describe elements that declare their variables from data ([739f4c2](https://github.com/georgedouzas/scikit-complexity/commit/739f4c2a926c7cc7de75545b69b27f51aa0e37a6) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add a guide section and a gallery example on translating models, and a CI job for the translator tests ([4f31bad](https://github.com/georgedouzas/scikit-complexity/commit/4f31bad216a558afec54f5b4a4a5c8740c4a90cb) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Show the colony of comets at the published values for 14 hours ([deaa084](https://github.com/georgedouzas/scikit-complexity/commit/deaa08407e2a2e15e4ef53021690acf22beff0bb) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Propose documentation around the core, the catalog, and compatible components ([b25b30f](https://github.com/georgedouzas/scikit-complexity/commit/b25b30f97af000216d35cdb8ee56af01084bfc65) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- State what the angle of the internal coordinates protocol returns ([cce11be](https://github.com/georgedouzas/scikit-complexity/commit/cce11be14440336f35fea381c3a2e539b3dc76ea) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Record that the width of the Gaussian explains the fuzzy oil drop gap ([fa98b69](https://github.com/georgedouzas/scikit-complexity/commit/fa98b69e50105222817408bf9d2ffec4af1a1f96) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- State the binary training input in the Koopman design ([7eb59cc](https://github.com/georgedouzas/scikit-complexity/commit/7eb59cc41c5be3ff837319d3bde253c422bc850a) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Record the source check of the unblocked and multiscale models ([6087116](https://github.com/georgedouzas/scikit-complexity/commit/6087116da41303f7bff0aaaedc9418af2602d975) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Propose elements declared from data and an alternating COMETS ([f96fa20](https://github.com/georgedouzas/scikit-complexity/commit/f96fa208f79dde15159a357f7cd05b16304bc97b) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Record the source check of the constraint-based models ([94cf35a](https://github.com/georgedouzas/scikit-complexity/commit/94cf35a86242ac618a85ec3ddabe19fc49c5cde4) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Leave the gallery task open until the screenshots are captured ([0bee57f](https://github.com/georgedouzas/scikit-complexity/commit/0bee57f4e0b529538340dea91066ec5b00cad746) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Document linear programs, metabolism, and labelling, and test a default install in CI ([96d2a0c](https://github.com/georgedouzas/scikit-complexity/commit/96d2a0c117128ee98a4f3a47c87815c5dba627fb) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Tick the verified tasks of the molecular structures change ([c140af1](https://github.com/georgedouzas/scikit-complexity/commit/c140af1489a9b3db8ba697c2b58cf1407407a603) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Import NumPy in the example of drives that read the step ([bcf1188](https://github.com/georgedouzas/scikit-complexity/commit/bcf1188140ad2d546906220f7f52c9f9006baca9) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Document row scores, drives that read the step, chain geometry, and the extras, and mark the models implemented ([6a46bd3](https://github.com/georgedouzas/scikit-complexity/commit/6a46bd37504142219c8ebaf0bdb840045d17078a) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Wrap the caption of the flocking example ([c57b716](https://github.com/georgedouzas/scikit-complexity/commit/c57b716c376881e1ebc021b18084824686cd2b7a) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Record that an independent model fits the same degree exponents ([dfa1006](https://github.com/georgedouzas/scikit-complexity/commit/dfa1006a3c290137e107f3aee8d227436f4b894e) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Document growth by distance, renormalization, and allometric scaling ([44605d2](https://github.com/georgedouzas/scikit-complexity/commit/44605d2a9f0fd0a17a89f209cbd97beb2b86d6bc) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Add the gallery examples of the new mechatronics, control, flocking, and organization models ([c5a4cb6](https://github.com/georgedouzas/scikit-complexity/commit/c5a4cb61946fc590ac6ba3fe8f18f49f88f6cef1) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Document three-dimensional agent spaces, region layers, and reprojecting census polygons ([cc92399](https://github.com/georgedouzas/scikit-complexity/commit/cc92399b23d3cfde541ad65d33c756682828b6fd) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+### Style
+
+- Keep lines of the declared elements within the limit ([9f680ba](https://github.com/georgedouzas/scikit-complexity/commit/9f680ba03613cadb1cf3d44b3d01f42b535a15b0) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Shorten a comment over the line limit ([f140893](https://github.com/georgedouzas/scikit-complexity/commit/f140893ae8c510a8d51bdf0fe7620a8406e6dfd1) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+### Code Refactoring
+
+- Declare what rewriting laws require on their classes ([8942f54](https://github.com/georgedouzas/scikit-complexity/commit/8942f5484bc7765ce25286f1527a1e5f54defc21) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Call no magic method, and declare what laws require on their classes ([3dcd7b6](https://github.com/georgedouzas/scikit-complexity/commit/3dcd7b662ea753486a7fa3c9aff9723ad47f0a82) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Move the rewriting machinery from the fractals models to the core and the engine ([e2f0308](https://github.com/georgedouzas/scikit-complexity/commit/e2f03086fdcf7019a7b631d06016a3e45af06821) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Reach BiGG over HTTPS without building a class at runtime ([bd9a245](https://github.com/georgedouzas/scikit-complexity/commit/bd9a2455273fbae137d88f3d31392cf6f8c5113c) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Declare the variables of a metabolic network from data ([f2a7572](https://github.com/georgedouzas/scikit-complexity/commit/f2a7572c1ba5e4d1be3df08c539465c5f17626c3) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Declare the states of a community medium from data ([2c40fe3](https://github.com/georgedouzas/scikit-complexity/commit/2c40fe3699d0bb1ba105183bf0ad3a1d9e1a7bfe) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Declare the variables of the SteadyCom program from data ([ba646e2](https://github.com/georgedouzas/scikit-complexity/commit/ba646e2a48d6e7eb372d60bd4d5ccd50de9ae6cf) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Declare the lagged variables of a next-generation reservoir from data ([2e4a009](https://github.com/georgedouzas/scikit-complexity/commit/2e4a009119d086c98b2f7424382c1ef7d0f213b6) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Declare the states of a surrogate from data ([ef779b1](https://github.com/georgedouzas/scikit-complexity/commit/ef779b1d720d6cc29af832a3ea98ef3b1a3a9183) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Write deferred acceptance as a method of the matching interaction ([6e07d47](https://github.com/georgedouzas/scikit-complexity/commit/6e07d4786e599d5240bf1f5a61e8b915685b7440) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Compute the Kramers-Moyal coefficients with NumPy ([415f5f3](https://github.com/georgedouzas/scikit-complexity/commit/415f5f38645ba21835d263a7f99a6d01b41569ef) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Compute the mean squared displacement with SciPy ([8ccf7f2](https://github.com/georgedouzas/scikit-complexity/commit/8ccf7f2b612129097338ff33cf844fe67d188db1) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+### Tests
+
+- Read the prose of the documents for field modules, and allow only the catalog functions ([77af9f8](https://github.com/georgedouzas/scikit-complexity/commit/77af9f858c75a6da640f61c783c0623d4275870e) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Record the reference values of the automata before their move ([73181cc](https://github.com/georgedouzas/scikit-complexity/commit/73181cc267dc0f6bb33ca89b0f576d0978990a16) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Record literal reference values of the rewriting systems ([fbf3bdd](https://github.com/georgedouzas/scikit-complexity/commit/fbf3bdd39238c335bd175b90159d8404f5915f97) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Check the laws of every model against the classes its interactions list ([2c9bbf4](https://github.com/georgedouzas/scikit-complexity/commit/2c9bbf4affd08e021793041aa3f49f88e134e162) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Fail on an import from a field module in the README and the guide ([82cdb61](https://github.com/georgedouzas/scikit-complexity/commit/82cdb61df59327b0df2d7b32629a2871e67dc67b) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Check that no module sets a signature or builds a class with type ([0b54ab5](https://github.com/georgedouzas/scikit-complexity/commit/0b54ab5ed823d1895380bf0d8dc2a2984c3a0240) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Record reference values of the models that generate element classes ([a9fccdd](https://github.com/georgedouzas/scikit-complexity/commit/a9fccdd964b24847a0b73c411119d3ab0e63e25e) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Hold the statistical scenarios of flocking and hyperbolic networks to means over seeds ([a145f5c](https://github.com/georgedouzas/scikit-complexity/commit/a145f5c80362dd7f6aa8a0f39e7a0e8612ca4e8c) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Cover the analysis and the visual of cell complexes ([875727a](https://github.com/georgedouzas/scikit-complexity/commit/875727ab494ce0007a0d609c21ec34cfef65772d) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Check that listing the catalog imports no model module ([4847b45](https://github.com/georgedouzas/scikit-complexity/commit/4847b45f4714133782baded9fb8dd41b2b656312) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+### Chore
+
+- Archive the molecular structures and sync their specs ([45127ff](https://github.com/georgedouzas/scikit-complexity/commit/45127ff0212b36c3d9a8f4d324e813a08cab6b86) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Archive the unblocked models and the multiscale networks, and sync their specs ([ab2663f](https://github.com/georgedouzas/scikit-complexity/commit/ab2663f8dd2873bc7c29354a02550ec09c59de72) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Archive the constraint-based models and sync their specs ([b9c5132](https://github.com/georgedouzas/scikit-complexity/commit/b9c51323d5ed21105eee00c3af62f957582bb811) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Archive wave 3 and sync its specs ([ee051d2](https://github.com/georgedouzas/scikit-complexity/commit/ee051d2f8afae0893f0dc67faa5ebe39c372b7c1) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Archive the stale dependency change and sync its specs ([d07a314](https://github.com/georgedouzas/scikit-complexity/commit/d07a314b9012ca25273afadeccd745bf87caa52b) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Remove tidynamics, kramersmoyal, and matching, and limit how stale a dependency may be ([1b4dc0b](https://github.com/georgedouzas/scikit-complexity/commit/1b4dc0bd28be59fd33a622637464d6973ce5de3d) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+- Archive the Python 3.14 change and sync its specs ([4cf627c](https://github.com/georgedouzas/scikit-complexity/commit/4cf627c819e7588c394064c52a995201115caacf) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
 ## [0.3.0](https://github.com/georgedouzas/scikit-complexity/releases/tag/0.3.0) - 2026-11-03
 
 <small>[Compare with 0.2.0](https://github.com/georgedouzas/scikit-complexity/compare/0.2.0...0.3.0)</small>
@@ -33,6 +176,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Widen the Lorenz delay band to what the method resolves ([0173774](https://github.com/georgedouzas/scikit-complexity/commit/01737743b1fd950e128f9b3d44fb625f54494f4b) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Leave out the annotations function of Python 3.14 from magic methods ([0d8a370](https://github.com/georgedouzas/scikit-complexity/commit/0d8a3706436188a156abd8bc0bbe5b748d9f82b4) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 - Mark the wall-clock tests as benchmarks ([d359eb8](https://github.com/georgedouzas/scikit-complexity/commit/d359eb8768f88c472a6e9f194ab43b20ec36dca0) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+### Chore
+
+- Release 0.3.0 ([d04bf1d](https://github.com/georgedouzas/scikit-complexity/commit/d04bf1d3c9991f8cc7166f37cfc176fa8a34d93d) by georgedouzas). Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 
 ## [0.2.0](https://github.com/georgedouzas/scikit-complexity/releases/tag/0.2.0) - 2026-11-03
 

@@ -5,6 +5,7 @@ from typing import Annotated
 
 import numpy as np
 import pytest
+import scipy.linalg
 from sklearn.preprocessing import PolynomialFeatures
 
 from skcomplex.analysis import ModeDecompositionAnalysis
@@ -17,9 +18,12 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import ScipyODESolver
 from skcomplex.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.errors import AnalysisError
-from skcomplex.specs import StateSpec, VisualSpec
+from skcomplex.specs import ParameterSpec, StateSpec, VisualSpec
 
 MATRIX = np.asarray([[-0.1, 2.0, 0.0], [-2.0, -0.3, 0.5], [0.0, 0.0, -0.5]])
+DRIVEN = np.asarray([[-0.1, 1.0], [-1.0, -0.2]])
+DRIVE = np.asarray([0.0, 1.0])
+STEP = 0.1
 
 
 class LinearElement(Element):
@@ -46,6 +50,64 @@ class LinearElement(Element):
             RateLaw(s.y, float(MATRIX[1, 0]) * s.x + float(MATRIX[1, 1]) * s.y + float(MATRIX[1, 2]) * s.z),
             RateLaw(s.z, float(MATRIX[2, 2]) * s.z),
         ]
+
+
+class DrivenElement(Element):
+    """Linear element driven by a bounded input."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 1.0,
+        y: Annotated[object, StateSpec()] = 0.0,
+        u: Annotated[object, ParameterSpec(adaptive=True, bounds=(-1.0, 1.0))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.u = u
+
+    def _get_laws(self, s):
+        """Return the laws of the driven element."""
+        return [
+            RateLaw(s.x, float(DRIVEN[0, 0]) * s.x + float(DRIVEN[0, 1]) * s.y + float(DRIVE[0]) * s.u),
+            RateLaw(s.y, float(DRIVEN[1, 0]) * s.x + float(DRIVEN[1, 1]) * s.y + float(DRIVE[1]) * s.u),
+        ]
+
+
+def _held_input(seed):
+    """Return a random piecewise-constant input, held over every 5 samples."""
+    values = np.random.default_rng(seed).uniform(-1.0, 1.0, 200)
+    return lambda t: float(values[round(t / STEP + 1e-9) // 5])
+
+
+def _driven_runs():
+    """Return runs of the driven element under different random inputs, from different states."""
+    solver = ScipyODESolver(method='DOP853', rtol=1e-12, atol=1e-12)
+    return [
+        Simulation(
+            System(elements=[DrivenElement('driven', x=start)]),
+            solver=solver,
+            dt=STEP,
+            schedule={'driven.u': _held_input(seed)},
+        )
+        .check()
+        .prepare()
+        .run(until=20.0)
+        .trajectory_
+        for seed, start in enumerate((1.0, -2.0, 0.5))
+    ]
+
+
+def _one_sample_map():
+    """Return the matrices of the map over one sample of the driven element under a held input."""
+    block = np.zeros((3, 3))
+    block[:2, :2] = DRIVEN
+    block[:2, 2] = DRIVE
+    flow = scipy.linalg.expm(block * STEP)
+    return flow[:2, :2], flow[:2, 2:]
 
 
 def _linear_trajectory():
@@ -166,7 +228,7 @@ def test_mode_decomposition_fits_several_series():
     decomposition = _fit(runs, variables=['x'], dt=0.1)
     assert _fit(np.stack(runs), variables=['x'], dt=0.1).eigenvalues_.tolist() == decomposition.eigenvalues_.tolist()
     assert decomposition.eigenvalues_.real.round(8).tolist() == [-0.5]
-    assert decomposition.system_.elements[0].x == 1.0
+    assert decomposition.system_.elements[0].get_value('x') == 1.0
 
 
 def test_mode_decomposition_rejects_series_of_other_variables():
@@ -187,3 +249,89 @@ def test_mode_decomposition_rejects_validation_share_of_one():
     """Test that a validation share outside `[0, 1)` raises an error."""
     with pytest.raises(AnalysisError, match='validation share'):
         ModeDecompositionAnalysis(validation=1.0).check()
+
+
+def test_mode_decomposition_recovers_map_with_input():
+    """Test that the operator and the input matrix equal the one-sample map of a linear system within 1e-6."""
+    decomposition = _fit(_driven_runs(), variables=['driven.x', 'driven.y'], inputs=['driven.u'], validation=0.0)
+    operator, input_matrix = _one_sample_map()
+    assert decomposition.states_ == ['x', 'y']
+    assert decomposition.inputs_ == ['u']
+    assert np.abs(decomposition.operator_ - operator).max() < 1e-6
+    assert np.abs(decomposition.input_matrix_ - input_matrix).max() < 1e-6
+
+
+def test_mode_decomposition_system_with_input_follows_schedule():
+    """Test that the system records a scheduled input at every frame and that its states follow the fitted map."""
+    decomposition = _fit(_driven_runs(), inputs=['driven.u'], variables=['driven.x', 'driven.y'], validation=0.0)
+    schedule = _held_input(7)
+    solver = ScipyODESolver(method='DOP853', rtol=1e-11, atol=1e-11)
+    run = (
+        Simulation(decomposition.system_, solver=solver, dt=STEP, schedule={'surrogate.u': schedule})
+        .check()
+        .prepare()
+        .run(until=5.0)
+        .trajectory_
+    )
+    recorded = run.values('surrogate.u')
+    assert np.allclose(recorded, [schedule(time) for time in run.times])
+    states = np.column_stack([run.values('surrogate.x'), run.values('surrogate.y')])
+    predicted = states[:-1] @ decomposition.operator_.T + recorded[:-1, None] @ decomposition.input_matrix_.T
+    assert np.abs(states[1:] - predicted).max() < 1e-6
+
+
+def test_mode_decomposition_bounds_inputs_by_samples():
+    """Test that the input of the fitted system is an adaptive parameter bounded by its range in the samples."""
+    decomposition = _fit(_driven_runs(), inputs=['driven.u'], variables=['driven.x', 'driven.y'])
+    specification = compile_system(decomposition.system_).adaptive_parameters['surrogate.u']
+    joined = np.concatenate([run.values('driven.u') for run in _driven_runs()])
+    assert specification.adaptive
+    assert specification.bounds == (joined.min(), joined.max())
+
+
+def test_mode_decomposition_forecast_holds_last_input():
+    """Test that the forecast iterates the fitted map with the input held at its last value."""
+    decomposition = _fit(
+        _driven_runs(),
+        inputs=['driven.u'],
+        variables=['driven.x', 'driven.y'],
+        validation=0.1,
+        horizon=2,
+    )
+    last = _driven_runs()[-1].values('driven.u')[-1]
+    first = decomposition.operator_ @ decomposition.last_state_ + decomposition.input_matrix_[:, 0] * last
+    assert np.allclose(decomposition.forecast_[0], first)
+    assert decomposition.validation_error_ < 1e-6
+
+
+def test_mode_decomposition_input_with_dictionary_excludes_input():
+    """Test that the dictionary computes the observables of the variables that are not inputs."""
+    decomposition = _fit(
+        _driven_runs(),
+        variables=['driven.x', 'driven.y'],
+        inputs=['driven.u'],
+        dictionary=PolynomialFeatures(2, include_bias=False),
+    )
+    assert decomposition.states_ == ['x', 'y', 'x_2', 'x_y', 'y_2']
+    assert decomposition.input_matrix_.shape == (5, 1)
+    assert PassCompiler().check().prepare(decomposition.system_).report_.ok
+
+
+def test_mode_decomposition_input_rank_truncates_modes():
+    """Test that a rank keeps that many modes of the map with inputs."""
+    decomposition = _fit(_driven_runs(), rank=1, inputs=['driven.u'], variables=['driven.x', 'driven.y'])
+    assert decomposition.modes_.shape == (2, 1)
+
+
+def test_mode_decomposition_rejects_input_outside_variables():
+    """Test that an input that the series lacks raises an error naming it."""
+    trajectory = _linear_trajectory()
+    with pytest.raises(AnalysisError, match=r'linear\.q'):
+        ModeDecompositionAnalysis(inputs=['linear.q']).check().prepare(trajectory).run()
+
+
+def test_mode_decomposition_input_name_differs_from_states():
+    """Test that an input with the last part of the name of a state gets a name of its own."""
+    values = np.random.default_rng(0).normal(size=(50, 2))
+    decomposition = _fit(values, variables=['a.x', 'b.x'], inputs=['b.x'])
+    assert decomposition.inputs_ == ['x_input']

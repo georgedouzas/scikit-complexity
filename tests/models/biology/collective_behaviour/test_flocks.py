@@ -9,6 +9,7 @@ from skcomplex.engine.runtime import Simulation
 from skcomplex.models.biology.collective_behaviour import (
     bird_swarm,
     boids,
+    boids_3d,
 )
 
 
@@ -23,6 +24,22 @@ def test_boids_align():
 
     assert polarization(0) < 0.3
     assert polarization(100) > 0.7
+
+
+def test_boids_3d_align_in_three_dimensions():
+    """Test that boids with only the alignment rule polarize and keep their spread over the depth of the box."""
+    system = boids_3d(50, cohesion=0.0, separation=0.0, alignment=0.1, random_state=0)
+    trajectory = Simulation(system, dt=1, random_state=0).check().prepare().run(until=200).trajectory_
+
+    def polarization(frame):
+        velocity = trajectory.agents('flock', frame).values['velocity']
+        return np.linalg.norm((velocity / np.linalg.norm(velocity, axis=1, keepdims=True)).mean(axis=0))
+
+    assert polarization(0) < 0.3
+    assert polarization(200) > 0.9
+    depths = trajectory.agents('flock', 200).locations[:, 2]
+    assert trajectory.agents('flock', 200).locations.shape == (50, 3)
+    assert np.ptp(depths) > system.space.extent[2] / 2
 
 
 def test_bird_swarm_flies_together():

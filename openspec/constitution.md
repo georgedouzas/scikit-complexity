@@ -97,7 +97,8 @@ conventions are the taste it cannot check.
 - The top level of a package MUST hold subpackages and its `__init__` only. The shared leaves, the type vocabulary,
   the shared constants, and the shared building primitives, MUST live in a `core` subpackage, and every import MUST
   run downward, from `core` to domain packages to surfaces, so no cycle can form.
-- The only lazy import MUST defer an optional dependency, and MUST carry a suppression with a reason.
+- The only lazy import MUST defer an optional dependency, and MUST go through `importlib`, as
+  `skcomplex.models.import_extra` does, so it needs no suppression.
 - Implementation modules, classes, and helpers MUST be private, named `_name`.
 - The package `__init__` MUST re-export the public surface with an explicit `__all__`, MUST carry only its docstring
   and those re-exports, and MUST be the only place a public name leaves a private module. A name MUST be re-exported
@@ -194,6 +195,9 @@ conventions are the taste it cannot check.
 
 - The project MUST declare its supported language versions, and MUST remain compatible across all of them.
 - A new runtime dependency MUST be justified and declared in the project manifest, and MUST NOT be vendored ad hoc.
+- A runtime dependency MUST have a release on the package index within the last 24 months, or the Project Profile MUST
+  record why it may stay and when the exception is next reviewed. A proposal for a new one MUST state its last release
+  date, and the limit MUST be checked before each release.
 - The build MUST use a `src`-based layout with SCM-derived versioning, and generated version metadata MUST NOT be
   hand-edited.
 - Canonical task-runner sessions for tests, checks, formatting, docs, and release MUST be the entry points the gate
@@ -258,27 +262,34 @@ to fill in as the project takes shape.
 - Runtime dependencies: `numpy` 2.1 or later, `scipy` for numeric integration, `passagemath-symbolics` as the Sage
   symbolic layer every law is written in and lowered from, `passagemath-maxima` for exact solutions, `cysignals` at a
   version the passagemath wheels need, `numba` for the compiled backend, `jax` for the JAX backend and automatic differentiation, `optax` for the
-  optimizers of the learning solver, `diffrax` for differentiable ODE solves of the learning solver, `lammps` for the LAMMPS backend, `mesa` for agent-based models, `networkx`
+  optimizers of the learning solver, `diffrax` for differentiable ODE solves of the learning solver, `highspy` for linear programs, `lammps` for the LAMMPS backend, `mesa` for agent-based models, `networkx`
   for networks, which Mesa 3.5 imports without declaring it, `xgi` for hypergraphs and simplicial complexes, `rerun-sdk` for visualization, `qutip` for operator dynamics, `SALib` for sensitivity
-  analysis, `scikit-fem` for finite-element assembly on unstructured meshes, `shapely` for the geometry of rewriting
-  systems, `python-sat` for incremental satisfiability, `pymoo` for population optimisers, and `scikit-learn` for the
+  analysis, `scikit-fem` for finite-element assembly on unstructured meshes, `shapely` 2.2 or later for the geometry of
+  rewriting systems and the regions of agent spaces, `python-sat` for incremental satisfiability, `pymoo` for population optimisers, and `scikit-learn` for the
   estimator contract. The analysis layer adds `antropy` for regularity entropies and Lempel-Ziv complexity, `ordpy`
   for ordinal patterns, `nolds` for fluctuation analyses and Rosenstein's exponent, `powerlaw` for power-law fits,
-  `ennemi` for nearest-neighbour transfer entropy, `tidynamics` for displacements, `mrestimator` for branching
-  ratios, `kramersmoyal` for Kramers-Moyal coefficients, `pydtmc` for Markov state models, `dit` for discrete
+  `ennemi` for nearest-neighbour transfer entropy, `mrestimator` for branching
+  ratios, `pydtmc` for Markov state models, `dit` for discrete
   multivariate information and partial information decomposition, `igraph` for network motif counts, `pydmd` for
-  dynamic mode decomposition, `pysindy` for sparse identification of nonlinear dynamics, and `reservoirpy` for
-  reservoir computing. Rerun is a core dependency,
+  dynamic mode decomposition, `pysindy` for sparse identification of nonlinear dynamics, `reservoirpy` for
+  reservoir computing, and `passagemath-polyhedra` for exact enumeration of the generators of a cone. `pysd` reads Vensim and
+  XMILE files for the translators of the engine. Rerun is a core dependency,
   and spawning a local viewer happens only on request, so it is not a real-world side effect.
+- Exceptions to the 24-month limit on runtime dependencies: none. `pysd` 3.14.3, of 2025-03-23, is its last release and
+  passes the limit until 2027-03-23, so its next review is due by 2027-03-23.
 - Model gallery: the `gallery` dependency group holds `pillow` 11.0 or later for encoding the screenshots and
   `playwright` 1.50 or later for the web capture backend in headless Chromium, next to `mkdocs-gallery` in the `docs`
   group. The gallery tooling lives in `docs/gallery_tools`, and `nox -s gallery` runs the examples, captures their
   screenshots, and builds the documentation with them.
-- Dependency placement: a library that `skcomplex.core` or `skcomplex.engine` uses MUST be a runtime dependency,
+- Optional extras: `structures` holds `biopython` for the structures of the protein models, `rna` holds `ViennaRNA`,
+  whose licence is not OSI approved, for RNA folds, and `trajectories` holds `mdtraj`, under the LGPL, for molecular
+  dynamics trajectories.
+- Dependency placement: a library that `skcomplex.core`, `skcomplex.engine`, or `skcomplex.analysis` uses MUST be a runtime dependency,
   whatever its licence, including copyleft licences such as that of `passagemath-symbolics`. An optional extra MUST
   hold only libraries that a model of `skcomplex.models` alone needs, and a model that needs one MUST raise a named
-  error naming the extra.
-- Symbolic layer: Sage is imported only through `sage.all__sagemath_symbolics` and the modules it loads, and the
+  error naming the extra. The extra `metabolism` holds `cobra`, `straindesign`, and `micom`.
+- Symbolic layer: Sage is imported only through `sage.all__sagemath_symbolics`, `sage.all__sagemath_polyhedra`, and the
+  modules they load, and the
   framework prints expressions to NumPy, Numba, and Lepton code itself. SymPy is installed as a dependency of
   passagemath, but importing it is banned by a `ruff` rule, and laws reject SymPy values.
 - LAMMPS: `lammps` is a runtime dependency, with `mpich`, because the LAMMPS wheel links an MPI library it does not
@@ -286,7 +297,7 @@ to fill in as the project takes shape.
 - Layout: library. The importable package under `src/skcomplex` is distributed to others and holds five packages.
   `skcomplex.core` holds what a system is, in the order `base`, `spaces`, `laws`, `elements` and `interactions`,
   `system`, and `specs`, and nothing about how it runs. `skcomplex.engine` holds what runs a system, in the order
-  `types`, `problems`, `backends`, `compile`, `solvers`, `runtime`, and `viz`. `skcomplex.analysis` builds on the
+  `types`, `problems`, `backends`, `compile`, `solvers`, `runtime`, `viz`, and `translators`. `skcomplex.analysis` builds on the
   engine, and `skcomplex.experiments` on the analysis. What every package shares lives in the root modules
   `skcomplex.base` (`BaseConfig`, the root of every configurable class), `skcomplex.types`, `skcomplex.specs`, and
   `skcomplex.errors`, which import no package. Within `core` and within `engine`, a package imports only the packages

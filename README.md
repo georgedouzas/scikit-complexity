@@ -109,106 +109,13 @@ pdm install
 
 ## Usage
 
-Build your own model from a few general classes, or start from one of the 549 ready-made models, which are written with
-the same classes and work as examples for your own.
+There are two ways to use the library. Select a prebuilt model from the catalog by its name, or build a custom model
+from the general classes of `skcomplex.core`.
 
-### Build a model
+### Select a prebuilt model
 
-A predator and prey model assembles from ready-made interactions:
-
-```python
-from skcomplex.core.system import System
-from skcomplex.models.biology.common.populations import (
-    LogisticGrowthInteraction,
-    MortalityInteraction,
-    PopulationElement,
-)
-from skcomplex.models.biology.ecology import PredationInteraction
-
-system = System(
-    elements=[PopulationElement('rabbits', n=40), PopulationElement('foxes', n=9)],
-    interactions=[
-        LogisticGrowthInteraction('growth', target='rabbits', r=1.1, K=1000),
-        PredationInteraction('hunt', predator='foxes', prey='rabbits', a=0.4, b=0.1),
-        MortalityInteraction('death', target='foxes', d=0.4),
-    ],
-)
-```
-
-A simulation runs it and records the trajectory. Adding a `RerunObserver` streams the run to the Rerun viewer, and a
-`RealTimeClock` paces it against wall time:
-
-```python continuation
-from skcomplex.engine.runtime import RealTimeClock, Simulation
-from skcomplex.engine.viz import RerunObserver
-
-simulation = Simulation(
-    system,
-    dt=0.05,
-    clock=RealTimeClock(speed=20.0),
-    observers=[RerunObserver('lotka-volterra', spawn=True)],
-).check().prepare()
-trajectory = simulation.run(until=30).trajectory_
-print(round(float(trajectory.values('rabbits.n').max())))
-```
-
-A simulation started with `start` runs in the background, and its parameters can change while it runs:
-
-```python continuation
-from skcomplex.engine.runtime import RealTimeClock, Simulation
-
-simulation = Simulation(system, dt=0.05, clock=RealTimeClock(speed=20.0)).check().prepare().start(until=30)
-simulation.update_parameters({'hunt.a': 0.2})
-simulation.wait()
-```
-
-A new interaction takes a few lines. It declares its roles and parameters as annotated arguments of its constructor,
-and returns its laws from `_get_laws`, where the namespace `s` holds the symbols of its parameters and of the elements
-bound to its roles:
-
-```python
-from typing import Annotated
-
-from sage.all__sagemath_symbolics import oo
-from sage.sets.real_set import RealSet
-
-from skcomplex.analysis import SymbolicAnalysis
-from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import RateLaw
-from skcomplex.specs import ParameterSpec, RoleSpec
-from skcomplex.core.system import System
-from skcomplex.models.biology.common.populations import LogisticGrowthInteraction, PopulationElement
-
-
-class HarvestInteraction(Interaction):
-    def __init__(
-        self,
-        label,
-        *,
-        target: Annotated[str, RoleSpec()],
-        h: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
-    ):
-        super().__init__(label)
-        self.target = target
-        self.h = h
-
-    def _get_laws(self, s):
-        return [RateLaw(s.target.n, -s.h * s.target.n)]
-
-
-harvested = System(
-    elements=[PopulationElement('fish', n=500)],
-    interactions=[
-        LogisticGrowthInteraction('growth', target='fish', r=0.5, K=1000),
-        HarvestInteraction('fishing', target='fish', h=0.1),
-    ],
-)
-print(SymbolicAnalysis().check().prepare(harvested).run().equations_['fish.n'])
-```
-
-### Use a ready-made model
-
-Every model comes with a description, tags, parameters and references, so you can browse the catalog from Python:
+Every one of the more than 500 prebuilt models has a description, tags, parameters, and references, so you can browse
+the catalog from Python:
 
 ```python
 from skcomplex.models import catalog, describe
@@ -231,6 +138,17 @@ trajectory = run('sir').trajectory_
 print(trajectory.values('I.n').max().round())
 ```
 
+`create` returns the system of a model with the arguments you choose, so you can simulate it with settings of your own:
+
+```python
+from skcomplex.engine.runtime import Simulation
+from skcomplex.models import create
+
+system = create('lotka_volterra', r=1.5)
+trajectory = Simulation(system, dt=0.1).check().prepare().run(until=50).trajectory_
+print(round(float(trajectory.values('prey.n').max())))
+```
+
 Each run can stream to the Rerun viewer:
 
 <table>
@@ -240,6 +158,159 @@ Each run can stream to the Rerun viewer:
     <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/wolf_sheep.png" alt="Wolves, sheep and grass on a grid" width="100%"><br><code>wolf_sheep</code><br><sub>Wolves, sheep and grass on a grid</sub></td>
   </tr>
 </table>
+
+The [catalog](https://georgedouzas.github.io/scikit-complexity/models/catalog/) lists every model by field and tag, and the page of each model shows the classes
+it is built from.
+
+### Build a custom model
+
+A custom model needs only the core. An element declares its states, and an interaction declares its roles and returns
+its laws, where the namespace `s` holds the symbols of its parameters and of the elements bound to its roles. A predator
+and prey model takes one element class, the general `RateInteraction`, and one new interaction:
+
+```python
+from typing import Annotated
+
+from skcomplex.core.elements import Element
+from skcomplex.core.interactions import Interaction, RateInteraction
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.system import System
+from skcomplex.engine.runtime import Simulation
+from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec
+
+
+class PopulationElement(Element):
+    def __init__(self, label, visual=None, *, n: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label, visual=visual)
+        self.n = n
+
+
+class PredationInteraction(Interaction):
+    def __init__(
+        self,
+        label,
+        *,
+        predator: Annotated[str, RoleSpec(states=('n',))],
+        prey: Annotated[str, RoleSpec(states=('n',))],
+        a: Annotated[float, ParameterSpec()] = 0.4,
+        b: Annotated[float, ParameterSpec()] = 0.1,
+    ):
+        super().__init__(label)
+        self.predator = predator
+        self.prey = prey
+        self.a = a
+        self.b = b
+
+    def _get_laws(self, s):
+        contacts = s.predator.n * s.prey.n
+        return [RateLaw(s.prey.n, -s.a * contacts), RateLaw(s.predator.n, s.b * contacts)]
+
+
+system = System(
+    elements=[PopulationElement('rabbits', n=40), PopulationElement('foxes', n=9)],
+    interactions=[
+        RateInteraction('growth', target='rabbits', state='n', rate=lambda s: 1.1 * s.target.n * (1 - s.target.n / 1000)),
+        PredationInteraction('hunt', predator='foxes', prey='rabbits'),
+        RateInteraction('death', target='foxes', state='n', rate=lambda s: -0.4 * s.target.n),
+    ],
+)
+trajectory = Simulation(system, dt=0.05).check().prepare().run(until=30).trajectory_
+print(round(float(trajectory.values('rabbits.n').max())))
+```
+
+A `RerunObserver` records the run for the Rerun viewer, and `RerunObserver('predators', spawn=True)` opens the viewer
+during the run. A `RealTimeClock` paces the run against wall time:
+
+```python continuation
+import tempfile
+from pathlib import Path
+
+from skcomplex.engine.runtime import RealTimeClock
+from skcomplex.engine.viz import RerunObserver
+
+recording = Path(tempfile.mkdtemp()) / 'predators.rrd'
+simulation = Simulation(
+    system,
+    dt=0.05,
+    clock=RealTimeClock(speed=20.0),
+    observers=[RerunObserver('predators', save_path=recording)],
+).check().prepare()
+print(simulation.run(until=30).trajectory_.times[-1])
+```
+
+A simulation started with `start` runs in the background, and its parameters can change while it runs:
+
+```python continuation
+simulation = Simulation(system, dt=0.05, clock=RealTimeClock(speed=20.0)).check().prepare().start(until=30)
+simulation.update_parameters({'hunt.a': 0.2})
+simulation.wait()
+```
+
+Adding a process takes one more interaction, and `SymbolicAnalysis` shows the equations of the system:
+
+```python continuation
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from skcomplex.analysis import SymbolicAnalysis
+
+
+class HarvestInteraction(Interaction):
+    def __init__(
+        self,
+        label,
+        *,
+        target: Annotated[str, RoleSpec(states=('n',))],
+        h: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ):
+        super().__init__(label)
+        self.target = target
+        self.h = h
+
+    def _get_laws(self, s):
+        return [RateLaw(s.target.n, -s.h * s.target.n)]
+
+
+harvested = System(
+    elements=[PopulationElement('fish', n=500)],
+    interactions=[
+        RateInteraction('growth', target='fish', state='n', rate=lambda s: 0.5 * s.target.n * (1 - s.target.n / 1000)),
+        HarvestInteraction('fishing', target='fish', h=0.1),
+    ],
+)
+print(SymbolicAnalysis().check().prepare(harvested).run().equations_['fish.n'])
+```
+
+### Find out which components fit
+
+An interaction states what it needs from each role, and an element states what it carries. Ask them before you build:
+
+```python continuation
+hunt = PredationInteraction('hunt', predator='foxes', prey='rabbits')
+print(hunt.get_requirements().roles['prey'].states, list(PopulationElement('rabbits').get_states()))
+```
+
+When a role is bound to an element without the state it reads, validation names the role, the state, and the fix:
+
+```python continuation
+from skcomplex.engine.compile import PassCompiler
+
+
+class TankElement(Element):
+    def __init__(self, label, visual=None, *, level: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label, visual=visual)
+        self.level = level
+
+
+wrong = System(
+    elements=[TankElement('tank'), PopulationElement('foxes')],
+    interactions=[PredationInteraction('hunt', predator='foxes', prey='tank')],
+)
+print(PassCompiler().check().prepare(wrong).report_.issues[0].text)
+```
+
+The [compatibility page](https://georgedouzas.github.io/scikit-complexity/overview/compatibility/) lists every element, interaction, law, solver, and backend, and
+the [user guide](https://georgedouzas.github.io/scikit-complexity/overview/user_guide/#choosing-compatible-components) walks through the choices in order.
 
 ## Spec-driven development
 

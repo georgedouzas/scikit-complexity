@@ -46,19 +46,16 @@ dependencies = [
     "SALib>=1.5",
     "pandas>=2.2.2",
     "scikit-fem>=10.0",
-    "shapely>=2.1",
+    "shapely>=2.2",
     "antropy>=0.2.3",
     "ordpy>=1.2.3",
     "nolds>=0.6.3",
     "powerlaw>=2.0.0",
     "ennemi>=1.6.0",
-    "tidynamics>=1.1.2",
     "mrestimator>=0.2.0",
-    "kramersmoyal>=0.4.1",
     "pydtmc>=10.1.0",
     "dit>=2.3",
     "qutip<6,>=5.3",
-    "matching>=1.4.3",
     "pysindy>=2.1.0",
     "pydmd>=2025.8.1",
     "reservoirpy>=0.4.2",
@@ -68,7 +65,20 @@ dependencies = [
     "jax>=0.11.2",
     "optax>=0.2.8",
     "diffrax>=0.7.2",
+    "highspy>=1.15.1",
+    "passagemath-polyhedra>=10.8.13",
+    "pysd>=3.14.3,<4",
 ]
+
+[project.optional-dependencies]
+metabolism = [
+    "cobra>=0.32.1",
+    "straindesign>=1.19.1",
+    "micom>=0.39.1",
+]
+structures = ["biopython>=1.88"]
+rna = ["ViennaRNA>=2.7.2"]
+trajectories = ["mdtraj>=1.11.2"]
 
 [project.urls]
 Homepage = "https://georgedouzas.github.io/scikit-complexity"
@@ -122,6 +132,8 @@ tests = [
     "pytest-xdist>=3.6.1",
     "quantecon>=0.10",
     "pytest-markdown-docs>=0.9.2",
+    "toponetx>=0.4.0",
+    "mfapy @ git+https://github.com/fumiomatsuda/mfapy@a10433af16682386548b360297e2476152d46ede",
 ]
 changelog = [
     "git-changelog>=2.5.2",
@@ -224,19 +236,30 @@ ignore-vulns = ["PYSEC-2022-42969"]
 known_first_party = ["gallery_tools"]
 
 [tool.deptry.package_module_name_map]
+passagemath-polyhedra = "sage"
 rerun-sdk = "rerun"
 scikit-learn = "sklearn"
 passagemath-symbolics = "sage"
 SALib = "SALib"
 scikit-fem = "skfem"
 python-sat = "pysat"
+biopython = "Bio"
+ViennaRNA = "RNA"
 
 [tool.deptry.per_rule_ignores]
 # Maxima, cysignals, and the Sage groups that pickle GAP groups are loaded by Sage, and MPI by LAMMPS, so the package never imports them. The analysis
 # libraries are imported on first use through `skcomplex.analysis._lazy.module`, by name, and GAP on the first
-# group space that needs it, by name.
+# group space that needs it, by name. The optional extras are imported by name on first use, in the models that need
+# them.
 DEP002 = [
+    "cobra",
+    "straindesign",
+    "micom",
+    "biopython",
+    "ViennaRNA",
+    "mdtraj",
     "passagemath-maxima",
+    "passagemath-polyhedra",
     "passagemath-gap",
     "passagemath-groups",
     "cysignals",
@@ -244,7 +267,6 @@ DEP002 = [
     "antropy",
     "powerlaw",
     "mrestimator",
-    "kramersmoyal",
     "dit",
     "igraph",
     "pysindy",
@@ -286,6 +308,7 @@ name = "Engine packages import only the packages listed before them"
 type = "layers"
 containers = ["skcomplex.engine"]
 layers = [
+    "translators",
     "viz",
     "runtime",
     "solvers",
@@ -320,6 +343,7 @@ allow_indirect_imports = true
 ignore_imports = [
     "skcomplex.models.** -> skcomplex.core.*",
     "skcomplex.models.** -> skcomplex.core.laws.utils",
+    "skcomplex.models.** -> skcomplex.analysis.types",
     "skcomplex.models.** -> skcomplex.engine.*",
 ]
 
@@ -348,6 +372,7 @@ modules = [
     "skcomplex.models.economics.resources",
     "skcomplex.models.engineering.circuits",
     "skcomplex.models.engineering.control",
+    "skcomplex.models.engineering.mechatronics",
     "skcomplex.models.engineering.power_systems",
     "skcomplex.models.engineering.processes",
     "skcomplex.models.engineering.robotics",

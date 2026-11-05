@@ -14,11 +14,12 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import SR, Expression, matrix, solve
 from sage.modules.free_module_element import FreeModuleElement
 
+from ....core.interactions import ConnectionInteraction
 from ....core.laws import BaseLaw, BoundaryLaw, CrossingLaw, EquationLaw, JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from ....core.laws.utils import reductions_in
 from ....core.spaces import StaticTime
 from ....errors import ValidationError
-from ....specs import CallSpec
+from ....specs import CallSpec, IssueSpec
 from ....specs._orders_spec import _OrdersSpec
 from ....types import Array, VariableKind
 from ..._utils import components_of, declarations_of, symbol, vector
@@ -29,6 +30,7 @@ from .._compilation import Compilation
 from .._laws import _KERNEL_FREE_LAWS
 from .._renewal_law import RenewalLaw
 from ._complex import LowerComplexPass
+from ._equation_blocks import EquationBlocksLowering
 
 _EQUATION_UNKNOWNS = 6
 
@@ -38,7 +40,7 @@ class OrdersPass(BasePass):
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
-        return ('lowered', 'layout')
+        return ('lowered', 'layout', 'programs')
 
     def _get_writes(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass writes."""
@@ -48,18 +50,122 @@ class OrdersPass(BasePass):
         """Lower the orders and lags of the laws and solve their equations."""
         compilation = self.compilation_
         blocks = list(Compilation._required(compilation.layout, 'layout').blocks.values())
-        orders = self._orders_of(blocks)
-        specs = [
-            (spec, self._with_orders(spec, laws, block, orders))
-            for spec, laws, block in Compilation._required(compilation.lowered, 'lowered')
-        ]
-        static = isinstance(compilation.system.time, StaticTime)
-        compilation.ordered = self._solve_static(specs) if static else self._solve_equations(specs)
+        orders = self._orders_of(blocks, self._program_variables(compilation))
+        specs = self._specs_of(compilation, orders)
+        if isinstance(compilation.system.time, StaticTime):
+            compilation.ordered = self._solve_static(specs)
+        elif orders.algebraic:
+            relations, unknowns = self._unknowns_of(specs, blocks, orders)
+            lowering = EquationBlocksLowering(relations, unknowns).check().prepare(compilation)
+            compilation.ordered = lowering.run(specs).lowered_
+        else:
+            compilation.ordered = self._solve_equations(specs)
 
     @staticmethod
-    def _orders_of(blocks: list[BlockSpec]) -> _OrdersSpec:
-        """Return the orders above 1 and the lags of every state of the blocks."""
-        orders, lags = {}, {}
+    def _connected_ports(compilation: Compilation) -> set[tuple[str, str]]:
+        """Return the path of the element and the name of the port of every port a connection names."""
+        return {
+            (f'{node.scope}{member}', port)
+            for node in Compilation._required(compilation.nodes, 'nodes')
+            if isinstance(node.component, ConnectionInteraction)
+            for member, port in zip(node.component.members, node.component.ports, strict=True)
+        }
+
+    @staticmethod
+    def _zero_flows(spec: KernelSpec, block: BlockSpec, connected: set[tuple[str, str]]) -> list[_RelationSpec]:
+        """Return the relation `flow == 0` of every port of an element that no connection names."""
+        if block.node.interaction:
+            return []
+        ports = getattr(block.node.component_type, 'ports', {})
+        relations = []
+        for port, connector in ports.items():
+            if (block.node.path, port) in connected:
+                continue
+            flow = getattr(spec.namespace, f'{port}_{connector.flow}')
+            description = f'the zero flow of the unconnected port {port} of {spec.owner}'
+            relations.append(_RelationSpec(spec, SR(flow), {flow: flow}, description))
+        return relations
+
+    @staticmethod
+    def _specs_of(
+        compilation: Compilation,
+        orders: _OrdersSpec,
+    ) -> list[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]]:
+        """Return the laws of every spec with orders and lags read, equations as relations, and zero flows added."""
+        connected = OrdersPass._connected_ports(compilation)
+        return [
+            (
+                spec,
+                [*OrdersPass._with_orders(spec, laws, block, orders), *OrdersPass._zero_flows(spec, block, connected)],
+            )
+            for spec, laws, block in Compilation._required(compilation.lowered, 'lowered')
+        ]
+
+    @staticmethod
+    def _program_variables(compilation: Compilation) -> set[str]:
+        """Return the dotted names of the algebraic states that linear programs determine rather than equations."""
+        return {
+            reference.entry.name
+            for spec, laws in Compilation._required(compilation.programs, 'programs')
+            for law in laws
+            for target in law._get_targets()
+            if (reference := spec.references.get(target)) is not None
+        }
+
+    @staticmethod
+    def _algebraic_symbols(blocks: list[BlockSpec], orders: _OrdersSpec) -> list[Expression]:
+        """Return the symbols of every algebraic state of the blocks that equations determine."""
+        symbols: list[Expression] = []
+        for block in blocks:
+            if block.node.interaction or block.node.is_agent:
+                continue
+            declarations = declarations_of(block.node.component_type, VariableKind.STATE)
+            symbols += [
+                item
+                for variable in block.entries
+                if variable in declarations and block.entries[variable].name in orders.algebraic
+                for item in components_of(block.symbols[variable])
+            ]
+        return symbols
+
+    @staticmethod
+    def _unknowns_of(
+        specs: list[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]],
+        blocks: list[BlockSpec],
+        orders: _OrdersSpec,
+    ) -> tuple[list[_RelationSpec], dict[Expression, Expression]]:
+        """Return the relations with those of one target added, and the state of every unknown they solve for."""
+        relations = OrdersPass._summed([item for _, laws in specs for item in laws if isinstance(item, _RelationSpec)])
+        unknowns = {item: item for item in OrdersPass._algebraic_symbols(blocks, orders)}
+        for relation in relations:
+            unknowns.update(relation.highest)
+        return relations, unknowns
+
+    @staticmethod
+    def _structure_issues(compilation: Compilation) -> list[IssueSpec]:
+        """Return the issue of a system with algebraic states whose equations cannot be matched to their unknowns.
+
+        Args:
+            compilation:
+                The compilation, lowered as far as the pass reads.
+
+        Returns:
+            issues:
+                The issue, or none for a system that matches or holds no algebraic state.
+        """
+        blocks = list(Compilation._required(compilation.layout, 'layout').blocks.values())
+        orders = OrdersPass._orders_of(blocks, OrdersPass._program_variables(compilation))
+        if not orders.algebraic:
+            return []
+        specs = OrdersPass._specs_of(compilation, orders)
+        relations, unknowns = OrdersPass._unknowns_of(specs, blocks, orders)
+        references = {key: value for spec, _ in specs for key, value in spec.references.items()}
+        return EquationBlocksLowering._structure_issues(relations, unknowns, references, compilation.system.label)
+
+    @staticmethod
+    def _orders_of(blocks: list[BlockSpec], programmed: set[str]) -> _OrdersSpec:
+        """Return the orders above 1 and the lags of every state of the blocks, and the states equations determine."""
+        orders, lags, algebraic = {}, {}, set()
         for block in blocks:
             if block.node.interaction or block.node.is_agent:
                 continue
@@ -70,7 +176,9 @@ class OrdersPass(BasePass):
                     orders[entry.name] = declaration.derivatives + 1
                 if declaration is not None and declaration.lags:
                     lags[entry.name] = declaration.lags
-        return _OrdersSpec(orders, lags)
+                if declaration is not None and declaration.algebraic and entry.name not in programmed:
+                    algebraic.add(entry.name)
+        return _OrdersSpec(orders, lags, frozenset(algebraic))
 
     @staticmethod
     def _companion_symbol(spec: KernelSpec, item: Expression, suffix: str) -> Expression:
@@ -185,7 +293,15 @@ class OrdersPass(BasePass):
         reference = spec.references.get(law.target) if isinstance(law.target, Expression) else None
         key = None if reference is None else (reference.entry.name, reference.column)
         target = None if key is None else law.target
-        return _RelationSpec(spec, SR(lhs) - SR(rhs), highest, description, key, target)
+        expression = SR(lhs) - SR(rhs)
+        highest.update(
+            {
+                item: item
+                for item in expression.variables()
+                if item in spec.references and spec.references[item].entry.name in orders.algebraic
+            },
+        )
+        return _RelationSpec(spec, expression, highest, description, key, target)
 
     @staticmethod
     def _check_relation(relation: _RelationSpec) -> None:

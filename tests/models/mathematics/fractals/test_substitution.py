@@ -5,11 +5,11 @@ import pytest
 import rerun.blueprint as rrb
 
 from skcomplex.analysis import ScalingAnalysis
+from skcomplex.engine.compile import RewritingCompiler
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
+from skcomplex.engine.viz import GeometryVisual, RerunObserver
 from skcomplex.errors import ValidationError
 from skcomplex.models import create, describe, run
-from skcomplex.models.mathematics.fractals import GeometryVisual, RewritingCompiler
 
 
 def test_koch_curve():
@@ -51,6 +51,57 @@ def test_filled_gasket():
     bounds = first.bounds()
     share = last.raster(512, bounds).sum() / first.raster(512, bounds).sum()
     assert share == pytest.approx(0.75**6, rel=0.02)
+
+
+def test_koch_curve_reference_values():
+    """Test the word, the counts, the length, and the points of the Koch curve at generation 2 against literals."""
+    trajectory = run('koch_curve', settings={'until': 2}).trajectory_
+    curve = trajectory.structure('koch', 2)
+    assert curve.text == 'F+F--F+F+F+F--F+F--F+F--F+F+F+F--F+F'
+    assert trajectory.values('koch.F').tolist() == [1.0, 4.0, 16.0]
+    assert trajectory.values('koch.size').tolist() == [1.0, 8.0, 36.0]
+    assert curve.length() == pytest.approx(1.777777777777778, abs=1e-12)
+    assert curve.bounds() == pytest.approx((0.0, 0.0, 1.0, 0.28867513459481287), abs=1e-12)
+    segments = curve.segments()
+    assert len(segments) == 16
+    points = [
+        [[0.111111111111, 0.0], [0.166666666667, 0.096225044865]],
+        [[0.444444444444, 0.19245008973], [0.5, 0.288675134595]],
+        [[0.888888888889, 0.0], [1.0, 0.0]],
+    ]
+    assert np.allclose(segments[[1, 7, 15]], points, rtol=0, atol=1e-11)
+
+
+def test_cantor_set_reference_values():
+    """Test the counts, the lengths, and the intervals of the Cantor set at generation 2 against literal values."""
+    trajectory = run('cantor_set', settings={'until': 2}).trajectory_
+    assert trajectory.values('cantor.size').tolist() == [1.0, 2.0, 4.0]
+    assert trajectory.values('cantor.length').tolist() == pytest.approx([1.0, 0.6666666666666665, 0.4444444444444444])
+    intervals = trajectory.structure('cantor', 2).segments()[:, :, 0].tolist()
+    expected = [
+        [0.0, 0.111111111111],
+        [0.222222222222, 0.333333333333],
+        [0.666666666667, 0.777777777778],
+        [0.888888888889, 1.0],
+    ]
+    assert np.allclose(intervals, expected, rtol=0, atol=1e-11)
+
+
+def test_sierpinski_substitution_reference_values():
+    """Test the counts, the areas, the rasters, and the corners of the gasket and the carpet against literal values."""
+    trajectory = run('sierpinski_substitution', settings={'until': 2}).trajectory_
+    gasket = trajectory.structure('sierpinski', 2)
+    assert trajectory.values('sierpinski.size').tolist() == [1.0, 3.0, 9.0]
+    assert gasket.area() == pytest.approx(0.24356964481437335, abs=1e-12)
+    assert gasket.bounds() == pytest.approx((0.0, 0.0, 1.0, 0.8660254037844386), abs=1e-12)
+    assert gasket.raster(32).sum() == 264
+    corners = [[[0.0, 0.0], [0.25, 0.0], [0.125, 0.216506350946]], [[0.25, 0.0], [0.5, 0.0], [0.375, 0.216506350946]]]
+    assert np.allclose(gasket.polygons()[0][:2], corners, rtol=0, atol=1e-11)
+    trajectory = run('sierpinski_substitution', settings={'until': 2}, shape='carpet').trajectory_
+    carpet = trajectory.structure('sierpinski', 2)
+    assert trajectory.values('sierpinski.size').tolist() == [1.0, 8.0, 64.0]
+    assert carpet.area() == pytest.approx(0.7901234567901236, abs=1e-12)
+    assert carpet.raster(27).sum() == 576
 
 
 def test_koch_curve_in_rerun(tmp_path):

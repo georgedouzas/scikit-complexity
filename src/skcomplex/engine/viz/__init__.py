@@ -5,9 +5,12 @@ from ._axes import AxisVisual
 from ._base import BaseVisual
 from ._bodies import BodiesVisual
 from ._cayley import CayleyVisual
+from ._cells import CellVisual
 from ._expectation import ExpectationVisual
+from ._geometry import GeometryVisual
 from ._histograms import HistogramVisual
 from ._images import ImageVisual
+from ._linear_programs import LinearProgramVisual
 from ._matrices import MatrixVisual
 from ._meshes import MeshVisual
 from ._points import PointsVisual
@@ -22,9 +25,12 @@ __all__: list[str] = [
     'BaseVisual',
     'BodiesVisual',
     'CayleyVisual',
+    'CellVisual',
     'ExpectationVisual',
+    'GeometryVisual',
     'HistogramVisual',
     'ImageVisual',
+    'LinearProgramVisual',
     'MatrixVisual',
     'MeshVisual',
     'PhaseRingVisual',

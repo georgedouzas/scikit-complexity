@@ -4,11 +4,14 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.analysis import FitAnalysis
+from skcomplex.analysis import FitAnalysis, NetworkAnalysis, RenormalizationAnalysis
+from skcomplex.engine.runtime import Simulation, Trajectory
+from skcomplex.errors import ValidationError
 from skcomplex.models import create
 from skcomplex.models.mathematics.networks import (
     barabasi_albert,
     holme_kim,
+    popularity_similarity_network,
     vertex_copying,
 )
 
@@ -49,3 +52,62 @@ def test_growth_models_are_created_by_name(name):
     system = create(name)
     assert system.elements[0].variable
     assert system.elements[1].on == 'edges'
+
+
+def _similarity_trajectory(n_nodes: int, seed: int, **settings: float) -> Trajectory:
+    """Return the trajectory of a popularity-similarity network of a size, with the frames of its start and its end."""
+    system = popularity_similarity_network(n_nodes, random_state=seed, **settings)
+    steps = n_nodes - 3
+    return Simulation(system, dt=float(steps), random_state=seed).check().prepare().run(until=steps).trajectory_
+
+
+def test_popularity_similarity_network_degrees_are_heavy_tailed_and_clustered():
+    """Test that 2000 nodes of exponent 2.5 fit a mean over seeds within 0.07 of 2.69, and are clustered."""
+    graphs = [_similarity_trajectory(2000, seed, exponent=2.5).network(-1).graph() for seed in range(4)]
+    fitted = [float(NetworkAnalysis('degrees').check().prepare(graph).run().exponent_[0]) for graph in graphs]
+    assert np.mean(fitted) == pytest.approx(2.69, abs=0.07)
+    assert min(nx.average_clustering(graph) for graph in graphs) > 0.3
+
+
+def test_popularity_similarity_network_renormalizes_geometrically_with_its_exponent():
+    """Test that the mean degree exponent over seeds stays within 0.2 of the original at three geometric scales."""
+    analysis = RenormalizationAnalysis('geometric', steps=3, beta=5.0)
+    exponents = np.mean(
+        [
+            analysis.check().prepare(_similarity_trajectory(2000, seed, exponent=2.5)).run().exponents_
+            for seed in range(4)
+        ],
+        axis=0,
+    )
+    assert np.abs(exponents[1:] - exponents[0]).max() <= 0.2
+
+
+def test_popularity_similarity_network_new_nodes_join_at_close_angles():
+    """Test that a low temperature joins a new node mostly to the angles near it, which a uniform draw would not."""
+    trajectory = _similarity_trajectory(400, 0, temperature=0.1)
+    network = trajectory.network(-1)
+    angles = np.asarray(trajectory.values('nodes.angle')[-1])
+    gaps = np.abs(angles[network.sources] - angles[network.targets])
+    gaps = np.minimum(gaps, 2 * np.pi - gaps)
+    assert np.median(gaps) < np.pi / 4
+
+
+def test_popularity_similarity_network_clustering_falls_with_the_temperature():
+    """Test that a higher temperature lowers the clustering."""
+    low = nx.average_clustering(_similarity_trajectory(500, 0, temperature=0.1).network(-1).graph())
+    high = nx.average_clustering(_similarity_trajectory(500, 0, temperature=0.9).network(-1).graph())
+    assert low > high + 0.1
+
+
+@pytest.mark.parametrize(
+    ('settings', 'message'),
+    [
+        ({'exponent': 2.0}, 'degree exponent'),
+        ({'temperature': 0.0}, 'temperature'),
+        ({'temperature': 1.0}, 'temperature'),
+    ],
+)
+def test_popularity_similarity_network_rejects_invalid_settings(settings: dict[str, float], message: str):
+    """Test that an exponent not above 2 and a temperature outside the unit interval raise an error."""
+    with pytest.raises(ValidationError, match=message):
+        popularity_similarity_network(20, **settings)

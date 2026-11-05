@@ -113,7 +113,7 @@ class Observer(BaseConfig[None, tuple[NodeSpec, object]]):
                             for item in ProblemSpec._real_components_of(block.symbols[variable])
                         },
                     )
-        namespace = ObservableEvaluator._tree(items)
+        namespace = ObservableEvaluator._tree(items, t=self.declarations.time)
         for other, (other_scope, earlier) in self.live.items():
             if other == path:
                 break

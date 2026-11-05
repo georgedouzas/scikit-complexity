@@ -7,7 +7,7 @@ The neighbour search on a grid of cells passes tuples, since its Numba kernels t
 # License: MIT
 
 from collections.abc import Callable, Mapping, Sequence
-from enum import StrEnum
+from enum import IntEnum, StrEnum
 from types import SimpleNamespace
 
 import jax
@@ -20,13 +20,16 @@ from sage.structure.element import RingElement
 
 from ..core.laws import BilinearLaw, EncounterLaw
 from ..specs import ObservableSpec
-from ..types import Array, ComplexArray, Indices, IntArray, IntTuple
+from ..types import AnyArray, Array, ComplexArray, Indices, IntArray, IntTuple
 
 # arrays and indices
 type Sparse = scipy.sparse.csr_array
 type Pairs = tuple[Indices, Indices]
 type OptionalPairs = Pairs | None
 type EdgesFound = tuple[Indices, Indices, Indices | None]
+
+# rewritten words and tilings
+type Arrays = list[AnyArray]
 
 # expressions
 type Parts = tuple[Expression, Expression]
@@ -77,6 +80,15 @@ type MesaSpace = OrthogonalMooreGrid | OrthogonalVonNeumannGrid | Network | Mesa
 type SpectralBlock = tuple[IntTuple, list[Indices], ComplexArray]
 
 
+class LinearProgramBound(IntEnum):
+    """The bound of a column or a row of a linear program that a compiled value gives."""
+
+    COLUMN_LOWER = 0
+    COLUMN_UPPER = 1
+    ROW_LOWER = 2
+    ROW_UPPER = 3
+
+
 class ReadKind(StrEnum):
     """How a symbol is read for each evaluation index of a kernel."""
 
@@ -88,3 +100,4 @@ class ReadKind(StrEnum):
     DERIVED = 'derived'
     REDUCED = 'reduced'
     OTHER = 'other'
+    SOURCE = 'source'

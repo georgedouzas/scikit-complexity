@@ -4,13 +4,18 @@ import pytest
 
 from skcomplex import errors
 from skcomplex.errors import (
+    AnalysisError,
     ArgumentError,
     CapacityError,
     ConservationError,
+    EnumerationLimitError,
+    InfeasibleError,
     LabelError,
+    MissingExtraError,
     NotCheckedError,
     SimulationError,
     SkcomplexError,
+    SolverError,
     SpaceError,
     SpaceTooLargeError,
     ValidationError,
@@ -42,3 +47,10 @@ def test_every_error_derives_from_the_base_of_the_library():
 def test_errors_refine_their_bases(error, base):
     """Test that the errors refine the errors they are a kind of, so callers catch either."""
     assert issubclass(error, base)
+
+
+def test_named_errors_of_linear_programs_derive_from_their_families():
+    """Test the place of the errors of linear programs, enumerations, and optional extras in the hierarchy."""
+    assert issubclass(InfeasibleError, SolverError)
+    assert issubclass(EnumerationLimitError, AnalysisError)
+    assert issubclass(MissingExtraError, SkcomplexError)

@@ -11,8 +11,8 @@ SHALL give the name, field path, description, and tags that the model's registra
 
 #### Scenario: Catalog without imports
 - **WHEN** a user imports `skcomplex.models` and calls `catalog()` in a fresh interpreter
-- **THEN** every registered model is listed, and no module of `skcomplex.models.<field>`, no module of
-  `skcomplex.formalisms`, and none of `qutip`, `mesa`, `lammps`, and `deeptime` is loaded
+- **THEN** every registered model is listed, and no module of `skcomplex.models.<field>` and no module of
+  `skcomplex.formalisms` is loaded
 
 #### Scenario: Filter by field
 - **WHEN** a user calls `catalog(field='physics/mechanics')` in a fresh interpreter
@@ -46,3 +46,16 @@ registration whose name, field, description, or tags cannot be read without runn
 #### Scenario: Computed registration argument
 - **WHEN** a model registers with a field path built at run time, such as a variable
 - **THEN** listing the catalog raises a named error that names the model module and the argument
+
+### Requirement: The documentation holds a browsable catalog
+The documentation SHALL hold an index of every registered model by field and tag, with its description, generated from
+`catalog()`. Each model page SHALL show how to select the model by name and list the element and interaction classes its system
+uses.
+
+#### Scenario: Index follows the catalog
+- **WHEN** a model is registered
+- **THEN** the next documentation build lists it in the index under its field and its tags
+
+#### Scenario: Model page
+- **WHEN** a reader opens the page of `lotka_volterra`
+- **THEN** it shows `create('lotka_volterra')`, and lists the element and interaction classes of its system

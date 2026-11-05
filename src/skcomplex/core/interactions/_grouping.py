@@ -5,12 +5,13 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, ClassVar, cast
 
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
 from ...specs import BaseSpec, PartnerSpec, ReductionSpec, RoleSpec
+from ...types import ElementKind
 from ..laws import BaseLaw, MatchLaw, RuleLaw, UpdateLaw
 from ..laws.utils import both, count, maximum, mean, minimum, reductions_in, total, variance
 from ..spaces import BaseSpace
@@ -143,11 +144,13 @@ class GroupingInteraction(Interaction):
         [1.0, 1.0, 1.0]
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (MatchLaw, RuleLaw, UpdateLaw)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('by', 'write'))],
         groups: str = 'pairs',
         act: Act | None = None,
         size: int = 2,

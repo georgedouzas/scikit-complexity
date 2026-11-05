@@ -295,7 +295,7 @@ importing the package.
 
 #### Scenario: Rewriting from the models library
 - **WHEN** `Simulation(create('koch_curve'), compiler=RewritingCompiler())` runs, with `RewritingCompiler` imported
-  from `skcomplex.models.mathematics.fractals`
+  from `skcomplex.engine.compile`
 - **THEN** the run rewrites the word once per frame, and `skcomplex.engine` imports nothing from `skcomplex.models`
 
 #### Scenario: Quantum system without its compiler

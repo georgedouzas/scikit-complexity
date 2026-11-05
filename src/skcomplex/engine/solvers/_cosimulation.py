@@ -17,6 +17,7 @@ from ...core.laws import (
     EquationLaw,
     FluxLaw,
     JumpLaw,
+    LinearProgramLaw,
     LocalRuleLaw,
     MatchLaw,
     NoiseLaw,
@@ -57,10 +58,12 @@ class CoSimulationSolver(Solver):
     """Scheduler that advances every partition of a co-simulation to each synchronisation point with its own solver.
 
     Between synchronisation points a partition holds the states of the other partitions at their last values, so a
-    split adds an error of the order of `sync_dt`. A law of one partition that reads a reduction of the agents of
-    another, such as `count(s.farmers)`, reads the value the scheduler computes at every synchronisation point and
-    holds until the next. Gauss-Seidel advances the partitions in system order, each reading the values the partitions
-    before it already advanced. Jacobi advances every partition from the same values.
+    split adds an error of the order of `sync_dt`. A discrete partition that holds a linear program takes one step per
+    synchronisation interval, whatever its length, so the program solves at every synchronisation point. A law of one
+    partition that reads a reduction of the agents of another, such as `count(s.farmers)`, reads the value the
+    scheduler computes at every synchronisation point and holds until the next. Gauss-Seidel advances the partitions in
+    system order, each reading the values the partitions before it already advanced. Jacobi advances every partition
+    from the same values.
 
     Args:
         solvers:
@@ -123,6 +126,7 @@ class CoSimulationSolver(Solver):
                 NoiseLaw,
                 EquationLaw,
                 JumpLaw,
+                LinearProgramLaw,
                 CrossingLaw,
                 UpdateLaw,
                 TransitionLaw,
@@ -280,7 +284,10 @@ class CoSimulationSolver(Solver):
         duration = until - t
         interval = duration if self.sync_dt is None else self.sync_dt
         count = round(duration / interval) if interval > 0 else 0
-        stepwise = any(partition.problem.form in STEPWISE_FORMS for partition in self.problem_.partitions)
+        stepwise = any(
+            partition.problem.form in STEPWISE_FORMS and not partition.problem.programs
+            for partition in self.problem_.partitions
+        )
         if count < 1 or abs(count * interval - duration) > TOLERANCE * max(1.0, duration):
             error_msg = f'sync_dt = {self.sync_dt!r} must divide the frame duration {duration!r}.'
             raise ValidationError(error_msg)
@@ -323,6 +330,11 @@ class CoSimulationSolver(Solver):
     def _advance_partition(self, partition: PartitionSpec, source: Array, p: Array, start: float, end: float) -> Array:
         """Advance one partition from the values of a source state vector and return its new state vector."""
         stepper = self.steppers_[partition.name]
+        problem = partition.problem
+        if problem.programs and problem.form in STEPWISE_FORMS and problem.update is not None:
+            drawn = (stepper.rng_,) if problem.stochastic else ()
+            state = problem.update(start, source.copy(), p, *drawn)
+            return state if problem.boundary is None else problem.boundary(end, state, p)
         if stepper._reads_inputs():
             stepper.inputs_ = self.problem_.states.values(source)
         state = stepper.run(StepSpec(start, source.copy(), p, end)).state_

@@ -6,7 +6,7 @@
 import math
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, exp, oo
@@ -15,8 +15,9 @@ from scipy.special import expit, softmax
 
 from ...errors import ValidationError
 from ...specs import BaseSpec, ParameterSpec, RoleSpec
+from ...types import ElementKind
 from ..base import BasePart
-from ..laws import RuleLaw, UpdateLaw
+from ..laws import BaseLaw, RuleLaw, UpdateLaw
 from ..laws.utils import categorical, uniform, where
 from ..types import AgentViewProtocol, ModelViewProtocol
 from ._base import SCHEDULES
@@ -119,11 +120,13 @@ class ChoiceInteraction(Interaction):
         'all'
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw, UpdateLaw)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
         state: str,
         options: Sequence[float],
         utility: Callable[..., float | Expression],

@@ -21,6 +21,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     """Add the option that runs the timing benchmarks, which need an otherwise idle machine."""
     parser.addoption('--benchmarks', action='store_true', help='Run the timing benchmarks.')
     parser.addoption('--slow', action='store_true', help='Run the slow tests, which take more than 10 seconds.')
+    parser.addoption('--network', action='store_true', help='Run the tests that download from the network.')
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -31,6 +32,7 @@ def pytest_configure(config: pytest.Config) -> None:
     importlib.import_module('skcomplex.core.base')
     config.addinivalue_line('markers', 'benchmark: a timing benchmark, run with --benchmarks on an idle machine')
     config.addinivalue_line('markers', 'slow: a test that takes more than 10 seconds, run with --slow')
+    config.addinivalue_line('markers', 'network: a test that downloads from the network, run with --network')
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
@@ -38,6 +40,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     skips = {
         'benchmark': (config.getoption('--benchmarks'), 'timing benchmark, run with --benchmarks on an idle machine'),
         'slow': (config.getoption('--slow'), 'slow test, run with --slow'),
+        'network': (config.getoption('--network'), 'downloads from the network, run with --network'),
     }
     for marker, (requested, reason) in skips.items():
         if requested:

@@ -10,11 +10,9 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....specs import ParameterSpec, VisualSpec
-from ._affine_spec import AffineSpec
-from ._patch_element import PatchElement
-from ._prototile_spec import PrototileSpec
-from ._substitution_law import SubstitutionLaw
+from ....core.elements import PatchElement
+from ....core.laws import SubstitutionLaw
+from ....specs import AffineSpec, ParameterSpec, PrototileSpec, VisualSpec
 
 
 class CantorElement(PatchElement):

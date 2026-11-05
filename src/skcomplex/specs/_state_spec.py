@@ -26,7 +26,8 @@ class StateSpec(BaseSpec):
     Args:
         domain:
             The Sage set of the values of the state, such as `RR`, `ZZ`, `RealSet.closed_open(0, oo)`, or
-            `FiniteEnumeratedSet(['S', 'I', 'R'])`, or `None` for a structure rewritten as a whole, such as a word,
+            `FiniteEnumeratedSet(['S', 'I', 'R'])`, a `SubshiftSpec` for the configurations a state of a lattice may
+            take, or `None` for a structure rewritten as a whole, such as a word,
             whose element checks it. A state of an agent with the domain `None` or `object` holds any hashable value,
             such as a tuple, a string, or a frozen set.
 
@@ -76,6 +77,10 @@ class StateSpec(BaseSpec):
             means symmetric and traceless, or `None` for a state that is no tensor. The state stores its independent
             components, and laws read it as a Sage matrix whose dependent entries are written in terms of them.
 
+        algebraic:
+            Whether no law integrates the state and the equations of the system determine its value at every time. The
+            initial value of an algebraic state is the starting guess of a nonlinear solve.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import oo
         >>> from sage.sets.real_set import RealSet
@@ -87,6 +92,8 @@ class StateSpec(BaseSpec):
         'banks'
         >>> StateSpec(tensor='traceless').check().tensor
         'traceless'
+        >>> StateSpec(algebraic=True).check().algebraic
+        True
     """
 
     domain: object = RR
@@ -100,6 +107,7 @@ class StateSpec(BaseSpec):
     reference: str | None = None
     role: str | None = None
     tensor: str | None = None
+    algebraic: bool = False
 
     def _check(self) -> None:
         """Raise an error for an invalid order, lags, or initial values, or a reference of a state that is not scalar.
@@ -108,8 +116,14 @@ class StateSpec(BaseSpec):
             ValidationError:
                 The order or the lags are invalid, there are more initial values than derivatives or lags, or a state
                 naming a member of a group is not a scalar of order 1 without lags, or the tensor symmetry is unknown or
-                given together with a vector.
+                given together with a vector, or an algebraic state has an order other than 1 or lags.
         """
+        if self.algebraic and (self.order != 1 or self.lags):
+            error_msg = (
+                f'An algebraic state has order 1 and no lags, but got the order {self.order!r} and {self.lags!r} lags. '
+                'Its equations determine its value, so remove `order` and `lags`.'
+            )
+            raise ValidationError(error_msg)
         if self.tensor is not None and self.vector:
             error_msg = f'A state takes either vector=True or tensor={self.tensor!r}, not both.'
             raise ValidationError(error_msg)

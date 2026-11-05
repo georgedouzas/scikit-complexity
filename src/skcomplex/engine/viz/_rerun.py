@@ -28,9 +28,12 @@ from ._axes import AxisVisual
 from ._base import BaseVisual
 from ._bodies import BodiesVisual
 from ._cayley import CayleyVisual
+from ._cells import CellVisual
 from ._expectation import ExpectationVisual
+from ._geometry import GeometryVisual
 from ._histograms import HistogramVisual
 from ._images import ImageVisual
+from ._linear_programs import LinearProgramVisual
 from ._matrices import MATRIX_RANK, MatrixVisual
 from ._meshes import MeshVisual
 from ._points import PointsVisual
@@ -55,9 +58,12 @@ _VISUALS: dict[str, type[BaseVisual]] = {
     'axes': AxisVisual,
     'bodies': BodiesVisual,
     'cayley': CayleyVisual,
+    'cell': CellVisual,
     'expectations': ExpectationVisual,
+    'geometry': GeometryVisual,
     'histograms': HistogramVisual,
     'image': ImageVisual,
+    'linear_program': LinearProgramVisual,
     'matrix': MatrixVisual,
     'mesh': MeshVisual,
     'phase_ring': PhaseRingVisual,

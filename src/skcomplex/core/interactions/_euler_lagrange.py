@@ -5,15 +5,16 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...errors import ValidationError
 from ...specs import RoleSpec
+from ...types import ElementKind
 from ..base import BasePart
-from ..laws import EquationLaw
+from ..laws import BaseLaw, EquationLaw
 from ..laws.utils import derivative
 from ._interaction import Interaction
 
@@ -83,11 +84,13 @@ class EulerLagrangeInteraction(Interaction):
         -0.1
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (EquationLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('states',))],
         states: str | Sequence[str] = 'x',
         lagrangian: Callable[[SimpleNamespace], object] | None = None,
         dissipation: Callable[[SimpleNamespace], object] | None = None,

@@ -7,6 +7,7 @@ from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 
 import numpy as np
+import numpy.typing as npt
 
 from ..core.laws import BaseLaw, UpdateLaw
 from ..core.spaces import DiscreteTime
@@ -56,6 +57,15 @@ class _ReservoirStep:
         if self.kind == 'next_generation':
             return np.asarray(self.node.store, dtype=float).ravel()
         return np.asarray(self.node.state['out'], dtype=float).ravel()
+
+    def monomials(self) -> npt.NDArray[np.int_]:
+        """Return the monomials of a next-generation reservoir, as the linear features that every one multiplies.
+
+        Returns:
+            monomials:
+                One row per monomial, with the positions of its factors among the linear features.
+        """
+        return np.asarray(self.node._monomial_idx, dtype=int)
 
     def initialize(self, variables: Array) -> None:
         """Initialize the node for inputs of the size of the variables and clear its memory.
@@ -122,9 +132,10 @@ class _ReservoirStep:
 class ReservoirAnalysis(BaseAnalysis):
     """Reservoir system whose ridge readout gives the increments of the variables over one sample, from ReservoirPy.
 
-    The reservoir is driven by the standardized variables, and a ridge regression from its features to the increments
-    of the variables over one sample is fitted on the training samples. A next-generation reservoir takes as features
-    the variables at `delay` consecutive samples and their monomials of degree `order`. An echo state network takes
+    The reservoir is driven by the variables, standardized unless `standardize` is false, and a ridge regression from
+    its features to the increments of the variables over one sample is fitted on the training samples. A
+    next-generation reservoir takes as features the variables at `delay` consecutive samples and their monomials of
+    degree `order`. An echo state network takes
     the activities of `units` leaky tanh units with random recurrent weights. The fitted system runs under discrete
     time, one step per sample, and starts at the last sample of the last run with the memory the runs left, so a run of
     the system is the autonomous forecast.
@@ -156,6 +167,10 @@ class ReservoirAnalysis(BaseAnalysis):
 
         ridge:
             The strength of the ridge penalty of the readout.
+
+        standardize:
+            Whether the reservoir reads the variables divided by their standard deviations after removing their means,
+            or the variables as they are.
 
         warmup:
             The number of first samples of every series left out of the fit while the memory fills, or `None` for
@@ -204,7 +219,8 @@ class ReservoirAnalysis(BaseAnalysis):
             The relative error on the held-out samples, NaN when none are held out.
 
         step_:
-            The map from the states to the states one step later, which the update law calls.
+            The map from the states to the states one step later, which the update law calls, holding the fitted
+            reservoir node `node`, the ridge node `readout`, and the standardisation `mean` and `scale`.
 
         forecast_:
             The variables at the `horizon` samples after the last one, one row per sample.
@@ -236,6 +252,7 @@ class ReservoirAnalysis(BaseAnalysis):
         leak: float = 1.0,
         input_scaling: float = 0.5,
         ridge: float = 1e-4,
+        standardize: bool = True,
         warmup: int | None = None,
         validation: float = 0.2,
         horizon: int = 0,
@@ -252,6 +269,7 @@ class ReservoirAnalysis(BaseAnalysis):
         self.leak = leak
         self.input_scaling = input_scaling
         self.ridge = ridge
+        self.standardize = standardize
         self.warmup = warmup
         self.validation = validation
         self.horizon = horizon
@@ -290,12 +308,13 @@ class ReservoirAnalysis(BaseAnalysis):
         )
         training, _ = SparseIdentificationAnalysis._split_samples(samples.series, self.validation)
         joined = np.concatenate(training)
+        deviation = joined.std(axis=0)
         step = _ReservoirStep(
             self.kind,
             node,
             self._import('reservoirpy.nodes').Ridge(ridge=self.ridge),
-            joined.mean(axis=0),
-            np.where(joined.std(axis=0) > 0, joined.std(axis=0), 1.0),
+            joined.mean(axis=0) if self.standardize else np.zeros(joined.shape[1]),
+            np.where(deviation > 0, deviation, 1.0) if self.standardize else np.ones(joined.shape[1]),
         )
         default_warmup = self.delay if self.kind == 'next_generation' else ECHO_STATE_WARMUP
         skipped = default_warmup if self.warmup is None else self.warmup
@@ -306,7 +325,6 @@ class ReservoirAnalysis(BaseAnalysis):
         )
         self.last_state_ = np.asarray([*samples.series[-1][-1], *memory], dtype=float)
         self.system_ = SparseIdentificationAnalysis._surrogate_system(
-            'ReservoirSurrogate',
             self.label,
             dict(zip(states, map(float, self.last_state_), strict=True)),
             self._reservoir_laws(states, step),

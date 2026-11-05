@@ -1,6 +1,7 @@
 """Define the specs: frozen values that declare, record, or hold what the classes of the library read."""
 
 from ._accelerated_spec import AcceleratedSpec
+from ._affine_spec import AffineSpec
 from ._agent_snapshot_spec import AgentSnapshotSpec
 from ._agent_state_spec import AgentStateSpec
 from ._arguments_spec import ArgumentsSpec
@@ -15,10 +16,12 @@ from ._cardinality_spec import CardinalitySpec
 from ._cascade_record_spec import CascadeRecordSpec
 from ._clamp_spec import ClampSpec
 from ._clause_spec import ClauseSpec
+from ._connector_spec import ConnectorSpec
 from ._continuous_matching_spec import ContinuousMatchingSpec
 from ._control_solution_spec import ControlSolutionSpec
 from ._covariance_adaptation_spec import CovarianceAdaptationSpec
 from ._dataset_spec import DatasetSpec
+from ._declared_variable_spec import DeclaredVariableSpec
 from ._dialect_spec import DialectSpec
 from ._differential_evolution_spec import DifferentialEvolutionSpec
 from ._direction_spec import DirectionSpec
@@ -29,18 +32,23 @@ from ._evolution_strategy_spec import EvolutionStrategySpec
 from ._extremal_record_spec import ExtremalRecordSpec
 from ._fractional_rows_spec import FractionalRowsSpec
 from ._fractional_state_spec import FractionalStateSpec
+from ._geometry_spec import TURTLE_SYMBOLS, GeometrySpec
 from ._hilbert_spec import HilbertSpec
 from ._hyperedge_reduction_spec import HyperedgeReductionSpec
+from ._interaction_requirement_spec import InteractionRequirementSpec
 from ._issue_spec import IssueSpec
 from ._iterative_matching_spec import IterativeMatchingSpec
 from ._jump_path_spec import JumpPathSpec
 from ._layer_spec import LayerSpec
 from ._layout_spec import LayoutSpec
+from ._linear_objective_spec import LinearObjectiveSpec
+from ._linear_rule_spec import LinearRuleSpec
 from ._local_operator_spec import LocalOperatorSpec
 from ._lookup_spec import LookupSpec
 from ._lowered_functions_spec import LoweredFunctionsSpec
 from ._match_spec import MatchSpec
 from ._matrix_law_spec import MatrixLawSpec
+from ._module_spec import Letters, ModuleSpec
 from ._move_spec import MOVES, MoveSpec
 from ._neighbor_read_spec import NeighborReadSpec
 from ._neighbor_reduction_spec import NeighborReductionSpec
@@ -57,8 +65,10 @@ from ._parameters_spec import ParametersSpec
 from ._particle_swarm_spec import ParticleSwarmSpec
 from ._partner_spec import PartnerSpec
 from ._partner_switch_spec import PartnerSwitchSpec
+from ._patch_structure_spec import PatchStructureSpec
 from ._phase_spec import PhaseSpec
 from ._phases_schedule_spec import ACTIVATIONS, DEFAULT_PHASE, PhasesScheduleSpec
+from ._prototile_spec import PrototileSpec
 from ._queue_spec import QueueSpec
 from ._radius_spec import RadiusSpec
 from ._random_search_spec import RandomSearchSpec
@@ -67,6 +77,8 @@ from ._reduction_spec import ReductionSpec
 from ._renewal_record_spec import RenewalRecordSpec
 from ._requirement_spec import RequirementSpec
 from ._role_spec import RoleSpec, Spec
+from ._row_score_spec import RowScoreSpec
+from ._run_settings_spec import RunSettingsSpec
 from ._run_state_spec import RunStateSpec
 from ._sampled_draw_spec import SampledDrawSpec
 from ._sampler_spec import MONTE_CARLO_SCHEDULES, SAMPLERS, SamplerSpec
@@ -80,6 +92,7 @@ from ._stable_matching_spec import StableMatchingSpec
 from ._state_spec import StateSpec
 from ._step_spec import StepSpec
 from ._structure_state_spec import StructureStateSpec
+from ._subshift_spec import SubshiftSpec
 from ._support_spec import SupportSpec
 from ._symmetry_spec import SymmetrySpec
 from ._table_spec import TableSpec
@@ -92,6 +105,7 @@ from ._variable_spec import VariableSpec
 from ._visual_spec import VisualSpec
 from ._wiener_block_spec import WienerBlockSpec
 from ._wiener_process_spec import WienerProcessSpec
+from ._word_structure_spec import WordStructureSpec
 
 __all__ = [
     'ACTIVATIONS',
@@ -102,7 +116,9 @@ __all__ = [
     'MOVES',
     'SAMPLERS',
     'TOPOLOGY_KINDS',
+    'TURTLE_SYMBOLS',
     'AcceleratedSpec',
+    'AffineSpec',
     'AgentSnapshotSpec',
     'AgentStateSpec',
     'ArgumentsSpec',
@@ -117,10 +133,12 @@ __all__ = [
     'CascadeRecordSpec',
     'ClampSpec',
     'ClauseSpec',
+    'ConnectorSpec',
     'ContinuousMatchingSpec',
     'ControlSolutionSpec',
     'CovarianceAdaptationSpec',
     'DatasetSpec',
+    'DeclaredVariableSpec',
     'DialectSpec',
     'DifferentialEvolutionSpec',
     'DirectionSpec',
@@ -131,18 +149,24 @@ __all__ = [
     'ExtremalRecordSpec',
     'FractionalRowsSpec',
     'FractionalStateSpec',
+    'GeometrySpec',
     'HilbertSpec',
     'HyperedgeReductionSpec',
+    'InteractionRequirementSpec',
     'IssueSpec',
     'IterativeMatchingSpec',
     'JumpPathSpec',
     'LayerSpec',
     'LayoutSpec',
+    'Letters',
+    'LinearObjectiveSpec',
+    'LinearRuleSpec',
     'LocalOperatorSpec',
     'LookupSpec',
     'LoweredFunctionsSpec',
     'MatchSpec',
     'MatrixLawSpec',
+    'ModuleSpec',
     'MoveSpec',
     'NeighborReadSpec',
     'NeighborReductionSpec',
@@ -159,8 +183,10 @@ __all__ = [
     'ParticleSwarmSpec',
     'PartnerSpec',
     'PartnerSwitchSpec',
+    'PatchStructureSpec',
     'PhaseSpec',
     'PhasesScheduleSpec',
+    'PrototileSpec',
     'QueueSpec',
     'RadiusSpec',
     'RandomSearchSpec',
@@ -169,6 +195,8 @@ __all__ = [
     'RenewalRecordSpec',
     'RequirementSpec',
     'RoleSpec',
+    'RowScoreSpec',
+    'RunSettingsSpec',
     'RunStateSpec',
     'SampledDrawSpec',
     'SamplerSpec',
@@ -183,6 +211,7 @@ __all__ = [
     'StateSpec',
     'StepSpec',
     'StructureStateSpec',
+    'SubshiftSpec',
     'SupportSpec',
     'SymmetrySpec',
     'TableSpec',
@@ -195,4 +224,5 @@ __all__ = [
     'VisualSpec',
     'WienerBlockSpec',
     'WienerProcessSpec',
+    'WordStructureSpec',
 ]

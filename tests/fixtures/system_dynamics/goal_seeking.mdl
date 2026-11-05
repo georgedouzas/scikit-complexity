@@ -1,0 +1,48 @@
+{UTF-8}
+Target=
+	100
+	~	Units
+	~	The level the stock seeks.
+	|
+
+Adjustment Time=
+	4
+	~	Weeks
+	~	How long the gap takes to close.
+	|
+
+Stock= INTEG (
+	(Target - Stock) / Adjustment Time,
+		20)
+	~	Units
+	~	The stock that seeks the target.
+	|
+
+********************************************************
+	.Control
+********************************************************~
+		Simulation Control Parameters
+	|
+
+FINAL TIME  = 20
+	~	Weeks
+	~	The final time for the simulation.
+	|
+
+INITIAL TIME  = 0
+	~	Weeks
+	~	The initial time for the simulation.
+	|
+
+SAVEPER  = 0.25
+	~	Weeks
+	~	The frequency with which output is stored.
+	|
+
+TIME STEP  = 0.25
+	~	Weeks
+	~	The time step for the simulation.
+	|
+
+\\\---/// Sketch information - do not modify anything except names
+V300  Do not put anything below this section - it will be ignored

@@ -128,7 +128,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         self.symbols_ = list(context or ())
         if self.compiled:
             mapping = {item: f'_a{index}' for index, item in enumerate(self.symbols_)} | {self.time: 't'}
-            self.names_: Callable[[Expression], str] = mapping.__getitem__
+            self.names_: Callable[[Expression], str] = lambda item: mapping[item]
         else:
             self.names_ = self.names or str
 

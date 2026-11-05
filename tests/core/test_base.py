@@ -248,6 +248,19 @@ def test_core_names_carry_no_field_term():
     assert found == {}, found
 
 
+def test_no_package_exports_a_molecular_name():
+    """Test that the core, the engine, and the analysis export no name of RNA, proteins, or hydrophobicity."""
+    terms = ('rna', 'protein', 'genotype', 'hydrophobicity', 'residue', 'nucleotide')
+    found = [
+        f'{module.__name__}.{name}'
+        for module in _modules()
+        if module.__name__.startswith(('skcomplex.core', 'skcomplex.engine', 'skcomplex.analysis'))
+        for name in getattr(module, '__all__', [])
+        if any(term in re.sub(r'[^a-z]', ' ', re.sub(r'([A-Z])', r' \1', name).lower()).split() for term in terms)
+    ]
+    assert found == []
+
+
 def test_no_class_defines_magic_methods():
     """Test that no class of the library defines a magic method but `__init__`."""
     found = {}
@@ -259,3 +272,22 @@ def test_no_class_defines_magic_methods():
             if extra:
                 found[f'{module.__name__}.{cls.__qualname__}'] = sorted(extra)
     assert found == {}, found
+
+
+def test_no_module_calls_a_magic_method():
+    """Test that no module of the library reads a magic method such as `__new__` or `__getitem__` of an object."""
+    allowed = {
+        '__init__',
+        '__name__',
+        '__qualname__',
+        '__doc__',
+        '__module__',
+        '__mro__',
+        '__version__',
+        '__subclasses__',
+    }
+    found = []
+    for path in Path(SOURCE).rglob('*.py'):
+        names = re.findall(r'\.(__[a-z_]+__)\b', path.read_text(encoding='utf-8'))
+        found += [f'{path.name}: {name}' for name in names if name not in allowed]
+    assert found == [], found

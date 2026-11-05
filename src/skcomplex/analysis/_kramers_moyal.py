@@ -6,15 +6,23 @@
 from collections.abc import Sequence
 
 import numpy as np
+from scipy.signal import convolve
 
 from ..errors import AnalysisError
-from ..types import DataKind
+from ..types import Array, DataKind
 from ._base import BaseAnalysis
 from .types import Source
 
+MIN_SERIES_SIZE = 2
+
+ZERO_MASS = 1e-10
+
 
 class KramersMoyalAnalysis(BaseAnalysis):
-    """Kramers-Moyal drift and diffusion of one series, estimated with kernels from its increments by `kramersmoyal`.
+    """Kramers-Moyal drift and diffusion of one series, estimated with kernels from its increments.
+
+    The increments are binned by the value they start from, and an Epanechnikov kernel smooths the bins. This is the
+    estimator of Lamouroux and Lehnertz.
 
     Args:
         variables:
@@ -89,16 +97,37 @@ class KramersMoyalAnalysis(BaseAnalysis):
                 f'{", ".join(series.labels)}. Select one with variables.'
             )
             raise AnalysisError(error_msg)
+        if series.values.shape[0] < MIN_SERIES_SIZE:
+            error_msg = f'{type(self).__name__} reads increments, but the series has {series.values.shape[0]} value.'
+            raise AnalysisError(error_msg)
         self.values_ = np.asarray(series.values[:, 0], dtype=float)
 
     def _run(self, inputs: object = None) -> None:
         """Compute the drift and the diffusion in every bin."""
-        moments, edges = self._import('kramersmoyal').km(
-            self.values_,
-            bins=np.asarray([self.bins]),
-            powers=np.asarray([0, 1, 2]),
-            bw=self.bandwidth,
-        )
-        self.positions_ = np.asarray(edges[0], dtype=float)
-        self.drift_ = moments[1] / self.dt
-        self.diffusion_ = moments[2] / self.dt
+        bandwidth = self._get_bandwidth()
+        starts, increments = self.values_[:-1], np.diff(self.values_)
+        edges = np.linspace(starts.min() - bandwidth, starts.max() + bandwidth, self.bins + 1)
+        width = edges[1] - edges[0]
+        histograms = np.stack([np.histogram(starts, edges, weights=increments**power)[0] for power in (0, 1, 2)])
+        kernel = self._get_kernel(width * np.arange(-self.bins - 1, self.bins + 2), bandwidth)
+        mass, first, second = convolve(histograms, kernel[None, :], mode='same')
+        counted = np.abs(mass) >= ZERO_MASS
+        self.positions_ = edges[:-1] + width / 2
+        self.drift_ = np.divide(first, mass, out=np.zeros(self.bins), where=counted) / self.dt
+        self.diffusion_ = np.divide(second, 2 * mass, out=np.zeros(self.bins), where=counted) / self.dt
+
+    def _get_bandwidth(self) -> float:
+        """Return the given bandwidth, or the one of Silverman's rule."""
+        if self.bandwidth is not None:
+            return self.bandwidth
+        deviation = float(np.std(self.values_))
+        if deviation == 0:
+            error_msg = f'{type(self).__name__} cannot infer a bandwidth from a constant series. Give a bandwidth.'
+            raise AnalysisError(error_msg)
+        return (4 * deviation**5 / (3 * self.values_.size)) ** (1 / 5)
+
+    @staticmethod
+    def _get_kernel(points: Array, bandwidth: float) -> Array:
+        """Return the Epanechnikov kernel of a bandwidth at some points."""
+        scaled = points / bandwidth
+        return np.where(np.abs(scaled) < 1, 0.75 * (1 - scaled**2) / bandwidth, 0.0)

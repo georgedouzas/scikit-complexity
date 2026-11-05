@@ -26,6 +26,35 @@ def _displacement(source: object, **settings: object) -> DisplacementAnalysis:
     return DisplacementAnalysis(**settings).check().prepare(source).run()
 
 
+def test_displacement_keeps_its_reference_values():
+    """Test that the displacement, its exponent, and the coefficient keep values from the previous library."""
+    positions = np.sin(np.arange(64.0) ** 2).reshape(16, 2, 2).cumsum(axis=0)
+    displacement = _displacement(positions, dt=0.5)
+    assert displacement.lags_ == pytest.approx(np.arange(1, 16) * 0.5)
+    assert displacement.msd_ == pytest.approx(
+        [
+            1.0031513251316264,
+            1.9550222343314765,
+            2.938403425767497,
+            4.116430615596165,
+            5.416999163702931,
+            6.441473853372674,
+            7.322583537306857,
+            8.143335872589564,
+            8.621029165730512,
+            10.608196796280316,
+            11.56209546442886,
+            12.547397205312393,
+            10.622239087685724,
+            9.641781836025046,
+            13.678466849526968,
+        ],
+        rel=1e-9,
+    )
+    assert displacement.exponent_ == pytest.approx(0.9765717669094003, rel=1e-9)
+    assert displacement.diffusion_ == pytest.approx(0.48381302515896735, rel=1e-9)
+
+
 def test_displacement_refuses_states_that_are_no_positions():
     """Test that a group whose states are series has no displacement, and the error names what it holds."""
     trajectory = run('replicator_dynamics', settings={'until': 1.0}).trajectory_

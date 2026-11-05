@@ -6,16 +6,25 @@
 import functools
 import itertools
 from collections.abc import Callable, Sequence
+from types import SimpleNamespace
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import QQ, SR, LaurentPolynomialRing, matrix
+from sage.rings.polynomial.laurent_polynomial import LaurentPolynomial
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.structure.element import Matrix
 
+from ..core.elements import GroupElement
+from ..core.interactions import LocalRuleInteraction
+from ..core.laws import LocalRuleLaw
 from ..core.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace, MemoryNeighborhood
-from ..core.types import AutomatonProtocol, LinearAutomatonProtocol, Reach, SubshiftProtocol
+from ..core.system import System
+from ..core.types import Reach
 from ..errors import AnalysisError
-from ..specs import TableSpec
+from ..specs import LinearRuleSpec, OuterTotalisticSpec, SubshiftSpec, TableSpec, TotalisticSpec
 from ..specs._composed_rule_spec import _ComposedRuleSpec
-from ..types import DataKind, IntArray
+from ..types import DataKind, Indices, IntArray
 from ._base import BaseAnalysis
 from .types import Item, Source
 
@@ -23,6 +32,7 @@ MAX_CONFIGURATIONS = 2**16
 MAX_PATTERNS = 2**20
 SAT_SOLVER = 'cadical153'
 METHODS = ('auto', 'enumeration', 'sat')
+SYNCHRONOUS = 'synchronous'
 IDENTITY = '1'
 
 
@@ -55,7 +65,22 @@ class _Clauses:
             return solver.get_model() if solver.solve() else None
 
 
-KINDS = ('injective', 'surjective', 'pre-injective', 'garden-of-eden', 'inverse', 'compose', 'difference', 'entropy')
+KINDS = (
+    'injective',
+    'surjective',
+    'pre-injective',
+    'garden-of-eden',
+    'inverse',
+    'compose',
+    'difference',
+    'entropy',
+    'matrix',
+    'polynomial',
+    'admissible',
+    'violations',
+    'count',
+    'sample',
+)
 SETTINGS = {
     'injective': {'method', 'infinite'},
     'surjective': {'method', 'infinite'},
@@ -65,28 +90,44 @@ SETTINGS = {
     'compose': {'second'},
     'difference': {'configuration', 'site', 'steps'},
     'entropy': {'windows', 'base'},
+    'matrix': set(),
+    'polynomial': set(),
+    'admissible': {'configuration'},
+    'violations': {'configuration'},
+    'count': set(),
+    'sample': {'sweeps', 'configuration', 'random_state'},
 }
 """Settings every kind reads, besides `kind`."""
 
+AUTOMATON = 'an automaton'
+LINEAR = 'a linear automaton'
+SUBSHIFT = 'a subshift'
 SOURCES = {
-    'injective': ('automaton', 'linear automaton'),
-    'surjective': ('automaton', 'linear automaton'),
-    'pre-injective': ('automaton', 'linear automaton'),
-    'garden-of-eden': ('automaton',),
-    'inverse': ('automaton',),
-    'compose': ('automaton',),
-    'difference': ('automaton',),
-    'entropy': ('automaton', 'subshift'),
+    'injective': (AUTOMATON, LINEAR),
+    'surjective': (AUTOMATON, LINEAR),
+    'pre-injective': (AUTOMATON, LINEAR),
+    'garden-of-eden': (AUTOMATON,),
+    'inverse': (AUTOMATON,),
+    'compose': (AUTOMATON,),
+    'difference': (AUTOMATON,),
+    'entropy': (SUBSHIFT, AUTOMATON),
+    'matrix': (LINEAR,),
+    'polynomial': (LINEAR,),
+    'admissible': (SUBSHIFT,),
+    'violations': (SUBSHIFT,),
+    'count': (SUBSHIFT,),
+    'sample': (SUBSHIFT,),
 }
-"""Models of a cellular automaton every kind reads: rule automata, linear automata, and subshifts."""
+"""What every kind reads in a system, in the order it looks for them."""
 
 
 class AutomatonAnalysis(BaseAnalysis):
-    """Decisions and measures of a cellular automaton on a finite universe, of a linear automaton, or of a subshift.
+    """Decisions and measures of a system that is a cellular automaton on a finite universe or holds a subshift.
 
-    The kinds read the automaton, the linear automaton, or the subshift a user builds, such as `Automaton`,
-    `LinearAutomaton`, and `Subshift` of the automata models. The analysis tells them apart by their methods: a linear
-    automaton has `laurent_polynomial`, a subshift has `violations`, and an automaton with a rule has `local_map`.
+    The analysis prepares on a `System`. An automaton is a group of cells with one synchronous and deterministic
+    `LocalRuleInteraction`, and it is linear when the rule is a `LinearRuleSpec`. The number of values of a cell comes
+    from the finite domain of the state, or else from the rule. A subshift is a group with a state whose domain is a
+    `SubshiftSpec`.
 
     - `'injective'`, `'surjective'`, and `'pre-injective'`: whether two different configurations never share their
       image, whether every configuration has a preimage, which on a finite universe holds exactly when it is
@@ -109,6 +150,15 @@ class AutomatonAnalysis(BaseAnalysis):
       whose rule and neighbourhood are applied on every window. `X_F` is the set of admissible configurations of a
       window `F`, or the set of images on the sites of `F` whose cells lie inside it. Along a Følner sequence of
       windows the values approach the topological entropy.
+    - `'matrix'`: the square matrix of a linear automaton over its field, whose row `g` gives the image at `g`.
+    - `'polynomial'`: the Laurent polynomial `sum a_s x^s` of a linear automaton on a lattice, its symbol on `Z^d`.
+    - `'admissible'` and `'violations'`: whether no forbidden pattern appears in `configuration`, and the sites at
+      which one appears.
+    - `'count'`: the number of admissible configurations of the space of a subshift, by dynamic programming over its
+      sites. The counts of completions are shared between assignments that agree on the earlier sites that later
+      patterns read, so a window of a one-dimensional subshift costs linear time.
+    - `'sample'`: an admissible configuration drawn by a Markov chain of single-cell moves that keep it admissible,
+      from `configuration`, or from every cell at 0.
 
     Args:
         kind:
@@ -127,16 +177,16 @@ class AutomatonAnalysis(BaseAnalysis):
             The number of random patterns tried by SAT.
 
         random_state:
-            The seed or generator of the random patterns.
+            The seed or generator of the random patterns or of the moves of a sample.
 
         max_radius:
             The largest radius of the memory of the inverse.
 
         second:
-            The automaton applied after the analysed one.
+            The system of the automaton applied after the analysed one.
 
         configuration:
-            The initial values of the sites of the difference pattern.
+            The values of the sites: the initial ones of the difference pattern or of a sample, or the ones checked.
 
         site:
             The site of the changed cell.
@@ -150,9 +200,12 @@ class AutomatonAnalysis(BaseAnalysis):
         base:
             The base of the logarithm.
 
+        sweeps:
+            The number of sweeps of a sample, each proposing a random value at every site in a random order.
+
     Attributes:
         automaton_:
-            The automaton, the linear automaton, or the subshift.
+            The system.
 
         injective_:
             Whether the automaton is injective.
@@ -167,11 +220,11 @@ class AutomatonAnalysis(BaseAnalysis):
             A configuration whose values on the window have no preimage, or `None` when none is found.
 
         inverse_:
-            The inverse automaton with a table rule, or `None` when the automaton is not injective or no memory up to
-            the radius determines the cells.
+            The system of the inverse automaton with a table rule, or `None` when the automaton is not injective or no
+            memory up to the radius determines the cells.
 
         composition_:
-            The automaton of the composition, with a function rule.
+            The system of the automaton of the composition, with a function rule.
 
         differences_:
             One row per step, the initial one first, true where the runs differ.
@@ -179,27 +232,76 @@ class AutomatonAnalysis(BaseAnalysis):
         entropy_:
             One entropy per window.
 
+        matrix_:
+            The Sage matrix of the linear automaton.
+
+        polynomial_:
+            The Sage Laurent polynomial in the variables `x0` to `x(d-1)`.
+
+        admissible_:
+            Whether the configuration belongs to the subshift.
+
+        violations_:
+            One flag per site, true where a forbidden pattern appears.
+
+        count_:
+            The number of configurations without a forbidden pattern.
+
+        sample_:
+            The admissible configuration.
+
     Raises:
         AnalysisError:
-            The model is not one the kind reads, the method is unknown, enumeration is asked for too many
-            configurations, or composed automata differ in space or number of states.
+            The system holds nothing the kind reads, the method is unknown, enumeration is asked for too many
+            configurations, composed automata differ in space or number of states, the rule returns a value outside the
+            states, a linear automaton has a matrix on a ball or a polynomial without offsets, or the initial
+            configuration of a sample is not admissible.
 
     Examples:
+        >>> from typing import Annotated
+        >>> from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
         >>> from skcomplex.analysis import AutomatonAnalysis
-        >>> from skcomplex.specs import TableSpec, TotalisticSpec
+        >>> from skcomplex.core.elements import Element, LatticeElement
+        >>> from skcomplex.core.interactions import LocalRuleInteraction
         >>> from skcomplex.core.spaces import BoxNeighborhood, LatticeNeighborhood, LatticeSpace
-        >>> from skcomplex.models.computer_science.automata import Automaton, Subshift
-        >>> shift = Automaton(LatticeSpace(8), LatticeNeighborhood(((1,),)), TableSpec({(1,): 1}))
+        >>> from skcomplex.core.system import System
+        >>> from skcomplex.specs import StateSpec, SubshiftSpec, TableSpec, TotalisticSpec
+        >>> class CellElement(Element):
+        ...     def __init__(self, label, alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0):
+        ...         super().__init__(label)
+        ...         self.alive = alive
+        >>> def automaton(size, rule, neighborhood):
+        ...     cells = LatticeElement('cells', element=CellElement, space=LatticeSpace(size))
+        ...     interaction = LocalRuleInteraction(
+        ...         'rule', target='cells', state='alive', rule=rule, neighborhood=neighborhood
+        ...     )
+        ...     return System(elements=[cells], interactions=[interaction])
+        >>> shift = automaton(8, TableSpec({(1,): 1}), LatticeNeighborhood(((1,),)))
         >>> AutomatonAnalysis().check().prepare(shift).run().injective_
         True
-        >>> majority = Automaton(LatticeSpace(5), BoxNeighborhood(), TotalisticSpec(lambda total: total >= 2))
+        >>> majority = automaton(5, TotalisticSpec(lambda total: total >= 2), BoxNeighborhood())
         >>> AutomatonAnalysis('garden-of-eden').check().prepare(majority).run().pattern_.tolist()
         [0, 0, 1, 0, 1]
-        >>> golden = Subshift(LatticeNeighborhood(((0,), (1,))), [(1, 1)])
+        >>> class GoldenCellElement(Element):
+        ...     def __init__(
+        ...         self,
+        ...         label,
+        ...         alive: Annotated[
+        ...             float, StateSpec(domain=SubshiftSpec(LatticeNeighborhood(((0,), (1,))), ((1, 1),)))
+        ...         ] = 0,
+        ...     ):
+        ...         super().__init__(label)
+        ...         self.alive = alive
+        >>> window = LatticeSpace(6, boundary='fixed')
+        >>> golden = System(elements=[LatticeElement('cells', element=GoldenCellElement, space=window)])
+        >>> AutomatonAnalysis('count').check().prepare(golden).run().count_
+        21
         >>> analysis = AutomatonAnalysis('entropy', windows=[LatticeSpace(20, boundary='fixed')])
         >>> analysis.check().prepare(golden).run().entropy_.round(3).tolist()
         [0.706]
     """
+
+    _subshift: SubshiftSpec | None
 
     def __init__(
         self,
@@ -211,12 +313,13 @@ class AutomatonAnalysis(BaseAnalysis):
         tries: int = 200,
         random_state: int | np.random.Generator | None = None,
         max_radius: int = 2,
-        second: AutomatonProtocol | None = None,
+        second: System | None = None,
         configuration: npt.ArrayLike | None = None,
         site: int = 0,
         steps: int = 1,
         windows: Sequence[BaseSpace] | None = None,
         base: float = 2.0,
+        sweeps: int = 100,
     ) -> None:
         self.kind = kind
         self.method = method
@@ -231,6 +334,7 @@ class AutomatonAnalysis(BaseAnalysis):
         self.steps = steps
         self.windows = windows
         self.base = base
+        self.sweeps = sweeps
 
     def _check(self) -> None:
         """Validate the kind, the method, that the kind reads every changed setting, and that it has what it needs."""
@@ -239,7 +343,13 @@ class AutomatonAnalysis(BaseAnalysis):
         if self.method not in METHODS:
             error_msg = f'{type(self).__name__} has method={self.method!r}. Use one of {", ".join(METHODS)}.'
             raise AnalysisError(error_msg)
-        needed = {'compose': 'second', 'difference': 'configuration', 'entropy': 'windows'}.get(self.kind)
+        needed = {
+            'compose': 'second',
+            'difference': 'configuration',
+            'entropy': 'windows',
+            'admissible': 'configuration',
+            'violations': 'configuration',
+        }.get(self.kind)
         if needed is not None and getattr(self, needed) is None:
             error_msg = f'{type(self).__name__} of kind {self.kind!r} needs {needed}. Give it.'
             raise AnalysisError(error_msg)
@@ -249,90 +359,227 @@ class AutomatonAnalysis(BaseAnalysis):
         return DataKind.SYSTEM
 
     @staticmethod
-    def _model_of(source: object) -> str | None:
-        """Return the model a source is by its methods: a linear automaton, a subshift, an automaton, or `None`."""
-        if isinstance(source, LinearAutomatonProtocol):
-            return 'linear automaton'
-        if isinstance(source, SubshiftProtocol):
-            return 'subshift'
-        if isinstance(source, AutomatonProtocol):
-            return 'automaton'
+    def _get_space(system: System, element: GroupElement) -> BaseSpace:
+        """Return the prepared space of a group of a system, its own or the space of the system."""
+        space = element.space if element.space is not None else system.space
+        if space is None:
+            error_msg = f'The group {element.label!r} of the system lives on no space. Give it a lattice or a group.'
+            raise AnalysisError(error_msg)
+        return AutomatonAnalysis._fitted(space)
+
+    @staticmethod
+    def _find_rule(system: System) -> LocalRuleInteraction | None:
+        """Return the local rule of a system, `None` without one, or raise an error for several."""
+        rules = [item for item in system.interactions if isinstance(item, LocalRuleInteraction)]
+        if len(rules) > 1:
+            names = ', '.join(rule.label for rule in rules)
+            error_msg = f'An automaton has one local rule, but the system has {names}. Give it one.'
+            raise AnalysisError(error_msg)
+        return rules[0] if rules else None
+
+    @staticmethod
+    def _find_subshift(system: System) -> tuple[GroupElement, SubshiftSpec] | None:
+        """Return the first group of a system with a state whose domain is a subshift, with its spec, or `None`."""
+        for element in system.elements:
+            if not isinstance(element, GroupElement):
+                continue
+            for spec in element.get_states().values():
+                if isinstance(spec.domain, SubshiftSpec):
+                    return element, spec.domain.check()
         return None
 
+    @staticmethod
+    def _get_rule_source(rule: LocalRuleInteraction | None) -> str | None:
+        """Return what a local rule makes of its system, a linear automaton or an automaton, or `None` without one."""
+        if rule is None:
+            return None
+        return LINEAR if isinstance(rule.rule, LinearRuleSpec) else AUTOMATON
+
     def _prepare(self, source: Source) -> None:
-        """Keep the automaton, the linear automaton, or the subshift, after checking that the kind reads it."""
-        models = SOURCES[self.kind]
-        if (
-            not isinstance(source, AutomatonProtocol | LinearAutomatonProtocol | SubshiftProtocol)
-            or self._model_of(source) not in models
-        ):
-            error_msg = (
-                f'{type(self).__name__} of kind {self.kind!r} reads an {" or a ".join(models)}, not '
-                f'{type(source).__name__}. Build one of them.'
-            )
+        """Keep the system, after checking that it holds what the kind reads, and read that."""
+        sources = SOURCES[self.kind]
+        error_msg = (
+            f'{type(self).__name__} of kind {self.kind!r} reads a system with {" or ".join(sources)}, not '
+            f'{type(source).__name__}. Build one of them.'
+        )
+        if not isinstance(source, System):
+            raise AnalysisError(error_msg)
+        subshift = self._find_subshift(source)
+        rule = self._find_rule(source)
+        self._subshift = None
+        if subshift is not None and SUBSHIFT in sources:
+            self._subshift = subshift[1]
+            self._space = self._get_space(source, subshift[0])
+            self._size = int(self._space.size_ or 0)
+        elif rule is not None and self._get_rule_source(rule) in sources:
+            self._read_automaton(source, rule)
+        else:
             raise AnalysisError(error_msg)
         self.automaton_ = source
 
-    def _get_automaton(self) -> AutomatonProtocol:
-        """Return the automaton of a rule, raising an error for a linear automaton or a subshift."""
-        if not isinstance(self.automaton_, AutomatonProtocol):
-            error_msg = f'{type(self).__name__} of kind {self.kind!r} reads an automaton of a rule.'
+    @staticmethod
+    def _get_states(domain: object, rule: object) -> int | None:
+        """Return the number of values of a cell, from a finite domain of a state or else from a rule, or `None`."""
+        if isinstance(domain, SubshiftSpec):
+            return domain.states
+        if isinstance(domain, FiniteEnumeratedSet):
+            values = list(domain)
+            if values != list(range(len(values))):
+                error_msg = f'An automaton has the cell values 0 to n - 1, but its state has the domain {domain}.'
+                raise AnalysisError(error_msg)
+            return len(values)
+        if isinstance(rule, LinearRuleSpec):
+            return rule.characteristic or None
+        if isinstance(rule, TableSpec):
+            return rule.n_states
+        return rule.states if isinstance(rule, TotalisticSpec | OuterTotalisticSpec) else None
+
+    def _read_automaton(self, system: System, rule: LocalRuleInteraction) -> None:
+        """Keep the law, the space, the size, the number of states, and the local map of the automaton of a system."""
+        target = getattr(rule, rule._get_role('target'))
+        element = next((item for item in system.elements if item.label == target), None)
+        if not isinstance(element, GroupElement) or not isinstance(rule.state, str) or rule.reads is not None:
+            error_msg = (
+                f'The local rule {rule.label!r} of an automaton sets and reads one state of a group of the system, '
+                f'but it binds {target!r} and the states {rule.state!r} and {rule.reads!r}.'
+            )
             raise AnalysisError(error_msg)
-        return self.automaton_
+        if rule.schedule != SYNCHRONOUS or rule.stochastic:
+            error_msg = (
+                f'An automaton maps configurations to configurations, so the local rule {rule.label!r} is synchronous '
+                f'and deterministic, but it has the schedule {rule.schedule!r} and stochastic={rule.stochastic!r}.'
+            )
+            raise AnalysisError(error_msg)
+        namespace = SimpleNamespace(**{rule._get_role('target'): SimpleNamespace(**{rule.state: SR.var(rule.state)})})
+        law = rule.check().prepare().run(namespace).laws_[0]
+        if not isinstance(law, LocalRuleLaw):
+            error_msg = f'The local rule {rule.label!r} returns {law!r}, not a local rule law.'
+            raise AnalysisError(error_msg)
+        self._rule = rule
+        self._law = law.check().prepare()
+        self._state = rule.state
+        self._space = self._get_space(system, element)
+        self._size = int(self._space.size_ or 0)
+        self._states = self._get_states(element.get_states()[rule.state].domain, self._law._get_rule())
+        self._local_map = self._get_local_map()
+
+    def _get_local_map(self) -> IntArray:
+        """Return the next value of every pattern of the cells the rule reads, indexed by the code of the pattern."""
+        if isinstance(self._law._get_rule(), LinearRuleSpec):
+            return np.empty(0, dtype=np.int64)
+        if self._states is None:
+            error_msg = (
+                f'A rule {self._law.rule!r} on a state without a finite domain has no number of values. Declare the '
+                'state with `StateSpec(domain=FiniteEnumeratedSet([0, 1]))`.'
+            )
+            raise AnalysisError(error_msg)
+        width = self._get_table(self._space).shape[1]
+        patterns = self._patterns(self._states, width)
+        try:
+            values = np.asarray(self._law._get_next_values(patterns), dtype=float)
+        except TypeError as error:
+            error_msg = f'An automaton has a rule of the cells alone, but {self._law.rule!r} needs more: {error}'
+            raise AnalysisError(error_msg) from error
+        values = np.broadcast_to(values, (patterns.shape[0],))
+        if values.size and (values.min() < 0 or values.max() >= self._states or not np.all(values == np.rint(values))):
+            error_msg = f'The rule returns values outside the integers 0 to {self._states - 1}.'
+            raise AnalysisError(error_msg)
+        return values.astype(np.int64)
+
+    def _get_table(self, space: BaseSpace) -> Indices:
+        """Return the site of every cell the rule reads at every site of a space, with the sites outside it."""
+        return self._fitted(space)._index_table(self._law._get_neighborhood())
+
+    def _step(self, configuration: npt.ArrayLike, space: BaseSpace | None = None) -> IntArray:
+        """Return the image of a configuration, or of one configuration per row, by one run of the law."""
+        inputs = {'space': self._space if space is None else space, self._state: np.asarray(configuration)}
+        return np.asarray(self._law.run(inputs).value_, dtype=np.int64)
+
+    def _get_steps(self, configuration: npt.ArrayLike, steps: int) -> IntArray:
+        """Return the configurations of a number of steps, the initial one first."""
+        rows = [np.asarray(configuration, dtype=np.int64)]
+        for _ in range(steps):
+            rows.append(self._step(rows[-1]))
+        return np.stack(rows)
+
+    def _get_states_count(self) -> int:
+        """Return the number of values of a cell of an automaton of a rule."""
+        return int(self._states or 0)
 
     def _decide(self) -> None:
         """Set whether the automaton is injective, surjective, or pre-injective."""
-        automaton = self.automaton_
-        if isinstance(automaton, LinearAutomatonProtocol):
-            injective = self.kind == 'injective'
+        if isinstance(self._law._get_rule(), LinearRuleSpec):
             decision = (
-                self._linear_injective(automaton, infinite=self.infinite)
-                if injective
-                else self._linear_surjective(automaton, infinite=self.infinite)
+                self._linear_injective(infinite=self.infinite)
+                if self.kind == 'injective'
+                else self._linear_surjective(infinite=self.infinite)
             )
         elif self.kind == 'pre-injective':
-            decision = self._is_pre_injective(self._get_automaton(), self.window, method=self.method)
+            decision = self._is_pre_injective(self.window, method=self.method)
         else:
-            decision = self._is_injective(self._get_automaton(), method=self.method)
+            decision = self._is_injective(method=self.method)
         setattr(self, f'{self.kind.replace("-", "_")}_', decision)
 
     def _run(self, inputs: object = None) -> None:
-        """Decide or measure the automaton."""
+        """Decide or measure the automaton or the subshift."""
         if self.kind in {'injective', 'surjective', 'pre-injective'}:
             self._decide()
         elif self.kind == 'garden-of-eden':
-            self.pattern_ = self._garden_of_eden(
-                self._get_automaton(),
-                self.window,
-                tries=self.tries,
-                random_state=self.random_state,
-            )
+            self.pattern_ = self._garden_of_eden(self.window, tries=self.tries, random_state=self.random_state)
         elif self.kind == 'inverse':
-            self.inverse_ = self._inverse(self._get_automaton(), self.max_radius)
+            self.inverse_ = self._inverse(self.max_radius)
         elif self.kind in {'compose', 'difference'}:
             self._run_pair()
+        elif self.kind in {'matrix', 'polynomial'}:
+            self._run_linear()
+        elif self.kind in {'admissible', 'violations', 'count', 'sample'}:
+            self._run_subshift()
         else:
-            subject = self.automaton_
-            if isinstance(subject, LinearAutomatonProtocol) or self.windows is None:
-                error_msg = (
-                    f'{type(self).__name__} of kind entropy reads an automaton of a rule or a subshift, and windows.'
-                )
-                raise AnalysisError(error_msg)
-            self.entropy_ = self._configuration_entropy(subject, self.windows, base=self.base)
+            self.entropy_ = self._configuration_entropy(self.windows or (), base=self.base)
 
     def _run_pair(self) -> None:
         """Set the composition with the second automaton, or the difference pattern of a changed configuration."""
-        automaton = self._get_automaton()
         if self.kind == 'compose':
             if self.second is None:
                 error_msg = f'{type(self).__name__} of kind compose needs second. Give it.'
                 raise AnalysisError(error_msg)
-            self.composition_ = self._compose(automaton, self.second)
+            self.composition_ = self._compose(self.second)
             return
         if self.configuration is None:
             error_msg = f'{type(self).__name__} of kind difference needs configuration. Give it.'
             raise AnalysisError(error_msg)
-        self.differences_ = self._difference_pattern(automaton, self.configuration, self.site, self.steps)
+        self.differences_ = self._difference_pattern(self.configuration, self.site, self.steps)
+
+    def _run_linear(self) -> None:
+        """Set the matrix or the Laurent polynomial of a linear automaton."""
+        if self.kind == 'matrix':
+            self.matrix_ = self._get_matrix()
+        else:
+            self.polynomial_ = self._get_polynomial()
+
+    def _run_subshift(self) -> None:
+        """Set whether a configuration is admissible, its violations, the count, or a sample of a subshift."""
+        subshift = self._get_subshift()
+        if self.kind == 'count':
+            self.count_ = self._count_configurations(subshift, self._space)
+            return
+        if self.kind == 'sample':
+            self.sample_ = self._sample(subshift)
+            return
+        if self.configuration is None:
+            error_msg = f'{type(self).__name__} of kind {self.kind!r} needs configuration. Give it.'
+            raise AnalysisError(error_msg)
+        if self.kind == 'violations':
+            self.violations_ = self._get_violations(subshift, self.configuration)
+        else:
+            self.admissible_ = not self._get_violations(subshift, self.configuration).any()
+
+    def _get_subshift(self) -> SubshiftSpec:
+        """Return the subshift of the system, or raise an error for a system read as an automaton."""
+        if self._subshift is None:
+            error_msg = f'{type(self).__name__} of kind {self.kind!r} reads a subshift.'
+            raise AnalysisError(error_msg)
+        return self._subshift
 
     @staticmethod
     def _fitted(space: BaseSpace) -> BaseSpace:
@@ -342,7 +589,7 @@ class AutomatonAnalysis(BaseAnalysis):
         return space
 
     @staticmethod
-    def _size(space: BaseSpace) -> int:
+    def _size_of(space: BaseSpace) -> int:
         """Return the number of sites of a space."""
         return int(AutomatonAnalysis._fitted(space).size_ or 0)
 
@@ -392,22 +639,21 @@ class AutomatonAnalysis(BaseAnalysis):
         )
         raise AnalysisError(error_msg)
 
-    @staticmethod
     def _rule_clauses(
+        self,
         clauses: _Clauses,
-        automaton: AutomatonProtocol,
         cells: npt.NDArray[np.int64],
         sites: Sequence[int],
         output: Callable[[int, int], list[int] | None],
     ) -> None:
         """Add, for every site and pattern of its cells, the clause that the pattern implies the output of the rule."""
-        table, values = automaton.table(), automaton.local_map()
-        patterns = AutomatonAnalysis._patterns(automaton.states, table.shape[1])
-        fill = int(getattr(automaton.space, 'fill', 0))
+        table = self._get_table(self._space)
+        patterns = self._patterns(self._get_states_count(), table.shape[1])
+        fill = int(getattr(self._space, 'fill', 0))
         for site in sites:
             row = table[site]
-            for pattern, value in zip(patterns, values, strict=True):
-                outside = row >= automaton.size
+            for pattern, value in zip(patterns, self._local_map, strict=True):
+                outside = row >= self._size
                 if np.any(pattern[outside] != fill):
                     continue
                 consequence = output(site, int(value))
@@ -428,25 +674,19 @@ class AutomatonAnalysis(BaseAnalysis):
             dtype=np.int64,
         )
 
-    @staticmethod
-    def _collision(automaton: AutomatonProtocol, window: Sequence[int]) -> tuple[IntArray, IntArray] | None:
+    def _collision(self, window: Sequence[int]) -> tuple[IntArray, IntArray] | None:
         """Return two configurations that differ inside a window, agree outside it, and have the same image, by SAT."""
         clauses = _Clauses()
-        first = clauses.one_hot(automaton.size, automaton.states)
-        second = clauses.one_hot(automaton.size, automaton.states)
-        image = clauses.one_hot(automaton.size, automaton.states, exactly=False)
+        states = self._get_states_count()
+        first = clauses.one_hot(self._size, states)
+        second = clauses.one_hot(self._size, states)
+        image = clauses.one_hot(self._size, states, exactly=False)
         for cells in (first, second):
-            AutomatonAnalysis._rule_clauses(
-                clauses,
-                automaton,
-                cells,
-                range(automaton.size),
-                lambda site, value: [int(image[site, value])],
-            )
+            self._rule_clauses(clauses, cells, range(self._size), lambda site, value: [int(image[site, value])])
         inside = set(window)
         differences = []
-        for site in range(automaton.size):
-            for value in range(automaton.states):
+        for site in range(self._size):
+            for value in range(states):
                 same = (int(first[site, value]), int(second[site, value]))
                 if site not in inside:
                     clauses.clauses += [[-same[0], same[1]], [same[0], -same[1]]]
@@ -456,39 +696,33 @@ class AutomatonAnalysis(BaseAnalysis):
                 differences.append(differ)
         clauses.clauses.append(differences)
         model = clauses.solve()
-        return (
-            None
-            if model is None
-            else (AutomatonAnalysis._decode(model, first), AutomatonAnalysis._decode(model, second))
-        )
+        return None if model is None else (self._decode(model, first), self._decode(model, second))
 
-    @staticmethod
-    def _preimage(automaton: AutomatonProtocol, target: IntArray, window: Sequence[int]) -> IntArray | None:
+    def _preimage(self, target: IntArray, window: Sequence[int]) -> IntArray | None:
         """Return a configuration whose image equals a target on a window, or `None`, by SAT."""
         clauses = _Clauses()
-        cells = clauses.one_hot(automaton.size, automaton.states)
+        cells = clauses.one_hot(self._size, self._get_states_count())
 
         def forbid(site: int, value: int) -> list[int] | None:
             """Return an empty consequence, which forbids the pattern, when the rule misses the target."""
             return None if value == target[site] else []
 
-        AutomatonAnalysis._rule_clauses(clauses, automaton, cells, window, forbid)
+        self._rule_clauses(clauses, cells, window, forbid)
         model = clauses.solve()
-        return None if model is None else AutomatonAnalysis._decode(model, cells)
+        return None if model is None else self._decode(model, cells)
 
-    @staticmethod
-    def _images(automaton: AutomatonProtocol) -> tuple[IntArray, IntArray]:
+    def _images(self) -> tuple[IntArray, IntArray]:
         """Return every configuration and the code of its image."""
-        configurations = AutomatonAnalysis._configurations(automaton.states, automaton.size)
-        return configurations, AutomatonAnalysis._codes(automaton.step(configurations), automaton.states)
+        states = self._get_states_count()
+        configurations = self._configurations(states, self._size)
+        return configurations, self._codes(self._step(configurations), states)
 
-    @staticmethod
-    def _ball_neighborhood(automaton: AutomatonProtocol, radius: int) -> Reach:
+    def _ball_neighborhood(self, radius: int) -> Reach:
         """Return the neighbourhood of every cell within a radius, a box of offsets or a ball of group elements."""
-        if isinstance(automaton.space, LatticeSpace) and not isinstance(automaton.neighborhood, LatticeNeighborhood):
+        if isinstance(self._space, LatticeSpace) and not isinstance(self._law.over, LatticeNeighborhood):
             error_msg = 'An inverse is searched on a lattice with a neighbourhood of offsets or on a group space.'
             raise AnalysisError(error_msg)
-        ball = AutomatonAnalysis._fitted(automaton.space)._ball(radius)
+        ball = self._space._ball(radius)
         if not isinstance(ball, LatticeNeighborhood | MemoryNeighborhood):
             error_msg = (
                 f'The space of the automaton gives a ball of {type(ball).__name__}, which an automaton cannot read.'
@@ -496,87 +730,103 @@ class AutomatonAnalysis(BaseAnalysis):
             raise AnalysisError(error_msg)
         return ball
 
-    @staticmethod
-    def _is_injective(automaton: AutomatonProtocol, *, method: str = 'auto') -> bool:
-        """Check whether two different configurations never have the same image."""
-        if AutomatonAnalysis._check_method(method, automaton.states**automaton.size <= MAX_CONFIGURATIONS):
-            _, codes = AutomatonAnalysis._images(automaton)
-            return bool(np.unique(codes).size == codes.size)
-        return AutomatonAnalysis._collision(automaton, range(automaton.size)) is None
+    def _is_enumerable(self) -> bool:
+        """Check whether the configurations of the automaton are few enough to enumerate."""
+        return self._get_states_count() ** self._size <= MAX_CONFIGURATIONS
 
-    @staticmethod
-    def _is_pre_injective(
-        automaton: AutomatonProtocol,
-        window: Sequence[int] | None = None,
-        *,
-        method: str = 'auto',
-    ) -> bool:
+    def _is_injective(self, *, method: str = 'auto') -> bool:
+        """Check whether two different configurations never have the same image."""
+        if self._check_method(method, self._is_enumerable()):
+            _, codes = self._images()
+            return bool(np.unique(codes).size == codes.size)
+        return self._collision(range(self._size)) is None
+
+    def _is_pre_injective(self, window: Sequence[int] | None = None, *, method: str = 'auto') -> bool:
         """Check whether two configurations that differ only inside a window never have the same image."""
-        sites = list(range(automaton.size)) if window is None else [int(site) for site in window]
-        if not AutomatonAnalysis._check_method(method, automaton.states**automaton.size <= MAX_CONFIGURATIONS):
-            return AutomatonAnalysis._collision(automaton, sites) is None
-        configurations, codes = AutomatonAnalysis._images(automaton)
-        outside = np.setdiff1d(np.arange(automaton.size), sites)
-        keys = codes * automaton.states**outside.size + AutomatonAnalysis._codes(
-            configurations[:, outside],
-            automaton.states,
-        )
+        sites = list(range(self._size)) if window is None else [int(site) for site in window]
+        if not self._check_method(method, self._is_enumerable()):
+            return self._collision(sites) is None
+        states = self._get_states_count()
+        configurations, codes = self._images()
+        outside = np.setdiff1d(np.arange(self._size), sites)
+        keys = codes * states**outside.size + self._codes(configurations[:, outside], states)
         return bool(np.unique(keys).size == keys.size)
 
-    @staticmethod
     def _garden_of_eden(
-        automaton: AutomatonProtocol,
+        self,
         window: Sequence[int] | None = None,
         *,
         tries: int = 200,
         random_state: int | np.random.Generator | None = None,
     ) -> IntArray | None:
         """Return a pattern on a window that no configuration maps to, or `None`."""
-        sites = list(range(automaton.size)) if window is None else [int(site) for site in window]
-        if window is None and automaton.states**automaton.size <= MAX_CONFIGURATIONS:
-            configurations, codes = AutomatonAnalysis._images(automaton)
-            missing = np.setdiff1d(np.arange(automaton.states**automaton.size), codes)
+        states = self._get_states_count()
+        sites = list(range(self._size)) if window is None else [int(site) for site in window]
+        if window is None and self._is_enumerable():
+            configurations, codes = self._images()
+            missing = np.setdiff1d(np.arange(states**self._size), codes)
             return configurations[missing[0]] if missing.size else None
         rng = np.random.default_rng(random_state)
         for _ in range(tries):
-            target = rng.integers(automaton.states, size=automaton.size)
-            if AutomatonAnalysis._preimage(automaton, target, sites) is None:
+            target = rng.integers(states, size=self._size)
+            if self._preimage(target, sites) is None:
                 return target
         return None
 
-    @staticmethod
-    def _inverse(automaton: AutomatonProtocol, max_radius: int = 2) -> AutomatonProtocol | None:
-        """Return the automaton whose composition with a reversible one is the identity, or `None`."""
-        configurations, codes = AutomatonAnalysis._images(automaton)
+    def _get_system(self, neighborhood: Reach, rule: object, name: str) -> System:
+        """Return the system with the elements of the analysed one and a new local rule on the same state."""
+        system = self.automaton_
+        source = self._rule
+        interaction = LocalRuleInteraction(
+            f'{source.label}_{name}',
+            target=getattr(source, source._get_role('target')),
+            state=self._state,
+            rule=rule,
+            neighborhood=neighborhood,
+        )
+        return System(system.label, elements=system.elements, interactions=[interaction], space=system.space)
+
+    def _inverse(self, max_radius: int = 2) -> System | None:
+        """Return the system of the automaton whose composition with a reversible one is the identity, or `None`."""
+        configurations, codes = self._images()
         if np.unique(codes).size != codes.size:
             return None
-        images = automaton.step(configurations)
+        states = self._get_states_count()
+        images = self._step(configurations)
         for radius in range(max_radius + 1):
-            candidate = type(automaton)(
-                automaton.space,
-                AutomatonAnalysis._ball_neighborhood(automaton, radius),
-                TableSpec({}),
-                automaton.states,
-            )
+            ball = self._ball_neighborhood(radius)
+            table = self._space._index_table(ball)
             padded = np.concatenate([images, np.zeros((images.shape[0], 1), dtype=np.int64)], axis=1)
-            patterns = AutomatonAnalysis._codes(padded[:, candidate.table()], automaton.states).ravel()
+            patterns = self._codes(padded[:, table], states).ravel()
             values = configurations.ravel()
             pairs = np.unique(np.column_stack([patterns, values]), axis=0)
             if np.unique(pairs[:, 0]).size != pairs.shape[0]:
                 continue
-            rows = AutomatonAnalysis._patterns(automaton.states, candidate.table().shape[1])
+            rows = self._patterns(states, table.shape[1])
             mapping = {tuple(int(item) for item in rows[code]): int(value) for code, value in pairs}
-            rule = TableSpec(mapping, states=automaton.states)
-            return type(automaton)(automaton.space, candidate.reads, rule, automaton.states)
+            return self._get_system(ball, TableSpec(mapping, states=states), 'inverse')
         return None
 
-    @staticmethod
-    def _compose(first: AutomatonProtocol, second: AutomatonProtocol) -> AutomatonProtocol:
-        """Return the automaton that applies one automaton and then another on the same space."""
-        if first.space is not second.space or first.states != second.states:
+    def _get_reach(self) -> Reach:
+        """Return the neighbourhood the rule of the automaton reads, of offsets or of group elements."""
+        reach = self._law._get_neighborhood()
+        if not isinstance(reach, LatticeNeighborhood | MemoryNeighborhood):
+            error_msg = f'An automaton reads offsets or a memory set, not {reach!r}.'
+            raise AnalysisError(error_msg)
+        return reach
+
+    def _compose(self, second: System) -> System:
+        """Return the system of the automaton that applies this automaton and then a second one on the same space."""
+        rule = self._find_rule(second)
+        if rule is None or isinstance(rule.rule, LinearRuleSpec):
+            error_msg = 'Composed automata are systems with a local rule that is not linear.'
+            raise AnalysisError(error_msg)
+        other = type(self)()
+        other._read_automaton(second, rule)
+        if self._space is not other._space or self._states != other._states:
             error_msg = 'Composed automata share their space and their number of states.'
             raise AnalysisError(error_msg)
-        inner, outer = first.reads, second.reads
+        inner, outer = self._get_reach(), other._get_reach()
         inner_items = inner.elements if isinstance(inner, MemoryNeighborhood) else inner.check().prepare().offsets_
         outer_items = outer.elements if isinstance(outer, MemoryNeighborhood) else outer.check().prepare().offsets_
         composite: list[Item] = []
@@ -584,7 +834,7 @@ class AutomatonAnalysis(BaseAnalysis):
         for base in outer_items:
             row = []
             for element in inner_items:
-                item = AutomatonAnalysis._shifted(element, base)
+                item = self._shifted(element, base)
                 if item not in composite:
                     composite.append(item)
                 row.append(composite.index(item))
@@ -594,9 +844,8 @@ class AutomatonAnalysis(BaseAnalysis):
             if isinstance(inner, MemoryNeighborhood)
             else LatticeNeighborhood(tuple(item for item in composite if isinstance(item, tuple)))
         )
-        composed = _ComposedRuleSpec(first.local_map(), second.local_map(), tuple(columns), first.states)
-        rule = functools.partial(AutomatonAnalysis._composed_rule, composed)
-        return type(first)(first.space, reach, rule, first.states)
+        composed = _ComposedRuleSpec(self._local_map, other._local_map, tuple(columns), self._get_states_count())
+        return self._get_system(reach, functools.partial(self._composed_rule, composed), 'composition')
 
     @staticmethod
     def _composed_rule(composed: _ComposedRuleSpec, *values: npt.ArrayLike) -> IntArray:
@@ -608,51 +857,158 @@ class AutomatonAnalysis(BaseAnalysis):
         ]
         return composed.second[AutomatonAnalysis._codes(np.stack(inner, axis=-1), composed.states)]
 
-    @staticmethod
-    def _difference_pattern(
-        automaton: AutomatonProtocol,
-        configuration: npt.ArrayLike,
-        site: int,
-        steps: int,
-    ) -> npt.NDArray[np.bool_]:
+    def _difference_pattern(self, configuration: npt.ArrayLike, site: int, steps: int) -> npt.NDArray[np.bool_]:
         """Return where two runs differ when one starts with one cell changed to its next value."""
         initial = np.asarray(configuration, dtype=np.int64)
         changed = initial.copy()
-        changed[site] = (changed[site] + 1) % automaton.states
-        return automaton.run(initial, steps) != automaton.run(changed, steps)
+        changed[site] = (changed[site] + 1) % self._get_states_count()
+        return self._get_steps(initial, steps) != self._get_steps(changed, steps)
 
-    @staticmethod
-    def _configuration_entropy(
-        subject: SubshiftProtocol | AutomatonProtocol,
-        windows: Sequence[BaseSpace],
-        *,
-        base: float = 2.0,
-    ) -> npt.NDArray[np.float64]:
+    def _get_window_entropy(self, window: BaseSpace) -> float:
+        """Return the entropy `log |X_F| / |F|` of the image of the automaton on a window."""
+        states = self._get_states_count()
+        interior = np.flatnonzero((self._get_table(window) < self._size_of(window)).all(axis=1))
+        images = self._step(self._configurations(states, self._size_of(window)), window)[:, interior]
+        count = np.unique(self._codes(images, states)).size
+        return float(np.log(count) / max(interior.size, 1))
+
+    def _configuration_entropy(self, windows: Sequence[BaseSpace], *, base: float = 2.0) -> npt.NDArray[np.float64]:
         """Return the entropy `log |X_F| / |F|` of a subshift or of the image of an automaton on every window."""
-        entropies = []
-        for window in windows:
-            if isinstance(subject, SubshiftProtocol):
-                entropies.append(np.log(subject.count(window)) / AutomatonAnalysis._size(window))
-                continue
-            automaton = type(subject)(window, subject.neighborhood, subject.rule, subject.states)
-            interior = np.flatnonzero((automaton.table() < AutomatonAnalysis._size(window)).all(axis=1))
-            images = automaton.step(
-                AutomatonAnalysis._configurations(automaton.states, AutomatonAnalysis._size(window)),
-            )[:, interior]
-            count = np.unique(AutomatonAnalysis._codes(images, automaton.states)).size
-            entropies.append(np.log(count) / max(interior.size, 1))
+        entropies = [
+            (
+                self._get_window_entropy(window)
+                if self._subshift is None
+                else np.log(self._count_configurations(self._subshift, window)) / self._size_of(window)
+            )
+            for window in windows
+        ]
         return np.asarray(entropies) / np.log(base)
 
-    @staticmethod
-    def _linear_injective(automaton: LinearAutomatonProtocol, *, infinite: bool) -> bool:
+    def _get_linear_rule(self) -> LinearRuleSpec:
+        """Return the linear rule of the automaton, or raise an error for any other rule."""
+        rule = self._law._get_rule()
+        if not isinstance(rule, LinearRuleSpec):
+            error_msg = f'{type(self).__name__} of kind {self.kind!r} reads a linear automaton, not {rule!r}.'
+            raise AnalysisError(error_msg)
+        return rule
+
+    def _get_matrix(self) -> Matrix:
+        """Return the matrix of a linear automaton over its field, whose row `g` gives the image at `g`."""
+        rule = self._get_linear_rule()
+        table = self._get_table(self._space)
+        if (table >= self._size).any():
+            error_msg = 'A linear automaton has a matrix on a periodic lattice or a finite group, not on a ball.'
+            raise AnalysisError(error_msg)
+        field = rule.sage_field
+        entries = matrix(field, self._size, self._size)
+        for site, row in enumerate(table.tolist()):
+            for neighbour, coefficient in zip(row, rule.coefficients, strict=True):
+                entries[site, neighbour] += field(QQ(coefficient))
+        return entries
+
+    def _get_polynomial(self) -> LaurentPolynomial:
+        """Return the Laurent polynomial `sum a_s x^s` of a linear automaton on a lattice, its symbol on `Z^d`."""
+        rule = self._get_linear_rule()
+        if not isinstance(self._law.over, LatticeNeighborhood):
+            error_msg = 'A Laurent polynomial describes a linear automaton on a lattice, with offsets.'
+            raise AnalysisError(error_msg)
+        field = rule.sage_field
+        offsets = self._law.over.check().prepare().offsets_
+        ring = LaurentPolynomialRing(field, [f'x{axis}' for axis in range(len(offsets[0]))])
+        terms = (
+            field(QQ(coefficient))
+            * np.prod([variable**step for variable, step in zip(ring.gens(), offset, strict=True)])
+            for offset, coefficient in zip(offsets, rule.coefficients, strict=True)
+        )
+        return sum(terms, ring.zero())
+
+    def _linear_injective(self, *, infinite: bool) -> bool:
         """Check whether a linear automaton is invertible: its matrix on its universe, or a monomial on `Z^d`."""
         if infinite:
-            return len(automaton.laurent_polynomial().exponents()) == 1
-        return bool(automaton.matrix().is_invertible())
+            return len(self._get_polynomial().exponents()) == 1
+        return bool(self._get_matrix().is_invertible())
 
-    @staticmethod
-    def _linear_surjective(automaton: LinearAutomatonProtocol, *, infinite: bool) -> bool:
+    def _linear_surjective(self, *, infinite: bool) -> bool:
         """Check whether a linear automaton is surjective: invertible on its universe, or not zero on `Z^d`."""
         if infinite:
-            return not automaton.laurent_polynomial().is_zero()
-        return AutomatonAnalysis._linear_injective(automaton, infinite=False)
+            return not self._get_polynomial().is_zero()
+        return self._linear_injective(infinite=False)
+
+    @staticmethod
+    def _get_complete(subshift: SubshiftSpec, space: BaseSpace) -> tuple[Indices, npt.NDArray[np.bool_]]:
+        """Return the neighbour table of a space and the sites whose patterns lie inside it."""
+        neighborhood = subshift.neighborhood
+        if not isinstance(neighborhood, LatticeNeighborhood | MemoryNeighborhood):
+            error_msg = f'A subshift covers offsets or a memory set, not {neighborhood!r}.'
+            raise AnalysisError(error_msg)
+        table = AutomatonAnalysis._fitted(space)._index_table(neighborhood)
+        return table, (table < AutomatonAnalysis._size_of(space)).all(axis=1)
+
+    def _get_violations(self, subshift: SubshiftSpec, configuration: npt.ArrayLike) -> npt.NDArray[np.bool_]:
+        """Return the sites of the space at which a forbidden pattern appears in a configuration."""
+        table, complete = self._get_complete(subshift, self._space)
+        values = np.append(np.asarray(configuration, dtype=np.int64), 0)
+        forbidden = np.asarray([tuple(pattern) for pattern in subshift.forbidden], dtype=np.int64)
+        codes = self._codes(values[table], subshift.states)
+        return complete & np.isin(codes, self._codes(forbidden.reshape(-1, table.shape[1]), subshift.states))
+
+    @staticmethod
+    def _count_configurations(subshift: SubshiftSpec, space: BaseSpace) -> int:
+        """Return the number of admissible configurations of a space, by dynamic programming over its sites."""
+        size = AutomatonAnalysis._size_of(space)
+        table, complete = AutomatonAnalysis._get_complete(subshift, space)
+        forbidden = {tuple(int(item) for item in pattern) for pattern in subshift.forbidden}
+        checks: list[list[int]] = [[] for _ in range(size)]
+        for site in np.flatnonzero(complete):
+            checks[int(table[site].max())].append(int(site))
+        needed = [
+            tuple(
+                sorted(
+                    {int(cell) for later in checks[site:] for anchor in later for cell in table[anchor] if cell < site},
+                ),
+            )
+            for site in range(size + 1)
+        ]
+        values = [0] * size
+        memo: dict[tuple[int, tuple[int, ...]], int] = {}
+
+        def extend(site: int) -> int:
+            """Return the number of admissible completions of the values before a site."""
+            if site == size:
+                return 1
+            key = (site, tuple(values[cell] for cell in needed[site]))
+            if key not in memo:
+                total = 0
+                for value in range(subshift.states):
+                    values[site] = value
+                    if all(tuple(values[cell] for cell in table[anchor]) not in forbidden for anchor in checks[site]):
+                        total += extend(site + 1)
+                memo[key] = total
+            return memo[key]
+
+        return extend(0)
+
+    def _sample(self, subshift: SubshiftSpec) -> IntArray:
+        """Return an admissible configuration drawn by a Markov chain of single-cell moves that keep it admissible."""
+        rng = np.random.default_rng(self.random_state)
+        values = (
+            np.zeros(self._size, dtype=np.int64)
+            if self.configuration is None
+            else np.asarray(self.configuration, dtype=np.int64).copy()
+        )
+        if self._get_violations(subshift, values).any():
+            error_msg = 'The initial configuration holds a forbidden pattern. Give an admissible one.'
+            raise AnalysisError(error_msg)
+        table, complete = self._get_complete(subshift, self._space)
+        touching: list[list[int]] = [[] for _ in range(self._size)]
+        for anchor in np.flatnonzero(complete):
+            for cell in set(table[anchor].tolist()):
+                touching[cell].append(int(anchor))
+        forbidden = {tuple(int(item) for item in pattern) for pattern in subshift.forbidden}
+        for _ in range(self.sweeps):
+            for site in rng.permutation(self._size):
+                previous = values[site]
+                values[site] = rng.integers(subshift.states)
+                if any(tuple(values[table[anchor]].tolist()) in forbidden for anchor in touching[site]):
+                    values[site] = previous
+        return values

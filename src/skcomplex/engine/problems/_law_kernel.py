@@ -151,6 +151,11 @@ class LawKernel(BaseKernel):
         return {}
 
     @functools.cached_property
+    def _source_values(self) -> dict[str, Array]:
+        """Values of the node of a topology request in the current evaluation, replaced when an evaluation starts."""
+        return {}
+
+    @functools.cached_property
     def _argument_readers(self) -> list[ReadFunction]:
         """Readers of the arguments of the compiled function, in order."""
         return [self._reader(item) for item in self._arguments]
@@ -266,11 +271,29 @@ class LawKernel(BaseKernel):
             def read(x: Array, p: Array, pairs: OptionalPairs, t: float) -> object:
                 return self._gather_around(reference, x, p, pairs, t)
 
+        elif source is ReadKind.SOURCE:
+            read = self._source_reader(reference)
         elif source is ReadKind.SINGLE or (source is ReadKind.REDUCED and reference.entry.members is None):
             read = self._single_reader(reference.is_state, reference.index)
         else:
             read = self._member_reader(reference)
         self._readers[symbol] = read
+        return read
+
+    def _source_reader(self, reference: ReferenceSpec) -> ReadFunction:
+        """Return the function that reads a component of the node a topology request starts from."""
+        name, column = reference.entry.name, reference.column
+
+        def read(x: Array, p: Array, pairs: OptionalPairs, t: float) -> Array:
+            if name not in self._source_values:
+                error_msg = (
+                    f'A law of {self.owner} reads {name} of `namespace.source`, the node a topology request starts '
+                    'from, where no such node exists. Read it in the weight, or in the condition or the probability '
+                    'per step of a request without a target, outside reductions and rates.'
+                )
+                raise ValidationError(error_msg)
+            return self._source_values[name][column]
+
         return read
 
     def _member_reader(self, reference: ReferenceSpec) -> ReadFunction:
@@ -305,6 +328,11 @@ class LawKernel(BaseKernel):
         return self._reader(symbol)(x, p, pairs, t)
 
     @property
+    def reads_source(self) -> bool:
+        """Whether an output reads the node a topology request starts from."""
+        return any(self.references[item].source is ReadKind.SOURCE for item in self.arguments)
+
+    @property
     def reads_reductions(self) -> bool:
         """Whether an output reads a reduction, directly or through the operand of a derived read."""
         return any(self._reads_reduction(item) for item in self.arguments)
@@ -323,6 +351,8 @@ class LawKernel(BaseKernel):
         state = self._state_of(inputs)
         t, x, p = state.t, state.x, state.p
         self._applied.clear()
+        self._source_values.clear()
+        self._source_values.update(state.source or {})
         pairs = self.pairs.run(state).pairs_ if self.pairs is not None else None
         size = len(pairs[0]) if pairs is not None else self.rows
         computed: list[npt.ArrayLike] = []
@@ -372,7 +402,7 @@ class LawKernel(BaseKernel):
         if output.arguments is not None and not output.vectorized:
             rows = [
                 np.atleast_1d(np.asarray(function(t, *row, **keywords), dtype=float))
-                for row in zip(*arguments, strict=True)
+                for row in (zip(*arguments, strict=True) if arguments else [()] * size)
             ]
             result = np.asarray(rows, dtype=float).reshape(size, -1) if rows else np.zeros((0, output.components))
             return np.broadcast_to(result, (size, output.components))

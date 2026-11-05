@@ -63,9 +63,30 @@ class BaseLaw(BasePart[str, object]):
     def _get_targets(self) -> tuple[object, ...]:
         """Return the states the law changes."""
 
+    @classmethod
     @abstractmethod
-    def _get_requirements(self) -> RequirementSpec:
-        """Return what the law requires of a system, such as continuous or discrete time."""
+    def _get_requirements(cls) -> RequirementSpec:
+        """Return what the laws of the class require of a system, such as continuous or discrete time."""
+
+    def _get_law_requirements(self) -> RequirementSpec:
+        """Return what this law requires of a system, which its arguments may narrow."""
+        return self._get_requirements()
+
+    @classmethod
+    def get_requirements(cls) -> RequirementSpec:
+        """Return what the laws of the class require of a system, before any of them exists.
+
+        Returns:
+            requirements:
+                The classes of time and of space the laws run in, where an empty field accepts any class. A law whose
+                arguments narrow them, such as `DriveLaw`, returns the widest it can run in.
+
+        Examples:
+            >>> from skcomplex.core.laws import RuleLaw
+            >>> RuleLaw.get_requirements().time[0].__name__
+            'DiscreteTime'
+        """
+        return cls._get_requirements()
 
     def _run(self, inputs: object) -> None:
         """Set `value_` to the values of the arguments of the law at given values of the symbols it reads.

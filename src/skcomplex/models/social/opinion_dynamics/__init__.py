@@ -25,6 +25,7 @@ from ._discussant import DiscussantElement
 from ._discussant_view import DiscussantView
 from ._discussions import DiscussionsInteraction
 from ._encounters import EncountersInteraction
+from ._gauge_agents import ConnectionElement, PhaseAgentElement, gauge_network_agents
 from ._hypergraph_consensus import hypergraph_consensus
 from ._influencee import InfluenceeElement
 from ._influencee_view import InfluenceeView
@@ -54,6 +55,7 @@ from ._thinker import ThinkerElement
 from ._thinker_view import ThinkerView
 from ._three_body_consensus import ThreeBodyConsensusInteraction
 from ._tie import TieElement
+from ._transported_coupling import TransportedCouplingInteraction
 from ._variant_voter import VariantVoterElement
 from ._variant_voter_view import VariantVoterView
 from ._variant_voting import VariantVotingInteraction
@@ -78,6 +80,7 @@ __all__: list[str] = [
     'ComplexAgentView',
     'ConfidenceCouplingInteraction',
     'ConfidentElement',
+    'ConnectionElement',
     'ConversationsInteraction',
     'CulturalInfluenceInteraction',
     'DiscussantElement',
@@ -95,6 +98,7 @@ __all__: list[str] = [
     'PersuaderElement',
     'PersuaderView',
     'PersuasionInteraction',
+    'PhaseAgentElement',
     'RandomPairsInteraction',
     'ScheduleElement',
     'SeparationInteraction',
@@ -104,6 +108,7 @@ __all__: list[str] = [
     'ThinkerView',
     'ThreeBodyConsensusInteraction',
     'TieElement',
+    'TransportedCouplingInteraction',
     'VariantVoterElement',
     'VariantVoterView',
     'VariantVotingInteraction',
@@ -119,6 +124,7 @@ __all__: list[str] = [
     'culture_observables',
     'deffuant',
     'galam_majority',
+    'gauge_network_agents',
     'hegselmann_krause',
     'hypergraph_consensus',
     'influentials',

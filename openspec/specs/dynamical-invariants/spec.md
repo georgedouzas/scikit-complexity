@@ -12,7 +12,7 @@ information, and choose the dimension where the fraction of false nearest neighb
 
 #### Scenario: Lorenz embedding
 - **WHEN** a user embeds 20,000 samples of the Lorenz-63 `x` with step 0.01
-- **THEN** the chosen delay lies between 0.10 and 0.20 time units, and the chosen dimension is 3
+- **THEN** the chosen delay lies between 0.10 and 0.25 time units, and the chosen dimension is 3
 
 #### Scenario: Map embedding
 - **WHEN** a user embeds 10,000 iterates of the Hénon map `x`

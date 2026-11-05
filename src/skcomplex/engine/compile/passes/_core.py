@@ -32,6 +32,7 @@ from ._jacobian import JacobianPass
 from ._kernels import KernelsPass
 from ._lattices import LatticeProblemPass
 from ._layout import LayoutPass
+from ._linear_programs import LinearProgramsPass
 from ._lower_fields import LowerFieldsPass
 from ._lower_flows import LowerFlowsPass
 from ._markov import MarkovPass
@@ -112,5 +113,6 @@ _PASSES: tuple[type[BasePass], ...] = (
     RequestJumpsPass,
     TopologyFunctionsPass,
     TopologyProblemPass,
+    LinearProgramsPass,
 )
 """Passes of the general compiler, in the order it keeps where their fields leave them unordered."""

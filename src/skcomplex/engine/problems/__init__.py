@@ -12,6 +12,13 @@ from ._frame_spec import FrameSpec
 from ._kernel_spec import KernelSpec
 from ._kinetic_problem_spec import KineticProblemSpec
 from ._learning_problem_spec import LearningProblemSpec
+from ._linear_program_kernel import LinearProgramKernel
+from ._linear_program_spec import (
+    LinearProgramDualSpec,
+    LinearProgramEntrySpec,
+    LinearProgramSideSpec,
+    LinearProgramSpec,
+)
 from ._linear_term_spec import LinearTermSpec
 from ._loop_term_spec import LoopTermSpec
 from ._lowered_kernels_spec import LoweredKernelsSpec
@@ -19,14 +26,17 @@ from ._observed_spec import ObservedSpec
 from ._operator_problem_spec import OperatorProblemSpec
 from ._output_spec import OutputSpec
 from ._partition_spec import PartitionSpec
+from ._patch_kernel import PatchKernel
 from ._problem_spec import ProblemSpec
 from ._reduction_schedule_spec import ReductionScheduleSpec
 from ._reference_spec import ReferenceSpec
+from ._rewriting_problem_spec import RewritingProblemSpec
 from ._set_symbol_spec import SetSymbolSpec
 from ._source_loader import SourceLoader
 from ._symmetry_spec import SymmetrySpec
 from ._transfer_network_spec import TransferNetworkSpec
 from ._transfer_state_spec import TransferStateSpec
+from ._word_kernel import WordKernel
 
 __all__: list[str] = [
     'BaseKernel',
@@ -43,6 +53,11 @@ __all__: list[str] = [
     'KernelSpec',
     'KineticProblemSpec',
     'LearningProblemSpec',
+    'LinearProgramDualSpec',
+    'LinearProgramEntrySpec',
+    'LinearProgramKernel',
+    'LinearProgramSideSpec',
+    'LinearProgramSpec',
     'LinearTermSpec',
     'LoopTermSpec',
     'LoweredKernelsSpec',
@@ -50,12 +65,15 @@ __all__: list[str] = [
     'OperatorProblemSpec',
     'OutputSpec',
     'PartitionSpec',
+    'PatchKernel',
     'ProblemSpec',
     'ReductionScheduleSpec',
     'ReferenceSpec',
+    'RewritingProblemSpec',
     'SetSymbolSpec',
     'SourceLoader',
     'SymmetrySpec',
     'TransferNetworkSpec',
     'TransferStateSpec',
+    'WordKernel',
 ]

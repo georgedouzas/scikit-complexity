@@ -1760,3 +1760,576 @@ the Landau-de Gennes energy in its own package. The inventory SHALL list it as i
 - **WHEN** the polar gel runs in a film between walls of fixed polarisation, given by the `symmetry` setting, at
   activities 20% below and 20% above the threshold of the linear stability analysis
 - **THEN** the flow decays below the threshold and grows to a steady nonzero flow above it
+
+### Requirement: Acausal component library
+The library SHALL provide the electrical connector and components with ports and equations in
+`skcomplex.models.engineering.common.electrical`, and the thermal connector and components in
+`skcomplex.models.engineering.control`.
+
+#### Scenario: Connector from the library
+- **WHEN** a user imports the electrical connector from `skcomplex.models.engineering.common.electrical`
+- **THEN** it is a `ConnectorSpec`, and no module of the core names it
+
+#### Scenario: Component Chua circuit
+- **WHEN** Chua's circuit is assembled from the electrical components with the values of `chua`
+- **THEN** its capacitor voltages follow the trajectory of `chua` within the tolerance of its test
+
+### Requirement: Engineering models on components and Lagrangians
+The library SHALL provide `heated_room` in `engineering/control`, and `dc_motor` and `quarter_car` in
+`engineering/mechatronics`, as registered factories, each with the standard observables of its catalog entry.
+`quarter_car` SHALL be built on `SpringDamperInteraction`, and the inertia of `dc_motor` on `EulerLagrangeInteraction`.
+
+#### Scenario: Heated room
+- **WHEN** `heated_room` runs from a cold room with the thermostat set to 20 degrees and a hysteresis band of 1 degree
+- **THEN** the room temperature rises to the band and then stays within it, with the heater switching on and off
+
+#### Scenario: Quarter car over a step
+- **WHEN** `quarter_car` drives over a road step with its standard values
+- **THEN** the body and wheel displacements settle at the step height, and the energy of the springs decays
+
+### Requirement: Acausal component models are recorded in the model inventory
+Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
+inventory, tagged with the time kind, space kind, component kinds, interaction bindings, and law classes of the system
+it builds.
+
+#### Scenario: Inventory models registered
+- **WHEN** the change is applied and the inventory check runs
+- **THEN** these entries are registered under their field paths and marked implemented:
+  - `heated_room` in `engineering/control`
+  - `quarter_car` in `engineering/mechatronics`
+  - `dc_motor` in `engineering/mechatronics`
+
+### Requirement: Lattice gauge model samples the Wilson action
+The library SHALL provide `lattice_gauge_fields` in `physics/waves`, after Schwichtenberg (2020 §2.1, §4.4). With its
+default Monte Carlo dynamics, it SHALL sample the Wilson action of U(1) or Z_N link angles on the cell complex of a
+periodic lattice under discrete time, through `WilsonSamplingInteraction`, a subclass of `SamplingInteraction` in its
+package, and its catalog entry SHALL declare the mean plaquette as an observable.
+
+#### Scenario: Plaquette against the exact result
+- **WHEN** `lattice_gauge_fields` runs with its defaults, U(1) on a periodic 32 × 32 lattice at β = 2, after its
+  transient
+- **THEN** the mean plaquette observable is within 0.01 of `I_1(2) / I_0(2) ≈ 0.698`
+
+#### Scenario: Gauge-invariant run
+- **WHEN** a random gauge transformation is applied to the initial links before a Monte Carlo run with a fixed seed
+- **THEN** the mean plaquette series equals the series of the untransformed run within 1e-12
+
+### Requirement: Lattice gauge model evolves Maxwell fields
+With `dynamics='hamiltonian'`, `lattice_gauge_fields` SHALL return a system under continuous time that evolves a lattice
+Maxwell potential and electric field on links from optional static charges on sites. Its catalog entry SHALL declare
+the Gauss residual and the field energy as observables.
+
+#### Scenario: Maxwell dynamics conserve the Gauss law
+- **WHEN** `lattice_gauge_fields` runs with Hamiltonian dynamics and a static charge pair on a periodic 32 × 32 lattice
+- **THEN** the Gauss residual stays below 1e-10 at every frame, and the field energy changes by less than 1e-3
+  relative error
+
+### Requirement: Gauge observables are measured in the gauge package
+The package `skcomplex.models.physics.waves` SHALL hold `GaugeAnalysis`, a subclass of `BaseAnalysis` that measures
+Wilson loops of given extents, Polyakov loops along the last axis, the topological charge of a 2D U(1) link state, and
+the Gauss residual of an electric link state against a site charge. No public name of `skcomplex.core` SHALL contain
+`wilson`, `gauge`, or `polyakov`.
+
+#### Scenario: Invariance of loops
+- **WHEN** a random gauge transformation is applied to a U(1) configuration
+- **THEN** the mean plaquette and the 2 × 2 Wilson loop are unchanged within 1e-12
+
+#### Scenario: Integer charge
+- **WHEN** the topological charge of any U(1) configuration on a periodic 2D lattice is computed
+- **THEN** it equals an integer within 1e-9
+
+### Requirement: Topological Kuramoto model
+The library SHALL provide `topological_kuramoto` in `physics/synchronization`, after Millán, Torres, and Bianconi
+(2203.06601 III): phases on the nodes and links of a clique complex, the link phases driven through the codifferential
+and the exterior derivative of the sines of the phases, with node and link dynamics coupled by their global order
+parameters.
+
+#### Scenario: Link synchronization grows with coupling
+- **WHEN** `topological_kuramoto` runs on the clique complex of a random graph at zero coupling and at a coupling well
+  above its transition
+- **THEN** the order parameter of the link phases at the end of the strong-coupling run exceeds that of the run at zero
+  coupling by at least 0.3
+
+### Requirement: Gauge arbitrage market model
+The library SHALL provide `gauge_arbitrage_market` in `economics/finance`, after Schwichtenberg (2020 §1.7, §2.1,
+§2.2.1): exchange-rate potentials on the links of a lattice complex evolved by the discrete inhomogeneous Maxwell
+equations, sourced by the trader current on links, and the good on sites moved along the links by its covariant
+gradient.
+
+#### Scenario: Conservation in the market
+- **WHEN** `gauge_arbitrage_market` runs with its defaults
+- **THEN** the total good stays constant within 1e-10 relative error, and the Gauss residual against the density of the
+  good stays below 1e-8
+
+### Requirement: Gauge network agents
+The library SHALL provide `gauge_network_agents` in `social/opinion_dynamics`, after Mihaylov and Cacciatori (2025,
+arXiv 2509.01581): agent phases on the nodes of a network and connections on its edges, the agents relaxing towards
+their neighbours' transported phases through `TransportedCouplingInteraction`, a subclass of `CouplingInteraction` in
+its package, so frustrated loops prevent global agreement.
+
+#### Scenario: Frustration blocks agreement
+- **WHEN** `gauge_network_agents` runs on a ring of 12 agents with a flat connection and with a total flux of pi around
+  the ring
+- **THEN** the flat ring reaches agreement with zero energy, and the frustrated ring keeps a residual energy and a twist
+
+### Requirement: Link field models are recorded in the model inventory
+Every model this change adds SHALL register under the field path of its subfield and SHALL be marked implemented in
+the model inventory.
+
+#### Scenario: Inventory models registered
+- **WHEN** the change is applied and the inventory check runs
+- **THEN** these entries are registered under their field paths and marked implemented:
+  - `lattice_gauge_fields` in `physics/waves`
+  - `topological_kuramoto` in `physics/synchronization`
+  - `gauge_arbitrage_market` in `economics/finance`
+  - `gauge_network_agents` in `social/opinion_dynamics`
+
+### Requirement: Agent models in three-dimensional spaces and on region layers
+The library SHALL provide, as registered factories built on `MovementInteraction` and agent-form interactions:
+- boids in three dimensions under `biology/collective_behaviour` (Think Complexity ch. 10),
+- the Kauai population sentiment model on region layers under `social/organizations` (Carmichael et al. 2019 ch. 3),
+  with a small synthetic island dataset in its package.
+
+#### Scenario: Boids align in three dimensions
+- **WHEN** 50 boids with random headings fly in a periodic three-sided `ContinuousSpace` with only the alignment rule
+  for 200 steps
+- **THEN** the polarization, the norm of the mean unit velocity, rises from below 0.3 to above 0.9, and the third
+  coordinates of the boids still spread over more than half of the box depth
+
+#### Scenario: Population follows the census layer
+- **WHEN** the Kauai model is created from the synthetic island's census layer with populations 100, 50, and 0
+- **THEN** it has 150 resident agents, each with a home point inside its census region
+
+#### Scenario: Positive event raises sentiment
+- **WHEN** the Kauai model runs with a positive event on a topic that half of the residents weight above zero
+- **THEN** the mean sentiment of those residents rises and stays within -1 and 1, and the others' mean changes only
+  through interaction
+
+### Requirement: Flux balance model
+The library SHALL provide `flux_balance`, which runs FBA, FVA, and parsimonious FBA on Raman's toy network of Table 8.2
+by default without the extra, and on the E. coli core model with the extra, under static time. A sweep of an uptake
+bound SHALL run as an `Experiment` over a `GridDesign`.
+
+#### Scenario: Toy network growth
+- **WHEN** `flux_balance` runs with its defaults
+- **THEN** with all bounds at 1000 and only `A` taken up, the growth flux is 50 within 1e-9, as Raman Eq. 8.9 gives, and
+  FVA at that optimum ranges `v1`, `v2`, and `v3` over [0, 600] and fixes `v4 = 550`, `v5 = 50`, `v6 = 1000`,
+  `v7 = 100`, `b1 = 600`, and `b2 = 1000`, as Raman Eq. 8.12 gives
+
+#### Scenario: E. coli core aerobic and anaerobic growth
+- **WHEN** `flux_balance` runs on the E. coli core model over a sweep of the oxygen uptake bound from 0 to 25
+- **THEN** growth is 0.2117 h⁻¹ within 1e-4 at no oxygen, rises with oxygen, and reaches 0.8739 h⁻¹ within 1e-4 once
+  oxygen no longer limits, above an uptake of about 21.8
+
+### Requirement: Metabolic perturbations model
+The library SHALL provide `metabolic_perturbations`, which applies gene and reaction knock-outs, MoMA, ROOM, OptKnock,
+synthetic lethal scans, and FSEOF to the E. coli core model through the analyses of
+`biology/common/metabolism`.
+
+#### Scenario: Essential gene
+- **WHEN** the `gapA` gene (b1779) is knocked out
+- **THEN** growth is zero within 1e-6
+
+#### Scenario: Single-deletion scan
+- **WHEN** every gene of the E. coli core model is deleted in turn
+- **THEN** exactly 7 deletions give growth below 1e-6
+
+### Requirement: Regulatory FBA model
+The library SHALL provide `regulatory_fba`, where Boolean gene rules alternate with FBA (Raman Eq. 9.7) in a batch
+culture on glucose and acetate, with the switches set by `UpdateLaw`s from the Boolean nodes.
+
+#### Scenario: Glucose represses acetate uptake
+- **WHEN** `regulatory_fba` runs until both substrates are exhausted
+- **THEN** the acetate uptake flux is zero while glucose is above the repression threshold. After depletion it becomes
+  positive, and biomass grows in two phases with a lag between them.
+
+### Requirement: Dynamic FBA model
+The library SHALL provide `dynamic_fba`, a batch culture of the E. coli core model with Michaelis-Menten glucose uptake
+and the static optimisation approach (Raman Eqs. 9.8–9.9). The direct approach SHALL be available as an option.
+
+#### Scenario: Batch culture
+- **WHEN** `dynamic_fba` runs from biomass 0.01 g/L and glucose 10 mM until 10 h
+- **THEN** glucose decreases monotonically to below 1e-3 mM, and biomass grows exponentially at 0.874 h⁻¹ within 1%
+  while glucose exceeds ten half-saturation constants. Biomass then stays at 0.01 + 0.0874 · 10 g/L within 2%, with
+  one growth phase and no diauxic shift.
+
+### Requirement: Dynamic multispecies FBA model
+The library SHALL provide `dynamic_multispecies_fba`, the dynamic multi-species metabolic model of microbes competing
+for a shared medium, each species with its own program, uptake kinetics, and biomass.
+
+#### Scenario: Competition for glucose
+- **WHEN** two E. coli core strains that differ only in maximal glucose uptake grow on one medium
+- **THEN** the share of the faster strain rises monotonically. The glucose consumed equals the time integral of each
+  strain's uptake flux times its biomass, summed over the strains, within 1%.
+
+### Requirement: COMETS model
+
+The library SHALL provide `comets`, dynamic FBA on a 2D lattice in which metabolites and biomass diffuse, and only sites
+that hold biomass are solved, through the activity of the linear program law.
+
+#### Scenario: Expanding colony
+
+- **WHEN** `comets` runs from a central inoculum on uniform glucose
+- **THEN** the colony radius grows with a nearly constant speed after a transient. The glucose consumed over the lattice
+  matches the integral of uptake flux times biomass over sites and time within 1%, and sites without biomass have zero
+  fluxes.
+
+### Requirement: Community FBA model
+The library SHALL provide `community_fba`, which models a microbial community by joint FBA as merged programs,
+community FBA with abundances at one specific growth rate (Raman §11.1.3.2), SteadyCom (Raman Eq. 11.3), and, with the
+extra, the cooperative trade-off of MICOM (Diener et al. 2020).
+
+#### Scenario: Cross-feeding mutants
+- **WHEN** two E. coli core members with complementary knock-outs that each make the other's missing metabolite are
+  joined
+- **THEN** each member alone has zero growth, and the community has positive growth with both members active
+
+### Requirement: Elementary flux modes model
+The library SHALL provide `elementary_flux_modes`, which enumerates the elementary flux modes and extreme pathways of a
+metabolic network (Raman 2021 §9.8), Raman's toy network of Table 8.2 by default, ordered by growth yield on the
+substrate, through `ElementaryModeAnalysis`, without any extra.
+
+#### Scenario: Toy network modes and the FBA optimum
+- **WHEN** `elementary_flux_modes` runs with its defaults
+- **THEN** it finds 2 modes, each with growth yield `1/12` on `A` and `v6 = 20 · vbio`, and the FBA optimum of growth
+  50 is their non-negative combination within 1e-9, so its maximum is set by the bound 1000 on `v6`
+
+#### Scenario: Yield of a knock-out
+- **WHEN** `elementary_flux_modes` runs with `v1` knocked out
+- **THEN** it finds 1 mode, through `v2` and `v3`, with the same growth yield `1/12`
+
+### Requirement: Carbon-13 metabolic flux analysis model
+The library SHALL provide `carbon_13_mfa`, which estimates the fluxes of a network with atom transitions from
+labelling data of parallel tracer experiments (Raman 2021 §9.7), with confidence intervals and a goodness-of-fit test.
+By default it SHALL use the TCA example network of Antoniewicz et al. (2007) with data simulated from known fluxes plus
+seeded noise, through `LabellingAnalysis`, and it SHALL accept user networks and measurements. It SHALL run without
+any extra.
+
+#### Scenario: Recovered fluxes
+- **WHEN** `carbon_13_mfa` runs with its defaults, noise of standard deviation 0.002, and seed 0
+- **THEN** the estimated split of α-ketoglutarate, `v3` and `v4`, is within 2 of the true 50 and 50, every net flux's
+  95% interval contains its true value, and the chi-square test accepts the fit at the 5% level
+
+#### Scenario: Published labelling pattern
+- **WHEN** `carbon_13_mfa` simulates glutamate with the true fluxes and the tracer of Antoniewicz et al. (2007)
+- **THEN** the distribution is `[0.3464, 0.2695, 0.2708, 0.0807, 0.0286, 0.0039]` within 5e-5
+
+### Requirement: Static analyses come with an optional extra
+With the extra `metabolism` installed, `CobraAnalysis` of `skcomplex.models.biology.common.metabolism` SHALL analyse a
+metabolic network with:
+- flux variability,
+- parsimonious fluxes,
+- single and double deletions of reactions or genes,
+- MoMA and ROOM in their linear and quadratic or mixed-integer forms,
+- synthetic lethal pairs.
+
+Results SHALL be indexed by reaction or gene name.
+
+#### Scenario: Flux variability at the optimum
+- **WHEN** flux variability runs on the E. coli core model at 100% of the optimum
+- **THEN** the range of the biomass flux is 0.8739 within 1e-4 at both ends
+
+#### Scenario: Parity with the core solve
+- **WHEN** the E. coli core model is solved by its linear program law and by COBRApy
+- **THEN** the growth agrees within 1e-7, and the parsimonious total flux agrees with the core's lexicographic total
+  flux within 1e-6
+
+#### Scenario: Adjustment after a knock-out
+- **WHEN** the `pgi` gene (b4025) is knocked out against the wild-type solution
+- **THEN** FBA gives growth 0.8632 within 1e-3, and MoMA and ROOM give positive growth below it
+
+### Requirement: Strain designs are computed with the extra
+With the extra installed, `StrainDesignAnalysis` SHALL compute OptKnock, RobustKnock, OptCouple, and minimal cut set
+designs with a maximum number of interventions, and SHALL return each design as sets of reaction or gene names.
+
+#### Scenario: Growth-coupled succinate
+- **WHEN** OptKnock designs succinate production in the E. coli core model with at most 3 knock-outs and growth of at
+  least 0.1
+- **THEN** a returned design, at maximal growth, secretes at least 9 mmol/gDW/h of succinate at its minimum, where the
+  wild type secretes none
+
+### Requirement: Flux scanning runs in the default install
+`ProductionScanAnalysis` SHALL scan fluxes with enforced objective flux (FSEOF). It SHALL enforce a target flux at
+increasing levels, and report the reactions whose absolute flux rises monotonically with it, without the extra.
+
+#### Scenario: Scan toward a product
+- **WHEN** FSEOF scans the succinate exchange of the E. coli core model in 10 steps
+- **THEN** the reported reactions carry a flux that rises with every step, and the growth falls from its optimum
+
+### Requirement: Communities are modelled jointly and with trade-offs
+The library SHALL:
+- join member networks by the merging of their linear program laws through the exchange variables of a shared medium
+  element, whose law holds the abundance-weighted growth objective,
+- compute SteadyCom with one common growth rate by `CommunityAnalysis(kind='steadycom')`, without the extra,
+- compute MICOM's cooperative trade-off by `CommunityAnalysis(kind='tradeoff')`, with the extra.
+
+#### Scenario: Identical members
+- **WHEN** two copies of the E. coli core model share one medium whose uptake allows each of them a glucose uptake of 10
+- **THEN** joint FBA gives each member growth 0.8739 within 1e-4, and SteadyCom gives the common rate 0.8739 within
+  1e-4 with abundances that sum to 1
+
+#### Scenario: Trade-off at full community growth
+- **WHEN** the cooperative trade-off runs at fraction 1
+- **THEN** the community growth equals the joint FBA optimum within 1e-5
+
+### Requirement: Models import and export standard formats
+With the extra installed, `load_network` SHALL read SBML and BiGG JSON files and BiGG identifiers into metabolic
+network elements, keeping the identifiers of reactions, metabolites, and genes, the bounds, the objective, and the gene
+rules, and `save_network` SHALL write them back to both formats.
+
+#### Scenario: Bundled E. coli core
+- **WHEN** a user loads the bundled E. coli core model and solves it in the core
+- **THEN** aerobic growth is 0.8739 within 1e-4, and with oxygen uptake bounded at 0 it is 0.2117 within 1e-4
+
+#### Scenario: Round trip
+- **WHEN** a network is written to SBML and to JSON and read back
+- **THEN** both copies have the same matrix, bounds, rules, and optimum as the original
+
+### Requirement: Constraint-based models have gallery examples
+Each model of this change SHALL have a gallery example at `docs/examples/biology/<subfield>/plot_<name>.py` that runs
+within the gallery budget. It SHALL show its Rerun primary view as the thumbnail and at least one analysis plot from
+its own run, with a caption stating the behaviour shown.
+
+#### Scenario: Dynamic FBA example
+- **WHEN** a user opens the `dynamic_fba` example page
+- **THEN** its thumbnail is the Rerun series of biomass and glucose. Below it, a plot of the logarithm of biomass
+  against time shows a fitted slope of 0.874 h⁻¹ and the plateau after glucose depletion.
+
+#### Scenario: Carbon-13 flux analysis example
+- **WHEN** a user opens the `carbon_13_mfa` example page
+- **THEN** its thumbnail is the Rerun graph of the network with the estimated fluxes. Below it, a plot shows the
+  estimated net fluxes with their 95% intervals against the true fluxes, and a plot shows the measured and simulated
+  glutamate distributions.
+
+#### Scenario: Coverage of the new models
+- **WHEN** the gallery coverage check runs after this change
+- **THEN** each of the nine models has exactly one example, and the check names any that does not
+
+### Requirement: Constraint-based models are recorded in the model inventory
+Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
+inventory tagged with the system it builds, and a model the inventory records as pending this change SHALL register
+under the name of its entry.
+
+#### Scenario: Inventory models registered
+- **WHEN** the change is applied and the inventory check runs
+- **THEN** these entries are registered under their field paths and marked implemented:
+  - `flux_balance` in `biology/systems_biology`
+  - `metabolic_perturbations` in `biology/systems_biology`
+  - `regulatory_fba` in `biology/systems_biology`
+  - `dynamic_fba` in `biology/systems_biology`
+  - `dynamic_multispecies_fba` in `biology/ecology`
+  - `comets` in `biology/ecology`
+  - `community_fba` in `biology/ecology`
+  - `elementary_flux_modes` in `biology/systems_biology`
+  - `carbon_13_mfa` in `biology/systems_biology`
+
+#### Scenario: Models that need the extra
+- **WHEN** a user without the extra `metabolism` creates a model that needs it
+- **THEN** a named error names the model and the extra, and `flux_balance` with its default toy network still runs
+
+#### Scenario: Models blocked on this change
+- **WHEN** the inventory check runs after this change
+- **THEN** `elementary_flux_modes` and `carbon_13_mfa`, which the inventory recorded as blocked on this change, are
+  recorded as implemented with the sources `Rm 9.8` and `Rm 9.7`
+
+### Requirement: Models on radius reductions, pair couplings, and surrogates
+The library SHALL provide `szabo_cells` and `active_passive_flocking` in `physics/active_matter`,
+`koopman_model_predictive_control` in `engineering/control`, and `next_generation_reservoir` in
+`computer_science/neural_networks` as registered factories built from the general classes of the core, each with a
+curated gallery example and an inventory entry tagged with the system it builds.
+
+#### Scenario: Cells order collectively
+- **WHEN** `szabo_cells` runs at a density above its ordering transition
+- **THEN** the mean normalized velocity of the cells grows to an order parameter above 0.8
+
+#### Scenario: Active agents flock
+- **WHEN** `active_passive_flocking` runs with every agent active and flocking on
+- **THEN** the polarization of the velocities rises above 0.9
+
+#### Scenario: Active agents gather
+- **WHEN** `active_passive_flocking` runs with the settings of Charbonneau (2017, figure 10.7), 45 active agents among
+  342 at the compactness 0.672 from uniform random positions, with flocking on, for 50 time units
+- **THEN** the mean distance between active agents over the last 10 time units, as a mean over four seeds, falls below the
+  mean distance between passive agents by at least 0.015, and the snapshot shows flocks of active agents among still passive agents
+
+#### Scenario: Active agents stay mixed without flocking
+- **WHEN** `active_passive_flocking` runs with the same settings and flocking off
+- **THEN** the two mean distances over the last 10 time units, as a mean over four seeds, stay within 0.01 of each other
+
+#### Scenario: Surrogate predictive control
+- **WHEN** `koopman_model_predictive_control` steers each of its plants to a reference with its fitted surrogate
+- **THEN** the controlled state tracks the reference with a smaller mean squared error than the uncontrolled plant
+
+#### Scenario: Reservoir forecast
+- **WHEN** `next_generation_reservoir` is fitted to a training window of the Lorenz flow
+- **THEN** its forecast stays within 10% of the attractor size of the true trajectory for at least one Lyapunov time
+
+### Requirement: The next-generation reservoir reuses the analysis readout
+`next_generation_reservoir` SHALL take its readout from a fitted `ReservoirAnalysis(kind='next_generation')` and SHALL
+NOT fit a readout of its own.
+
+#### Scenario: Agreement with the reservoir analysis
+- **WHEN** `next_generation_reservoir` is built from the readout of a `ReservoirAnalysis(kind='next_generation')`
+  fitted to a series, and both forecast from the end of that series
+- **THEN** the system's forecast over one Lyapunov time agrees with the analysis's `forecast_` within 1e-6 of the
+  attractor size
+
+### Requirement: Multiscale network models
+The library SHALL provide `popularity_similarity_network` in `mathematics/networks` and `urban_scaling_interactions` in
+`social/organizations`, both grown by `TopologyInteraction` with attachment weights of the hyperbolic distance, each
+with a curated gallery example and an inventory entry tagged with the system it builds.
+
+#### Scenario: Hyperbolic degrees
+- **WHEN** `popularity_similarity_network` grows 2000 nodes with degree exponent 2.5, two edges, and temperature 0.2
+- **THEN** the fitted degree exponent, as a mean over four seeds, is within 0.07 of the measured 2.69, against the 2.5 of
+  the source, which an independent implementation of the published rule also reads high (2.71 over 16 seeds), and the
+  clustering stays above 0.3
+
+#### Scenario: Superlinear interactions
+- **WHEN** `urban_scaling_interactions` is swept over city size and its interactions are fitted by
+  `ScalingAnalysis(kind='allometric')`
+- **THEN** the exponent of the number of interactions is above 1, as Ribeiro and Netto (2024) review
+
+### Requirement: RNA neutral networks model
+The library SHALL provide `rna_neutral_networks` in `biology/evolution` (Raman 2021 §13.2–13.3): walkers, one RNA
+sequence per row of a lattice, propose one point mutation per unit of time, accepted at temperature zero when the fold
+keeps the target in the neutral regime, or when the base-pair distance to the target does not grow in the adaptive
+regime. It SHALL raise `MissingExtraError` without the extra `rna`.
+
+#### Scenario: Neutral walk keeps the fold
+- **WHEN** `rna_neutral_networks` runs with its defaults, 8 walkers of length 30 starting on the sequence
+  `GGGGAAACCCCAUCGAUAGCGGGAAACCGC` with target `((((...)))).......((((....))))`, for 300 units of time
+- **THEN** every walker folds into the target at every frame, and the mean Hamming distance from the start exceeds 8 at
+  the end
+
+#### Scenario: Adaptive walk reaches the target
+- **WHEN** the model runs in the adaptive regime from 8 random sequences of length 30 toward the default target
+- **THEN** the base-pair distance of every walker never increases, and its mean at the end is lower than at the start
+
+#### Scenario: Model that needs the extra
+- **WHEN** a user without the extra `rna` creates `rna_neutral_networks`
+- **THEN** a `MissingExtraError` names the model and the extra, and `fuzzy_oil_drop` and
+  `early_stage_folding_intermediate` still run with the extra `structures`
+
+### Requirement: RNA folds and neutral networks are analysed in the evolution package
+The package `skcomplex.models.biology.evolution` SHALL fold an RNA sequence into its minimum free energy secondary
+structure with its free energy and the base-pair distance to a target, memoised per sequence, and SHALL provide
+`NeutralNetworkAnalysis`, a subclass of `BaseAnalysis` that gives, for any function from sequences of an alphabet to
+phenotype keys, the neutral network of a phenotype and the genotype and phenotype robustness and evolvability as Wagner
+defines them.
+
+#### Scenario: Hairpin fold
+- **WHEN** the sequence `GGGGAAACCCC` is folded at 37 °C with the default energy parameters
+- **THEN** the structure is `((((...))))` and its free energy is negative
+
+#### Scenario: Toy map of the first letter
+- **WHEN** the binary sequences of length 4 are mapped to their first letter
+- **THEN** each phenotype's neutral network has 8 sequences in one component, every genotype robustness is 3, and every
+  genotype evolvability is 2, the phenotypes among the neighbours as Raman (2021, §13.3) counts them
+
+#### Scenario: Robustness against evolvability
+- **WHEN** the genotype robustness and evolvability of the walkers of a neutral run are pooled over walkers and frames
+- **THEN** their Spearman correlation is below −0.4, as Wagner found for genotypes of RNA folds
+
+### Requirement: Fuzzy oil drop model
+The library SHALL provide `fuzzy_oil_drop` in `biology/systems_biology` (Konieczny et al. 2023 §1.3.1, Eqs. 1.1–1.9).
+By default it replays the bundled NMR ensemble of the Trp-cage 1L2Y through a `DriveLaw`, one model per frame. With
+`dynamics='folding'` it samples the dihedral angles of a chain from an extended start with a row score of `RD` and a
+clash penalty. Its catalog entry SHALL declare `RD` and `K` as observables in the default install.
+
+#### Scenario: Ensemble of the Trp-cage
+- **WHEN** `fuzzy_oil_drop` runs with its defaults
+- **THEN** the trajectory has 38 frames, every `RD` lies in `[0, 1]`, and the recorded `RD` of each frame equals the
+  `RD` that `FuzzyOilDropAnalysis` gives for that model within 1e-12
+
+#### Scenario: Folding lowers the relative distance
+- **WHEN** the model folds the Trp-cage sequence from an extended chain at temperature zero for 300 units of time
+- **THEN** `RD` never increases, and the radius of gyration at the end is lower than at the start
+
+### Requirement: Structures and the fuzzy oil drop live in the systems biology package
+The package `skcomplex.models.biology.systems_biology` SHALL read and write PDB and mmCIF files as structures holding
+every model of an ensemble with the extra `structures`, read molecular dynamics trajectories with the extra
+`trajectories`, rebuild a protein
+backbone from its dihedral angles, and provide `FuzzyOilDropAnalysis`, a subclass of `BaseAnalysis` that gives `T`,
+`O`, `R`, the divergences, `RD`, and `K` of a structure and a hydrophobicity scale.
+
+#### Scenario: NMR ensemble
+- **WHEN** a user reads the bundled structure 1L2Y
+- **THEN** it holds 38 models of 20 residues and 304 atoms each
+
+#### Scenario: Round trip
+- **WHEN** a structure is written to mmCIF and to PDB and read back
+- **THEN** both copies have the same residues, atom names, and coordinates within 0.001 Å
+
+#### Scenario: Round trip through internal coordinates
+- **WHEN** the backbone of a read structure is rebuilt from its dihedral angles
+- **THEN** the rebuilt positions match the read ones with a deviation below 0.01 Å after superposition
+
+#### Scenario: Ideal micelle and uniform hydrophobicity
+- **WHEN** the observed distribution of a structure equals its theoretical distribution, and then is uniform
+- **THEN** `RD` is 0 within 1e-12 in the first case and 1 within 1e-12 in the second
+
+#### Scenario: Native against extended
+- **WHEN** `RD` is computed for the bundled native ubiquitin and for its chain rebuilt with all `phi = −120°` and
+  `psi = 130°`
+- **THEN** the native `RD` is lower than the extended `RD`
+
+#### Scenario: Unknown residue
+- **WHEN** a structure holds a residue `SEP` that the scale does not cover
+- **THEN** the analysis raises an `AnalysisError` that names `SEP`, its chain and number, and the scale
+
+### Requirement: Early-stage folding intermediate model
+The library SHALL provide `early_stage_folding_intermediate` in `biology/systems_biology` (Konieczny et al. 2023
+§3.7.1). Each residue's dihedral angles lie on an ellipse path on the Ramachandran map. The model SHALL project a native
+structure onto the path by the shortest periodic distance, and SHALL sample each residue's cell of the path with the
+heat-bath rule of `SamplingInteraction` from per-amino-acid probabilities estimated from the bundled structures.
+
+#### Scenario: Projection onto the path
+- **WHEN** the native structure of BPTI is projected onto the ellipse path
+- **THEN** every projected pair of dihedral angles lies on the path within 1e-9 rad, and no point of a 3600-point
+  sampling of the path is closer to the native pair than the projected one
+
+#### Scenario: Sampled cells follow the sequence's probabilities
+- **WHEN** the model samples the cells of a sequence for 300 units of time
+- **THEN** each residue's frequency of each cell over the last 200 frames matches its amino acid's probability within
+  0.15
+
+### Requirement: Protein models need the structures extra
+`fuzzy_oil_drop` and `early_stage_folding_intermediate` SHALL read structures through Biopython from the extra
+`structures`, and SHALL raise `MissingExtraError` without it while staying listed in the catalog.
+
+#### Scenario: Protein model that needs the extra
+- **WHEN** a user without the extra `structures` creates `fuzzy_oil_drop` or `early_stage_folding_intermediate`
+- **THEN** a `MissingExtraError` names the model, the extra `structures`, and the install command
+
+### Requirement: Molecular structure models are recorded in the model inventory
+Every model this change adds SHALL register under the field path of its subfield and SHALL be marked implemented in
+the model inventory, with a gallery example under `docs/examples/biology/<subfield>/plot_<name>.py` that runs within
+the gallery budget.
+
+#### Scenario: Inventory models registered
+- **WHEN** the change is applied and the inventory check runs
+- **THEN** these entries are registered under their field paths and marked implemented:
+  - `rna_neutral_networks` in `biology/evolution`
+  - `fuzzy_oil_drop` in `biology/systems_biology`
+  - `early_stage_folding_intermediate` in `biology/systems_biology`
+
+### Requirement: COMETS alternates growth and diffusion
+
+`comets` SHALL alternate a growth step, in which each site solves its linear program, and a diffusion step, with the
+coefficients, time step, and inoculum of Harcombe et al. (2014), and each default SHALL name its source.
+
+#### Scenario: Mass balance
+
+- **WHEN** `comets` runs on a closed lattice
+- **THEN** the glucose taken up over the run equals the glucose consumed by growth, within 1%
+
+#### Scenario: Stable at the published step
+
+- **WHEN** `comets` runs with steps of 0.1 h at the published diffusion coefficients
+- **THEN** biomass and glucose stay finite and non-negative within 1e-9 at every frame
+
+#### Scenario: Colony grows from its centre
+
+- **WHEN** `comets` runs from the inoculum at the centre of the lattice
+- **THEN** the biomass stays symmetric about the centre within 1e-6, and the radius of the colony grows over the run

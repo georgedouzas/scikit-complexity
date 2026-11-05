@@ -62,3 +62,12 @@ def test_tensor_traceless_stores_five_components_in_three_dimensions():
     assert states.entries[0].columns == 5
     assert matrix[1, 0].is_trivially_equal(matrix[0, 1])
     assert SR(matrix.trace()).is_trivial_zero()
+
+
+def test_algebraic_state_has_order_one_and_no_lags():
+    """Test that an algebraic state rejects an order other than 1 and lags, which its equations leave no room for."""
+    assert StateSpec(algebraic=True).check().algebraic
+    with pytest.raises(ValidationError, match='An algebraic state has order 1 and no lags'):
+        StateSpec(algebraic=True, order=2).check()
+    with pytest.raises(ValidationError, match='An algebraic state has order 1 and no lags'):
+        StateSpec(algebraic=True, lags=1).check()

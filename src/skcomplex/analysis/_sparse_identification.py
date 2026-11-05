@@ -3,31 +3,48 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import inspect
 import keyword
 import math
 import re
 from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ..core.elements import Element
+from ..core.elements import DeclaredElement
 from ..core.laws import BaseLaw, RateLaw
 from ..core.spaces import BaseTime, ContinuousTime
 from ..core.system import System
 from ..engine.runtime import Simulation
 from ..errors import AnalysisError
-from ..specs import StateSpec
+from ..specs import DeclaredVariableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..types import Array, DataKind
 from ._base import BaseAnalysis
 from .types import Runs
 
 DIFFERENCE_POINTS = 3
-RESERVED_NAMES = frozenset({'label', 'laws', 'visual', 'group', 'define'})
+RESERVED_NAMES = frozenset({'label', 'laws', 'visual', 'variables', 'group', 'define'})
+
+
+class _SurrogateElement(DeclaredElement):
+    """Surrogate element, whose laws a function fitted to series returns."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        variables: Mapping[str, DeclaredVariableSpec] | None = None,
+        laws: Callable[[SimpleNamespace], list[BaseLaw]] | None = None,
+    ) -> None:
+        super().__init__(label, visual=visual, variables=variables)
+        self.laws = laws
+
+    def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BaseLaw]:
+        """Return the laws of the fitted function for a namespace of symbols, or none without a function."""
+        return [] if self.laws is None else self.laws(namespace)
 
 
 class SparseIdentificationAnalysis(BaseAnalysis):
@@ -155,7 +172,6 @@ class SparseIdentificationAnalysis(BaseAnalysis):
         coefficients = np.asarray(model.coefficients(), dtype=float)
         powers = np.asarray(model.feature_library.powers_, dtype=int)
         self.system_ = self._surrogate_system(
-            'SparseSurrogate',
             self.label,
             dict(zip(states, map(float, samples.series[0][0]), strict=True)),
             self._sparse_laws(states, coefficients, powers),
@@ -332,18 +348,16 @@ class SparseIdentificationAnalysis(BaseAnalysis):
 
     @staticmethod
     def _surrogate_system(
-        kind: str,
         label: str,
         initial: Mapping[str, float],
         laws: Callable[[SimpleNamespace], list[BaseLaw]],
         time: BaseTime,
+        *,
+        inputs: Mapping[str, tuple[float, tuple[float, float]]] | None = None,
     ) -> System:
-        """Return a system of one surrogate element with the given states, laws, and time.
+        """Return a system of one surrogate element with the given states, laws, time, and control inputs.
 
         Args:
-            kind:
-                The name of the element type, such as `LinearSurrogate`.
-
             label:
                 The label of the element.
 
@@ -356,29 +370,17 @@ class SparseIdentificationAnalysis(BaseAnalysis):
             time:
                 The time of the system.
 
+            inputs:
+                The initial value and the bounds of every control input, an adaptive parameter, by name, or `None`.
+
         Returns:
             system:
                 The system.
         """
-        states = [
-            inspect.Parameter(
-                name,
-                inspect.Parameter.KEYWORD_ONLY,
-                default=value,
-                annotation=Annotated[float, StateSpec()],
-            )
-            for name, value in initial.items()
-        ]
-
-        def initialize(self: Element, label: str, **values: float) -> None:
-            Element.__init__(self, label)
-            for name, value in {**initial, **values}.items():
-                setattr(self, name, value)
-
-        first = [inspect.Parameter(name, inspect.Parameter.POSITIONAL_OR_KEYWORD) for name in ('self', 'label')]
-        vars(initialize)['__signature__'] = inspect.Signature([*first, *states])
-        element_type = type(kind, (Element,), {'__init__': initialize, '_get_laws': lambda self, s: laws(s)})
-        return System(elements=[element_type(label)], time=time)
+        variables = {name: DeclaredVariableSpec(value, StateSpec()) for name, value in initial.items()}
+        for name, (value, bounds) in (inputs or {}).items():
+            variables[name] = DeclaredVariableSpec(value, ParameterSpec(adaptive=True, bounds=bounds))
+        return System(elements=[_SurrogateElement(label, variables=variables, laws=laws)], time=time)
 
     @staticmethod
     def _symbols_of(s: SimpleNamespace, names: Sequence[str]) -> list[Expression]:

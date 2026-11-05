@@ -5,7 +5,8 @@
 
 import itertools
 import re
-from collections.abc import Mapping
+from collections import Counter
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 
 import numpy as np
@@ -16,9 +17,10 @@ from sage.sets.real_set import RealSet
 
 from ....core.elements import FieldElement, GroupElement
 from ....core.interactions import BaseInteraction
+from ....core.laws import LinearProgramLaw
 from ....core.laws.utils import COORDINATE_PREFIX, coordinate
 from ....core.spaces import BaseSpace, LatticeSpace, NetworkSpace, PhaseSpace
-from ....core.specs import NodeSpec
+from ....core.specs import CensusRecordSpec, NodeSpec
 from ....errors import LabelError, SpaceError, ValidationError
 from ....specs import EntrySpec, TensorSpec, VariableSpec, WienerProcessSpec
 from ....types import Array, VariableKind
@@ -38,7 +40,7 @@ class LayoutPass(BasePass):
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
-        return ('nodes',)
+        return ('nodes', 'census')
 
     def _get_writes(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass writes."""
@@ -53,7 +55,44 @@ class LayoutPass(BasePass):
         for node in nodes:
             declarations, _ = self._declare_component(declarations, node, groups)
         self._check_symbol_names(declarations.blocks)
-        compilation.layout = declarations
+        compilation.layout = self._with_program_values(
+            declarations,
+            Compilation._required(compilation.census, 'census').records,
+        )
+
+    @staticmethod
+    def _with_program_values(declarations: DeclarationsSpec, records: Sequence[CensusRecordSpec]) -> DeclarationsSpec:
+        """Return the declarations with the hidden states that record the objective values and duals of linear programs.
+
+        Every partition compiles the same layout, so every law declares them whichever partition solves it.
+
+        Args:
+            declarations:
+                The declarations of the components.
+
+            records:
+                The laws of the system.
+
+        Returns:
+            declarations:
+                The declarations with the hidden states.
+        """
+        counts: Counter[tuple[str, str]] = Counter()
+        for record in records:
+            law = record.law
+            if not isinstance(law, LinearProgramLaw):
+                continue
+            kinds = [('objective', len(law.objectives)), ('dual', len(law.constraints) if law.duals else 0)]
+            for kind, count in kinds:
+                for _ in range(count):
+                    position = counts[record.owner, kind]
+                    counts[record.owner, kind] += 1
+                    rows = record.members
+                    shape, members = ((rows,), rows) if rows > 1 else ((), None)
+                    name = f'{record.owner}.{kind}_{position}'
+                    entry = EntrySpec(name, declarations.ends[True], shape, RR, members)
+                    declarations = LayoutPass._with_entry(declarations, entry, np.zeros(rows), is_state=True)
+        return declarations
 
     @staticmethod
     def _check_symbol_names(blocks: Mapping[str, BlockSpec]) -> None:
@@ -456,11 +495,11 @@ class LayoutPass(BasePass):
         if not isinstance(component, GroupElement):
             return getattr(component, variable) if hasattr(component, variable) else default_of(component, variable)
         values = component.values_
-        default = default_of(component.element, variable)
+        default = default_of(node.component_type, variable)
         if variable not in values:
             return default
         value = values[variable]
-        declaration = declarations_of(component.element, VariableKind.STATE).get(variable)
+        declaration = declarations_of(node.component_type, VariableKind.STATE).get(variable)
         if declaration is not None and (declaration.domain is None or declaration.domain is object):
             return value
         shape = np.shape(np.asarray(value))
@@ -481,7 +520,7 @@ class LayoutPass(BasePass):
         if role not in roles or not roles[role].variadic:
             error_msg = (
                 f'{node.path}.{variable} is declared per entry of {role!r}, which is not a variadic role of '
-                f'{node.component_type.__name__}. Declare the role with `role(variadic=True)`.'
+                f'{type(node.component).__name__}. Declare the role with `role(variadic=True)`.'
             )
             raise ValidationError(error_msg)
         entries = len(getattr(node.component, role))

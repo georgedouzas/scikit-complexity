@@ -18,7 +18,7 @@ from skcomplex.core.system import System
 from skcomplex.engine._utils import domain_of, symbol
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.compile import compile_system
-from skcomplex.errors import IncompatibleLawsError, LabelError, RoleError, SpaceError, ValidationError
+from skcomplex.errors import IncompatibleLawsError, LabelError, RoleElementError, RoleError, SpaceError, ValidationError
 from skcomplex.models.biology.common.populations import (
     ExponentialGrowthInteraction,
     LogisticGrowthInteraction,
@@ -538,7 +538,7 @@ def test_compile_variadic_role_with_wrong_entry_raises_error(inputs, match):
 
 def test_compile_variadic_group_entry_gives_symbolic_laws_no_states():
     """Test that a variadic entry naming a whole group, which binds its agents, gives symbolic laws no states."""
-    with pytest.raises(AttributeError, match="no attribute 'x'"):
+    with pytest.raises(RoleElementError, match="reads the state 'x'"):
         compile_system(_summed(['a', 'nodes']))
 
 

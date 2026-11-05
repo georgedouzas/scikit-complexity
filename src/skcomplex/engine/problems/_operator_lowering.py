@@ -265,7 +265,7 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
                 'product in its order with `operator_product`.'
             )
             raise ValidationError(error_msg)
-        return functools.reduce(OperatorSpec.__mul__, factors, OperatorSpec({(): 1}))
+        return functools.reduce(operator.mul, factors, OperatorSpec({(): 1}))
 
     @staticmethod
     def _operator_of(
@@ -314,9 +314,9 @@ class OperatorLowering(BaseConfig[None, tuple[object, str]]):
         if function == dagger:
             return parts[0].adjoint()
         if function == operator_product:
-            return functools.reduce(OperatorSpec.__mul__, parts)
+            return functools.reduce(operator.mul, parts)
         if function is add_vararg:
-            return functools.reduce(OperatorSpec.__add__, parts)
+            return functools.reduce(operator.add, parts)
         if function is mul_vararg:
             return OperatorLowering._product_of(parts, value)
         error_msg = f'{value} is not a sum of products of local operators with scalar coefficients.'

@@ -20,6 +20,10 @@ class ValidationError(SkcomplexError):
     """A system, a value, or a combination of a system with its solver and backend is not valid."""
 
 
+class AlgebraicStateError(ValidationError):
+    """A law integrates a state that the equations of its system determine."""
+
+
 class ConservationError(ValidationError):
     """A conserved quantity changes outside its flows, or an invariant of a run moves beyond its tolerance."""
 
@@ -30,6 +34,10 @@ class TensorShapeError(ValidationError):
 
 class TensorSymmetryError(ValidationError):
     """A rate law on a tensor state breaks the declared symmetry of the state."""
+
+
+class RewritingError(ValidationError):
+    """A rewriting system is malformed, or a generation would exceed its maximum size."""
 
 
 class LabelError(ValidationError):
@@ -44,8 +52,12 @@ class RoleError(ValidationError):
     """A role of an interaction refers to an element that does not exist."""
 
 
+class RoleElementError(RoleError):
+    """A role of an interaction is bound to an element of a kind it does not accept, or without a state it reads."""
+
+
 class SpaceError(ValidationError):
-    """A part needs a kind of space the system does not have, or a vector variable has no space for its dimension."""
+    """A part needs a kind of space the system lacks, a vector has no space, or a location does not fit its space."""
 
 
 class SpaceTooLargeError(SpaceError):
@@ -76,6 +88,10 @@ class SolverError(SkcomplexError):
     """A solver does not fit the problem or fails to advance it."""
 
 
+class InfeasibleError(SolverError):
+    """A linear program has no solution, and its law asks to raise an error for that."""
+
+
 class ParameterError(SkcomplexError):
     """A parameter name is not part of the problem."""
 
@@ -94,6 +110,14 @@ class ExperimentError(SkcomplexError):
 
 class AnalysisError(SkcomplexError):
     """An analysis cannot be applied to the system or the data."""
+
+
+class EnumerationLimitError(AnalysisError):
+    """An exact enumeration does not finish within its time limit."""
+
+
+class MissingExtraError(SkcomplexError):
+    """A class needs an optional extra that is not installed."""
 
 
 class RegistryError(SkcomplexError):

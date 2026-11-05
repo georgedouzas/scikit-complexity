@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 from ...specs._base_spec import BaseSpec
 from ...specs._wiener_process_spec import WienerProcessSpec
-from ..elements import Element, GroupElement
+from ..elements import BaseElement, Element, GroupElement
 from ..interactions import BaseInteraction
 from ..spaces import BaseSpace
 
@@ -32,7 +32,9 @@ class NodeSpec(BaseSpec):
             The nearest enclosing space.
 
         component_type:
-            The element type of a group, or the type of an element, an interaction, or a Wiener process.
+            What declares the variables of the component, which `declarations_of` reads: the element type of a group,
+            or the type of an element, an interaction, or a Wiener process, or the element or a member of the group for
+            elements that declare their variables from data.
 
         members:
             The size of a group, or `None` for a single element, an interaction, or a Wiener process.
@@ -52,7 +54,7 @@ class NodeSpec(BaseSpec):
     scope: str
     component: Element | GroupElement | BaseInteraction | WienerProcessSpec
     space: BaseSpace | None
-    component_type: type
+    component_type: type | BaseElement
     members: int | None = None
     interaction: bool = False
     agent: bool = False

@@ -83,6 +83,9 @@ class VariableSpec(BaseSpec):
 
         tensor:
             The symmetry of a rank-2 tensor state, or `None`.
+
+        algebraic:
+            Whether the equations of the system determine the state, which no law integrates.
     """
 
     kind: VariableKind
@@ -107,6 +110,7 @@ class VariableSpec(BaseSpec):
     role: str | None = None
     shape: tuple[str, ...] | None = None
     tensor: str | None = None
+    algebraic: bool = False
 
     @property
     def is_place(self) -> bool:

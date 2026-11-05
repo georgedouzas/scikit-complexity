@@ -5,7 +5,7 @@
 
 import math
 
-from ...core.laws import BoundaryLaw, EmissionLaw, TransferLaw, TransitionLaw, UpdateLaw
+from ...core.laws import BoundaryLaw, EmissionLaw, LinearProgramLaw, TransferLaw, TransitionLaw, UpdateLaw
 from ...core.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
 from ...specs import SupportSpec
 from ...types import Array, FormKind, OrderKind
@@ -43,7 +43,7 @@ class IterationSolver(Solver):
         return SupportSpec(
             time={DiscreteTime},
             space={None, LatticeSpace, NetworkSpace, ContinuousSpace, MeshSpace, CayleySpace},
-            laws={UpdateLaw, TransitionLaw, EmissionLaw, BoundaryLaw, TransferLaw},
+            laws={UpdateLaw, TransitionLaw, LinearProgramLaw, EmissionLaw, BoundaryLaw, TransferLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

@@ -81,7 +81,8 @@ class GradientStepLaw(BaseLaw):
         """Return no state, since the law changes parameters of a nested system."""
         return ()
 
-    def _get_requirements(self) -> RequirementSpec:
+    @classmethod
+    def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: discrete time, one step per epoch."""
         return RequirementSpec(time=(DiscreteTime,))
 

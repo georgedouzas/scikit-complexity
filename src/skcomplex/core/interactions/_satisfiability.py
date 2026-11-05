@@ -13,6 +13,7 @@ from pysat.solvers import Solver
 
 from ...errors import ValidationError
 from ...specs import CardinalitySpec, ClauseSpec, RoleSpec
+from ...types import ElementKind
 from ..laws import BaseLaw, RuleLaw
 from ..types import ModelViewProtocol
 from ._interaction import Interaction
@@ -62,11 +63,13 @@ class SatisfiabilityInteraction(Interaction):
 
     reports: ClassVar[tuple[str, ...]] = ('satisfiable', 'revealed')
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP), states=('state',))],
         state: str,
         constraints: Sequence[ClauseSpec | CardinalitySpec],
         reveal: int = 1,

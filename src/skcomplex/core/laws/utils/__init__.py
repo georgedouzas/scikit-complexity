@@ -5,6 +5,7 @@
 
 from ....specs._draw_spec import bernoulli, categorical, draw, draws_in, normal, uniform
 from ._agents import matches, random_pairing, transfer
+from ._cells import cell_operations_in, codifferential, exterior_derivative, hodge_star
 from ._components import components
 from ._conditions import both, either, mod, where
 from ._contractions import contraction, contractions_in
@@ -67,8 +68,10 @@ __all__: list[str] = [
     'bernoulli',
     'both',
     'categorical',
+    'cell_operations_in',
     'circular_mean',
     'clip',
+    'codifferential',
     'collision',
     'components',
     'contraction',
@@ -90,9 +93,11 @@ __all__: list[str] = [
     'draw',
     'draws_in',
     'either',
+    'exterior_derivative',
     'gradient',
     'has_operator',
     'hill',
+    'hodge_star',
     'hyperedges',
     'hyperedges_in',
     'inverse_helmholtz',

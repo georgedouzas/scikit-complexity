@@ -9,6 +9,7 @@ from typing import Annotated, ClassVar
 
 from ...errors import ValidationError
 from ...specs import RoleSpec
+from ...types import ElementKind
 from ..laws import BaseLaw, RuleLaw
 from ..spaces import BaseSpace
 from ..types import AgentViewProtocol, ModelViewProtocol
@@ -156,11 +157,16 @@ class LifeCycleInteraction(Interaction):
 
     reports: ClassVar[tuple[str, ...]] = ('births', 'deaths', 'arrivals')
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[
+            str,
+            RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP), states=('inherit', 'split')),
+        ],
         birth: Chance | None = None,
         death: Chance | None = None,
         rate: Chance | None = None,
@@ -171,7 +177,7 @@ class LifeCycleInteraction(Interaction):
         mutate: Mutation | None = None,
         schedule: str = 'random-sequential',
         phase: str | None = None,
-        group: Annotated[str | None, RoleSpec(optional=True)] = None,
+        group: Annotated[str | None, RoleSpec(optional=True, elements=(ElementKind.ANY,))] = None,
         values: Values | None = None,
         keep: Chance | None = None,
         reset: Mapping[str, object] | None = None,

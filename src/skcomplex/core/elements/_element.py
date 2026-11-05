@@ -5,9 +5,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
+from typing import ClassVar
 
+from ...specs import ConnectorSpec
 from ..base import BasePart
 from ._base import BaseElement
 
@@ -25,6 +27,10 @@ class Element(BaseElement):
     then hold any value, not only numbers. A member is removed only when its states tagged with a quantity are settled
     to zero, and its states and parameters cannot take the names of the agent view, such as `location` or `alive`, or
     of the attributes Mesa reads, such as `position` or `model`.
+
+    A subclass that connects to other elements declares its ports in the class variable `ports`, a mapping from the name
+    of a port to its `ConnectorSpec`, and takes one algebraic state per variable of a port, named `<port>_<variable>`.
+    A flow is positive into the element.
 
     Args:
         label:
@@ -56,6 +62,8 @@ class Element(BaseElement):
         >>> PopulationElement('rabbits', n=40)
         PopulationElement(label='rabbits', n=40)
     """
+
+    ports: ClassVar[Mapping[str, ConnectorSpec]] = {}
 
     @classmethod
     def _get_view(cls) -> type | None:

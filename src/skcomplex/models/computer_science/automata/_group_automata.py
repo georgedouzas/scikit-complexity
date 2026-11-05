@@ -18,6 +18,7 @@ from ....specs import ObservableSpec, ParameterSpec, StateSpec, TotalisticSpec, 
 from ....types import Array
 from ..._catalog import register_model
 from ._binary_cell import BinaryCellElement
+from ._golden_cell import GoldenCellElement
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter
 
 GENERATOR_MEMORY = MemoryNeighborhood(('1', 'a', 'a^-1'))
@@ -403,7 +404,7 @@ def subshifts(size: int = 200) -> System:
         stochastic=True,
     )
     return System(
-        elements=[LatticeElement('cells', element=BinaryCellElement, space=LatticeSpace(size))],
+        elements=[LatticeElement('cells', element=GoldenCellElement, space=LatticeSpace(size))],
         interactions=[flips],
     )
 

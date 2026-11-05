@@ -3,20 +3,31 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable, Sequence
+import inspect
+from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
-from sage.all__sagemath_symbolics import SR, Expression, oo
-from sage.sets.real_set import RealSet
+import numpy as np
+import numpy.typing as npt
+from sage.all__sagemath_symbolics import RR, SR, ConditionSet, Expression
 
 from ...errors import ValidationError
-from ...specs import MoveSpec, ObjectiveSpec, ParameterSpec, RoleSpec, SamplerSpec
-from ..laws import BaseLaw, SampleLaw
+from ...specs import MoveSpec, ObjectiveSpec, ParameterSpec, RoleSpec, RowScoreSpec, SamplerSpec
+from ...types import Array, ElementKind
+from ..laws import BaseLaw, DriveLaw, SampleLaw
 from ..spaces import BaseNeighborhood, VonNeumannNeighborhood
 from ._interaction import Interaction
 
 MOVES = ('flip', 'random-value', 'rotate', 'gaussian', 'cluster')
+
+
+def _is_positive(value: float) -> bool:
+    """Return whether a value is above zero."""
+    return bool(value > 0)
+
+
+POSITIVE_VALUES = ConditionSet(RR, _is_positive)
 
 
 class SamplingInteraction(Interaction):
@@ -33,26 +44,37 @@ class SamplingInteraction(Interaction):
     members number as many as the members, each cluster grown from a random member through the bonds to neighbours
     with probability `1 - exp(min(0, -intensity * (f(-s, n) - f(s, n))))`, where `f(s, n)` is the term of the local
     objective of a member of value `s` with a neighbour of value `n`. It takes an objective of such pair terms that the
-    flip of both values keeps, and ignores the rule and the schedule.
+    flip of both values keeps, and ignores the rule and the schedule. A group on the edges of a cell complex takes a
+    local objective that sums over `CofaceNeighborhood`, inside which `exterior_derivative` of the state is the oriented
+    sum around the one face, and its `'colored'` schedule updates together only links that share no face.
+
+    An objective that is a `RowScoreSpec` scores whole rows of a state on a `LatticeSpace` instead, along the last axis.
+    Every unit of time proposes its `proposals` moves per row, each accepted from the change of the score of the row,
+    and a run records the score of every row as `<label>.score`. A named move changes one random site of the row, a
+    function move receives the row, the heat-bath rule draws the value of one random site among `values` by the weights
+    `exp(-intensity * score)`, and the schedule and the neighbourhood do not apply. An infinite intensity accepts
+    a move that keeps the objective with probability 1 under the Metropolis rule and 1/2 under the Glauber rule, and it
+    never accepts a move that raises the objective.
 
     Args:
         label:
             The label of the interaction, unique among the parts of its system.
 
         target:
-            The path of the group on the sites of a lattice or the nodes of a network.
+            The path of the group on the sites of a lattice, the nodes of a network, or the edges of a cell complex.
 
         state:
             The name of the state the moves change.
 
         objective:
-            The function `objective(namespace)` of the local objective of a member.
+            The function `objective(namespace)` of the local objective of a member, or a `RowScoreSpec`.
 
         move:
             `'flip'`, `'random-value'`, `'rotate'`, `'gaussian'`, `'cluster'`, or a function that proposes values.
 
         intensity:
-            The factor of the change of the objective in the acceptance `exp(-intensity * change)`.
+            The factor of the change of the objective in the acceptance `exp(-intensity * change)`, positive and
+            possibly infinite.
 
         rule:
             The acceptance, `'metropolis'`, `'glauber'`, or `'heat-bath'`, which draws among all values of a discrete
@@ -76,7 +98,8 @@ class SamplingInteraction(Interaction):
 
     Raises:
         ValidationError:
-            The move, the rule, or the schedule is unknown, or the objective is not callable.
+            The move, the rule, or the schedule is unknown, the objective is not callable, or a row score takes a
+            cluster move, or the heat-bath rule without a random-value move and its values.
 
     Examples:
         >>> from skcomplex.core.elements import Element, LatticeElement
@@ -98,17 +121,47 @@ class SamplingInteraction(Interaction):
         >>> states = Simulation(system, random_state=0).check().prepare().run(until=20).trajectory_.states
         >>> bool(abs(states[-1].mean()) > 0.9)
         True
+        >>> from sage.all__sagemath_symbolics import cos
+        >>> from skcomplex.core.elements import GroupElement
+        >>> from skcomplex.core.laws.utils import exterior_derivative
+        >>> from skcomplex.core.spaces import CellComplexSpace, CofaceNeighborhood
+        >>> class LinkElement(Element):
+        ...     def __init__(self, label, theta: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
+        ...         self.theta = theta
+        >>> wilson = lambda n: -neighbors(cos(exterior_derivative(n.target.theta)), over=CofaceNeighborhood())
+        >>> gauge = SamplingInteraction(
+        ...     'wilson', target='links', state='theta', objective=wilson, move='rotate', schedule='colored'
+        ... )
+        >>> links = GroupElement('links', element=LinkElement, space=CellComplexSpace(LatticeSpace((4, 4))), on='edges')
+        >>> system = System(elements=[links], interactions=[gauge], time=DiscreteTime())
+        >>> Simulation(system, random_state=0).check().prepare().run(until=2).trajectory_.states.shape
+        (3, 32)
+        >>> import numpy as np
+        >>> from skcomplex.specs import RowScoreSpec
+        >>> def flip_one(row, random):
+        ...     row[random.integers(row.size)] *= -1
+        ...     return row
+        >>> walk = SamplingInteraction(
+        ...     'walk', target='spins', state='s', objective=RowScoreSpec(np.sum), move=flip_one, intensity=float('inf')
+        ... )
+        >>> spins = LatticeElement('spins', element=SpinElement, space=LatticeSpace((2, 8)))
+        >>> system = System(elements=[spins], interactions=[walk], time=DiscreteTime())
+        >>> Simulation(system, random_state=0).check().prepare().run(until=3).trajectory_.values('walk.score').shape
+        (4, 2)
     """
+
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (DriveLaw, SampleLaw)
 
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
         state: str,
-        objective: Callable[[SimpleNamespace], object],
+        objective: Callable[[SimpleNamespace], object] | RowScoreSpec,
         move: str | Callable[..., object] = 'flip',
-        intensity: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        intensity: Annotated[float, ParameterSpec(domain=POSITIVE_VALUES)] = 1.0,
         rule: str = 'metropolis',
         schedule: str = 'checkerboard',
         neighborhood: BaseNeighborhood | None = None,
@@ -139,6 +192,108 @@ class SamplingInteraction(Interaction):
         """Return the intensity of the acceptance before cooling."""
         return self._get_parameter_symbol('intensity', namespace)
 
+    def _check_row_score(self, score: RowScoreSpec) -> None:
+        """Raise an error for a row score that cannot run, a cluster move, or a heat-bath rule without values."""
+        score.check()
+        if self.move == 'cluster':
+            error_msg = f'The row score of sampling {self.label!r} accepts single moves of a row, not cluster moves.'
+            raise ValidationError(error_msg)
+        if self.rule == 'heat-bath' and (self.move != 'random-value' or not len(self.values)):
+            error_msg = (
+                f'The row score of sampling {self.label!r} draws by heat bath among values. Give the move '
+                "'random-value' and its `values`."
+            )
+            raise ValidationError(error_msg)
+
+    def _get_row_keywords(self, score: RowScoreSpec, index: int, parameters: Mapping[str, object]) -> dict[str, object]:
+        """Return the parameters that a row score names, those of one value per site read at the row."""
+        try:
+            names = inspect.signature(score.function).parameters
+        except (TypeError, ValueError):
+            return {}
+        return {
+            name: value[index] if isinstance(value, np.ndarray) and value.ndim > 1 else value
+            for name, value in parameters.items()
+            if name in names
+        }
+
+    def _score_rows(self, values: Array, **parameters: object) -> npt.NDArray[np.float64]:
+        """Return the score of every row of a state."""
+        score = getattr(self, self._get_parameter('objective'))
+        rows = values.reshape(-1, values.shape[-1])
+        return np.array(
+            [
+                float(score.function(row, **self._get_row_keywords(score, index, parameters)))
+                for index, row in enumerate(rows)
+            ],
+        )
+
+    def _draw_row_value(
+        self,
+        row: Array,
+        score: RowScoreSpec,
+        keywords: Mapping[str, object],
+        intensity: float,
+        rng: np.random.Generator,
+    ) -> Array:
+        """Return a row with the value of one random site drawn among all values by the weights of their scores."""
+        candidates = np.asarray(self.values, dtype=float)
+        proposal = row.copy()
+        site = rng.integers(row.size)
+        scores = np.empty(candidates.size)
+        for position, value in enumerate(candidates):
+            proposal[site] = value
+            scores[position] = float(score.function(proposal, **keywords))
+        excess = scores - scores.min()
+        weights = np.exp(-np.where(excess == 0.0, 0.0, excess * np.where(excess == 0.0, 1.0, intensity)))
+        proposal[site] = rng.choice(candidates, p=weights / weights.sum())
+        return proposal
+
+    def _propose_row(self, row: Array, rng: np.random.Generator) -> Array:
+        """Return a row after one move: a function of the row, or a named move at one random site."""
+        if callable(self.move):
+            return np.asarray(self.move(row.copy(), rng), dtype=float)
+        proposal = row.copy()
+        site = rng.integers(row.size)
+        if self.move == 'flip':
+            proposal[site] = -row[site]
+        elif self.move == 'random-value':
+            proposal[site] = rng.choice(np.asarray(self.values, dtype=float))
+        elif self.move == 'gaussian':
+            proposal[site] = row[site] + rng.normal(0.0, self.width)
+        else:
+            proposal[site] = row[site] + rng.uniform(-self.width, self.width)
+        return proposal
+
+    def _accept_change(self, change: float, intensity: float, rng: np.random.Generator) -> bool:
+        """Return whether a change of the score is accepted by the rule at the intensity."""
+        exponent = 0.0 if change == 0.0 else change * intensity
+        if self.rule == 'metropolis':
+            return exponent <= 0.0 or bool(rng.random() < np.exp(-exponent))
+        with np.errstate(over='ignore'):
+            return bool(rng.random() < 1.0 / (1.0 + np.exp(exponent)))
+
+    def _accept_rows(self, values: Array, *, random: np.random.Generator, time: float, **parameters: object) -> Array:
+        """Return a state after the proposed moves of every row, each accepted from the change of the row's score."""
+        score = getattr(self, self._get_parameter('objective'))
+        intensity = float(SR(self._get_intensity(SimpleNamespace(**parameters))))
+        if self.cooling is not None:
+            intensity /= float(SR(self.cooling(time)))
+        rows = values.reshape(-1, values.shape[-1]).copy()
+        for index in range(len(rows)):
+            keywords = self._get_row_keywords(score, index, parameters)
+            if self.rule == 'heat-bath':
+                for _ in range(score.proposals):
+                    rows[index] = self._draw_row_value(rows[index], score, keywords, intensity, random)
+                continue
+            current = float(score.function(rows[index], **keywords))
+            for _ in range(score.proposals):
+                proposal = self._propose_row(rows[index], random)
+                proposed = float(score.function(proposal, **keywords))
+                if self._accept_change(proposed - current, intensity, random):
+                    rows[index], current = proposal, proposed
+        return rows.reshape(values.shape)
+
     def _check(self) -> None:
         """Raise an error for an unknown move, rule, or schedule, or an objective that is not callable.
 
@@ -151,7 +306,10 @@ class SamplingInteraction(Interaction):
             error_msg = f'The cooling of sampling {self.label!r} must be a function of the time symbol.'
             raise ValidationError(error_msg)
         self._check_variant('move', self.move, MOVES, functions=True)
-        if not callable(getattr(self, self._get_parameter('objective'))):
+        objective = getattr(self, self._get_parameter('objective'))
+        if isinstance(objective, RowScoreSpec):
+            self._check_row_score(objective)
+        elif not callable(objective):
             error_msg = f'The objective of sampling {self.label!r} must be a function of the namespace.'
             raise ValidationError(error_msg)
         SamplerSpec(self.rule, schedule=self.schedule).check()
@@ -167,9 +325,12 @@ class SamplingInteraction(Interaction):
             laws:
                 The sample law.
         """
-        over = VonNeumannNeighborhood() if self.neighborhood is None else self.neighborhood
         target = getattr(self._get_member(namespace, 'target'), self.state)
-        objective = ObjectiveSpec(getattr(self, self._get_parameter('objective'))(namespace), over)
+        declared = getattr(self, self._get_parameter('objective'))
+        if isinstance(declared, RowScoreSpec):
+            return [DriveLaw(target, self._accept_rows, label=self.label, score=self._score_rows)]
+        over = VonNeumannNeighborhood() if self.neighborhood is None else self.neighborhood
+        objective = ObjectiveSpec(declared(namespace), over)
         intensity = self._get_intensity(namespace)
         if self.cooling is not None:
             intensity = SR(intensity) / SR(self.cooling(namespace.t))

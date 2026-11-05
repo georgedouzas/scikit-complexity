@@ -4,9 +4,12 @@ from ._abundance import AbundanceElement
 from ._agent_predation import agent_based_lotka_volterra
 from ._cell_quota import QuotaPhytoplanktonElement, droop_cell_quota
 from ._clustering import neutral_clustering
+from ._comets import comets
 from ._communities import competition, food_webs, mutualism
+from ._community_fba import community_fba
 from ._competition import CompetitionInteraction
 from ._cow import CowElement
+from ._dynamic_multispecies_fba import dynamic_multispecies_fba
 from ._emotion_marks import EmotionMarksElement
 from ._factories import (
     RabbitsElement,
@@ -99,8 +102,11 @@ __all__: list[str] = [
     'UnstablePopulationsElement',
     'WolfElement',
     'agent_based_lotka_volterra',
+    'comets',
+    'community_fba',
     'competition',
     'droop_cell_quota',
+    'dynamic_multispecies_fba',
     'exponential_growth',
     'fibonacci_rabbits',
     'fisher_kpp',

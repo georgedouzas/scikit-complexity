@@ -3,6 +3,7 @@
 from ._alignment import AlignmentAnalysis
 from ._automata import AutomatonAnalysis
 from ._base import BaseAnalysis
+from ._cell_complex import CellComplexAnalysis
 from ._clusters import ClusterAnalysis
 from ._coarse_grain import CoarseGrainAnalysis
 from ._collapse import CollapseAnalysis
@@ -14,6 +15,7 @@ from ._discovery import DiscoveryAnalysis
 from ._displacement import DisplacementAnalysis
 from ._distribution import DistributionAnalysis
 from ._domains import DomainAnalysis
+from ._elementary_modes import ElementaryModeAnalysis
 from ._embedding import EmbeddingAnalysis
 from ._emergence import EmergenceAnalysis
 from ._entropy import EntropyAnalysis
@@ -38,10 +40,12 @@ from ._operator import OperatorAnalysis
 from ._partial_information import PartialInformationAnalysis
 from ._passage import PassageAnalysis
 from ._recurrence import RecurrenceAnalysis
+from ._renormalization import RenormalizationAnalysis
 from ._reservoirs import ReservoirAnalysis
 from ._rolling import RollingAnalysis
 from ._scaling import ScalingAnalysis
 from ._sections import SectionAnalysis
+from ._shape import ShapeAnalysis
 from ._signatures import SignatureAnalysis
 from ._sparse_identification import SparseIdentificationAnalysis
 from ._spectrum import SpectrumAnalysis
@@ -53,6 +57,7 @@ __all__: list[str] = [
     'AlignmentAnalysis',
     'AutomatonAnalysis',
     'BaseAnalysis',
+    'CellComplexAnalysis',
     'ClusterAnalysis',
     'CoarseGrainAnalysis',
     'CollapseAnalysis',
@@ -63,6 +68,7 @@ __all__: list[str] = [
     'DisplacementAnalysis',
     'DistributionAnalysis',
     'DomainAnalysis',
+    'ElementaryModeAnalysis',
     'EmbeddingAnalysis',
     'EmergenceAnalysis',
     'EntropyAnalysis',
@@ -88,10 +94,12 @@ __all__: list[str] = [
     'PartialInformationAnalysis',
     'PassageAnalysis',
     'RecurrenceAnalysis',
+    'RenormalizationAnalysis',
     'ReservoirAnalysis',
     'RollingAnalysis',
     'ScalingAnalysis',
     'SectionAnalysis',
+    'ShapeAnalysis',
     'SignatureAnalysis',
     'SparseIdentificationAnalysis',
     'SpectrumAnalysis',

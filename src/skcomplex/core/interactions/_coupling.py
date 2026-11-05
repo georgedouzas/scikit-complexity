@@ -5,7 +5,7 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, ClassVar, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -16,7 +16,7 @@ from sage.sets.real_set import RealSet
 
 from ...errors import ValidationError
 from ...specs import BaseSpec, ClampSpec, ParameterSpec, RadiusSpec, RoleSpec
-from ...types import Array
+from ...types import Array, ElementKind
 from ..laws import BaseLaw, RateLaw, RuleLaw, UpdateLaw
 from ..laws.utils import count, delayed, hyperedges, maximum, minimum, neighbors, shift_member, total
 from ..spaces import BaseNeighborhood
@@ -170,12 +170,14 @@ class CouplingInteraction(NeighborInteraction):
         [sin(a - b), sin(-a + b)]
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw, RuleLaw, UpdateLaw)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str | Sequence[str], RoleSpec()],
-        source: Annotated[str | Sequence[str] | None, RoleSpec(optional=True)] = None,
+        target: Annotated[str | Sequence[str], RoleSpec(elements=(ElementKind.ANY,), states=('write',))],
+        source: Annotated[str | Sequence[str] | None, RoleSpec(optional=True, elements=(ElementKind.ANY,))] = None,
         read: str = 'x',
         write: str | Sequence[str] = 'x',
         function: NamespaceFunction | None = None,

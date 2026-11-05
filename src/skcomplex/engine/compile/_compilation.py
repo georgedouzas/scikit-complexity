@@ -93,6 +93,9 @@ class Compilation:
         apart:
             The laws set apart from the kernels of their spec, which a pass of their own compiles.
 
+        programs:
+            The linear program laws of every kernel spec, which never reach a kernel of their spec.
+
         lowered:
             The laws of every kernel spec with complex states split and Markov laws taken out.
 
@@ -216,6 +219,7 @@ class Compilation:
     specs: list[tuple[KernelSpec, BlockSpec]] | None = None
     collected: BlockLaws | None = None
     apart: Laws | None = None
+    programs: Laws | None = None
     lowered: BlockLaws | None = None
     markov: list[tuple[KernelSpec, MatrixLawSpec]] | None = None
     matrices: tuple[MarkovKernel, ...] | None = None
@@ -288,6 +292,7 @@ class Compilation:
             self._replace_in(block_laws or [], replaced)
         laws = (
             self.apart,
+            self.programs,
             self.ordered,
             self.delayed,
             self.corrected,

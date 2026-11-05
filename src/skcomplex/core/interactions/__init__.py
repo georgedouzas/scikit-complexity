@@ -7,6 +7,7 @@ from ._advection import AdvectionInteraction
 from ._base import BaseInteraction
 from ._cascade import CascadeInteraction
 from ._choice import ChoiceInteraction
+from ._connection import ConnectionInteraction
 from ._conservation import ConservationInteraction
 from ._coupling import CouplingInteraction
 from ._crossing import CrossingInteraction
@@ -50,6 +51,7 @@ __all__: list[str] = [
     'BaseInteraction',
     'CascadeInteraction',
     'ChoiceInteraction',
+    'ConnectionInteraction',
     'ConservationInteraction',
     'CouplingInteraction',
     'CrossingInteraction',

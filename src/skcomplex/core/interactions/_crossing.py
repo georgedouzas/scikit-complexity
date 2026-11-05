@@ -5,12 +5,13 @@
 
 from collections.abc import Callable, Mapping
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import SR
 
 from ...errors import ValidationError
 from ...specs import RoleSpec
+from ...types import ElementKind
 from ..laws import BaseLaw, CrossingLaw
 from ._interaction import Interaction
 
@@ -73,11 +74,13 @@ class CrossingInteraction(Interaction):
         [1.0, 2.0]
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (CrossingLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('reset',))],
         guard: Callable[[SimpleNamespace], object],
         reset: Mapping[str, Callable[[SimpleNamespace], object]] | None = None,
         direction: int = 0,

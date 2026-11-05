@@ -29,6 +29,7 @@ from ..problems import (
     ReductionScheduleSpec,
     ReferenceSpec,
 )
+from ..problems._drive_kernel import DriveKernel
 from ..problems._law_kernel import LawKernel
 from ..problems._operator_kernel import OperatorKernel
 from ..problems._operator_lowering import OperatorLowering
@@ -252,7 +253,7 @@ class ObservableEvaluator:
                 error_msg = f'Two observables have the path {path}. Give observables of one system distinct labels.'
                 raise ValidationError(error_msg)
             if observable.function is not None:
-                self.getters_[path] = self._function_getter(path, observable.function)
+                self.getters_[path] = self._function_getter(scope, path, observable.function)
                 continue
             if observable.group is None and observable.expression is None:
                 error_msg = (
@@ -266,20 +267,38 @@ class ObservableEvaluator:
                 self.getters_[path] = self._observed_getter(observed[path], observable)
             else:
                 self.getters_[path] = self._reduction_getter(scope, path, observable)
+        self._add_law_records()
+        return self
+
+    def _add_law_records(self) -> None:
+        """Add the getters of what laws record: the renewals, the flows and objectives, and the scores of drives."""
         problems = (self.problem, *self.problem.partition_problems)
         for renewal in (renewal for problem in problems for renewal in problem.renewals):
             self.getters_[f'{renewal.label}.renewals'] = self._renewal_counter(renewal.counts)
         transfer_network = self.problem.transfer_network
         for recorded in transfer_network.recorded if transfer_network is not None else ():
             self.getters_[recorded.path] = self._recorded_getter(recorded)
-        return self
+        for problem in problems:
+            for step in problem.lattice if isinstance(problem, ProblemSpec) else ():
+                if isinstance(step, DriveKernel) and step.score is not None:
+                    self.getters_[f'{step.owner}.score'] = self._score_getter(step)
+
+    def _score_getter(self, drive: DriveKernel) -> ObservableFunction:
+        """Return the getter of the scores of the rows of a lattice state."""
+
+        def get(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
+            del t, done
+            return drive.read_score(x, p)
+
+        return get
 
     def _function_getter(
         self,
+        scope: str,
         path: str,
         function: Callable[[float, Mapping[str, object]], object],
     ) -> ObservableFunction:
-        """Return a getter that calls a function of time and the values of the states and parameters by name."""
+        """Return a getter that calls a function of time and the values of its system's states and parameters."""
         problem = self.problem
         if not isinstance(problem, ProblemSpec) or problem.agents:
             error_msg = (
@@ -288,10 +307,13 @@ class ObservableEvaluator:
             )
             raise ValidationError(error_msg)
         states, parameters = problem.states, problem.parameters
+        prefix = f'{scope}/' if scope else ''
 
         def get(t: float, x: Array, p: Array, done: Mapping[str, object]) -> object:
             del done
-            value = np.asarray(function(t, {**states.values(x), **parameters.values(p)}))
+            values = {**states.values(x), **parameters.values(p)}
+            local = {name.removeprefix(prefix): item for name, item in values.items() if name.startswith(prefix)}
+            value = np.asarray(function(t, local))
             return float(value) if value.ndim == 0 else value
 
         return get

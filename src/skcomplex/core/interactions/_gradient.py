@@ -6,7 +6,7 @@
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from math import prod
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression, matrix, vector
 from sage.modules.free_module_element import FreeModuleElement
@@ -15,8 +15,9 @@ from sage.symbolic.operators import add_vararg, mul_vararg
 
 from ...errors import ValidationError
 from ...specs import RoleSpec
+from ...types import ElementKind
 from ..base import BasePart
-from ..laws import RateLaw
+from ..laws import BaseLaw, RateLaw
 from ..laws.utils import distribute_operators, laplacian, partial
 from ..types import Target
 from ._interaction import Interaction
@@ -86,14 +87,16 @@ class GradientInteraction(Interaction):
         0.3679
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('states', 'divisor'))],
         states: str | Sequence[str] = 'x',
         potential: Callable[[SimpleNamespace], object] | None = None,
-        sources: Annotated[Sequence[str], RoleSpec(variadic=True)] = (),
+        sources: Annotated[Sequence[str], RoleSpec(variadic=True, elements=(ElementKind.ANY,))] = (),
         divisor: (
             str | Callable[[SimpleNamespace], object] | Mapping[str, str | Callable[[SimpleNamespace], object]] | None
         ) = None,

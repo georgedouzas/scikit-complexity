@@ -5,6 +5,7 @@
 
 import functools
 import inspect
+import weakref
 from collections.abc import Iterable, Mapping
 
 from sage.all__sagemath_symbolics import CC, RR, SR, ZZ, Expression
@@ -12,8 +13,13 @@ from sage.all__sagemath_symbolics import vector as sage_vector
 from sage.modules.free_module_element import FreeModuleElement
 
 from ..core.base import BasePart
-from ..specs import EntrySpec, ParameterSpec, RoleSpec, StateSpec, VariableSpec
+from ..specs import DeclaredVariableSpec, EntrySpec, ParameterSpec, RoleSpec, StateSpec, VariableSpec
 from ..types import VariableKind
+
+INSTANCE_VARIABLES: weakref.WeakKeyDictionary[
+    BasePart,
+    tuple[Mapping[str, DeclaredVariableSpec], dict[str, tuple[VariableSpec, object]]],
+] = weakref.WeakKeyDictionary()
 
 
 def symbol(name: str, domain: object = RR) -> Expression:
@@ -171,6 +177,7 @@ def _variable_of(spec: StateSpec | ParameterSpec | RoleSpec) -> VariableSpec:
         reference=spec.reference,
         role=spec.role,
         tensor=spec.tensor,
+        algebraic=spec.algebraic,
     )
 
 
@@ -189,10 +196,29 @@ def _companions(name: str, variable: VariableSpec, default: object) -> dict[str,
     return companions
 
 
+def _instance_variables(part: BasePart) -> dict[str, tuple[VariableSpec, object]]:
+    """Return the variables of a part instance, those of its class and those it declares, read once per declaration."""
+    declared = part._get_declared()
+    if not declared:
+        return _class_variables(type(part))
+    known = INSTANCE_VARIABLES.get(part)
+    if known is not None and known[0] is declared:
+        return known[1]
+    variables = dict(_class_variables(type(part)))
+    for name, item in declared.items():
+        variable = _variable_of(item.spec)
+        variables[name] = (variable, item.value)
+        if variable.kind == VariableKind.STATE:
+            variables.update(_companions(name, variable, item.value))
+    INSTANCE_VARIABLES[part] = (declared, variables)
+    return variables
+
+
 def declared_variables(part: object) -> dict[str, tuple[VariableSpec, object]]:
     """Return the declaration and the default of every state, parameter, and role of a part, with companion states.
 
-    A companion state follows the state it belongs to.
+    A companion state follows the state it belongs to. An instance adds the variables it declares from data, whose
+    default is their value.
 
     Args:
         part:
@@ -222,7 +248,7 @@ def declared_variables(part: object) -> dict[str, tuple[VariableSpec, object]]:
     if not issubclass(cls, BasePart):
         error_msg = f'{cls.__name__} is not a part, so it declares no variables.'
         raise TypeError(error_msg)
-    return dict(_class_variables(cls))
+    return dict(_instance_variables(part)) if isinstance(part, BasePart) else dict(_class_variables(cls))
 
 
 @functools.cache

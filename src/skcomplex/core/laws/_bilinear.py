@@ -69,7 +69,8 @@ class BilinearLaw(BaseLaw):
         """Return the densities the encounter changes, the first density and the target."""
         return (self.first,) if self.target is self.first else (self.first, self.target)
 
-    def _get_requirements(self) -> RequirementSpec:
+    @classmethod
+    def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: continuous time on lattices of classes."""
         return RequirementSpec(time=(ContinuousTime,), space=(LatticeSpace,))
 

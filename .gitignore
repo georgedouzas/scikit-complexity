@@ -48,4 +48,4 @@ docs/examples/**/*.rbl
 .DS_Store
 
 # References
-references/
+/references/

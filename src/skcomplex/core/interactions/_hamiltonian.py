@@ -5,15 +5,16 @@
 
 from collections.abc import Callable, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression, vector
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...errors import ValidationError
 from ...specs import RoleSpec
+from ...types import ElementKind
 from ..base import BasePart
-from ..laws import RateLaw
+from ..laws import BaseLaw, RateLaw
 from ..types import Target
 from ._interaction import Interaction
 
@@ -73,11 +74,13 @@ class HamiltonianInteraction(Interaction):
         -1.0
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('coordinates', 'momenta'))],
         coordinates: str | Sequence[str] = 'q',
         momenta: str | Sequence[str] = 'p',
         hamiltonian: Callable[[SimpleNamespace], object] | None = None,

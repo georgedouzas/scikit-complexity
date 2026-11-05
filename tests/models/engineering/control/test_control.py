@@ -5,8 +5,14 @@ import pytest
 
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.solvers import RK4Solver
-from skcomplex.models import describe
-from skcomplex.models.engineering.control import pendulum_swing_up, pid_loop, satellite_transfer, thermostat
+from skcomplex.models import describe, run
+from skcomplex.models.engineering.control import (
+    heated_room,
+    pendulum_swing_up,
+    pid_loop,
+    satellite_transfer,
+    thermostat,
+)
 
 
 def test_thermostat_settles_below_the_setting():
@@ -50,3 +56,26 @@ def test_satellite_transfer_time():
     assert energy[0] == pytest.approx(-0.7, abs=1e-3)
     assert trajectory.times[np.argmax(energy >= -0.2)] == pytest.approx(9.81, abs=0.1)
     assert energy[-1] == pytest.approx(-0.2, abs=1e-3)
+
+
+def test_heated_room_stays_within_the_band_of_its_thermostat():
+    """Test that the room rises to the band, stays in it, and the heater switches on and off."""
+    trajectory = Simulation(heated_room(), dt=10.0).check().prepare().run(until=14400.0).trajectory_
+    temperature = trajectory.values('room.T').ravel()
+    reached = int(np.argmax(temperature >= 19.5))
+    assert temperature[0] == pytest.approx(10.0)
+    assert reached > 0
+    assert np.all(np.diff(temperature[: reached + 1]) > 0)
+    assert temperature[reached:].min() >= 19.5 - 1e-6
+    assert temperature[reached:].max() <= 20.5 + 1e-6
+    opened = [event for event in trajectory.events if event.label == 'open_switch']
+    closed = [event for event in trajectory.events if event.label == 'close_switch']
+    assert len(opened) >= 2
+    assert len(closed) >= 2
+    assert set(np.unique(trajectory.values('heater.on'))) == {0.0, 1.0}
+
+
+def test_heated_room_records_the_power_of_its_heater():
+    """Test that the catalog entry records the power of the heater, `V^2 / R` while its switch is closed."""
+    trajectory = run('heated_room', settings={'until': 200.0, 'dt': 10.0}).trajectory_
+    assert np.allclose(trajectory.values('power').ravel(), 230.0**2 / 25.0)

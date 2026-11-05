@@ -19,12 +19,15 @@ from ._fractional_noise import FractionalNoiseLaw
 from ._generator import GeneratorLaw
 from ._gradient_step import GradientStepLaw
 from ._jump import JumpLaw
+from ._linear_program import LinearProgramLaw
 from ._local_rule import LocalRuleLaw
 from ._match import MatchLaw
 from ._noise import NoiseLaw
+from ._production import ProductionLaw
 from ._rate import RateLaw
 from ._rule import RuleLaw
 from ._sample import SampleLaw
+from ._substitution import SubstitutionLaw
 from ._transfer import Sink, Source, TransferLaw
 from ._transition import TransitionLaw
 from ._update import UpdateLaw
@@ -46,14 +49,17 @@ __all__: list[str] = [
     'GeneratorLaw',
     'GradientStepLaw',
     'JumpLaw',
+    'LinearProgramLaw',
     'LocalRuleLaw',
     'MatchLaw',
     'NoiseLaw',
+    'ProductionLaw',
     'RateLaw',
     'RuleLaw',
     'SampleLaw',
     'Sink',
     'Source',
+    'SubstitutionLaw',
     'TransferLaw',
     'TransitionLaw',
     'UpdateLaw',

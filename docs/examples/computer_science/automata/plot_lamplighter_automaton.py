@@ -12,11 +12,15 @@ of two elements, so a few ones spread into a growing, flickering pattern over th
 import matplotlib.pyplot as plt
 
 from skcomplex.analysis import AutomatonAnalysis
+from skcomplex.core.elements import LatticeElement
+from skcomplex.core.interactions import LocalRuleInteraction
 from skcomplex.core.spaces import CayleySpace, MemoryNeighborhood
+from skcomplex.core.system import System
 from skcomplex.engine.runtime import Simulation
 from skcomplex.engine.viz import RerunObserver
 from skcomplex.models import create
-from skcomplex.models.computer_science.automata import LinearAutomaton, lamplighter
+from skcomplex.models.computer_science.automata import BinaryCellElement, lamplighter
+from skcomplex.specs import LinearRuleSpec
 
 MODEL = 'lamplighter_automaton'
 
@@ -34,7 +38,18 @@ simulation = Simulation(system, observers=[observer]).check().prepare().run(unti
 
 alive = simulation.trajectory_.values('cells.alive')
 quotient = CayleySpace(lamplighter().PermGroupOnLevel(3)).check().prepare()
-parity = LinearAutomaton(quotient, MemoryNeighborhood(('1', 'a', 'b')), (1, 1, 1), 'GF(2)')
+parity = System(
+    elements=[LatticeElement('cells', element=BinaryCellElement, space=quotient)],
+    interactions=[
+        LocalRuleInteraction(
+            'parity',
+            target='cells',
+            state='alive',
+            rule=LinearRuleSpec((1, 1, 1), 'GF(2)'),
+            neighborhood=MemoryNeighborhood(('1', 'a', 'b')),
+        ),
+    ],
+)
 invertible = AutomatonAnalysis('injective').check().prepare(parity).run().injective_
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(simulation.trajectory_.times, alive.sum(axis=1), 'o-')

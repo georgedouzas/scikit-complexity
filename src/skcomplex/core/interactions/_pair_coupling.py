@@ -6,13 +6,14 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated, cast
+from typing import Annotated, ClassVar, cast
 
 from sage.all__sagemath_symbolics import SR, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ...errors import ValidationError
 from ...specs import ParameterSpec, RoleSpec
+from ...types import ElementKind
 from ..laws import BaseLaw, RateLaw
 from ..types import NamespaceFunction, PairPotential, Target
 from ._pair import PairInteraction
@@ -79,11 +80,13 @@ class PairCouplingInteraction(PairInteraction):
         [(-(x1 - x2)/m1), ((x1 - x2)/m2)]
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw,)
+
     def __init__(
         self,
         label: str,
-        first: Annotated[str, RoleSpec()],
-        second: Annotated[str, RoleSpec()],
+        first: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('position', 'write', 'divisor'))],
+        second: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('position', 'write', 'divisor'))],
         cutoff: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
         position: str = 'x',
         *,

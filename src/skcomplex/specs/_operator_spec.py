@@ -73,7 +73,7 @@ class OperatorSpec(BaseSpec):
 
     def __radd__(self, other: object) -> 'OperatorSpec':
         """Return the sum of a multiple of the identity and the operator."""
-        return self.__add__(other)
+        return self + other
 
     def __neg__(self) -> 'OperatorSpec':
         """Return the operator with every coefficient negated."""

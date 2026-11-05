@@ -7,6 +7,12 @@ from ._book import BookInteraction
 from ._contagion import debtrank
 from ._correlated_assets import correlated_geometric_brownian_motion
 from ._debt_rank_cascade import DebtRankCascadeInteraction
+from ._gauge_arbitrage import (
+    ExchangeLinkElement,
+    GoodSiteElement,
+    TraderCurrentInteraction,
+    gauge_arbitrage_market,
+)
 from ._geometric_brownian_motion import GeometricBrownianMotionInteraction
 from ._gibrat_firm import GibratFirmElement
 from ._growth_processes import gibrat_process, kesten_process, multiplicative_process
@@ -22,17 +28,21 @@ __all__: list[str] = [
     'AssetElement',
     'BookInteraction',
     'DebtRankCascadeInteraction',
+    'ExchangeLinkElement',
     'GeometricBrownianMotionInteraction',
     'GibratFirmElement',
+    'GoodSiteElement',
     'InterbankElement',
     'KestenFirmElement',
     'NetworkSaverElement',
     'ReflectingFloorInteraction',
     'StockTraderElement',
+    'TraderCurrentInteraction',
     'arbitrage_traders',
     'bouchaud_mezard_wealth',
     'correlated_geometric_brownian_motion',
     'debtrank',
+    'gauge_arbitrage_market',
     'geometric_brownian_motion',
     'gibrat_process',
     'kesten_process',

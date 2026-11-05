@@ -37,7 +37,8 @@ class TopologyRequestSpec(BaseSpec):
 
         toward:
             A function of the namespace of a candidate node that returns its weight for a new end, such as
-            `lambda node: neighbors(1)` for the degree of preferential attachment, or `None` for equal weights.
+            `lambda node: neighbors(1)` for the degree of preferential attachment, or `None` for equal weights. The
+            namespace holds the node the new edge starts from as `node.source`.
 
         keep:
             The end of an edge that a rewiring keeps, `'source'` or `'target'`.

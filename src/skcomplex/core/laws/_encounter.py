@@ -75,7 +75,8 @@ class EncounterLaw(BaseLaw):
         """Return the densities the encounter changes, the candidate and the test."""
         return (self.candidate,) if self.test is None or self.test is self.candidate else (self.candidate, self.test)
 
-    def _get_requirements(self) -> RequirementSpec:
+    @classmethod
+    def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: continuous time on lattices of classes."""
         return RequirementSpec(time=(ContinuousTime,), space=(LatticeSpace,))
 

@@ -1,0 +1,55 @@
+{UTF-8}
+Characteristic Time=
+	10
+	~	Minutes
+	~	How long the tea takes to cool by a factor of e.
+	|
+
+Heat Loss to Room=
+	(Teacup Temperature - Room Temperature) / Characteristic Time
+	~	Degrees/Minute
+	~	The heat that leaves the cup.
+	|
+
+Room Temperature=
+	70
+	~	Degrees
+	~	The temperature of the room.
+	|
+
+Teacup Temperature= INTEG (
+	-Heat Loss to Room,
+		180)
+	~	Degrees
+	~	The temperature of the tea.
+	|
+
+********************************************************
+	.Control
+********************************************************~
+		Simulation Control Parameters
+	|
+
+FINAL TIME  = 30
+	~	Minute
+	~	The final time for the simulation.
+	|
+
+INITIAL TIME  = 0
+	~	Minute
+	~	The initial time for the simulation.
+	|
+
+SAVEPER  =
+        TIME STEP
+	~	Minute
+	~	The frequency with which output is stored.
+	|
+
+TIME STEP  = 0.125
+	~	Minute
+	~	The time step for the simulation.
+	|
+
+\\\---/// Sketch information - do not modify anything except names
+V300  Do not put anything below this section - it will be ignored

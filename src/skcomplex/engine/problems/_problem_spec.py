@@ -32,6 +32,7 @@ from ._event_kernel import EventKernel
 from ._finite_volume_kernel import FiniteVolumeKernel
 from ._jacobian_kernel import JacobianKernel
 from ._law_kernel import LawKernel
+from ._linear_program_kernel import LinearProgramKernel
 from ._linear_term_spec import LinearTermSpec
 from ._partition_spec import PartitionSpec
 from ._random_stream import RandomStream
@@ -191,6 +192,13 @@ class ProblemSpec(BaseProblemSpec):
         boundary:
             The function `B(t, x, p)` that returns the state after the boundary laws.
 
+        programs:
+            The linear programs that the functions of the problem solve, with those of its partitions.
+
+        algebraic:
+            The function `A(t, x, p)` that returns the state with its algebraic states set, or `None` for a system
+            without them. The solvers integrate none of these states, and a frame records the state it returns.
+
         draws:
             The random values the update draws at every step, or `None` for a deterministic map.
 
@@ -258,6 +266,8 @@ class ProblemSpec(BaseProblemSpec):
     jumps: tuple[_JumpChannelsSpec, ...] = field(default=(), repr=False)
     update: Callable[..., Array] | None = field(default=None, repr=False)
     boundary: VectorFunction | None = field(default=None, repr=False)
+    algebraic: VectorFunction | None = field(default=None, repr=False)
+    programs: tuple[LinearProgramKernel, ...] = field(default=(), repr=False)
     draws: DrawKernel | None = field(default=None, repr=False)
     fractional: tuple[FractionalRowsSpec, ...] = field(default=(), repr=False)
     orders: Array = field(default_factory=lambda: np.zeros(0), repr=False)

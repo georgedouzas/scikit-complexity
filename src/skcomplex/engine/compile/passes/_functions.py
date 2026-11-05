@@ -34,12 +34,14 @@ from ...problems import (
     LoweredKernelsSpec,
     OutputSpec,
     ProblemSpec,
+    ReductionScheduleSpec,
 )
 from ...problems._draw_kernel import DrawKernel
 from ...problems._law_kernel import LawKernel
 from ...problems._problem_functions_spec import _ProblemFunctionsSpec
 from ...problems._sweep_spec import _SweepSpec
 from ...types import ReadKind
+from .._algebraic_law import AlgebraicLaw
 from .._base import BaseCompiler, BasePass
 from .._compilation import Compilation
 from .._forms import STEPWISE_FORMS
@@ -223,10 +225,24 @@ class FunctionsPass(BasePass):
             jumps=lowering.jumps,
             update=update,
             boundary=FunctionsPass._wrapping_angles(lowering.boundary, states),
+            algebraic=FunctionsPass._algebraic_function(lowered, reductions),
             draws=draws,
             backend=backend._get_name(),
             backends=FunctionsPass._backends_of(form, kernels, backend._get_name(), lowering),
             accelerated=accelerated,
+        )
+
+    @staticmethod
+    def _algebraic_function(lowered: LoweredKernelsSpec, reductions: ReductionScheduleSpec) -> VectorFunction | None:
+        """Return the function that sets the algebraic states of a state vector, or `None` for a system without them."""
+        kernels = lowered.kernels.get(AlgebraicLaw)
+        if not kernels:
+            return None
+        return NumpyBackend._wrapped(
+            BaseBackend._assigning_function(kernels),
+            AlgebraicLaw,
+            reductions,
+            lowered.kernels,
         )
 
     @staticmethod

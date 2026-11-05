@@ -941,6 +941,17 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             f'{INDENT}p[{target} : {target} + {size}] = {call}',
         ]
 
+    def _coefficient_code(self, reduction: NeighborhoodKernel, index: int) -> str:
+        """Return the factor of the pair `_e_` of a neighbourhood reduction, from the layout when it is an integer."""
+        coefficients = reduction.coefficients
+        if coefficients is None:
+            return ''
+        if np.array_equal(coefficients, np.rint(coefficients)):
+            slot = self._data_slot(f'__neighbours_{index}_coefficients', np.rint(coefficients))
+            return f' * L[_L{2 * slot}_ + _e_]'
+        self.functions_[f'_cf{index}_'] = np.asarray(coefficients, dtype=float)
+        return f' * _cf{index}_[_e_]'
+
     def _neighborhood_lines(self, reduction: NeighborhoodKernel, index: int) -> list[str]:
         """Return the lines that compute a neighbourhood reduction of every member into the extended parameters."""
         lines = self._search_lines(reduction, index)
@@ -995,7 +1006,7 @@ class NumbaPrinter(BasePrinter[ReductionScheduleSpec, Sequence[tuple[str, str, l
             *(f'{INDENT * 3}{item} = {self._pair_read_code(reduction, item, index)}' for item in others),
             *(f'{INDENT * 3}{name} = {code}' for name, code in assignments),
             f'{INDENT * 3}_a_ = {codes[0]}',
-            f'{INDENT * 3}_w_ = {codes[1]}',
+            f'{INDENT * 3}_w_ = {codes[1]}{self._coefficient_code(reduction, index)}',
             *(f'{INDENT * 3}{line}' for line in accumulate),
             f'{INDENT * 2}p[{target} + _i_] = {value}',
         ]

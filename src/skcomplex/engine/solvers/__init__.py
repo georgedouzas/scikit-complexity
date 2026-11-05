@@ -6,6 +6,7 @@ from ._collocation import CollocationSolver
 from ._cosimulation import CoSimulationSolver
 from ._crank_nicolson import CrankNicolsonSolver
 from ._etdrk4 import ETDRK4Solver
+from ._euler import EulerSolver
 from ._euler_maruyama import EulerMaruyamaSolver
 from ._external import ExternalSolver
 from ._fractional_abm import FractionalABMSolver
@@ -32,6 +33,7 @@ from ._operator import OperatorSolver
 from ._optimal_control import OptimalControlSolver
 from ._pontryagin import PontryaginSolver
 from ._renewal import RenewalSolver
+from ._rewriting import RewritingSolver
 from ._rk4 import RK4Solver
 from ._root import RootSolver
 from ._scipy_ode import ScipyODESolver
@@ -54,6 +56,7 @@ __all__: list[str] = [
     'CrankNicolsonSolver',
     'ETDRK4Solver',
     'EulerMaruyamaSolver',
+    'EulerSolver',
     'ExternalSolver',
     'FractionalABMSolver',
     'FractionalEulerMaruyamaSolver',
@@ -81,6 +84,7 @@ __all__: list[str] = [
     'PontryaginSolver',
     'RK4Solver',
     'RenewalSolver',
+    'RewritingSolver',
     'RootSolver',
     'SDESolver',
     'SSPRKSolver',

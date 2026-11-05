@@ -19,8 +19,18 @@ from ....core.interactions import (
     HyperedgeInteraction,
     NeighborInteraction,
     PairInteraction,
+    TopologyInteraction,
 )
-from ....core.spaces import BaseSpace, CayleySpace, ContinuousSpace, LatticeSpace, MeshSpace, NetworkSpace, PhaseSpace
+from ....core.spaces import (
+    BaseSpace,
+    CayleySpace,
+    CellComplexSpace,
+    ContinuousSpace,
+    LatticeSpace,
+    MeshSpace,
+    NetworkSpace,
+    PhaseSpace,
+)
 from ....core.specs import NodeSpec
 from ....errors import LabelError, RoleError, ValidationError
 from ....specs import EntrySpec, NeighborReadSpec, WienerProcessSpec
@@ -149,6 +159,9 @@ class SpecsPass(BasePass):
                 symbols[name] = tensor.matrix_of(SpecsPass._renamed(item, mapping) for item in value)
             else:
                 symbols[name] = vector(SpecsPass._renamed(item, mapping) for item in value)
+        ports = getattr(block.node.component_type, 'ports', None)
+        if ports:
+            symbols['ports'] = ports
         return SimpleNamespace(**symbols)
 
     @staticmethod
@@ -241,7 +254,7 @@ class SpecsPass(BasePass):
                 'An element set lists single elements of one type, and a role binds to a group by its path.'
             )
             raise RoleError(error_msg)
-        types = list(dict.fromkeys(block.node.component_type.__name__ for block in blocks))
+        types = list(dict.fromkeys(type(block.node.component).__name__ for block in blocks))
         if len(types) > 1:
             error_msg = (
                 f'Interaction {node.path} binds the role {role!r} to elements of the types {" and ".join(types)}. An '
@@ -339,8 +352,10 @@ class SpecsPass(BasePass):
 
         A field on a position lattice is read by the target on a phase space with that position, broadcast along its
         class axes. A field on a phase space is read member by member by a target on a position lattice, whose laws read
-        its moments.
+        its moments. A group on a cell complex is read member by member by the exterior calculus of the target.
         """
+        if index is None and block.node.members is not None and isinstance(block.node.space, CellComplexSpace):
+            return SpecsPass._namespace(block, ReadKind.MEMBER)
         place = block.node.component
         targets = [item.node.component for item in bound.values() if isinstance(item.node.component, FieldElement)]
         if index is not None or not isinstance(place, FieldElement) or not targets:
@@ -406,6 +421,22 @@ class SpecsPass(BasePass):
         other, other_references = SpecsPass._namespace(block, ReadKind.OTHER, alias='__other')
         references.update(other_references)
         return SpecsPass._with_hyperedges(block, SimpleNamespace(**vars(namespace), other=other), references)
+
+    @staticmethod
+    def _with_source(
+        block: BlockSpec,
+        namespace: SimpleNamespace,
+        references: dict[Expression, ReferenceSpec],
+    ) -> SimpleNamespace:
+        """Return a namespace with `source`, the values of the node a topology request starts from.
+
+        A group that declares a variable named `source` keeps it.
+        """
+        if 'source' in vars(namespace):
+            return namespace
+        source, source_references = SpecsPass._namespace(block, ReadKind.SOURCE, alias='__source')
+        references.update(source_references)
+        return SimpleNamespace(**vars(namespace), source=source)
 
     @staticmethod
     def _with_hyperedges(
@@ -1108,6 +1139,22 @@ class SpecsPass(BasePass):
         return KernelSpec(node.path, namespace, references, 0, pairs, roles=paths)
 
     @staticmethod
+    def _growth_specs(specs: list[KernelSpec], declarations: DeclarationsSpec) -> list[KernelSpec]:
+        """Return the specs of an addition of one node per step, whose namespace holds the node being added."""
+        nodes = next(
+            (block for block in declarations.capacity.values() if getattr(block.node.component, 'on', None) == 'sites'),
+            None,
+        )
+        if nodes is None:
+            return specs
+        grown = []
+        for spec in specs:
+            references = dict(spec.references)
+            namespace = SpecsPass._with_source(nodes, spec.namespace, references)
+            grown.append(replace(spec, namespace=namespace, references=references))
+        return grown
+
+    @staticmethod
     def _interaction_specs(
         block: BlockSpec,
         elements: dict[str, BlockSpec],
@@ -1314,4 +1361,6 @@ class SpecsPass(BasePass):
             return gathered(block, elements, time), declarations
         if isinstance(block.node.component, PairInteraction):
             return [SpecsPass._pair_spec(block, elements, time)], declarations
-        return SpecsPass._interaction_specs(block, elements, time, observer), declarations
+        specs = SpecsPass._interaction_specs(block, elements, time, observer)
+        grows = isinstance(component, TopologyInteraction) and component.action == 'add-node' and not bound
+        return (SpecsPass._growth_specs(specs, declarations) if grows else specs), declarations

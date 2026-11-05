@@ -69,7 +69,8 @@ class CascadeLaw(BaseLaw):
         """Return the lattice states the laws that relax the lattice update, each once."""
         return tuple(dict.fromkeys(target for law in self.relax for target in law._get_targets()))
 
-    def _get_requirements(self) -> RequirementSpec:
+    @classmethod
+    def _get_requirements(cls) -> RequirementSpec:
         """Return what the cascade requires of a system: discrete time on a lattice or a network."""
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 

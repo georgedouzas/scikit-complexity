@@ -5,13 +5,12 @@
 
 
 from ....core.system import System
+from ....engine.compile import RewritingCompiler
 from ....errors import ValidationError
+from ....specs import GeometrySpec, PrototileSpec
 from ..._catalog import register_model
 from ._cantor_element import CantorElement
-from ._geometry_spec import GeometrySpec
 from ._koch_element import KochElement
-from ._prototile_spec import PrototileSpec
-from ._rewriting_compiler import RewritingCompiler
 from ._sierpinski_element import SierpinskiElement
 
 LARGEST_RATIO = 0.5

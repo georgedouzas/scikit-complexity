@@ -106,7 +106,7 @@ class SourceLoader(BaseConfig[str | Path | None, str]):
             error_msg = f'The generated source at {path} cannot be imported.'
             raise ImportError(error_msg)
         module = importlib.util.module_from_spec(specification)
-        module.__dict__.update(functions)
+        vars(module).update(functions)
         if not functions:
             sys.modules[name] = module
         specification.loader.exec_module(module)

@@ -37,6 +37,25 @@ the project for more details. You can run any of the following commands and subc
 
 ### Release
 
+Before a release, name the runtime dependencies without a release in the last 24 months. Replace each one, or record an
+exception in the Project Profile of `openspec/constitution.md`:
+
+```bash
+python - <<'EOF'
+import json, re, tomllib, urllib.request
+from datetime import UTC, datetime, timedelta
+
+limit = datetime.now(UTC) - timedelta(days=730)
+for requirement in tomllib.load(open('pyproject.toml', 'rb'))['project']['dependencies']:
+    name = re.match(r'[\w.-]+', requirement).group()
+    with urllib.request.urlopen(f'https://pypi.org/pypi/{name}/json') as response:
+        releases = json.load(response)['releases'].values()
+    last = max(datetime.fromisoformat(file['upload_time_iso_8601']) for files in releases for file in files)
+    if last < limit:
+        print(name, last.date())
+EOF
+```
+
 - `pdm release`: Release a new Python package with an updated version.
 
 ## Development
@@ -48,6 +67,52 @@ The next steps should be followed during development:
 - `pdm checks` to apply all checks.
 - `pdm tests` to run the tests.
 - `pdm docs serve` if you updated the documentation or the project dependencies to check that everything looks as expected.
+
+### Adding a model to the catalog
+
+A model of the library is a function that returns a system, registered with `register_model`. Declare the element and
+interaction types, write the function, and register it with its field path, references, and default run settings.
+
+```python
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from skcomplex.core.elements import Element
+from skcomplex.core.laws import RateLaw
+from skcomplex.core.system import System
+from skcomplex.models import create, register_model
+from skcomplex.specs import ParameterSpec, StateSpec
+
+
+class TankElement(Element):
+    def __init__(
+        self,
+        label,
+        *,
+        level: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        k: Annotated[float, ParameterSpec()] = 0.5,
+    ):
+        super().__init__(label)
+        self.level = level
+        self.k = k
+
+    def _get_laws(self, s):
+        return [RateLaw(s.level, -s.k * s.level)]
+
+
+@register_model(field='examples/processes', references=('Torricelli 1643',), defaults={'until': 5})
+def draining_tank(level: float = 2.0) -> System:
+    """Return a tank that drains at a rate proportional to its level."""
+    return System(elements=[TankElement('tank', level=level)])
+
+
+print(create('draining_tank').elements[0].level)
+```
+
+Every registered function needs defaults for all of its arguments, so the catalog can create, compile, simulate,
+visualize, and clone every model through the same interface.
 
 ## Model gallery
 
@@ -95,7 +160,7 @@ only the stale screenshots.
    thumbnail must show. Delete the sentence that marks the example as a scaffold.
 4. Create the model by name with `create`, and run it with `Simulation`, choosing `dt`, `until`, the observer's
    `interval`, and a seed so that the run stays within the budget. When the catalog entry registers a solver in its
-   defaults, pass it to `Simulation`, for example `solver=ScipyODE(method='LSODA')` or `solver=RK4(dt=0.01)`, since
+   defaults, pass it to `Simulation`, for example `solver=ScipyODESolver(method='LSODA')` or `solver=RK4Solver(dt=0.01)`, since
    `create` builds only the system.
 5. Choose the primary view. Use `blueprint='default'`, with `primary='<origin>'` to put the
    most telling view first. A custom `rrb.Blueprint` is fine when no default view shows the behaviour, with a comment on why.
@@ -111,7 +176,7 @@ only the stale screenshots.
 
 6. Add one analysis figure computed from `simulation.trajectory_`, with labelled axes, a title, and a sentence in the
    comment above it on the agreement to expect, such as a law, a conserved quantity, or a theoretical curve. Prefer the
-   helpers of `skcomplex.core.analysis`.
+   helpers of `skcomplex.analysis`.
 7. Capture it with `PYTHONPATH=docs python -m gallery_tools run <model>`, and open its `thumbnail.png` in the cache.
 8. Run `ruff check` and `black --check` on the example.
 

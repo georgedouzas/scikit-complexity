@@ -305,3 +305,53 @@ view of the loss and metrics, with the heat maps of the trained matrices next to
 #### Scenario: Default blueprint
 - **WHEN** the default blueprint of `elman_network` is built
 - **THEN** it holds the loss view and one heat map view per trained matrix, and no view of the inner model's states
+
+### Requirement: A viewer that cannot run or be reached does not stop a run
+A run asked to spawn a Rerun viewer on a Linux machine without a display SHALL warn and run without a viewer. A run
+streaming to a viewer SHALL wait a limited time for it when the run ends, then warn and keep its results. A run that only
+saves to a file SHALL wait for the whole recording.
+
+#### Scenario: No display
+- **WHEN** a user runs a simulation with `RerunObserver(spawn=True)` on a Linux machine without a display
+- **THEN** no viewer is spawned, a warning says so, and the run returns its trajectory
+
+#### Scenario: Viewer out of reach
+- **WHEN** a run streams to a viewer that cannot be reached
+- **THEN** the run warns within the limit and returns its trajectory
+
+#### Scenario: Saving to a file
+- **WHEN** a user runs a simulation with `RerunObserver(save_path=...)` and no viewer
+- **THEN** the run waits until the whole recording is written
+
+### Requirement: Linear programs are drawn as bars and graphs
+`LinearProgramVisual` SHALL log the variables of a program as a bar chart under `<path>/variables`, its objective
+values as scalars under `<path>/objective`, and, with `graph=True`, the default for at most 100 variables, a graph of
+constraints and variables whose edges come from the coefficients and whose widths are proportional to the absolute
+values, laid out once with a seeded layout. A program in a site group SHALL be drawn with `ImageVisual` of a chosen
+variable per site.
+
+#### Scenario: Bar chart
+- **WHEN** a dynamic FBA run streams to Rerun
+- **THEN** each frame logs a bar chart of the variables in declared order, and the objective series holds the growth
+  rate until the glucose runs out
+
+#### Scenario: Graph
+- **WHEN** the toy network runs with `graph=True` twice with the same seed
+- **THEN** both recordings hold the same node positions, one node per balance and per variable, with edge widths that
+  follow the values
+
+#### Scenario: Value per site
+- **WHEN** `comets` streams to Rerun
+- **THEN** the growth variable of every site is logged as an image beside the images of the metabolites
+
+### Requirement: Points are joined by a strip in member order
+`PointsVisual` SHALL log, with `strip=True`, one line strip through the positions of a group in member order, in two or
+three dimensions, beside the points, colored by the same state as the points with a fixed color range.
+
+#### Scenario: Protein chain in three dimensions
+- **WHEN** the `fuzzy_oil_drop` model streams with a `RerunObserver`
+- **THEN** the recording holds 20 three-dimensional points of the chain at every frame and one line strip through them
+
+#### Scenario: Sequences as an image
+- **WHEN** 8 walkers of length 30 of `rna_neutral_networks` stream with `ImageVisual`
+- **THEN** the recording holds an 8 by 30 image at every frame, with four colors

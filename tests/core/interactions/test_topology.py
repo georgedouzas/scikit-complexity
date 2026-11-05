@@ -9,11 +9,13 @@ import pytest
 from skcomplex.core.elements import Element, GroupElement
 from skcomplex.core.interactions import BaseInteraction, HyperedgeInteraction, TopologyInteraction
 from skcomplex.core.laws import RateLaw, UpdateLaw
+from skcomplex.core.laws.utils import neighbors, where
 from skcomplex.core.spaces import ContinuousTime, DiscreteTime, NetworkSpace
 from skcomplex.core.system import System
 from skcomplex.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.engine.runtime import Simulation, Trajectory
-from skcomplex.errors import ValidationError
+from skcomplex.engine.solvers import MesaSolver
+from skcomplex.errors import SolverError, ValidationError
 from skcomplex.specs import RoleSpec, StateSpec, VisualSpec
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
@@ -302,3 +304,174 @@ def test_get_laws_refuses_a_callable_value_on_a_growing_hypergraph():
     system.time = ContinuousTime()
     with pytest.raises(ValidationError, match='switches off only a symbolic value'):
         Simulation(system, random_state=0).check().prepare()
+
+
+def _grown(change: TopologyInteraction, seeds: int = 80, capacity: int = 200, **arguments: object) -> Simulation:
+    """Return a simulation of an empty network of nodes with evenly spaced marks that a topology change grows."""
+    marks = np.linspace(0.0, 2 * np.pi, seeds, endpoint=False)
+    nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=capacity)
+    nodes = nodes.set_params(values={'mark': marks.tolist()})
+    links = GroupElement('links', element=Element, on='edges', variable=True, capacity=3 * capacity)
+    space = NetworkSpace(nx.empty_graph(seeds))
+    system = System(elements=[nodes, links], interactions=[change], space=space, time=DiscreteTime())
+    return Simulation(system, random_state=0, **arguments).check().prepare()
+
+
+def _mark_gaps(trajectory: Trajectory) -> np.ndarray:
+    """Return the difference of the marks of the ends of every edge of the last frame."""
+    network = trajectory.network(-1)
+    marks = np.asarray(trajectory.values('nodes.mark')[-1])
+    return np.abs(marks[network.sources] - marks[network.targets])
+
+
+@BACKENDS
+def test_get_laws_add_node_attaches_by_the_drawn_values_of_the_new_node(backend):
+    """Test that a weight of 1 within an angular distance of 0.1 and 0 elsewhere gives edges within that distance."""
+    growth = TopologyInteraction(
+        'growth',
+        action='add-node',
+        values={'mark': lambda rng: rng.uniform(0.0, 2 * np.pi - 0.1)},
+        toward=lambda node: where(abs(node.mark - node.source.mark) <= 0.1, 1, 0),
+    )
+    trajectory = _grown(growth, backend=backend).run(until=100).trajectory_
+    gaps = _mark_gaps(trajectory)
+    assert gaps.size == 100
+    assert (gaps <= 0.1).all()
+
+
+def test_get_laws_add_node_weights_differ_without_the_source():
+    """Test that uniform weights, which read no new node, join marks far apart for the same draws."""
+    growth = TopologyInteraction(
+        'growth',
+        action='add-node',
+        values={'mark': lambda rng: rng.uniform(0.0, 2 * np.pi - 0.1)},
+    )
+    assert (_mark_gaps(_grown(growth).run(until=100).trajectory_) > 0.1).any()
+
+
+def test_get_laws_add_node_condition_reads_the_drawn_values():
+    """Test that a condition on the drawn value adds only the nodes that meet it, with the value it read."""
+    growth = TopologyInteraction(
+        'growth',
+        action='add-node',
+        edges=0,
+        values={'mark': lambda rng: rng.uniform(0.0, 1.0)},
+        condition=lambda s: s.source.mark < 0.5,
+    )
+    trajectory = _grown(growth, seeds=1).run(until=100).trajectory_
+    marks = np.asarray(trajectory.values('nodes.mark')[-1])[1:]
+    added = marks[~np.isnan(marks)]
+    assert 20 < added.size < 80
+    assert (added < 0.5).all()
+
+
+def test_get_laws_add_node_probability_reads_the_drawn_values():
+    """Test that a probability that is the drawn value adds the nodes of high values more often."""
+    growth = TopologyInteraction(
+        'growth',
+        action='add-node',
+        edges=0,
+        values={'mark': lambda rng: rng.uniform(0.0, 1.0)},
+        probability=lambda s: s.source.mark,
+    )
+    marks = np.asarray(_grown(growth, seeds=1, capacity=400).run(until=300).trajectory_.values('nodes.mark')[-1])[1:]
+    added = marks[~np.isnan(marks)]
+    assert added.mean() == pytest.approx(2 / 3, abs=0.05)
+
+
+def test_get_laws_add_node_condition_reads_the_defaults_of_values_not_given():
+    """Test that the source of a condition reads the default of a state the action does not draw."""
+    growth = TopologyInteraction('growth', action='add-node', edges=0, condition=lambda s: s.source.mark < 0)
+    assert _sizes(_grown(growth, seeds=1).run(until=5).trajectory_, -1) == (1, 0)
+
+
+def test_get_laws_add_node_target_keeps_the_acting_node_as_the_source_of_the_condition():
+    """Test that a condition of an addition with a target reads the node it runs for, not the new node."""
+    marks = [1.0 if node < 3 else 0.0 for node in range(10)]
+    growth = TopologyInteraction(
+        'growth',
+        target='nodes',
+        action='add-node',
+        edges=0,
+        condition=lambda s: s.source.mark > 0,
+    )
+    assert _sizes(_run(nx.empty_graph(10), growth, 1, mark=marks), 1) == (13, 0)
+
+
+def test_get_laws_add_edge_weight_reads_the_adding_node_as_the_source():
+    """Test that the weight of a node adding edges reads that node as the source."""
+    close = TopologyInteraction(
+        'close',
+        target='nodes',
+        action='add-edge',
+        probability=0.5,
+        toward=lambda node: where(abs(node.mark - node.source.mark) <= 0.2, 1, 0),
+    )
+    gaps = _mark_gaps(_grown(close).run(until=1).trajectory_)
+    assert gaps.size > 0
+    assert (gaps <= 0.2).all()
+
+
+def test_get_laws_rewire_weight_reads_the_kept_end_as_the_source():
+    """Test that the weight of a rewiring reads the end it keeps as the source."""
+    rewire = TopologyInteraction(
+        'rewire',
+        target='nodes',
+        action='rewire',
+        toward=lambda node: where(abs(node.mark - node.source.mark) <= 0.1, 1, 0),
+    )
+    graph = nx.empty_graph(4)
+    graph.add_edge(0, 2)
+    network = _run(graph, rewire, 1, mark=[0.0, 0.05, 5.0, 5.05]).network(-1)
+    assert (network.sources.tolist(), network.targets.tolist()) == ([0], [1])
+
+
+def test_get_laws_replace_node_weight_reads_the_new_node_as_the_source():
+    """Test that the condition of a replacement reads the old node and the weight the new one."""
+    replacement = TopologyInteraction(
+        'replacement',
+        target='nodes',
+        action='replace-node',
+        condition=lambda s: s.source.mark > 9,
+        values={'mark': 1.0},
+        toward=lambda node: where(abs(node.mark - node.source.mark) <= 0.1, 1, 0),
+    )
+    marks = [1.0, 1.05, 3.0, 3.05, 10.0]
+    network = _run(nx.empty_graph(5), replacement, 1, mark=marks).network(1)
+    assert network.sources.size == 1
+    assert {2, 3}.isdisjoint(network.sources.tolist() + network.targets.tolist())
+
+
+def test_get_laws_rate_cannot_read_the_new_node():
+    """Test that a rate of an addition that reads the new node raises an error when it is evaluated."""
+    growth = TopologyInteraction('growth', action='add-node', edges=0, rate=lambda s: s.source.mark + 1)
+    nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=20)
+    links = GroupElement('links', element=Element, on='edges', variable=True, capacity=20)
+    system = System(elements=[nodes, links], interactions=[growth], space=NetworkSpace(nx.empty_graph(2)))
+    with pytest.raises(ValidationError, match=r'namespace\.source'):
+        Simulation(system, random_state=0).check().prepare().run(until=2)
+
+
+def test_get_laws_reduction_cannot_read_the_new_node():
+    """Test that a reduction of the weight that reads the new node raises an error when the system compiles."""
+    growth = TopologyInteraction(
+        'growth',
+        action='add-node',
+        toward=lambda node: neighbors(node.other.mark + node.source.mark),
+    )
+    links = nx.path_graph(4)
+    nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=20)
+    edges = GroupElement('links', element=Element, on='edges', variable=True, capacity=20)
+    system = System(elements=[nodes, edges], interactions=[growth], space=NetworkSpace(links), time=DiscreteTime())
+    with pytest.raises(ValidationError, match=r'neighbourhood reduction of nodes reads mark_nodes__source'):
+        Simulation(system, random_state=0).check().prepare()
+
+
+def test_get_laws_add_node_runs_on_no_mesa_path():
+    """Test that the Mesa solver takes no topology change, so no Mesa path reads the new node."""
+    growth = TopologyInteraction('growth', action='add-node')
+    nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=20)
+    links = GroupElement('links', element=Element, on='edges', variable=True, capacity=20)
+    system = System(elements=[nodes, links], interactions=[growth], space=NetworkSpace(nx.path_graph(4)))
+    with pytest.raises(SolverError, match='does not support the laws UpdateLaw'):
+        Simulation(system, solver=MesaSolver(), random_state=0).check().prepare()

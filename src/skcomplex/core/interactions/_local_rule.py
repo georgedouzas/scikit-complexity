@@ -5,10 +5,11 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from ...errors import ValidationError
 from ...specs import RoleSpec
+from ...types import ElementKind
 from ..laws import BaseLaw, LocalRuleLaw
 from ..spaces import BaseNeighborhood
 from ._interaction import Interaction
@@ -63,11 +64,13 @@ class LocalRuleInteraction(Interaction):
         'synchronous'
     """
 
+    law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (LocalRuleLaw,)
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state', 'reads'))],
         state: str | tuple[str, ...],
         rule: object,
         neighborhood: BaseNeighborhood,

@@ -126,11 +126,16 @@ class FormKind(StrEnum):
     OPERATOR = 'operator dynamics'
     LEARNING = 'learning by gradient steps'
     STATIC = 'static solution'
+    REWRITING = 'rewriting system'
 
 
 class ElementKind(StrEnum):
-    """Kind of element or system that carries states, as solvers and backends support them."""
+    """Kind of element or system that carries states, as solvers, backends, and the roles of interactions name them.
 
+    `ANY` names every kind in a role that accepts them all, and no element is of this kind.
+    """
+
+    ANY = 'any'
     ELEMENT = 'element'
     GROUP = 'group'
     VARIABLE_GROUP = 'variable-group'

@@ -299,7 +299,7 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
     def _get_space_box(space: object) -> tuple[Array | None, bool]:
         """Return the sides of a continuous or grid space and whether it is periodic."""
         if isinstance(space, ContinuousSpace):
-            return np.asarray(space.extent_[:2], dtype=float), space.periodic_
+            return np.asarray(space.extent_, dtype=float), space.periodic_
         if isinstance(space, LatticeSpace):
             return np.asarray(space.shape_[:2], dtype=float), space.periodic_
         return None, False
