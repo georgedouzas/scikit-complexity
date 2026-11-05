@@ -31,3 +31,32 @@ def test_unknown_field_and_ball_raise():
     fixed = LinearAutomaton(LatticeSpace(5, boundary='fixed'), BoxNeighborhood(), (1, 1, 1))
     with pytest.raises(ValidationError, match='not on a ball'):
         fixed.matrix()
+
+
+def test_reference_values_of_linear_rules():
+    """Test that linear automata keep their recorded steps, matrices, and Laurent polynomials."""
+    rule90 = LinearAutomaton(LatticeSpace(6), LatticeNeighborhood(((-1,), (1,))), (1, 1), 'GF(2)')
+    assert rule90.step([0, 0, 1, 0, 0, 0]).tolist() == [0, 1, 0, 1, 0, 0]
+    assert rule90.step([1, 0, 1, 1, 0, 0]).tolist() == [0, 0, 1, 1, 1, 1]
+    assert [[int(entry) for entry in row] for row in rule90.matrix().rows()] == [
+        [0, 1, 0, 0, 0, 1],
+        [1, 0, 1, 0, 0, 0],
+        [0, 1, 0, 1, 0, 0],
+        [0, 0, 1, 0, 1, 0],
+        [0, 0, 0, 1, 0, 1],
+        [1, 0, 0, 0, 1, 0],
+    ]
+    assert rule90.matrix().rank() == 4
+    assert str(rule90.laurent_polynomial()) == 'x0^-1 + x0'
+    laplacian = LinearAutomaton(LatticeSpace(5), BoxNeighborhood(), (1, -2, 1), 'QQ')
+    assert laplacian.step([1, 0, 0, 1, 0]).tolist() == [-2, 1, 1, -2, 2]
+    assert str(laplacian.laurent_polynomial()) == 'x0^-1 - 2 + x0'
+    assert laplacian.matrix().rank() == 4
+    fractions = LinearAutomaton(LatticeSpace(3), LatticeNeighborhood(((0,), (1,))), (0.5, 0.25), 'QQ')
+    assert fractions.step([1, 2, 4]).tolist() == [1.0, 2.0, 2.25]
+    modular = LinearAutomaton(LatticeSpace(5), BoxNeighborhood(), (1, -2, 1), 'GF(3)')
+    assert modular.step([1, 0, 0, 2, 0]).tolist() == [1, 1, 2, 2, 0]
+    assert str(modular.laurent_polynomial()) == 'x0^-1 + 1 + x0'
+    assert [int(entry) for entry in modular.matrix().rows()[0]] == [1, 1, 0, 0, 1]
+    plane = LinearAutomaton(LatticeSpace((3, 3)), LatticeNeighborhood(((1, 0), (0, -1))), (1, 1), 'GF(2)')
+    assert str(plane.laurent_polynomial()) == 'x0 + x1^-1'

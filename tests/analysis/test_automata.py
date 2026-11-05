@@ -2,7 +2,7 @@
 
 import numpy as np
 import pytest
-from sage.all__sagemath_gap import PermutationGroup
+from sage.all__sagemath_gap import PermutationGroup, libgap
 from sage.all__sagemath_symbolics import GF, matrix
 from scipy.linalg import circulant
 
@@ -16,11 +16,13 @@ from skcomplex.core.spaces import (
     MooreNeighborhood,
 )
 from skcomplex.errors import AnalysisError
-from skcomplex.models.computer_science.automata import Automaton, LinearAutomaton, Subshift
+from skcomplex.models.computer_science.automata import Automaton, LinearAutomaton, Subshift, lamplighter
 from skcomplex.specs import OuterTotalisticSpec, TableSpec, TotalisticSpec
 
 LIFE = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
 GOLDEN_RATIO = (1 + np.sqrt(5)) / 2
+QUOTIENT_EDEN = [0, 1, 2, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 25, 26, 28, 29, 30]
+LIFE_EDEN = [*QUOTIENT_EDEN, 33, 35]
 
 
 def _automaton(kind, source, **settings):
@@ -158,3 +160,99 @@ def test_kind_reads_its_model():
         AutomatonAnalysis().check().prepare(golden)
     with pytest.raises(AnalysisError, match='does not read tries'):
         AutomatonAnalysis(tries=3).check()
+
+
+def test_reference_values_on_a_lattice():
+    """Test that the decisions, gardens of Eden, inverses, and compositions on lattices keep their recorded values."""
+    life = Automaton(LatticeSpace((6, 6)), MooreNeighborhood(), LIFE)
+    assert not _automaton('surjective', life).surjective_
+    assert not _automaton('injective', life).injective_
+    assert np.flatnonzero(_automaton('garden-of-eden', life, random_state=0).pattern_).tolist() == LIFE_EDEN
+    majority = Automaton(LatticeSpace(5), BoxNeighborhood(), TotalisticSpec(lambda total: total >= 2))
+    assert _automaton('garden-of-eden', majority).pattern_.tolist() == [0, 0, 1, 0, 1]
+    assert _automaton('garden-of-eden', _elementary(90, 8)).pattern_.tolist() == [0, 0, 0, 0, 0, 0, 0, 1]
+    decisions = {
+        number: (
+            _automaton('injective', _elementary(number, 8)).injective_,
+            _automaton('pre-injective', _elementary(number, 8), window=[2, 3]).pre_injective_,
+        )
+        for number in (15, 30, 90, 170, 204)
+    }
+    assert decisions == {
+        15: (True, True),
+        30: (False, True),
+        90: (False, True),
+        170: (True, True),
+        204: (True, True),
+    }
+    shift = Automaton(LatticeSpace(8), LatticeNeighborhood(((1,),)), TableSpec({(1,): 1}))
+    assert _automaton('inverse', _elementary(30, 8)).inverse_ is None
+    back = _automaton('inverse', shift).inverse_
+    assert back.reads.check().prepare().offsets_ == ((-1,), (0,), (1,))
+    assert sorted(pattern for pattern, value in back.rule.mapping.items() if value) == [
+        (1, 0, 0),
+        (1, 0, 1),
+        (1, 1, 0),
+        (1, 1, 1),
+    ]
+    composition = _automaton('compose', shift, second=back).composition_
+    assert composition.reads.check().prepare().offsets_ == ((0,), (1,), (2,))
+    assert composition.local_map().tolist() == [0, 0, 0, 0, 1, 1, 1, 1]
+    assert composition.step([1, 0, 1, 1, 0, 0, 0, 1]).tolist() == [1, 0, 1, 1, 0, 0, 0, 1]
+
+
+def test_reference_values_on_a_group():
+    """Test that the kinds on a cyclic group and on a quotient of the lamplighter group keep their recorded values."""
+    rotation = Automaton(_cycle(6), MemoryNeighborhood(('a',)), TableSpec({(1,): 1}))
+    assert rotation.step([1, 0, 0, 1, 1, 0]).tolist() == [0, 1, 1, 0, 0, 1]
+    assert rotation.table().ravel().tolist() == [1, 3, 0, 5, 2, 4]
+    assert _automaton('injective', rotation).injective_
+    assert _automaton('surjective', rotation).surjective_
+    assert _automaton('pre-injective', rotation, window=[1, 2]).pre_injective_
+    assert _automaton('garden-of-eden', rotation, tries=5, random_state=0).pattern_ is None
+    back = _automaton('inverse', rotation, max_radius=1).inverse_
+    assert back.reads.elements == ('1', 'a', 'a^-1')
+    assert sorted(pattern for pattern, value in back.rule.mapping.items() if value) == [
+        (0, 0, 1),
+        (0, 1, 1),
+        (1, 0, 1),
+        (1, 1, 1),
+    ]
+    quotient = CayleySpace(libgap.PermGroupOnLevel(lamplighter(), 3))
+    memory = MemoryNeighborhood(('1', 'a', 'b'))
+    parity = Automaton(quotient, memory, TotalisticSpec(lambda total: total % 2))
+    assert _automaton('injective', parity, method='sat').injective_
+    assert _automaton('surjective', parity, method='sat').surjective_
+    majority = Automaton(quotient, memory, TotalisticSpec(lambda total: total >= 2))
+    assert not _automaton('injective', majority).injective_
+    assert not _automaton('pre-injective', majority, window=[0, 1]).pre_injective_
+    assert np.flatnonzero(_automaton('garden-of-eden', majority, random_state=0).pattern_).tolist() == QUOTIENT_EDEN
+    linear = LinearAutomaton(quotient, memory, (1, 1, 1), 'GF(2)')
+    assert linear.matrix().rank() == 32
+    assert _automaton('injective', linear).injective_
+    assert _automaton('surjective', linear).surjective_
+
+
+def test_reference_values_of_linear_decisions_and_measures():
+    """Test that the linear decisions, the difference pattern, and the entropies keep their recorded values."""
+    rule90 = LinearAutomaton(LatticeSpace(6), LatticeNeighborhood(((-1,), (1,))), (1, 1), 'GF(2)')
+    assert not _automaton('injective', rule90).injective_
+    assert not _automaton('surjective', rule90).surjective_
+    assert not _automaton('injective', rule90, infinite=True).injective_
+    assert _automaton('surjective', rule90, infinite=True).surjective_
+    assert _automaton('pre-injective', rule90, infinite=True).pre_injective_
+    laplacian = LinearAutomaton(_cycle(5), MemoryNeighborhood(('a^-1', '1', 'a')), (1, -2, 1), 'GF(2)')
+    assert laplacian.step([1, 0, 0, 1, 0]).tolist() == [0, 0, 1, 0, 1]
+    assert not _automaton('pre-injective', laplacian).pre_injective_
+    settings = {'configuration': np.zeros(41, dtype=int), 'site': 20, 'steps': 10}
+    differences = _automaton('difference', _elementary(30, 41), **settings).differences_
+    assert differences.sum(axis=1).tolist() == [1, 3, 3, 6, 4, 9, 5, 12, 7, 12, 11]
+    golden = Subshift(LatticeNeighborhood(((0,), (1,))), [(1, 1)])
+    windows = [LatticeSpace(length, boundary='fixed') for length in (10, 20)]
+    entropies = _automaton('entropy', golden, windows=windows).entropy_
+    assert entropies.tolist() == pytest.approx([0.7169925001442313, 0.7056179025755023])
+    natural = _automaton('entropy', golden, windows=windows[1:], base=np.e).entropy_
+    assert natural.tolist() == pytest.approx([0.4890970597228316])
+    majority = Automaton(LatticeSpace(12), BoxNeighborhood(), TotalisticSpec({2: 1, 3: 1}))
+    image = _automaton('entropy', majority, windows=[LatticeSpace(12, boundary='fixed')]).entropy_
+    assert image.tolist() == pytest.approx([0.8954196310386876])

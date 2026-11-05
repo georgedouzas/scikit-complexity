@@ -33,3 +33,32 @@ def test_golden_mean_shift_samples_admissible_configurations():
     assert 0 < sample.mean() < 0.5
     with pytest.raises(ValidationError, match='forbidden pattern'):
         golden.sample(space, initial=np.ones(60))
+
+
+def test_reference_values_of_the_golden_mean_shift():
+    """Test that the golden mean shift keeps its recorded counts, violations, and samples with fixed seeds."""
+    golden = Subshift(LatticeNeighborhood(((0,), (1,))), [(1, 1)])
+    assert golden.count(LatticeSpace(6, boundary='fixed')) == 21
+    assert golden.count(LatticeSpace(6)) == 18
+    assert golden.count(LatticeSpace(30, boundary='fixed')) == 2178309
+    assert golden.violations([1, 0, 0, 0, 1], LatticeSpace(5)).tolist() == [False, False, False, False, True]
+    assert not golden.is_admissible([1, 0, 1, 0, 1], LatticeSpace(5))
+    assert golden.sample(LatticeSpace(12), 10, random_state=0).tolist() == [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0]
+    window = LatticeSpace(12, boundary='fixed')
+    assert golden.sample(window, 5, random_state=7).tolist() == [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0]
+    initial = [1, 0, 1, 0, 1, 0, 1, 0, 1, 0]
+    sample = golden.sample(LatticeSpace(10), 3, initial=initial, random_state=3)
+    assert sample.tolist() == [0, 0, 1, 0, 0, 1, 0, 1, 0, 1]
+
+
+def test_reference_values_on_a_group_and_with_three_values():
+    """Test that subshifts on a cyclic group and over three values keep their recorded counts and samples."""
+    golden = Subshift(MemoryNeighborhood(('1', 'a')), [(1, 1)])
+    space = CayleySpace(PermutationGroup([[tuple(range(1, 13))]]))
+    assert golden.count(space) == 322
+    assert golden.sample(space, 20, random_state=0).tolist() == [0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0]
+    violations = golden.violations([1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], space)
+    assert np.flatnonzero(violations).tolist() == [0]
+    three = Subshift(LatticeNeighborhood(((0,), (1,))), [(0, 2), (2, 0)], states=3)
+    assert three.count(LatticeSpace(5, boundary='fixed')) == 99
+    assert three.sample(LatticeSpace(8), 5, random_state=1).tolist() == [0, 1, 1, 1, 1, 0, 0, 1]
