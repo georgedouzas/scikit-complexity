@@ -6346,7 +6346,7 @@ agents learn from their past.
   a run.
 - Learning blocks: `agent.lags(state, window)`, a method of the agent view a rule receives, returns the past values of a
   state declared with lags, `StateSpec(lags=m)`. A rule writes adaptive, trend-following, anchoring, and fundamentalist
-  forecasts from these values, as the model `brock_hommes` does. In `skcomplex.core.interactions`,
+  forecasts from these values. In `skcomplex.core.interactions`,
   `ChoiceInteraction(form='agent')` draws an option by the logit, Metropolis, Fermi, or best rule from a utility
   `utility(agent, model, option)` that can read `model.history` and `model.storage`, `ReinforcementInteraction` moves
   the scores of options towards their realized payoffs, or with `chosen` only the score of the option a member chose,
