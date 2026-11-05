@@ -2358,8 +2358,8 @@ sets `report_`, the issues it found, and `run(initial_state)` raises the errors 
 sets `solver_`, the solver it names for the problem. `Simulation` and `compile_system` take the compiler as the
 `compiler` setting. The default `PassCompiler` compiles every system but operator ones through its passes, which lower
 each law to the problem of its form, and names the compiler a system needs when it is another. An operator system takes
-`compiler=OperatorCompiler()`, and a rewriting system `compiler=RewritingCompiler()`. A package of your own can bring the
-compiler of a form of its own, with the solver it names.
+`compiler=OperatorCompiler()`, and a rewriting system `compiler=RewritingCompiler()`. A package of your own can bring
+the compiler of a form of its own, with the solver it names.
 
 ### Writing a law
 
@@ -3810,8 +3810,8 @@ print(trajectory.agents('queues', 1).values['orders'].tolist())
 
 ## The model library
 
-`skcomplex.models` is the library of ready-made models. Each has a field path `<field>/<subfield>`, which `catalog` takes
-as a filter.
+`skcomplex.models` is the library of ready-made models. Each has a field path `<field>/<subfield>`, which `catalog`
+takes as a filter.
 
 | Field | Subfields |
 | --- | --- |
