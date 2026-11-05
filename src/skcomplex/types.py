@@ -126,6 +126,7 @@ class FormKind(StrEnum):
     OPERATOR = 'operator dynamics'
     LEARNING = 'learning by gradient steps'
     STATIC = 'static solution'
+    REWRITING = 'rewriting system'
 
 
 class ElementKind(StrEnum):

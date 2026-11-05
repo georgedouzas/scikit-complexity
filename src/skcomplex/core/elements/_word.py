@@ -6,12 +6,9 @@
 from collections.abc import Mapping, Sequence
 from typing import Annotated
 
-from ....core.elements import Element
-from ....specs import StateSpec, VisualSpec
-from ._geometry_spec import GeometrySpec
-from ._geometry_visual import GeometryVisual
-from ._module_spec import Letters
-from ._rewriting_error import RewritingError
+from ...errors import RewritingError
+from ...specs import GeometrySpec, Letters, StateSpec, VisualSpec
+from ._element import Element
 
 
 class WordElement(Element):
@@ -47,8 +44,8 @@ class WordElement(Element):
             How the word is drawn, or `None` for `default_visual_`.
 
     Examples:
-        >>> from skcomplex.models.mathematics.fractals import WordElement
-        >>> from skcomplex.models.mathematics.fractals import ProductionLaw
+        >>> from skcomplex.core.elements import WordElement
+        >>> from skcomplex.core.laws import ProductionLaw
         >>> class AlgaeElement(WordElement):
         ...     def _get_laws(self, namespace):
         ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
@@ -91,4 +88,4 @@ class WordElement(Element):
             context:
                 The space the element inherits from its system, which the element does not read.
         """
-        self.default_visual_ = VisualSpec(GeometryVisual)
+        self.default_visual_ = VisualSpec('geometry')

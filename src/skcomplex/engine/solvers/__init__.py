@@ -33,6 +33,7 @@ from ._operator import OperatorSolver
 from ._optimal_control import OptimalControlSolver
 from ._pontryagin import PontryaginSolver
 from ._renewal import RenewalSolver
+from ._rewriting import RewritingSolver
 from ._rk4 import RK4Solver
 from ._root import RootSolver
 from ._scipy_ode import ScipyODESolver
@@ -83,6 +84,7 @@ __all__: list[str] = [
     'PontryaginSolver',
     'RK4Solver',
     'RenewalSolver',
+    'RewritingSolver',
     'RootSolver',
     'SDESolver',
     'SSPRKSolver',

@@ -1,8 +1,9 @@
-"""Test the `prototile_spec` module of `skcomplex.models.mathematics.fractals`."""
+"""Test the `_prototile_spec` module of `skcomplex.specs`."""
 
 import pytest
 
-from skcomplex.models.mathematics.fractals import PrototileSpec, RewritingError
+from skcomplex.errors import RewritingError
+from skcomplex.specs import PrototileSpec
 
 
 @pytest.mark.parametrize('spec', [PrototileSpec('point', [(0, 0)])])

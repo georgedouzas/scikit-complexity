@@ -5,11 +5,11 @@ import pytest
 import rerun.blueprint as rrb
 
 from skcomplex.analysis import ScalingAnalysis
+from skcomplex.engine.compile import RewritingCompiler
 from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
+from skcomplex.engine.viz import GeometryVisual, RerunObserver
 from skcomplex.errors import ValidationError
 from skcomplex.models import create, describe, run
-from skcomplex.models.mathematics.fractals import GeometryVisual, RewritingCompiler
 
 
 def test_koch_curve():
@@ -54,7 +54,7 @@ def test_filled_gasket():
 
 
 def test_koch_curve_reference_values():
-    """Test the word, the counts, the length, and the points of the Koch curve at generation 2 against literal values."""
+    """Test the word, the counts, the length, and the points of the Koch curve at generation 2 against literals."""
     trajectory = run('koch_curve', settings={'until': 2}).trajectory_
     curve = trajectory.structure('koch', 2)
     assert curve.text == 'F+F--F+F+F+F--F+F--F+F--F+F+F+F--F+F'

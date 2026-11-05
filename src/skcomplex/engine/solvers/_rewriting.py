@@ -5,16 +5,13 @@
 
 import numpy as np
 
-from ....core.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
-from ....engine.solvers import BaseSolver
-from ....errors import SolverError
-from ....specs import RunStateSpec, StructureStateSpec, SupportSpec
-from ....types import Array, OrderKind
-from ._patch_structure_spec import PatchStructureSpec
-from ._production_law import ProductionLaw
-from ._rewriting_problem_spec import REWRITING, RewritingProblemSpec
-from ._substitution_law import SubstitutionLaw
-from ._word_structure_spec import WordStructureSpec
+from ...core.laws import ProductionLaw, SubstitutionLaw
+from ...core.spaces import CayleySpace, ContinuousSpace, DiscreteTime, LatticeSpace, MeshSpace, NetworkSpace
+from ...errors import SolverError
+from ...specs import PatchStructureSpec, RunStateSpec, StructureStateSpec, SupportSpec, WordStructureSpec
+from ...types import Array, FormKind, OrderKind
+from ..problems import RewritingProblemSpec
+from ._base import BaseSolver
 
 
 class RewritingSolver(BaseSolver[RewritingProblemSpec]):
@@ -27,14 +24,14 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         >>> from skcomplex.core.spaces import DiscreteTime
         >>> from skcomplex.core.system import System
         >>> from skcomplex.engine.runtime import Simulation
-        >>> from skcomplex.models.mathematics.fractals import ProductionLaw
-        >>> from skcomplex.models.mathematics.fractals import RewritingSolver
-        >>> from skcomplex.models.mathematics.fractals import WordElement
+        >>> from skcomplex.core.laws import ProductionLaw
+        >>> from skcomplex.engine.solvers import RewritingSolver
+        >>> from skcomplex.core.elements import WordElement
         >>> class AlgaeElement(WordElement):
         ...     def _get_laws(self, namespace):
         ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
         >>> system = System(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime())
-        >>> from skcomplex.models.mathematics.fractals import RewritingCompiler
+        >>> from skcomplex.engine.compile import RewritingCompiler
         >>> compiler = RewritingCompiler()
         >>> simulation = Simulation(system, compiler=compiler, solver=RewritingSolver())
         >>> simulation = simulation.check().prepare()
@@ -54,9 +51,9 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
         )
 
     @classmethod
-    def _get_form(cls) -> str:
+    def _get_form(cls) -> FormKind:
         """Return the form the solver solves."""
-        return REWRITING
+        return FormKind.REWRITING
 
     @classmethod
     def _is_stepwise(cls) -> bool:

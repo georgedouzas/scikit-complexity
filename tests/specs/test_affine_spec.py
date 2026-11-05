@@ -1,9 +1,10 @@
-"""Test the `affine_spec` module of `skcomplex.models.mathematics.fractals`."""
+"""Test the `_affine_spec` module of `skcomplex.specs`."""
 
 import numpy as np
 import pytest
 
-from skcomplex.models.mathematics.fractals import AffineSpec, RewritingError
+from skcomplex.errors import RewritingError
+from skcomplex.specs import AffineSpec
 
 
 @pytest.mark.parametrize('spec', [AffineSpec(translation=(1, 0, 0)), AffineSpec(matrix=np.eye(2))])

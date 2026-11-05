@@ -2,8 +2,6 @@
 
 import time
 from collections.abc import Mapping, Sequence
-from importlib.resources import files
-from pathlib import Path
 from typing import Annotated
 
 import numpy as np
@@ -11,31 +9,27 @@ import pytest
 import shapely
 
 from skcomplex.analysis import ScalingAnalysis
+from skcomplex.core.elements import PatchElement, WordElement
 from skcomplex.core.interactions import Interaction
-from skcomplex.core.laws import BaseLaw
+from skcomplex.core.laws import BaseLaw, ProductionLaw, SubstitutionLaw
 from skcomplex.core.system import System
 from skcomplex.engine._utils import symbol
-from skcomplex.engine.compile import compile_system
+from skcomplex.engine.compile import RewritingCompiler, compile_system
 from skcomplex.engine.runtime import Simulation
-from skcomplex.errors import IncompatibleLawsError, ValidationError
+from skcomplex.errors import IncompatibleLawsError, RewritingError, ValidationError
 from skcomplex.models.biology.common.populations import PopulationElement
-from skcomplex.models.mathematics.fractals import (
+from skcomplex.specs import (
     AffineSpec,
     GeometrySpec,
     Letters,
     ModuleSpec,
-    PatchElement,
+    ParameterSpec,
     PatchStructureSpec,
-    ProductionLaw,
     PrototileSpec,
-    RewritingCompiler,
-    RewritingError,
-    SubstitutionLaw,
-    WordElement,
+    StateSpec,
+    StructureStateSpec,
     WordStructureSpec,
 )
-from skcomplex.models.mathematics.fractals._rewriting_problem_spec import REWRITING
-from skcomplex.specs import ParameterSpec, StateSpec, StructureStateSpec
 from skcomplex.types import FormKind
 
 X = symbol('x')
@@ -129,7 +123,7 @@ def _run_word(word, until, **settings):
 def test_generations_as_steps():
     """Test that an L-system compiles to the rewriting form and rewrites once per frame."""
     system = _fibonacci()
-    assert compile_system(system, compiler=RewritingCompiler()).form == REWRITING
+    assert compile_system(system, compiler=RewritingCompiler()).form == FormKind.REWRITING
     trajectory = Simulation(system, compiler=RewritingCompiler()).check().prepare().run(until=5).trajectory_
     assert trajectory.times.tolist() == [0, 1, 2, 3, 4, 5]
     assert trajectory.values('word.size').tolist() == [1, 2, 3, 5, 8, 13]
@@ -573,7 +567,7 @@ def test_rewriting_compiler_runs_the_problem():
     """Test that the prepared rewriting compiler sets the rewriting problem when run."""
     words = System(elements=[WordElement('algae', axiom='A')])
     problem = RewritingCompiler().check().prepare(words).run().problem_
-    assert problem.form == REWRITING
+    assert problem.form == FormKind.REWRITING
 
 
 def test_snapshot_is_a_structure_state():
@@ -629,14 +623,3 @@ def test_three_dimensional_geometry_reference_values():
     assert trajectory.values('tree.size').tolist() == [1.0, 10.0]
     assert np.allclose(structure.segments(), points, rtol=0, atol=1e-9)
     assert structure.depths.tolist() == [0, 1, 1]
-
-
-def test_the_library_names_no_rewriting():
-    """Test that the core, the engine, the specs, and the types name none of the rewriting classes or its form."""
-    names = ('WordElement', 'PatchElement', 'ProductionLaw', 'SubstitutionLaw', 'RewritingCompiler', 'RewritingSolver')
-    root = Path(str(files('skcomplex')))
-    sources = [*root.joinpath('core').rglob('*.py'), *root.joinpath('engine').rglob('*.py')]
-    sources += [*root.joinpath('specs').rglob('*.py'), root / 'types.py']
-    found = [(path.name, name) for path in sources for name in names if name in path.read_text()]
-    assert found == []
-    assert 'REWRITING' not in FormKind.__members__

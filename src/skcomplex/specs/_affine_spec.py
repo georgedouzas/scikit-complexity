@@ -10,8 +10,8 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ....specs import BaseSpec
-from ._rewriting_error import RewritingError
+from ..errors import RewritingError
+from ._base_spec import BaseSpec
 
 PLANE_DIMENSION = 2
 
@@ -40,7 +40,7 @@ class AffineSpec(BaseSpec):
             A homogeneous 3 by 3 matrix that replaces the other arguments.
 
     Examples:
-        >>> from skcomplex.models.mathematics.fractals import AffineSpec
+        >>> from skcomplex.specs import AffineSpec
         >>> AffineSpec(scale=0.5, translation=(1, 0)).check().scale
         0.5
     """
@@ -81,7 +81,7 @@ class AffineSpec(BaseSpec):
                 The 3 by 3 matrix.
 
         Examples:
-            >>> from skcomplex.models.mathematics.fractals import AffineSpec
+            >>> from skcomplex.specs import AffineSpec
             >>> AffineSpec(scale=0.5, translation=(1, 0)).matrix_at({}).tolist()
             [[0.5, 0.0, 1.0], [0.0, 0.5, 0.0], [0.0, 0.0, 1.0]]
         """

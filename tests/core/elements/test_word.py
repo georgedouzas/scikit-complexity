@@ -1,17 +1,14 @@
-"""Test the `word_element` module of `skcomplex.models.mathematics.fractals`."""
+"""Test the `_word` module of `skcomplex.core.elements`."""
 
 import pytest
 
+from skcomplex.core.elements import WordElement
+from skcomplex.core.laws import ProductionLaw
 from skcomplex.core.system import System
+from skcomplex.engine.compile import RewritingCompiler
 from skcomplex.engine.runtime import Simulation
-from skcomplex.models.mathematics.fractals import (
-    GeometrySpec,
-    GeometryVisual,
-    ProductionLaw,
-    RewritingCompiler,
-    RewritingError,
-    WordElement,
-)
+from skcomplex.errors import RewritingError
+from skcomplex.specs import GeometrySpec
 
 
 class AlgaeElement(WordElement):
@@ -38,7 +35,7 @@ def test_word_checks_its_maximum_size_and_geometry(word):
 
 def test_word_is_drawn_as_its_geometry():
     """Test that a prepared word is drawn as the geometry of its letters."""
-    assert AlgaeElement('algae', axiom='A').check().prepare().default_visual_.kind is GeometryVisual
+    assert AlgaeElement('algae', axiom='A').check().prepare().default_visual_.kind == 'geometry'
 
 
 def test_word_is_rewritten_in_parallel():
