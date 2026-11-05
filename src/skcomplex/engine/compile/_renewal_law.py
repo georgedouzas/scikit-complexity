@@ -56,7 +56,8 @@ class RenewalLaw(BaseLaw):
     def _check(self) -> None:
         """Accept the waiting time and the reset, which the jump the law is run for checked."""
 
-    def _get_requirements(self) -> RequirementSpec:
+    @classmethod
+    def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: continuous time."""
         return RequirementSpec(time=(ContinuousTime,))
 

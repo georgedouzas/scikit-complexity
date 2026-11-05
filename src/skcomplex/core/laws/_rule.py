@@ -58,7 +58,8 @@ class RuleLaw(BaseLaw):
         """Return no states, since a rule changes the agents it receives in place."""
         return ()
 
-    def _get_requirements(self) -> RequirementSpec:
+    @classmethod
+    def _get_requirements(cls) -> RequirementSpec:
         """Return what the rule requires of a system: discrete time."""
         return RequirementSpec(time=(DiscreteTime,))
 

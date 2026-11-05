@@ -5,6 +5,7 @@
 
 import dataclasses
 import heapq
+import inspect
 from collections import defaultdict
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
 
@@ -117,7 +118,7 @@ _FIELDS = (
     'solver',
     'owners',
     'held',
-    *(name for name in Compilation.__annotations__ if name != 'done'),
+    *(name for name in inspect.get_annotations(Compilation) if name != 'done'),
 )
 
 
@@ -1061,7 +1062,7 @@ class PassCompiler(BaseCompiler):
         for record in records:
             time = times.get(record.path.rpartition('/')[0])
             law = record.law
-            requires = law._get_requirements()
+            requires = law._get_law_requirements()
             name = f'{type(law).__name__} of {record.path}'
             if requires.space and not isinstance(record.space, requires.space):
                 lives = type(record.space).__name__ if record.space is not None else 'no space'

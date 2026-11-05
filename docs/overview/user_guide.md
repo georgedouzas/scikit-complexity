@@ -2348,7 +2348,8 @@ class DecayLaw(BaseLaw):
     def _get_targets(self):
         return (self.target,)
 
-    def _get_requirements(self):
+    @classmethod
+    def _get_requirements(cls):
         return RequirementSpec(time=(ContinuousTime,))
 
     def _run(self, inputs):

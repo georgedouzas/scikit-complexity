@@ -1247,7 +1247,7 @@ class MesaSolver(ExternalSolver):
             if agent_class.__mro__[1] is ContinuousSpaceAgent
             else agent_class(self.model_)
         )
-        agent.__dict__['view_'] = self._view_classes[agent_class](agent, self)
+        vars(agent)['view_'] = self._view_classes[agent_class](agent, self)
         self.members_[int(agent.unique_id)] = agent
         defaults = self._agent_type(spec)
         for name in spec.states:
@@ -1790,7 +1790,7 @@ class MesaSolver(ExternalSolver):
     @staticmethod
     def _view_of(agent: mesa.Agent) -> AgentView:
         """Return the view of an agent, which the stepper creates with the agent."""
-        view = agent.__dict__['view_']
+        view = vars(agent)['view_']
         if not isinstance(view, AgentView):
             error_msg = f'The agent holds a {type(view).__name__}, not the view the stepper creates with it.'
             raise TypeError(error_msg)

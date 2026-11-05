@@ -71,7 +71,8 @@ class FluxLaw(BaseLaw):
         """Return the conserved state."""
         return (self.target,)
 
-    def _get_requirements(self) -> RequirementSpec:
+    @classmethod
+    def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: continuous time on a lattice or a mesh."""
         return RequirementSpec(time=(ContinuousTime,), space=(LatticeSpace, MeshSpace))
 

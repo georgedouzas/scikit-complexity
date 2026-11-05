@@ -87,7 +87,8 @@ class LinearProgramLaw(BaseLaw):
         """Return the algebraic states the program sets."""
         return tuple(self.variables)
 
-    def _get_requirements(self) -> RequirementSpec:
+    @classmethod
+    def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: continuous, discrete, or static time."""
         return RequirementSpec(time=(ContinuousTime, DiscreteTime, StaticTime))
 

@@ -80,7 +80,8 @@ class ExtremalLaw(BaseLaw):
         """Return the lattice state whose extremum is searched."""
         return self._get_targets()[0] if self.key is None else self.key
 
-    def _get_requirements(self) -> RequirementSpec:
+    @classmethod
+    def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: discrete time on a lattice or a network."""
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 
