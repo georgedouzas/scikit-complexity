@@ -1,4 +1,4 @@
-"""Generate one page per model with its pattern, one index per field, and the navigation of the models."""
+"""Generate one page per model with its pattern, one index per field, the catalog, and the navigation of the models."""
 
 import ast
 import inspect
@@ -13,9 +13,11 @@ from gallery_tools import Example, build_from_environment
 from inventory_checks import InventoryError, inventory_problems
 
 from skcomplex.analysis import SymbolicAnalysis
+from skcomplex.core.elements import BaseElement
+from skcomplex.core.interactions import BaseInteraction
 from skcomplex.core.system import System
 from skcomplex.errors import AnalysisError
-from skcomplex.models import catalog, create, describe
+from skcomplex.models import ModelListing, catalog, create, describe
 
 DOCS = Path(str(files('gallery_tools'))).parent
 INVENTORY = DOCS / 'overview' / 'inventory.toml'
@@ -88,6 +90,36 @@ def _component_types(system: System) -> list[type]:
     return types
 
 
+def _component_lines(kinds: list[type]) -> list[str]:
+    """Return the element and interaction classes of a model, each with its nearest class of the core."""
+    lines = []
+    for title, base in (('Elements', BaseElement), ('Interactions', BaseInteraction)):
+        found = [kind for kind in kinds if issubclass(kind, base)]
+        if not found:
+            continue
+        lines += ['', f'{title}:', '']
+        for kind in found:
+            core = next(item for item in kind.__mro__ if item.__module__.startswith('skcomplex.core.'))
+            lines.append(f'- `{kind.__name__}`' + ('' if core is kind else f', from `{core.__name__}`'))
+    return lines
+
+
+def _selection_lines(name: str) -> list[str]:
+    """Return the block that selects a model by name, reads its description, and runs it."""
+    return [
+        '## Select this model',
+        '',
+        '```python',
+        'from skcomplex.models import create, describe, run',
+        '',
+        f"system = create('{name}')",
+        f"entry = describe('{name}')",
+        f"trajectory = run('{name}').trajectory_",
+        '```',
+        '',
+    ]
+
+
 def _class_source(kind: type) -> str:
     """Return the source of an element or interaction type, its class statement or the assignment that builds it."""
     try:
@@ -129,15 +161,18 @@ def model_page(name: str, title: str, examples: dict[str, Example]) -> str:
         f'- References: {"; ".join(entry.references)}',
         '',
         *_gallery_lines(name, examples),
+        *_selection_lines(name),
         '## Factory',
         '',
         '```python',
         inspect.getsource(entry.factory).rstrip(),
         '```',
     ]
-    sources = [source for source in (_class_source(kind) for kind in _component_types(system)) if source]
+    kinds = _component_types(system)
+    sources = [source for source in (_class_source(kind) for kind in kinds) if source]
+    lines += ['', '## Components', *_component_lines(kinds)]
     if sources:
-        lines += ['', '## Components', '', '```python', '\n\n'.join(source.rstrip() for source in sources), '```']
+        lines += ['', '```python', '\n\n'.join(source.rstrip() for source in sources), '```']
     equations = _equations(name)
     if equations is not None:
         lines += ['', '## Equations', '', '```text', equations, '```']
@@ -166,7 +201,13 @@ def field_page(field: str, titles: dict[str, str]) -> str:
 
 def index_page(inventory: dict[str, Any]) -> str:
     """Return the landing page of the models: the link and the number of registered models of every field."""
-    lines = ['# Models', '', 'The registered models of `skcomplex.models`, by field and subfield.', '']
+    lines = [
+        '# Models',
+        '',
+        'The registered models of `skcomplex.models`, by field and subfield. The [catalog](catalog.md) lists every',
+        'model by field and by tag.',
+        '',
+    ]
     lines += [
         f'- [{_title(field)}]({field}/index.md): {len(catalog(field=field))} models'
         for field in inventory
@@ -175,8 +216,55 @@ def index_page(inventory: dict[str, Any]) -> str:
     return '\n'.join(lines) + '\n'
 
 
+def _catalog_entry(entry: ModelListing, titles: dict[str, str]) -> str:
+    """Return the line of a model in the catalog: its link, its name, and its description."""
+    return f'- [{titles[entry.name]}]({entry.field}/{entry.name}.md) `{entry.name}`: {entry.description}'
+
+
+def catalog_page(inventory: dict[str, Any], titles: dict[str, str]) -> str:
+    """Return the catalog: every registered model by field and subfield, and again by tag.
+
+    Args:
+        inventory:
+            The inventory by field and subfield.
+
+        titles:
+            The title of every model, by name.
+
+    Returns:
+        page:
+            The Markdown page.
+    """
+    entries = [entry for field in inventory for entry in catalog(field=field)]
+    lines = [
+        '# Catalog',
+        '',
+        f'Every one of the {len(entries)} registered models, by field and by tag. Select one by its name with `create`',
+        'or `run` of `skcomplex.models`, and read what it needs with `describe`. The search box of the site finds a',
+        'model by its name, description, or tag.',
+        '',
+        '```python',
+        'from skcomplex.models import catalog, create, describe, run',
+        '',
+        "names = [entry.name for entry in catalog(field='biology/ecology')]",
+        "entry = describe('lotka_volterra')",
+        "system = create('lotka_volterra')",
+        '```',
+        '',
+        '## By field',
+    ]
+    for field in sorted({entry.field for entry in entries}):
+        listed = sorted((entry for entry in entries if entry.field == field), key=lambda entry: titles[entry.name])
+        lines += ['', f'### {field}', '', *(_catalog_entry(entry, titles) for entry in listed)]
+    lines += ['', '## By tag']
+    for tag in sorted({tag for entry in entries for tag in entry.tags}):
+        tagged = sorted((entry for entry in entries if tag in entry.tags), key=lambda entry: titles[entry.name])
+        lines += ['', f'### {tag}', '', *(_catalog_entry(entry, titles) for entry in tagged)]
+    return '\n'.join(lines) + '\n'
+
+
 def main() -> None:
-    """Write the page of every model, the index of every field, and their navigation, after checking the inventory.
+    """Write the page of every model, the index of every field, the catalog, and the navigation, checking the inventory.
 
     Raises:
         InventoryError:
@@ -193,8 +281,11 @@ def main() -> None:
     examples = _examples()
     nav = mkdocs_gen_files.nav.Nav()
     nav[('Models',)] = 'index.md'
+    nav[('Catalog',)] = 'catalog.md'
     with mkdocs_gen_files.open('models/index.md', 'w') as file:
         file.write(index_page(inventory))
+    with mkdocs_gen_files.open('models/catalog.md', 'w') as file:
+        file.write(catalog_page(inventory, titles))
     for field in inventory:
         entries = sorted(catalog(field=field), key=lambda entry: (entry.field, titles[entry.name]))
         if not entries:
