@@ -6,9 +6,11 @@ from typing import Annotated
 import networkx as nx
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import cos
+from sage.all__sagemath_symbolics import cos, var
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.elements import Element, LatticeElement
+from skcomplex.core.interactions import LocalRuleInteraction
 from skcomplex.core.laws import ExtremalLaw, LocalRuleLaw, SampleLaw
 from skcomplex.core.laws.utils import neighbors
 from skcomplex.core.spaces import (
@@ -33,6 +35,7 @@ from skcomplex.models.physics.criticality import hexagonal_forest_fire
 from skcomplex.models.physics.statistical_mechanics import graph_ising
 from skcomplex.specs import (
     ExtremalRecordSpec,
+    LinearRuleSpec,
     MoveSpec,
     ObjectiveSpec,
     OuterTotalisticSpec,
@@ -594,3 +597,46 @@ def test_graph_lattices_stream_nodes_and_static_edges():
     visual.run(frame)
     kinds = [(type(archetype).__name__, static) for _, archetype, static in recording.entries]
     assert kinds == [('GraphEdges', True), ('GraphNodes', False), ('GraphNodes', False)]
+
+
+class OnOffElement(Element):
+    """Cell with the values 0 and 1."""
+
+    def __init__(self, label, alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0):
+        super().__init__(label)
+        self.alive = alive
+
+
+def test_linear_rule_runs_as_its_law_steps():
+    """Test that a linear rule compiles to a function rule, and that a run agrees with the law of Life and rule 90."""
+    start = np.array([0, 0, 1, 0, 0, 0])
+    cells = LatticeElement('cells', element=OnOffElement, space=LatticeSpace(6), values={'alive': start})
+    rule90 = LocalRuleInteraction(
+        'rule',
+        target='cells',
+        state='alive',
+        rule=LinearRuleSpec((1, 1), 'GF(2)'),
+        neighborhood=LatticeNeighborhood(((-1,), (1,))),
+    )
+    trajectory = (
+        Simulation(System(elements=[cells], interactions=[rule90]), dt=1).check().prepare().run(until=2).trajectory_
+    )
+    values = trajectory.values('cells.alive')
+    assert values[1].astype(int).tolist() == [0, 1, 0, 1, 0, 0]
+    assert values[2].astype(int).tolist() == [1, 0, 0, 0, 1, 0]
+
+
+def test_life_simulation_agrees_with_the_run_of_its_law():
+    """Test that a simulation of Life and the run of its law give the same next configuration."""
+    start = np.zeros(25)
+    start[[1, 7, 10, 11, 12]] = 1
+    rule = OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1})
+    space = LatticeSpace((5, 5))
+    cells = LatticeElement('cells', element=OnOffElement, space=space, values={'alive': start})
+    life = LocalRuleInteraction('life', target='cells', state='alive', rule=rule, neighborhood=MooreNeighborhood())
+    trajectory = (
+        Simulation(System(elements=[cells], interactions=[life]), dt=1).check().prepare().run(until=1).trajectory_
+    )
+    law = LocalRuleLaw(var('alive'), MooreNeighborhood(), rule).check().prepare()
+    image = law.run({'space': space, 'alive': start.astype(int)}).value_
+    np.testing.assert_array_equal(trajectory.values('cells.alive')[-1].astype(int), image)

@@ -13,8 +13,6 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
-from sage.rings.polynomial.laurent_polynomial import LaurentPolynomial
-from sage.structure.element import Matrix
 from shapely import Polygon
 
 from ..specs import (
@@ -27,8 +25,8 @@ from ..specs import (
     RandomSearchSpec,
     StableMatchingSpec,
 )
-from ..types import Array, Indices, IntArray
-from .spaces import BaseSpace, LatticeNeighborhood, MemoryNeighborhood
+from ..types import Array
+from .spaces import LatticeNeighborhood, MemoryNeighborhood
 
 type Target = Expression | FreeModuleElement
 type Process = str | tuple[str, ...] | Expression | FreeModuleElement | None
@@ -49,67 +47,6 @@ type NamespaceFunction = Callable[[SimpleNamespace], Target]
 type PairPotential = Callable[[SimpleNamespace, Expression], Expression]
 type Combination = Callable[[SimpleNamespace, Target], Target]
 type AgentCombination = Callable[[AgentViewProtocol, ModelViewProtocol, Array | None, int | None], npt.ArrayLike]
-
-
-@runtime_checkable
-class AutomatonProtocol(Protocol):
-    """Cellular automaton the analysis reads by its methods, such as `Automaton` of the automata models."""
-
-    space: BaseSpace
-    neighborhood: LatticeNeighborhood | MemoryNeighborhood
-    rule: object
-    states: int
-
-    def __init__(
-        self,
-        space: BaseSpace,
-        neighborhood: LatticeNeighborhood | MemoryNeighborhood,
-        rule: object,
-        states: int,
-    ) -> None:
-        """Store the space, the neighbourhood, the rule, and the number of states."""
-
-    @property
-    def reads(self) -> LatticeNeighborhood | MemoryNeighborhood:
-        """Neighbourhood the rule reads."""
-
-    @property
-    def size(self) -> int:
-        """Number of sites."""
-
-    def table(self) -> Indices:
-        """Return the site of every cell the rule reads at every site."""
-
-    def local_map(self) -> IntArray:
-        """Return the next value of every pattern of the cells the rule reads."""
-
-    def step(self, configuration: npt.ArrayLike) -> IntArray:
-        """Return the image of a configuration."""
-
-    def run(self, configuration: npt.ArrayLike, steps: int) -> IntArray:
-        """Return the configurations of a number of steps."""
-
-
-@runtime_checkable
-class LinearAutomatonProtocol(Protocol):
-    """Linear cellular automaton the analysis reads by its matrix and its Laurent polynomial."""
-
-    def matrix(self) -> Matrix:
-        """Return the Sage matrix of the automaton on its space."""
-
-    def laurent_polynomial(self) -> LaurentPolynomial:
-        """Return the Sage Laurent polynomial of the automaton on `Z^d`."""
-
-
-@runtime_checkable
-class SubshiftProtocol(Protocol):
-    """Subshift of finite type the analysis reads by its count of admissible configurations and its violations."""
-
-    def count(self, space: BaseSpace) -> int:
-        """Return the number of admissible configurations of a space."""
-
-    def violations(self, configuration: npt.ArrayLike, space: BaseSpace) -> npt.NDArray[np.bool_]:
-        """Return the sites at which a forbidden pattern appears."""
 
 
 @runtime_checkable

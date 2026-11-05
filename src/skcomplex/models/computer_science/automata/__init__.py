@@ -1,10 +1,10 @@
-"""Automata: elementary, life-like, noisy, and group automata, turmites, linear automata, and subshifts."""
+"""Automata: elementary, life-like, noisy, and group automata, turmites, a linear ring, and the golden mean shift."""
 
 from ._automata import AntCellElement, elementary_automaton, game_of_life, langtons_ant
-from ._automaton import Automaton
 from ._binary_cell import BinaryCellElement
 from ._codes import Wolfram, life
 from ._diffusion_cell import DiffusionCellElement
+from ._golden_cell import GoldenCellElement
 from ._group_automata import (
     LaplacianCellElement,
     baumslag_solitar_automaton,
@@ -16,22 +16,18 @@ from ._group_automata import (
     subshifts,
 )
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter
-from ._linear_automaton import LinearAutomaton
 from ._noisy_elementary_cell import NoisyElementaryCellElement
 from ._pascal_cell import PascalCellElement
-from ._subshift import Subshift
 from ._variants import diffusion_automaton, highlife, noisy_automata, unbounded_alphabet_automaton
 
 __all__: list[str] = [
     'AntCellElement',
-    'Automaton',
     'BinaryCellElement',
     'DiffusionCellElement',
+    'GoldenCellElement',
     'LaplacianCellElement',
-    'LinearAutomaton',
     'NoisyElementaryCellElement',
     'PascalCellElement',
-    'Subshift',
     'Wolfram',
     'baumslag_solitar',
     'baumslag_solitar_automaton',
