@@ -24,6 +24,9 @@ one to an element without the state it reads raises a bare `AttributeError: ... 
 - The model catalog in the documentation gains a browsable index by field and tag, and each model page shows how to select
   it and which components it is built from.
 - A guide section walks through choosing compatible components, from the time and space to the solver.
+- Move the general machinery the guide teaches out of the models and into the core and engine, so a custom model needs no
+  field module: rewriting systems, and automata, which become laws and specs rather than a new concept.
+- The guide names nothing from a field module, in code or in prose, and leaves `register_model` to the contributing guide.
 
 ## Capabilities
 
@@ -36,6 +39,7 @@ one to an element without the state it reads raises a bare `AttributeError: ... 
 - `system-validation`: interactions declare what their roles need, validation reports a mismatch, and the generated table
   covers elements and interactions.
 - `model-catalog`: the documentation offers a browsable catalog, with how to select each model and what it is built from.
+- The specs that name these classes follow their move, with the same results.
 
 ## Impact
 

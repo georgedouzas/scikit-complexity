@@ -29,6 +29,11 @@ Examples in the README and the user guide SHALL build custom models from `skcomp
 - **WHEN** a Python block of the README or the user guide imports from `skcomplex.models.<field>`
 - **THEN** the documentation test fails and names the file and the line
 
+#### Scenario: A field module in the prose
+
+- **WHEN** the prose of the README or the user guide names `skcomplex.models.<field>`
+- **THEN** the documentation test fails and names the file and the line
+
 #### Scenario: A custom model from the core alone
 
 - **WHEN** a reader runs the first custom model of the README in a fresh interpreter

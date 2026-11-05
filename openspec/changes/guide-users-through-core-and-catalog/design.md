@@ -77,6 +77,34 @@ static client-side filtering only if the site's search does not already serve it
 selecting it with `create` and `describe`, and the list of element and interaction classes its system uses, read from the
 system the page already builds.
 
+### Everything is an element, an interaction, or a law
+
+Fourteen imports of the guide had no core form, because they are the subject of their sections. By decision of the user they
+move to the core, and no new concept or package appears.
+
+- `WordElement` and `PatchElement` go to `core.elements`, and `ProductionLaw` and `SubstitutionLaw` to `core.laws`. Their specs go
+  to `skcomplex.specs`, and `RewritingError` to `skcomplex.errors`. The compiler, the solver, the problem, and the kernels go to
+  the matching packages of `engine`, and `GeometryVisual` to `engine.viz`. A spec names the visual, so the core imports no engine.
+- `Automaton` duplicates `LocalRuleLaw`, as its docstring says. A cellular automaton is a `System` with a
+  `LocalRuleInteraction`, one step is the `run` of its law, and `AutomatonAnalysis` prepares on the system. The class goes away.
+- `LinearAutomaton` is a local rule of a linear form, so it becomes a rule spec of `LocalRuleLaw`, beside `TableSpec`. Its matrix
+  and Laurent polynomial move to the analysis.
+- `Subshift` says which configurations a state may take, so it becomes a domain spec of a state. Admissibility, counting, and
+  sampling move to the analysis as kinds.
+- Named groups such as `grigorchuk_group` are realizations and stay in the models. The guide uses the general `libgap` form, or
+  selects a model by name.
+- Field-specific elements of these packages, such as `KochElement`, and their factories, stay in the models.
+
+Reference values are recorded before each move, so a moved class keeps its results. If the rework of `Automaton` cannot keep them,
+or `Subshift` does not fit a domain, the change pauses for a decision rather than adding a class.
+
+### Names in the guide
+
+By decision of the user the guide names nothing from a field module, in code or prose, so a test also reads the prose for
+`skcomplex.models.<field>`. A section on a class that stays in a model, such as `EarlyWarningAnalysis`, either moves that class if
+it is general, which is reported first, or leaves the guide. `register_model` moves to the contributing guide, so the guide's four
+names are all a reader meets.
+
 ## Risks / Trade-offs
 
 - [The guide is 7422 lines, and other changes are editing it] → This change applies after the open changes, and rewrites the

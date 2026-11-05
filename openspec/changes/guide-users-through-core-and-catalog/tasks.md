@@ -25,6 +25,16 @@
 - [ ] 4.4 Replace the imports from field modules in the guide, section by section: a small `Element` from the core where a model's part was only a convenience, and `create` by name where a section documents a family; verify the test of 4.1 passes and all guide blocks pass.
 - [ ] 4.5 Review the 31 gallery examples that import from field modules; keep those whose subject is a model's own analysis or parts, and list them in the review; verify the gallery coverage check and the sample build.
 
-## 5. Gate
+## 5. Move general classes to the core
 
-- [ ] 5.1 Run formatting, checks, the docs build, and tests through CI and the full suite on Linux; verify all pass.
+- [ ] 5.1 Record reference values of the rewriting systems and of the automata, the analysis kinds included, as literal test values; verify they pass on the current code.
+- [ ] 5.2 Move the rewriting elements, laws, specs, error, compiler, solver, problem, kernels, and visual to the matching packages, with no new package; verify their reference values, the import contracts, and that the core imports no engine.
+- [ ] 5.3 Replace `Automaton` with a `System` and `LocalRuleInteraction`, with one step through the `run` of `LocalRuleLaw`, and prepare `AutomatonAnalysis` on the system; verify the reference values.
+- [ ] 5.4 Make `LinearAutomaton` a rule spec of `LocalRuleLaw`, with its matrix and polynomial in the analysis; verify the reference values.
+- [ ] 5.5 Make `Subshift` a domain spec of a state, with admissibility, counting, and sampling as analysis kinds; verify the reference values.
+- [ ] 5.6 Update the models, tests, gallery examples, and inventory that use these classes; verify the catalog tests of the two fields and the gallery coverage check.
+- [ ] 5.7 Rewrite the guide's sections on rewriting and automata from the core, remove every name of a field module from the prose, move `register_model` to the contributing guide, and extend the test of 4.1 to the prose; verify the test passes with no exception and the guide's blocks pass.
+
+## 6. Gate
+
+- [ ] 6.1 Run formatting, checks, the docs build, and tests through CI and the full suite on Linux; verify all pass.
