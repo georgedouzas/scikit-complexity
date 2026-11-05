@@ -67,7 +67,8 @@ class CrossingLaw(BaseLaw):
         """Return the states the crossing resets."""
         return tuple(self.reset or {})
 
-    def _get_requirements(self) -> RequirementSpec:
+    @classmethod
+    def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: continuous time."""
         return RequirementSpec(time=(ContinuousTime,))
 

@@ -54,7 +54,8 @@ class TransitionLaw(BaseLaw):
         """Return the state the transition steps."""
         return (self.target,)
 
-    def _get_requirements(self) -> RequirementSpec:
+    @classmethod
+    def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: discrete time."""
         return RequirementSpec(time=(DiscreteTime,))
 

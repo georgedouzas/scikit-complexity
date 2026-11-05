@@ -72,7 +72,8 @@ class MatchLaw(BaseLaw):
         """Return no states, since a pairing stores pairs for the rules of the step."""
         return ()
 
-    def _get_requirements(self) -> RequirementSpec:
+    @classmethod
+    def _get_requirements(cls) -> RequirementSpec:
         """Return what the pairing requires of a system: discrete time."""
         return RequirementSpec(time=(DiscreteTime,))
 

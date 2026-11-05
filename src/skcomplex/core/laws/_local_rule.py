@@ -81,7 +81,8 @@ class LocalRuleLaw(BaseLaw):
         """Return the lattice states the rule updates."""
         return self.targets if isinstance(self.targets, tuple) else (self.targets,)
 
-    def _get_requirements(self) -> RequirementSpec:
+    @classmethod
+    def _get_requirements(cls) -> RequirementSpec:
         """Return what the rule requires of a system: discrete time on a lattice, a network, or a Cayley graph."""
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace, CayleySpace))
 

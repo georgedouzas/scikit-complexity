@@ -110,7 +110,8 @@ class TransferLaw(BaseLaw):
         """Return the states the transfer moves the quantity between, without the environment."""
         return tuple(holder for holder in (self.source, self.sink) if isinstance(holder, Expression))
 
-    def _get_requirements(self) -> RequirementSpec:
+    @classmethod
+    def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: nothing, since it holds in any time."""
         return RequirementSpec()
 

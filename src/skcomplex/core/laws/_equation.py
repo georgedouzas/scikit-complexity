@@ -62,7 +62,8 @@ class EquationLaw(BaseLaw):
         """Return no states, since the compiler finds the states whose derivatives the equation solves for."""
         return ()
 
-    def _get_requirements(self) -> RequirementSpec:
+    @classmethod
+    def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: continuous or static time."""
         return RequirementSpec(time=(ContinuousTime, StaticTime))
 

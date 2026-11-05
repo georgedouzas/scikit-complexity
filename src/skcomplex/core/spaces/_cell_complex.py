@@ -256,12 +256,12 @@ class CellComplexSpace(NetworkSpace):
         """Return the nodes of a cycle of a minimum cycle basis in cyclic order, from the first node in node order."""
         order = {node: number for number, node in enumerate(self.graph.nodes)}
         subgraph = nx.Graph(self.graph).subgraph(nodes)
-        start = min(nodes, key=order.__getitem__)
-        cycle, previous, current = [start], start, min(subgraph.neighbors(start), key=order.__getitem__)
+        start = min(nodes, key=lambda node: order[node])
+        cycle, previous, current = [start], start, min(subgraph.neighbors(start), key=lambda node: order[node])
         while current != start:
             cycle.append(current)
             onward = [node for node in subgraph.neighbors(current) if node != previous]
-            previous, current = current, min(onward, key=order.__getitem__)
+            previous, current = current, min(onward, key=lambda node: order[node])
         return cycle
 
     def _network_faces(self, place: NetworkSpace) -> list[tuple[object, ...]]:
@@ -281,7 +281,7 @@ class CellComplexSpace(NetworkSpace):
         """Return the cliques of a number of nodes, each in node order, in lexicographic order of their nodes."""
         order = {node: number for number, node in enumerate(self.graph.nodes)}
         found = [
-            sorted(clique, key=order.__getitem__)
+            sorted(clique, key=lambda node: order[node])
             for clique in nx.enumerate_all_cliques(nx.Graph(self.graph))
             if len(clique) == size
         ]

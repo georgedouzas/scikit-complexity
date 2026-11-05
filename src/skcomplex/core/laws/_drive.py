@@ -58,10 +58,16 @@ class DriveLaw(BaseLaw):
         """Return the lattice state the drive changes."""
         return (self.target,)
 
-    def _get_requirements(self) -> RequirementSpec:
-        """Return what the drive requires of a system: discrete time on a lattice, or a network without a score."""
-        space = (LatticeSpace,) if getattr(self, 'score', None) is not None else (LatticeSpace, NetworkSpace)
-        return RequirementSpec(time=(DiscreteTime,), space=space)
+    @classmethod
+    def _get_requirements(cls) -> RequirementSpec:
+        """Return what drives require of a system: discrete time on a lattice or a network."""
+        return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
+
+    def _get_law_requirements(self) -> RequirementSpec:
+        """Return what this drive requires of a system: only a lattice with a score."""
+        if self.score is None:
+            return self._get_requirements()
+        return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace,))
 
     def _check(self) -> None:
         """Raise an error for a function that cannot be called."""

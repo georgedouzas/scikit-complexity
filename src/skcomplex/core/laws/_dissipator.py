@@ -46,7 +46,8 @@ class DissipatorLaw(BaseLaw):
         """Return no states, since the dissipator changes the operator state of the whole system."""
         return ()
 
-    def _get_requirements(self) -> RequirementSpec:
+    @classmethod
+    def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: continuous time."""
         return RequirementSpec(time=(ContinuousTime,))
 

@@ -73,7 +73,8 @@ class JumpLaw(BaseLaw):
         """Return the states the jump changes: the states of its increments, or of its reset."""
         return tuple(self.changes or {}) if self.waiting is None else tuple(self.reset or {})
 
-    def _get_requirements(self) -> RequirementSpec:
+    @classmethod
+    def _get_requirements(cls) -> RequirementSpec:
         """Return what the law requires of a system: continuous time."""
         return RequirementSpec(time=(ContinuousTime,))
 

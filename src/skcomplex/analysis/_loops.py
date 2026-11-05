@@ -145,8 +145,8 @@ class _Graph:
             error_msg = f'The printer returned no function of the loop gain {expression}.'
             raise AnalysisError(error_msg)
         values = [
-            (states if is_state else parameters)[:, index]
-            for is_state, index in map(self.readers.__getitem__, arguments)
+            (states if self.readers[argument][0] else parameters)[:, self.readers[argument][1]]
+            for argument in arguments
         ]
         gains = np.asarray(function(times, *values), dtype=np.float64)[0]
         return np.broadcast_to(gains, np.shape(times)).copy()

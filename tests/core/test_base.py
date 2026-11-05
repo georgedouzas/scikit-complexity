@@ -272,3 +272,22 @@ def test_no_class_defines_magic_methods():
             if extra:
                 found[f'{module.__name__}.{cls.__qualname__}'] = sorted(extra)
     assert found == {}, found
+
+
+def test_no_module_calls_a_magic_method():
+    """Test that no module of the library reads a magic method such as `__new__` or `__getitem__` of an object."""
+    allowed = {
+        '__init__',
+        '__name__',
+        '__qualname__',
+        '__doc__',
+        '__module__',
+        '__mro__',
+        '__version__',
+        '__subclasses__',
+    }
+    found = []
+    for path in Path(SOURCE).rglob('*.py'):
+        names = re.findall(r'\.(__[a-z_]+__)\b', path.read_text(encoding='utf-8'))
+        found += [f'{path.name}: {name}' for name in names if name not in allowed]
+    assert found == [], found
