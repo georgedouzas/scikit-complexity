@@ -160,7 +160,7 @@ only the stale screenshots.
    thumbnail must show. Delete the sentence that marks the example as a scaffold.
 4. Create the model by name with `create`, and run it with `Simulation`, choosing `dt`, `until`, the observer's
    `interval`, and a seed so that the run stays within the budget. When the catalog entry registers a solver in its
-   defaults, pass it to `Simulation`, for example `solver=ScipyODE(method='LSODA')` or `solver=RK4(dt=0.01)`, since
+   defaults, pass it to `Simulation`, for example `solver=ScipyODESolver(method='LSODA')` or `solver=RK4Solver(dt=0.01)`, since
    `create` builds only the system.
 5. Choose the primary view. Use `blueprint='default'`, with `primary='<origin>'` to put the
    most telling view first. A custom `rrb.Blueprint` is fine when no default view shows the behaviour, with a comment on why.
@@ -176,7 +176,7 @@ only the stale screenshots.
 
 6. Add one analysis figure computed from `simulation.trajectory_`, with labelled axes, a title, and a sentence in the
    comment above it on the agreement to expect, such as a law, a conserved quantity, or a theoretical curve. Prefer the
-   helpers of `skcomplex.core.analysis`.
+   helpers of `skcomplex.analysis`.
 7. Capture it with `PYTHONPATH=docs python -m gallery_tools run <model>`, and open its `thumbnail.png` in the cache.
 8. Run `ruff check` and `black --check` on the example.
 

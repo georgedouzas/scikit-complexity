@@ -91,5 +91,5 @@ def test_pair_interaction_needs_vector_position():
         elements=[GroupElement('herds', element=PopulationElement, size=3)],
         interactions=[ContactInteraction('contact', first='herds', second='herds')],
     )
-    with pytest.raises(ValidationError, match="vector state 'x'"):
+    with pytest.raises(ValidationError, match="reads the state 'x'"):
         compile_system(system)
