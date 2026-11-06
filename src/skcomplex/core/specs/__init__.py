@@ -76,6 +76,7 @@ from ._radius_spec import RadiusSpec
 from ._random_search_spec import RandomSearchSpec
 from ._read_spec import ReadSpec
 from ._reduction_spec import ReductionSpec
+from ._region_score_spec import RegionScoreSpec
 from ._renewal_record_spec import RenewalRecordSpec
 from ._requirement_spec import RequirementSpec
 from ._role_spec import RoleSpec, Spec
@@ -196,6 +197,7 @@ __all__ = [
     'RandomSearchSpec',
     'ReadSpec',
     'ReductionSpec',
+    'RegionScoreSpec',
     'RenewalRecordSpec',
     'RequirementSpec',
     'RoleSpec',
