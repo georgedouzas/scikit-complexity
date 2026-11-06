@@ -83,6 +83,7 @@ tensor-fields = { description = "Tensor-valued states with declared symmetries",
 variational-mechanics = { description = "Hamiltonian and Lagrangian mechanics with derived equations", change = "add-variational-mechanics" }
 region-layers = { description = "Three-dimensional continuous agent spaces and region layers of polygons", change = "extend-agent-spaces" }
 hypergraphs = { description = "Hypergraph spaces, k-body interactions, regulatory hyperedges, and coupling tensors", change = "add-higher-order-interactions" }
+curved-spacetimes = { description = "Pseudo-Riemannian spaces with symbolic metrics, geodesics, and Einstein equations reduced by symmetry", change = "add-general-relativity" }
 learned-surrogates = { description = "Surrogate systems fitted to trajectories by mode decomposition, sparse regression, or reservoirs" }
 hyperbolic-networks = { description = "Hyperbolic and popularity-similarity networks and their renormalization", change = "add-multiscale-networks" }
 
@@ -210,6 +211,9 @@ n_body = { title = "N-body and solar system", sources = ["Ar 1.1", "Di 8"], prim
 restricted_three_body = { title = "Restricted three-body problem", sources = ["Di 8"], primitives = ["rates", "interactions", "variational-mechanics", "observables"], system = { time = ["continuous"], space = ["none"], components = ["element"], bindings = ["members"], laws = ["rate"], domains = ["real"] }, priority = "example", status = "implemented" }
 sitnikov = { title = "Sitnikov problem", sources = ["Di 8"], primitives = ["rates"], system = { time = ["continuous"], space = ["none"], components = ["element"], bindings = ["members"], laws = ["rate"], domains = ["real"] }, priority = "core", status = "implemented" }
 stormer_problem = { title = "Störmer charge in a dipole field", sources = ["Di 6.4"], primitives = ["rates", "equations"], system = { time = ["continuous"], space = ["none"], components = ["element"], bindings = ["members"], laws = ["rate", "equation"], domains = ["real"] }, priority = "example", status = "implemented" }
+schwarzschild_precession = { title = "Perihelion precession in the Schwarzschild spacetime", sources = ["Sc 5.2.1", "Sa 4", "Schwarzschild 1916", "Carroll 2004"], primitives = ["rates", "curved-spacetimes", "continuous-spaces"], system = { time = ["continuous"], space = ["continuous"], components = ["element"], bindings = ["members"], laws = ["rate"], domains = ["vector"] }, priority = "core", status = "implemented" }
+light_bending = { title = "Bending of light by a mass", sources = ["Sc 5.2.1", "Sa 4", "Einstein 1915", "Dyson, Eddington, and Davidson 1920"], primitives = ["rates", "curved-spacetimes", "continuous-spaces"], system = { time = ["continuous"], space = ["continuous"], components = ["element"], bindings = ["members"], laws = ["rate"], domains = ["vector"] }, priority = "example", status = "implemented" }
+kerr_frame_dragging = { title = "Frame dragging around a spinning mass", sources = ["Sc 5.2.1", "Kerr 1963", "Bardeen, Press, and Teukolsky 1972"], primitives = ["rates", "curved-spacetimes", "continuous-spaces"], system = { time = ["continuous"], space = ["continuous"], components = ["element"], bindings = ["members"], laws = ["rate"], domains = ["vector"] }, priority = "example", status = "implemented" }
 
 [physics.nonlinear_oscillators]
 duffing = { title = "Duffing", sources = ["DP 9.1", "Tr 3.9", "2102.12086 1.2"], primitives = ["rates", "equations"], system = { time = ["continuous"], space = ["none"], components = ["element"], bindings = [], laws = ["rate"], domains = ["real"] }, priority = "example", status = "implemented" }
@@ -360,6 +364,8 @@ cooling_coffee = { title = "Cooling coffee", sources = ["TS 1"], primitives = ["
 
 [physics.cosmology]
 friedmann_expansion = { title = "Friedmann expansion", sources = ["Sa 6"], primitives = ["rates", "equations"], system = { time = ["continuous"], space = ["none"], components = ["element"], bindings = ["members"], laws = ["rate"], domains = ["real"] }, priority = "example", status = "implemented" }
+flrw_cosmology = { title = "FLRW cosmology from the Einstein equations", sources = ["Sc 5.2.1", "Sa 2", "Sa 6", "Friedmann 1922", "Carroll 2004"], primitives = ["rates", "curved-spacetimes"], system = { time = ["continuous"], space = ["none"], components = ["element"], bindings = ["members"], laws = ["rate"], domains = ["real"] }, priority = "core", status = "implemented" }
+oppenheimer_snyder_collapse = { title = "Oppenheimer-Snyder collapse of a dust ball", sources = ["Sc 5.2.1", "Sa 4", "Oppenheimer and Snyder 1939", "Tolman 1934", "Bondi 1947"], primitives = ["rates", "curved-spacetimes", "groups", "lattices", "fields"], system = { time = ["continuous"], space = ["lattice"], components = ["site-group"], bindings = ["members"], laws = ["rate"], domains = ["real"] }, priority = "core", status = "implemented" }
 
 [chemistry.kinetics]
 hodgepodge = { title = "Hodgepodge machine", sources = ["Ch 11"], primitives = ["discrete-states", "groups", "lattices", "local-rules"], system = { time = ["discrete"], space = ["lattice"], components = ["group", "site-group"], bindings = ["members"], laws = ["local-rule"], domains = ["integer"] }, priority = "example", status = "implemented" }

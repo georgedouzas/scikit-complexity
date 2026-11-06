@@ -12,10 +12,12 @@ from ._conservation import ConservationInteraction
 from ._coupling import CouplingInteraction
 from ._crossing import CrossingInteraction
 from ._diffusion import DiffusionInteraction
+from ._einstein import EinsteinInteraction
 from ._encounter import EncounterInteraction
 from ._euler_lagrange import EulerLagrangeInteraction
 from ._evolution import EvolutionInteraction
 from ._feedback import FeedbackInteraction
+from ._geodesic import GeodesicInteraction
 from ._gradient import GradientInteraction
 from ._grouping import GroupingInteraction
 from ._hamiltonian import HamiltonianInteraction
@@ -57,10 +59,12 @@ __all__: list[str] = [
     'CouplingInteraction',
     'CrossingInteraction',
     'DiffusionInteraction',
+    'EinsteinInteraction',
     'EncounterInteraction',
     'EulerLagrangeInteraction',
     'EvolutionInteraction',
     'FeedbackInteraction',
+    'GeodesicInteraction',
     'GradientInteraction',
     'GroupingInteraction',
     'HamiltonianInteraction',
