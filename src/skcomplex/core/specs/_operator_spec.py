@@ -56,6 +56,17 @@ class OperatorSpec(BaseSpec):
     def _as_operator(self, other: object, operation: str) -> 'OperatorSpec':
         """Return an operator, or a scalar as a multiple of the identity.
 
+        Args:
+            other:
+                The operand.
+
+            operation:
+                The name of the operation, for the error message.
+
+        Returns:
+            operator:
+                The operand as an operator.
+
         Raises:
             ValidationError:
                 The operand is neither an operator nor a scalar.
@@ -66,6 +77,17 @@ class OperatorSpec(BaseSpec):
 
     def _scalar(self, other: object, operation: str) -> Expression:
         """Return a scalar as a Sage expression.
+
+        Args:
+            other:
+                The operand.
+
+            operation:
+                The name of the operation, for the error message.
+
+        Returns:
+            coefficient:
+                The operand as a Sage expression.
 
         Raises:
             ValidationError:
