@@ -12,15 +12,15 @@ neighbours inside the ball, so the random start freezes within a few steps into 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'free_group_automaton'
+SYSTEM = 'free_group_automaton'
 
-system = create(MODEL, radius=6, density=0.5, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer]).check().prepare().run(until=20)
+system = create_system(SYSTEM, radius=6, density=0.5, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
+simulation = Simulation(system, observers=[observer]).prepare().run(until=20)
 
 # %%
 # Changes and agreement

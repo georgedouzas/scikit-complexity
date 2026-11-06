@@ -14,15 +14,15 @@ eras, when reciprocating strategies dominate, alternate with eras of exploitatio
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'prisoners_dilemma_tournament'
+SYSTEM = 'prisoners_dilemma_tournament'
 
-system = create(MODEL, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=12)
-simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=3000)
+system = create_system(SYSTEM, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=12)
+simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=3000)
 
 # %%
 # Eras of strategies

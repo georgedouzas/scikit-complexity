@@ -14,16 +14,16 @@ import math
 
 import matplotlib.pyplot as plt
 
-from skcomplex.analysis import SectionAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import SectionAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'duffing'
+SYSTEM = 'duffing'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=16)
-simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare().run(until=200)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=16)
+simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=200)
 
 # %%
 # Stroboscopic section
@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare()
 # attractor, with points in both wells.
 
 section = SectionAnalysis('stroboscopic', period=2 * math.pi / 1.2, n_points=3000, transient=50)
-section.check().prepare(create(MODEL)).run()
+section.prepare(create_system(SYSTEM)).run()
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(section.values_['duffing.x'], section.values_['duffing.x_d1'], ',', color='black', alpha=0.6)
 ax.set_xlabel('x')

@@ -6,15 +6,15 @@ from types import ModuleType
 
 import mkdocs_gen_files
 
-from skcomplex.core import elements, interactions, laws
-from skcomplex.core.elements import BaseElement, GroupElement
-from skcomplex.core.interactions import BaseInteraction
-from skcomplex.core.laws import BaseLaw
-from skcomplex.engine import solvers
-from skcomplex.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.engine.solvers import BaseSolver
-from skcomplex.specs import ParameterSpec, RoleSpec, StateSpec, SupportSpec
-from skcomplex.types import ElementKind
+from skcomplex.core.components import elements, interactions, laws
+from skcomplex.core.components.elements import BaseElement, GroupElement
+from skcomplex.core.components.interactions import BaseInteraction
+from skcomplex.core.components.laws import BaseLaw
+from skcomplex.core.engine import solvers
+from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
+from skcomplex.core.engine.solvers import BaseSolver
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, SupportSpec
+from skcomplex.core.types import ElementKind
 
 BACKENDS = (NumpyBackend, NumbaBackend)
 
@@ -283,8 +283,8 @@ def compatibility_page() -> str:
         'Not every combination of elements, interactions, laws, spaces, time, solvers, and backends is valid. This',
         'page is generated from the declarations that validation reads, so it agrees with what the compilers accept.',
         'Choose in this order: time and space, then elements, then interactions, then the solver. The section',
-        '[Choosing compatible components](user_guide.md#choosing-compatible-components) of the user guide walks',
-        'through one example.',
+        '[Choosing compatible components](user_guide/build_a_custom_system/choosing_compatible_components.md)',
+        'of the user guide walks through one example.',
         '',
         *element_lines(),
         *interaction_lines(),

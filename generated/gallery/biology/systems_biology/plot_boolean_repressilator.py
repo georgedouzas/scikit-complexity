@@ -6,20 +6,20 @@ steps.
 """
 
 # %%
-# The model is created by name from the catalog and started with LacI on. The observer saves every step with the
+# The system is created by name from the catalog and started with LacI on. The observer saves every step with the
 # default blueprint, whose primary view is the time series of LacI, TetR, and cI.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'boolean_repressilator'
+SYSTEM = 'boolean_repressilator'
 
-system = create(MODEL, x=(1, 0, 0))
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=24)
+system = create_system(SYSTEM, x=(1, 0, 0))
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=24)
 
 # %%
 # Delayed repression
@@ -29,7 +29,7 @@ simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().ru
 
 fig, axes = plt.subplots(3, 1, figsize=(8, 5), sharex=True)
 for ax, delay in zip(axes, (0, 1, 2), strict=False):
-    trajectory = Simulation(create(MODEL, x=(1, 0, 0), delay=delay), dt=1).check().prepare().run(until=48).trajectory_
+    trajectory = Simulation(create_system(SYSTEM, x=(1, 0, 0), delay=delay), dt=1).prepare().run(until=48).trajectory_
     for offset, name in enumerate(('LacI', 'TetR', 'cI')):
         ax.step(trajectory.times, trajectory.values(f'{name}.x') + 1.5 * offset, where='post', label=name)
     ax.set_yticks([0.5, 2.0, 3.5], ['LacI', 'TetR', 'cI'])

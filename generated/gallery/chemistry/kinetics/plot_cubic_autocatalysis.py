@@ -6,22 +6,22 @@ Started with enough `B`, the reactor settles in the reacting state, where the re
 """
 
 # %%
-# The model is created by name from the catalog with the feed rate `F = 0.04` and the decay rate `k = 0.05`, for which
+# The system is created by name from the catalog with the feed rate `F = 0.04` and the decay rate `k = 0.05`, for which
 # the washout state and a reacting state are both stable, and starts at `a = b = 0.5`. The default blueprint shows both
 # concentrations in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'cubic_autocatalysis'
+SYSTEM = 'cubic_autocatalysis'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1.0, observers=[observer]).check().prepare().run(until=500)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=500)
 
 # %%
 # Two basins of attraction
@@ -35,7 +35,7 @@ roots = np.roots([F + k, -F, F * (F + k)])
 fig, ax = plt.subplots(figsize=(6, 5))
 for a0 in np.linspace(0.05, 1.0, 6):
     for b0 in np.linspace(0.05, 1.0, 6):
-        run = Simulation(create(MODEL, a=a0, b=b0, F=F, k=k), dt=2.0).check().prepare().run(until=800).trajectory_
+        run = Simulation(create_system(SYSTEM, a=a0, b=b0, F=F, k=k), dt=2.0).prepare().run(until=800).trajectory_
         reacting = run.values('reactor.b')[-1] > 0.1
         ax.plot(
             run.values('reactor.a'),
