@@ -70,6 +70,7 @@ from ._partner_switch_spec import PartnerSwitchSpec
 from ._patch_structure_spec import PatchStructureSpec
 from ._phase_spec import PhaseSpec
 from ._phases_schedule_spec import ACTIVATIONS, DEFAULT_PHASE, PhasesScheduleSpec
+from ._power_series_spec import PowerSeriesSpec
 from ._prototile_spec import PrototileSpec
 from ._queue_spec import QueueSpec
 from ._radius_spec import RadiusSpec
@@ -192,6 +193,7 @@ __all__ = [
     'PatchStructureSpec',
     'PhaseSpec',
     'PhasesScheduleSpec',
+    'PowerSeriesSpec',
     'PrototileSpec',
     'QueueSpec',
     'RadiusSpec',

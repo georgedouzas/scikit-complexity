@@ -312,6 +312,92 @@ move `'copy'`. The state holds integer labels from 0, and the objective is
 The catalog system `cellular_potts` sorts cells of two kinds by differential adhesion on square, triangular, and
 disordered lattices.
 
+## Reads that follow the state, and series in the cells
+
+Use a `StateTranslationNeighborhood` when the cell a rule reads depends on the configuration, such as the map
+`τ(x)(g) = x(g · x(g))` whose alphabet is the group itself. A cell of a `CayleySpace` holds a group element as the
+number of its site, and the rule reads the cells at `g x(g) s` for the words `s` of the neighbourhood. Use a
+`PowerSeriesSpec` as the domain of a state whose values are formal power series, such as the automaton
+`x(n) - t x(n + 1)` over `K[[t]]`:
+
+```python
+from typing import Annotated
+
+import numpy as np
+from sage.all__sagemath_gap import SymmetricGroup
+from sage.all__sagemath_symbolics import ZZ
+
+from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.interactions import LocalRuleInteraction
+from skcomplex.core.components.spaces import (
+    CayleySpace,
+    LatticeNeighborhood,
+    LatticeSpace,
+    StateTranslationNeighborhood,
+)
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.specs import PowerSeriesSpec, StateSpec
+
+RING = PowerSeriesSpec(order=4, field='QQ')
+
+
+class GroupValuedElement(Element):
+    def __init__(self, label, *, value: Annotated[float, StateSpec(domain=ZZ)] = 0):
+        super().__init__(label)
+        self.value = value
+
+
+class SeriesElement(Element):
+    def __init__(self, label, *, value: Annotated[float, StateSpec(domain=RING)] = 0):
+        super().__init__(label)
+        self.value = value
+
+
+group = CayleySpace(SymmetricGroup(3))
+shift = System(
+    elements=[LatticeElement('cells', element=GroupValuedElement, space=group, values={'value': [1, 2, 3, 4, 5, 0]})],
+    interactions=[
+        LocalRuleInteraction(
+            'translation',
+            target='cells',
+            state='value',
+            rule=lambda value: value,
+            neighborhood=StateTranslationNeighborhood(),
+        ),
+    ],
+)
+Simulation(shift).prepare().run(until=1).trajectory_.values('cells.value')[-1].tolist()
+
+start = np.zeros((6, 4))
+start[3, 0] = 1
+series = System(
+    elements=[LatticeElement('cells', element=SeriesElement, space=LatticeSpace(6), values={'value': start})],
+    interactions=[
+        LocalRuleInteraction(
+            'difference',
+            target='cells',
+            state='value',
+            rule=lambda here, right: here - RING.multiply(RING.coefficients_of('t'), right),
+            neighborhood=LatticeNeighborhood(((0,), (1,))),
+        ),
+    ],
+)
+final = Simulation(series).prepare().run(until=3).trajectory_.values('cells.value')[-1]
+RING.series_of(final[2])
+```
+
+- The first state a rule reads holds the group elements. On a finite group every product is a site. On a ball a
+  product outside it, or reached through a site outside it, reads the fill value of the space, as does a value that
+  names no site, so a run truncates a map of unbounded memory on an infinite group to a stated boundary.
+- The products of every pair of sites are tabulated once, so balls of a few thousand sites fit. Translated reads run
+  on the synchronous and random schedules, and refuse colorings and `degree`, which need a fixed table.
+- A state whose domain is a `PowerSeriesSpec` holds `order` coefficients per cell. A function rule receives one row of
+  coefficients per cell for every neighbour and returns rows, and the spec multiplies series by the truncated Cauchy
+  product, reduces coefficients over a prime field `'GF(p)'`, and converts them to Sage's power series ring with
+  `series_of` and `coefficients_of`.
+- Function rules read and set any state of several components this way. Tables and totalistic rules stay scalar.
+
 ## Neighbour sums and colored schedules
 
 The graph example above uses two tools that work on every lattice.

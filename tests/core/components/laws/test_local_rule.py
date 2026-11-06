@@ -18,6 +18,7 @@ from skcomplex.core.components.spaces import (
     LatticeSpace,
     MemoryNeighborhood,
     MooreNeighborhood,
+    StateTranslationNeighborhood,
 )
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import LinearRuleSpec, OuterTotalisticSpec, TableSpec, TotalisticSpec
@@ -181,3 +182,21 @@ def test_run_outer_rule_on_a_memory_set_reads_the_identity_first():
     space = CayleySpace(PermutationGroup([[(1, 2, 3)]]))
     rule = OuterTotalisticSpec({(1, 0): 1, (0, 1): 1})
     assert sorted(_run(rule, MemoryNeighborhood(('a',)), space, [1, 0, 0]).tolist()) == [0, 1, 1]
+
+
+def test_run_translated_memory_reads_the_product_of_a_site_and_its_value():
+    """Test that `x(g · x(g))` reads the product of every site and its value, row by row of configurations."""
+    space = CayleySpace(PermutationGroup([[(1, 2)], [(1, 2, 3)]])).prepare()
+    products = space._translation_table(StateTranslationNeighborhood())[:, :, 0]
+    configurations = np.random.default_rng(0).integers(0, space.size_, (4, space.size_))
+    images = _run(lambda value: value, StateTranslationNeighborhood(), space, configurations)
+    sites = np.arange(space.size_)
+    for configuration, image in zip(configurations, images, strict=True):
+        np.testing.assert_array_equal(image, configuration[products[sites, configuration]])
+
+
+def test_run_translated_memory_reads_the_fill_outside_a_ball_or_for_no_element():
+    """Test that a product outside a ball, or a value that names no site, reads the fill value."""
+    space = CayleySpace(PermutationGroup([[(1, 2, 3, 4, 5, 6)]]), ball=1, fill=-1).prepare()
+    image = _run(lambda value: value, StateTranslationNeighborhood(), space, [1, 1, -1])
+    assert image.tolist() == [1, -1, -1]

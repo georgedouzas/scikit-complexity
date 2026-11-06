@@ -22,7 +22,7 @@ from ....components.laws.utils import COORDINATE_PREFIX, coordinate
 from ....components.spaces import BaseSpace, LatticeSpace, NetworkSpace, PhaseSpace
 from ....components.specs import CensusRecordSpec, NodeSpec
 from ....errors import LabelError, SpaceError, ValidationError
-from ....specs import EntrySpec, TensorSpec, VariableSpec, WienerProcessSpec
+from ....specs import EntrySpec, PowerSeriesSpec, TensorSpec, VariableSpec, WienerProcessSpec
 from ....types import Array, VariableKind
 from ..._utils import components_of, declarations_of, default_of, symbol, vector
 from ...problems import BlockSpec, DeclarationsSpec, ReferenceSpec
@@ -571,8 +571,9 @@ class LayoutPass(BasePass):
 
         Returns:
             shape:
-                `()` for a scalar, `(n_dim,)` for a vector, the number of independent components for a tensor, and the
-                number of real components of a matrix for a matrix group state.
+                `()` for a scalar, `(n_dim,)` for a vector, the number of independent components for a tensor, the
+                number of real components of a matrix for a matrix group state, and the order of a truncated power
+                series state.
 
         Raises:
             SpaceError:
@@ -583,6 +584,8 @@ class LayoutPass(BasePass):
         """
         if declaration.group is not None:
             return (declaration.group.size,)
+        if isinstance(declaration.domain, PowerSeriesSpec):
+            return (declaration.domain.order,)
         if not declaration.vector and declaration.tensor is None:
             return ()
         if space is None:

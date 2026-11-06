@@ -25,6 +25,7 @@ from ._phase import PhaseSpace
 from ._pseudo_riemannian import PseudoRiemannianSpace
 from ._radius import RadiusNeighborhood
 from ._simplex import SimplexSpace
+from ._state_translation import StateTranslationNeighborhood
 from ._static_time import StaticTime
 from ._triangular import TriangularNeighborhood
 from ._von_neumann import VonNeumannNeighborhood
@@ -54,6 +55,7 @@ __all__: list[str] = [
     'PseudoRiemannianSpace',
     'RadiusNeighborhood',
     'SimplexSpace',
+    'StateTranslationNeighborhood',
     'StaticTime',
     'TriangularNeighborhood',
     'VonNeumannNeighborhood',
