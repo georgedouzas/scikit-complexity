@@ -7,7 +7,7 @@ from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.interactions import RateInteraction, RelaxationInteraction
 from skcomplex.core.components.laws.utils import delayed, step
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import EulerSolver
 from skcomplex.core.errors import SolverError
@@ -39,7 +39,7 @@ def test_run_splits_a_frame_into_steps():
 
 def test_run_rejects_a_step_that_is_not_positive():
     """Test that a step that is not positive raises an error."""
-    problem = compile_system(_relaxing_system())
+    problem = PassCompiler().prepare(_relaxing_system()).run().problem_
     stepper = EulerSolver(dt=0.0, random_state=0).prepare(problem)
     with pytest.raises(SolverError, match='must be positive'):
         stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0))

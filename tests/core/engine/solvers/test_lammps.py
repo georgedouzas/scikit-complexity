@@ -15,7 +15,7 @@ from skcomplex.core.components.interactions import PairCouplingInteraction
 from skcomplex.core.components.laws.utils import where
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import RealTimeClock, Simulation
 from skcomplex.core.engine.solvers import BaseSolver, ExternalSolver, LammpsSolver, VelocityVerletSolver
 from skcomplex.core.errors import BackendError, SolverError
@@ -244,7 +244,7 @@ def test_lammps_periodic_box_matches_native():
 
 def test_lammps_walls_confine_atoms_on_their_own():
     """Test that LAMMPS walls keep atoms inside a reflecting box without the framework's boundary step."""
-    problem = compile_system(ideal_gas(500, kT=4.0, size=10.0, random_state=0))
+    problem = PassCompiler().prepare(ideal_gas(500, kT=4.0, size=10.0, random_state=0)).run().problem_
     backend = LammpsSolver(dt=0.01)
     backend.set_params(random_state=np.random.default_rng(0)).prepare(problem)
     state = problem.initial_state
@@ -337,7 +337,7 @@ def test_lammps_solver_is_an_external_solver():
 
 def test_lammps_final_run_closes_the_instance():
     """Test that the last frame of a run closes the LAMMPS instance, which runs again only once refitted."""
-    problem = compile_system(_lennard_jones_gas())
+    problem = PassCompiler().prepare(_lennard_jones_gas()).run().problem_
     simulation = Simulation(problem, solver=LammpsSolver(dt=0.005), dt=0.05).prepare().run(until=0.1)
     assert simulation.stepper_.released_
     with pytest.raises(SolverError, match='closed its LAMMPS instance'):

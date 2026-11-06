@@ -210,14 +210,14 @@ class RewritingCompiler(BaseCompiler):
         Examples:
             >>> from skcomplex.core.components.spaces import DiscreteTime
             >>> from skcomplex.core.components.system import System
-            >>> from skcomplex.core.engine.compile import compile_system
+            >>> from skcomplex.core.engine.compile import RewritingCompiler
             >>> from skcomplex.core.components.laws import ProductionLaw
             >>> from skcomplex.core.components.elements import WordElement
             >>> class AlgaeElement(WordElement):
             ...     def _get_laws(self, namespace):
             ...         return [ProductionLaw('A', 'AB'), ProductionLaw('B', 'A')]
             >>> system = System(elements=[AlgaeElement('algae', axiom='A')], time=DiscreteTime())
-            >>> problem = compile_system(system, compiler=RewritingCompiler())
+            >>> problem = RewritingCompiler().prepare(system).run().problem_
             >>> str(problem.form), problem.states.names
             ('rewriting system', ['algae.A', 'algae.B', 'algae.size'])
         """

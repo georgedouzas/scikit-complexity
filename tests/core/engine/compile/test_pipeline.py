@@ -4,7 +4,7 @@ import pytest
 
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.compile import BasePass, Compilation, PassCompiler, compile_system
+from skcomplex.core.engine.compile import BasePass, Compilation, PassCompiler
 from skcomplex.core.engine.compile.passes._flatten import FlattenPass
 from skcomplex.core.errors import PipelineError
 from skcomplex.systems import create_system
@@ -105,7 +105,7 @@ def test_pass_is_prepared_on_its_compilation_and_runs_on_it():
     assert compilation.nodes
 
 
-def test_compile_system_flattens_the_system_once(monkeypatch):
+def test_compiler_flattens_the_system_once(monkeypatch):
     """Test that validating and compiling a system flattens its tree once."""
     calls = []
     flatten = FlattenPass._flatten_system
@@ -115,5 +115,5 @@ def test_compile_system_flattens_the_system_once(monkeypatch):
         return flatten(*args, **kwargs)
 
     monkeypatch.setattr(FlattenPass, '_flatten_system', staticmethod(counted))
-    compile_system(create_system('lotka_volterra'), backend=NumpyBackend())
+    PassCompiler(backend=NumpyBackend()).prepare(create_system('lotka_volterra')).run()
     assert len(calls) == 1

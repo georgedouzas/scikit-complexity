@@ -11,7 +11,7 @@ from skcomplex.core.components.interactions import DiffusionInteraction, Interac
 from skcomplex.core.components.laws import BaseLaw, LinearProgramLaw, RateLaw
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.specs import LinearObjectiveSpec, RoleSpec, StateSpec
 
 RATE = 2.0
@@ -74,5 +74,5 @@ def _system() -> System:
 
 def test_lower_fields_leaves_a_coefficient_of_a_state_out_of_the_linear_terms():
     """Test that a rate with a coefficient that a state of another element gives is not a constant linear term."""
-    terms = compile_system(_system()).linear
+    terms = PassCompiler().prepare(_system()).run().problem_.linear
     assert [term.chain for term in terms] == [(('laplacian', 0),)]

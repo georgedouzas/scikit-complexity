@@ -15,7 +15,7 @@ from skcomplex.core.components.laws import JumpLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import count, maximum, mean, minimum, total, variance
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import RoleError, ValidationError
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -201,7 +201,7 @@ def _group_of(laws, size=10, values=None):
 
 def _rates(system, backend=NumpyBackend):
     """Return the drift of a system at its initial state."""
-    problem = compile_system(system, backend=backend())
+    problem = PassCompiler(backend=backend()).prepare(system).run().problem_
     return problem.drift(0.0, problem.initial_state, problem.initial_parameters)
 
 
@@ -287,7 +287,7 @@ def test_instantaneous_mean_in_interaction():
         elements=[GroupElement('neurons', element=NeuronElement, size=40, values={'theta': theta})],
         interactions=[MeanPulseInteraction('pulses', neurons='neurons')],
     )
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     expected = (1 + np.cos(theta)) * 1.5 * np.mean(2 / 3 * (1 - np.cos(theta)) ** 2)
     np.testing.assert_allclose(
         problem.drift(0.0, problem.initial_state, problem.initial_parameters),
@@ -308,7 +308,7 @@ def test_maximum_drives_single_element(largest, drive):
         ],
         interactions=[DriveInteraction('drive', inhibitor='inhibitor', oscillators='oscillators')],
     )
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     assert rates[problem.states.entry('inhibitor.z').start] == pytest.approx(3.0 * drive)
 
@@ -361,7 +361,7 @@ def test_weights_of_wrong_shape():
     """Test that weights whose shape does not match the readers and the members are rejected."""
     system, _ = _group_of(lambda s: [RateLaw(s.x, total(s.x, weights=np.ones((3, 4))))], size=3)
     with pytest.raises(ValidationError, match=r'total\(x_units, weights=.*units.*\(3, 4\).*\(3, 3\)'):
-        compile_system(system)
+        PassCompiler().prepare(system).run()
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
@@ -413,7 +413,7 @@ def test_two_groups_in_one_reduction():
         interactions=[PredationInteraction('predation', prey='prey', predators='predators', target='target')],
     )
     with pytest.raises(RoleError, match=r'total\(.*predators and prey.*one reduction per group'):
-        compile_system(system)
+        PassCompiler().prepare(system).run()
 
 
 def test_interaction_reads_second_group_through_reductions():
@@ -457,7 +457,7 @@ def test_kuramoto_through_observables(backend):
         ObservableSpec('X', _cosine, group='oscillators'),
         ObservableSpec('Y', _sine, group='oscillators'),
     ]
-    problem = compile_system(system, backend=backend(), observables=observables)
+    problem = PassCompiler(backend=backend(), observables=observables).prepare(system).run().problem_
     assert problem.form.name == 'ODE'
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     np.testing.assert_allclose(rates, _all_to_all(theta, omega), atol=1e-12)
@@ -470,7 +470,9 @@ def test_callable_observable_in_same_partition():
         interactions=[ReaderInteraction('reader', target='soil', source='spread')],
     )
     with pytest.raises(ValidationError, match=r'spread.*symbolically.*another'):
-        compile_system(system, observables=[ObservableSpec('spread', group='herd', variable='x', reduce=np.ptp)])
+        PassCompiler(observables=[ObservableSpec('spread', group='herd', variable='x', reduce=np.ptp)]).prepare(
+            system,
+        ).run()
 
 
 def test_observable_read_in_its_own_partition():
@@ -525,7 +527,7 @@ def test_synchronous_map(backend):
         lambda s: [UpdateLaw(s.x, (1 - epsilon) * 4 * s.x * (1 - s.x) + epsilon * mean(4 * s.x * (1 - s.x)))],
         values=RNG.uniform(size=10),
     )
-    problem = compile_system(system, backend=backend())
+    problem = PassCompiler(backend=backend()).prepare(system).run().problem_
     updated = problem.update(0.0, problem.initial_state, problem.initial_parameters)
     logistic = 4 * x * (1 - x)
     np.testing.assert_allclose(updated, (1 - epsilon) * logistic + epsilon * logistic.mean(), atol=1e-12)
@@ -543,7 +545,7 @@ def test_propensity_after_event(backend):
         ]
 
     system, _ = _group_of(sis, size=size, values=(RNG.uniform(size=size) < 0.3).astype(float))
-    problem = compile_system(system, backend=backend())
+    problem = PassCompiler(backend=backend()).prepare(system).run().problem_
     state, p = problem.initial_state.copy(), problem.initial_parameters
     for channel in RNG.integers(0, 2 * size, 20):
         infected = state > 0.5
@@ -568,7 +570,7 @@ def test_linear_cost():
     """Test that one Numba drift evaluation grows linearly with the size of a mean-field group."""
     durations = []
     for size in (10_000, 100_000):
-        problem = compile_system(_kuramoto(size)[0], backend=NumbaBackend())
+        problem = PassCompiler(backend=NumbaBackend()).prepare(_kuramoto(size)[0]).run().problem_
         x, p = problem.initial_state, problem.initial_parameters
         problem.drift(0.0, x, p)
         samples = []
@@ -603,7 +605,7 @@ def test_element_set_reduction():
         elements=[UnitElement(f'unit_{index}', x=float(index + 1)) for index in range(3)],
         interactions=[TotalInteraction('total', units=['unit_0', 'unit_1', 'unit_2'])],
     )
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     assert problem.states.names == ['unit_0.x', 'unit_1.x', 'unit_2.x']
     for backend in (NumpyBackend, NumbaBackend):
         np.testing.assert_allclose(_rates(system, backend), [6.0, 6.0, 6.0])
@@ -634,14 +636,14 @@ def _shared(share, values):
     )
 
 
-def test_compile_system_divides_by_count_in_interaction():
+def test_compiler_divides_by_count_in_interaction():
     """Test that an interaction law may divide a member state by the size of its group."""
     system = _shared(lambda s: s.cells.x / count(over=s.cells), np.arange(1.0, 5.0))
     np.testing.assert_allclose(_rates(system), np.arange(1.0, 5.0) / 4, atol=1e-12)
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
-def test_compile_system_divides_by_weighted_total_in_interaction(backend):
+def test_compiler_divides_by_weighted_total_in_interaction(backend):
     """Test that an interaction law may divide a member state by a weighted total."""
     weights, values = RNG.uniform(0.5, 1.5, size=(4, 4)), np.arange(1.0, 5.0)
     system = _shared(lambda s: s.cells.x / total(s.cells.x, weights=weights), values)
@@ -685,4 +687,4 @@ def test_element_set_of_mixed_types():
         interactions=[TotalInteraction('total', units=['a', 'b'])],
     )
     with pytest.raises(RoleError, match=r"'units'.*UnitElement and OtherElement"):
-        compile_system(system)
+        PassCompiler().prepare(system).run()

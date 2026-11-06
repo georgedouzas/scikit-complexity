@@ -25,7 +25,7 @@ from skcomplex.core.components.laws.utils import (
 from skcomplex.core.components.spaces import LatticeSpace, MeshSpace, NetworkSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
@@ -233,28 +233,28 @@ def test_advection_and_divergence():
 
 def test_equations_keep_operators():
     """Test that the equations of a field show its operators, not the stencils they lower to."""
-    problem = compile_system(System(elements=[FieldElement('rod', element=HeatElement, space=LatticeSpace(10))]))
+    system = System(elements=[FieldElement('rod', element=HeatElement, space=LatticeSpace(10))])
+    problem = PassCompiler().prepare(system).run().problem_
     assert str(problem.equations['rod.u[i]']) == 'D_rod*laplacian(u_rod)'
 
 
 def test_operator_outside_field_is_rejected():
     """Test that an operator on a group that is not a field is rejected."""
     with pytest.raises(ValidationError, match='Create the group with `FieldElement`'):
-        compile_system(System(elements=[GroupElement('rod', element=HeatElement, size=5)]))
+        PassCompiler().prepare(System(elements=[GroupElement('rod', element=HeatElement, size=5)])).run()
 
 
 def test_unknown_boundary_is_rejected():
     """Test that an unknown boundary condition names the known ones."""
     rod = FieldElement('rod', element=HeatElement, space=LatticeSpace(10), boundary={'u': 'open'})
     with pytest.raises(ValidationError, match='zero-flux'):
-        compile_system(System(elements=[rod]))
+        PassCompiler().prepare(System(elements=[rod])).run()
 
 
 def test_too_large_step_warns():
     """Test that RK4 with four times the diffusive stability limit warns with the limit before the run."""
-    problem = compile_system(
-        System(elements=[FieldElement('plate', element=HeatElement, space=LatticeSpace((20, 20)))]),
-    )
+    system = System(elements=[FieldElement('plate', element=HeatElement, space=LatticeSpace((20, 20)))])
+    problem = PassCompiler().prepare(system).run().problem_
     assert problem.stable_step == pytest.approx(0.25)
     with pytest.warns(UserWarning, match='stability limit 0.25'):
         Simulation(problem, dt=1.0, solver=RK4Solver(dt=1.0)).prepare().run(until=0)
@@ -402,7 +402,7 @@ def _operator_element(law):
 def _rate(law, space, values, backend=None, **settings):
     """Return the rate of the first state of a field at its initial values, at every site."""
     field = FieldElement('m', element=_operator_element(law), space=space, values=values, **settings)
-    problem = compile_system(System(elements=[field]), backend=backend or NumpyBackend())
+    problem = PassCompiler(backend=backend or NumpyBackend()).prepare(System(elements=[field])).run().problem_
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     return np.ravel(problem.states.read(drift, 'm.u'))
 
@@ -707,7 +707,7 @@ def test_identical_operators_apply_once_per_evaluation(monkeypatch):
         values={'u': np.sin(positions)},
         discretization='spectral',
     )
-    problem = compile_system(System(elements=[field]), backend=NumpyBackend())
+    problem = PassCompiler(backend=NumpyBackend()).prepare(System(elements=[field])).run().problem_
     state, parameters = problem.initial_state, problem.initial_parameters
     transforms.clear()
     first = problem.drift(0.0, state, parameters)

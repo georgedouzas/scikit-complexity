@@ -12,7 +12,7 @@ from skcomplex.core.components.laws.utils import reduction, total
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import RK4Solver, SSPRKSolver
 from skcomplex.core.errors import BackendWarning, ValidationError
@@ -130,7 +130,7 @@ def test_call_options_on_numba_run_in_python(value):
             return [RateLaw(s.n, value)]
 
     with pytest.warns(BackendWarning, match='RateLaw laws in Python'):
-        problem = compile_system(System(elements=[CallElement('a')]), backend=NumbaBackend())
+        problem = PassCompiler(backend=NumbaBackend()).prepare(System(elements=[CallElement('a')])).run().problem_
     assert problem.backends['RateLaw'] == 'python'
 
 

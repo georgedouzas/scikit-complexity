@@ -12,7 +12,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import VelocityVerletSolver
 from skcomplex.core.errors import ConservationError, ValidationError
@@ -191,4 +191,4 @@ def test_velocity_verlet_runs_order_two_position():
 def test_undeclared_change_names_the_state_and_the_quantity():
     """Test that a rate law on a state tagged money raises a conservation error naming both."""
     with pytest.raises(ConservationError, match=r"leaky\.money.*'money'"):
-        compile_system(System(elements=[LeakyElement('leaky')]))
+        PassCompiler().prepare(System(elements=[LeakyElement('leaky')])).run()

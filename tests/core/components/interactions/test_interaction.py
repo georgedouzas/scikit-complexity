@@ -18,7 +18,7 @@ from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import NetworkSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.errors import LabelError, RoleError
@@ -181,7 +181,7 @@ def test_role_binds_to_group_and_applies_to_every_member():
         elements=[GroupElement('herds', element=StockElement, size=3, values={'n': [1.0, 2.0, 3.0]})],
         interactions=[GrowthInteraction('growth', target='herds', r=2.0)],
     )
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     assert drift.tolist() == [2.0, 4.0, 6.0]
 
@@ -206,7 +206,7 @@ def test_single_element_bound_with_group_receives_sum():
         ],
         interactions=[PredationInteraction('hunt', predator='fox', prey='rabbits')],
     )
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     assert drift.tolist() == [-2.0, -4.0, -6.0, 12.0]
     assert problem.has_group_sums
@@ -222,7 +222,7 @@ def test_interaction_reads_two_groups_member_by_member(backend):
         ],
         interactions=[TransferInteraction('flow', source='source', sink='sink')],
     )
-    problem = compile_system(system, backend=backend)
+    problem = PassCompiler(backend=backend).prepare(system).run().problem_
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     assert problem.states.read(drift, 'sink.n').tolist() == [0.0, 1.0, 2.0, 3.0, 4.0]
 
@@ -237,7 +237,7 @@ def test_interaction_reading_groups_of_different_sizes_raises_error():
         interactions=[TransferInteraction('flow', source='source', sink='sink')],
     )
     with pytest.raises(RoleError, match=r'sink of 7 members, source of 5 members'):
-        compile_system(system)
+        PassCompiler().prepare(system).run()
 
 
 def test_correlated_noise():
@@ -262,17 +262,17 @@ def test_interactions_share_processes_of_one_label():
         Simulation(_shocked(market, WienerProcessSpec('market')), random_state=0).prepare().run(until=1).trajectory_
     )
     np.testing.assert_array_equal(trajectory.values('a.n'), trajectory.values('b.n'))
-    assert compile_system(_shocked(market, market)).n_processes == 1
+    assert PassCompiler().prepare(_shocked(market, market)).run().problem_.n_processes == 1
 
 
 def test_processes_of_one_label_must_agree():
     """Test that two different sets of processes with one label, and a path bound to a noise role, are rejected."""
     with pytest.raises(LabelError, match='two different Wiener processes'):
-        compile_system(_shocked(WienerProcessSpec('market'), WienerProcessSpec('market', dimension=2)))
+        PassCompiler().prepare(_shocked(WienerProcessSpec('market'), WienerProcessSpec('market', dimension=2))).run()
     with pytest.raises(LabelError, match='label of another child'):
-        compile_system(_shocked(WienerProcessSpec('a'), WienerProcessSpec('a')))
+        PassCompiler().prepare(_shocked(WienerProcessSpec('a'), WienerProcessSpec('a'))).run()
     with pytest.raises(RoleError, match='takes a WienerProcessSpec'):
-        compile_system(_shocked('market', 'market'))
+        PassCompiler().prepare(_shocked('market', 'market')).run()
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
@@ -286,7 +286,7 @@ def test_edge_states_weigh_neighbourhood_reductions(backend):
         ],
         interactions=[WeightedInteraction('weighted', nodes='nodes', links='links')],
     )
-    problem = compile_system(system, backend=backend)
+    problem = PassCompiler(backend=backend).prepare(system).run().problem_
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     expected = [10.0 * 2, 10.0 * 1 + 100.0 * 3, 100.0 * 2 + 1000.0 * 4, 1000.0 * 3]
     assert np.allclose(problem.states.read(drift, 'nodes.n'), expected, atol=1e-9)

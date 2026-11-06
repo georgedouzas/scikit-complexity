@@ -4,7 +4,7 @@ import pytest
 
 from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.common.metabolism import (
@@ -43,7 +43,7 @@ def test_network_rejects_a_rule_with_another_operator():
     """Test that a rule with an operator other than `and` and `or` raises an error that names the element."""
     element_type = metabolic_network_type('BadRuleElement', {'r': ReactionSpec({'A': 1.0}, rule='a and not b')})
     with pytest.raises(ValidationError, match='gene rule of cell'):
-        compile_system(System(elements=[element_type('cell')], time=StaticTime()))
+        PassCompiler().prepare(System(elements=[element_type('cell')], time=StaticTime())).run()
 
 
 def test_network_keeps_its_reference_values():

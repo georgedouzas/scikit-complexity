@@ -22,7 +22,7 @@ from skcomplex.core.components.laws import NoiseLaw, RateLaw, RuleLaw, SampleLaw
 from skcomplex.core.components.laws.utils import mean, neighbors
 from skcomplex.core.components.spaces import CayleySpace, DiscreteTime, LatticeSpace, MemoryNeighborhood, NetworkSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler, compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.solvers import LammpsSolver, MilsteinSolver, PontryaginSolver, RK4Solver
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
 from skcomplex.core.errors import RoleElementError, ValidationError, ValidationWarning
@@ -334,7 +334,7 @@ def test_invalid_space_among_other_errors_is_reported():
     )
     assert {issue.code for issue in PassCompiler().prepare(system).report_.errors} == {'space-invalid', 'role'}
     with pytest.raises(ValidationError, match='space-invalid'):
-        compile_system(system)
+        PassCompiler().prepare(system).run()
 
 
 def test_validation_keeps_the_planned_compilation():
@@ -545,7 +545,7 @@ def test_observable_among_the_laws_is_rejected():
     assert issue.path == 'tank'
     assert '`_get_laws` of tank must return a list of' in issue.message
     with pytest.raises(ValidationError, match='tank'):
-        compile_system(System(elements=[MixedElement('tank')]))
+        PassCompiler().prepare(System(elements=[MixedElement('tank')])).run()
 
 
 class SpreadInteraction(NeighborInteraction):
@@ -596,8 +596,9 @@ def test_neighbor_interaction_without_neighbours_takes_no_laws_per_edge():
     """Test that an interaction over neighbours of members on no lattice or network binds but has no laws per edge."""
     assert _bindings(SpreadInteraction('spread', nodes='nodes'), None) == []
     nodes = GroupElement('nodes', element=NodeElement, size=4)
+    system = System(elements=[nodes], interactions=[SpreadInteraction('spread', nodes='nodes')])
     with pytest.raises(ValidationError, match='laws per edge'):
-        compile_system(System(elements=[nodes], interactions=[SpreadInteraction('spread', nodes='nodes')]))
+        PassCompiler().prepare(system).run()
 
 
 def test_neighbor_interaction_on_a_missing_layer_is_reported():
@@ -713,7 +714,7 @@ def test_role_element_reports_a_missing_state_no_role_declares():
     assert "'n'" in issues[0].message
     assert 'level' in issues[0].message
     with pytest.raises(RoleElementError, match=r"reads the state 'n'.*\[role-element\]"):
-        compile_system(system)
+        PassCompiler().prepare(system).run()
 
 
 def test_role_element_names_a_variadic_role():

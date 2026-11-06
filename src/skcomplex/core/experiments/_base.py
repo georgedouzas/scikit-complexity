@@ -27,7 +27,7 @@ from ..components.laws import (
 )
 from ..components.system import System
 from ..engine._utils import declared_variables
-from ..engine.compile import compile_system
+from ..engine.compile import PassCompiler
 from ..engine.compile._probe import probe_laws
 from ..engine.problems import BaseProblemSpec
 from ..engine.runtime import Simulation, Trajectory
@@ -239,7 +239,7 @@ class BaseExperiment(BaseConfig[None, None], ABC):
         key = (*key, tuple(map(id, observables or ())))
         if key not in _PROBLEMS:
             built = built if built is not None else source(**arguments)
-            _PROBLEMS[key] = compile_system(built, observables=list(observables or ()))
+            _PROBLEMS[key] = PassCompiler(observables=list(observables or ())).prepare(built).run().problem_
         return _PROBLEMS[key]
 
     @staticmethod

@@ -10,7 +10,7 @@ from skcomplex.core.components.interactions import PairInteraction
 from skcomplex.core.components.laws import BoundaryLaw, RateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -82,7 +82,7 @@ def test_pair_interaction_rejects_other_law_kinds():
         space=ContinuousSpace(n_dim=2),
     )
     with pytest.raises(ValidationError, match='laws other than Rate'):
-        compile_system(system)
+        PassCompiler().prepare(system).run()
 
 
 def test_pair_interaction_needs_vector_position():
@@ -92,4 +92,4 @@ def test_pair_interaction_needs_vector_position():
         interactions=[ContactInteraction('contact', first='herds', second='herds')],
     )
     with pytest.raises(ValidationError, match="reads the state 'x'"):
-        compile_system(system)
+        PassCompiler().prepare(system).run()

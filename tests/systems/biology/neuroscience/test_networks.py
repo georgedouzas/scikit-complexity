@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import FieldElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import laplacian, logistic
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.systems.biology.neuroscience import (
     TermanWangElement,
@@ -88,8 +88,8 @@ def _previous_legion():
 
 def test_legion_rates_equal_the_coupling_written_in_the_element():
     """Test that the rates of the rebuilt coupling equal those of the previous element at many random states."""
-    problem = compile_system(legion())
-    previous = compile_system(_previous_legion())
+    problem = PassCompiler().prepare(legion()).run().problem_
+    previous = PassCompiler().prepare(_previous_legion()).run().problem_
     assert list(problem.states.names) == list(previous.states.names)
     rng = np.random.default_rng(0)
     for _ in range(200):

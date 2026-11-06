@@ -12,7 +12,7 @@ from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import maximum, mean, minimum, total, variance
 from skcomplex.core.components.spaces import NetworkSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import RoleSpec, StateSpec
 
@@ -62,7 +62,7 @@ def _system(reduce: str, values: np.ndarray) -> System:
 def test_reductions_over_the_members_are_written_out_per_hyperedge(reduce):
     """Test that every reduction over the members of a hyperedge equals the reduction of its member values."""
     values = np.array([0.1, 0.9, 0.4, 0.7, 0.6])
-    problem = compile_system(_system(reduce, values))
+    problem = PassCompiler().prepare(_system(reduce, values)).run().problem_
     drift = problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'nodes.x')
     expected = np.zeros(5)
     for hyperedge in HYPEREDGES:
@@ -73,4 +73,4 @@ def test_reductions_over_the_members_are_written_out_per_hyperedge(reduce):
 def test_variance_over_the_members_is_rejected():
     """Test that a reduction kind a hyperedge does not write out raises an error naming the kinds it takes."""
     with pytest.raises(ValidationError, match='total, mean, count, maximum, or minimum'):
-        compile_system(_system('variance', np.zeros(5)))
+        PassCompiler().prepare(_system('variance', np.zeros(5))).run()

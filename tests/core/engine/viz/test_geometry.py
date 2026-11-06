@@ -5,7 +5,7 @@ import rerun.blueprint as rrb
 from skcomplex.core.components.elements import WordElement
 from skcomplex.core.components.laws import ProductionLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import RewritingCompiler, compile_system
+from skcomplex.core.engine.compile import RewritingCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import GeometryVisual, RerunObserver
 from skcomplex.core.specs import GeometrySpec
@@ -21,7 +21,7 @@ class TreeElement(WordElement):
 
 def _views(system):
     """Return the view classes of the geometry visual of the first element of a system."""
-    problem = compile_system(system, compiler=RewritingCompiler())
+    problem = RewritingCompiler().prepare(system).run().problem_
     return [type(view) for view in GeometryVisual(path=problem.elements[0].path).prepare(problem).views_]
 
 

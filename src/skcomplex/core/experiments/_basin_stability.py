@@ -9,7 +9,7 @@ from concurrent.futures import Executor
 
 import numpy as np
 
-from ..engine.compile import compile_system
+from ..engine.compile import PassCompiler
 from ..engine.problems import ProblemSpec
 from ..engine.runtime import Trajectory
 from ..errors import ValidationError
@@ -146,7 +146,7 @@ class BasinStabilityExperiment(BaseExperiment):
         """Return the label of every member of one simulation of the system replicated over the initial states."""
         values = {path: np.asarray([row[path] for row in self.rows_], dtype=float) for path in self.bounds}
         trajectory, system = self._run_replicated(self.source, values, self.until, self.dt, self.random_state)
-        problem = compile_system(system)
+        problem = PassCompiler().prepare(system).run().problem_
         if not isinstance(problem, ProblemSpec):
             error_msg = f'A vectorised basin reads the members of a general problem, not of a {type(problem).__name__}.'
             raise ValidationError(error_msg)

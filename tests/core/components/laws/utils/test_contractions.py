@@ -13,7 +13,7 @@ from skcomplex.core.components.laws import BaseLaw, RateLaw
 from skcomplex.core.components.laws.utils import contraction, contractions_in
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import JaxBackend, NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.errors import ParameterError, ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec
 
@@ -73,7 +73,7 @@ def test_contraction_equals_einsum(backend):
     """Test that a contraction of a random tensor of order 3 over 20 members equals `einsum('ijk,j,k->i', T, x, x)`."""
     rng = np.random.default_rng(0)
     tensor, x = rng.normal(size=(20, 20, 20)), rng.uniform(size=20)
-    problem = compile_system(_cubic(tensor, x), backend=backend())
+    problem = PassCompiler(backend=backend()).prepare(_cubic(tensor, x)).run().problem_
     rate = problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'species.x')
     np.testing.assert_allclose(rate, np.einsum('ijk,j,k->i', tensor, x, x), atol=1e-12)
 
@@ -82,4 +82,4 @@ def test_contraction_equals_einsum(backend):
 def test_contraction_of_a_tensor_on_an_element(backend):
     """Test that a tensor whose role binds a single element reports the issue `parameter-shape`."""
     with pytest.raises(ParameterError, match='parameter-shape'):
-        compile_system(_cubic(np.zeros((1, 1, 1)), np.zeros(3), target='single'), backend=backend())
+        PassCompiler(backend=backend()).prepare(_cubic(np.zeros((1, 1, 1)), np.zeros(3), target='single')).run()

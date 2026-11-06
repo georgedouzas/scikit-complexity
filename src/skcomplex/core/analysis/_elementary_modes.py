@@ -14,7 +14,7 @@ from sage.all__sagemath_polyhedra import Polyhedron
 from sage.rings.rational_field import QQ
 
 from ..components.system import System
-from ..engine.compile import compile_system
+from ..engine.compile import PassCompiler
 from ..engine.problems import LinearProgramKernel, ProblemSpec
 from ..errors import AnalysisError, EnumerationLimitError
 from ..specs import RunStateSpec
@@ -149,7 +149,7 @@ class ElementaryModeAnalysis(BaseAnalysis):
 
     def _system_cone(self, system: System) -> _ConeSpec:
         """Return the cone of the program of a system at its initial values."""
-        problem = compile_system(system)
+        problem = PassCompiler().prepare(system).run().problem_
         if not isinstance(problem, ProblemSpec):
             error_msg = f'The analysis reads a linear program, but the problem is a {type(problem).__name__}.'
             raise AnalysisError(error_msg)

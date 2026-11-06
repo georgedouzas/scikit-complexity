@@ -26,17 +26,16 @@ class EulerMaruyamaSolver(SDESolver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.compile import compile_system
+        >>> from skcomplex.core.engine.compile import PassCompiler
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.economics.finance import AssetElement, GeometricBrownianMotionInteraction
         >>> from skcomplex.core.engine.solvers import EulerMaruyamaSolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> problem = compile_system(
-        ...     System(
-        ...         elements=[AssetElement('stock', price=100)],
-        ...         interactions=[GeometricBrownianMotionInteraction('gbm', target='stock', mu=0.05, sigma=0.2)],
-        ...     ),
+        >>> system = System(
+        ...     elements=[AssetElement('stock', price=100)],
+        ...     interactions=[GeometricBrownianMotionInteraction('gbm', target='stock', mu=0.05, sigma=0.2)],
         ... )
+        >>> problem = PassCompiler().prepare(system).run().problem_
         >>> stepper = EulerMaruyamaSolver(dt=1e-3, random_state=0).prepare(problem)
         >>> bool(stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_[0] > 0)
         True

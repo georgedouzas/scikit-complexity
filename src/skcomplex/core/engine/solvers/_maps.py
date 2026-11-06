@@ -21,17 +21,16 @@ class IterationSolver(Solver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.compile import compile_system
+        >>> from skcomplex.core.engine.compile import PassCompiler
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
         >>> from skcomplex.core.engine.solvers import IterationSolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> problem = compile_system(
-        ...     System(
-        ...         elements=[MarketElement('m', price=1)],
-        ...         interactions=[CobwebInteraction('c', target='m', a=10, b=2, c=1, d=1)],
-        ...     ),
+        >>> system = System(
+        ...     elements=[MarketElement('m', price=1)],
+        ...     interactions=[CobwebInteraction('c', target='m', a=10, b=2, c=1, d=1)],
         ... )
+        >>> problem = PassCompiler().prepare(system).run().problem_
         >>> stepper = IterationSolver(random_state=0).prepare(problem)
         >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_.tolist()
         [4.0]

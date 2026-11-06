@@ -15,7 +15,7 @@ from skcomplex.core.components.laws.utils import count, maximum, mean, total
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler, compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
@@ -115,7 +115,7 @@ def _drift(interaction, backend, values):
         elements=[LatticeElement('nodes', element=NodeElement, space=space, values={'x': values})],
         interactions=[interaction],
     )
-    problem = compile_system(system, backend=backend)
+    problem = PassCompiler(backend=backend).prepare(system).run().problem_
     return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'nodes.x')
 
 
@@ -172,7 +172,7 @@ def test_hyperedge_interaction_of_a_missing_size_is_reported():
     assert 'size 4' in issue.message
     assert 'size 3' in issue.message
     with pytest.raises(ValidationError, match='size 4'):
-        compile_system(system)
+        PassCompiler().prepare(system).run()
 
 
 def test_hyperedge_group_takes_an_update_once_per_hyperedge():
@@ -225,7 +225,7 @@ def test_edge_group_of_a_hyperedge_without_an_edge_is_reported():
     (issue,) = issues
     assert 'no edge between the first two members' in issue.message
     with pytest.raises(ValidationError, match='no edge between'):
-        compile_system(system)
+        PassCompiler().prepare(system).run()
 
 
 def _growing(interaction):
@@ -239,7 +239,7 @@ def _growing(interaction):
 @BACKENDS
 def test_hyperedge_law_reads_the_hyperedges_of_a_growing_network(backend):
     """Test that the drift follows the hyperedges written into the rows of a variable group, without its free rows."""
-    problem = compile_system(_growing(PullInteraction('pull', nodes='nodes')), backend=backend)
+    problem = PassCompiler(backend=backend).prepare(_growing(PullInteraction('pull', nodes='nodes'))).run().problem_
     hyperedges = [[0, 1, 2], [1, 2, 3], [0, 2, 3]]
     parameters = np.array(problem.initial_parameters, dtype=float)
     _, members = problem.parameters.locate('triangles._members')

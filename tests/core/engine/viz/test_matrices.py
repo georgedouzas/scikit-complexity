@@ -5,7 +5,7 @@ import pytest
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import RecorderObserver, Simulation
 from skcomplex.core.engine.viz import MatrixVisual, RerunObserver
 from skcomplex.core.errors import ValidationError
@@ -39,14 +39,16 @@ def test_matrix_visual_logs_the_recurrent_weights(tmp_path):
 
 def test_matrix_visual_rejects_a_variable_that_is_not_a_matrix():
     """Test that a variable without two dimensions raises an error."""
-    problem = compile_system(elman_network(n_bits=30))
+    problem = PassCompiler().prepare(elman_network(n_bits=30)).run().problem_
     with pytest.raises(ValidationError, match='no matrix'):
         MatrixVisual('b', path='net/hidden', recording=rr.RecordingStream('test')).prepare(problem)
 
 
 def test_first_view_of_a_system_that_trains():
     """Test that the first view of a system that trains is the time series of its loss and metrics over epochs."""
-    observer = RerunObserver(blueprint='default').prepare(compile_system(elman_network(n_bits=30)))
+    observer = RerunObserver(blueprint='default').prepare(
+        PassCompiler().prepare(elman_network(n_bits=30)).run().problem_,
+    )
     first = _views(observer.blueprint_)[0]
     assert isinstance(first, rrb.TimeSeriesView)
     assert str(first.origin) == '/reporters/training'
@@ -54,6 +56,8 @@ def test_first_view_of_a_system_that_trains():
 
 def test_default_blueprint_of_a_system_that_trains():
     """Test that the default blueprint holds the loss and one heat map per trained matrix, and no inner state."""
-    observer = RerunObserver(blueprint='default').prepare(compile_system(elman_network(n_bits=30)))
+    observer = RerunObserver(blueprint='default').prepare(
+        PassCompiler().prepare(elman_network(n_bits=30)).run().problem_,
+    )
     origins = [str(view.origin) for view in _views(observer.blueprint_)]
     assert origins == ['/reporters/training', 'net/input/D', 'net/recurrence/A', 'net/readout/W']

@@ -14,7 +14,7 @@ from skcomplex.core.components.laws.utils import neighbors
 from skcomplex.core.components.spaces import AdjacencyNeighborhood, NetworkSpace, VonNeumannNeighborhood
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.errors import SpaceError, ValidationError
 from skcomplex.core.specs import LayerSpec, StateSpec, VisualSpec
 
@@ -189,7 +189,7 @@ def test_reductions_read_the_edges_of_their_layer(backend):
 
     values = np.array([1.0, 10.0, 100.0, 1000.0])
     system = System(elements=[LatticeElement('g', element=LayeredElement, space=space, values={'y': values})])
-    problem = compile_system(system, backend=backend)
+    problem = PassCompiler(backend=backend).prepare(system).run().problem_
     after = problem.update(0.0, problem.initial_state, problem.initial_parameters)
     assert problem.states.read(after, 'g.contacts').tolist() == [10.0, 101.0, 1010.0, 100.0]
     assert problem.states.read(after, 'g.colleagues').tolist() == [1000.0, 100.0, 10.0, 1.0]

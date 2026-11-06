@@ -8,7 +8,7 @@ import pytest
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import FractionalNoiseLaw, NoiseLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import (
     EulerMaruyamaSolver,
@@ -121,7 +121,7 @@ def test_fractional_euler_maruyama_rejects_times_beyond_the_horizon():
 
 def test_euler_maruyama_rejects_fractional_noise():
     """Test that the Euler-Maruyama stepper names the fractional Euler-Maruyama stepper for fractional noise."""
-    problem = compile_system(_walkers(0.7, members=2))
+    problem = PassCompiler().prepare(_walkers(0.7, members=2)).run().problem_
     with pytest.raises(SolverError, match=r'FractionalEulerMaruyamaSolver'):
         EulerMaruyamaSolver(random_state=0).prepare(problem)
 

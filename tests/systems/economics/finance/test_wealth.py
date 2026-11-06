@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.systems import describe
 from skcomplex.systems.economics.finance import (
     bouchaud_mezard_wealth,
@@ -37,14 +37,12 @@ def test_bouchaud_mezard_exchange_conserves_and_equalizes_wealth():
 def test_bouchaud_mezard_exchanges_with_the_mean():
     """Test that the agents exchange with the group mean as with the complete-graph Laplacian, conserving wealth."""
     wealth = np.random.default_rng(0).uniform(0.5, 1.5, 50)
-    mean_field = compile_system(
-        built := bouchaud_mezard_wealth(50, sigma=0.0, wealth=wealth),
-        observables=describe('bouchaud_mezard_wealth').observables_of(built),
-    )
-    complete = compile_system(
-        built := bouchaud_mezard_wealth(50, graph=nx.complete_graph(50), sigma=0.0, wealth=wealth),
-        observables=describe('bouchaud_mezard_wealth').observables_of(built),
-    )
+    built = bouchaud_mezard_wealth(50, sigma=0.0, wealth=wealth)
+    observables = describe('bouchaud_mezard_wealth').observables_of(built)
+    mean_field = PassCompiler(observables=observables).prepare(built).run().problem_
+    built = bouchaud_mezard_wealth(50, graph=nx.complete_graph(50), sigma=0.0, wealth=wealth)
+    observables = describe('bouchaud_mezard_wealth').observables_of(built)
+    complete = PassCompiler(observables=observables).prepare(built).run().problem_
     exchange = mean_field.drift(0.0, mean_field.initial_state, mean_field.initial_parameters)
     np.testing.assert_allclose(
         exchange,

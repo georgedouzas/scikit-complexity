@@ -13,7 +13,7 @@ from skcomplex.core.components.interactions import ConnectionInteraction, Crossi
 from skcomplex.core.components.laws import EquationLaw, NoiseLaw, RateLaw, RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler, compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import AlgebraicStateError, SolverError, ValidationError
 from skcomplex.core.specs import ConnectorSpec, ParameterSpec, StateSpec
@@ -203,7 +203,7 @@ def test_rate_law_reads_the_solution_of_an_algebraic_state():
 def test_rate_law_reads_a_nonlinear_solution_through_a_call():
     """Test that a rate law reads an algebraic state of a nonlinear block, which the run solves at every evaluation."""
     system = System(elements=[WatcherElement('watch', nonlinear=True)])
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     assert problem.has_callables
     trajectory = _run(system, until=1.0, dt=0.5)
     expected = [brentq(lambda y, t=t: y + np.exp(y) - 1 - t, -5, 5, xtol=1e-14) for t in (0.0, 0.5, 1.0)]
@@ -288,7 +288,7 @@ def test_structurally_regular_singular_block_raises_an_error():
             return [EquationLaw(s.x + s.y, 1.0), EquationLaw(2 * s.x + 2 * s.y, 3.0)]
 
     with pytest.raises(ValidationError, match='the system is singular'):
-        compile_system(System(elements=[TwinElement('twin')]))
+        PassCompiler().prepare(System(elements=[TwinElement('twin')])).run()
 
 
 def test_nonlinear_block_without_a_solution_raises_an_error():
@@ -326,13 +326,13 @@ def test_guard_of_a_nonlinear_solution_raises_an_error():
         interactions=[CrossingInteraction('stop', target='watch', guard=lambda s: s.target.y - 3.0)],
     )
     with pytest.raises(ValidationError, match='a nonlinear solve determines these algebraic states'):
-        compile_system(system)
+        PassCompiler().prepare(system).run()
 
 
 def test_rate_law_on_an_algebraic_state_raises_a_named_error():
     """Test that a law that integrates an algebraic state raises an error that names it and its equations."""
     with pytest.raises(AlgebraicStateError, match=r'integrated\.x.*equations of the system determine'):
-        compile_system(System(elements=[IntegratedElement('integrated')]))
+        PassCompiler().prepare(System(elements=[IntegratedElement('integrated')])).run()
 
 
 def test_connector_mismatch_names_both_ports_and_their_connectors():

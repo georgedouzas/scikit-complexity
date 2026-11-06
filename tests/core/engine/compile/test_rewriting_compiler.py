@@ -14,7 +14,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BaseLaw, ProductionLaw, SubstitutionLaw
 from skcomplex.core.components.system import System
 from skcomplex.core.engine._utils import symbol
-from skcomplex.core.engine.compile import RewritingCompiler, compile_system
+from skcomplex.core.engine.compile import RewritingCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import IncompatibleLawsError, RewritingError, ValidationError
 from skcomplex.core.specs import (
@@ -123,7 +123,7 @@ def _run_word(word, until, **settings):
 def test_generations_as_steps():
     """Test that an L-system compiles to the rewriting form and rewrites once per frame."""
     system = _fibonacci()
-    assert compile_system(system, compiler=RewritingCompiler()).form == FormKind.REWRITING
+    assert RewritingCompiler().prepare(system).run().problem_.form == FormKind.REWRITING
     trajectory = Simulation(system, compiler=RewritingCompiler()).prepare().run(until=5).trajectory_
     assert trajectory.times.tolist() == [0, 1, 2, 3, 4, 5]
     assert trajectory.values('word.size').tolist() == [1, 2, 3, 5, 8, 13]
@@ -175,7 +175,7 @@ def test_probabilities_that_do_not_sum_to_one():
         ],
     )
     with pytest.raises(RewritingError, match=r"of 'F' in word 'word' have probabilities that sum to 0\.9"):
-        compile_system(system, compiler=RewritingCompiler())
+        RewritingCompiler().prepare(system).run()
 
 
 def test_context_with_ignored_symbols():
@@ -258,10 +258,10 @@ def test_exponential_growth_stopped():
 @pytest.mark.benchmark
 def test_benchmark_of_a_large_word():
     """Test that one generation of a word of a million symbols takes under 0.1 s."""
-    problem = compile_system(
-        System(elements=[RuledWordElement('koch', axiom='F', alphabet='F+-', rules=[ProductionLaw('F', 'F+F--F+F')])]),
-        compiler=RewritingCompiler(),
+    system = System(
+        elements=[RuledWordElement('koch', axiom='F', alphabet='F+-', rules=[ProductionLaw('F', 'F+F--F+F')])],
     )
+    problem = RewritingCompiler().prepare(system).run().problem_
     compiled = problem.rewriting[0]
     word = WordStructureSpec(tuple(compiled.names), np.zeros(10**6, dtype=np.int64), np.zeros((10**6, 0)), 0)
     start = time.perf_counter()
@@ -272,52 +272,40 @@ def test_benchmark_of_a_large_word():
 
 def test_malformed_systems():
     """Test the errors of unknown symbols, non-symbol predecessor parameters, mixed laws, and wrong targets."""
+    system = System(elements=[RuledWordElement('word', axiom='A', alphabet='A', rules=[ProductionLaw('A', 'AB')])])
     with pytest.raises(RewritingError, match='not in its alphabet'):
-        compile_system(
-            System(elements=[RuledWordElement('word', axiom='A', alphabet='A', rules=[ProductionLaw('A', 'AB')])]),
-            compiler=RewritingCompiler(),
-        )
+        RewritingCompiler().prepare(system).run()
+    system = System(
+        elements=[
+            RuledWordElement(
+                'word',
+                axiom=[ModuleSpec('A', (1.0,))],
+                rules=[ProductionLaw(ModuleSpec('A', (1.0,)), 'A')],
+            ),
+        ],
+    )
     with pytest.raises(RewritingError, match='distinct symbols'):
-        compile_system(
-            System(
-                elements=[
-                    RuledWordElement(
-                        'word',
-                        axiom=[ModuleSpec('A', (1.0,))],
-                        rules=[ProductionLaw(ModuleSpec('A', (1.0,)), 'A')],
-                    ),
-                ],
+        RewritingCompiler().prepare(system).run()
+    system = System(
+        elements=[
+            RuledWordElement(
+                'word',
+                axiom=[ModuleSpec('A', (1.0,))],
+                rules=[ProductionLaw(ModuleSpec('A', (X,)), [ModuleSpec('A', (X * symbol('q'),))])],
             ),
-            compiler=RewritingCompiler(),
-        )
+        ],
+    )
     with pytest.raises(RewritingError, match='neither a parameter'):
-        compile_system(
-            System(
-                elements=[
-                    RuledWordElement(
-                        'word',
-                        axiom=[ModuleSpec('A', (1.0,))],
-                        rules=[ProductionLaw(ModuleSpec('A', (X,)), [ModuleSpec('A', (X * symbol('q'),))])],
-                    ),
-                ],
-            ),
-            compiler=RewritingCompiler(),
-        )
+        RewritingCompiler().prepare(system).run()
+    system = System(elements=[WordElement('word', axiom='A'), PopulationElement('rabbits')])
     with pytest.raises(IncompatibleLawsError, match='takes no part in rewriting'):
-        compile_system(
-            System(elements=[WordElement('word', axiom='A'), PopulationElement('rabbits')]),
-            compiler=RewritingCompiler(),
-        )
+        RewritingCompiler().prepare(system).run()
+    system = System(elements=[WordElement('word', axiom='A')], interactions=[Interaction('rules')])
     with pytest.raises(IncompatibleLawsError, match='takes no part in rewriting'):
-        compile_system(
-            System(elements=[WordElement('word', axiom='A')], interactions=[Interaction('rules')]),
-            compiler=RewritingCompiler(),
-        )
+        RewritingCompiler().prepare(system).run()
+    system = System(elements=[RuledWordElement('word', axiom='A', rules=[SubstitutionLaw('A', [])])])
     with pytest.raises(RewritingError, match='rewritten by ProductionLaws'):
-        compile_system(
-            System(elements=[RuledWordElement('word', axiom='A', rules=[SubstitutionLaw('A', [])])]),
-            compiler=RewritingCompiler(),
-        )
+        RewritingCompiler().prepare(system).run()
 
 
 def test_koch_curve_length():
@@ -526,20 +514,16 @@ def test_unsubstituted_tiles_are_kept_and_named_errors():
     patch = RuledPatchElement('patch', prototiles=[square, dot], rules=[rule])
     trajectory = Simulation(System(elements=[patch]), compiler=RewritingCompiler()).prepare().run(until=2).trajectory_
     assert trajectory.values('patch.dot').tolist() == [0, 1, 2]
+    system = System(
+        elements=[RuledPatchElement('patch', prototiles=[square, dot], rules=[SubstitutionLaw('circle', [])])],
+    )
     with pytest.raises(RewritingError, match='not one of'):
-        compile_system(
-            System(
-                elements=[RuledPatchElement('patch', prototiles=[square, dot], rules=[SubstitutionLaw('circle', [])])],
-            ),
-            compiler=RewritingCompiler(),
-        )
+        RewritingCompiler().prepare(system).run()
+    system = System(elements=[RuledPatchElement('patch', prototiles=[square, dot], rules=[rule, rule])])
     with pytest.raises(RewritingError, match='two substitutions'):
-        compile_system(
-            System(elements=[RuledPatchElement('patch', prototiles=[square, dot], rules=[rule, rule])]),
-            compiler=RewritingCompiler(),
-        )
+        RewritingCompiler().prepare(system).run()
     with pytest.raises(RewritingError, match='at least one prototile'):
-        compile_system(System(elements=[RuledPatchElement('empty')]), compiler=RewritingCompiler())
+        RewritingCompiler().prepare(System(elements=[RuledPatchElement('empty')])).run()
 
 
 def test_rewriting_compiler_reports_a_classical_system():

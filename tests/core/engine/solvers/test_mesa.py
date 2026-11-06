@@ -11,7 +11,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler, compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.compile.passes._agents import AgentsPass
 from skcomplex.core.engine.compile.passes._agents_problem import AGENT_RESERVED_NAMES
 from skcomplex.core.engine.runtime import Simulation
@@ -242,12 +242,11 @@ def test_elements_without_laws_are_passive_agents():
 
 def test_rules_give_agent_form():
     """Test that a system of agent groups with rules compiles to the agent-based form."""
-    problem = compile_system(
-        System(
-            elements=[GroupElement('walkers', element=WalkerElement, size=3)],
-            space=LatticeSpace((5, 5), boundary='fixed'),
-        ),
+    system = System(
+        elements=[GroupElement('walkers', element=WalkerElement, size=3)],
+        space=LatticeSpace((5, 5), boundary='fixed'),
     )
+    problem = PassCompiler().prepare(system).run().problem_
     assert problem.form == FormKind.AGENT
     assert problem.agents[0].states == ('moves',)
 
@@ -260,7 +259,7 @@ def test_rules_mixed_with_rates_raise_error():
         space=LatticeSpace((5, 5), boundary='fixed'),
     )
     with pytest.raises(IncompatibleLawsError, match='RateLaw: herd; RuleLaw: walkers'):
-        compile_system(system)
+        PassCompiler().prepare(system).run()
 
 
 def test_agents_are_born_every_step():
@@ -564,7 +563,7 @@ def test_agent_state_with_reserved_name_raises_error():
             return [RuleLaw(lambda agent, system: None)]
 
     with pytest.raises(LabelError, match='declare the variables alive'):
-        compile_system(System(elements=[GroupElement('movers', element=MoverElement, size=2)]))
+        PassCompiler().prepare(System(elements=[GroupElement('movers', element=MoverElement, size=2)])).run()
 
 
 def test_non_agent_state_may_take_agent_view_name():
@@ -583,7 +582,8 @@ def test_non_agent_state_may_take_agent_view_name():
             super().__init__(label, visual=visual)
             self.alive = alive
 
-    assert compile_system(System(elements=[GroupElement('cells', element=CellElement, size=2)])).states.names == [
+    system = System(elements=[GroupElement('cells', element=CellElement, size=2)])
+    assert PassCompiler().prepare(system).run().problem_.states.names == [
         'cells.alive',
     ]
 
@@ -641,7 +641,7 @@ def test_one_agent_takes_one_entry_values():
 def test_mesa_solver_run_sets_agents_and_snapshot():
     """Test that every run of the Mesa solver sets the alive agents by group and the snapshot of the step."""
     system = System(elements=[GroupElement('breeders', element=BreederElement, size=2, variable=True)])
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     solver = MesaSolver().set_params(random_state=np.random.default_rng(0), until=3.0).prepare(problem)
     assert len(solver.agents_['breeders']) == 2
     solver.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 2.0))

@@ -21,7 +21,7 @@ from skcomplex.core.components.spaces import (
 )
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import RoleError, ValidationError
@@ -323,7 +323,7 @@ def test_edge_laws_read_the_ends_in_the_direction_of_directed_edges(backend):
         ],
         interactions=[WagesInteraction('wages', people='people', jobs='jobs')],
     )
-    problem = compile_system(system, backend=backend)
+    problem = PassCompiler(backend=backend).prepare(system).run().problem_
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     expected = np.zeros(4)
     for (first, second), salary in zip(graph.edges, [1.0, 2.0, 4.0], strict=True):
@@ -376,7 +376,7 @@ def test_weighted_kuramoto_on_edges_matches_the_adjacency_coupling(backend):
         ],
         interactions=[CouplingInteraction('coupling', oscillators='oscillators', links='links')],
     )
-    problem = compile_system(system, backend=backend)
+    problem = PassCompiler(backend=backend).prepare(system).run().problem_
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     drift = problem.states.read(rates, 'oscillators.theta')
     matrix = np.zeros((12, 12))
@@ -401,7 +401,8 @@ def test_edge_jumps_change_the_ends_of_their_edge():
 def test_edge_interactions_run_on_lattice_bonds():
     """Test that an interaction over neighbours on a lattice runs once per bond of neighbouring sites."""
     cells = LatticeElement('cells', element=OscillatorElement, space=LatticeSpace(4), values={'theta': [1.0, 0, 0, 0]})
-    problem = compile_system(System(elements=[cells], interactions=[DiffusionInteraction('diffusion', cells='cells')]))
+    system = System(elements=[cells], interactions=[DiffusionInteraction('diffusion', cells='cells')])
+    problem = PassCompiler().prepare(system).run().problem_
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     assert drift.tolist() == [-2.0, 1.0, 0.0, 1.0]
 
@@ -418,7 +419,7 @@ def test_update_laws_set_the_edge_member_only():
         time=DiscreteTime(),
     )
     with pytest.raises(ValidationError, match='at an end of every edge'):
-        compile_system(system)
+        PassCompiler().prepare(system).run()
 
 
 def test_edge_group_of_another_layer_is_rejected():
@@ -432,7 +433,7 @@ def test_edge_group_of_another_layer_is_rejected():
         interactions=[WagesInteraction('wages', people='people', jobs='jobs', layer='work')],
     )
     with pytest.raises(RoleError, match="layer 'work'"):
-        compile_system(system)
+        PassCompiler().prepare(system).run()
 
 
 class RecoveryInteraction(NeighborInteraction):
@@ -566,7 +567,7 @@ def _sandpile(height, over):
 
 def _drift(system, backend, path):
     """Return the rates of a state at the initial state of a system."""
-    problem = compile_system(system, backend=backend)
+    problem = PassCompiler(backend=backend).prepare(system).run().problem_
     return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), path)
 
 

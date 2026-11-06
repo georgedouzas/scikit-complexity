@@ -15,7 +15,7 @@ from skcomplex.core.components.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime, LatticeSpace, NetworkSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.runtime import RealTimeClock, Simulation
 from skcomplex.core.engine.viz import (
@@ -413,9 +413,8 @@ def test_complex_scalar_logs_real_and_imaginary_series(monkeypatch, tmp_path):
 
 def test_complex_field_has_modulus_and_phase_views():
     """Test that an image visual shows the modulus and the phase of a complex field in two views."""
-    problem = compile_system(
-        System(elements=[FieldElement('medium', element=TurningElement, space=LatticeSpace((4, 4)))]),
-    )
+    system = System(elements=[FieldElement('medium', element=TurningElement, space=LatticeSpace((4, 4)))])
+    problem = PassCompiler().prepare(system).run().problem_
     views = ImageVisual(path=problem.elements[0].path).prepare(problem).views_
     assert [str(view.origin) for view in views] == ['medium/z/modulus', 'medium/z/phase']
 

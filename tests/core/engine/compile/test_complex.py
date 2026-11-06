@@ -13,7 +13,7 @@ from skcomplex.core.components.laws.utils import derivative, laplacian, mod, tot
 from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import (
     CrankNicolsonSolver,
@@ -203,7 +203,7 @@ def _ginzburg_landau(shape=(32, 32), discretization='spectral'):
 
 def test_complex_state_reads_back_its_initial_value():
     """Test that a complex default is stored as a pair of floats and read back as a complex number."""
-    problem = compile_system(System(elements=[PhaseElement('osc', z=1 + 2j)]))
+    problem = PassCompiler().prepare(System(elements=[PhaseElement('osc', z=1 + 2j)])).run().problem_
     assert problem.initial_state.tolist() == [1.0, 2.0]
     assert problem.states.read(problem.initial_state, 'osc.z') == 1 + 2j
 
@@ -211,12 +211,12 @@ def test_complex_state_reads_back_its_initial_value():
 def test_real_state_rejects_complex_value():
     """Test that a complex value of a real state names the state, its domain, and the complex domain."""
     with pytest.raises(ValidationError, match=r'osc\.omega = 1j.*its domain Real Field.*domain=CC'):
-        compile_system(System(elements=[PhaseElement('osc', omega=1j)]))
+        PassCompiler().prepare(System(elements=[PhaseElement('osc', omega=1j)])).run()
 
 
 def test_real_state_accepts_complex_value_with_zero_imaginary_part():
     """Test that a complex value with a zero imaginary part is a real value."""
-    problem = compile_system(System(elements=[PhaseElement('osc', omega=3 + 0j)]))
+    problem = PassCompiler().prepare(System(elements=[PhaseElement('osc', omega=3 + 0j)])).run().problem_
     assert problem.parameters.read(problem.initial_parameters, 'osc.omega') == 3.0
 
 
@@ -297,7 +297,7 @@ def test_complex_value_for_real_state_is_rejected():
             return [RateLaw(s.x, I * s.x)]
 
     with pytest.raises(ValidationError, match=r'RateLaw of a .* real state a\.x.*real_part.*imag_part.*domain=CC'):
-        compile_system(System(elements=[WrongElement('a')]))
+        PassCompiler().prepare(System(elements=[WrongElement('a')])).run()
 
 
 def test_ordering_complex_value_is_rejected():
@@ -318,7 +318,7 @@ def test_ordering_complex_value_is_rejected():
             return [UpdateLaw(s.z, where(s.z > 2, s.z, 2 * s.z))]
 
     with pytest.raises(ValidationError, match=r'UpdateLaw of a .*no order.*abs.*real_part'):
-        compile_system(System(elements=[OrderedElement('a')]))
+        PassCompiler().prepare(System(elements=[OrderedElement('a')])).run()
 
 
 def test_complex_functions_split_into_parts():
@@ -340,7 +340,7 @@ def test_complex_functions_split_into_parts():
         def _get_laws(self, s):
             return [UpdateLaw(s.z, s.z), UpdateLaw(s.w, real_part(s.z) + I * imag_part(conjugate(s.z)) + arg(s.z))]
 
-    problem = compile_system(System(elements=[PartsElement('a')]))
+    problem = PassCompiler().prepare(System(elements=[PartsElement('a')])).run().problem_
     updated = problem.update(0.0, problem.initial_state, problem.initial_parameters)
     assert np.isclose(problem.states.read(updated, 'a.w'), 3 - 4j + np.angle(3 + 4j))
 
@@ -361,7 +361,8 @@ def test_complex_functions_split_into_parts():
             return [UpdateLaw(s.z, s.z), UpdateLaw(s.m, total(exp(I * s.z)))]
 
     values = np.array([0.0, 1.0, 2.0])
-    problem = compile_system(System(elements=[GroupElement('g', element=MeanElement, size=3, values={'z': values})]))
+    system = System(elements=[GroupElement('g', element=MeanElement, size=3, values={'z': values})])
+    problem = PassCompiler().prepare(system).run().problem_
     updated = problem.update(0.0, problem.initial_state, problem.initial_parameters)
     assert np.allclose(problem.states.read(updated, 'g.m'), np.exp(1j * values).sum())
 
@@ -372,7 +373,10 @@ def test_backends_agree_on_complex_map():
     z = rng.uniform(-1, 1, 10_000) + 1j * rng.uniform(-1, 1, 10_000)
     c = rng.uniform(-1, 1, 10_000) + 1j * rng.uniform(-1, 1, 10_000)
     system = System(elements=[GroupElement('points', element=QuadraticElement, size=10_000, values={'z': z, 'c': c})])
-    reference, compiled = compile_system(system, backend=NumpyBackend()), compile_system(system, backend=NumbaBackend())
+    reference, compiled = (
+        PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_,
+        PassCompiler(backend=NumbaBackend()).prepare(system).run().problem_,
+    )
     x, p = reference.initial_state, reference.initial_parameters
     expected, result = reference.update(0.0, x, p), compiled.update(0.0, x, p)
     assert compiled.backend == 'numba'
@@ -485,7 +489,7 @@ def test_mesa_backend_rejects_complex_agent_state():
             return [RuleLaw(lambda agent, system: None)]
 
     with pytest.raises(BackendError, match=r'walkers.*complex state z.*Mesa'):
-        compile_system(System(elements=[GroupElement('walkers', element=WalkerElement, size=3)]))
+        PassCompiler().prepare(System(elements=[GroupElement('walkers', element=WalkerElement, size=3)])).run()
 
 
 def _constant(t, z):
@@ -564,7 +568,7 @@ def test_unsupported_complex_laws_are_rejected(law, message):
 
     bad = BadElement
     with pytest.raises(ValidationError, match=message):
-        compile_system(System(elements=[bad('a')]))
+        PassCompiler().prepare(System(elements=[bad('a')])).run()
 
 
 def test_complex_observable_is_complex():

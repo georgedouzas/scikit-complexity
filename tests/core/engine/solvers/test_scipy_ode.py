@@ -19,7 +19,7 @@ from skcomplex.core.components.laws.utils import delayed, laplacian, mean, step,
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import CrankNicolsonSolver, RK4Solver, ScipyODESolver, _scipy_ode
 from skcomplex.core.errors import SolverError, ValidationError
@@ -37,7 +37,7 @@ def _growth_problem():
         elements=[PopulationElement('a', n=1)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
     )
-    return compile_system(system)
+    return PassCompiler().prepare(system).run().problem_
 
 
 @pytest.mark.parametrize('method', ['RK45', 'DOP853', 'LSODA'])
@@ -69,9 +69,8 @@ class ExplosionInteraction(Interaction):
 
 def test_scipy_ode_failure_raises_error():
     """Test that an integrator failure raises a named error."""
-    problem = compile_system(
-        System(elements=[PopulationElement('a', n=1)], interactions=[ExplosionInteraction('boom', target='a')]),
-    )
+    system = System(elements=[PopulationElement('a', n=1)], interactions=[ExplosionInteraction('boom', target='a')])
+    problem = PassCompiler().prepare(system).run().problem_
     stepper = ScipyODESolver()
     stepper.set_params(random_state=np.random.default_rng(0)).prepare(problem)
     with pytest.raises(SolverError, match='failed'):
@@ -214,7 +213,7 @@ def _decay():
 
 def test_scipy_ode_keeps_integrator_across_frames():
     """Test that 1000 frames of ScipyODE evaluate the drift at most twice as often as one SciPy integration."""
-    problem = compile_system(_decay())
+    problem = PassCompiler().prepare(_decay()).run().problem_
     calls = []
 
     def counted(t, x, p):
@@ -288,7 +287,7 @@ STIFF_SIZE = 4000
 
 def _stiff_fisher_problem():
     """Return Fisher-KPP on 4000 points whose diffusion makes the largest eigenvalue about 1600."""
-    return compile_system(fisher_kpp(STIFF_SIZE, D=1.0, spacing=0.05), backend=NumpyBackend())
+    return PassCompiler(backend=NumpyBackend()).prepare(fisher_kpp(STIFF_SIZE, D=1.0, spacing=0.05)).run().problem_
 
 
 def _counted(problem):
@@ -437,7 +436,7 @@ class UnitRateHutchinsonElement(Element):
 
 def _stiff_fisher(size=SIZE):
     """Return Fisher-KPP whose diffusion makes the largest eigenvalue about 1600."""
-    return compile_system(fisher_kpp(size, D=1.0, spacing=0.05))
+    return PassCompiler().prepare(fisher_kpp(size, D=1.0, spacing=0.05)).run().problem_
 
 
 def _advance(problem, until=1.0, p=None, **options):
@@ -602,7 +601,7 @@ def test_lsoda_without_narrow_band_receives_nothing():
             ),
         ],
     )
-    _, stepper = _advance(compile_system(system), method='LSODA')
+    _, stepper = _advance(PassCompiler().prepare(system).run().problem_, method='LSODA')
     assert stepper.jacobian_options_ == {}
     assert stepper.jacobian_pattern_ is not None
 
@@ -628,9 +627,8 @@ def test_dense_pattern_is_not_passed():
             return [RateLaw(s.x, -s.x + 0.1 * total(s.x))]
 
     MemberElement = MixedElement
-    problem = compile_system(
-        System(elements=[GroupElement('group', element=MemberElement, size=10, values={'x': np.arange(10.0)})]),
-    )
+    system = System(elements=[GroupElement('group', element=MemberElement, size=10, values={'x': np.arange(10.0)})])
+    problem = PassCompiler().prepare(system).run().problem_
     _, stepper = _advance(problem, method='BDF')
     assert stepper.jacobian_options_ == {}
     assert stepper.jacobian_pattern_ is None
@@ -639,7 +637,7 @@ def test_dense_pattern_is_not_passed():
 @pytest.mark.parametrize('jacobian', ['auto', 'exact', 'dense'])
 def test_explicit_methods_ignore_the_option(jacobian):
     """Test that RK45 builds no structure and returns the same trajectory with every option."""
-    problem = compile_system(fisher_kpp(100))
+    problem = PassCompiler().prepare(fisher_kpp(100)).run().problem_
     state, stepper = _advance(problem, method='RK45', jacobian=jacobian)
     reference, _ = _advance(problem, method='RK45')
     assert stepper.jacobian_pattern_ is None
@@ -649,7 +647,7 @@ def test_explicit_methods_ignore_the_option(jacobian):
 
 def test_unknown_option_raises():
     """Test that an unknown Jacobian option or method raises an error that lists the options."""
-    problem = compile_system(fisher_kpp(10))
+    problem = PassCompiler().prepare(fisher_kpp(10)).run().problem_
     with pytest.raises(SolverError, match="'auto', 'exact', 'dense'"):
         ScipyODESolver(jacobian='sparse', random_state=0).prepare(problem)
     with pytest.raises(SolverError, match='BDF'):
@@ -676,7 +674,8 @@ def test_exact_option_with_callable_law_raises_on_initialize():
             """Return the laws of the decay element."""
             return [RateLaw(s.u, _callable_rate)]
 
-    problem = compile_system(System(elements=[FieldElement('line', element=DecayElement, space=LatticeSpace(10))]))
+    system = System(elements=[FieldElement('line', element=DecayElement, space=LatticeSpace(10))])
+    problem = PassCompiler().prepare(system).run().problem_
     with pytest.raises(ValidationError, match="jacobian='auto'"):
         ScipyODESolver(method='BDF', jacobian='exact', random_state=0).prepare(problem)
 

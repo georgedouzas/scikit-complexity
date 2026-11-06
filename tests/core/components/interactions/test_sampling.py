@@ -19,7 +19,7 @@ from skcomplex.core.components.spaces import (
     VonNeumannNeighborhood,
 )
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -299,7 +299,7 @@ def test_colored_schedule_on_an_odd_lattice_updates_links_that_share_no_face():
         schedule='colored',
     )
     space, system = _link_system((15, 8), sampling, {})
-    classes = compile_system(system).lattice[0].classes
+    classes = PassCompiler().prepare(system).run().problem_.lattice[0].classes
     assert sorted(np.concatenate(classes).tolist()) == list(range(240))
     faces = abs(space.incidences_[1]).tocsr()
     for links in classes:
@@ -318,7 +318,7 @@ def test_sampling_of_links_rejects_a_cluster_move():
     )
     _, system = _link_system((4, 4), sampling, {})
     with pytest.raises(ValidationError, match='cluster moves'):
-        compile_system(system)
+        PassCompiler().prepare(system).run()
 
 
 def test_sampling_of_links_reads_only_the_moved_state_around_a_face():
@@ -333,7 +333,7 @@ def test_sampling_of_links_reads_only_the_moved_state_around_a_face():
     )
     _, system = _link_system((4, 4), sampling, {})
     with pytest.raises(ValidationError, match='only the moved state'):
-        compile_system(system)
+        PassCompiler().prepare(system).run()
 
 
 def test_sampling_of_links_only_sums_over_cofaces():
@@ -352,4 +352,4 @@ def test_sampling_of_links_only_sums_over_cofaces():
     )
     _, system = _link_system((4, 4), sampling, {})
     with pytest.raises(ValidationError, match='only sums'):
-        compile_system(system)
+        PassCompiler().prepare(system).run()

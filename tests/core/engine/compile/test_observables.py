@@ -13,7 +13,7 @@ from skcomplex.core.components.laws.utils import inverse_helmholtz, total
 from skcomplex.core.components.spaces import LatticeSpace, StaticTime
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.compile import ObservableEvaluator, PassCompiler, compile_system
+from skcomplex.core.engine.compile import ObservableEvaluator, PassCompiler
 from skcomplex.core.engine.compile.passes._operator_compiler import OperatorCompiler
 from skcomplex.core.errors import RoleError
 from skcomplex.core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
@@ -96,7 +96,7 @@ def test_reductions_agree_with_observables(name):
     ]
     nested = [dataclasses.replace(observable, label=f'system/{observable.label}') for observable in observables]
     system = System(elements=probes, systems=[observed], interactions=readers)
-    problem = compile_system(system, backend=NumpyBackend(), observables=nested)
+    problem = PassCompiler(backend=NumpyBackend(), observables=nested).prepare(system).run().problem_
     reading = next((item.problem for item in problem.partitions if 'probe_0' in item.owners), problem)
     x, p = problem.initial_state, problem.initial_parameters
     rates = reading.drift(0.0, x, p)
@@ -117,7 +117,7 @@ def test_laws_read_an_observable_of_time():
     ]
     reader = ReadInteraction('read', probe='probe', source='system/energy')
     system = System(elements=[ObservedValueElement('probe')], systems=[observed], interactions=[reader])
-    problem = compile_system(system, backend=NumpyBackend(), observables=observables)
+    problem = PassCompiler(backend=NumpyBackend(), observables=observables).prepare(system).run().problem_
     reading = next((item.problem for item in problem.partitions if 'probe' in item.owners), problem)
     x, p = problem.initial_state, problem.initial_parameters
     rates = reading.drift(1.0, x, p)
@@ -130,11 +130,11 @@ def test_function_observable_reads_the_names_of_its_own_system():
     """Test that a function observable of a nested system reads its values by their names within that system."""
     system = create_system('lattice_gauge_fields', size=4)
     observables = describe('lattice_gauge_fields').observables_of(system)
-    alone = compile_system(system, backend=NumpyBackend(), observables=observables)
+    alone = PassCompiler(backend=NumpyBackend(), observables=observables).prepare(system).run().problem_
     expected = ObservableEvaluator(alone).prepare().evaluate(0.0, alone.initial_state, alone.initial_parameters)
     system.label = 'system'
     nested = [dataclasses.replace(item, label=f'system/{item.label}') for item in observables]
-    problem = compile_system(System(systems=[system]), backend=NumpyBackend(), observables=nested)
+    problem = PassCompiler(backend=NumpyBackend(), observables=nested).prepare(System(systems=[system])).run().problem_
     recorded = ObservableEvaluator(problem).prepare().evaluate(0.0, problem.initial_state, problem.initial_parameters)
     assert recorded['system/mean_plaquette'] == pytest.approx(expected['mean_plaquette'])
 
@@ -252,7 +252,7 @@ def test_observable_evaluator_lowers_field_operators():
     space = LatticeSpace(8, boundary='fixed')
     field = FieldElement('field', element=SiteElement, space=space, values={'u': values}, boundary={'u': ('fixed', 0)})
     observable = ObservableSpec('psi', _field_streamfunction, group='field', reduce=_field_values)
-    problem = compile_system(System(elements=[field]), observables=[observable])
+    problem = PassCompiler(observables=[observable]).prepare(System(elements=[field])).run().problem_
     evaluator = ObservableEvaluator(problem).prepare()
     psi = evaluator.evaluate(0.0, problem.initial_state, problem.initial_parameters)['psi']
     stencil = np.diff(np.concatenate([[0.0], psi, [0.0]]), 2)

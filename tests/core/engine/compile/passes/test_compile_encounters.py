@@ -13,7 +13,7 @@ from skcomplex.core.components.laws import BilinearLaw, EncounterLaw
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime, LatticeSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler, compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
@@ -127,7 +127,7 @@ def test_conservative_encounters_keep_the_density():
 
 def test_encounter_rates_follow_gain_and_loss():
     """Test that the drift of an encounter is the gain minus the loss of Bellomo's equations."""
-    problem = compile_system(_wealth_system(), backend=NumpyBackend())
+    problem = PassCompiler(backend=NumpyBackend()).prepare(_wealth_system()).run().problem_
     f = _profile()
     table = _exchange_table(CLASSES)
     expected = np.einsum('hki,h,k->i', table, f, f) - f * f.sum()
@@ -138,8 +138,8 @@ def test_encounter_rates_follow_gain_and_loss():
 
 def test_numba_backend_fuses_the_gain():
     """Test that the Numba backend runs the gain in a fused loop that agrees with NumPy."""
-    numpy_problem = compile_system(_wealth_system(), backend=NumpyBackend())
-    numba_problem = compile_system(_wealth_system(), backend=NumbaBackend())
+    numpy_problem = PassCompiler(backend=NumpyBackend()).prepare(_wealth_system()).run().problem_
+    numba_problem = PassCompiler(backend=NumbaBackend()).prepare(_wealth_system()).run().problem_
     assert numba_problem.encounters[0].fused
     x, p = numpy_problem.initial_state, numpy_problem.initial_parameters
     np.testing.assert_allclose(numba_problem.drift(0.0, x, p), numpy_problem.drift(0.0, x, p), rtol=1e-12)
@@ -147,7 +147,7 @@ def test_numba_backend_fuses_the_gain():
 
 def test_encounter_rate_reads_its_parameter():
     """Test that a parameter in the encounter rate scales the rates at its current value."""
-    problem = compile_system(_wealth_system(), backend=NumpyBackend())
+    problem = PassCompiler(backend=NumpyBackend()).prepare(_wealth_system()).run().problem_
     x, p = problem.initial_state, problem.initial_parameters.copy()
     base = problem.drift(0.0, x, p)
     p[problem.parameters.entry('exchange.eta').start] = 3.0
@@ -185,7 +185,7 @@ def test_parameter_in_transition_table_is_evaluated():
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
-    problem = compile_system(system, backend=NumpyBackend())
+    problem = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     f = _profile()
     expected = np.zeros(CLASSES)
@@ -206,7 +206,7 @@ def test_proliferation_and_destruction_change_the_density():
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
-    problem = compile_system(system, backend=NumpyBackend())
+    problem = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_
     x, p = problem.initial_state, problem.initial_parameters
     rates = problem.drift(0.0, x, p)
     cells = problem.states.entry('cells.f')
@@ -233,7 +233,7 @@ def test_encounter_reads_a_field_on_a_grid_of_another_size():
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
-    problem = compile_system(system, backend=NumpyBackend())
+    problem = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_
     assert problem.encounters[0].test.size == 3
 
 
@@ -246,7 +246,7 @@ def test_invalid_transition_is_reported_before_compilation():
     assert issue.path == 'exchange'
     assert 'candidate activity 2 with field activity 5 sums to 0.9' in issue.message
     with pytest.raises(ValidationError, match='do not sum to one'):
-        compile_system(_wealth_system(table=table))
+        PassCompiler().prepare(_wealth_system(table=table)).run()
 
 
 def test_encounter_in_discrete_time_is_reported():

@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import Element, FieldElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import AxisVisual, RerunObserver
 from skcomplex.core.errors import ValidationError
@@ -59,7 +59,7 @@ def _logged(state, scalar, every):
     """Return what the axes visual of a state logs at the first and second frames of a short run."""
     recording = _Recording()
     system = _film(None)
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     visual = AxisVisual(state, scalar=scalar, every=every, path='film', recording=recording).prepare(problem)
     frames = []
 
@@ -106,7 +106,9 @@ def test_run_logs_arrows_of_a_vector_state():
 def test_prepare_rejects_a_scalar_state():
     """A scalar state has no axes."""
     with pytest.raises(ValidationError, match='no tensor or vector'):
-        AxisVisual('rho', path='film', recording=_Recording()).prepare(compile_system(_film(None)))
+        AxisVisual('rho', path='film', recording=_Recording()).prepare(
+            PassCompiler().prepare(_film(None)).run().problem_,
+        )
 
 
 def test_check_rejects_a_spacing_that_is_not_positive():

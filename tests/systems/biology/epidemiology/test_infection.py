@@ -4,7 +4,7 @@ import numpy as np
 
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.types import FormKind
 from skcomplex.systems.biology.epidemiology import InfectionInteraction, RecoveryInteraction
@@ -19,7 +19,7 @@ def test_epidemic_stochastic_mode_is_jump_process():
             RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.1, stochastic=True),
         ],
     )
-    assert compile_system(system).form == FormKind.JUMP
+    assert PassCompiler().prepare(system).run().problem_.form == FormKind.JUMP
     states = Simulation(system, dt=1.0, random_state=3).prepare().run(until=50).trajectory_.states
     assert np.all(states >= 0)
     assert np.all(states == np.round(states))

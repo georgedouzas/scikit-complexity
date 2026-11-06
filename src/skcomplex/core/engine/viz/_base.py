@@ -106,10 +106,10 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
             The Rerun views that show what the visual logs, each with an entity path of the element as origin.
 
     Examples:
-        >>> from skcomplex.core.engine.compile import compile_system
+        >>> from skcomplex.core.engine.compile import PassCompiler
         >>> from skcomplex.core.engine.viz import ScalarsVisual
         >>> from skcomplex.systems import create_system
-        >>> problem = compile_system(create_system('lotka_volterra'))
+        >>> problem = PassCompiler().prepare(create_system('lotka_volterra')).run().problem_
         >>> visual = ScalarsVisual(path='prey').prepare(problem)
         >>> visual.element_.path, str(visual.views_[0].origin)
         ('prey', 'prey')

@@ -27,7 +27,7 @@ from skcomplex.core.components.laws.utils import (
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace, MeshSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.compile._field_lowering import FieldLowering
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import IMEXEulerSolver, ScipyODESolver
@@ -103,7 +103,7 @@ def test_jacobian_against_finite_differences(laws):
             ),
         ],
     )
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     x, p = problem.initial_state, problem.initial_parameters
     exact = problem.jacobian.prepare(problem).run(RunStateSpec(0.0, x, p)).values_.toarray()
     estimate = _finite_differences(problem, x, p)
@@ -130,7 +130,7 @@ def _pair_ring(size):
 
 def test_jacobian_of_pair_sums_is_not_derived():
     """Test that the exact Jacobian of a pair interaction raises an error that names the interaction."""
-    problem = compile_system(_pair_ring(10))
+    problem = PassCompiler().prepare(_pair_ring(10)).run().problem_
     with pytest.raises(ValidationError, match=r'coupling.*finite differences'):
         problem.jacobian.prepare(problem).run(RunStateSpec(0.0, problem.initial_state, problem.initial_parameters))
 
@@ -156,7 +156,8 @@ def test_pattern_is_omitted_above_the_limit():
             return [RateLaw(s.x, total(s.x))]
 
     MemberElement = WideElement
-    problem = compile_system(System(elements=[GroupElement('group', element=MemberElement, size=3000)]))
+    system = System(elements=[GroupElement('group', element=MemberElement, size=3000)])
+    problem = PassCompiler().prepare(system).run().problem_
     assert problem.jacobian.pattern() is None
 
 
@@ -204,7 +205,7 @@ def _fisher_line(size, boundary):
 @pytest.mark.parametrize(('boundary', 'entries'), [('zero-flux', 2998), ('periodic', 3000)])
 def test_stencil_pattern(boundary, entries):
     """Test that the three-point Laplacian gives a tridiagonal pattern, closed into a ring by periodic edges."""
-    pattern = compile_system(_fisher_line(1000, boundary)).jacobian.pattern()
+    pattern = PassCompiler().prepare(_fisher_line(1000, boundary)).run().problem_.jacobian.pattern()
     assert pattern.nnz == entries
     rows, columns = pattern.nonzero()
     assert set(np.abs(rows - columns)) <= ({0, 1, 999} if boundary == 'periodic' else {0, 1})
@@ -212,7 +213,7 @@ def test_stencil_pattern(boundary, entries):
 
 def test_mesh_pattern():
     """Test that the mesh pattern is the stiffness pattern with the diagonal on free nodes and empty fixed rows."""
-    problem = compile_system(_reactive_mesh())
+    problem = PassCompiler().prepare(_reactive_mesh()).run().problem_
     pattern = problem.jacobian.pattern().toarray()
     grid = skfem.MeshTri.init_lshaped().refined(2)
     stiffness = FieldLowering._mesh_laplacian(MeshSpace(grid.p, grid.t)).toarray() != 0
@@ -226,7 +227,7 @@ def test_mesh_pattern():
 @pytest.mark.parametrize('system', [heat_diffusion((12, 12)), heat_l_shape(2)], ids=['lattice', 'mesh'])
 def test_pattern_agrees_with_split_solver(system):
     """Test that the pattern holds every entry of the sparse linear part of linear lattice and mesh fields."""
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     solver = IMEXEulerSolver().prepare(problem)
     solver._build_operator(problem.initial_parameters)
     operator = solver.sparse_
@@ -241,7 +242,7 @@ def test_pattern_agrees_with_split_solver(system):
 )
 def test_run_time_couplings_are_dense(system, block):
     """Test that pair interactions and spectral operators give the dense block of their group or field."""
-    pattern = compile_system(system).jacobian.pattern().toarray()
+    pattern = PassCompiler().prepare(system).run().problem_.jacobian.pattern().toarray()
     assert pattern[:block, :block].all()
 
 
@@ -256,13 +257,13 @@ def _relative_error(problem, rng):
 
 def test_exact_jacobian_of_gray_scott():
     """Test that the exact Jacobian of Gray-Scott on a 64 by 64 lattice agrees with central finite differences."""
-    problem = compile_system(gray_scott((64, 64)), backend=NumpyBackend())
+    problem = PassCompiler(backend=NumpyBackend()).prepare(gray_scott((64, 64))).run().problem_
     assert _relative_error(problem, np.random.default_rng(0)) < 1e-6
 
 
 def test_exact_jacobian_of_mesh_with_reaction():
     """Test that the exact Jacobian of heat with a reaction on a mesh matches finite differences, fixed rows empty."""
-    problem = compile_system(_reactive_mesh())
+    problem = PassCompiler().prepare(_reactive_mesh()).run().problem_
     assert _relative_error(problem, np.random.default_rng(0)) < 1e-6
     jacobian = (
         problem.jacobian.prepare(problem)
@@ -274,7 +275,7 @@ def test_exact_jacobian_of_mesh_with_reaction():
 
 def test_exact_jacobian_reads_the_parameters_it_receives():
     """Test that the exact Jacobian is evaluated at the parameters of the call."""
-    problem = compile_system(_fisher_line(20, 'zero-flux'))
+    problem = PassCompiler().prepare(_fisher_line(20, 'zero-flux')).run().problem_
     x, p = problem.initial_state, problem.initial_parameters.copy()
     first = problem.jacobian.prepare(problem).run(RunStateSpec(0.0, x, p)).values_.toarray()
     p[problem.parameters.entry('line.D').indices] *= 2
@@ -308,7 +309,8 @@ def test_exact_jacobian_of_callable_law_raises():
             """Return the laws of the decay element."""
             return [RateLaw(s.u, _callable_rate)]
 
-    problem = compile_system(System(elements=[FieldElement('line', element=DecayElement, space=LatticeSpace(10))]))
+    system = System(elements=[FieldElement('line', element=DecayElement, space=LatticeSpace(10))])
+    problem = PassCompiler().prepare(system).run().problem_
     with pytest.raises(ValidationError, match=r"line.*jacobian='auto'"):
         problem.jacobian.prepare(problem)
     assert problem.jacobian.pattern().toarray().all()
@@ -340,12 +342,11 @@ def _nonlocal_line(law, size=40, **settings):
 
 def test_pattern_marks_inversions_dense_and_convolutions_within_their_radius():
     """Test that an inversion couples every site and a convolution of radius two the sites within two spacings."""
-    inverted = compile_system(_nonlocal_line(lambda s: partial(inverse_helmholtz(s.u, 1), 0)), backend=NumpyBackend())
+    system = _nonlocal_line(lambda s: partial(inverse_helmholtz(s.u, 1), 0))
+    inverted = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_
     assert inverted.jacobian.pattern().toarray().all()
-    convolved = compile_system(
-        _nonlocal_line(lambda s: convolve(s.u, 1 + displacement(0) ** 2, 2 / 41)),
-        backend=NumpyBackend(),
-    )
+    system = _nonlocal_line(lambda s: convolve(s.u, 1 + displacement(0) ** 2, 2 / 41))
+    convolved = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_
     rows, columns = convolved.jacobian.pattern().nonzero()
     assert set(np.abs(rows - columns)) == {0, 1, 2}
 

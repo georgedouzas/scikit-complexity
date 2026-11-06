@@ -14,7 +14,7 @@ from skcomplex.core.components.interactions import CouplingInteraction
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -83,7 +83,7 @@ def test_reduction_lowering_weights_of_a_shaped_parameter(backend, reduce):
     """Test that a reduction weighted by a matrix parameter gives every reading member its row times the members."""
     weights = np.random.default_rng(0).normal(size=(4, 2))
     inputs = np.array([1.5, -0.5])
-    problem = compile_system(_weighted(weights, inputs, reduce=reduce), backend=backend())
+    problem = PassCompiler(backend=backend()).prepare(_weighted(weights, inputs, reduce=reduce)).run().problem_
     rate = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     expected = weights @ inputs / (len(inputs) if reduce == 'mean' else 1)
     np.testing.assert_allclose(problem.states.read(rate, 'hidden.x'), expected, atol=1e-12)

@@ -17,7 +17,7 @@ from .....core.components.elements import DeclaredElement
 from .....core.components.laws import LinearProgramLaw
 from .....core.components.spaces import StaticTime
 from .....core.components.system import System
-from .....core.engine.compile import compile_system
+from .....core.engine.compile import PassCompiler
 from .....core.engine.problems import LinearProgramKernel, ProblemSpec
 from .....core.errors import AnalysisError
 from .....core.specs import (
@@ -216,7 +216,7 @@ class CommunityAnalysis(BaseNetworkAnalysis):
         variables = {name: DeclaredVariableSpec(0.0, StateSpec(algebraic=True)) for name in names}
         variables['rate'] = DeclaredVariableSpec(0.0, ParameterSpec())
         element = _SteadyComElement(ELEMENT_LABEL, variables=variables, law=self._community_law)
-        problem = compile_system(System(elements=[element], time=StaticTime()))
+        problem = PassCompiler().prepare(System(elements=[element], time=StaticTime())).run().problem_
         if not isinstance(problem, ProblemSpec):
             error_msg = f'The community compiles to a {type(problem).__name__}, not a linear program.'
             raise AnalysisError(error_msg)

@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import JumpLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import draw, mean, normal
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.core.types import FormKind
@@ -90,26 +90,27 @@ class MeanResetElement(Element):
         return [JumpLaw(waiting=draw('wait', 'expon'), reset={s.x: mean(s.x)})]
 
 
-def test_compile_system_gives_renewal_laws_alone_the_renewal_form():
+def test_compiler_gives_renewal_laws_alone_the_renewal_form():
     """Test that a system of renewal laws alone compiles to the renewal form with a hidden count per member."""
-    problem = compile_system(System(elements=[GroupElement('counters', element=CounterElement, size=3)]))
+    system = System(elements=[GroupElement('counters', element=CounterElement, size=3)])
+    problem = PassCompiler().prepare(system).run().problem_
     assert problem.form == FormKind.RENEWAL
     assert problem.states.names == ['counters.n', 'counters.counters~renewals']
     assert problem.renewals[0].label == 'counters'
     assert problem.renewals[0].members == 3
 
 
-def test_compile_system_partitions_renewals_beside_an_ode():
+def test_compiler_partitions_renewals_beside_an_ode():
     """Test that a renewal subsystem and an ODE subsystem in sibling subsystems compile to a partitioned problem."""
     system = System(
         systems=[System('renewing', elements=[CounterElement('c')]), System('decaying', elements=[DecayElement('d')])],
     )
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     assert problem.form == FormKind.COUPLED
     assert [partition.problem.form for partition in problem.partitions] == [FormKind.RENEWAL, FormKind.ODE]
 
 
-def test_compile_system_keeps_the_form_of_rate_laws_with_renewals():
+def test_compiler_keeps_the_form_of_rate_laws_with_renewals():
     """Test that renewal laws beside rate laws of the same component keep the ordinary differential form."""
 
     class WalkerElement(Element):
@@ -132,21 +133,21 @@ def test_compile_system_keeps_the_form_of_rate_laws_with_renewals():
             return [RateLaw(s.x, s.v), JumpLaw(waiting=draw('wait', 'expon'), reset={s.v: -s.v})]
 
     walker = WalkerElement
-    assert compile_system(System(elements=[walker('w')])).form == FormKind.ODE
+    assert PassCompiler().prepare(System(elements=[walker('w')])).run().problem_.form == FormKind.ODE
 
 
-def test_compile_system_rejects_an_unknown_distribution():
+def test_compiler_rejects_an_unknown_distribution():
     """Test that a draw from an unknown distribution names the law, the distribution, and the closest names."""
     typo = RenewingElement('r', waiting=lambda s: draw('wait', 'paretto', b=1.5))
     with pytest.raises(ValidationError, match=r"RenewalLaw of r draws 'wait' from the distribution 'paretto'.*pareto"):
-        compile_system(System(elements=[typo]))
+        PassCompiler().prepare(System(elements=[typo])).run()
 
 
-def test_compile_system_rejects_unknown_keywords():
+def test_compiler_rejects_unknown_keywords():
     """Test that a draw with a keyword its distribution does not take lists the keywords it takes."""
     wrong = RenewingElement('r', waiting=lambda s: draw('wait', 'pareto', alpha=1.5))
     with pytest.raises(ValidationError, match=r'pareto takes b, loc, scale'):
-        compile_system(System(elements=[wrong]))
+        PassCompiler().prepare(System(elements=[wrong])).run()
 
 
 @pytest.mark.parametrize(
@@ -157,19 +158,19 @@ def test_compile_system_rejects_unknown_keywords():
         lambda s: draw('wait', 'levy_stable', alpha=1.5, beta=0),
     ],
 )
-def test_compile_system_rejects_waiting_times_that_can_be_negative(waiting):
+def test_compiler_rejects_waiting_times_that_can_be_negative(waiting):
     """Test that a waiting time from a distribution with negative values asks for nonnegative support."""
     with pytest.raises(ValidationError, match=r'renewal law r of r draws its waiting time.*nonnegative support'):
-        compile_system(System(elements=[RenewingElement('r', waiting=waiting)]))
+        PassCompiler().prepare(System(elements=[RenewingElement('r', waiting=waiting)])).run()
 
 
-def test_compile_system_rejects_reductions_in_renewal_laws():
+def test_compiler_rejects_reductions_in_renewal_laws():
     """Test that a renewal law that reads a reduction over its group raises an error."""
     with pytest.raises(ValidationError, match=r'reads a reduction over a group'):
-        compile_system(System(elements=[GroupElement('g', element=MeanResetElement, size=3)]))
+        PassCompiler().prepare(System(elements=[GroupElement('g', element=MeanResetElement, size=3)])).run()
 
 
-def test_compile_system_accepts_draws_in_update_laws_from_scipy():
+def test_compiler_accepts_draws_in_update_laws_from_scipy():
     """Test that a SciPy draw in an update law takes one value per member after the uniform and normal draws."""
 
     class JumpingElement(Element):
@@ -190,7 +191,7 @@ def test_compile_system_accepts_draws_in_update_laws_from_scipy():
             return [UpdateLaw(s.x, s.x + draw('jump', 'lomax', c=2.0) + normal('noise'))]
 
     jumping = JumpingElement
-    problem = compile_system(System(elements=[GroupElement('g', element=jumping, size=4)]))
+    problem = PassCompiler().prepare(System(elements=[GroupElement('g', element=jumping, size=4)])).run().problem_
     assert problem.draws is not None
     assert problem.draws.size == 8
     assert problem.draws.sampled[0].rows == 4

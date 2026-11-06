@@ -13,7 +13,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler, compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
@@ -147,7 +147,7 @@ def test_mode_decomposition_system_validates_under_continuous_time():
     decomposition = _fit(trajectory)
     assert PassCompiler().prepare(decomposition.system_).report_.ok
     assert isinstance(decomposition.system_.time, ContinuousTime)
-    assert DEFAULT_SOLVERS[compile_system(decomposition.system_).form] is ScipyODESolver
+    assert DEFAULT_SOLVERS[PassCompiler().prepare(decomposition.system_).run().problem_.form] is ScipyODESolver
     solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
     run = Simulation(decomposition.system_, solver=solver, dt=0.05).prepare().run(until=10.0).trajectory_
     assert np.allclose(run.values('surrogate.y'), trajectory.values('linear.y'), atol=1e-6)
@@ -274,7 +274,7 @@ def test_mode_decomposition_system_with_input_follows_schedule():
 def test_mode_decomposition_bounds_inputs_by_samples():
     """Test that the input of the fitted system is an adaptive parameter bounded by its range in the samples."""
     decomposition = _fit(_driven_runs(), inputs=['driven.u'], variables=['driven.x', 'driven.y'])
-    specification = compile_system(decomposition.system_).adaptive_parameters['surrogate.u']
+    specification = PassCompiler().prepare(decomposition.system_).run().problem_.adaptive_parameters['surrogate.u']
     joined = np.concatenate([run.values('driven.u') for run in _driven_runs()])
     assert specification.adaptive
     assert specification.bounds == (joined.min(), joined.max())

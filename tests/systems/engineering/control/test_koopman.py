@@ -7,7 +7,7 @@ import pytest
 from sklearn.preprocessing import PolynomialFeatures
 
 from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.solvers import CoSimulationSolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.types import FormKind
@@ -68,7 +68,7 @@ def test_koopman_model_predictive_control_is_a_co_simulation():
     controller, plant = system.systems
     assert isinstance(controller.time, DiscreteTime)
     assert isinstance(plant.time, ContinuousTime)
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     assert problem.form == FormKind.COUPLED
     assert [(item.name, item.problem.form) for item in problem.partitions] == [
         ('controller', FormKind.DISCRETE),
@@ -89,7 +89,7 @@ def test_koopman_model_predictive_control_reads_reference_of_time():
 def test_koopman_model_predictive_control_takes_a_dictionary():
     """Test that a dictionary that holds the variables replaces the monomials of degree 3."""
     system = koopman_model_predictive_control(dictionary=PolynomialFeatures(2, include_bias=False), n_runs=4)
-    assert compile_system(system).form == FormKind.COUPLED
+    assert PassCompiler().prepare(system).run().problem_.form == FormKind.COUPLED
 
 
 def test_koopman_model_predictive_control_rejects_unknown_plant():

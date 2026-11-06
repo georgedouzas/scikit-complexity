@@ -19,7 +19,7 @@ from skcomplex.core.components.laws import EquationLaw, RateLaw
 from skcomplex.core.components.laws.utils import log_sum_exp, total
 from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler, compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import SolverError
 from skcomplex.core.specs import IssueSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec
@@ -209,7 +209,7 @@ def test_run_survival_at_dose() -> None:
     """Test that a closed form under static time gives one frame with its value."""
     system = System(elements=[SurvivalElement('a')], time=StaticTime())
     frames = _simulated(system).trajectory_.values('a.S')
-    assert compile_system(system).form == FormKind.STATIC
+    assert PassCompiler().prepare(system).run().problem_.form == FormKind.STATIC
     assert frames.shape == (1,)
     assert abs(frames[0] - np.exp(-0.72)) < 1e-12
 
@@ -225,9 +225,9 @@ def test_run_without_equations() -> None:
     assert trajectory.values('all').tolist() == [10.0]
 
 
-def test_compile_system_exact_linear_solution() -> None:
+def test_compiler_exact_linear_solution() -> None:
     """Test that linear best responses compile to the symbolic solution of Forrest (2018, equation 21.6)."""
-    problem = compile_system(System(elements=[CournotElement('a')], time=StaticTime()))
+    problem = PassCompiler().prepare(System(elements=[CournotElement('a')], time=StaticTime())).run().problem_
     names = ('alpha', 'c_i', 'c_j', 'lambda_i', 'lambda_j')
     alpha, c_i, c_j, lambda_i, lambda_j = (problem.symbols[f'a.{name}'] for name in names)
     expected = (alpha - 2 * c_i / (1 + lambda_i) + c_j / (1 + lambda_j)) / 3
@@ -255,7 +255,7 @@ def test_run_adds_equations_of_one_target() -> None:
 def test_run_numerical_solution() -> None:
     """Test that an equation without an explicit solution solves numerically."""
     system = System(elements=[FixedPointElement('a')], time=StaticTime())
-    assert compile_system(system).unknowns.tolist() == [0]
+    assert PassCompiler().prepare(system).run().problem_.unknowns.tolist() == [0]
     assert abs(_simulated(system).trajectory_.values('a.x')[0] - 0.7390851332151607) < 1e-9
 
 

@@ -4,7 +4,7 @@ import numpy as np
 import scipy.fft
 
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.systems import create_simulation
 from skcomplex.systems.physics.oceanography import double_gyre
 
@@ -35,6 +35,6 @@ def test_double_gyre_inverts_its_vorticity_once_per_rate(monkeypatch):
     solves = []
     transform = scipy.fft.dstn
     monkeypatch.setattr(scipy.fft, 'dstn', lambda *args, **kwargs: solves.append(1) or transform(*args, **kwargs))
-    problem = compile_system(double_gyre(16), backend=NumpyBackend())
+    problem = PassCompiler(backend=NumpyBackend()).prepare(double_gyre(16)).run().problem_
     problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     assert len(solves) == 1

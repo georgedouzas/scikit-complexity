@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import PhaseRingVisual, RerunObserver
@@ -40,7 +40,7 @@ def test_phase_ring_visual_logs_wrapped_phases_against_index():
 
 def test_chimera_ring_shows_phases_first():
     """Test that the default blueprint of the nonlocal ring chimera shows the phases of the ring first."""
-    problem = compile_system(create_system('nonlocal_ring_chimera', n_oscillators=20, R=3))
+    problem = PassCompiler().prepare(create_system('nonlocal_ring_chimera', n_oscillators=20, R=3)).run().problem_
     blueprint = RerunObserver(blueprint='default').prepare(problem).blueprint_
     stack, views = [blueprint.root_container], []
     while stack:

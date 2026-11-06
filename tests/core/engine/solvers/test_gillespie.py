@@ -8,7 +8,7 @@ import pytest
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import GillespieSolver
 from skcomplex.core.specs import StepSpec
@@ -17,12 +17,11 @@ from skcomplex.systems.biology.epidemiology import InfectionInteraction, Recover
 
 def test_gillespie_conserves_individuals():
     """Test that recoveries move individuals without creating or destroying them."""
-    problem = compile_system(
-        System(
-            elements=[CompartmentElement('I', n=50), CompartmentElement('R')],
-            interactions=[RecoveryInteraction('rec', infected='I', recovered='R', gamma=0.5, stochastic=True)],
-        ),
+    system = System(
+        elements=[CompartmentElement('I', n=50), CompartmentElement('R')],
+        interactions=[RecoveryInteraction('rec', infected='I', recovered='R', gamma=0.5, stochastic=True)],
     )
+    problem = PassCompiler().prepare(system).run().problem_
     stepper = GillespieSolver()
     stepper.set_params(random_state=np.random.default_rng(1)).prepare(problem)
     state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_

@@ -24,7 +24,7 @@ from skcomplex.core.components.spaces import (
 )
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import JaxBackend, NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
@@ -145,7 +145,7 @@ def _phases(system, until, backend=None):
 
 def _drift(system, path='oscillators.theta', backend=None):
     """Return the rates of a state at the initial state."""
-    problem = compile_system(system, backend=backend)
+    problem = PassCompiler(backend=backend).prepare(system).run().problem_
     return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), path)
 
 
@@ -286,7 +286,7 @@ def test_run_shaped_weights_that_name_no_parameter():
     """Test that weights naming no parameter of the interaction raise an error."""
     system = _group(np.zeros(3), mode='group', weights='b', include_self=True)
     with pytest.raises(ValidationError, match='name no parameter'):
-        compile_system(system)
+        PassCompiler().prepare(system).run()
 
 
 def _two_groups(theta, phi, **arguments):
@@ -494,7 +494,7 @@ def test_coupling_map_form_aligns_a_vicsek_flock_at_low_noise():
 def test_coupling_over_edges_needs_edges_for_its_rates():
     """Test that a rate per edge over members without edges raises an error."""
     with pytest.raises(ValidationError, match='laws per edge'):
-        compile_system(_group(np.zeros(3)))
+        PassCompiler().prepare(_group(np.zeros(3))).run()
 
 
 @pytest.mark.parametrize(
@@ -686,7 +686,9 @@ def _hyperedge_drift(coupling, theta, backend, space=None):
     """Return the drift of oscillators without natural frequencies coupled over the hyperedges of a network."""
     space = space or NetworkSpace(nx.complete_graph(6), hyperedges=HYPEREDGES)
     oscillators = LatticeElement('oscillators', element=OscillatorElement, space=space, values={'theta': theta})
-    problem = compile_system(System(elements=[oscillators], interactions=[coupling]), backend=backend)
+    problem = (
+        PassCompiler(backend=backend).prepare(System(elements=[oscillators], interactions=[coupling])).run().problem_
+    )
     return problem.states.read(
         problem.drift(0.0, problem.initial_state, problem.initial_parameters),
         'oscillators.theta',

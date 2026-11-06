@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import HamiltonianInteraction, RateInteraction
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import Yoshida4Solver
 from skcomplex.core.errors import SolverError
@@ -86,7 +86,7 @@ def test_prepare_rejects_a_hamiltonian_that_couples_momenta():
     )
     system = System(elements=[PlaneElement('mass')], interactions=[rotating])
     with pytest.raises(SolverError, match=r'rate of mass\.p[xy] reads .*mass\.p[xy].*RK4Solver'):
-        Yoshida4Solver(dt=0.1).prepare(compile_system(system))
+        Yoshida4Solver(dt=0.1).prepare(PassCompiler().prepare(system).run().problem_)
 
 
 def test_prepare_rejects_a_state_that_reads_itself():
@@ -95,4 +95,4 @@ def test_prepare_rejects_a_state_that_reads_itself():
     system = _oscillator()
     system = System(elements=system.elements, interactions=[*system.interactions, damping])
     with pytest.raises(SolverError, match=r'rate of mass\.px reads mass\.px'):
-        Yoshida4Solver(dt=0.1).prepare(compile_system(system))
+        Yoshida4Solver(dt=0.1).prepare(PassCompiler().prepare(system).run().problem_)

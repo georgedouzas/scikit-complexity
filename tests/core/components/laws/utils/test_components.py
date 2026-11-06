@@ -14,7 +14,7 @@ from skcomplex.core.components.laws.utils import both, components, neighborhoods
 from skcomplex.core.components.spaces import NetworkSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
 
@@ -98,7 +98,7 @@ def _drift(graph, weights, occupied, backend, reduce, *, sites=False):
         ],
         interactions=[ComponentsInteraction('components', nodes='nodes', links='links', reduce=reduce, sites=sites)],
     )
-    problem = compile_system(system, backend=backend)
+    problem = PassCompiler(backend=backend).prepare(system).run().problem_
     return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'nodes.a')
 
 

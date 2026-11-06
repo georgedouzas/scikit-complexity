@@ -13,7 +13,7 @@ from skcomplex.core.components.interactions import MovementInteraction
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler, compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import MesaSolver
 from skcomplex.core.errors import BackendError, SimulationError, SpaceError
@@ -180,7 +180,7 @@ def test_trajectory_reports_three_coordinates_per_agent():
 def test_unsupported_continuous_space_is_rejected_before_the_first_frame(space, dimension):
     """Test that a space that is no box of two or three sides raises a named error when the solver prepares."""
     group = GroupElement('probes', element=ProbeElement, size=2)
-    problem = compile_system(System(elements=[group], space=space), solver=MesaSolver())
+    problem = PassCompiler(solver=MesaSolver()).prepare(System(elements=[group], space=space)).run().problem_
     with pytest.raises(BackendError, match=f"continuous space 'space'.*{dimension}.*two or three dimensions"):
         MesaSolver().prepare(problem)
     with pytest.raises(BackendError, match='two or three dimensions'):

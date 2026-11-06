@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import MissingExtraError
 from skcomplex.core.specs import RunStateSpec
@@ -46,7 +46,7 @@ def test_cobra_variability_fixes_growth_at_the_optimum():
 def test_cobra_parity_with_the_core_solve():
     """Test that COBRApy and the core agree on growth and on the parsimonious total flux."""
     system = _core_system(parsimonious=True)
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     solved = problem.programs[0].run(RunStateSpec(0.0, problem.initial_state, problem.initial_parameters)).values_
     reconstruction = to_cobra(system.elements[0])
     assert problem.states.read(solved, 'cell.objective_0') == pytest.approx(reconstruction.slim_optimize(), abs=1e-7)

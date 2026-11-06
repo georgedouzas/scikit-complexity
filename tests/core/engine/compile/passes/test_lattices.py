@@ -24,7 +24,7 @@ from skcomplex.core.components.spaces import (
 )
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.problems._extremal_kernel import ExtremalKernel
 from skcomplex.core.engine.runtime import Simulation
@@ -298,18 +298,18 @@ def test_lattice_groups_on_networks_reject_tables_and_capacities():
             """Return the laws of the ordered element."""
             return [LocalRuleLaw(s.value, AdjacencyNeighborhood(), TableSpec({(1, 1): 1}))]
 
+    system = System(
+        elements=[LatticeElement('nodes', element=OrderedElement, space=NetworkSpace(nx.cycle_graph(4)))],
+    )
     with pytest.raises(ValidationError, match='totalistic'):
-        compile_system(
-            System(elements=[LatticeElement('nodes', element=OrderedElement, space=NetworkSpace(nx.cycle_graph(4)))]),
-        )
+        PassCompiler().prepare(system).run()
+    system = System(
+        elements=[
+            LatticeElement('nodes', element=OrderedElement, space=NetworkSpace(nx.cycle_graph(4), capacity=1)),
+        ],
+    )
     with pytest.raises(ValidationError, match='capacity'):
-        compile_system(
-            System(
-                elements=[
-                    LatticeElement('nodes', element=OrderedElement, space=NetworkSpace(nx.cycle_graph(4), capacity=1)),
-                ],
-            ),
-        )
+        PassCompiler().prepare(system).run()
 
 
 def test_neighbor_sum_ignores_padding():
@@ -347,11 +347,10 @@ def test_neighbor_sum_ignores_padding():
 
     graph = nx.star_graph(4)
     angles = np.random.default_rng(0).uniform(0, 2 * np.pi, 5)
-    (sampling,) = compile_system(
-        System(
-            elements=[LatticeElement('xy', element=XYElement, space=NetworkSpace(graph), values={'theta': angles})],
-        ),
-    ).lattice
+    system = System(
+        elements=[LatticeElement('xy', element=XYElement, space=NetworkSpace(graph), values={'theta': angles})],
+    )
+    (sampling,) = PassCompiler().prepare(system).run().problem_.lattice
     proposal = angles + np.random.default_rng(1).uniform(-1, 1, 5)
     neighbours = np.append(angles, 0.0)[sampling.table]
     masks = (sampling.table != 5).astype(float)
@@ -421,7 +420,8 @@ def test_colored_schedule_partitions_triangular_lattice():
             ]
 
     space = LatticeSpace((12, 12), geometry='triangular')
-    (sampling,) = compile_system(System(elements=[LatticeElement('spins', element=SpinElement, space=space)])).lattice
+    system = System(elements=[LatticeElement('spins', element=SpinElement, space=space)])
+    (sampling,) = PassCompiler().prepare(system).run().problem_.lattice
     sites = np.concatenate(sampling.classes)
     assert np.array_equal(np.sort(sites), np.arange(144))
     for members in sampling.classes:
@@ -455,7 +455,7 @@ def test_checkerboard_rejected_where_it_does_not_apply(space):
             return [LocalRuleLaw(s.spin, neighborhood, lambda *values: -values[0], schedule='checkerboard')]
 
     with pytest.raises(ValidationError, match=r"LocalRuleLaw of spins.*'colored'"):
-        compile_system(System(elements=[LatticeElement('spins', element=FlipElement, space=space)]))
+        PassCompiler().prepare(System(elements=[LatticeElement('spins', element=FlipElement, space=space)])).run()
 
 
 def test_extremal_changes_only_the_neighbourhood():
@@ -547,7 +547,7 @@ def test_extremal_runs_are_reproducible_across_backends():
     system = System(
         elements=[LatticeElement('ring', element=FitnessElement, space=LatticeSpace(50), values={'value': values})],
     )
-    compiled = compile_system(system, backend=NumbaBackend())
+    compiled = PassCompiler(backend=NumbaBackend()).prepare(system).run().problem_
     assert isinstance(compiled.lattice[0], ExtremalKernel)
     assert compiled.lattice[0].loop is not None
     for states, events in runs[1:]:

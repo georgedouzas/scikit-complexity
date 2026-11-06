@@ -33,7 +33,7 @@ from sage.symbolic.function import Function
 from sage.symbolic.function_factory import function as formal_function
 
 from ..engine._utils import components_of, domain_of
-from ..engine.compile import compile_system
+from ..engine.compile import PassCompiler
 from ..engine.problems import BaseProblemSpec, ProblemSpec, TransferNetworkSpec
 from ..errors import AnalysisError, ConservationError
 from ..specs._unknown_spec import _UnknownSpec
@@ -177,7 +177,7 @@ class SymbolicAnalysis(BaseAnalysis):
     def _prepare(self, source: Source) -> None:
         """Compile the system of the source, checking that it has the form of the kind."""
         system = self._read_system(source)
-        problem = system if isinstance(system, BaseProblemSpec) else compile_system(system)
+        problem = system if isinstance(system, BaseProblemSpec) else PassCompiler().prepare(system).run().problem_
         if self.kind == 'hamiltonian':
             self.problem_ = OperatorAnalysis._operator_problem(problem)
             return
@@ -613,7 +613,7 @@ class SymbolicAnalysis(BaseAnalysis):
     def _transfer_network(problem: ProblemSpec) -> TransferNetworkSpec:
         """Return the transfer network of a problem, or raise an error for problems without one."""
         if problem.transfer_network is None:
-            error_msg = 'The problem has no transfer network. Compile the system as one partition with compile_system.'
+            error_msg = 'The problem has no transfer network. Compile the system as one partition with `PassCompiler`.'
             raise AnalysisError(error_msg)
         return problem.transfer_network
 

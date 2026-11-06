@@ -6,7 +6,7 @@ import pytest
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace, RadiusNeighborhood
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.systems.physics.common.oscillators import (
     KuramotoCouplingInteraction,
     PhaseOscillatorElement,
@@ -18,7 +18,7 @@ THETA = np.array([0.1, 1.3, 2.9, 4.2, 5.5])
 
 def _drift(system):
     """Return the drift of a system at its initial state."""
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     return problem.drift(0.0, problem.initial_state, problem.initial_parameters)
 
 

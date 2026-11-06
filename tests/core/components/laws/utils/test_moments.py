@@ -14,7 +14,7 @@ from skcomplex.core.components.laws.utils import moment
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -169,7 +169,7 @@ def test_law_reads_a_moment():
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
-    problem = compile_system(system, backend=NumpyBackend())
+    problem = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     expected = float(PROFILE @ ACTIVITIES / PROFILE.sum())
     assert rates[problem.states.entry('recorder.y').start] == pytest.approx(expected)
@@ -200,6 +200,6 @@ def test_moment_inside_a_group_law_is_shared():
         space=LatticeSpace(CLASSES, boundary='fixed'),
         time=ContinuousTime(),
     )
-    problem = compile_system(system, backend=NumpyBackend())
+    problem = PassCompiler(backend=NumpyBackend()).prepare(system).run().problem_
     rates = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     np.testing.assert_allclose(rates, np.full(CLASSES, PROFILE @ ACTIVITIES))

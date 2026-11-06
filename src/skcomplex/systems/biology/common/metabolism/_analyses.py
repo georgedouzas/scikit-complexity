@@ -13,7 +13,7 @@ from .....core.analysis import BaseAnalysis
 from .....core.analysis.types import Source
 from .....core.components.spaces import StaticTime
 from .....core.components.system import System
-from .....core.engine.compile import compile_system
+from .....core.engine.compile import PassCompiler
 from .....core.engine.problems import LinearProgramKernel, ProblemSpec
 from .....core.errors import AnalysisError
 from .....core.specs import RunStateSpec
@@ -88,7 +88,9 @@ class BaseNetworkAnalysis(BaseAnalysis):
             if floor is None
             else [ObjectiveFloorInteraction('kept', cell=element.label, weights=weights, floor=floor)]
         )
-        problem = compile_system(System(elements=[element], interactions=kept, time=StaticTime()))
+        problem = (
+            PassCompiler().prepare(System(elements=[element], interactions=kept, time=StaticTime())).run().problem_
+        )
         if not isinstance(problem, ProblemSpec):
             error_msg = f'The network compiles to a {type(problem).__name__}, not a linear program.'
             raise AnalysisError(error_msg)

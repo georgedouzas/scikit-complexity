@@ -18,7 +18,7 @@ from skcomplex.core.components.spaces import (
 )
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import SolverError, ValidationError
 from skcomplex.core.specs import (
@@ -301,8 +301,9 @@ def test_checkerboard_needs_bipartite_neighbourhood():
                 LocalRuleLaw(s.alive, MooreNeighborhood(), lambda *values: values[0], schedule='checkerboard'),
             ]
 
+    system = System(elements=[LatticeElement('cells', element=CellElement, space=LatticeSpace((4, 4)))])
     with pytest.raises(ValidationError, match='random-sequential'):
-        compile_system(System(elements=[LatticeElement('cells', element=CellElement, space=LatticeSpace((4, 4)))]))
+        PassCompiler().prepare(system).run()
 
 
 def test_unknown_schedule_is_rejected():
@@ -442,7 +443,7 @@ def test_relaxation_without_end_raises():
 def test_local_rule_needs_lattice_group():
     """Test that a local rule on a state outside a lattice group is rejected."""
     with pytest.raises(ValidationError, match='LocalRuleLaw of cells needs a LatticeSpace'):
-        compile_system(System(elements=[GroupElement('cells', element=ShiftElement, size=3)]))
+        PassCompiler().prepare(System(elements=[GroupElement('cells', element=ShiftElement, size=3)])).run()
 
 
 def test_monte_carlo_energy_change_is_symbolic():
@@ -475,9 +476,8 @@ def test_monte_carlo_energy_change_is_symbolic():
                 ),
             ]
 
-    problem = compile_system(
-        System(elements=[LatticeElement('spins', element=SpinElement, space=LatticeSpace((4, 4)))]),
-    )
+    system = System(elements=[LatticeElement('spins', element=SpinElement, space=LatticeSpace((4, 4)))])
+    problem = PassCompiler().prepare(system).run().problem_
     sampling = problem.lattice[0]
     change = sampling.delta(0.0, np.ones(3), *np.ones((4, 3)), -np.ones(3), 1.0, 1.0)[0]
     assert np.allclose(change, 8.0)

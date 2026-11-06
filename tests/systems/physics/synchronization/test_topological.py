@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.systems import describe
 from skcomplex.systems.physics.synchronization import topological_kuramoto
@@ -26,7 +26,7 @@ def test_link_synchronization_grows_with_coupling():
 def test_rates_follow_the_incidence_of_the_complex():
     """Test the rates of the phases against the boundary matrices of Eq. 6 of the review."""
     system = topological_kuramoto(8, density=0.8, coupling=1.5)
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     state = problem.initial_state
     rates = problem.drift(0.0, state, problem.initial_parameters)
     space = system.elements[0].space

@@ -11,7 +11,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import CellVisual, RerunObserver
@@ -148,7 +148,7 @@ def test_hyperedge_group_on_a_network_logs_polygons():
 def test_views_show_the_state_of_the_group():
     """Test that the visual sets one 2D view of its state."""
     space = CellComplexSpace(LatticeSpace((3, 3))).prepare()
-    visual = CellVisual(path='cells').prepare(compile_system(_system(space)))
+    visual = CellVisual(path='cells').prepare(PassCompiler().prepare(_system(space)).run().problem_)
     assert [type(view).__name__ for view in visual.views_] == ['Spatial2DView']
 
 
@@ -157,7 +157,7 @@ def test_prepare_rejects_a_plane_that_is_not_two_axes_of_the_lattice(plane):
     """Test that a plane of a repeated or a missing axis raises an error."""
     space = CellComplexSpace(LatticeSpace((3, 3))).prepare()
     with pytest.raises(ValidationError, match='plane'):
-        CellVisual(plane=plane, path='cells').prepare(compile_system(_system(space)))
+        CellVisual(plane=plane, path='cells').prepare(PassCompiler().prepare(_system(space)).run().problem_)
 
 
 def test_prepare_rejects_a_group_on_the_sites():
@@ -165,4 +165,4 @@ def test_prepare_rejects_a_group_on_the_sites():
     space = CellComplexSpace(LatticeSpace((3, 3))).prepare()
     system = _system(space, part='sites')
     with pytest.raises(ValidationError, match='edges or hyperedges'):
-        CellVisual(path='cells').prepare(compile_system(system))
+        CellVisual(path='cells').prepare(PassCompiler().prepare(system).run().problem_)

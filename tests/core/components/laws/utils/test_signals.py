@@ -11,7 +11,7 @@ from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import pulse_train, series
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import StateSpec, VisualSpec
 
@@ -44,7 +44,8 @@ def _driven_by(data):
 def test_series_compiles_long_held_data(backend):
     """Test that a held series of 1000 points compiles and holds each value until the next time."""
     times, values = np.arange(1000.0), np.sin(np.arange(1000.0))
-    problem = compile_system(_driven_by(lambda t: series(t, times, values, 'previous')), backend=backend)
+    system = _driven_by(lambda t: series(t, times, values, 'previous'))
+    problem = PassCompiler(backend=backend).prepare(system).run().problem_
     rates = [problem.drift(k + 0.5, problem.initial_state, problem.initial_parameters)[0] for k in range(1000)]
     np.testing.assert_allclose(rates, values, rtol=0, atol=1e-12)
 
@@ -53,7 +54,7 @@ def test_series_compiles_long_held_data(backend):
 def test_series_interpolates_long_linear_data(backend):
     """Test that a linear series of 1000 points matches linear interpolation and breaks at every data time."""
     times, values = np.arange(1000.0), np.sin(np.arange(1000.0))
-    problem = compile_system(_driven_by(lambda t: series(t, times, values)), backend=backend)
+    problem = PassCompiler(backend=backend).prepare(_driven_by(lambda t: series(t, times, values))).run().problem_
     probes = np.linspace(-3.0, 1003.0, 2501)
     rates = [problem.drift(time, problem.initial_state, problem.initial_parameters)[0] for time in probes]
     np.testing.assert_allclose(rates, np.interp(probes, times, values), rtol=0, atol=1e-12)
@@ -63,7 +64,8 @@ def test_series_interpolates_long_linear_data(backend):
 @pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 def test_pulse_train_with_a_count_stops_after_its_last_pulse(backend):
     """Test that a pulse train of three pulses matches the pulses of NumPy and is 0 after the third."""
-    problem = compile_system(_driven_by(lambda t: pulse_train(t, 4, 1, 2.0, start=1, count=3)), backend=backend)
+    system = _driven_by(lambda t: pulse_train(t, 4, 1, 2.0, start=1, count=3))
+    problem = PassCompiler(backend=backend).prepare(system).run().problem_
     probes = np.linspace(0.0, 20.0, 401)
     rates = [problem.drift(time, problem.initial_state, problem.initial_parameters)[0] for time in probes]
     expected = np.where((probes >= 1) & (probes < 13) & (np.mod(probes - 1, 4) < 1), 2.0, 0.0)

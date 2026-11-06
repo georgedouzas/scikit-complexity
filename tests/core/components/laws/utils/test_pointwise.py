@@ -11,7 +11,7 @@ from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import clip, hill, logistic, sign
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.specs import StateSpec, VisualSpec
 
 BACKENDS = (NumpyBackend(), NumbaBackend())
@@ -47,7 +47,7 @@ def _rates(function, backend):
             return [RateLaw(s.x, function(s.x))]
 
     group = GroupElement('g', element=ValueElement, size=VALUES.size, values={'x': VALUES})
-    problem = compile_system(System(elements=[group]), backend=backend)
+    problem = PassCompiler(backend=backend).prepare(System(elements=[group])).run().problem_
     return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'g.x')
 
 

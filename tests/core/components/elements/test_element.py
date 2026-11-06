@@ -13,7 +13,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import JumpLaw, RateLaw, RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler, compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import LabelError, ValidationError
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
@@ -249,7 +249,10 @@ def test_element_decays_at_its_own_rate():
 def test_expression_of_states_is_an_observable_of_the_laws():
     """Test that a law computes the leverage as an expression and the run records an observable of the same one."""
     system = System(elements=[FirmElement('firm')])
-    assert str(compile_system(system).equations['firm.debt']) == '-debt_firm*r_firm*(debt_firm/equity_firm - 1)'
+    assert (
+        str(PassCompiler().prepare(system).run().problem_.equations['firm.debt'])
+        == '-debt_firm*r_firm*(debt_firm/equity_firm - 1)'
+    )
     leverage = ObservableSpec('leverage', _firm_leverage)
     trajectory = Simulation(system, dt=0.5, observables=[leverage]).prepare().run(until=2).trajectory_
     debt, equity = trajectory.values('firm.debt'), trajectory.values('firm.equity')
@@ -259,14 +262,14 @@ def test_expression_of_states_is_an_observable_of_the_laws():
 def test_agent_state_named_like_view_raises_error():
     """Test that an agent with a state named like an attribute of the agent view raises a label error."""
     with pytest.raises(LabelError, match=r'settlers declare the variables alive,.*reserved'):
-        compile_system(System(elements=[GroupElement('settlers', element=SettlerElement, size=2)]))
+        PassCompiler().prepare(System(elements=[GroupElement('settlers', element=SettlerElement, size=2)])).run()
 
 
 def test_numpy_scalar_times_vector_is_rejected():
     """Test that a law value that NumPy built as an array raises a named error that names the state."""
     system = System(elements=[MovingElement('m', v=[1.0, 2.0])], space=ContinuousSpace(n_dim=2))
     with pytest.raises(ValidationError, match='NumPy array'):
-        compile_system(system)
+        PassCompiler().prepare(system).run()
 
 
 def test_numpy_scalar_values_match_floats():
@@ -281,4 +284,4 @@ def test_numpy_scalar_values_match_floats():
 def test_jump_increment_symbol_is_rejected():
     """Test that a jump whose increment is a parameter raises a named error naming the state and the increment."""
     with pytest.raises(ValidationError, match=r'jump of n_c has the increment k_c.*number'):
-        compile_system(System(elements=[CounterElement('c')]))
+        PassCompiler().prepare(System(elements=[CounterElement('c')])).run()

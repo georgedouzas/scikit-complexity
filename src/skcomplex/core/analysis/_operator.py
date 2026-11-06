@@ -12,7 +12,7 @@ import qutip
 import scipy.sparse as sp
 
 from ..components.system import System
-from ..engine.compile import OperatorCompiler, compile_system
+from ..engine.compile import OperatorCompiler
 from ..engine.compile.passes._operator_compiler import DENSE_LIMIT
 from ..engine.problems import BaseProblemSpec, OperatorProblemSpec
 from ..engine.runtime import Trajectory
@@ -207,7 +207,7 @@ class OperatorAnalysis(BaseAnalysis):
     @staticmethod
     def _operator_problem(system: System | BaseProblemSpec) -> OperatorProblemSpec:
         """Return the operator problem of a system, compiling it when needed."""
-        problem = system if isinstance(system, BaseProblemSpec) else compile_system(system, compiler=OperatorCompiler())
+        problem = system if isinstance(system, BaseProblemSpec) else OperatorCompiler().prepare(system).run().problem_
         if not isinstance(problem, OperatorProblemSpec):
             error_msg = f'The system compiles to the {problem.form} form, but the analysis needs operator elements.'
             raise AnalysisError(error_msg)

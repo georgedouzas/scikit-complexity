@@ -14,7 +14,7 @@ from skcomplex.core.components.laws.utils import neighbors, total
 from skcomplex.core.components.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace, RadiusNeighborhood
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler, compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import CapacityError
 from skcomplex.core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
@@ -380,7 +380,7 @@ def test_reductions_over_capacity_groups_count_present_members():
     )
     trajectory = Simulation(system, dt=1.0, random_state=0).prepare().run(until=4).trajectory_
     assert trajectory.values('counter.size').tolist() == [0.0, 3.0, 4.0, 5.0, 6.0]
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     assert problem.topology is not None
 
 

@@ -11,7 +11,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import lag, total, where
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, TopologyRequestSpec, VisualSpec
@@ -162,7 +162,7 @@ def test_multiplier_accelerator_oscillates_with_growing_amplitude():
 
 def test_adaptive_parameters_compile_with_their_bounds():
     """Test that compiling keeps the bounded adaptive parameters, the controls, and leaves the form an ODE."""
-    problem = compile_system(System(elements=[PumpElement('pump')]))
+    problem = PassCompiler().prepare(System(elements=[PumpElement('pump')])).run().problem_
     assert problem.form.name == 'ODE'
     assert set(problem.adaptive_parameters) == {'pump.u'}
     assert problem.adaptive_parameters['pump.u'].bounds == (0.0, 1.0)

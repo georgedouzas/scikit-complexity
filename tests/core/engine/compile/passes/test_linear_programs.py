@@ -13,7 +13,7 @@ from skcomplex.core.components.laws.utils import either
 from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace, StaticTime
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler, compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import CoSimulationSolver, RK4Solver
 from skcomplex.core.errors import InfeasibleError, ValidationError
@@ -254,7 +254,7 @@ def test_issues_name_a_variable_that_is_not_algebraic():
             return [LinearProgramLaw([s.x], [s.x <= 1], [LinearObjectiveSpec(s.x)])]
 
     with pytest.raises(ValidationError, match=r'p\.x.*StateSpec\(algebraic=True\)'):
-        compile_system(System(elements=[PlainElement('p')], time=StaticTime()))
+        PassCompiler().prepare(System(elements=[PlainElement('p')], time=StaticTime())).run()
 
 
 def test_issues_report_a_nonlinear_relation_with_both_variables():
@@ -289,7 +289,7 @@ def test_issues_report_a_coefficient_that_reads_a_state():
             return [LinearProgramLaw([s.v], [s.x * s.v <= 1], [LinearObjectiveSpec(s.v)])]
 
     with pytest.raises(ValidationError, match='linear-program-form'):
-        compile_system(System(elements=[ReadingElement('p')], time=StaticTime()))
+        PassCompiler().prepare(System(elements=[ReadingElement('p')], time=StaticTime())).run()
 
 
 def test_issues_report_two_laws_that_hold_objectives():
@@ -328,7 +328,7 @@ def test_merged_laws_bound_uptake_by_michaelis_menten():
         elements=[CellElement('cell'), MediumElement('medium', glucose=0.015)],
         interactions=[UptakeInteraction('u')],
     )
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     state = problem.programs[0].run(RunStateSpec(0.0, problem.initial_state, problem.initial_parameters)).values_
     assert problem.states.read(state, 'cell.uptake') == pytest.approx(5)
 
@@ -434,7 +434,7 @@ def test_infeasible_program_raises_with_the_program_time_and_subset():
 def test_infeasible_program_with_the_hold_policy_keeps_the_last_values():
     """Test that the hold policy keeps the last values through an infeasible solve."""
     system = System(elements=[FlowElement('flows', infeasible='hold', minimum=0.0)], time=StaticTime())
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     kernel = problem.programs[0]
     position = problem.parameters.names.index('flows.capacity')
     p = problem.initial_parameters.copy()
@@ -448,7 +448,7 @@ def test_recorded_duals_give_the_change_of_the_objective():
     """Test that the dual of the binding constraint is the change of the optimum with its right side."""
     system = System(elements=[ToyNetworkElement('net', duals=True)], time=StaticTime())
     trajectory = Simulation(system).prepare().run(1.0).trajectory_
-    relations = list(compile_system(system).programs[0].program.relations)
+    relations = list(PassCompiler().prepare(system).run().problem_.programs[0].program.relations)
     shared = [relations.index(f'{name}_net <= 1000') for name in ('v6', 'b2')]
     assert sum(float(trajectory.values(f'net.dual_{item}')[0]) for item in shared) == pytest.approx(0.05)
 
@@ -456,16 +456,19 @@ def test_recorded_duals_give_the_change_of_the_objective():
 def test_form_of_programs_keeps_the_form_of_the_laws_beside_them():
     """Test the forms of a program beside rate laws, alone in discrete time, and beside an ODE system."""
     beside = System(elements=[CellElement('cell'), MediumElement('medium')], interactions=[UptakeInteraction('u')])
-    assert compile_system(beside).form == FormKind.ODE
+    assert PassCompiler().prepare(beside).run().problem_.form == FormKind.ODE
     alone = System(elements=[FlowElement('flows')], time=DiscreteTime())
-    assert compile_system(alone).form == FormKind.DISCRETE
-    assert compile_system(System(elements=[FlowElement('flows')], time=StaticTime())).form == FormKind.STATIC
+    assert PassCompiler().prepare(alone).run().problem_.form == FormKind.DISCRETE
+    assert (
+        PassCompiler().prepare(System(elements=[FlowElement('flows')], time=StaticTime())).run().problem_.form
+        == FormKind.STATIC
+    )
 
 
 def test_discrete_program_solves_once_per_step_before_the_updates():
     """Test that a program alone under discrete time solves once per step."""
     system = System(elements=[FlowElement('flows')], time=DiscreteTime())
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     kernel = problem.programs[0]
     x, p = problem.initial_state, problem.initial_parameters
     for step in range(3):
@@ -491,7 +494,7 @@ def test_drift_solves_the_program_once_per_evaluation(backend):
                 RateLaw(s.c, 2 * s.v),
             ]
 
-    problem = compile_system(System(elements=[ThreeRatesElement('e')]), backend=backend())
+    problem = PassCompiler(backend=backend()).prepare(System(elements=[ThreeRatesElement('e')])).run().problem_
     derivative = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     assert problem.programs[0].solves_ == 1
     assert problem.states.read(derivative, 'e.c') == pytest.approx(2)
@@ -577,7 +580,7 @@ def _culture(*, nested: bool, biomass: float = 0.01, glucose: float = 10.0):
 
 def test_cosimulated_program_compiles_to_a_map_and_an_ode_partition():
     """Test that a program in a discrete system beside rates compiles to two partitions."""
-    problem = compile_system(_culture(nested=True))
+    problem = PassCompiler().prepare(_culture(nested=True)).run().problem_
     assert problem.form == FormKind.COUPLED
     assert {item.problem.form for item in problem.partitions} == {FormKind.DISCRETE, FormKind.ODE}
 
@@ -627,7 +630,7 @@ def _lattice_system(sites, active_at):
 def test_group_program_solves_only_the_active_sites():
     """Test that one evaluation on 25 by 25 sites solves the 9 active ones, and the others have zero variables."""
     active = np.arange(9) * 7
-    problem = compile_system(_lattice_system(25, active))
+    problem = PassCompiler().prepare(_lattice_system(25, active)).run().problem_
     state = problem.algebraic(0.0, problem.initial_state, problem.initial_parameters)
     assert problem.programs[0].solves_ == 9
     values = problem.states.read(state, 'cells.uptake')

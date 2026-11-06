@@ -11,7 +11,7 @@ from skcomplex.core.components.laws import NoiseLaw
 from skcomplex.core.components.spaces import LatticeSpace, NetworkSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine._utils import symbol
-from skcomplex.core.engine.compile import PassCompiler, compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, HeunSolver, MilsteinSolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -58,18 +58,18 @@ def test_noise_rejects_conserved_process():
         NoiseLaw(symbol('rho'), 1.0, conserved=True, process='common').prepare()
 
 
-def test_compile_system_gives_every_link_two_entries():
+def test_compiler_gives_every_link_two_entries():
     """Test that every link process of a periodic lattice adds `a / h` to one site and takes it from its neighbour."""
-    matrix = _noise_matrix(compile_system(_field((4, 3), spacing=0.5)))
+    matrix = _noise_matrix(PassCompiler().prepare(_field((4, 3), spacing=0.5)).run().problem_)
     assert matrix.shape == (12, 24)
     np.testing.assert_allclose(np.sort(matrix, axis=0)[[0, -1]], [[-4.0] * 24, [4.0] * 24])
     np.testing.assert_array_equal(np.count_nonzero(matrix, axis=0), 2)
     np.testing.assert_allclose(matrix.sum(axis=0), 0.0)
 
 
-def test_compile_system_leaves_out_outer_links_of_zero_flux_edges():
+def test_compiler_leaves_out_outer_links_of_zero_flux_edges():
     """Test that a zero-flux chain draws its inner links and a silent process for the links that leave it."""
-    problem = compile_system(_field((4,), boundary='zero-flux'))
+    problem = PassCompiler().prepare(_field((4,), boundary='zero-flux')).run().problem_
     matrix = _noise_matrix(problem)
     (block,) = problem.noise_blocks
     np.testing.assert_array_equal(block.factor, [[0.0]])
@@ -78,7 +78,7 @@ def test_compile_system_leaves_out_outer_links_of_zero_flux_edges():
     np.testing.assert_allclose(used.sum(axis=0), 0.0)
 
 
-def test_compile_system_rejects_conserved_amplitude_of_state():
+def test_compiler_rejects_conserved_amplitude_of_state():
     """Test that a conserved noise whose amplitude reads the field is rejected as out of scope."""
 
     class MultiplicativeElement(Element):
@@ -100,7 +100,7 @@ def test_compile_system_rejects_conserved_amplitude_of_state():
 
     system = System(elements=[FieldElement('f', element=MultiplicativeElement, space=LatticeSpace((4,)))])
     with pytest.raises(ValidationError, match='reads the states'):
-        compile_system(system)
+        PassCompiler().prepare(system).run()
 
 
 def test_validate_reports_conserved_noise_off_lattice():

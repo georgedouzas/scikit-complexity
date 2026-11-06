@@ -10,7 +10,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import NoiseLaw
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, HeunSolver
 from skcomplex.core.errors import SolverError
@@ -30,7 +30,7 @@ def test_euler_maruyama_without_noise_matches_ode():
         elements=[AssetElement('s', price=1.0)],
         interactions=[GeometricBrownianMotionInteraction('gbm', target='s', mu=1.0, sigma=0.0)],
     )
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     stepper = EulerMaruyamaSolver(dt=1e-4)
     stepper.set_params(random_state=np.random.default_rng(0)).prepare(problem)
     state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_
@@ -39,9 +39,8 @@ def test_euler_maruyama_without_noise_matches_ode():
 
 def test_euler_maruyama_nonpositive_dt_raises_error():
     """Test that the internal step must be positive."""
-    problem = compile_system(
-        System(elements=[AssetElement('s')], interactions=[GeometricBrownianMotionInteraction('gbm', target='s')]),
-    )
+    system = System(elements=[AssetElement('s')], interactions=[GeometricBrownianMotionInteraction('gbm', target='s')])
+    problem = PassCompiler().prepare(system).run().problem_
     stepper = EulerMaruyamaSolver(dt=0.0)
     stepper.set_params(random_state=np.random.default_rng(0)).prepare(problem)
     with pytest.raises(SolverError, match='positive'):
@@ -52,7 +51,7 @@ def test_euler_maruyama_same_seed_on_both_backends():
     """Test that geometric Brownian motion from 0.1 to 0.4 takes three steps on both backends and ends equal."""
     states = []
     for backend in (NumpyBackend(), NumbaBackend()):
-        problem = compile_system(geometric_brownian_motion(), backend=backend)
+        problem = PassCompiler(backend=backend).prepare(geometric_brownian_motion()).run().problem_
         rng = np.random.default_rng(0)
         stepper = EulerMaruyamaSolver(dt=0.1)
         stepper.set_params(random_state=rng).prepare(problem)
