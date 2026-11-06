@@ -222,7 +222,7 @@ def look_ahead(s):
 {rate.__name__: rate_of(rate)[-1].sum().round(3) for rate in (smoothing, screened_drift, look_ahead)}
 ```
 
-Three operators of `skcomplex.core.components.laws.utils` read beyond the nearest sites, and a law writes them as a
+The operators below of `skcomplex.core.components.laws.utils` read beyond the nearest sites, and a law writes them as a
 reference writes them:
 
 - `inverse_helmholtz(expression, screening, boundary=None)` is the solution of
@@ -237,6 +237,12 @@ reference writes them:
 - `shifted(expression, offset, order=1)` reads an expression at a physical displacement, one component per axis, which
   may depend on the states. A displacement of whole sites reads the neighbour tables and stays compilable to Numba. Any
   other one interpolates with `order=1` or `order=3`, following the boundary of the field.
+- `cumulative_integral(expression, axis, reverse=False)` integrates an expression along one axis of a lattice, from
+  the start of the domain to every site, or from every site to the end with `reverse=True`.
+
+On a phase space, a convolution acts along the position axes at every class, and `integral_transform` integrates over
+class axes against a kernel of two points that need not be a function of their displacement, as the
+[phase-space fields](phase_space_fields.md) describe.
 
 The stencil operators read a nonlocal result at the neighbouring sites, so `partial` and `gradient` apply to an
 inverted streamfunction. Laws with these operators run on the NumPy backend, except whole-site reads. The sparsity

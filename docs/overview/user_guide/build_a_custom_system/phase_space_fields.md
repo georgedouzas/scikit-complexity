@@ -82,6 +82,92 @@ Fields over position and fields on a phase space read each other:
   `ConservationInteraction`, broadcast along the class axes.
 - A `RateInteraction` over the position lattice reads a moment of a field on a phase space through its `sources`.
 
+## Integrals over class axes
+
+Integrate a density against a kernel of two points of its class axes, or along one axis up to every point. Groups with
+a fraction `z` of punishers win pairwise conflicts against groups with a fraction `u` at the probability `rho(z, u)`, so
+the density changes at the rate `f(z)` times the integral of `rho(z, u) - rho(u, z)` against `f(u)`:
+
+```python
+import numpy as np
+from sage.all__sagemath_symbolics import tanh
+
+from skcomplex.core.components.elements import DensityElement, FieldElement
+from skcomplex.core.components.interactions import RateInteraction
+from skcomplex.core.components.laws.utils import coordinate, integral_transform, integration_variable
+from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.core.specs import AxisSpec
+
+z, u = coordinate('z'), integration_variable('z')
+rho = (1 + tanh(2 * (z - u))) / 2
+gain = rho - rho.subs({z: u, u: z}, hold=False)
+space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('z', 50, 0.0, 1.0)])
+groups = FieldElement('groups', element=DensityElement, space=space, values={'f': np.ones((1, 50))})
+conflict = RateInteraction(
+    'conflict', target='groups', state='f', rate=lambda s: s.target.f * integral_transform(s.target.f, gain, ('z',))
+)
+simulation = Simulation(System(elements=[groups], interactions=[conflict]), dt=1.0, solver=RK4Solver(dt=0.05))
+final = simulation.prepare().run(until=5.0).trajectory_.values('groups.f')[-1]
+round(float(final.sum() / 50), 10), bool(final[-1] > final[0])
+```
+
+The groups of more punishers win, and the total stays one, since the kernel is antisymmetric.
+
+- `integral_transform(expression, kernel, axes)` is the integral over the named class axes of `K(c, c') u(c')`, at the
+  same position and the same coordinates of the other class axes. The kernel reads `coordinate(name)` for the point `c`
+  a law updates, `integration_variable(name)` for the point `c'` integrated over, and the parameters, so it need not be
+  a function of `c - c'`. It is sampled at the cell centres when the problem is compiled, and the integral is a product
+  with the dense matrix of the kernel.
+- `cumulative_integral(expression, axis, reverse=False)` integrates along one axis of a lattice, from the start of the
+  domain to every site, or from every site to the end with `reverse=True`, counting half of the cell of the site. The
+  light under a canopy is `exp(-gamma * cumulative_integral(f * coordinate('h')**2, 1, reverse=True))`.
+- `convolve` acts along the position axes of a phase space at every class, with a kernel of the displacements of the
+  position axes, and it follows the boundary of the position lattice. Seeds disperse over position at every height.
+- The compile report holds a kernel that reads a state as a `kernel-state` issue, and an integral over class axes of a
+  field without a phase space as a `law-space` issue.
+
+## Simplex domains
+
+Hold a density over the frequencies of three strategies, which sum to one. `SimplexSpace` is a phase space whose class
+axes are the free frequencies of a simplex, each on `[0, 1]` with the same number of cells. A uniform density of two
+on the 2-simplex has the integral one:
+
+```python
+import numpy as np
+
+from skcomplex.core.components.elements import DensityElement, FieldElement
+from skcomplex.core.components.laws.utils import moment
+from skcomplex.core.components.spaces import LatticeSpace, SimplexSpace
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.specs import AxisSpec, ObservableSpec
+
+
+def total(s):
+    return moment(s.f, 0, axes=('x', 'y'))
+
+
+axes = [AxisSpec('x', 20, 0.0, 1.0), AxisSpec('y', 20, 0.0, 1.0)]
+simplex = SimplexSpace(LatticeSpace((1,)), axes).prepare()
+groups = FieldElement('groups', element=DensityElement, space=simplex, values={'f': 2.0 * (simplex.volumes_ > 0)})
+observables = [ObservableSpec('total', total, group='groups')]
+simulation = Simulation(System(elements=[groups]), dt=0.1, observables=observables).prepare()
+round(float(np.asarray(simulation.run(until=0.1).trajectory_.values('total'))[-1]), 10)
+```
+
+- `volumes_` holds the fraction of every cell inside the simplex: whole cells below the slanted face, partial cells
+  along it, half cells in two dimensions, and empty cells beyond it. `apertures_` holds the fraction of every face
+  inside the simplex.
+- Finite-volume fluxes pass only through the open part of every face and change a cell by its volume, so the total is
+  conserved and no density enters the empty cells. A density on a simplex starts at zero in the empty cells.
+- `moment`, `reduce_axes`, `integral_transform`, and `cumulative_integral` weight every cell by its volume.
+- The compile report holds a local operator, such as `laplacian` or a finite-difference advection, of a field on a
+  simplex as a `law-space` issue. `SemiLagrangianSolver` refuses partial cells, and `SSPRKSolver` divides its wave
+  speed by the smallest cell volume.
+
 ## Encounters and equilibria
 
 Move particles between classes at one position, and relax them towards a local equilibrium:
@@ -141,4 +227,6 @@ also logs the moments over the class axes, as a bar series over a one-dimensiona
 a two-dimensional one.
 
 `boltzmann_equation`, `bgk_equation`, `vlasov_equation`, and `enskog` in `physics/fluids`, and `bertin_droz_gregoire`
-in `physics/active_matter`, are the kinetic equations of the library.
+in `physics/active_matter`, are the kinetic equations of the library. `nonlinear_pairwise_group_conflict` and
+`trimorphic_multilevel_selection` in `social/cooperation` integrate against two-point kernels, the second on the
+simplex, and `forest_size_structure` in `biology/ecology` shades trees by a cumulative integral over height.

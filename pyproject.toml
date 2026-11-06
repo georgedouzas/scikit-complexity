@@ -110,7 +110,7 @@ classifiers = [
 ]
 dependencies = [
     "numpy>=2.1.0",
-    "scipy>=1.13.0",
+    "scipy>=1.15.0",
     "passagemath-symbolics>=10.8.13",
     "passagemath-maxima>=10.8.13",
     "passagemath-gap>=10.8.13",

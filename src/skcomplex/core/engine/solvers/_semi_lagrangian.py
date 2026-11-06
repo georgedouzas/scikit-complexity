@@ -104,7 +104,7 @@ class SemiLagrangianSolver(Solver):
 
         Raises:
             SolverError:
-                The problem has no flux, or a flux is not a linear drift.
+                The problem has no flux, a flux is not a linear drift, or a field has partial cells.
         """
         super()._prepare(context)
         problem = self.problem_
@@ -112,6 +112,12 @@ class SemiLagrangianSolver(Solver):
             error_msg = 'SemiLagrangianSolver shifts along the drifts of flux laws, but the problem has none.'
             raise SolverError(error_msg)
         for volume in problem.volumes:
+            if volume.volumes is not None:
+                error_msg = (
+                    f'SemiLagrangianSolver shifts whole slices, but {volume.owner} lives on a domain with partial '
+                    'cells, such as a simplex. Use RK4Solver or SSPRKSolver.'
+                )
+                raise SolverError(error_msg)
             if not volume.drifts:
                 error_msg = (
                     f'SemiLagrangianSolver shifts along linear drifts, but the flux of {volume.owner} is not a linear '
