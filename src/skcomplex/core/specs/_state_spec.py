@@ -11,6 +11,7 @@ from sage.all__sagemath_symbolics import RR
 
 from ..errors import ValidationError
 from ._base_spec import BaseSpec
+from ._matrix_group_spec import MatrixGroupSpec
 from ._tensor_spec import TENSOR_SYMMETRIES
 
 ROLES = ('position', 'site', 'direction', 'phase', 'velocity', None)
@@ -81,6 +82,11 @@ class StateSpec(BaseSpec):
             Whether no law integrates the state and the equations of the system determine its value at every time. The
             initial value of an algebraic state is the starting guess of a nonlinear solve.
 
+        group:
+            The matrix group whose elements the state takes, which it stores as the `2 n^2` real components of every
+            matrix, or `None` for a state that is no matrix. Laws read it as a vector of the components, and only a
+            drive changes it on a lattice or a network.
+
     Examples:
         >>> from sage.all__sagemath_symbolics import oo
         >>> from sage.sets.real_set import RealSet
@@ -94,6 +100,9 @@ class StateSpec(BaseSpec):
         'traceless'
         >>> StateSpec(algebraic=True).algebraic
         True
+        >>> from skcomplex.core.specs import MatrixGroupSpec
+        >>> StateSpec(group=MatrixGroupSpec('SU', 3)).group.size
+        18
     """
 
     domain: object = RR
@@ -108,6 +117,16 @@ class StateSpec(BaseSpec):
     role: str | None = None
     tensor: str | None = None
     algebraic: bool = False
+    group: MatrixGroupSpec | None = None
+
+    def _check_group(self) -> None:
+        """Raise an error for a matrix group state that is also a vector, a tensor, or of another order or with lags."""
+        if self.group is not None and (self.vector or self.tensor is not None or self.order != 1 or self.lags):
+            error_msg = (
+                f'A state of the group {self.group.name}({self.group.degree}) holds its matrices alone. Remove '
+                '`vector`, `tensor`, `order`, and `lags`.'
+            )
+            raise ValidationError(error_msg)
 
     def _check(self) -> None:
         """Raise an error for an invalid order, lags, or initial values, or a reference of a state that is not scalar.
@@ -116,8 +135,10 @@ class StateSpec(BaseSpec):
             ValidationError:
                 The order or the lags are invalid, there are more initial values than derivatives or lags, or a state
                 naming a member of a group is not a scalar of order 1 without lags, or the tensor symmetry is unknown or
-                given together with a vector, or an algebraic state has an order other than 1 or lags.
+                given together with a vector, or an algebraic state has an order other than 1 or lags, or a matrix
+                group state is also a vector, a tensor, or a state of another order or with lags.
         """
+        self._check_group()
         if self.algebraic and (self.order != 1 or self.lags):
             error_msg = (
                 f'An algebraic state has order 1 and no lags, but got the order {self.order!r} and {self.lags!r} lags. '
@@ -133,7 +154,7 @@ class StateSpec(BaseSpec):
         if self.role not in ROLES:
             error_msg = f'The role of a state is one of {", ".join(map(repr, ROLES))}, but got {self.role!r}.'
             raise ValidationError(error_msg)
-        if self.reference is not None and (self.vector or self.tensor or self.order != 1 or self.lags):
+        if self.reference is not None and (self.vector or self.tensor or self.group or self.order != 1 or self.lags):
             error_msg = f'The state naming a member of {self.reference!r} is not a scalar of order 1 without lags.'
             raise ValidationError(error_msg)
         integral = float(self.order).is_integer()

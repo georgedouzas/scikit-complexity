@@ -34,6 +34,7 @@ from ._fractional_rows_spec import FractionalRowsSpec
 from ._fractional_state_spec import FractionalStateSpec
 from ._geometry_spec import TURTLE_SYMBOLS, GeometrySpec
 from ._hilbert_spec import HilbertSpec
+from ._holonomy_score_spec import HolonomyScoreSpec
 from ._hyperedge_reduction_spec import HyperedgeReductionSpec
 from ._interaction_requirement_spec import InteractionRequirementSpec
 from ._issue_spec import IssueSpec
@@ -47,6 +48,7 @@ from ._local_operator_spec import LocalOperatorSpec
 from ._lookup_spec import LookupSpec
 from ._lowered_functions_spec import LoweredFunctionsSpec
 from ._match_spec import MatchSpec
+from ._matrix_group_spec import MatrixGroupSpec
 from ._matrix_law_spec import MatrixLawSpec
 from ._module_spec import Letters, ModuleSpec
 from ._move_spec import MOVES, MoveSpec
@@ -151,6 +153,7 @@ __all__ = [
     'FractionalStateSpec',
     'GeometrySpec',
     'HilbertSpec',
+    'HolonomyScoreSpec',
     'HyperedgeReductionSpec',
     'InteractionRequirementSpec',
     'IssueSpec',
@@ -165,6 +168,7 @@ __all__ = [
     'LookupSpec',
     'LoweredFunctionsSpec',
     'MatchSpec',
+    'MatrixGroupSpec',
     'MatrixLawSpec',
     'ModuleSpec',
     'MoveSpec',

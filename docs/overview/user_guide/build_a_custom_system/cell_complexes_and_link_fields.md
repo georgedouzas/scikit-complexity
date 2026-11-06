@@ -143,6 +143,91 @@ lies between 0.6 and 0.8 here.
   the simulation.
 - The move is `'rotate'` for U(1), and `'random-value'` for Z_N with the `'heat-bath'` rule.
 
+## Matrix links
+
+Hold a matrix of a compact group on every link, as the SU(2) and SU(3) gauge fields of the weak and strong forces do. A
+`MatrixGroupSpec` names `SU(n)` or `U(n)`, and a state declared with `StateSpec(group=...)` stores the `2 n^2` real
+components of every matrix. The spec turns components into matrices and back, draws matrices from the Haar measure or
+near the identity, projects rounded products back onto the group, and multiplies matrices along paths:
+
+```python
+import numpy as np
+
+from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
+from skcomplex.core.specs import MatrixGroupSpec
+
+group = MatrixGroupSpec('SU', 3)
+space = CellComplexSpace(LatticeSpace((4, 4))).prepare()
+links = group.uniform_of(np.random.default_rng(0), 32)
+plaquettes = group.holonomy_of(links, space.boundaries_, space.boundary_signs_)
+plaquettes.shape, bool(np.allclose(np.linalg.det(plaquettes), 1.0))
+```
+
+- `boundaries_` lists the links around every face in the cyclic order of its nodes, and `boundary_signs_` the sign of
+  their traversal, so `holonomy_of` gives the holonomy of every face, the ordered product of the link matrices with the
+  inverse of a link traversed against its orientation. Any other path, such as a Wilson or a Polyakov loop, is a row of
+  links and signs, padded with the sign 0.
+- The matrices do not commute, so the holonomy depends on the order of the links, and its trace on the start of the
+  loop only up to a cyclic shift, which leaves it unchanged.
+
+Sample matrix links with a `HolonomyScoreSpec`, a class function of the holonomy of every face, such as the real part of
+the trace for the Wilson action:
+
+```python
+from typing import Annotated
+
+import numpy as np
+
+from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.interactions import SamplingInteraction
+from skcomplex.core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.specs import HolonomyScoreSpec, MatrixGroupSpec, StateSpec
+
+group = MatrixGroupSpec('SU', 2)
+
+
+class MatrixLinkElement(Element):
+    def __init__(self, label, visual=None, *, U: Annotated[object, StateSpec(group=group)] = tuple(group.identity)):
+        super().__init__(label, visual=visual)
+        self.U = U
+
+
+def wilson(holonomies):
+    return -np.trace(holonomies, axis1=-2, axis2=-1).real
+
+
+space = CellComplexSpace(LatticeSpace((8, 8))).prepare()
+links = GroupElement('links', element=MatrixLinkElement, space=space, on='edges')
+sampling = SamplingInteraction(
+    'wilson',
+    target='links',
+    state='U',
+    objective=HolonomyScoreSpec(wilson, group, hits=4),
+    move='rotate',
+    width=0.6,
+    schedule='colored',
+)
+system = System(elements=[links], interactions=[sampling], time=DiscreteTime())
+states = Simulation(system, random_state=0).prepare().run(until=100).trajectory_.values('links.U')
+loops = group.holonomy_of(group.matrices_of(states[-1]), space.boundaries_, space.boundary_signs_)
+round(float(np.trace(loops, axis1=1, axis2=2).real.mean() / 2), 1)
+```
+
+The last line is the mean plaquette at `beta = 2`, close to `I_2(2) / I_1(2) = 0.43`.
+
+- The move `'rotate'` multiplies a link by a random matrix of the group near the identity of spread `width`, and
+  `'random-value'` draws a new one from the Haar measure. Every sweep proposes `hits` Metropolis or Glauber moves per
+  link and projects the links back onto the group.
+- The function receives the holonomies of the faces around a link, each started at the link, and the parameters it
+  names, so it must be a class function such as a trace.
+- A drive changes a matrix state as a whole, with the components of every link on a last axis, and receives the
+  complex by the keyword `space` when it names it.
+
+The physics systems `lattice_yang_mills` and `GaugeAnalysis` with a `group` realize SU(2) and SU(3) lattice gauge theory
+with its average plaquette, Wilson loops, and Polyakov loop.
+
 ## Analysing complexes
 
 Split a link field into its gradient, curl, and harmonic parts, count the holes of a complex, or measure how curved a

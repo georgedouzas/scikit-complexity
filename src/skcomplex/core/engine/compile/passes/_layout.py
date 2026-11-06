@@ -557,7 +557,8 @@ class LayoutPass(BasePass):
 
         Returns:
             shape:
-                `()` for a scalar, `(n_dim,)` for a vector, and the number of independent components for a tensor.
+                `()` for a scalar, `(n_dim,)` for a vector, the number of independent components for a tensor, and the
+                number of real components of a matrix for a matrix group state.
 
         Raises:
             SpaceError:
@@ -566,6 +567,8 @@ class LayoutPass(BasePass):
             ValidationError:
                 The space dimension is not a positive integer.
         """
+        if declaration.group is not None:
+            return (declaration.group.size,)
         if not declaration.vector and declaration.tensor is None:
             return ()
         if space is None:

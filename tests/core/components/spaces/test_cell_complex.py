@@ -248,3 +248,34 @@ def test_potential_and_field_strength_groups_hold_one_member_per_cell():
     potentials = GroupElement('potentials', element=Element, space=space, on='edges').prepare()
     strengths = GroupElement('strengths', element=Element, space=space, on='hyperedges').prepare()
     assert (potentials.size_, strengths.size_) == (512, 256)
+
+
+@pytest.mark.parametrize(
+    'space',
+    [
+        CellComplexSpace(LatticeSpace((3, 4, 2))),
+        CellComplexSpace(LatticeSpace((4, 4), boundary='fixed')),
+        CellComplexSpace(NetworkSpace(nx.complete_graph(5)), faces='cliques'),
+        CellComplexSpace(NetworkSpace(nx.petersen_graph())),
+    ],
+    ids=['periodic-3d', 'fixed-2d', 'cliques', 'cycle-basis'],
+)
+def test_boundaries_walk_every_face_and_agree_with_the_incidence(space):
+    """Test that the edges around every face form a closed walk whose signed sum is the row of the face's incidence."""
+    space.prepare()
+    edges, signs = space.boundaries_, space.boundary_signs_
+    incidence = np.zeros(space.incidences_[1].shape)
+    for face, (row, turns) in enumerate(zip(edges, signs, strict=True)):
+        kept = turns != 0
+        np.add.at(incidence[face], row[kept], turns[kept])
+        ends = space.incidences_[0][row[kept]].toarray() * turns[kept][:, None]
+        assert np.array_equal(ends.sum(axis=0), np.zeros(ends.shape[1]))
+        assert np.all(row[~kept] == -1)
+    assert np.array_equal(incidence, space.incidences_[1].toarray())
+
+
+def test_boundaries_of_a_plaquette_turn_from_the_first_axis_to_the_second():
+    """Test that the first plaquette of a periodic 8 by 8 lattice goes forward along both axes and back."""
+    space = CellComplexSpace(LatticeSpace((8, 8))).prepare()
+    assert space.boundaries_[0].tolist() == [0, 72, 1, 64]
+    assert space.boundary_signs_[0].tolist() == [1.0, 1.0, -1.0, -1.0]
