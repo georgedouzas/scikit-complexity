@@ -458,8 +458,10 @@ class NumbaBackend(BaseBackend):
 
     @staticmethod
     def _reductions_compile(reductions: ReductionScheduleSpec) -> bool:
-        """Check whether every reduction prints in Numba's dialect."""
+        """Check whether every reduction prints in Numba's dialect, and no reduction runs shortest paths in NetworkX."""
         if any(reduction.function is not None for reduction in reductions.reductions):
+            return False
+        if any(neighbourhood.kind.startswith('path-') for neighbourhood in reductions.neighbourhoods):
             return False
         try:
             for reduction in reductions.reductions:
@@ -514,6 +516,8 @@ class NumbaBackend(BaseBackend):
             except ValidationError:
                 return f'the {reduction.kind} reduction {reduction.argument}'
         for neighbourhood in reductions.neighbourhoods:
+            if neighbourhood.kind.startswith('path-'):
+                return f'the shortest paths reduction {neighbourhood.kind}, which NetworkX computes,'
             try:
                 ExpressionPrinter('scalar').prepare().run([neighbourhood.argument, neighbourhood.weight])
             except ValidationError:

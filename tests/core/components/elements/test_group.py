@@ -176,3 +176,23 @@ def test_clone_keeps_values_and_compiles_to_the_same_problem():
 def test_get_states_returns_the_states_of_a_member():
     """Test that a group returns the states of its members, which it does not declare itself."""
     assert list(GroupElement('cells', element=PopulationElement, size=2).get_states()) == ['n']
+
+
+@pytest.mark.parametrize(
+    'arguments',
+    [
+        {'on': 'hyperedges', 'variable': True, 'size': 0, 'rank': 1},
+        {'on': 'hyperedges', 'variable': False, 'size': 2, 'rank': 3},
+        {'on': 'sites', 'variable': True, 'size': 2, 'rank': 3},
+    ],
+)
+def test_group_rejects_a_rank_outside_variable_groups_on_hyperedges(arguments):
+    """Test that a rank below 2, or of a group that is not a variable group on hyperedges, is rejected."""
+    with pytest.raises(ValidationError, match='rank'):
+        GroupElement('groups', element=Element, **arguments).prepare()
+
+
+def test_group_on_hyperedges_takes_a_rank_and_an_empty_size():
+    """Test that an empty variable group on hyperedges with a rank is valid."""
+    group = GroupElement('groups', element=Element, on='hyperedges', variable=True, size=0, capacity=4, rank=3)
+    assert group.prepare().size_ == 0

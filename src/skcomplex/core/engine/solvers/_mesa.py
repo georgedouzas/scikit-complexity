@@ -660,8 +660,17 @@ class AgentView:
         """
         return [cell.coordinate for cell in self._agent.cell.neighborhood]
 
-    def neighbors(self, radius: float | None = None, layer: str | None = None) -> list['AgentView']:
+    def neighbors(
+        self,
+        radius: float | None = None,
+        layer: str | None = None,
+        group: str | None = None,
+    ) -> list['AgentView']:
         """Return the agents in the cells or nodes around the agent, within a radius, or around it in a layer.
+
+        Agents of a variable group placed on the nodes of a network make a set of members per node that grows and
+        shrinks during a run, such as the balls of an urn on every node, and an agent on a node reads the sets of the
+        neighbouring nodes as the neighbours of one group.
 
         Args:
             radius:
@@ -671,22 +680,29 @@ class AgentView:
                 The layer of a network space whose edges join the agent to its neighbours, or `None` for the graph of
                 the network.
 
+            group:
+                The path of a group whose agents alone are returned, or `None` for every group.
+
         Returns:
             agents:
                 The neighbouring agents.
         """
+        stepper = self._stepper
         if layer is not None:
-            graph = getattr(self._stepper.problem_.agent_space, 'graphs_', {})[layer]
-            cells = self._stepper._cells()
-            return [
-                MesaSolver._view_of(agent)
+            graph = getattr(stepper.problem_.agent_space, 'graphs_', {})[layer]
+            cells = stepper._cells()
+            agents = [
+                agent
                 for node in graph.neighbors(self.location_key)
                 for agent in cells[MesaSolver._cell_key(node)].agents
             ]
-        if radius is not None:
-            agents, _ = self._agent.get_neighbors_in_radius(radius)
-            return [MesaSolver._view_of(agent) for agent in agents if agent is not self._agent]
-        return [MesaSolver._view_of(agent) for agent in self._agent.cell.neighborhood.agents]
+        elif radius is not None:
+            found, _ = self._agent.get_neighbors_in_radius(radius)
+            agents = [agent for agent in found if agent is not self._agent]
+        else:
+            agents = list(self._agent.cell.neighborhood.agents)
+        path = stepper._resolve_group(group, self.group) if group is not None else None
+        return [MesaSolver._view_of(agent) for agent in agents if path is None or stepper._spec_of(agent).path == path]
 
     def agents_here(self, group: str | None = None) -> list['AgentView']:
         """Return the other agents in the agent's cell or node, of one group or of every group.

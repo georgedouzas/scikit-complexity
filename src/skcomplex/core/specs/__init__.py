@@ -100,7 +100,7 @@ from ._symmetry_spec import SymmetrySpec
 from ._table_spec import TableSpec
 from ._table_values_spec import TableValuesSpec
 from ._tensor_spec import TensorSpec
-from ._topology_request_spec import EDGE_KINDS, ENDS, TOPOLOGY_KINDS, TopologyRequestSpec
+from ._topology_request_spec import EDGE_KINDS, ENDS, HYPEREDGE_KINDS, TOPOLOGY_KINDS, TopologyRequestSpec
 from ._totalistic_spec import TotalisticSpec
 from ._validation_report_spec import ValidationReportSpec
 from ._variable_spec import VariableSpec
@@ -114,6 +114,7 @@ __all__ = [
     'DEFAULT_PHASE',
     'EDGE_KINDS',
     'ENDS',
+    'HYPEREDGE_KINDS',
     'MONTE_CARLO_SCHEDULES',
     'MOVES',
     'SAMPLERS',

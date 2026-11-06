@@ -29,6 +29,7 @@ from ._operators import (
     shifted,
     upwind,
 )
+from ._paths import shortest_paths
 from ._phase import COORDINATE_PREFIX, coordinate, coordinates_of, maximum_entropy, reduce_axes
 from ._pointwise import clip, hill, logistic, sign
 from ._reductions import (
@@ -132,6 +133,7 @@ __all__: list[str] = [
     'series',
     'shift_member',
     'shifted',
+    'shortest_paths',
     'sign',
     'smooth',
     'step',
