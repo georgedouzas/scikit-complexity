@@ -22,7 +22,10 @@ class LocalRuleInteraction(Interaction):
     of the neighbourhood, `TotalisticSpec`, a rule of the cell and the sum of its neighbours, `OuterTotalisticSpec`, an
     object whose `table()` returns a `TableSpec`, or a function. A function receives one array per neighbour of every
     read state, in neighbourhood order, with one value per cell, the uniform array `random` when the rule is stochastic,
-    and the parameters of the bound group it names, and returns the next values of the states, one array per state.
+    and the parameters of the bound group it names, and returns the next values of the states, one array per state. A
+    state of several components per cell, such as a truncated power series of `PowerSeriesSpec`, reaches a function as
+    one row of components per cell. A `StateTranslationNeighborhood` reads a group space at the product of every site
+    and the group element that the first read state holds there.
 
     Args:
         label:

@@ -13,6 +13,7 @@ import numba
 import numpy as np
 import scipy.sparse
 from sage.all__sagemath_symbolics import SR, Expression
+from sage.modules.free_module_element import FreeModuleElement
 
 from ....components.laws import BaseLaw, CascadeLaw, DriveLaw, ExtremalLaw, LocalRuleLaw, SampleLaw
 from ....components.laws.utils import neighborhoods_in
@@ -26,9 +27,10 @@ from ....components.spaces import (
     LatticeSpace,
     MemoryNeighborhood,
     NetworkSpace,
+    StateTranslationNeighborhood,
 )
 from ....components.specs import LatticeContextSpec, LatticeStateSpec
-from ....errors import ValidationError
+from ....errors import SpaceError, ValidationError
 from ....specs import (
     ArgumentsSpec,
     IssueSpec,
@@ -100,7 +102,8 @@ class LatticeProblemPass(BasePass):
     ) -> LatticeStateSpec:
         """Return the lattice state of a target symbol, or raise an error naming the law.
 
-        Only a law that changes every component of a member, a drive, may target a state of several components.
+        Only a law that changes every component of a member, a drive or a local rule, may target a state of several
+        components.
         """
         if item not in context.states:
             error_msg = f'{law} of {context.owner} targets {item}, which is not a state of a lattice group.'
@@ -109,7 +112,8 @@ class LatticeProblemPass(BasePass):
         if state.components > 1 and not components:
             error_msg = (
                 f'{law} of {context.owner} targets {state.name}, which holds {state.components} components per member. '
-                'Change it with a drive, which receives the components of every member on a last axis.'
+                'Change it with a drive or a function local rule, which receive the components of every member on a '
+                'last axis.'
             )
             raise ValidationError(error_msg)
         return state
@@ -610,9 +614,22 @@ class LatticeProblemPass(BasePass):
                 The compiled rule.
         """
         owner = f'The local rule of {context.owner}'
-        targets = tuple(LatticeProblemPass._lattice_state(context, item, 'A local rule') for item in law._get_targets())
+        targets = tuple(
+            LatticeProblemPass._lattice_state(
+                context,
+                LatticeProblemPass._first_component(item),
+                'A local rule',
+                components=True,
+            )
+            for item in law._get_targets()
+        )
         reads = tuple(
-            LatticeProblemPass._lattice_state(context, item, 'A local rule')
+            LatticeProblemPass._lattice_state(
+                context,
+                LatticeProblemPass._first_component(item),
+                'A local rule',
+                components=True,
+            )
             for item in (law.reads or law._get_targets())
         )
         spaces = {id(state.space) for state in (*targets, *reads)}
@@ -620,7 +637,13 @@ class LatticeProblemPass(BasePass):
             error_msg = f'{owner} reads and updates states of different lattices.'
             raise ValidationError(error_msg)
         space = targets[0].space
-        table = LatticeProblemPass._index_table(space, law.over, owner)
+        translations = LatticeProblemPass._translations_of(law, space, reads, owner)
+        table = (
+            LatticeProblemPass._index_table(space, law.over, owner)
+            if translations is None
+            else translations.reshape(translations.shape[0], -1)
+        )
+        n_offsets = table.shape[1] if translations is None else translations.shape[2]
         rule = (
             law._get_linear_values if isinstance(law.rule, LinearRuleSpec) else LatticeProblemPass._as_table(law.rule)
         )
@@ -630,9 +653,10 @@ class LatticeProblemPass(BasePass):
                 'totalistic or an outer totalistic rule, or a function rule.'
             )
             raise ValidationError(error_msg)
-        lookup = LatticeProblemPass._lookup_of(rule, table.shape[1], owner)
-        if lookup is not None and (len(targets) > 1 or len(reads) > 1):
-            error_msg = f'{owner} uses a lookup rule, which updates and reads a single state.'
+        lookup = LatticeProblemPass._lookup_of(rule, n_offsets, owner)
+        several = len(targets) > 1 or len(reads) > 1
+        if lookup is not None and (several or any(state.components > 1 for state in (*targets, *reads))):
+            error_msg = f'{owner} uses a lookup rule, which updates and reads a single state of one component.'
             raise ValidationError(error_msg)
         function = None
         if lookup is None:
@@ -644,6 +668,13 @@ class LatticeProblemPass(BasePass):
                 raise ValidationError(error_msg)
             function = rule
         reads_degree = function is not None and 'degree' in LatticeProblemPass._accepted(function, ['degree'])
+        if translations is not None and (reads_degree or law.schedule in {'checkerboard', 'colored'}):
+            error_msg = (
+                f'{owner} reads a memory translated by the values of a state, whose neighbours move with the '
+                "configuration, so it has neither degrees nor a coloring. Use the 'synchronous', "
+                "'random-sequential', or 'random-site' schedule without `degree`."
+            )
+            raise ValidationError(error_msg)
         return RuleKernel(
             context.owner,
             targets,
@@ -657,7 +688,54 @@ class LatticeProblemPass(BasePass):
             fused=context.fused and lookup is not None and law.schedule == 'synchronous',
             degrees=LatticeProblemPass._degrees_of(table, law.over) if reads_degree else None,
             classes=LatticeProblemPass._schedule_classes(law.schedule, space, law.over, table, owner),
+            translations=translations,
         ).prepare()
+
+    @staticmethod
+    def _first_component(item: object) -> object:
+        """Return the symbol of the first component of a state of several components, or a scalar symbol as it is."""
+        return item[0] if isinstance(item, FreeModuleElement) else item
+
+    @staticmethod
+    def _translations_of(
+        law: LocalRuleLaw,
+        space: BaseSpace,
+        reads: tuple[LatticeStateSpec, ...],
+        owner: str,
+    ) -> Indices | None:
+        """Return the translation table of a memory translated by the values of a state, or `None` for another one.
+
+        Args:
+            law:
+                The local rule.
+
+            space:
+                The space of the states of the rule.
+
+            reads:
+                The states the rule reads, the first of which holds the group elements.
+
+            owner:
+                The name of the rule in error messages.
+
+        Returns:
+            translations:
+                The site of `g h s` for every site `g`, element `h`, and word `s`, or `None`.
+
+        Raises:
+            ValidationError:
+                The first read state has several components, or the space translates no memory set.
+        """
+        if not isinstance(law.over, StateTranslationNeighborhood):
+            return None
+        if reads[0].components > 1:
+            error_msg = f'{owner} translates its memory by {reads[0].name}, which holds several components per site.'
+            raise ValidationError(error_msg)
+        try:
+            return space._translation_table(law.over)
+        except (ValueError, ValidationError, SpaceError) as error:
+            error_msg = f'{owner}: {error}'
+            raise ValidationError(error_msg) from error
 
     @staticmethod
     def _compile_part(law: object, context: LatticeContextSpec) -> RuleKernel | DriveKernel:
