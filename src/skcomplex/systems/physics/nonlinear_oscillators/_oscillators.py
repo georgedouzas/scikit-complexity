@@ -1,4 +1,4 @@
-"""Nonlinear oscillators systems: Duffing, Van der Pol, Stuart-Landau, Adler, and Hamiltonian chaos."""
+"""Nonlinear oscillators systems: Duffing, Toda, Van der Pol, Stuart-Landau, Adler, impulses, and Hamiltonian chaos."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -6,18 +6,22 @@
 
 from types import SimpleNamespace
 
-from sage.all__sagemath_symbolics import Expression, cos
+from sage.all__sagemath_symbolics import Expression, cos, sqrt, tan
 
-from ....core.components.interactions import HamiltonianInteraction, RateInteraction
+from ....core.components.interactions import HamiltonianInteraction, ImpulseInteraction, RateInteraction
 from ....core.components.laws.utils import derivative
 from ....core.components.system import System
-from ....core.engine.solvers import Yoshida4Solver
+from ....core.engine.solvers import ScipyODESolver, Yoshida4Solver
+from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec
 from ..._catalog import register_system
 from ..common.oscillators import StuartLandauElement
 from ._adler_phase import AdlerPhaseElement
 from ._duffing import DuffingElement
 from ._henon_heiles import HenonHeilesElement
+from ._impulsive_oscillator import ImpulsiveOscillatorElement
+from ._quadrupole import QuadrupoleElement
+from ._toda import TodaElement
 from ._van_der_pol import VanDerPolElement
 
 
@@ -36,6 +40,28 @@ def _get_henon_heiles_observables(system: System) -> list[ObservableSpec]:
     """Return the energy of the star."""
     del system
     return [ObservableSpec('energy', _get_henon_heiles_energy, element='star')]
+
+
+SPRINGS = ('tangent', 'linear')
+
+
+def _get_quadrupole_energy(nucleus: SimpleNamespace) -> Expression:
+    """Return the quadrupole energy `(q² + p²) / 2 + B q1 (3 q2² - q1²) / √2 + q⁴ / 8` of a nucleus."""
+    q2 = nucleus.q1**2 + nucleus.q2**2
+    kinetic = (nucleus.p1**2 + nucleus.p2**2) / 2
+    cubic = nucleus.B * nucleus.q1 * (3 * nucleus.q2**2 - nucleus.q1**2) / sqrt(2)
+    return kinetic + q2 / 2 + cubic + q2**2 / 8
+
+
+def _get_quadrupole_hamiltonian(s: SimpleNamespace) -> Expression:
+    """Return the quadrupole Hamiltonian of the target."""
+    return _get_quadrupole_energy(s.target)
+
+
+def _get_quadrupole_observables(system: System) -> list[ObservableSpec]:
+    """Return the energy of the nucleus."""
+    del system
+    return [ObservableSpec('energy', _get_quadrupole_energy, element='nucleus')]
 
 
 @register_system(
@@ -311,3 +337,214 @@ def adler_equation(phi: float = 0.0, *, detuning: float = 0.5, epsilon: float = 
         2.0
     """
     return System(elements=[AdlerPhaseElement('difference', phi=phi, detuning=detuning, epsilon=epsilon)])
+
+
+@register_system(
+    field='physics/nonlinear_oscillators',
+    tags=('chaos', 'ode', 'hamiltonian', 'nuclear physics'),
+    references=('Baran and Raduta 1998', 'Datseris and Parlitz 2022'),
+    defaults={'until': 200.0, 'dt': 0.05, 'solver': Yoshida4Solver(dt=0.01), 'invariants': {'nucleus.energy': 1e-6}},
+    observables=_get_quadrupole_observables,
+)
+def nuclear_quadrupole(
+    q1: float = 0.0,
+    q2: float = 1.0,
+    p1: float = 0.5,
+    p2: float = 0.0,
+    *,
+    B: float = 0.5,
+) -> System:
+    """Return the quadrupole vibrations of a nuclear surface, a Hamiltonian system of two degrees of freedom.
+
+    The deformation coordinates `q = (q1, q2)` and their momenta `p` move under the Hamiltonian
+    `H = (q² + p²) / 2 + B q1 (3 q2² - q1²) / √2 + q⁴ / 8`, which is conserved. The cubic term has the threefold
+    symmetry of the Hénon-Heiles potential, and the quartic term keeps every orbit bounded, so the motion is regular at
+    low and high energies and largely chaotic in between.
+
+    Args:
+        q1:
+            The initial first coordinate.
+
+        q2:
+            The initial second coordinate.
+
+        p1:
+            The initial first momentum.
+
+        p2:
+            The initial second momentum.
+
+        B:
+            The strength of the cubic term.
+
+    Returns:
+        system:
+            The system, with the coordinates `nucleus.q1` and `nucleus.q2`, their momenta `nucleus.p1` and
+            `nucleus.p2`, and the observable `nucleus.energy`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.nonlinear_oscillators import nuclear_quadrupole
+        >>> nuclear_quadrupole(B=0.3).elements[0].B
+        0.3
+    """
+    return System(
+        elements=[QuadrupoleElement('nucleus', q1=q1, q2=q2, p1=p1, p2=p2, B=B)],
+        interactions=[
+            HamiltonianInteraction(
+                'motion',
+                target='nucleus',
+                coordinates=('q1', 'q2'),
+                momenta=('p1', 'p2'),
+                hamiltonian=_get_quadrupole_hamiltonian,
+            ),
+        ],
+    )
+
+
+@register_system(
+    field='physics/nonlinear_oscillators',
+    tags=('chaos', 'ode', 'second order', 'forcing', 'resonance'),
+    references=('Toda 1967', 'Kurz and Lauterborn 1988', 'Datseris and Parlitz 2022'),
+    defaults={'until': 300.0, 'dt': 0.05},
+)
+def forced_toda(
+    x: float = 0.0,
+    v: float = 0.0,
+    *,
+    d: float = 0.1,
+    a: float = 0.88,
+    omega: float = 1.0,
+) -> System:
+    """Return the forced Toda oscillator `x'' + d x' + e^x - 1 = a sin(omega t)`, a passive asymmetric oscillator.
+
+    The exponential spring is stiff for `x > 0` and soft for `x < 0`, unlike the symmetric spring of the Duffing
+    oscillator. Its free frequency falls from 1 as the amplitude grows, so the resonance curve bends to low driving
+    frequencies and the response swings far to the soft side. Stronger driving gives coexisting responses and period
+    doubling cascades to chaos as the driving period `2π / ω` changes.
+
+    Args:
+        x:
+            The initial displacement.
+
+        v:
+            The initial velocity.
+
+        d:
+            The damping.
+
+        a:
+            The amplitude of the forcing.
+
+        omega:
+            The angular frequency of the forcing.
+
+    Returns:
+        system:
+            The system, with the displacement `toda.x` of order 2 and its velocity `toda.x_d1`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.nonlinear_oscillators import forced_toda
+        >>> forced_toda(a=1.2).elements[0].a
+        1.2
+    """
+    return System(elements=[TodaElement('toda', x=x, x_d1=v, d=d, a=a, omega=omega)])
+
+
+@register_system(
+    field='physics/nonlinear_oscillators',
+    tags=('ode', 'second order', 'impulses', 'events', 'forcing'),
+    references=('Pilipchuk 2010', 'Trzaska 2023'),
+    defaults={'until': 10.0, 'dt': 0.01, 'solver': ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)},
+)
+def impulsive_oscillator(
+    x: float = 0.0,
+    v: float = 2.572,
+    *,
+    H: float = 2.0,
+    a: float = 0.4165,
+    gamma: float = 0.0,
+    spring: str = 'tangent',
+    omega0: float = 1.0,
+) -> System:
+    """Return an oscillator kicked by a periodic train of impulses of alternating sign.
+
+    The stiff spring gives `x'' + tan(x) / cos²(x) = 2 H Σ_k (-1)^k δ(t - (2 k - 1) a)`, a strongly nonlinear
+    oscillator whose free motion `sin x = sin A sin(t / cos A)` of amplitude `A < π / 2` is known exactly. Between the
+    impulses the oscillator rings freely, and every impulse is an event that kicks its velocity, by `-2 H` at the times
+    `(4 k + 1) a` and by `2 H` at the times `(4 k + 3) a`. A motion of amplitude `A` is periodic with the period `4 a`
+    of the impulses when an impulse reverses its velocity, which gives
+    `a = q arccos(H q² / sqrt((1 - q²) (1 - q² H²)))` with `q = cos A`, for `arctan H < A < π / 2`. The defaults start
+    the orbit of amplitude `A = 1.2` for `H = 2`, from `x = 0` with the speed `tan A`.
+
+    The temporal dipole shift `gamma` in `(-1, 1)` replaces the rectangular wave whose derivative gives the impulses
+    with the derivative of an asymmetric saw-tooth wave: the negative impulses move to `(4 k + 1 - gamma) a`, the
+    positive ones to `(4 k + 3 + gamma) a`, and both grow to `2 H / (1 - gamma²)`. The linear spring gives the
+    harmonic oscillator `x'' + omega0² x` under the same impulses.
+
+    Args:
+        x:
+            The initial displacement.
+
+        v:
+            The initial velocity.
+
+        H:
+            The amplitude of the impulses.
+
+        a:
+            A quarter of the period of the impulses.
+
+        gamma:
+            The temporal dipole shift of the impulses, in `(-1, 1)`.
+
+        spring:
+            The restoring force, `'tangent'` for `tan(x) / cos²(x)` or `'linear'` for `omega0² x`.
+
+        omega0:
+            The natural frequency of the linear spring.
+
+    Returns:
+        system:
+            The system, with the displacement `oscillator.x` of order 2 and its velocity `oscillator.x_d1`, kicked by
+            the impulses `pull` and `push`.
+
+    Raises:
+        ParameterError:
+            The spring is unknown, the quarter period is not positive, or the shift is outside `(-1, 1)`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.nonlinear_oscillators import impulsive_oscillator
+        >>> impulsive_oscillator(a=0.5, gamma=0.5).interactions[1].start
+        0.25
+    """
+    if spring not in SPRINGS:
+        error_msg = f'Unknown spring {spring!r}. Use one of {", ".join(SPRINGS)}.'
+        raise ParameterError(error_msg)
+    if not a > 0 or not -1 < gamma < 1:
+        error_msg = f'The impulses need a positive quarter period and a shift in (-1, 1), but got {a!r} and {gamma!r}.'
+        raise ParameterError(error_msg)
+    if spring == 'tangent':
+        restoring = RateInteraction(
+            'spring',
+            target='oscillator',
+            state='x',
+            rate=lambda s: -tan(s.target.x) / cos(s.target.x) ** 2,
+        )
+    else:
+        restoring = RateInteraction(
+            'spring',
+            target='oscillator',
+            state='x',
+            rate=lambda s: -s.target.omega0**2 * s.target.x,
+        )
+    jump = 2 / (1 - gamma**2)
+    pull = {'x_d1': lambda s: s.target.x_d1 - jump * s.target.H}
+    push = {'x_d1': lambda s: s.target.x_d1 + jump * s.target.H}
+    return System(
+        elements=[ImpulsiveOscillatorElement('oscillator', x=x, x_d1=v, H=H, omega0=omega0)],
+        interactions=[
+            restoring,
+            ImpulseInteraction('pull', target='oscillator', reset=pull, period=4 * a, start=(1 - gamma) * a),
+            ImpulseInteraction('push', target='oscillator', reset=push, period=4 * a, start=(3 + gamma) * a),
+        ],
+    )
