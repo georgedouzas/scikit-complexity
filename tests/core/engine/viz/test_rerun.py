@@ -462,8 +462,9 @@ class _AllLogs:
         self.logs.append((path, archetype))
 
 
-def test_changing_network_logs_present_nodes_and_changed_edges():
-    """Test that a growing network logs the nodes present at every frame and its edges at every frame they change."""
+@pytest.mark.parametrize('on_system', [False, True])
+def test_changing_network_logs_present_nodes_and_changed_edges(on_system):
+    """Test that a growing network logs its nodes and changed edges in a graph view, with its space on either owner."""
 
     class NodeElement(Element):
         """Node element."""
@@ -493,12 +494,14 @@ def test_changing_network_logs_present_nodes_and_changed_edges():
             return [UpdateLaw(TopologyRequestSpec('add-node', edges=1), 1)]
 
     space = NetworkSpace(nx.complete_graph(2))
+    owned = {} if on_system else {'space': space}
     system = System(
         elements=[
-            GroupElement('nodes', element=NodeElement, space=space, on='sites', variable=True, capacity=10),
-            GroupElement('links', element=LinkElement, space=space, on='edges', variable=True, capacity=10),
+            GroupElement('nodes', element=NodeElement, on='sites', variable=True, capacity=10, **owned),
+            GroupElement('links', element=LinkElement, on='edges', variable=True, capacity=10, **owned),
             GrowthElement('growth'),
         ],
+        space=space if on_system else None,
         time=DiscreteTime(),
     )
     simulation = Simulation(system, dt=1.0, random_state=0, record=True).prepare().run(until=3)

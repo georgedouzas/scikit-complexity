@@ -53,7 +53,7 @@ simulation. The agent form SHALL stay the default.
 
 #### Scenario: Agent setting in the symbolic form
 - **WHEN** a symbolic grouping is given `act`
-- **THEN** `check()` raises `ValidationError` that names `act` as a setting of the agent form
+- **THEN** `prepare` raises `ValidationError` that names `act` as a setting of the agent form
 
 ### Requirement: Symbolic updates run in ordered phases
 An `UpdateLaw` SHALL take a `phase`, and the phases of a `PhasesScheduleSpec` of the discrete time SHALL run one after

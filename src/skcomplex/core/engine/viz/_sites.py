@@ -162,7 +162,7 @@ class SiteVisual(BaseVisual):
             recording.log(path, rr.Points2D(positions, colors=self._colors(values, self.low, self.high), radii=radius))
 
     def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
-        """Return one graph view per chosen state of a lattice group on a network, and a 2D spatial view otherwise.
+        """Return one graph view per chosen state of a group on a network or a changing topology, else 2D spatial views.
 
         Args:
             element:
@@ -200,8 +200,6 @@ class SiteVisual(BaseVisual):
             return []
         space = getattr(element.element, 'space', None)
         states = [state for state in element.states if self.states is None or state in self.states]
-        if not isinstance(space, NetworkSpace):
-            return [rrb.Spatial2DView(origin=f'{element.path}/{state}', name=state) for state in states]
         if self._changes_topology(element, problem):
             reach = _CHANGING_REACH * float(np.sqrt(element.members or 1))
             bounds = rrb.VisualBounds2D(x_range=(-reach, reach), y_range=(-reach, reach))
@@ -216,6 +214,8 @@ class SiteVisual(BaseVisual):
                 )
                 for state in states
             ]
+        if not isinstance(space, NetworkSpace):
+            return [rrb.Spatial2DView(origin=f'{element.path}/{state}', name=state) for state in states]
         positions = np.array(list(self._layout(space).values()))
         low, high = positions.min(axis=0) - _NODE_SPACING, positions.max(axis=0) + _NODE_SPACING
         bounds = rrb.VisualBounds2D(x_range=(low[0], high[0]), y_range=(low[1], high[1]))

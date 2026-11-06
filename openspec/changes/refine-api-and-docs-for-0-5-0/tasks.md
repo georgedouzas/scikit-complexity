@@ -50,8 +50,8 @@
 
 - [x] 7.1 Replace the magic methods of `OperatorSpec` with `add`, `subtract`, `multiply`, `divide` and `negate`
 - [x] 7.2 Remove `compile_system` and use compilers at every call site
-- [ ] 7.3 Fix the five failures of the full gallery
-- [ ] 7.4 Fix the popularity-similarity tests of `test_growth.py`
+- [x] 7.3 Fix the five failures of the full gallery
+- [x] 7.4 Fix the popularity-similarity tests of `test_growth.py`
 - [x] 7.5 Split the user guide into pages, and start it with the easiest custom system
 - [ ] 7.6 The checks, the touched tests, the strict documentation build, and CI pass
 

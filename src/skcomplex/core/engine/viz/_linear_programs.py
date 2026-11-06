@@ -14,13 +14,13 @@ import rerun.blueprint as rrb
 from ...components.specs import CompiledAgentsSpec, CompiledElementSpec
 from ...errors import ValidationError
 from ..problems import BaseProblemSpec, FrameSpec, LinearProgramKernel, ProblemSpec
-from ._base import BaseVisual
+from ._base import _GRID_RADIUS, _NODE_SPACING, _SERIES_COLORS, BaseVisual
 
 GRAPH_LIMIT = 100
 LAYOUT_SEED = 0
-LAYOUT_SCALE = 10.0
-MAXIMUM_WIDTH = 0.2
-MINIMUM_WIDTH = 0.005
+NODE_RADIUS = _GRID_RADIUS * _NODE_SPACING / 2
+MAXIMUM_WIDTH = 0.2 * _NODE_SPACING
+MINIMUM_WIDTH = 0.005 * _NODE_SPACING
 
 
 class LinearProgramVisual(BaseVisual):
@@ -28,7 +28,8 @@ class LinearProgramVisual(BaseVisual):
 
     It logs a bar chart of the variables under `<path>/variables`, the objective values as scalars under
     `<path>/objective`, and with a graph one node per row of the matrix and per variable under `<path>/graph`, laid out
-    once with a seeded layout. It also logs the edges under `<path>/flows` as lines whose widths are proportional to the
+    once with a seeded layout whose nodes lie about as far apart as the sites of a network, with the rows and the
+    variables in two colours. It also logs the edges under `<path>/flows` as lines whose widths are proportional to the
     absolute values of their variables.
 
     Args:
@@ -125,14 +126,21 @@ class LinearProgramVisual(BaseVisual):
         return f'row_{row}'
 
     def _layout_graph(self) -> dict[str, npt.NDArray[np.float64]]:
-        """Return the position of every node from a seeded spring layout."""
+        """Return the position of every node from a seeded spring layout, scaled so nodes lie the spacing apart."""
         program = self.kernel_.program
         graph = nx.Graph()
         graph.add_nodes_from(self._row_name(row) for row in range(len(program.constraints)))
         graph.add_nodes_from(program.names)
         graph.add_edges_from((row, name) for row, name, _ in self._edges())
-        layout = nx.spring_layout(graph, seed=self.seed, scale=LAYOUT_SCALE)
+        scale = _NODE_SPACING * np.sqrt(graph.number_of_nodes())
+        layout = nx.spring_layout(graph, seed=self.seed, scale=scale)
         return {name: np.asarray(position, dtype=float) for name, position in layout.items()}
+
+    def _graph_bounds(self) -> rrb.VisualBounds2D:
+        """Return the bounds of the laid out graph with a margin, since a graph view does not fit its nodes itself."""
+        positions = np.stack(list(self.positions_.values()))
+        low, high = positions.min(axis=0) - _NODE_SPACING, positions.max(axis=0) + _NODE_SPACING
+        return rrb.VisualBounds2D(x_range=(low[0], high[0]), y_range=(low[1], high[1]))
 
     def _log_graph(self, recording: rr.RecordingStream, path: str) -> None:
         """Log the nodes at their positions and the edges of the graph once."""
@@ -140,7 +148,16 @@ class LinearProgramVisual(BaseVisual):
         program = self.kernel_.program
         labels = [*program.constraints, *(item.rpartition('.')[2] for item in program.names)]
         positions = np.stack([self.positions_[name] for name in names])
-        nodes = rr.GraphNodes(names, positions=positions, labels=labels, show_labels=False)
+        rows = len(program.constraints)
+        colors = [_SERIES_COLORS[0]] * rows + [_SERIES_COLORS[1]] * (len(names) - rows)
+        nodes = rr.GraphNodes(
+            names,
+            positions=positions,
+            labels=labels,
+            colors=colors,
+            radii=NODE_RADIUS,
+            show_labels=False,
+        )
         recording.log(f'{path}/graph', nodes, static=True)
         edges = rr.GraphEdges([(row, name) for row, name, _ in self._edges()], graph_type='undirected')
         recording.log(f'{path}/graph', edges, static=True)
@@ -206,7 +223,7 @@ class LinearProgramVisual(BaseVisual):
         ]
         if self._draws_graph():
             views += [
-                rrb.GraphView(origin=f'{path}/graph', name=f'{path} graph'),
+                rrb.GraphView(origin=f'{path}/graph', name=f'{path} graph', visual_bounds=self._graph_bounds()),
                 rrb.Spatial2DView(origin=f'{path}/flows', name=f'{path} flows'),
             ]
         return views

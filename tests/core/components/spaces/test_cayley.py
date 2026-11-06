@@ -137,6 +137,18 @@ def test_cayley_space_solves_a_finitely_presented_group():
     assert space.ball_sizes_ == [1, 3]
 
 
+def test_cayley_space_solves_a_presentation_after_its_former_folder_is_removed(tmp_path, monkeypatch):
+    """Test that Knuth-Bendix completion runs in the current folder, after the folder GAP last knew is removed."""
+    first, second = tmp_path / 'first', tmp_path / 'second'
+    first.mkdir()
+    second.mkdir()
+    monkeypatch.chdir(first)
+    libgap.ChangeDirectoryCurrent(str(first))
+    monkeypatch.chdir(second)
+    first.rmdir()
+    assert CayleySpace(_cyclic_presentation(4)).prepare().size_ == 4
+
+
 def test_cayley_space_ball_of_a_finite_group_stops_at_the_group():
     """Test that a ball larger than a finite group holds every element once."""
     space = CayleySpace(PermutationGroup([[(1, 2)], [(1, 2, 3)]]), ball=3).prepare()

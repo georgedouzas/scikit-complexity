@@ -4,6 +4,7 @@
 # License: MIT
 
 import re
+from pathlib import Path
 
 import numpy as np
 import numpy.typing as npt
@@ -119,6 +120,9 @@ class CayleySpace(BaseSpace):
             SpaceError:
                 Knuth-Bendix completion finds no confluent rewriting system.
         """
+        # KBMAG runs its programs in the current directory of GAP, which GAP caches on first use and a change of the
+        # directory in Python does not update, so it would point to a removed folder after the first one is deleted.
+        libgap.ChangeDirectoryCurrent(str(Path.cwd()))
         limit = libgap.eval('function(system, name, value) system!.options.(name) := value; end')
         for ordering in ORDERINGS:
             system = libgap.KBMAGRewritingSystem(group)

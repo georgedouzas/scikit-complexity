@@ -139,7 +139,7 @@ persist across frames and SHALL reset when the simulation is reset.
 
 #### Scenario: Unknown optimizer
 - **WHEN** a `TrainingInteraction` names the optimizer `'lbfgs-b'`
-- **THEN** `check()` raises `ValidationError` that names the optimizer and lists the supported ones
+- **THEN** `prepare` raises `ValidationError` that names the optimizer and lists the supported ones
 
 ### Requirement: The learning solver and the JAX backend declare their support
 `GradientDescentSolver` SHALL solve the learning form, and `JaxBackend` SHALL declare support for continuous and

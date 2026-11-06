@@ -3,7 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from sage.all__sagemath_symbolics import SR, Expression, exp
+from sage.all__sagemath_symbolics import SR, Expression, tanh
 
 from ._conditions import where
 
@@ -77,6 +77,10 @@ def hill(x: object, half: object, n: object = 1) -> Expression:
 def logistic(x: object, center: object = 0, width: object = 1) -> Expression:
     """Return the logistic sigmoid `1 / (1 + exp(-(x - center) / width))`, which rises from 0 to 1 through `center`.
 
+    It is written as `(1 + tanh((x - center) / (2 width))) / 2`, which stays accurate for every argument. Sage rewrites
+    the exponential of some arguments, such as a multiple of the logarithm of a constant, as `cosh(u) - sinh(u)`, whose
+    terms cancel for a large `u`, so the sigmoid would hold rounding noise of the size of 1, or divide by zero.
+
     Args:
         x:
             The expression the function reads.
@@ -96,11 +100,11 @@ def logistic(x: object, center: object = 0, width: object = 1) -> Expression:
         >>> from skcomplex.core.components.laws.utils import logistic
         >>> x = var('x')
         >>> logistic(x, 1, 2)
-        1/(e^(-1/2*x + 1/2) + 1)
+        1/2*tanh(1/4*x - 1/4) + 1/2
         >>> float(logistic(x, 1, 2).subs(x=1))
         0.5
     """
-    return 1 / (1 + exp(-(SR(x) - center) / width))
+    return (1 + tanh((SR(x) - center) / (2 * SR(width)))) / 2
 
 
 def clip(x: object, low: object = None, high: object = None) -> Expression:

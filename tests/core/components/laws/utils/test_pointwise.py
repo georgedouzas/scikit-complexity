@@ -4,7 +4,7 @@ from typing import Annotated
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import var
+from sage.all__sagemath_symbolics import SR, cosh, log, pi, sin, var
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RateLaw
@@ -69,6 +69,19 @@ def test_logistic_is_one_half_at_its_center():
     """Test that the logistic function is one half at its center."""
     x = var('x')
     assert float(logistic(x, 3, 2).subs(x=3)) == 0.5
+
+
+def test_logistic_of_the_logarithm_of_a_constant_does_not_cancel():
+    """Test that the tail of the logistic function of a multiple of the logarithm of a constant has no rounding noise.
+
+    Sage writes the exponential of such an argument as `cosh(u) - sinh(u)`, two terms that cancel for a large `u`.
+    """
+    x = var('x')
+    value = logistic(-(5.0 * log(x) - 5.0 * log(0.6 / sin(0.2 * pi))))
+    assert not value.has(cosh(SR.wild(0)))
+    for point in (1e3, 1e4, 1e6):
+        expected = 1 / (1 + np.exp(5.0 * np.log(point) - 5.0 * np.log(0.6 / np.sin(0.2 * np.pi))))
+        assert float(value.subs(x=point)) == pytest.approx(expected, rel=1e-6, abs=1e-15)
 
 
 def test_clip_without_bounds_keeps_the_expression():

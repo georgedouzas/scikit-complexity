@@ -733,11 +733,11 @@ breaks it.
 - **WHEN** a law creates wealth from nothing in a system whose run declares the observable `total_wealth` invariant
 - **THEN** the run raises `ConservationError` naming `total_wealth` and the first frame that breaks it
 
-### Requirement: Parts share three verbs
-Elements, interactions, laws, and systems SHALL derive from `BasePart`, which defines `label`, `check()`,
-`prepare(namespace)`, and `run(input)`. Elements, interactions, and systems SHALL return `self` from `check` and
-`prepare`, and their laws from `run(s)`; a system SHALL return the laws of its children. A law SHALL return a checked
-or prepared copy, and SHALL evaluate its contribution from `run(values)`.
+### Requirement: Parts share two verbs
+Elements, interactions, laws, and systems SHALL derive from `BasePart`, which defines `label`,
+`prepare(namespace)`, and `run(input)`. Elements, interactions, and systems SHALL return `self` from
+`prepare`, and their laws from `run(s)`; a system SHALL return the laws of its children. A law SHALL return a prepared
+copy, and SHALL evaluate its contribution from `run(values)`.
 
 #### Scenario: System yields laws
 - **WHEN** a system of a population element and a growth interaction is prepared and run with a namespace
@@ -764,7 +764,7 @@ of separate interactions on one state SHALL sum. A misuse SHALL raise `Validatio
 
 #### Scenario: Coordinate without a momentum
 - **WHEN** a `HamiltonianInteraction` lists two coordinates and one momentum
-- **THEN** `check()` raises `ValidationError` whose message names the unpaired coordinate
+- **THEN** `prepare` raises `ValidationError` whose message names the unpaired coordinate
 
 #### Scenario: Coordinate of order 2
 - **WHEN** a `HamiltonianInteraction` names a coordinate declared with `StateSpec(order=2)`

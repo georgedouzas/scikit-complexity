@@ -13,7 +13,6 @@ the split of 2-oxoglutarate in the TCA example of Antoniewicz et al. (2007).
 
 import matplotlib.pyplot as plt
 import numpy as np
-import rerun.blueprint as rrb
 
 from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.system import System
@@ -30,8 +29,7 @@ analysis = tca_labelling_analysis(noise=0.002, random_state=0).prepare(system).r
 network = system.elements[0]
 fixed = {f'{bound}_{name}': analysis.fluxes_[name] for name in TRUE for bound in ('lower', 'upper')}
 estimated = System(elements=[type(network)(network.label).set_params(**fixed)], time=StaticTime())
-blueprint = rrb.Blueprint(rrb.GraphView(origin='tca/graph', name='network'), collapse_panels=True)
-observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='tca/graph')
 Simulation(estimated, observers=[observer]).prepare().run(until=0.0)
 
 # %%

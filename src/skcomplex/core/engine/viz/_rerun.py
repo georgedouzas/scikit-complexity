@@ -43,6 +43,7 @@ from ._sites import SiteVisual
 
 _RENEWAL_MEMBERS = 20
 _VIEWER_FLUSH_SECONDS = 30.0
+_FILE_FLUSH_TICK_SECONDS = 10**9
 _EXTRA = 'extra'
 _UNSAFE = re.compile(r'[^A-Za-z0-9_/.-]')
 _MAX_SERIES_PER_VIEW = 6
@@ -220,7 +221,7 @@ class RerunObserver(BaseObserver):
         # Rerun keeps the threads of a recording until its orphans are cleaned up, so a process running many
         # simulations, such as the docs build, would otherwise run out of threads.
         bindings.flush_and_cleanup_orphaned_recordings()
-        self.recording_ = rr.RecordingStream(self.application_id)
+        self.recording_ = rr.RecordingStream(self.application_id, batcher_config=self._batcher_config())
         agents = problem.agents
         self.visuals_: list[BaseVisual] = [
             *(self._visual_of(element).prepare(problem) for element in problem.elements),
@@ -405,6 +406,18 @@ class RerunObserver(BaseObserver):
             if isinstance(record, RenewalRecordSpec):
                 self.recording_.log(f'renewals/{record.label}', rr.TextLog(self._renewal_text(record)))
         self.logged_frames_ += 1
+
+    def _batcher_config(self) -> rr.ChunkBatcherConfig:
+        """Return the batching of the recording, by size alone when no viewer waits for the frames.
+
+        Rerun flushes its batches every 200 ms by default, which writes a chunk per entity at each flush, so on a slower
+        machine a recording of many entities splits into more chunks and its file grows several times. A recording that
+        only goes to a file flushes when its batch is large enough, so its size does not depend on the machine.
+        """
+        config = rr.ChunkBatcherConfig.DEFAULT()
+        if not (self.spawn or self.connect):
+            config.flush_tick = _FILE_FLUSH_TICK_SECONDS
+        return config
 
     def _release(self) -> None:
         """Flush the recording, and warn after a while rather than wait forever for a viewer that cannot be reached."""

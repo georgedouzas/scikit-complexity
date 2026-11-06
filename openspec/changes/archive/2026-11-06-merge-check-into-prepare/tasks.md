@@ -16,5 +16,5 @@
 
 ## 3. Gate
 
-- [ ] 3.1 Run formatting and all checks, and push to `development`; verify every CI job passes.
+- [x] 3.1 Run formatting and all checks, and push to `development`; verify every CI job passes.
 - [ ] 3.2 Run the full suite on Linux on a temporary branch and the full gallery build, since the rewrite invalidates its cache; verify both pass.
