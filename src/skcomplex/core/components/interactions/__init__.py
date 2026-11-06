@@ -28,6 +28,7 @@ from ._life_cycle import LifeCycleInteraction
 from ._local_rule import LocalRuleInteraction
 from ._map import MapInteraction
 from ._matching import MatchingInteraction
+from ._mobility import MobilityInteraction
 from ._movement import MovementInteraction
 from ._neighbor import NeighborInteraction
 from ._optimization import OptimizationInteraction
@@ -72,6 +73,7 @@ __all__: list[str] = [
     'LocalRuleInteraction',
     'MapInteraction',
     'MatchingInteraction',
+    'MobilityInteraction',
     'MovementInteraction',
     'NeighborInteraction',
     'OptimizationInteraction',

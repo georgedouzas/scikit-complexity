@@ -28,6 +28,8 @@ list, then follow the link to its subsection.
   `SignAdjustmentInteraction`, `LocalRuleInteraction`, and `CascadeInteraction`, in [Discrete time](#discrete-time).
 - Couple members over the edges of a lattice or a network, over a group, or over close pairs: `CouplingInteraction`
   and `PairCouplingInteraction`, in [Coupling over a structure](#coupling-over-a-structure).
+- Move particles through a viscous fluid by the forces, torques, and active slip of all of them: `MobilityInteraction`,
+  in [Coupling over a structure](#coupling-over-a-structure).
 - Fire random events or chemical reactions: `JumpInteraction` and `ReactionInteraction`, in
   [Jumps and reactions](#jumps-and-reactions).
 - Move a member between discrete values, such as susceptible and infected: `TransitionInteraction`, in
@@ -512,6 +514,64 @@ round(float(distances.min()), 2), round(float(distances.max()), 2)
 `PairCouplingInteraction(first, second, cutoff, read, write, function=None, potential=None, divisor=None,
 period=None)` adds to both members of every pair within the cutoff either `function(s)`, or minus the gradient of
 `potential(s, r)` at their distance `r`. With several states in `write`, the function returns one value per state.
+
+Use `MobilityInteraction` for spheres in a viscous fluid at low Reynolds number, where the force on one sphere moves all
+the others through the flow it creates. Two spheres that sediment side by side fall faster than one alone:
+
+```python
+from typing import Annotated
+
+import numpy as np
+import numpy.typing as npt
+from sage.all__sagemath_symbolics import vector
+
+from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.interactions import MobilityInteraction
+from skcomplex.core.components.spaces import ContinuousSpace
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.specs import StateSpec
+
+
+class SphereElement(Element):
+    def __init__(self, label, *, x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0):
+        super().__init__(label)
+        self.x = x
+
+
+def fall(positions):
+    gravity = MobilityInteraction('stokes', target='spheres', force=lambda s: vector([0.0, 0.0, -1.0]))
+    spheres = GroupElement('spheres', element=SphereElement, size=len(positions), values={'x': positions})
+    system = System(elements=[spheres], interactions=[gravity], space=ContinuousSpace(n_dim=3))
+    heights = Simulation(system, dt=1.0).prepare().run(until=10.0).trajectory_.values('spheres.x')[..., 2]
+    return float(heights[0, 0] - heights[-1, 0]) / 10 * 6 * np.pi
+
+
+round(fall([[0.0, 0.0, 0.0]]), 3), round(fall([[0.0, 0.0, 0.0], [3.0, 0.0, 0.0]]), 3)
+```
+
+`MobilityInteraction(target, position='x', orientation=None, tensor='rotne-prager-yamakawa', form='rate', force,
+torque, velocity, stresslet, dipole, potential, cutoff, root='cholesky', radius, viscosity, temperature, dt)` moves the
+spheres of a group by the grand mobility `M`, the linear map from the forces and torques on all spheres to their
+velocities and angular velocities. A lone sphere moves at `F / (6 pi eta a)`, and the second sphere above adds the
+fraction `3 a / (4 r) + a^3 / (2 r^3)` to the speed of the first, about a quarter at the distance `r = 3`.
+
+- The tensor is `'oseen'`, the flow of a point force, `'rotne-prager-yamakawa'`, which adds the finite size of the
+  spheres and stays positive definite when they overlap, or `'free-draining'`, which couples no pair. The rotlet couples
+  torques to velocities and forces to angular velocities, and an `orientation` state turns at `Omega x p`.
+- The force, the torque, an intrinsic `velocity`, a `stresslet`, and a potential `dipole` are functions of the namespace
+  of a member. The stresslet and the dipole are force-free sources whose flows move and turn the other spheres, so
+  together with the intrinsic velocity they carry the active slip of a microswimmer. A pair `potential(s, r)` of the
+  distance adds its forces within `cutoff`.
+- In `form='map'`, in discrete time, every step is the Ermak-McCammon step `x + M F dt + sqrt(2 kT dt) B xi` of Brownian
+  dynamics, where `B B^T = M`. `root='cholesky'` factors `M`, and `root='lanczos'` applies a Krylov approximation of
+  its square root with the matrix-free product, for larger groups. The time of the namespace then counts steps.
+- Positions in the plane are the plane `z = 0` of a three-dimensional fluid. The fluid is unbounded, every evaluation
+  costs `O(N^2)`, and Cholesky costs `O(N^3)`.
+
+The library has `squirmers`, spherical microswimmers whose slip modes make them pushers or pullers, and
+`hydrodynamically_coupled_traps`, two Brownian spheres in blinking optical tweezers whose free steps correlate through
+the mobility.
 
 ## Events and discrete states
 

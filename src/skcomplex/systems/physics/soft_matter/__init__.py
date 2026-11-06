@@ -1,4 +1,4 @@
-"""Soft matter: Brownian particles, optical traps, anomalous diffusion, and noise-driven transitions."""
+"""Soft matter: Brownian particles, optical and hydrodynamically coupled traps, anomalous diffusion, and transitions."""
 
 from ._anomalous import (
     annealed_transient_time_motion,
@@ -7,10 +7,12 @@ from ._anomalous import (
     levy_flight,
     levy_walk,
 )
+from ._blinking_traps import BlinkingTrapsInteraction
 from ._brownian import brownian_near_wall, stochastic_resonance
 from ._brownian_particle import BrownianParticleElement
 from ._colored_noise import ColoredNoiseParticleElement, colored_noise_langevin
 from ._continuous_time_walker import ContinuousTimeWalkerElement
+from ._coupled_traps import hydrodynamically_coupled_traps
 from ._diffusion import (
     brownian_motion,
     diffusion_in_a_speckle_field,
@@ -33,10 +35,12 @@ from ._speckle_field import SpeckleFieldInteraction
 from ._thermal_noise import ThermalNoiseInteraction
 from ._tilted_washboard import TiltedWashboardInteraction
 from ._transient_walker import TransientWalkerElement
+from ._trapped_sphere import TrappedSphereElement
 from ._traps import TrapSiteElement, biased_trap_walk
 from ._wall_particle import WallParticleElement
 
 __all__: list[str] = [
+    'BlinkingTrapsInteraction',
     'BrownianParticleElement',
     'ColoredNoiseParticleElement',
     'ContinuousTimeWalkerElement',
@@ -54,6 +58,7 @@ __all__: list[str] = [
     'TiltedWashboardInteraction',
     'TransientWalkerElement',
     'TrapSiteElement',
+    'TrappedSphereElement',
     'WallParticleElement',
     'annealed_transient_time_motion',
     'biased_trap_walk',
@@ -64,6 +69,7 @@ __all__: list[str] = [
     'diffusion_in_a_speckle_field',
     'flashing_ratchet',
     'fractional_brownian_motion',
+    'hydrodynamically_coupled_traps',
     'kramers_escape',
     'levy_flight',
     'levy_walk',
