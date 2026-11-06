@@ -19,7 +19,7 @@ from ._crowding import CrowdingInteraction
 from ._guidance import GuidanceInteraction
 from ._walking import WalkingInteraction, building_of, walking_speeds
 
-EVACUATION_REFERENCES = ('Bellomo et al. 2017', 'Bellomo and Gibelli 2015', 'Agnelli, Colasuonno, and Knopoff 2015')
+EVACUATION_REFERENCES = ('Bellomo et al. 2017 §3.4', 'Bellomo and Gibelli 2015')
 
 
 def evacuated_fraction(s: SimpleNamespace, rooms: int, speeds: int) -> Expression:
@@ -118,6 +118,11 @@ def evacuation(
     way out at a rate proportional to their speed. Encounters within a room slow pedestrians down, and the exit signs
     speed them up again, so the crowd queues in the rooms near the exit and the evacuated fraction grows along an
     S-shaped curve.
+
+    The rooms are the nodes and the speed classes the discrete activity of the kinetic structure for a network of
+    Bellomo et al. (2017, sections 3.4 and 3.4.1), and the slowing and guiding encounters follow the behavioural crowd
+    of Bellomo and Gibelli (2015). The crowd of chapter 6 of Bellomo et al. (2017), which moves in continuous space
+    around walls and obstacles, is a different model.
 
     Args:
         branching:

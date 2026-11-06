@@ -265,7 +265,9 @@ def unbounded_alphabet_automaton(size: int = 101) -> System:
     """Return an additive automaton over the nonnegative integers, `x'(n) = x(n - 1) + x(n)`, from a single 1.
 
     Its alphabet has no bound: from a single 1 the cells after `t` steps hold the binomial coefficients `C(t, k)`, so
-    every row of Pascal's triangle appears.
+    every row of Pascal's triangle appears. Reduced modulo 2, the rule is the mirror image of the additive automaton
+    `x(n) + x(n + 1)` of Ceccherini-Silberstein and Coornaert (2023, Example 3.3.8), which this system lifts to the
+    nonnegative integers.
 
     Args:
         size:

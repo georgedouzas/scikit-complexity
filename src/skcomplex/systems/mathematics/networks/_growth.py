@@ -130,7 +130,7 @@ def barabasi_albert(n_nodes: int = 303, *, edges: int = 2, seed_nodes: int = 3) 
 @register_system(
     field='mathematics/networks',
     tags=('network', 'growth', 'preferential attachment', 'clustering', 'triad formation'),
-    references=('Holme and Kim 2002', 'Argun et al. 2021', 'Gros 2015', 'Thurner et al. 2018'),
+    references=('Holme and Kim 2002', 'Downey 2018'),
     defaults={'until': 300},
 )
 def holme_kim(n_nodes: int = 304, *, edges: int = 3, triad: float = 0.8, seed_nodes: int = 4) -> System:

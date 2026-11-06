@@ -108,7 +108,7 @@ class ConsumerElement(Element):
 @register_system(
     field='economics/markets',
     tags=('consumer choice', 'social influence', 'agents', 'grid'),
-    references=('Chesney 2021 ch. 3', 'Chesney 2021 ch. 7'),
+    references=('Brock and Durlauf 2001',),
     defaults={'until': 50},
     observables=lambda system: [ObservableSpec('fair_share', group='consumers', variable='fair')],
 )
@@ -125,11 +125,15 @@ def fair_food(
     high_budget: float = 3.0,
     random_state: int | np.random.Generator | None = 0,
 ) -> System:
-    """Return Chesney's choice between fair-trade and regular food of consumers who influence their neighbours.
+    """Return the choice between fair-trade and regular food of consumers who influence their neighbours.
 
     Every consumer, of uniform ethical concern and budget, sits on a cell of a grid and every step buys fair or
-    regular food, all at once from the choices of their neighbours in the last step, as in the choice of Ajani. The
-    share of fair food rises with the weight of ethics and falls with the premium, and social influence raises it.
+    regular food, all at once from the choices of their neighbours in the last step. The share of fair food rises with
+    the weight of ethics and falls with the premium, and social influence raises it.
+
+    The choice is the binary logit choice with social interactions of Brock and Durlauf (2001), with a private utility
+    of ethics and price and a social utility of the share of neighbours who buy fair food. Neither Ajani's Choice nor
+    the Fair Food Program of Chesney (2021) is this model.
 
     Args:
         width:

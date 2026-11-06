@@ -37,7 +37,7 @@ def _random_cells(shape: Sequence[int], density: float, random_state: int | np.r
 @register_system(
     field='social/opinion_dynamics',
     tags=('lattice', 'opinion', 'voting'),
-    references=('Charbonneau 2017',),
+    references=('Argun et al. 2021', 'Gärtner and Zehmakan 2017'),
     defaults={'until': 50, 'dt': 1},
 )
 def majority_rule(
@@ -47,6 +47,9 @@ def majority_rule(
     random_state: int | np.random.Generator | None = 0,
 ) -> System:
     """Return voters that take the majority opinion of their neighbourhood, which coarsens into domains.
+
+    Every step every voter takes the opinion of the majority of its eight Moore neighbours and keeps its own when they
+    tie, the majority rule of Argun et al. (2021, section 4.3).
 
     Args:
         shape:

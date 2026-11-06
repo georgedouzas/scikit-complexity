@@ -215,7 +215,7 @@ def theta_neurons(
 @register_system(
     field='biology/neuroscience',
     tags=('neural network', 'competition', 'winner-take-all'),
-    references=('Fukai and Tanaka 1997', 'Gros 2015'),
+    references=('Fukai and Tanaka 1997',),
     defaults={'until': 40.0, 'dt': 0.2},
 )
 def winners_take_all(
@@ -231,6 +231,8 @@ def winners_take_all(
     Tanaka. One inhibition interaction binds every unit as an element set and reads the total activity of the set, so
     the network holds one interaction whatever the number of units. When the inhibition `beta` exceeds 1, only the unit
     with the largest input stays active, at activity `I_max`. When it is below 1, several winners share the activity.
+    The winners-take-all network of Gros (2015, section 10.4), with reservoir variables and clique encoding, is a
+    different model.
 
     Args:
         inputs:

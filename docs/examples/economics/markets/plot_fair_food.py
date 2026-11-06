@@ -1,5 +1,5 @@
 """
-# Ajani's choice and fair food
+# Fair-trade food choice with peer influence
 
 Consumers on a grid choose between fair-trade and regular food from its price, their budget, their ethical concern,
 and what their neighbours bought. Fair food spreads in clusters, and its share falls as its price premium rises,

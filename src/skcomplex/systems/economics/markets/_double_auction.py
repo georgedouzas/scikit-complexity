@@ -41,7 +41,7 @@ def _book_profit(trade: MatchSpec, system: SystemView) -> None:
 @register_system(
     field='economics/markets',
     tags=('market', 'agents', 'double auction', 'zero intelligence'),
-    references=('Gooding 2019 ch. 8-12', 'Gode and Sunder 1993'),
+    references=('Gode and Sunder 1993',),
     defaults={'until': 20},
 )
 def double_auction(
@@ -61,6 +61,9 @@ def double_auction(
     the market matches the quotes, continuously in a limit order book or at one uniform price in a call auction. With
     the budget constraint (ZI-C) no trader accepts a loss, and the market alone reaches nearly the whole competitive
     surplus. Without it (ZI-U), traders make losing trades and the efficiency drops.
+
+    The traders are the zero-intelligence traders of Gode and Sunder (1993). The double auction of Gooding (2019),
+    whose traders adapt their bids and asks, is a different model.
 
     Args:
         n_buyers:

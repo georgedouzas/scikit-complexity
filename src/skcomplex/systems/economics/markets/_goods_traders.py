@@ -37,7 +37,7 @@ def _goods_observables(system: System) -> list[ObservableSpec]:
 @register_system(
     field='economics/markets',
     tags=('market', 'agents', 'barter', 'price convergence', 'grid'),
-    references=('Gooding 2019 ch. 8-12', 'Epstein and Axtell 1996'),
+    references=('Epstein and Axtell 1996',),
     defaults={'until': 50, 'invariants': dict.fromkeys(GOODS, 1e-6)},
     observables=_goods_observables,
 )
@@ -59,7 +59,11 @@ def goods_traders(
     traders wander to a random neighbouring cell, then every trader is paired with a neighbour, and the pairs barter
     while both gain, at the geometric mean of their marginal rates of substitution. Trades only move goods between the
     traders, so the total of every good is unchanged, while the mean utility rises and the prices of different trades
-    converge, so the dispersion of the logarithm of the price falls, the toy and three-goods traders of Gooding (2019).
+    converge, so the dispersion of the logarithm of the price falls.
+
+    The trade rule is the bilateral barter of sugar and spice of Epstein and Axtell (1996), and salt extends it to a
+    third good. The Toy Trader of Gooding (2019), with money, posted prices, and imitation of price rules, is a
+    different model.
 
     Args:
         n_traders:

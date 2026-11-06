@@ -36,7 +36,7 @@ def _order_book_observables(system: System) -> list[ObservableSpec]:
 @register_system(
     field='economics/finance',
     tags=('stock market', 'agents', 'order book', 'imitation', 'fundamentalists', 'chartists'),
-    references=('Caiani et al. 2016 ch. 3', 'Lux and Marchesi 1999'),
+    references=('Lux and Marchesi 1999', 'Caiani et al. 2016 §3.2.1'),
     defaults={'until': 200, 'invariants': {f'total_{name}': 1e-6 for name in HOLDINGS}},
     observables=_order_book_observables,
 )
@@ -59,7 +59,12 @@ def order_book(
     order book matches the orders with price-time priority, and every trade moves money and a share between the two
     traders. Then traders copy the strategy of a neighbour whose wealth grew more. Fundamentalists hold the price near
     the fundamental value, chartists amplify its swings, and imitation lets the share of chartists wander, so the
-    returns come in bursts with fat tails (Caiani et al. 2016 ch. 3).
+    returns come in bursts with fat tails.
+
+    The two strategies are the fundamentalists and chartists of Lux and Marchesi (1999), and imitating a wealthier
+    neighbour on the grid stands in for their switching between strategies. The order book is the order-driven market
+    of Caiani et al. (2016, section 3.2.1). The traders of Caiani's chapter 3, noise traders who follow gurus of an
+    evolving network, are a different model.
 
     Args:
         width:
