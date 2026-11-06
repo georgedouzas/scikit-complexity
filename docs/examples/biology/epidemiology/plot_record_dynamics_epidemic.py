@@ -8,7 +8,7 @@ a constant rate in the logarithm of time.
 
 # %%
 # The system is created by name from the catalog with 2000 residents and run for 300 years. The observer saves every
-# year with the default blueprint, whose primary view is the time series of the strength of the strain.
+# other year with the default blueprint, whose primary view is the time series of the strength of the strain.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,7 +20,7 @@ from skcomplex.systems import create_system
 SYSTEM = 'record_dynamics_epidemic'
 
 system = create_system(SYSTEM, n=2000)
-observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=300)
 
 # %%
