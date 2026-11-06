@@ -72,6 +72,9 @@ What an agent can do:
   parameter.
 - `neighbors`, `neighbor_cells`, `agents_here`, `move_to`, `create`, and `remove` act on its place and its population.
   Only the members of a group declared `variable=True` are created and removed during a run.
+- `agent.neighbors(group=path)` and `agent.agents_here(path)` read the agents of one group around the agent and at its
+  place, so the agents of a variable group on the nodes of a network make a set of members per node that grows and
+  that neighbours read, as the [networks](networks.md#sets-of-members-on-the-nodes) guide shows.
 - `agent.displacement_to(other)` gives the vector to another agent or a location, the shortest one on a torus, and
   `agent.distance_to(other)` its length, or the number of hops on a network.
 - `agent.group` is the path of the agent's group, and `agent.group_label` its label.

@@ -1,6 +1,7 @@
 """Analyse systems, trajectories, and measured data by kind of data: series, paths, fields, agents, and networks."""
 
 from ._alignment import AlignmentAnalysis
+from ._autocatalytic import AutocatalyticSetAnalysis
 from ._automata import AutomatonAnalysis
 from ._base import BaseAnalysis
 from ._cell_complex import CellComplexAnalysis
@@ -55,6 +56,7 @@ from ._symbolic import SymbolicAnalysis
 
 __all__: list[str] = [
     'AlignmentAnalysis',
+    'AutocatalyticSetAnalysis',
     'AutomatonAnalysis',
     'BaseAnalysis',
     'CellComplexAnalysis',

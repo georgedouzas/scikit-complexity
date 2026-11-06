@@ -15,7 +15,7 @@ from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import Simulation, Trajectory
 from skcomplex.core.engine.solvers import MesaSolver
-from skcomplex.core.errors import SolverError, ValidationError
+from skcomplex.core.errors import RoleError, SolverError, ValidationError
 from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
@@ -253,6 +253,9 @@ def test_check_rejects_an_edge_action_without_target():
         {'edges': -1},
         {'action': 'add-edge', 'hyperedge': 3},
         {'action': 'add-node', 'hyperedge': 1},
+        {'action': 'add-hyperedge'},
+        {'action': 'remove-hyperedge', 'hyperedge': 3},
+        {'direction': 'sideways'},
     ],
 )
 def test_check_rejects_invalid_arguments(arguments):
@@ -475,3 +478,76 @@ def test_get_laws_add_node_runs_on_no_mesa_path():
     system = System(elements=[nodes, links], interactions=[growth], space=NetworkSpace(nx.path_graph(4)))
     with pytest.raises(SolverError, match='does not support the laws UpdateLaw'):
         Simulation(system, solver=MesaSolver(), random_state=0).prepare()
+
+
+def _ranked(*interactions: BaseInteraction, directed: bool = False, capacity: int = 80) -> System:
+    """Return five nodes without hyperedges whose variable group on hyperedges holds every size up to four."""
+    nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=capacity)
+    links = GroupElement('links', element=Element, on='edges', variable=True, capacity=capacity * capacity)
+    groups = GroupElement('groups', element=Element, on='hyperedges', variable=True, size=0, capacity=capacity, rank=4)
+    graph = nx.empty_graph(5, create_using=nx.DiGraph if directed else nx.Graph)
+    return System(
+        elements=[nodes, links, groups],
+        interactions=list(interactions),
+        space=NetworkSpace(graph),
+        time=DiscreteTime(),
+    )
+
+
+@BACKENDS
+def test_get_laws_add_node_forms_hyperedges_of_every_size_up_to_the_rank(backend):
+    """Test that new nodes of hyperedges of two, three, and four members fill a ranked group, padded with -1."""
+    growth = [TopologyInteraction(f'growth_{size}', action='add-node', hyperedge=size, edges=0) for size in (2, 3, 4)]
+    trajectory = Simulation(_ranked(*growth), backend=backend, random_state=0).prepare().run(until=10).trajectory_
+    network = trajectory.network(-1)
+    sizes = (network.hyperedges >= 0).sum(axis=1)
+    assert network.hyperedges.shape == (30, 4)
+    assert sorted(np.bincount(sizes).tolist()) == [0, 0, 10, 10, 10]
+    assert all(row[size - 1] == max(row[:size]) for row, size in zip(network.hyperedges, sizes, strict=True))
+    assert len(network.nodes) == 35
+    assert len(network.sources) == 0
+
+
+def test_get_laws_add_node_joins_independent_ends_both_ways():
+    """Test that independent ends of a probability join about that share of the nodes, in each direction apart."""
+    growth = TopologyInteraction(
+        'growth',
+        action='add-node',
+        edges=0,
+        independent=True,
+        direction='both',
+        toward=lambda node: 0.5,
+    )
+    trajectory = Simulation(_ranked(growth, directed=True), random_state=0).prepare().run(until=60).trajectory_
+    network = trajectory.network(-1)
+    edges = set(zip(network.sources.tolist(), network.targets.tolist(), strict=True))
+    pairs = 65 * 64 / 2 - 5 * 4 / 2
+    assert len(edges) == len(network.sources)
+    assert len(edges) / (2 * pairs) == pytest.approx(0.5, abs=0.05)
+    assert len({(first, second) for first, second in edges if (second, first) in edges}) > 0
+
+
+def test_get_laws_add_hyperedge_and_remove_hyperedge_change_the_hyperedges():
+    """Test that nodes form triangles that dissolve, so the number of hyperedges settles near its balance."""
+    form = TopologyInteraction('form', target='nodes', action='add-hyperedge', hyperedge=3, probability=0.2)
+    dissolve = TopologyInteraction('dissolve', target='triangles', action='remove-hyperedge', probability=0.25)
+    system = _triangles(form, dissolve, capacity=200)
+    trajectory = Simulation(system, random_state=0).prepare().run(until=200).trajectory_
+    counts = [trajectory.network(frame).hyperedges.shape[0] for frame in range(100, 201)]
+    assert np.mean(counts) == pytest.approx(3 * 0.2 / 0.25, rel=0.3)
+    network = trajectory.network(-1)
+    assert len(network.nodes) == 3
+    assert len(network.sources) == 3
+    assert all(len(set(row.tolist())) == 3 for row in network.hyperedges)
+
+
+def test_get_laws_hyperedges_beyond_the_rank_or_interactions_on_a_ranked_group_are_reported():
+    """Test that a hyperedge larger than the rank and laws per hyperedge on a ranked group are rejected."""
+    growth = TopologyInteraction('growth', action='add-node', hyperedge=5, edges=0)
+    with pytest.raises(ValidationError, match='rank'):
+        Simulation(_ranked(growth), random_state=0).prepare()
+    system = _ranked(AgeingInteraction('ageing', nodes='nodes', triangles='groups'))
+    system.space = NetworkSpace(nx.complete_graph(5), hyperedges=[[0, 1, 2], [1, 2, 3, 4]])
+    system.elements[2].size = None
+    with pytest.raises(RoleError, match='rank'):
+        Simulation(system, random_state=0).prepare()

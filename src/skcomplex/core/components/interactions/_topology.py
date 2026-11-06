@@ -14,7 +14,16 @@ from ..laws import BaseLaw, JumpLaw, UpdateLaw
 from ..laws.utils import where
 from ._neighbor import NeighborInteraction
 
-ACTIONS = ('add-node', 'remove-node', 'replace-node', 'add-edge', 'remove-edge', 'rewire')
+ACTIONS = (
+    'add-node',
+    'remove-node',
+    'replace-node',
+    'add-edge',
+    'remove-edge',
+    'rewire',
+    'add-hyperedge',
+    'remove-hyperedge',
+)
 
 type Chance = float | Callable[[SimpleNamespace], object]
 
@@ -39,18 +48,25 @@ class TopologyInteraction(NeighborInteraction):
     edges of the network are variable. With `hyperedge`, a new node instead forms a hyperedge of that size with
     `hyperedge - 1` existing nodes and joins each of them by an edge: the first two are the ends of an edge drawn
     uniformly, so a size of three attaches a triangle along an edge, and further members are drawn by `toward`. The
-    new hyperedge is a new member of the variable group on the hyperedges of the network.
+    new hyperedge is a new member of the variable group on the hyperedges of the network. With `edges=0` or
+    `independent`, every other member is drawn by `toward`, and the new node draws its edges apart. The action
+    `'add-hyperedge'` runs for every node of the group on the nodes, which forms a hyperedge of size `hyperedge` with
+    nodes drawn by `toward` and is its last member, and `'remove-hyperedge'` runs for every hyperedge of the variable
+    group on the hyperedges that the target binds, whose namespace reads the hyperedge member as the source. With
+    `independent`, every candidate becomes a new end on its own with probability `toward`, so a node joins a random
+    number of nodes, and on a directed layer `direction` sends the new edges out of the node, into it, or both ways.
 
     Args:
         label:
             The label of the interaction, unique among the parts of its system.
 
         target:
-            The path of the group on the nodes of the network, or `None` for an addition of one node per step.
+            The path of the group on the nodes of the network, of the variable group on its hyperedges for
+            `'remove-hyperedge'`, or `None` for an addition of one node per step.
 
         action:
-            The change, `'add-node'`, `'remove-node'`, `'replace-node'`, `'add-edge'`, `'remove-edge'`, or
-            `'rewire'`.
+            The change, `'add-node'`, `'remove-node'`, `'replace-node'`, `'add-edge'`, `'remove-edge'`, `'rewire'`,
+            `'add-hyperedge'`, or `'remove-hyperedge'`.
 
         rate:
             The rate of the change, a number or a function, or `None` for a probability per step.
@@ -79,13 +95,22 @@ class TopologyInteraction(NeighborInteraction):
             The layer of the network whose edges change, or `None` for the graph of the network.
 
         hyperedge:
-            The size of the hyperedge every new node forms with existing nodes, or `None` for none.
+            The size of the hyperedge every new node or every node of `'add-hyperedge'` forms with existing nodes, or
+            `None` for none.
+
+        independent:
+            Whether every candidate becomes a new end on its own with the probability `toward`, in place of `edges`
+            ends drawn by weight.
+
+        direction:
+            The direction of new edges on a directed layer, `'out'` of the node, `'in'` to it, or `'both'`.
 
     Raises:
         ValidationError:
-            The action or the kept end is unknown, both a rate and a probability are given, the number of edges is
-            not a whole number, an action other than `'add-node'` has no target, or a hyperedge is given to an action
-            other than `'add-node'` or has fewer than two members, raised by `prepare`.
+            The action, the kept end, or the direction is unknown, both a rate and a probability are given, the
+            number of edges is not a whole number, an action other than `'add-node'` has no target, a hyperedge is
+            given to an action other than `'add-node'` and `'add-hyperedge'` or has fewer than two members, or
+            `'add-hyperedge'` has no hyperedge, raised by `prepare`.
 
     Examples:
         >>> import networkx as nx
@@ -134,6 +159,8 @@ class TopologyInteraction(NeighborInteraction):
         values: Mapping[str, object] | None = None,
         layer: str | None = None,
         hyperedge: int | None = None,
+        independent: bool = False,
+        direction: str = 'out',
     ) -> None:
         super().__init__(label, layer=layer)
         self.target = target
@@ -146,6 +173,8 @@ class TopologyInteraction(NeighborInteraction):
         self.keep = keep
         self.values = values
         self.hyperedge = hyperedge
+        self.independent = independent
+        self.direction = direction
 
     def _check(self) -> None:
         """Raise an error for an unknown action or kept end, a rate next to a probability, or a bad number of edges.
@@ -154,7 +183,8 @@ class TopologyInteraction(NeighborInteraction):
             ValidationError:
                 The action or the kept end is unknown, both a rate and a probability are given, a condition or a
                 weight cannot be called, the number of edges is not a whole number of at least 0, an action other
-                than `'add-node'` has no target, or a hyperedge is given to an action other than `'add-node'`.
+                than `'add-node'` has no target, or a hyperedge is given to an action other than `'add-node'` and
+                `'add-hyperedge'`, or `'add-hyperedge'` has none.
         """
         super()._check()
         self._check_variant('action', self.action, ACTIONS, (BaseSpec,))
@@ -164,8 +194,10 @@ class TopologyInteraction(NeighborInteraction):
         if self.target is None and self.action != 'add-node':
             error_msg = f'{self.label!r} runs {self.action!r} without a target. Give the group on the nodes.'
             raise ValidationError(error_msg)
-        if self.hyperedge is not None and self.action != 'add-node':
-            error_msg = f'{self.label!r} runs {self.action!r} with a hyperedge. Only new nodes form hyperedges.'
+        if self.hyperedge is not None and self.action not in {'add-node', 'add-hyperedge'}:
+            error_msg = (
+                f'{self.label!r} runs {self.action!r} with a hyperedge. Only new nodes and new hyperedges take a size.'
+            )
             raise ValidationError(error_msg)
         for name in ('condition', 'toward'):
             value = getattr(self, name)
@@ -189,7 +221,9 @@ class TopologyInteraction(NeighborInteraction):
                 self.keep,
                 self.layer,
                 values,
-                self.hyperedge if kind == 'add-node' else None,
+                self.hyperedge if kind in {'add-node', 'add-hyperedge'} else None,
+                self.independent,
+                self.direction,
             )
             for kind in kinds
         ]

@@ -89,8 +89,13 @@ class AgentViewProtocol(Protocol):
     def distance_to(self, other: AgentViewProtocol | object) -> float:
         """Return the distance to another agent or a location, the number of hops on a network."""
 
-    def neighbors(self, radius: float | None = None, layer: str | None = None) -> Sequence[AgentViewProtocol]:
-        """Return the other agents in the neighbouring cells or nodes, within a radius, or around it in a layer."""
+    def neighbors(
+        self,
+        radius: float | None = None,
+        layer: str | None = None,
+        group: str | None = None,
+    ) -> Sequence[AgentViewProtocol]:
+        """Return the other agents in the neighbouring cells or nodes, of every group or of the group of a path."""
 
     def regions_here(self, layer: str) -> list[int]:
         """Return the indices of the regions of a layer of the continuous space that contain the agent."""

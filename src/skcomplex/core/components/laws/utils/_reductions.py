@@ -41,6 +41,7 @@ KINDS = {
 NEIGHBOR_REDUCTIONS = ('sum', 'mean', 'count', 'max', 'min', 'normalized-mean', 'argmax')
 MIN_HYPEREDGE_SIZE = 2
 COMPONENT_REDUCTIONS = ('label', 'size', 'largest', 'giant')
+PATH_REDUCTIONS = ('betweenness', 'closeness')
 WEIGHTS: dict[str, object] = {}
 FUNCTIONS: dict[str, Callable[[AnyArray], object]] = {}
 NEIGHBORHOODS: dict[str, object] = {}
@@ -110,6 +111,16 @@ def _print_components(self: object, active: Expression, over: Expression, kind: 
     return f'components({", ".join(parts)})'
 
 
+def _print_paths(self: object, active: Expression, over: Expression, kind: Expression) -> str:
+    """Return a shortest paths reduction call with its keywords, leaving out the own neighbourhood."""
+    del self
+    parts = [str(active)]
+    if not _is_placeholder(over, 0):
+        parts.append(f'over={NEIGHBORHOODS.get(str(over), over)!r}')
+    parts.append(f'reduce={PATH_REDUCTIONS[int(SR(kind))]!r}')
+    return f'shortest_paths({", ".join(parts)})'
+
+
 def _eval_shift(
     self: object,
     expression: Expression,
@@ -129,6 +140,7 @@ NEIGHBORS = function('neighbors', nargs=4, print_func=_print_neighbors)
 NEIGHBOR = function('neighbor', nargs=2)
 HYPEREDGES = function('hyperedges', nargs=4, print_func=_print_hyperedges)
 COMPONENTS = function('components', nargs=3, print_func=_print_components)
+SHORTEST_PATHS = function('shortest_paths', nargs=3, print_func=_print_paths)
 SHIFT_MEMBER = function('shift_member', nargs=4, eval_func=_eval_shift)
 
 
@@ -872,11 +884,23 @@ def _component_reduction(call: Expression) -> NeighborReductionSpec:
     )
 
 
+def _path_reduction(call: Expression) -> NeighborReductionSpec:
+    """Return the neighbourhood reduction of the links of a shortest paths call, of the kind `'path-'` and its name."""
+    active, over, kind = call.operands()
+    return NeighborReductionSpec(
+        call=call,
+        kind=f'path-{PATH_REDUCTIONS[int(SR(kind))]}',
+        argument=active,
+        weight=None,
+        over=None if _is_placeholder(over, 0) else NEIGHBORHOODS[str(over)],
+    )
+
+
 def neighborhoods_in(expression: object) -> list[NeighborReductionSpec]:
     """Return the outermost neighbourhood reductions of an expression, the components reductions included.
 
-    A components reduction has the kind `'component-'` followed by its reduction, and the activity of one link as its
-    argument.
+    A components reduction has the kind `'component-'` followed by its reduction, a shortest paths reduction the kind
+    `'path-'` followed by its reduction, and both the activity of one link as their argument.
 
     Args:
         expression:
@@ -893,9 +917,12 @@ def neighborhoods_in(expression: object) -> list[NeighborReductionSpec]:
         ['mean']
     """
     reductions = []
-    for call in _calls_in(expression, {'neighbors', 'components'}):
+    for call in _calls_in(expression, {'neighbors', 'components', 'shortest_paths'}):
         if call.operator().name() == 'components':
             reductions.append(_component_reduction(call))
+            continue
+        if call.operator().name() == 'shortest_paths':
+            reductions.append(_path_reduction(call))
             continue
         argument, weight, over, kind = call.operands()
         reductions.append(

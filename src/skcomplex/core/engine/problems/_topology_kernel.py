@@ -37,8 +37,10 @@ class TopologyKernel(BaseKernel):
     ends join as the source, and a condition that reads the source of an addition draws the new node before it decides,
     so a node that does not fire is never added and a node that fires keeps those values. A new node of a request with
     a hyperedge forms a new member of the variable group on the hyperedges, with the ends of an edge it draws and
-    further nodes drawn by the weights of the request, and joins each of them by an edge. A removed node takes its
-    hyperedges with it.
+    further nodes drawn by the weights of the request, and joins each of them by an edge, or, without edges to draw or
+    with independent ends, with nodes drawn by the weights alone. A node of `'add-hyperedge'` forms a new hyperedge
+    with nodes drawn by the weights, and `'remove-hyperedge'` frees the row of a hyperedge. A removed node takes its
+    hyperedges with it. Independent ends join every candidate on its own with the weight as its probability.
 
     Args:
         networks:
@@ -247,12 +249,50 @@ class TopologyKernel(BaseKernel):
         return [int(item) for item in np.atleast_1d(chosen)]
 
     @staticmethod
-    def _allowed(item: CompiledRequestSpec, end: int, p: Array) -> npt.NDArray[np.bool_]:
-        """Return the node rows present that a node may join, other than itself and its neighbours in the layer."""
-        allowed = item.network.present(p).copy()
+    def _allowed(item: CompiledRequestSpec, end: int, p: Array, *, incoming: bool = False) -> npt.NDArray[np.bool_]:
+        """Return the node rows present that a node may join, other than itself and its neighbours in the layer.
+
+        On a directed layer the neighbours are the successors of the node, or its predecessors for edges into it.
+        """
+        network, layer = item.network, item.request.layer
+        allowed = network.present(p).copy()
         allowed[end] = False
-        allowed[item.network.neighbours(item.request.layer, end, p)] = False
+        if incoming and network.directed[layer]:
+            edges = network.edges[layer]
+            sources, targets = edges.ends(p)
+            allowed[sources[edges.present(p) & (targets == end)]] = False
+        else:
+            allowed[network.neighbours(layer, end, p)] = False
         return allowed
+
+    @staticmethod
+    def _independent(weights: Array, allowed: npt.NDArray[np.bool_], rng: np.random.Generator) -> list[int]:
+        """Return the allowed rows that each join on their own with their weight, clipped to `[0, 1]`, as probability.
+
+        Args:
+            weights:
+                The weight of every node row.
+
+            allowed:
+                Whether every node row may join.
+
+            rng:
+                The random number generator.
+
+        Returns:
+            rows:
+                The rows that join, in increasing order.
+
+        Examples:
+            >>> import numpy as np
+            >>> from skcomplex.core.engine.problems._topology_kernel import TopologyKernel
+            >>> weights, allowed = np.array([1.0, 0.0, 2.0, 1.0]), np.array([True, True, True, False])
+            >>> TopologyKernel._independent(weights, allowed, np.random.default_rng(0))
+            [0, 2]
+        """
+        candidates = np.flatnonzero(allowed)
+        chances = np.clip(weights[candidates], 0.0, 1.0)
+        return [int(row) for row in candidates[rng.random(candidates.size) < chances]]
 
     def _join(
         self,
@@ -264,12 +304,29 @@ class TopologyKernel(BaseKernel):
         *,
         rng: np.random.Generator,
     ) -> None:
-        """Join a node to new ends drawn by the weights of a request, with the values of an edge request."""
+        """Join a node to new ends drawn by the weights of a request, with the values of an edge request.
+
+        The new edges leave the node, enter it, or go both ways on a directed layer, by the direction of the request.
+        Independent ends join every candidate on its own, apart for each way.
+        """
         request, network = item.request, item.network
-        allowed = self._allowed(item, end, p)
-        for other in self._draw(self._weights(item, end, t, x, p), allowed, request.edges, rng):
+        weights = self._weights(item, end, t, x, p)
+        directions = ['out', 'in'] if request.direction == 'both' else [request.direction]
+        if request.independent:
+            pairs = [
+                (end, other) if direction == 'out' else (other, end)
+                for direction in directions
+                for other in self._independent(weights, self._allowed(item, end, p, incoming=direction == 'in'), rng)
+            ]
+        else:
+            allowed = self._allowed(item, end, p, incoming=request.direction == 'in')
+            drawn = self._draw(weights, allowed, request.edges, rng)
+            pairs = [
+                (end, other) if direction == 'out' else (other, end) for other in drawn for direction in directions
+            ]
+        for ends in pairs:
             values = self._initial_values(request, rng) if request.kind == 'add-edge' else {}
-            self._add_edge(network, request.layer, (end, other), x, p, values=values)
+            self._add_edge(network, request.layer, ends, x, p, values=values)
 
     def _attach(
         self,
@@ -281,18 +338,19 @@ class TopologyKernel(BaseKernel):
         *,
         rng: np.random.Generator,
     ) -> None:
-        """Form a hyperedge of a new node with the ends of a drawn edge and nodes drawn by the weights of a request.
+        """Form a hyperedge of a node with other nodes, drawn by the weights of a request, after the ends of an edge.
 
-        The new node joins every other member of the hyperedge by an edge, and the hyperedge lists the ends of the
-        drawn edge first and the new node last, so an edge joins its first two members. A network with too few nodes
-        for the hyperedge leaves the new node alone.
+        A new node with edges to draw and no independent ends joins every other member of the hyperedge by an edge,
+        and the hyperedge lists the ends of a drawn edge first and the new node last, so an edge joins its first two
+        members. Otherwise every other member is drawn by the weights, the node is the last member, and a new node
+        draws its edges apart. A network with too few nodes for the hyperedge forms none.
 
         Args:
             item:
                 The compiled request, whose request has a hyperedge.
 
             node:
-                The node row of the new node.
+                The node row of the new node or of the node that forms the hyperedge.
 
             t:
                 The time.
@@ -308,28 +366,59 @@ class TopologyKernel(BaseKernel):
         """
         request, network = item.request, item.network
         size = int(request.hyperedge or 0)
-        hyperedges = network.hyperedges
-        if hyperedges is None or hyperedges.members is None:
-            error_msg = f'{item.owner} forms hyperedges on a network without a variable group on its hyperedges.'
-            raise ValidationError(error_msg)
-        edges = network.edges[request.layer]
-        present = np.flatnonzero(edges.present(p))
+        anchored = request.kind == 'add-node' and request.edges > 0 and not request.independent
         members: list[int] = []
-        if size > MIN_EDGE_HYPEREDGE and present.size:
-            sources, targets = edges.ends(p)
-            row = int(rng.choice(present))
-            members = [int(sources[row]), int(targets[row])]
+        if anchored and size > MIN_EDGE_HYPEREDGE:
+            edges = network.edges[request.layer]
+            present = np.flatnonzero(edges.present(p))
+            if present.size:
+                sources, targets = edges.ends(p)
+                row = int(rng.choice(present))
+                members = [int(sources[row]), int(targets[row])]
         allowed = network.present(p).copy()
         allowed[[node, *members]] = False
         members += self._draw(self._weights(item, node, t, x, p), allowed, size - 1 - len(members), rng)
-        if len(members) < size - 1:
-            return
-        for other in members:
-            self._add_edge(network, request.layer, (other, node), x, p, values={})
+        if len(members) == size - 1:
+            if anchored:
+                for other in members:
+                    self._add_edge(network, request.layer, (other, node), x, p, values={})
+            self._add_hyperedge(item, [*members, node], x, p)
+        if request.kind == 'add-node' and not anchored:
+            self._join(item, node, t, x, p, rng=rng)
+
+    def _add_hyperedge(self, item: CompiledRequestSpec, members: list[int], x: Array, p: Array) -> None:
+        """Write a new hyperedge of member node rows into the first free row of the variable group on hyperedges.
+
+        Args:
+            item:
+                The compiled request.
+
+            members:
+                The node rows of the members, in hyperedge order.
+
+            x:
+                The state vector, changed in place.
+
+            p:
+                The parameter vector, changed in place.
+
+        Raises:
+            ValidationError:
+                The network has no variable group on its hyperedges, or the hyperedge holds more members than its
+                rows have columns.
+        """
+        hyperedges = item.network.hyperedges
+        if hyperedges is None or hyperedges.members is None:
+            error_msg = f'{item.owner} forms hyperedges on a network without a variable group on its hyperedges.'
+            raise ValidationError(error_msg)
+        width = hyperedges.members.columns
+        if len(members) > width:
+            error_msg = f'{item.owner} forms a hyperedge of {len(members)} members, but the rows hold {width}.'
+            raise ValidationError(error_msg)
         row = hyperedges.take_row(p)
         self._write(hyperedges, row, x, p, {})
-        start = hyperedges.members.start + row * size
-        p[start : start + len(members) + 1] = [*members, node]
+        start = hyperedges.members.start + row * width
+        p[start : start + width] = [*members, *([-1] * (width - len(members)))]
 
     def _rewire(
         self,
@@ -365,12 +454,11 @@ class TopologyKernel(BaseKernel):
         rng: np.random.Generator,
         drawn: Mapping[str, object] | None = None,
     ) -> None:
-        """Apply one request for one row, skipping a row whose node or edge is no longer present."""
+        """Apply one request for one row, skipping a row whose node, edge, or hyperedge is no longer present."""
         request, network = item.request, item.network
-        if item.rows == 'edge' and not network.edges[request.layer].present(p)[row]:
+        if not self._holds(item, row, p):
             return
-        if item.rows == 'node' and not network.present(p)[row]:
-            return
+        hyperedges = network.hyperedges
         kind = request.kind
         if kind == 'add-node':
             values = self._initial_values(request, rng) if drawn is None else drawn
@@ -381,12 +469,44 @@ class TopologyKernel(BaseKernel):
                 self._attach(item, node, t, x, p, rng=rng)
         elif kind == 'add-edge':
             self._join(item, row, t, x, p, rng=rng)
+        elif kind == 'add-hyperedge':
+            self._attach(item, row, t, x, p, rng=rng)
+        elif kind == 'remove-hyperedge':
+            if hyperedges is not None:
+                self._clear(hyperedges, row, p)
         elif kind == 'remove-node':
             self._remove_node(network, row, p)
         elif kind == 'remove-edge':
             self._clear(network.edges[request.layer], row, p)
         else:
             self._rewire(item, row, t, x, p, rng=rng)
+
+    @staticmethod
+    def _holds(item: CompiledRequestSpec, row: int, p: Array) -> bool:
+        """Return whether the node, edge, or hyperedge of the row a request runs for is present, `True` for one run.
+
+        Args:
+            item:
+                The compiled request.
+
+            row:
+                The row it runs for.
+
+            p:
+                The parameter vector.
+
+        Returns:
+            present:
+                Whether the row holds a member.
+        """
+        network = item.network
+        if item.rows == 'edge':
+            return bool(network.edges[item.request.layer].present(p)[row])
+        if item.rows == 'node':
+            return bool(network.present(p)[row])
+        if item.rows == 'hyperedge':
+            return network.hyperedges is not None and bool(network.hyperedges.present(p)[row])
+        return True
 
     @staticmethod
     def _initial_values(request: TopologyRequestSpec, rng: np.random.Generator) -> dict[str, object]:
@@ -615,5 +735,5 @@ class TopologyKernel(BaseKernel):
             >>> TopologyKernel._changes_edges(rewire), TopologyKernel._changes_edges(removal)
             (True, False)
         """
-        joins = request.edges > 0 or request.hyperedge is not None
+        joins = request.edges > 0 or request.independent
         return request.kind in EDGE_KINDS or (request.kind == 'add-node' and joins)

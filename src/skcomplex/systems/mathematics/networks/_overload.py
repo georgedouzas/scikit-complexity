@@ -1,0 +1,115 @@
+"""Cascades of overload failures, where the load of a node is the number of shortest paths through it."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from types import SimpleNamespace
+
+import networkx as nx
+import numpy as np
+
+from ....core.components.elements import GroupElement
+from ....core.components.interactions import MapInteraction, TopologyInteraction
+from ....core.components.laws.utils import components, shortest_paths
+from ....core.components.spaces import DiscreteTime, NetworkSpace
+from ....core.components.system import System
+from ....core.errors import ValidationError
+from ..._catalog import register_system
+from ._link import LinkElement
+from ._loaded_node import LoadedNodeElement
+
+ATTACKS = ('load', 'degree', 'random')
+
+
+def _is_overloaded(s: SimpleNamespace) -> object:
+    """Return whether the load of a node on the network present exceeds its capacity."""
+    return shortest_paths(1) > s.source.capacity
+
+
+@register_system(
+    field='mathematics/networks',
+    tags=('network', 'robustness', 'cascade', 'betweenness', 'overload'),
+    references=('Motter and Lai 2002', 'Artime et al. 2025'),
+    defaults={'until': 20},
+)
+def motter_lai_overload(
+    graph: nx.Graph | None = None,
+    *,
+    tolerance: float = 0.2,
+    attack: str = 'load',
+    random_state: int | np.random.Generator | None = 0,
+) -> System:
+    """Return the cascade of overload failures of Motter and Lai after one node is removed.
+
+    The load of a node is its betweenness, the number of shortest paths between other pairs of nodes that pass
+    through it, and its capacity is `(1 + tolerance)` times its load on the intact network (Motter and Lai 2002, as
+    Artime et al. 2025, section 5, review it). The attack removes one node at the first step, the node of the largest
+    load, of the largest degree, or a random node. Every later step the loads are those of the network present, and
+    every node whose load exceeds its capacity fails at once, until no node is overloaded. A heterogeneous network
+    loses most of its largest component after an attack on a node of large load and a low tolerance, and keeps it
+    after a random failure.
+
+    Args:
+        graph:
+            The NetworkX graph, or `None` for a Barabási-Albert graph of 300 nodes with two edges per new node.
+
+        tolerance:
+            The spare capacity `alpha` of every node, as a share of its initial load.
+
+        attack:
+            `'load'` for the node of the largest load, `'degree'` for that of the largest degree, or `'random'`.
+
+        random_state:
+            The seed or generator of the graph and of the random attack.
+
+    Returns:
+        system:
+            The system, with the nodes `nodes`, their `load`, `capacity`, and the size of the largest component
+            `giant`, and the links `links`.
+
+    Raises:
+        ValidationError:
+            The attack is unknown.
+
+    Examples:
+        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.systems.mathematics.networks import motter_lai_overload
+        >>> trajectory = Simulation(motter_lai_overload(tolerance=0.1)).prepare().run(until=10).trajectory_
+        >>> int(trajectory.network(-1).nodes.size) < 300
+        True
+    """
+    if attack not in ATTACKS:
+        error_msg = f'Unknown attack {attack!r}. Use one of {", ".join(ATTACKS)}.'
+        raise ValidationError(error_msg)
+    rng = np.random.default_rng(random_state)
+    graph = nx.barabasi_albert_graph(300, 2, seed=int(rng.integers(2**31))) if graph is None else graph
+    graph = nx.convert_node_labels_to_integers(graph)
+    found = nx.betweenness_centrality(graph, normalized=False)
+    loads = np.asarray([found[node] for node in graph.nodes], dtype=float)
+    degrees = np.asarray([degree for _, degree in graph.degree()], dtype=float)
+    target = {
+        'load': int(np.argmax(loads)),
+        'degree': int(np.argmax(degrees)),
+        'random': int(rng.integers(len(loads))),
+    }[attack]
+    capacities = (1 + tolerance) * loads
+    capacities[target] = -1.0
+    nodes = GroupElement(
+        'nodes',
+        element=LoadedNodeElement,
+        on='sites',
+        variable=True,
+        capacity=len(loads),
+        values={'load': loads, 'capacity': capacities, 'giant': float(len(loads))},
+    )
+    links = GroupElement('links', element=LinkElement, on='edges', variable=True, capacity=graph.number_of_edges())
+    return System(
+        elements=[nodes, links],
+        interactions=[
+            MapInteraction('load', target='nodes', state='load', function=lambda s: shortest_paths(1)),
+            MapInteraction('giant', target='nodes', state='giant', function=lambda s: components(1, reduce='largest')),
+            TopologyInteraction('overload', target='nodes', action='remove-node', condition=_is_overloaded),
+        ],
+        space=NetworkSpace(graph),
+        time=DiscreteTime(),
+    )
