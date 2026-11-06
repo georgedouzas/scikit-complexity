@@ -454,6 +454,12 @@ class JacobianKernel(BaseKernel):
             if used is None:
                 blocks.append(scatter @ self._dense_rows(kernel.rows, everything))
                 continue
+            if output.vectorized:
+                # A call over the whole group gives every member a value of the arguments of all members.
+                reads = [self._all_columns(kernel, item, supports) for item in used if item in kernel.references]
+                read = np.unique(np.concatenate([np.zeros(0, dtype=np.intp), *reads]))
+                blocks.append(scatter @ self._dense_rows(kernel.rows, read))
+                continue
             for item in used:
                 support = self._symbol_support(kernel, item, supports)
                 if support is not None:

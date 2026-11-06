@@ -115,6 +115,21 @@ def test_vectorized_call_runs_once_over_the_group():
     assert np.asarray(trajectory.values('herd.n'))[-1] == pytest.approx(np.full(1000, np.exp(0.015)), rel=1e-4)
 
 
+class MeanFieldElement(BaseCountElement):
+    """Element whose rate runs once over a whole group and gives every member the mean of all members."""
+
+    def _get_laws(self, s):
+        """Return the relaxation towards the mean."""
+        return [RateLaw(s.n, CallSpec(lambda t, n: np.full(n.size, n.mean()) - n, (s.n,), vectorized=True))]
+
+
+def test_vectorized_call_reads_every_member_in_the_jacobian_pattern():
+    """Test that a call over the whole group may read any member, so its Jacobian pattern couples all members."""
+    group = GroupElement('herd', element=MeanFieldElement, size=4)
+    problem = PassCompiler(backend=NumpyBackend()).prepare(System(elements=[group])).run().problem_
+    assert problem.jacobian.pattern().toarray().all()
+
+
 @pytest.mark.parametrize(
     'value',
     [CallSpec(lambda t, values: values['r'] * values['n'], relative=True)],

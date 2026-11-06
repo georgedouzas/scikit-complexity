@@ -1,4 +1,4 @@
-"""Active matter: self-propelled particles, flocking, polar fluids, chemotaxis, Active System B+, and their orders."""
+"""Active matter: self-propelled particles, flocking, polar fluids, chemotaxis, squirmers, and Active System B+."""
 
 from ._active_particle import ActiveParticleElement
 from ._active_passive import FlockingAgentElement, active_passive_flocking
@@ -39,6 +39,9 @@ from ._polar_fluid import PolarFluidElement
 from ._polar_gel_site import PolarGelSiteElement
 from ._propulsion_step import PropulsionStepInteraction
 from ._self_propulsion import SelfPropulsionInteraction
+from ._squirmer import SquirmerElement
+from ._squirmer_slip import SquirmerSlipInteraction
+from ._squirmers import squirmers
 from ._system_b import ActiveScalarElement, active_system_b
 from ._tumbler import TumblerElement
 from ._tumbler_view import TumblerView
@@ -72,6 +75,8 @@ __all__: list[str] = [
     'PolarGelSiteElement',
     'PropulsionStepInteraction',
     'SelfPropulsionInteraction',
+    'SquirmerElement',
+    'SquirmerSlipInteraction',
     'TumblerElement',
     'TumblerView',
     'VicsekParticleElement',
@@ -95,6 +100,7 @@ __all__: list[str] = [
     'motility_induced_phase_separation',
     'nonreciprocal_vicsek',
     'run_and_tumble',
+    'squirmers',
     'szabo_cells',
     'toner_tu',
     'vicsek',
