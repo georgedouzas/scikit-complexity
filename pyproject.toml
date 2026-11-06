@@ -493,7 +493,7 @@ forbidden_modules = [
 [tool.pytest.ini_options]
 python_files = ["test_*.py"]
 addopts = "--doctest-modules --markdown-docs"
-testpaths = ["tests", "src/skcomplex", "README.md", "docs/overview/user_guide.md"]
+testpaths = ["tests", "src/skcomplex", "README.md", "docs/overview/user_guide"]
 doctest_optionflags = ["ELLIPSIS"]
 
 [tool.coverage.run]

@@ -8,7 +8,8 @@ from pathlib import Path
 import pytest
 
 FOLDERS = ('src', 'tests', 'docs')
-DOCUMENTS = ('README.md', 'docs/overview/user_guide.md')
+README = 'README.md'
+USER_GUIDE = Path('docs') / 'overview' / 'user_guide'
 PYTHON_BLOCK = re.compile(r'^```python[^\n]*\n(.*?)^```$', re.MULTILINE | re.DOTALL)
 SYSTEMS = 'skcomplex.systems'
 CATALOG_FUNCTIONS = ('catalog', 'describe', 'create_system', 'create_simulation')
@@ -45,6 +46,11 @@ def test_no_source_hides_a_finding(request, word):
     assert not found, f'{word} appears in: {", ".join(found)}'
 
 
+def _documents(root: Path) -> list[Path]:
+    """Return the README and the pages of the user guide, relative to the root."""
+    return [Path(README), *sorted(path.relative_to(root) for path in (root / USER_GUIDE).rglob('*.md'))]
+
+
 def _python_blocks(path: Path) -> list[tuple[int, str]]:
     """Return the Python blocks of a Markdown file, each with the line of the file before its first line."""
     text = path.read_text(encoding='utf-8')
@@ -75,7 +81,7 @@ def _field_imports(root: Path) -> list[str]:
     """Return every import of the Python blocks of the documents beyond the catalog, as `file:line: module name`."""
     return [
         f'{document}:{start + line}: {module} {name}'
-        for document in DOCUMENTS
+        for document in _documents(root)
         for start, code in _python_blocks(root / document)
         for line, module, name in _imported_names(code)
         if _is_field_import(module, name)
@@ -86,7 +92,7 @@ def _field_mentions(root: Path) -> list[str]:
     """Return every line of the documents that names a field module, as `file:line: text`."""
     return [
         f'{document}:{number}: {line.strip()}'
-        for document in DOCUMENTS
+        for document in _documents(root)
         for number, line in enumerate((root / document).read_text(encoding='utf-8').splitlines(), start=1)
         if FIELD_MODULE.search(line)
     ]
@@ -106,7 +112,7 @@ def test_documents_name_no_field_module(request):
 
 def test_readme_custom_system_runs_from_the_core_alone(request):
     """Test that the first custom system of the README simulates in a fresh interpreter without the catalog."""
-    text = (request.config.rootpath / 'README.md').read_text(encoding='utf-8')
+    text = (request.config.rootpath / README).read_text(encoding='utf-8')
     section = text[text.index('### Build a custom system') :]
     code = PYTHON_BLOCK.search(section).group(1)
     assert 'Simulation' in code

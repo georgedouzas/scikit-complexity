@@ -1,0 +1,31 @@
+# Build a custom system
+
+Write a system of your own from elements, interactions, and laws. Start with the concepts and how to choose parts that
+fit, then go to the section of the kind of system you need.
+
+- [Concepts](concepts.md)
+- [Choosing compatible components](choosing_compatible_components.md)
+- [Defining elements](defining_elements.md)
+- [Kinds of dynamics](kinds_of_dynamics.md)
+- [General interactions](general_interactions.md)
+- [Connected components](connected_components.md)
+- [Delays, events, drivers, and noise](delays_events_drivers_and_noise.md)
+- [Stochastic maps](stochastic_maps.md)
+- [Anomalous processes](anomalous_processes.md)
+- [Geometry of chains](geometry_of_chains.md)
+- [Groups of many elements](groups_of_many_elements.md)
+- [Lattice systems](lattice_systems.md)
+- [Networks](networks.md)
+- [Fields](fields.md)
+- [Phase-space fields](phase_space_fields.md)
+- [Kinetic systems of active particles](kinetic_systems_of_active_particles.md)
+- [Agent-based systems](agent_based_systems.md)
+- [Cell complexes and link fields](cell_complexes_and_link_fields.md)
+- [Rewriting systems](rewriting_systems.md)
+- [Quantum systems](quantum_systems.md)
+- [Stocks and flows](stocks_and_flows.md)
+- [Linear programs](linear_programs.md)
+- [Static systems](static_systems.md)
+- [Constraints and search](constraints_and_search.md)
+- [Control](control.md)
+- [Learning by gradient steps](learning_by_gradient_steps.md)

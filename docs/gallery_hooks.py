@@ -35,7 +35,7 @@ for message in (r'ast\.Str is deprecated', r'Attribute s is deprecated'):
 LOGGER = logging.getLogger('mkdocs.plugins.skcomplex_gallery')
 GALLERY_PAGES = 'generated/gallery/'
 SYSTEMS_NAVIGATION = 'systems/SUMMARY.md'
-USER_GUIDE = 'overview/user_guide.md'
+USER_GUIDE = 'overview/user_guide/'
 SHOW_EXPRESSION = '_show_expression'
 PYTHON_BLOCK = re.compile(r'^```python(?P<continuation> continuation)?\n(?P<code>.*?)^```$', re.MULTILINE | re.DOTALL)
 RUNNING_TIME = '**Total running time of the script:**'
@@ -98,8 +98,8 @@ def _with_shown_expressions(code: str) -> str:
     return ast.unparse(tree)
 
 
-def _with_executed_code(markdown: str) -> str:
-    """Return the Markdown of the user guide with the values of the expressions of its Python blocks below them.
+def _with_executed_code(markdown: str, page: str) -> str:
+    """Return the Markdown of a guide page with the values of the expressions of its Python blocks below them.
 
     A block runs in a module of its own, registered as a real one because observables pickle the functions of a block,
     and a block that continues another runs in the module of that block. The source stays plain, so it reads and tests
@@ -107,7 +107,10 @@ def _with_executed_code(markdown: str) -> str:
 
     Args:
         markdown:
-            The Markdown of the user guide.
+            The Markdown of the page.
+
+        page:
+            The path of the page, relative to the documentation.
 
     Returns:
         markdown:
@@ -115,13 +118,14 @@ def _with_executed_code(markdown: str) -> str:
 
     Raises:
         PluginError:
-            A block fails, so the guide cannot show a result that its code does not give.
+            A block fails, so the page cannot show a result that its code does not give.
     """
-    modules = [ModuleType('user_guide_block_0')]
+    prefix = re.sub(r'\W', '_', page.removesuffix('.md'))
+    modules = [ModuleType(f'{prefix}_block_0')]
 
     def executed(block: re.Match[str]) -> str:
         if not block.group('continuation'):
-            modules.append(ModuleType(f'user_guide_block_{len(modules)}'))
+            modules.append(ModuleType(f'{prefix}_block_{len(modules)}'))
         module = modules[-1]
         sys.modules[module.__name__] = module
         vars(module)[SHOW_EXPRESSION] = _show_expression
@@ -133,7 +137,7 @@ def _with_executed_code(markdown: str) -> str:
                 SourceFileLoader(module.__name__, str(path)).exec_module(module)
             except Exception as error:
                 line = markdown[: block.start()].count('\n') + 1
-                error_msg = f'The Python block at line {line} of the user guide failed: {error}'
+                error_msg = f'The Python block at line {line} of {page} failed: {error}'
                 raise PluginError(error_msg) from error
         printed = output.getvalue().rstrip()
         return f'{block.group(0)}\n\n```\n{printed}\n```' if printed else block.group(0)
@@ -158,8 +162,8 @@ def on_page_markdown(markdown: str, page: Page, **kwargs: object) -> str:
         markdown:
             The Markdown without the empty subsections, with the description and references of the system of an example.
     """
-    if page.file.src_uri == USER_GUIDE:
-        return _with_executed_code(markdown)
+    if page.file.src_uri.startswith(USER_GUIDE):
+        return _with_executed_code(markdown, page.file.src_uri)
     system = _systems_of_examples().get(Path(page.file.src_uri).stem)
     if system is None or not page.file.src_uri.startswith(GALLERY_PAGES):
         return EMPTY_SUBSECTION.sub('', markdown)
