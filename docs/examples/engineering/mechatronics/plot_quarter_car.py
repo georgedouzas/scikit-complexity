@@ -18,7 +18,7 @@ SYSTEM = 'quarter_car'
 
 system = create_system(SYSTEM, height=0.05)
 observables = describe(SYSTEM).observables_of(system)
-observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
 simulation = Simulation(system, dt=0.005, observers=[observer], observables=observables).prepare().run(until=3.0)
 
 # %%
