@@ -67,6 +67,7 @@ group-spaces = { description = "Cayley graphs of finitely presented, automaton, 
 distribution-states = { description = "States that are distributions over activity grids, with encounter laws" }
 learning = { description = "Parameters that evolve by optimising a loss of an inner system", change = "add-learning-dynamics" }
 link-fields = { description = "States on links and plaquettes of cell complexes", change = "add-link-fields" }
+matrix-groups = { description = "States valued in compact matrix groups, sampled by class functions of holonomies along cell paths", change = "add-non-abelian-gauge-fields" }
 molecular-structures = { description = "Sequences and chains with internal coordinates", change = "add-molecular-structures" }
 nonlocal-operators = { description = "Convolutions, shifted reads, and operator inversions on fields", change = "add-nonlocal-operators" }
 optimal-control = { description = "Control inputs with costs solved by Pontryagin or direct transcription" }
@@ -137,6 +138,7 @@ categorical = "One of a finite set of labels"
 angle = "Angles wrapped into one turn"
 complex = "Complex numbers"
 vector = "Vectors of the space's dimension"
+matrix = "Matrices of a compact group, such as SU(N), held by their real components"
 tensor = "Tensors of declared rank and symmetry over the space's dimension"
 hilbert = "Vectors and operators of a Hilbert space of declared dimension"
 sequence = "Sequences over an alphabet"
@@ -335,6 +337,7 @@ spring_chain = { title = "Spring chains and guitar string", sources = ["Ar 1.5�
 standing_waves = { title = "Standing waves on a string", sources = ["Sm 4.3", "Sm 4.4"], primitives = ["rates", "groups", "lattices", "fields"], system = { time = ["continuous"], space = ["lattice"], components = ["site-group"], bindings = ["members"], laws = ["rate"], domains = ["real"] }, priority = "example", status = "implemented" }
 schrodinger = { title = "Schrödinger equation as real and imaginary fields", sources = ["Sc 4"], primitives = ["rates", "groups", "lattices", "fields"], system = { time = ["continuous"], space = ["lattice"], components = ["site-group"], bindings = [], laws = ["rate"], domains = ["real"] }, priority = "example", status = "implemented" }
 lattice_gauge_fields = { title = "Lattice Maxwell and gauge link fields", sources = ["Sc 2.1", "Sc 4.4", "Sc 4.2", "Sa 7"], primitives = ["link-fields"], system = { time = ["discrete", "continuous"], space = ["network"], components = ["site-group", "edge-group"], bindings = ["members"], laws = ["sample", "rate"], domains = ["angle", "real"] }, priority = "core", status = "implemented" }
+lattice_yang_mills = { title = "Lattice Yang-Mills and pure lattice QCD", sources = ["Sa 7", "Sc 4.4"], primitives = ["link-fields", "matrix-groups"], system = { time = ["discrete"], space = ["network"], components = ["edge-group"], bindings = ["members"], laws = ["sample"], domains = ["matrix"] }, priority = "core", status = "implemented" }
 charged_schrodinger = { title = "Schrödinger equation minimally coupled to an electromagnetic potential", sources = ["Sc 4.3"], primitives = ["rates", "time-inputs", "groups", "lattices", "fields"], system = { time = ["continuous"], space = ["lattice"], components = ["site-group"], bindings = [], laws = ["rate"], domains = ["real"] }, priority = "core", status = "implemented" }
 
 [physics.pattern_formation]

@@ -16,7 +16,7 @@ _NO_ARGUMENTS = ArgumentsSpec()
 
 
 class DriveKernel(BaseKernel):
-    """Drive compiled for a lattice state.
+    """Drive compiled for a lattice state, whose components of every member lie on a last axis when it has several.
 
     Args:
         owner:
@@ -39,6 +39,9 @@ class DriveKernel(BaseKernel):
 
         score:
             The function of the array of the state and the parameters that gives the score of every row, or `None`.
+
+        spaced:
+            Whether the function receives the space of the state by the keyword `space`.
     """
 
     values_: None
@@ -53,6 +56,7 @@ class DriveKernel(BaseKernel):
         timed: bool = False,
         drawing: bool = True,
         score: Callable[..., object] | None = None,
+        spaced: bool = False,
     ) -> None:
         self.owner = owner
         self.target = target
@@ -61,6 +65,7 @@ class DriveKernel(BaseKernel):
         self.timed = timed
         self.drawing = drawing
         self.score = score
+        self.spaced = spaced
 
     @property
     def targets(self) -> tuple[LatticeStateSpec, ...]:
@@ -98,12 +103,14 @@ class DriveKernel(BaseKernel):
         self.values_ = None
         state = self._state_of(inputs)
         x, p, rng = state.x, state.p, state.rng
-        shape = self.target.shape
+        shape = self.target.shape if self.target.components == 1 else (*self.target.shape, self.target.components)
         keywords = self._keywords(x, p)
         if self.timed:
             keywords['time'] = state.t
         if self.drawing:
             keywords['random'] = rng
+        if self.spaced:
+            keywords['space'] = self.target.space
         values = np.reshape(x[self.target.sites].copy(), shape)
         result = self.function(values, **keywords)
         x[self.target.sites] = np.broadcast_to(np.asarray(result, dtype=float), shape).ravel()

@@ -91,12 +91,28 @@ class LatticeProblemPass(BasePass):
         )
 
     @staticmethod
-    def _lattice_state(context: LatticeContextSpec, item: Expression, law: str) -> LatticeStateSpec:
-        """Return the lattice state of a target symbol, or raise an error naming the law."""
+    def _lattice_state(
+        context: LatticeContextSpec,
+        item: Expression,
+        law: str,
+        *,
+        components: bool = False,
+    ) -> LatticeStateSpec:
+        """Return the lattice state of a target symbol, or raise an error naming the law.
+
+        Only a law that changes every component of a member, a drive, may target a state of several components.
+        """
         if item not in context.states:
             error_msg = f'{law} of {context.owner} targets {item}, which is not a state of a lattice group.'
             raise ValidationError(error_msg)
-        return context.states[item]
+        state = context.states[item]
+        if state.components > 1 and not components:
+            error_msg = (
+                f'{law} of {context.owner} targets {state.name}, which holds {state.components} components per member. '
+                'Change it with a drive, which receives the components of every member on a last axis.'
+            )
+            raise ValidationError(error_msg)
+        return state
 
     @staticmethod
     def _keywords(context: LatticeContextSpec, function: Callable[..., object]) -> ArgumentsSpec:
@@ -113,10 +129,10 @@ class LatticeProblemPass(BasePass):
         )
 
     @staticmethod
-    def _names_time(function: Callable[..., object]) -> bool:
-        """Return whether a function names the keyword `time` in its signature."""
+    def _names_keyword(function: Callable[..., object], name: str) -> bool:
+        """Return whether a function names a keyword, such as `time`, in its signature."""
         try:
-            parameter = inspect.signature(function).parameters.get('time')
+            parameter = inspect.signature(function).parameters.get(name)
         except (TypeError, ValueError):
             return False
         return parameter is not None and parameter.kind in {parameter.KEYWORD_ONLY, parameter.POSITIONAL_OR_KEYWORD}
@@ -144,15 +160,10 @@ class LatticeProblemPass(BasePass):
             block = declarations.blocks.get(owner)
             space = block.node.space if block is not None else None
             is_lattice = block is not None and block.node.members is not None and not block.node.is_agent
-            if (
-                reference.is_state
-                and is_lattice
-                and isinstance(space, LatticeSpace | NetworkSpace | CayleySpace)
-                and not entry.member_shape
-            ):
+            if reference.is_state and is_lattice and isinstance(space, LatticeSpace | NetworkSpace | CayleySpace):
                 part = (getattr(block.node.component, 'on', None) if block is not None else None) or 'sites'
                 rows = None if part == 'sites' else entry.rows
-                states[item] = LatticeStateSpec(entry.name, entry.start, space, part, rows)
+                states[item] = LatticeStateSpec(entry.name, entry.start, space, part, rows, entry.columns)
             if not entry.member_shape:
                 arguments[item] = (variable, reference.is_state, entry.start, entry.size)
             if reference.source is ReadKind.OTHER:
@@ -564,14 +575,23 @@ class LatticeProblemPass(BasePass):
             drive:
                 The compiled drive.
         """
+        targets = law._get_targets()
+        state = LatticeProblemPass._lattice_state(context, targets[0], 'A drive', components=True)
+        if len(targets) != state.components:
+            error_msg = (
+                f'A drive of {context.owner} targets {len(targets)} of the {state.components} components of '
+                f'{state.name}. Target the whole state.'
+            )
+            raise ValidationError(error_msg)
         return DriveKernel(
             context.owner,
-            LatticeProblemPass._lattice_state(context, law._get_targets()[0], 'A drive'),
+            state,
             law.function,
             LatticeProblemPass._keywords(context, law.function),
-            timed=LatticeProblemPass._names_time(law.function),
+            timed=LatticeProblemPass._names_keyword(law.function, 'time'),
             drawing=bool(LatticeProblemPass._accepted(law.function, ['random'])),
             score=law.score,
+            spaced=LatticeProblemPass._names_keyword(law.function, 'space'),
         ).prepare()
 
     @staticmethod

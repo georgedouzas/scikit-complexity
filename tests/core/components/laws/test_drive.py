@@ -6,14 +6,14 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import DriveLaw
-from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
+from skcomplex.core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import RoleSpec, StateSpec
+from skcomplex.core.specs import MatrixGroupSpec, RoleSpec, StateSpec
 
 
 def test_drive_targets_its_lattice_state():
@@ -98,3 +98,61 @@ class _DriveInteraction(Interaction):
     def _get_laws(self, namespace):
         """Return the drive."""
         return [DriveLaw(self._get_member(namespace, 'target').x, self.function)]
+
+
+class PairElement(Element):
+    """Link with a matrix of U(1), two real components."""
+
+    def __init__(self, label, U: Annotated[object, StateSpec(group=MatrixGroupSpec('U', 1))] = (1.0, 0.0)):
+        super().__init__(label)
+        self.U = U
+
+
+class RotationInteraction(Interaction):
+    """Drive that rotates the phase of every link by its number of faces."""
+
+    def __init__(self, label, *, target: Annotated[str, RoleSpec()]):
+        super().__init__(label)
+        self.target = target
+
+    def _get_laws(self, namespace):
+        """Return the rotation."""
+        return [DriveLaw(self._get_member(namespace, 'target').U, self._rotate)]
+
+    def _rotate(self, values, *, space):
+        """Return the components rotated by the number of faces of every link."""
+        group = MatrixGroupSpec('U', 1)
+        turns = np.exp(1j * (space.cofaces_[1] < space.boundaries_.shape[0]).sum(axis=1))
+        return group.components_of(turns[:, None, None] * group.matrices_of(values))
+
+
+def test_drive_of_a_matrix_state_receives_the_components_on_a_last_axis_and_the_space():
+    """Test that a drive changes all components of every link, read with the space of the group."""
+    space = CellComplexSpace(LatticeSpace((3, 3), boundary='fixed'))
+    links = GroupElement('links', element=PairElement, space=space, on='edges')
+    system = System(elements=[links], interactions=[RotationInteraction('turn', target='links')], time=DiscreteTime())
+    values = Simulation(system, random_state=0).prepare().run(until=1).trajectory_.values('links.U')
+    faces = (space.cofaces_[1] < space.boundaries_.shape[0]).sum(axis=1)
+    assert values.shape == (2, 12, 2)
+    assert np.allclose(values[1, :, 0] + 1j * values[1, :, 1], np.exp(1j * faces))
+
+
+class PartialInteraction(Interaction):
+    """Drive that targets one component of a matrix state."""
+
+    def __init__(self, label, *, target: Annotated[str, RoleSpec()]):
+        super().__init__(label)
+        self.target = target
+
+    def _get_laws(self, namespace):
+        """Return a drive of the first component."""
+        return [DriveLaw(self._get_member(namespace, 'target').U[0], lambda values, *, random: values)]
+
+
+def test_drive_of_one_component_of_a_matrix_state_raises_an_error():
+    """Test that a drive that targets one of the components of a matrix state names the whole state."""
+    space = CellComplexSpace(LatticeSpace((3, 3)))
+    links = GroupElement('links', element=PairElement, space=space, on='edges')
+    system = System(elements=[links], interactions=[PartialInteraction('part', target='links')], time=DiscreteTime())
+    with pytest.raises(ValidationError, match='Target the whole state'):
+        Simulation(system).prepare()

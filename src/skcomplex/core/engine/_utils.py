@@ -178,6 +178,7 @@ def _variable_of(spec: StateSpec | ParameterSpec | RoleSpec) -> VariableSpec:
         role=spec.role,
         tensor=spec.tensor,
         algebraic=spec.algebraic,
+        group=spec.group,
     )
 
 
