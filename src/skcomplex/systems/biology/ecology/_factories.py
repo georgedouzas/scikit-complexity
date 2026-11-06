@@ -21,7 +21,9 @@ from ..common.populations import (
     PopulationElement,
 )
 from ._predation_interaction import PredationInteraction
+from ._ricker_growth import RickerGrowthInteraction
 from ._seasonal_logistic_growth import SeasonalLogisticGrowthInteraction
+from ._shrimp import ShrimpElement
 
 
 @register_system(
@@ -320,3 +322,107 @@ def fibonacci_rabbits(pairs: float = 1.0, previous: float = 0.0) -> System:
         function=lambda s: s.target.pairs + lag(s.target.pairs, 1),
     )
     return System(elements=[RabbitsElement('rabbits', pairs=pairs, pairs_lag1=previous)], interactions=[breeding])
+
+
+@register_system(
+    field='biology/ecology',
+    tags=('population', 'discrete map', 'period doubling', 'chaos'),
+    references=('Ricker 1954', 'Dilão 2023'),
+    defaults={'until': 100, 'dt': 1},
+)
+def ricker(n: float = 0.5, *, r: float = 2.0) -> System:
+    """Return Ricker's map of a population in discrete generations, `n' = r n exp(-n)`, chaotic for large `r`.
+
+    The positive fixed point `n = ln r` is stable while `1 < r < e^2`. Beyond `e^2`, about 7.39, it loses stability to
+    a two-cycle, and further period doublings lead to chaos near `r = 14.8`. The size stays positive for every `r`.
+
+    Args:
+        n:
+            The initial size, in units of the density at which the offspring peak.
+
+        r:
+            The growth factor at low density.
+
+    Returns:
+        system:
+            The system, with the population `population.n`.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import ricker
+        >>> ricker(r=12.0).interactions[0].r
+        12.0
+    """
+    return System(
+        elements=[PopulationElement('population', n=n)],
+        interactions=[RickerGrowthInteraction('growth', target='population', r=r)],
+    )
+
+
+@register_system(
+    field='biology/ecology',
+    tags=('individual growth', 'bioenergetics', 'aquaculture', 'stocks and flows', 'ode'),
+    references=('Franco et al. 2006', 'Bala et al. 2017'),
+    defaults={'until': 60.0, 'dt': 0.5},
+)
+def penaeid_shrimp(
+    gut: float = 0.5,
+    biomass: float = 1.0,
+    *,
+    ration: float = 2.5,
+    respiration: float = 0.05,
+    L_inf: float = 29.9,
+    K: float = 0.013,
+) -> System:
+    """Return the growth of one penaeid shrimp from the juvenile stage, forced by the food and the water temperature.
+
+    The individual ingests food up to a maximum ration set by its biomass and the water temperature, assimilates its
+    gut content, respires, and spawns, while its gonads grow and its carapace length follows von Bertalanffy's curve
+    `L(t) = L_inf (1 - exp(-K t))` from zero, which nears its asymptote after six to eight months. The gut content
+    settles near `I / A_e`, the ingestion over the assimilation efficiency.
+
+    The coefficients are those of the listing of Bala et al. (2017). With them the respiration of a juvenile at 28 C,
+    `respiration exp(0.07 T) (phi B)^0.185`, is about half its biomass per day, more than its maximum ration, so the
+    total biomass declines slowly while the gonads and the length grow. The weight gain the source describes needs a
+    lower `respiration` coefficient, such as 0.02.
+
+    Args:
+        gut:
+            The initial gut content, in grams of dry weight.
+
+        biomass:
+            The initial total biomass, in grams of dry weight.
+
+        ration:
+            The factor of the maximum ration, lower for males.
+
+        respiration:
+            The coefficient of the weight-specific respiration, per day.
+
+        L_inf:
+            The asymptotic carapace length, in millimetres.
+
+        K:
+            The growth coefficient of the length, per day.
+
+    Returns:
+        system:
+            The system, with the states `shrimp.gut`, `shrimp.biomass`, `shrimp.gonads`, and `shrimp.length`.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import penaeid_shrimp
+        >>> penaeid_shrimp().elements[0].K
+        0.013
+    """
+    return System(
+        elements=[
+            ShrimpElement(
+                'shrimp',
+                gut=gut,
+                biomass=biomass,
+                ration=ration,
+                respiration=respiration,
+                L_inf=L_inf,
+                K=K,
+            ),
+        ],
+    )

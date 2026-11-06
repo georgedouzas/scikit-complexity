@@ -8,6 +8,10 @@ from ._comets import comets
 from ._communities import competition, food_webs, mutualism
 from ._community_fba import community_fba
 from ._competition import CompetitionInteraction
+from ._consumer import ConsumerElement
+from ._consumer_growth import ConsumerGrowthInteraction
+from ._consumer_resources import consumer_resource
+from ._consumption import ConsumptionInteraction
 from ._cow import CowElement
 from ._dynamic_multispecies_fba import dynamic_multispecies_fba
 from ._emotion_marks import EmotionMarksElement
@@ -18,6 +22,8 @@ from ._factories import (
     hutchinson,
     logistic_growth,
     lotka_volterra,
+    penaeid_shrimp,
+    ricker,
     varying_capacity_logistic,
 )
 from ._forager import ForagerElement
@@ -48,10 +54,14 @@ from ._predation_interaction import PredationInteraction
 from ._predator import PredatorElement
 from ._predator_prey_events import PredatorPreyEventsInteraction
 from ._prey import PreyElement
+from ._resource import ResourceElement
+from ._resource_turnover import ResourceTurnoverInteraction
+from ._ricker_growth import RickerGrowthInteraction
 from ._rosenzweig_macarthur import RosenzweigMacArthurInteraction
 from ._seasonal_logistic_growth import SeasonalLogisticGrowthInteraction
 from ._sequential import sequentially_linear_ecosystem
 from ._sheep import SheepElement
+from ._shrimp import ShrimpElement
 from ._speciation import neutral_biodiversity
 from ._stand import StandElement
 from ._stigmergic_predator import StigmergicPredatorElement
@@ -66,6 +76,9 @@ from ._wolf_sheep import wolf_sheep
 __all__: list[str] = [
     'AbundanceElement',
     'CompetitionInteraction',
+    'ConsumerElement',
+    'ConsumerGrowthInteraction',
+    'ConsumptionInteraction',
     'CowElement',
     'EmotionMarksElement',
     'FisherKPPElement',
@@ -92,9 +105,13 @@ __all__: list[str] = [
     'PreyElement',
     'QuotaPhytoplanktonElement',
     'RabbitsElement',
+    'ResourceElement',
+    'ResourceTurnoverInteraction',
+    'RickerGrowthInteraction',
     'RosenzweigMacArthurInteraction',
     'SeasonalLogisticGrowthInteraction',
     'SheepElement',
+    'ShrimpElement',
     'StandElement',
     'StigmergicPredatorElement',
     'StigmergicPreyElement',
@@ -106,6 +123,7 @@ __all__: list[str] = [
     'comets',
     'community_fba',
     'competition',
+    'consumer_resource',
     'droop_cell_quota',
     'dynamic_multispecies_fba',
     'exponential_growth',
@@ -127,6 +145,8 @@ __all__: list[str] = [
     'neutral_clustering',
     'neutral_macroecology',
     'nicholson_bailey',
+    'penaeid_shrimp',
+    'ricker',
     'rosenzweig_macarthur',
     'sequentially_linear_ecosystem',
     'stigmergic_predator_prey',

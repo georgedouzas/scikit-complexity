@@ -1,10 +1,13 @@
 """Test the `_factories` module of `skcomplex.systems.biology.ecology`."""
 
+import numpy as np
 import pytest
 
 from skcomplex.systems import create_simulation
 from skcomplex.systems.biology.ecology import (
     lotka_volterra,
+    penaeid_shrimp,
+    ricker,
     varying_capacity_logistic,
 )
 
@@ -41,3 +44,21 @@ def test_fibonacci_rabbits():
         34,
         55,
     ]
+
+
+def test_ricker_settles_on_its_fixed_point_and_doubles_its_period():
+    """Test that Ricker's map settles on `ln r` below `r = e^2` and on a two-cycle just above it."""
+    stable = _run_until(ricker(r=5.0), 200, dt=1).values('population.n')
+    assert stable[-1] == pytest.approx(np.log(5.0))
+    cycle = _run_until(ricker(r=9.0), 200, dt=1).values('population.n')
+    assert cycle[-1] == pytest.approx(cycle[-3])
+    assert abs(cycle[-1] - cycle[-2]) > 1.0
+
+
+def test_penaeid_shrimp_length_follows_von_bertalanffy():
+    """Test that the carapace length follows `L_inf (1 - exp(-K t))` and the gut settles near `I / A_e`."""
+    trajectory = _run_until(penaeid_shrimp(), 60, dt=1.0)
+    times = trajectory.times
+    np.testing.assert_allclose(trajectory.values('shrimp.length'), 29.9 * (1 - np.exp(-0.013 * times)), rtol=1e-4)
+    assert 0.3 < trajectory.values('shrimp.gut')[-1] < 0.6
+    assert np.all(np.diff(trajectory.values('shrimp.gonads')) > 0)
