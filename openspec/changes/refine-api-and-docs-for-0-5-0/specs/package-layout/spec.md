@@ -129,3 +129,17 @@ keep its own aliases.
 #### Scenario: One alias per type
 - **WHEN** a module of the components, the engine, analysis, or experiments needs a float array
 - **THEN** it imports `Array` from `skcomplex.core.types` instead of defining its own alias
+
+### Requirement: The engine surface is its pipeline
+Every package of `skcomplex.core.engine` SHALL re-export only classes: the bases a developer subclasses, the classes of
+the pipeline from a system to a trajectory, and the frozen values a client reads, with no public function. Every helper
+of one class SHALL be a private method of that class.
+
+#### Scenario: Engine surface listing
+- **WHEN** a user lists the public names of every package of `skcomplex.core.engine`
+- **THEN** every name is a class derived from a base of its package, and none is `compile_system`, `validate`, or a
+  helper of a single pass, such as `values_of`, `member_of`, or `hilbert_of`
+
+#### Scenario: A user solver
+- **WHEN** a user subclasses the solver base, implements its hooks, and passes an instance to a simulation
+- **THEN** the simulation runs with that solver

@@ -46,6 +46,15 @@
 - [x] 6.3 The documentation builds with the executed guide
 - [x] 6.4 The full suite passes in CI
 
+## 7. Former open items
+
+- [ ] 7.1 Replace the magic methods of `OperatorSpec` with `add`, `subtract`, `multiply`, `divide` and `negate`
+- [ ] 7.2 Remove `compile_system` and use compilers at every call site
+- [ ] 7.3 Fix the five failures of the full gallery
+- [ ] 7.4 Fix the popularity-similarity tests of `test_growth.py`
+- [ ] 7.5 Split the user guide into pages, and start it with the easiest custom system
+- [ ] 7.6 The checks, the touched tests, the strict documentation build, and CI pass
+
 ## Workflow follow-up
 
 - Sync the deltas at archive, then map the old paths and the word model in the main specs with the same pass.

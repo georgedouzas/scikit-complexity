@@ -8,7 +8,7 @@ design, and tasks. Open items stay listed until they are decided.
 
 ## What Changes
 
-The decisions come first. The numbered items after them are undecided, and a suggestion there is only a starting point.
+Every item is decided.
 
 ### Documentation decisions
 
@@ -39,32 +39,26 @@ The decisions come first. The numbered items after them are undecided, and a sug
 - Rewrite the user guide task-first, from the modeler's view and in the style of the README, keeping every current
   topic as a section.
 
-### API
+### Decisions on the former open items
 
-1. **`OperatorSpec` magic methods.** It has eight magic methods for quantum operator arithmetic, the one exception to the
-   rule against magic methods. Suggestion: replace them with named methods.
-2. **Analyses outside `skcomplex.core.analysis`.** `EarlyWarningAnalysis` and `CracklingNoiseAnalysis` live elsewhere.
-   Suggestion: move them in. A package move needs the user's approval.
-3. **`SubshiftSpec` in a run.** It declares what is admissible, but a run does not enforce it, so a run can leave the
-   allowed set without an error. To decide: enforce it, or state that only the analysis reads it.
-4. **`compile_system` is a function.** `skcomplex.core.engine.compile` exports `compile_system`, a public function
-   rather than a class with `prepare` and `run`, and the guide uses it. To decide: replace it with the compiler classes
-   the guide already shows, or keep it as the one shortcut.
-5. **The first system.** To decide: whether the simple case still takes too many lines once `check` is gone.
-
-### Documentation
-
-6. **Gallery scope.** The published documentation builds a sample of 24 examples, while the catalog lists every system. To
-   decide: whether a release builds all of them.
-7. **Failures of the whole gallery.** The first full build ran 576 examples, and 5 failed: `plot_carbon_13_mfa` and
-   `plot_urban_scaling_interactions` have a blank view, `plot_dynamic_multispecies_fba` and `plot_quarter_car` exceed
-   their budgets, and `plot_free_group_automaton` raises a `GAPError` about a missing directory.
-8. **User guide size.** The guide, now task-led, is over 9,000 lines on one page. To decide: whether to split it.
-
-### Reliability
-
-9. **Seeded tests.** The popularity-similarity tests in `tests/systems/mathematics/networks/test_growth.py` fail on some
-   full-suite runs on Linux, with no cause found. The same source failed at `1f22bf9b` and passed at `1000e3b6`.
+- Replace the arithmetic magic methods of `OperatorSpec` with the named methods `add`, `subtract`, `multiply`,
+  `divide` and `negate`. A scalar operand stands for that multiple of the identity, as before.
+- Keep `EarlyWarningAnalysis` and `CracklingNoiseAnalysis` in `skcomplex.systems`, since each serves the systems of one
+  subfield. `skcomplex.core.analysis` holds the general analyses only.
+- Keep `SubshiftSpec` as a declaration that a run does not enforce. A run checks that every cell holds a value of the
+  alphabet, and `AutomatonAnalysis` decides whether a configuration is admissible, as its docstring already states.
+  Enforcing forbidden patterns at every step would cost a scan of every neighbourhood per step for no current system.
+- Remove `compile_system`, since the API has no public functions outside `skcomplex.systems`. Callers use a compiler,
+  `PassCompiler(backend=..., solver=..., observables=...).prepare(system).run(initial_state).problem_`.
+- Start the guide with the easiest custom system, one element and one interaction, and introduce laws, specs and
+  annotations after it.
+- Keep the gallery scope. The published documentation builds a sample, and a full build runs on demand.
+- Fix the five failures of the full gallery: `plot_carbon_13_mfa` and `plot_urban_scaling_interactions` show a blank
+  view, `plot_dynamic_multispecies_fba` and `plot_quarter_car` exceed their budgets, and `plot_free_group_automaton`
+  raises a `GAPError` about a missing directory.
+- Split the user guide into one page per part, with the long part on custom systems split by section.
+- Fix the popularity-similarity tests in `tests/systems/mathematics/networks/test_growth.py`, which fail on some
+  full-suite runs on Linux.
 
 ## Capabilities
 
@@ -74,9 +68,11 @@ None.
 
 ### Modified Capabilities
 
-- `package-layout`: two subpackages, `skcomplex.core` and `skcomplex.systems`, and "system" for every ready-made item.
+- `package-layout`: two subpackages, `skcomplex.core` and `skcomplex.systems`, "system" for every ready-made item,
+  and an engine surface with no public function.
 - `model-catalog`: `create_system` and `create_simulation` replace `create` and `run`.
-- `simulation`: a simulation holds a default end time.
+- `simulation`: a simulation holds a default end time, and a compiler is passed to it, with no `compile_system`.
+- `system-validation`: a compiler validates in `prepare`, with no `compile_system`.
 - `user-documentation`: a task-led guide, a README of code only, executed guide blocks, and plain prose.
 
 ## Impact

@@ -31,3 +31,17 @@ of its system, which `create_simulation` passes to the simulation. Trajectories 
 #### Scenario: Catalog observables
 - **WHEN** a user runs a catalog system with `create_simulation(name).prepare().run()`
 - **THEN** the trajectory records the observables declared by its catalog entry
+
+### Requirement: A model package plugs in its own compiler
+A compiler defined outside the engine, on `BaseCompiler`, SHALL compile a system passed to `Simulation` with
+`compiler=`, and the simulation SHALL run the solver that compiler names, without the engine
+importing the package.
+
+#### Scenario: Rewriting from the models library
+- **WHEN** `Simulation(create_system('koch_curve'), compiler=RewritingCompiler())` runs, with `RewritingCompiler` imported
+  from `skcomplex.core.engine.compile`
+- **THEN** the run rewrites the word once per frame, and `skcomplex.core.engine` imports nothing from `skcomplex.systems`
+
+#### Scenario: Quantum system without its compiler
+- **WHEN** a quantum system runs with the default compiler
+- **THEN** checking it raises a validation error that names `compiler=QuantumCompiler()`
