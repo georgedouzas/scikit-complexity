@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
+from ..errors import ValidationError
 from ._base_spec import BaseSpec
 from ._local_operator_spec import LocalOperatorSpec
 
@@ -22,9 +23,9 @@ type Product = tuple[Factor, ...]
 class OperatorSpec(BaseSpec):
     """Sum of products of local operators of subsystems, each product with a symbolic coefficient.
 
-    The compiler lowers the Sage operator expressions of laws and observables to operators with `operator_of`. Operators
-    combine by sums, products, scalar multiplication, and `adjoint`. A coefficient is a number or a
-    Sage expression of parameters and time. A number added to an operator stands for that multiple of the identity.
+    The compiler lowers the Sage operator expressions of laws and observables to operators. Operators combine with
+    `add`, `subtract`, `multiply`, `divide`, `negate`, and `adjoint`. A coefficient is a number or a Sage expression of
+    parameters and time. A scalar operand stands for that multiple of the identity, and a product keeps its order.
 
     Args:
         terms:
@@ -37,11 +38,9 @@ class OperatorSpec(BaseSpec):
         >>> from skcomplex.core.specs import LocalOperatorSpec, OperatorSpec
         >>> x = LocalOperatorSpec('x', qutip.sigmax(), hermitian=True)
         >>> a, b = OperatorSpec({(('a', x),): 1}), OperatorSpec({(('b', x),): 1})
-        >>> (var('J') * a * b).text
+        >>> a.multiply(b).multiply(var('J')).text
         'J*a.x*b.x'
     """
-
-    __array_ufunc__ = None
 
     terms: Mapping[Product, object]
 
@@ -54,60 +53,125 @@ class OperatorSpec(BaseSpec):
         """Return an operator from terms, without the terms whose coefficient is zero."""
         return OperatorSpec({key: value for key, value in terms.items() if not value.is_trivial_zero()})
 
-    def _as_operator(self, other: object) -> 'OperatorSpec | None':
-        """Return an operator, or a scalar as a multiple of the identity, or `None` for any other value."""
+    def _as_operator(self, other: object, operation: str) -> 'OperatorSpec':
+        """Return an operator, or a scalar as a multiple of the identity.
+
+        Raises:
+            ValidationError:
+                The operand is neither an operator nor a scalar.
+        """
         if isinstance(other, OperatorSpec):
             return other
-        coefficient = self._coefficient(other)
-        return None if coefficient is None else OperatorSpec({(): coefficient})
+        return OperatorSpec({(): self._scalar(other, operation)})
 
-    def __add__(self, other: object) -> 'OperatorSpec':
-        """Return the sum of the operator and an operator or a multiple of the identity."""
-        operand = self._as_operator(other)
-        if operand is None:
-            return NotImplemented
+    def _scalar(self, other: object, operation: str) -> Expression:
+        """Return a scalar as a Sage expression.
+
+        Raises:
+            ValidationError:
+                The operand is not a number or a symbolic expression.
+        """
+        coefficient = self._coefficient(other)
+        if coefficient is None:
+            error_msg = (
+                f'An operator cannot {operation} {other!r} of type {type(other).__name__}. The operand must be an '
+                'operator, a number, or a Sage expression.'
+            )
+            raise ValidationError(error_msg)
+        return coefficient
+
+    def add(self, other: object) -> 'OperatorSpec':
+        """Return the sum of the operator and an operator or a multiple of the identity.
+
+        Args:
+            other:
+                An operator, or a number or a Sage expression, which stands for that multiple of the identity.
+
+        Returns:
+            sum:
+                The sum.
+
+        Raises:
+            ValidationError:
+                The operand is neither an operator nor a scalar.
+
+        Examples:
+            >>> import qutip
+            >>> from skcomplex.core.specs import LocalOperatorSpec, OperatorSpec
+            >>> z = OperatorSpec({(('q', LocalOperatorSpec('z', qutip.sigmaz(), hermitian=True)),): 1})
+            >>> z.add(1).text
+            'q.z + 1'
+        """
         terms = self._items()
-        for key, value in operand._items().items():
+        for key, value in self._as_operator(other, 'add')._items().items():
             self._added(terms, key, value)
         return self._combined(terms)
 
-    def __radd__(self, other: object) -> 'OperatorSpec':
-        """Return the sum of a multiple of the identity and the operator."""
-        return self + other
+    def negate(self) -> 'OperatorSpec':
+        """Return the operator with every coefficient negated.
 
-    def __neg__(self) -> 'OperatorSpec':
-        """Return the operator with every coefficient negated."""
+        Returns:
+            negation:
+                The negated operator.
+        """
         return OperatorSpec({key: -value for key, value in self._items().items()})
 
-    def __sub__(self, other: object) -> 'OperatorSpec':
-        """Return the difference of the operator and an operator or a multiple of the identity."""
-        operand = self._as_operator(other)
-        return NotImplemented if operand is None else self + (-operand)
+    def subtract(self, other: object) -> 'OperatorSpec':
+        """Return the difference of the operator and an operator or a multiple of the identity.
 
-    def __rsub__(self, other: object) -> 'OperatorSpec':
-        """Return the difference of a multiple of the identity and the operator."""
-        return (-self) + other
+        Args:
+            other:
+                An operator, or a number or a Sage expression, which stands for that multiple of the identity.
 
-    def __mul__(self, other: object) -> 'OperatorSpec':
-        """Return the product of the operator and an operator or a scalar, in this order."""
-        operand = self._as_operator(other)
-        if operand is None:
-            return NotImplemented
+        Returns:
+            difference:
+                The difference.
+
+        Raises:
+            ValidationError:
+                The operand is neither an operator nor a scalar.
+        """
+        return self.add(self._as_operator(other, 'subtract').negate())
+
+    def multiply(self, other: object) -> 'OperatorSpec':
+        """Return the product of the operator and an operator or a scalar, in this order.
+
+        Args:
+            other:
+                The right factor, an operator, or a number or a Sage expression, which stands for that multiple of the
+                identity.
+
+        Returns:
+            product:
+                The product.
+
+        Raises:
+            ValidationError:
+                The operand is neither an operator nor a scalar.
+        """
+        operand = self._as_operator(other, 'multiply by')
         terms: dict[Product, Expression] = {}
         for left, first in self._items().items():
             for right, second in operand._items().items():
                 self._added(terms, left + right, first * second)
         return self._combined(terms)
 
-    def __rmul__(self, other: object) -> 'OperatorSpec':
-        """Return the product of a scalar and the operator."""
-        operand = self._as_operator(other)
-        return NotImplemented if operand is None else operand * self
+    def divide(self, other: object) -> 'OperatorSpec':
+        """Return the operator divided by a scalar.
 
-    def __truediv__(self, other: object) -> 'OperatorSpec':
-        """Return the operator divided by a scalar."""
-        coefficient = self._coefficient(other)
-        return NotImplemented if coefficient is None else self * (1 / coefficient)
+        Args:
+            other:
+                A number or a Sage expression.
+
+        Returns:
+            quotient:
+                The quotient.
+
+        Raises:
+            ValidationError:
+                The operand is not a scalar.
+        """
+        return self.multiply(1 / self._scalar(other, 'divide by'))
 
     @property
     def text(self) -> str:
@@ -137,7 +201,7 @@ class OperatorSpec(BaseSpec):
             >>> import qutip
             >>> from skcomplex.core.specs import LocalOperatorSpec, OperatorSpec
             >>> plus = LocalOperatorSpec('plus', qutip.sigmap())
-            >>> (2j * OperatorSpec({(('q', plus),): 1})).adjoint().text
+            >>> OperatorSpec({(('q', plus),): 1}).multiply(2j).adjoint().text
             '(-2j)*q.minus'
         """
         return OperatorSpec(
