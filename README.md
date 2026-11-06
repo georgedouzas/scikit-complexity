@@ -329,7 +329,7 @@ PassCompiler().prepare(wrong).report_.issues[0].text
 ```
 
 The [compatibility page](https://georgedouzas.github.io/scikit-complexity/overview/compatibility/) lists every element, interaction, law, solver, and backend, and
-the [user guide](https://georgedouzas.github.io/scikit-complexity/overview/user_guide/#choosing-compatible-components) walks through the choices in order.
+the [user guide](https://georgedouzas.github.io/scikit-complexity/overview/user_guide/build_a_custom_system/choosing_compatible_components/) walks through the choices in order.
 
 ## Spec-driven development
 

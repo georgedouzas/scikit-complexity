@@ -37,7 +37,7 @@ QUICK_TESTS: list[str] = [
 TEST_GROUPS: list[list[str]] = [
     ['--slow', 'tests/systems'],
     ['--slow', 'tests', '--ignore=tests/systems'],
-    ['src/skcomplex', 'README.md', 'docs/overview/user_guide.md'],
+    ['src/skcomplex', 'README.md', 'docs/overview/user_guide'],
 ]
 CHANGELOG_ARGS: list[str] = [
     '--convention',

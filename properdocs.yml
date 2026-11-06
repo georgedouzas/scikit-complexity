@@ -19,7 +19,43 @@ theme:
 nav:
   - Overview:
     - index.md
-    - User guide: overview/user_guide.md
+    - User guide:
+      - overview/user_guide/index.md
+      - Select a ready-made system: overview/user_guide/select_a_ready_made_system.md
+      - Change it: overview/user_guide/change_it.md
+      - Build a custom system:
+        - overview/user_guide/build_a_custom_system/index.md
+        - Concepts: overview/user_guide/build_a_custom_system/concepts.md
+        - Choosing compatible components: overview/user_guide/build_a_custom_system/choosing_compatible_components.md
+        - Defining elements: overview/user_guide/build_a_custom_system/defining_elements.md
+        - Kinds of dynamics: overview/user_guide/build_a_custom_system/kinds_of_dynamics.md
+        - General interactions: overview/user_guide/build_a_custom_system/general_interactions.md
+        - Connected components: overview/user_guide/build_a_custom_system/connected_components.md
+        - Delays, events, drivers, and noise: overview/user_guide/build_a_custom_system/delays_events_drivers_and_noise.md
+        - Stochastic maps: overview/user_guide/build_a_custom_system/stochastic_maps.md
+        - Anomalous processes: overview/user_guide/build_a_custom_system/anomalous_processes.md
+        - Geometry of chains: overview/user_guide/build_a_custom_system/geometry_of_chains.md
+        - Groups of many elements: overview/user_guide/build_a_custom_system/groups_of_many_elements.md
+        - Lattice systems: overview/user_guide/build_a_custom_system/lattice_systems.md
+        - Networks: overview/user_guide/build_a_custom_system/networks.md
+        - Fields: overview/user_guide/build_a_custom_system/fields.md
+        - Phase-space fields: overview/user_guide/build_a_custom_system/phase_space_fields.md
+        - Kinetic systems of active particles: overview/user_guide/build_a_custom_system/kinetic_systems_of_active_particles.md
+        - Agent-based systems: overview/user_guide/build_a_custom_system/agent_based_systems.md
+        - Cell complexes and link fields: overview/user_guide/build_a_custom_system/cell_complexes_and_link_fields.md
+        - Rewriting systems: overview/user_guide/build_a_custom_system/rewriting_systems.md
+        - Quantum systems: overview/user_guide/build_a_custom_system/quantum_systems.md
+        - Stocks and flows: overview/user_guide/build_a_custom_system/stocks_and_flows.md
+        - Linear programs: overview/user_guide/build_a_custom_system/linear_programs.md
+        - Static systems: overview/user_guide/build_a_custom_system/static_systems.md
+        - Constraints and search: overview/user_guide/build_a_custom_system/constraints_and_search.md
+        - Control: overview/user_guide/build_a_custom_system/control.md
+        - Learning by gradient steps: overview/user_guide/build_a_custom_system/learning_by_gradient_steps.md
+      - Simulate: overview/user_guide/simulate.md
+      - Observe: overview/user_guide/observe.md
+      - Analyse: overview/user_guide/analyse.md
+      - Run experiments: overview/user_guide/run_experiments.md
+      - Extend the library: overview/user_guide/extend_the_library.md
     - Compatibility: overview/compatibility.md
     - Changelog: overview/changelog.md
     - License: overview/license.md
