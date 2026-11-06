@@ -1,4 +1,4 @@
-# model-compilation Specification
+# system-compilation Specification
 
 ## Purpose
 
@@ -88,8 +88,8 @@ Validation and compilation SHALL decide partitions by the same rule, so a system
 compile, and a system the compiler would reject SHALL fail validation.
 
 #### Scenario: Validation and compilation agree
-- **WHEN** every registered model is validated and compiled
-- **THEN** each model that validates without an error compiles, and no model fails compilation with a partition error
+- **WHEN** every registered system is validated and compiled
+- **THEN** each system that validates without an error compiles, and no system fails compilation with a partition error
 
 ### Requirement: Laws compile to a chosen backend
 Compiling a system SHALL accept a backend, `numba`, `numpy` as the reference, or `auto` by default, which picks `numba`
@@ -115,7 +115,7 @@ SHALL report it with a warning that names the backend used, the part affected, a
 SHALL record which backend runs each part.
 
 #### Scenario: Backend substituted for a form
-- **WHEN** a lattice model is compiled with `backend='numba'` and its form runs on NumPy kernels
+- **WHEN** a lattice system is compiled with `backend='numba'` and its form runs on NumPy kernels
 - **THEN** compilation warns that the lattice form runs on NumPy, and the problem records NumPy for that form
 
 #### Scenario: Kernel falls back to Python

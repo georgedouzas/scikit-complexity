@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Lets one model join subsystems that need different mathematical forms, such as agents and differential equations, by
+Lets one system join subsystems that need different mathematical forms, such as agents and differential equations, by
 advancing each subsystem with its own solver and exchanging values between them at synchronisation points.
 
 ## Requirements
@@ -28,7 +28,7 @@ from the last synchronisation point.
 - **THEN** the ODE partition uses the value from the start of the interval until the next synchronisation point
 
 ### Requirement: Agent rules read other partitions
-An agent rule SHALL read the states of other partitions by dotted name through its model view.
+An agent rule SHALL read the states of other partitions by dotted name through its system view.
 
 #### Scenario: Agents react to a continuous resource
 - **WHEN** a farmer rule reads `land/soil.fertility` from an ODE partition

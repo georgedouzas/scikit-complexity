@@ -78,6 +78,6 @@ The analysis layer SHALL compute the dissimilarity index, the mean share of like
 of categorical states, of agents on grids or networks and of lattice fields.
 
 #### Scenario: Same segregation index on two domains
-- **WHEN** a user computes the mean share of like neighbours of a Schelling model after relaxation with tolerance 0.5,
+- **WHEN** a user computes the mean share of like neighbours of a Schelling system after relaxation with tolerance 0.5,
   and of an Ising lattice quenched to temperature 1
 - **THEN** both exceed 0.75, while a random arrangement of the same composition gives within 0.02 of the global share

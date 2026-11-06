@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Lets a user describe a model from any science as elements that carry state, interactions that change that state
+Lets a user describe a system from any science as elements that carry state, interactions that change that state
 through laws, a space the state lives in, and systems that nest and compose.
 
 ## Requirements
@@ -162,10 +162,10 @@ The modelling layer SHALL build element and interaction types from declared stat
 that returns their laws, and such types SHALL behave like subclassed components in groups, cloning, and parameter
 introspection.
 
-#### Scenario: One-off growth model
+#### Scenario: One-off growth system
 - **WHEN** a user defines an element type with a state `n` and an interaction type with a role and a rate law in a few
   lines, without writing a class
-- **THEN** a system of them compiles and simulates exactly like the same model written with classes
+- **THEN** a system of them compiles and simulates exactly like the same system written with classes
 
 #### Scenario: Defined types form groups
 - **WHEN** a user creates a group of 100 members from a defined element type
@@ -195,7 +195,7 @@ A state SHALL declare an order `k`, and the framework SHALL add companion states
 
 #### Scenario: First order unchanged
 - **WHEN** a state declares no order
-- **THEN** the model compiles exactly as before, with no companion states
+- **THEN** the system compiles exactly as before, with no companion states
 
 ### Requirement: Laws of any order superpose on the highest derivative
 Rate and noise laws on a state of order `k` SHALL contribute to its `k`-th derivative, and the contributions of
@@ -241,7 +241,7 @@ A state of a discrete map SHALL declare how many past values it keeps. Update la
 initial values of the lags SHALL be given in the constructor.
 
 #### Scenario: Multiplier-accelerator
-- **WHEN** Samuelson's model `Y_t = c (1 + v) Y_{t-1} - c v Y_{t-2} + G` runs with c = 0.8 and v = 1.5
+- **WHEN** Samuelson's system `Y_t = c (1 + v) Y_{t-1} - c v Y_{t-2} + G` runs with c = 0.8 and v = 1.5
 - **THEN** income oscillates with growing amplitude, as the complex characteristic roots of modulus `sqrt(c v) > 1`
   predict
 
@@ -587,36 +587,35 @@ It SHALL be recorded in trajectories like a state, and it SHALL remain settable 
 - **THEN** the parameter changes in the trajectory only at steps where the expression exceeds the target
 
 ### Requirement: The core is application agnostic
-Every public name and module of `skcomplex.core` SHALL be a mathematical, modelling, or engineering term. The core SHALL
+Every public name and module of `skcomplex.core.components` SHALL be a mathematical, modelling, or engineering term. The core SHALL
 hold each primitive in its general form, one class per mathematical operation, configured by the states it binds and by
 functions, whose standard variants are named by their mathematics, such as the logit or Fermi rule of a choice, the
 Lévy step of a movement, or the stable matching of a matching rule. No core name or argument SHALL name a quantity
 of a field. Every specific realization
-SHALL live in `skcomplex.models`, and the core SHALL import nothing from `skcomplex.models`. A specific realization is
-a variant named by a field or a person's model rather than by its mathematics, such as a named potential like
+SHALL live in `skcomplex.systems`, and the core SHALL import nothing from `skcomplex.systems`. A specific realization is
+a variant named by a field or a person's system rather than by its mathematics, such as a named potential like
 Lennard-Jones, an order book, a rule code, a quantum species, a forecasting heuristic, a tiling, or a distribution
 beyond the default.
 
 #### Scenario: Forbidden field terms
-- **WHEN** the test suite checks the public names and modules of `skcomplex.core` against the reviewed list of field
+- **WHEN** the test suite checks the public names and modules of `skcomplex.core.components` against the reviewed list of field
   terms
 - **THEN** none of them contains a field term
 
-#### Scenario: No import of models
-- **WHEN** the import graph of `skcomplex.core` is computed
-- **THEN** it contains no module of `skcomplex.models`
+#### Scenario: No import of systems
+- **WHEN** the import graph of `skcomplex.core.components` is computed
+- **THEN** it contains no module of `skcomplex.systems`
 
 #### Scenario: Mathematical variants in the core
 - **WHEN** a user builds a `ChoiceInteraction` with the `'fermi'` rule and a `MatchingInteraction` with
   `StableMatchingSpec`
-- **THEN** both interactions come from `skcomplex.core.interactions`, the rule spec from `skcomplex.specs`, and no model
+- **THEN** both interactions come from `skcomplex.core.components.interactions`, the rule spec from `skcomplex.core.specs`, and no system
   defines either variant again
 
 ### Requirement: Core packages mirror the system definition
-The modelling packages of `skcomplex.core` SHALL be `system`, `components`, `interactions`, `space`, which holds space
+The modelling packages of `skcomplex.core.components` SHALL be `system`, `components`, `interactions`, `space`, which holds space
 and time, and `laws`, each exporting the general primitives of its part of a system. A primitive that belongs to one
 formalism SHALL live in that formalism's package under `skcomplex.formalisms`, never in a modelling package.
-`skcomplex.core.model` SHALL not exist.
 
 #### Scenario: Primitives by part
 - **WHEN** a user imports `System`, `Element`, `Interaction`, `LatticeSpace`, `DiscreteTime`, and `Rate`
@@ -629,12 +628,12 @@ formalism SHALL live in that formalism's package under `skcomplex.formalisms`, n
   `formalisms.fields`
 
 ### Requirement: Backends live by their reach
-Every general backend SHALL live in `skcomplex.engine.backends`, a backend that serves one formalism SHALL live in that
+Every general backend SHALL live in `skcomplex.core.engine.backends`, a backend that serves one formalism SHALL live in that
 formalism, and `compile` and `solvers` SHALL hold no backend.
 
 #### Scenario: Backends in one package
 - **WHEN** the test suite lists the registered backends
-- **THEN** NumPy and Numba are defined in `skcomplex.engine.backends`, Mesa in `skcomplex.formalisms.agents`, and
+- **THEN** NumPy and Numba are defined in `skcomplex.core.engine.backends`, Mesa in `skcomplex.formalisms.agents`, and
   LAMMPS in `skcomplex.formalisms.particles`
 
 ### Requirement: Noise laws name the Wiener process they share

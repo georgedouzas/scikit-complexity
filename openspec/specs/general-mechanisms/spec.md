@@ -1,31 +1,31 @@
 # general-mechanisms Specification
 
 ## Purpose
-Gives models of every field the operations they share as general core elements and interactions, configured by the
-states they bind, by functions, and by named variants, so a model defines only what is its own.
+Gives systems of every field the operations they share as general core elements and interactions, configured by the
+states they bind, by functions, and by named variants, so a system defines only what is its own.
 
 ## Requirements
 
 ### Requirement: Core classes name operations
-The core SHALL provide one general element or interaction per mathematical operation that models use. Each SHALL take
+The core SHALL provide one general element or interaction per mathematical operation that systems use. Each SHALL take
 the roles it binds, the names of the states it reads and changes, the functions that define it, and its variant as a
 named argument. No core class, argument, or variant SHALL name a quantity of a field, such as a force, a position, a
 velocity, a mass, a price, an infection, an energy, or a harvest.
 
 #### Scenario: Field terms are rejected
-- **WHEN** the field-term test checks the public names of `skcomplex.core`
+- **WHEN** the field-term test checks the public names of `skcomplex.core.components`
 - **THEN** none of them contains a field term
 
 #### Scenario: A force is a rate
-- **WHEN** a model adds a constant force `F` to a particle whose position `x` is a state of order 2 with mass `m`
+- **WHEN** a system adds a constant force `F` to a particle whose position `x` is a state of order 2 with mass `m`
 - **THEN** it uses `RateInteraction(state='x', rate=F, divisor='m')`, and the second derivative of `x` is `F / m`
 
 ### Requirement: Field cases are subclasses
-A field case of a general class SHALL be a subclass of it, even a pure renaming, that lives with its one model or in
+A field case of a general class SHALL be a subclass of it, even a pure renaming, that lives with its one system or in
 the `common` package of its field when several of its packages use it. No field SHALL define the same case twice.
 
 #### Scenario: Lennard-Jones from the core
-- **WHEN** a physics model uses Lennard-Jones particles
+- **WHEN** a physics system uses Lennard-Jones particles
 - **THEN** `LennardJonesInteraction` of `physics/common/particles` is a `PairCouplingInteraction` with its pair
   potential, and its minimum lies at `2 ** (1 / 6)` times its length
 
@@ -143,7 +143,7 @@ emission matrix, after an optional residence time, and `TransitionInteraction` S
 target is a group or a field, and a subclass SHALL be able to bind its species under roles of its own names.
 
 #### Scenario: Reactions at every site of a field
-- **WHEN** the Gray-Scott model runs its cubic autocatalysis, feed, and removal as reactions on the state names of its
+- **WHEN** the Gray-Scott system runs its cubic autocatalysis, feed, and removal as reactions on the state names of its
   field beside its two diffusions
 - **THEN** its trajectory equals the one of sites that carry the same rate laws of their own, up to round-off
 
@@ -171,7 +171,7 @@ change of an objective at an intensity.
 neighbour, or by the Fermi rule, as rates, per-step probabilities, or agent rules. `ReinforcementInteraction` SHALL
 move option scores towards realized payoffs or add the payoffs to them, over named states or the components of one
 vector state, which a one-member group shares. `EvolutionInteraction` SHALL replace strategies by selection,
-replacement, crossover, and mutation, drawing from the model's random stream.
+replacement, crossover, and mutation, drawing from the system's random stream.
 
 #### Scenario: Glauber dynamics
 - **WHEN** fully connected spins choose by the logit rule at intensity 2
@@ -208,7 +208,7 @@ rewire nodes and edges.
 - **THEN** their mean squared displacement after time `t` is `4 D t` within 5 percent
 
 #### Scenario: Matching outside markets
-- **WHEN** a ride-sharing model matches riders with idle cars by `StableMatchingSpec`
+- **WHEN** a ride-sharing system matches riders with idle cars by `StableMatchingSpec`
 - **THEN** it uses `MatchingInteraction`, and no rider and car prefer each other to their matches
 
 #### Scenario: Life cycle variants
@@ -225,7 +225,7 @@ rewire nodes and edges.
 - **THEN** one node joins per step with its edges, as in Barabási-Albert growth, and every new node takes its own draw
 
 #### Scenario: Galam groups
-- **WHEN** the Galam discussion model draws groups of three every step
+- **WHEN** the Galam discussion system draws groups of three every step
 - **THEN** it uses `GroupingInteraction`, and the majority of every group wins as before the change
 
 ### Requirement: Transfer flows and pairings
@@ -234,7 +234,7 @@ a quantity within one element and under the interaction otherwise. Its agent for
 of neighbours, and SHALL pair with a fallback group in a step in which no target member lives.
 
 #### Scenario: Named flows keep their reporters
-- **WHEN** the Bass diffusion model moves adopters by a `TransferInteraction` within the market with `flow='adoption'`
+- **WHEN** the Bass diffusion system moves adopters by a `TransferInteraction` within the market with `flow='adoption'`
 - **THEN** the trajectory records the flow as `market.adoption`, as when the market declared the transfer itself
 
 #### Scenario: Disjoint neighbour pairs
@@ -270,20 +270,20 @@ additively, within bounds, in both forms.
 - **THEN** the price moves by the relative step in the direction, never below the unit cost
 
 ### Requirement: Agent and symbolic lowering
-A general class whose operation agent models use SHALL lower to agent rules in its agent form, with functions of the
-agent and the model view, and to symbolic laws in its symbolic form, chosen by a `form` argument.
+A general class whose operation agent systems use SHALL lower to agent rules in its agent form, with functions of the
+agent and the system view, and to symbolic laws in its symbolic form, chosen by a `form` argument.
 
 #### Scenario: Choice reading history
-- **WHEN** an agent model's logit choice reads the payoffs the model recorded in earlier rounds
-- **THEN** it uses `ChoiceInteraction` with a utility of the agent and the model view
+- **WHEN** an agent system's logit choice reads the payoffs the system recorded in earlier rounds
+- **THEN** it uses `ChoiceInteraction` with a utility of the agent and the system view
 
 ### Requirement: General elements
 The core SHALL provide `CompartmentElement`, which holds one named state as a count or a fraction, `DensityElement`,
 which holds a density over activity classes, and `PointElement`, a member with a vector state of order 2 in a
 continuous space.
 
-#### Scenario: Kinetic models share one element
-- **WHEN** the kinetic models of wealth, opinion, crowds, and immune competition declare their populations
+#### Scenario: Kinetic systems share one element
+- **WHEN** the kinetic systems of wealth, opinion, crowds, and immune competition declare their populations
 - **THEN** they all use `DensityElement`
 
 ### Requirement: Neighbour interactions carry member laws, degrees, delays, and cascades
@@ -339,14 +339,14 @@ any reduction.
 
 #### Scenario: Global inhibition
 - **WHEN** a hub element reads the largest state of a lattice group and inhibits every member
-- **THEN** it uses `CouplingInteraction`, and the trajectory equals the previous model's
+- **THEN** it uses `CouplingInteraction`, and the trajectory equals the previous system's
 
 ### Requirement: Parametric stoichiometry
 `ReactionInteraction` SHALL take stoichiometric coefficients that are parameters.
 
 #### Scenario: Oregonator
 - **WHEN** the Oregonator's reactions change `x` and `y` scaled by `1 / epsilon` and `1 / delta`
-- **THEN** it uses `ReactionInteraction`, and its limit cycle equals the previous model's
+- **THEN** it uses `ReactionInteraction`, and its limit cycle equals the previous system's
 
 ### Requirement: Transfers along edges
 `TransferInteraction` SHALL move amounts along the edges of a lattice or network in both directions at parametric
@@ -362,7 +362,7 @@ interactions of the visited member.
 
 #### Scenario: Perishables market
 - **WHEN** the perishables market runs on the general classes
-- **THEN** its magnetization over 20 seeds equals the previous model's at every temperature tested
+- **THEN** its magnetization over 20 seeds equals the previous system's at every temperature tested
 
 ### Requirement: Agent coupling over radii
 The agent form of `CouplingInteraction` SHALL sum terms over several radii with a priority among them and clamp the
@@ -370,7 +370,7 @@ resulting turn and speed.
 
 #### Scenario: Couzin zones
 - **WHEN** fish repel within one radius, align within a second, and attract within a third
-- **THEN** repulsion overrides the other zones, and the polarization over 20 seeds equals the previous model's
+- **THEN** repulsion overrides the other zones, and the polarization over 20 seeds equals the previous system's
 
 ### Requirement: Rules read observable history
 An agent rule SHALL read the recorded values of an observable at earlier rounds.
@@ -405,14 +405,14 @@ A transfer between two partners SHALL be able to credit and debit both ends from
 
 ### Requirement: Core names carry no field vocabulary
 Core classes, arguments, specs, and law utilities SHALL use the vocabulary of the operation, and a field's vocabulary SHALL
-appear only in thin subclasses in `skcomplex.models`.
+appear only in thin subclasses in `skcomplex.systems`.
 
 #### Scenario: Sampling an objective
 - **WHEN** a user samples a function that is not an energy with `SamplingInteraction(objective=..., intensity=...)`
 - **THEN** moves are accepted from the change of the objective, with no `temperature` or `energy` argument in the core
 
 #### Scenario: Physics keeps its words
-- **WHEN** a statistical mechanics model sweeps the `temperature` of its thin sampling subclass
+- **WHEN** a statistical mechanics system sweeps the `temperature` of its thin sampling subclass
 - **THEN** the subclass gives the core an intensity of one over the temperature
 
 ### Requirement: One way to select partners
@@ -439,12 +439,12 @@ One bilinear law SHALL express gains and losses of a density at the rate of the 
 
 ### Requirement: Operator dynamics are named for their mathematics
 The core and the engine SHALL name linear operator dynamics on tensor products by the operation, with no quantum vocabulary
-in their class names, and physics SHALL keep its quantum vocabulary in `skcomplex.models.physics.common.quantum`.
+in their class names, and physics SHALL keep its quantum vocabulary in `skcomplex.systems.physics.common.quantum`.
 
 #### Scenario: Quantum system
-- **WHEN** a user runs a catalog quantum model
+- **WHEN** a user runs a catalog quantum system
 - **THEN** it compiles with the operator compiler and gives the trajectory it gave before
 
 #### Scenario: Core names
-- **WHEN** the class names of `skcomplex.core`, `skcomplex.engine`, and `skcomplex.analysis` are searched for `Quantum`
+- **WHEN** the class names of `skcomplex.core.components`, `skcomplex.core.engine`, and `skcomplex.core.analysis` are searched for `Quantum`
 - **THEN** none is found

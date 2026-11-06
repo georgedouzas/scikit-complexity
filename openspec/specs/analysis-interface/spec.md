@@ -54,8 +54,8 @@ SHALL extract the data it measures from a trajectory itself. Settings SHALL sele
 - **WHEN** a user prepares an agent analysis on an ODE trajectory
 - **THEN** a named error says that the trajectory has no agent group and lists the data kinds it has
 
-### Requirement: Analyses of a model take the system
-An analysis that measures a model rather than recorded data, such as stability, linearization, or Lyapunov exponents,
+### Requirement: Analyses of a system take the system
+An analysis that measures a system rather than recorded data, such as stability, linearization, or Lyapunov exponents,
 SHALL take the system as its source and SHALL compile it itself.
 
 #### Scenario: Fixed point stability
@@ -100,8 +100,8 @@ a data kind it reads, and SHALL raise a named error that lists the kinds it read
 - **THEN** each run sets the order of every frame between 0 and 1, with the same class and the same settings names
 
 #### Scenario: Moment ratio of any sample
-- **WHEN** a user runs the distribution analysis of kind `moment-ratio` on magnetisation samples of an Ising model and
-  on returns of a market model
+- **WHEN** a user runs the distribution analysis of kind `moment-ratio` on magnetisation samples of an Ising system and
+  on returns of a market system
 - **THEN** both runs set the fourth-to-squared-second moment ratio of every sample
 
 #### Scenario: Source without a readable kind

@@ -2,13 +2,13 @@
 
 ## Purpose
 
-Lets a user study a model through many runs: replicates, parameter designs, scenarios, sensitivity analysis, and
+Lets a user study a system through many runs: replicates, parameter designs, scenarios, sensitivity analysis, and
 calibration, with reproducible results.
 
 ## Requirements
 
 ### Requirement: Ensembles run replicates with independent streams
-An experiment SHALL run replicates of a model, each with its own random stream derived from the experiment's seed, and
+An experiment SHALL run replicates of a system, each with its own random stream derived from the experiment's seed, and
 the results SHALL not depend on the number of worker processes.
 
 #### Scenario: Reproducible ensemble
@@ -20,7 +20,7 @@ the results SHALL not depend on the number of worker processes.
 - **THEN** no two replicates have identical trajectories
 
 ### Requirement: Designs sweep parameters and initial states
-An experiment SHALL run a model over grids, random samples, Latin hypercube samples, and Sobol samples of parameters and
+An experiment SHALL run a system over grids, random samples, Latin hypercube samples, and Sobol samples of parameters and
 initial states, addressed by factory argument or by dotted path. Every design SHALL be an estimator that validates its
 settings and prepares against the bounds of the values it samples, and runs to rows of values.
 
@@ -59,16 +59,16 @@ computes one-at-a-time effects, Morris elementary effects, or Sobol indices of a
 bounds, and keeps them as fitted attributes.
 
 #### Scenario: Sobol indices of a known function
-- **WHEN** a user runs an experiment of the Ishigami function wrapped as a model over a Sobol design and prepares a
+- **WHEN** a user runs an experiment of the Ishigami function wrapped as a system over a Sobol design and prepares a
   sensitivity analysis with `method='sobol'` on its result
 - **THEN** the first-order indices in `first_order_` match the known values within 0.05
 
 ### Requirement: Calibration fits parameters to data
-The experiments layer SHALL hold a calibration experiment that fits model parameters within bounds to observed time
+The experiments layer SHALL hold a calibration experiment that fits system parameters within bounds to observed time
 series and keeps the estimates with R², RMSE, MAE, and MAPE as fitted attributes.
 
 #### Scenario: Recover logistic parameters
-- **WHEN** a user runs a calibration experiment of the logistic growth model on data generated with `r = 0.8` and
+- **WHEN** a user runs a calibration experiment of the logistic growth system on data generated with `r = 0.8` and
   `K = 500` plus 1% noise
 - **THEN** `estimates_` lies within 5% of the true values and `r2_` exceeds 0.99
 
@@ -81,8 +81,8 @@ main guard that a script needs and the executors that avoid processes.
 - **THEN** it raises `ExperimentError`, whose message names the main guard and `executor='thread'`
 
 ### Requirement: Experiments are estimators with two verbs
-Every experiment SHALL take a system or a factory of systems as its source, never a model name, since experiments
-cannot import the model library. Every experiment SHALL store its source, design, scenarios, replicates, and analyses in its constructor, validate them and
+Every experiment SHALL take a system or a factory of systems as its source, never a system name, since experiments
+cannot import the system library. Every experiment SHALL store its source, design, scenarios, replicates, and analyses in its constructor, validate them and
 resolve the source and the runs in `prepare()`, and execute the runs in `run()`, keeping the result in
 `result_`.
 
@@ -112,7 +112,7 @@ the experiment result, and the bases a user subclasses, and SHALL hold no functi
 - **WHEN** a user lists the public names of the experiments package
 - **THEN** every name is a class, and none of `calibrate`, `sensitivity`, `run_task`, or `resolve_source` exists
 
-#### Scenario: Model of the library as a source
-- **WHEN** a user runs an experiment of a library model
-- **THEN** they pass the model's factory or a system created by `skcomplex.models`, and a model name raises a named error
+#### Scenario: System of the library as a source
+- **WHEN** a user runs an experiment of a library system
+- **THEN** they pass the system's factory or a system created by `skcomplex.systems`, and a system name raises a named error
   that says to pass a system or a factory

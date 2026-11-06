@@ -2,8 +2,8 @@
 
 ## Purpose
 
-Lets a user build lattice models, cellular automata, models with slow drive and fast relaxation, and Monte Carlo spin
-models, on lattices with ordered neighbourhoods, and run them vectorised.
+Lets a user build lattice systems, cellular automata, systems with slow drive and fast relaxation, and Monte Carlo spin
+systems, on lattices with ordered neighbourhoods, and run them vectorised.
 
 ## Requirements
 
@@ -53,11 +53,11 @@ A system SHALL declare a local energy over neighbourhoods and proposed moves, an
 Glauber, or heat-bath acceptance at a temperature that changes live, with one sweep per unit of time.
 
 #### Scenario: Ising transition
-- **WHEN** a user runs the 2D Ising model on a 64 × 64 lattice at temperatures from 1.5 to 3.5 with ensembles
+- **WHEN** a user runs the 2D Ising system on a 64 × 64 lattice at temperatures from 1.5 to 3.5 with ensembles
 - **THEN** the mean absolute magnetisation drops below one half between temperatures 2.2 and 2.4, around the exact
   critical value 2.269
 
-### Requirement: Lattice models run fast and stream as images
+### Requirement: Lattice systems run fast and stream as images
 Lattice rules SHALL run vectorised on the NumPy and Numba backends, and lattices SHALL stream to Rerun as images colored
 by state, unless the lattice group or its element type declares another visual.
 
@@ -79,7 +79,7 @@ Lattice and Monte Carlo steppers SHALL apply the boundary laws of the problem, i
 every step.
 
 #### Scenario: XY angles stay wrapped
-- **WHEN** the XY model on a 16 × 16 lattice runs until 50 with Metropolis rotations
+- **WHEN** the XY system on a 16 × 16 lattice runs until 50 with Metropolis rotations
 - **THEN** every recorded angle lies in `(-pi, pi]`
 
 ### Requirement: Relaxations update their active neighbourhoods

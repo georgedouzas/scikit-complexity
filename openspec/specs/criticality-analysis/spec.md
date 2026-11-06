@@ -11,9 +11,9 @@ The analysis layer SHALL extract avalanches from an activity series or from rela
 durations, and mean shapes, and SHALL fit their size and duration laws with a power-law fit compared against
 exponential, log-normal, and truncated power-law alternatives.
 
-#### Scenario: Same avalanche statistics on a sandpile and an earthquake model
+#### Scenario: Same avalanche statistics on a sandpile and an earthquake system
 - **WHEN** a user measures 10^5 avalanches of a 128 × 128 Bak-Tang-Wiesenfeld sandpile and of a 64 × 64
-  Olami-Feder-Christensen model with `alpha = 0.2` and open edges
+  Olami-Feder-Christensen system with `alpha = 0.2` and open edges
 - **THEN** the sandpile size exponent lies between 1.15 and 1.35, the earthquake size exponent between 1.7 and 2.1, and
   in both the power law is preferred over the exponential with a p-value below 0.05
 
@@ -57,7 +57,7 @@ order-parameter exponent near the transition.
   `K_c = 2`
 
 #### Scenario: Order-parameter exponent
-- **WHEN** a user fits the order-parameter exponent of the mean-field Ising model and of the Kuramoto model with
+- **WHEN** a user fits the order-parameter exponent of the mean-field Ising system and of the Kuramoto system with
   Lorentzian frequencies just above their transitions
 - **THEN** both exponents lie within 0.05 of 1/2
 

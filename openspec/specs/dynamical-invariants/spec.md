@@ -39,11 +39,11 @@ The analysis layer SHALL derive the Kaplan-Yorke dimension and the Kolmogorov-Si
 exponents, from a Lyapunov spectrum, and SHALL estimate the largest exponent from a recorded series alone.
 
 #### Scenario: Kolmogorov-Sinai entropy of a map and a flow
-- **WHEN** a user derives the Kolmogorov-Sinai entropy of the logistic map at r = 4 and of the Lorenz-63 model
+- **WHEN** a user derives the Kolmogorov-Sinai entropy of the logistic map at r = 4 and of the Lorenz-63 system
 - **THEN** the map gives ln 2 within 0.01 and the flow 0.906 within 0.05
 
 #### Scenario: Kaplan-Yorke dimension
-- **WHEN** a user derives the Kaplan-Yorke dimension of the Hénon map and of the Lorenz-63 model
+- **WHEN** a user derives the Kaplan-Yorke dimension of the Hénon map and of the Lorenz-63 system
 - **THEN** the map gives 1.26 within 0.02 and the flow 2.06 within 0.03
 
 #### Scenario: Largest exponent from data
@@ -71,7 +71,7 @@ entropy of diagonal line lengths.
 - **THEN** the sine has determinism above 0.95, the noise below 0.3, and the Lorenz series lies between them
 
 #### Scenario: Intermittency on two domains
-- **WHEN** a user quantifies the logistic map just below the period-3 window at r = 3.8282 and the Lorenz-63 model
+- **WHEN** a user quantifies the logistic map just below the period-3 window at r = 3.8282 and the Lorenz-63 system
   just above its intermittency threshold at ρ = 166.2, each sampled once per laminar orbit, every third iterate of the
   map and every second maximum of `z` of the flow
-- **THEN** each has a laminarity higher than the same model at r = 4 and at ρ = 28
+- **THEN** each has a laminarity higher than the same system at r = 4 and at ρ = 28

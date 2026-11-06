@@ -56,7 +56,7 @@ without the largest, the strength of the largest cluster, and the probability of
 - **THEN** the grid exponent lies within 0.1 of 187/91 and the graph exponent within 0.1 of 5/2
 
 #### Scenario: Forest fire clusters
-- **WHEN** a user computes the strength of the largest cluster of burnt trees of a forest fire model over tree densities
+- **WHEN** a user computes the strength of the largest cluster of burnt trees of a forest fire system over tree densities
   from 0.4 to 0.8
 - **THEN** it rises from below 0.05 to above 0.5, and the sharpest rise lies within 0.03 of 0.5927
 
@@ -74,9 +74,9 @@ curves of several sizes on scaled variables with given or fitted exponents and a
 - **THEN** both collapses have a quality better than with exponents 20 percent away, and fitting `nu` recovers each
   within 10 percent
 
-### Requirement: Dispersion relations of field models
-The analysis SHALL compute the dispersion relation of a field model, site groups on a lattice with rate laws, around a
-uniform state from its laws, the growth rate of each wavenumber of the model's discretization.
+### Requirement: Dispersion relations of field systems
+The analysis SHALL compute the dispersion relation of a field system, site groups on a lattice with rate laws, around a
+uniform state from its laws, the growth rate of each wavenumber of the system's discretization.
 
 #### Scenario: Turing band
 - **WHEN** the dispersion relation of the Brusselator above its Turing threshold is computed

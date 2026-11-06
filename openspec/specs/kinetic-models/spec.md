@@ -1,7 +1,7 @@
-# kinetic-models Specification
+# kinetic-systems Specification
 
 ## Purpose
-Lets a user model populations of active particles as distributions over an activity variable, held as site groups on
+Lets a user build populations of active particles as distributions over an activity variable, held as site groups on
 an activity lattice and changed by encounters with conservative, proliferative, and destructive outcomes, and move
 between agent, distribution, and aggregate levels.
 
@@ -23,7 +23,7 @@ change it as declared. Encounter laws SHALL be of the law kind `encounter`, in t
 that they require continuous time, a lattice space, and real states.
 
 #### Scenario: Conservative encounters
-- **WHEN** a wealth model with only conservative encounters runs for 100 time units
+- **WHEN** a wealth system with only conservative encounters runs for 100 time units
 - **THEN** the total density stays constant within 1e-10 relative error
 
 #### Scenario: Invalid transition
@@ -51,13 +51,13 @@ readable inside laws and usable as observables of simulations and catalog entrie
 - **WHEN** a simulation records the mean activity moment of a distribution
 - **THEN** it returns the activity-weighted sum divided by the density at every frame
 
-### Requirement: A particle solver samples the same model
+### Requirement: A particle solver samples the same system
 The same declarations SHALL run with a stochastic particle solver that converges to the ODE solution as the number of
 particles grows. The solver SHALL declare that it supports continuous time, lattice spaces, site groups, and encounter
 laws only.
 
 #### Scenario: Convergence with particles
-- **WHEN** a model runs with the particle solver at 10³, 10⁴, and 10⁵ particles over ensembles
+- **WHEN** a system runs with the particle solver at 10³, 10⁴, and 10⁵ particles over ensembles
 - **THEN** the mean error of the distribution against the ODE solution falls roughly as one over the square root of the
   particle number
 

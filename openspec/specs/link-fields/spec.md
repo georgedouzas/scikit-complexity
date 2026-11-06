@@ -99,7 +99,7 @@ update together only links that share no face, and every draw SHALL come from th
 - **THEN** the mean cosine of the plaquette sums is within 0.01 of the exact value `I_1(2) / I_0(2)`
 
 #### Scenario: Reproducible sampling
-- **WHEN** a Z_3 link model sampled with the `'random-value'` move and the `'heat-bath'` rule runs twice with the same
+- **WHEN** a Z_3 link system sampled with the `'random-value'` move and the `'heat-bath'` rule runs twice with the same
   seed
 - **THEN** both runs give identical link values at every frame
 
@@ -158,6 +158,6 @@ hyperedge group as an image on a 2D lattice complex or as colored polygons on a 
 more than two dimensions SHALL be drawn as a chosen 2D slice.
 
 #### Scenario: Plaquette image
-- **WHEN** a 2D U(1) model on a 32 × 32 lattice complex runs with a `RerunObserver` and `CellVisual`
+- **WHEN** a 2D U(1) system on a 32 × 32 lattice complex runs with a `RerunObserver` and `CellVisual`
 - **THEN** the recording holds the plaquette sums as a 32 × 32 image with a cyclic color map and the links as 2048
   colored segments at every recorded frame

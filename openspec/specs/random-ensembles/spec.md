@@ -14,7 +14,7 @@ members of a group, computed without overflow for values of any size on the NumP
 - **WHEN** `log_sum_exp` reduces values of order 10^4 over 1000 members
 - **THEN** the result is finite and equals the largest value plus a correction of at most `ln 1000`
 
-#### Scenario: Random energy model entropy
+#### Scenario: Random energy system entropy
 - **WHEN** the entropy per spin `(ln Z + U/T)/N` of 2^20 Gaussian energies of variance `N/2` is written with
   `log_sum_exp` and averaged over 10 replicates of an `Experiment`
 - **THEN** it is within 0.02 of `ln 2 - 1/(4 T^2)` at `T = 1` and `T = 2`, and below 0.1 at `T = 0.3`, below the glass

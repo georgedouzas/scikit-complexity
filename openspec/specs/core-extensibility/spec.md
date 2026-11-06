@@ -71,7 +71,7 @@ with another law, and each says so when given a callable.
 - **THEN** the event fires where the guard changes sign and applies the reset, as the symbolic crossing would
 
 #### Scenario: Learned observable
-- **WHEN** an observable of a non-agent system is a callable of time and values that calls a trained model
+- **WHEN** an observable of a non-agent system is a callable of time and values that calls a trained system
 - **THEN** the trajectory records its value at every frame
 
 ### Requirement: Callables read their component and the random stream

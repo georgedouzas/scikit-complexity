@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Lets a user discretise the same field model spectrally, by finite volumes, or by finite elements, and integrate stiff
+Lets a user discretise the same field system spectrally, by finite volumes, or by finite elements, and integrate stiff
 and turbulent dynamics with implicit and exponential steppers.
 
 ## Requirements

@@ -45,7 +45,7 @@ windowed memory, and each scheme SHALL declare its support for fractional orders
 - **THEN** each scheme matches `E_0.6(-t^0.6)` at time 5, and its error shrinks with the smaller step
 
 #### Scenario: Short memory
-- **WHEN** the same model runs with a memory window of 10 time units
+- **WHEN** the same system runs with a memory window of 10 time units
 - **THEN** the result stays within 1e-3 of the full-memory solution at time 20
 
 ### Requirement: The Mittag-Leffler function is available

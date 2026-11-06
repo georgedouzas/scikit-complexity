@@ -1,13 +1,13 @@
 # adaptive-networks Specification
 
 ## Purpose
-Lets a user model networks whose structure and edge states evolve together with the states of their nodes, across
+Lets a user build networks whose structure and edge states evolve together with the states of their nodes, across
 several relation layers, with neighbourhood reductions in any space.
 
 ## Requirements
 
 ### Requirement: Generators create reproducible networks
-The space layer SHALL generate Erdős-Rényi, Watts-Strogatz, Barabási-Albert, configuration-model, stochastic block,
+The space layer SHALL generate Erdős-Rényi, Watts-Strogatz, Barabási-Albert, configuration-system, stochastic block,
 lattice, and complete network spaces from the simulation's random stream.
 
 #### Scenario: Same seed, same network
@@ -27,7 +27,7 @@ A network space SHALL hold several named layers over the same nodes, and each in
 one layer.
 
 #### Scenario: Two relations
-- **WHEN** a model has a contact layer for infection and a work layer for wages
+- **WHEN** a system has a contact layer for infection and a work layer for wages
 - **THEN** infection spreads only along contact edges, and wages flow only along work edges
 
 #### Scenario: Missing layer
@@ -39,7 +39,7 @@ Update, jump, and rule laws SHALL request edge and node additions, removals, and
 of the variable groups on the edges and sites of the network, so groups on network nodes resize with the nodes.
 
 #### Scenario: Preferential attachment
-- **WHEN** a Barabási-Albert growth model adds 10,000 nodes with two edges each
+- **WHEN** a Barabási-Albert growth system adds 10,000 nodes with two edges each
 - **THEN** the degree distribution's tail exponent lies within 0.3 of 3
 
 #### Scenario: Adaptive epidemic
@@ -69,7 +69,7 @@ SHALL report a neighbourhood that the system's space does not offer.
 - **THEN** the order parameter stays near 0 below the critical coupling and grows above it
 
 #### Scenario: Flocking
-- **WHEN** the Vicsek model runs at low noise and high density
+- **WHEN** the Vicsek system runs at low noise and high density
 - **THEN** the polar order parameter exceeds 0.9
 
 #### Scenario: Metric neighbourhood on a network

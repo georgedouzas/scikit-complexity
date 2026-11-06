@@ -2,14 +2,14 @@
 
 ## Purpose
 
-Lets a user describe agent-based models, whose agents follow rules written as code on grids, networks, or continuous
-spaces and are born and die during a run, and run them or any existing Mesa model with the framework's runtime.
+Lets a user describe agent-based systems, whose agents follow rules written as code on grids, networks, or continuous
+spaces and are born and die during a run, and run them or any existing Mesa system with the framework's runtime.
 
 ## Requirements
 
 ### Requirement: Rules describe agent behaviour
 An agent type SHALL describe its behaviour with rule laws, Python functions that update one agent with access to its
-own state, its neighbours, and the model, and a system with rule laws SHALL compile to the agent-based form.
+own state, its neighbours, and the system, and a system with rule laws SHALL compile to the agent-based form.
 
 #### Scenario: Agent form inferred
 - **WHEN** a system contains only agent groups with rule laws
@@ -46,12 +46,12 @@ step that produces frame `k`.
 - **WHEN** the same agent system is simulated twice on the Mesa backend with random state 0
 - **THEN** the two trajectories are equal
 
-#### Scenario: Rules read the model time
-- **WHEN** a rule stores `model.time` in a state of its agent at every step of a run until time 3
+#### Scenario: Rules read the system time
+- **WHEN** a rule stores `system.time` in a state of its agent at every step of a run until time 3
 - **THEN** the state is 1, 2, and 3 in the frames at times 1, 2, and 3, not 0
 
 #### Scenario: No agent-specific system class
-- **WHEN** a user builds an agent model
+- **WHEN** a user builds an agent system
 - **THEN** they use `System` with `DiscreteTime`, and no `MesaSystem` or `AgentType` exists in the core
 
 ### Requirement: Agents are the members that run or receive rules
@@ -81,30 +81,30 @@ Rules SHALL create and remove members of variable groups only, so a group keeps 
 - **THEN** the run raises an error that suggests declaring the group with `variable=True`
 
 ### Requirement: Agent trajectories hold changing populations
-A trajectory of an agent-based run SHALL return model reporters as arrays and agent variables per frame as arrays whose
+A trajectory of an agent-based run SHALL return system reporters as arrays and agent variables per frame as arrays whose
 length is the number of agents alive at that frame, with their agent ids.
 
 #### Scenario: Wealth per agent
-- **WHEN** a user asks the trajectory of a wealth model for the agent variable `wealth` at frame 5
+- **WHEN** a user asks the trajectory of a wealth system for the agent variable `wealth` at frame 5
 - **THEN** it returns one value per agent alive at frame 5 with the matching agent ids
 
 ### Requirement: Rules read their owner's parameters and roles
-A rule SHALL receive a model view scoped to the interaction or agent group that owns it, from which it reads the
+A rule SHALL receive a system view scoped to the interaction or agent group that owns it, from which it reads the
 owner's parameters by name and the agents of a group by role or by relative path, so the rule works unchanged when its
 system is nested in another, and an agent view SHALL report its group's label as well as its path.
 
 #### Scenario: Parameter of a nested interaction
 - **WHEN** an interaction with the parameter `threshold` sits in the subsystem `farm` and its rule reads
-  `model.parameter('threshold')`
+  `system.parameter('threshold')`
 - **THEN** the rule gets the value of `farm/herding.threshold`, also after a live update of that parameter
 
 #### Scenario: Group by role
 - **WHEN** an interaction binds its role `pasture` to the group `farm/patches` and its rule reads
-  `model.agents('pasture')`
+  `system.agents('pasture')`
 - **THEN** the rule gets the agents of `farm/patches`
 
 #### Scenario: Unknown name
-- **WHEN** a rule reads `model.agents('meadow')` and no role, relative group, or absolute group has that name
+- **WHEN** a rule reads `system.agents('meadow')` and no role, relative group, or absolute group has that name
 - **THEN** a named simulation error is raised that lists the owner's roles and the available groups
 
 #### Scenario: Group label
@@ -119,12 +119,12 @@ An interaction whose laws are agent rules SHALL bind roles to any number of agen
 - **THEN** the system compiles to the agent-based form and the rule reads both groups through their roles
 
 ### Requirement: Rules read the space geometry
-The model view SHALL report the extent of the agent space per axis and whether it wraps, and an agent view SHALL return
+The system view SHALL report the extent of the agent space per axis and whether it wraps, and an agent view SHALL return
 the displacement and the distance to another agent or a location, the shortest image on a torus and the hop count on a
 network.
 
 #### Scenario: Grid dimensions
-- **WHEN** a rule of an agent system on a 30 by 20 toroidal grid reads the model's dimensions and torus flag
+- **WHEN** a rule of an agent system on a 30 by 20 toroidal grid reads the system's dimensions and torus flag
 - **THEN** it gets `(30, 20)` and true
 
 #### Scenario: Displacement across the seam
@@ -139,7 +139,7 @@ network.
 ### Requirement: Agent states do not shadow Mesa attributes
 An agent type SHALL raise a named label error when it is defined with a state named after an
 attribute that Mesa or the Mesa backend reads from agents, which are `position`, `pos`, `cell`, `unique_id`, and
-`model`. The error SHALL name the attribute and the agent type.
+`system`. The error SHALL name the attribute and the agent type.
 
 #### Scenario: State named position
 - **WHEN** a user defines an agent type with a scalar state named `position`

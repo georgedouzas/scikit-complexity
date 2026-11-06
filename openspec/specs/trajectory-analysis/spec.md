@@ -11,7 +11,7 @@ series, information, spatial structure, and networks.
 The analysis layer SHALL compute the Lyapunov spectrum of continuous systems and maps from their tangent dynamics.
 
 #### Scenario: Lorenz attractor
-- **WHEN** a user computes the largest Lyapunov exponent of the Lorenz-63 model with σ = 10, ρ = 28, β = 8/3
+- **WHEN** a user computes the largest Lyapunov exponent of the Lorenz-63 system with σ = 10, ρ = 28, β = 8/3
 - **THEN** the result lies within 0.05 of 0.906
 
 #### Scenario: Logistic map
@@ -76,7 +76,7 @@ range, and rolling variance, autocorrelation, skewness, and spectral reddening a
 
 #### Scenario: Same early warning on two tipping points
 - **WHEN** a user computes early-warning indicators of a noisy harvested population approaching its fold and of a noisy
-  lake phosphorus model approaching its fold
+  lake phosphorus system approaching its fold
 - **THEN** in both the Kendall trends of variance and lag-1 autocorrelation exceed 0.5
 
 ### Requirement: Information measures quantify structure
@@ -114,8 +114,8 @@ of network snapshots.
 - **THEN** the result lies within 0.05 of log 3 / log 2
 
 ### Requirement: Repeated Lyapunov spectra reuse their compiled tangent dynamics
-`lyapunov_spectrum` SHALL compile the tangent dynamics of a model structure once, with the parameters as an argument,
-so repeated calls on models of the same structure do not compile again.
+`lyapunov_spectrum` SHALL compile the tangent dynamics of a system structure once, with the parameters as an argument,
+so repeated calls on systems of the same structure do not compile again.
 
 #### Scenario: A sweep of a one-dimensional map
 - **WHEN** a user computes the spectrum of the logistic map for 10 values of `r` with 2000 iterations each, after one

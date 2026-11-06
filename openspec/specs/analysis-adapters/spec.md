@@ -1,15 +1,15 @@
 # analysis-adapters Specification
 
 ## Purpose
-Connects the analyses to the data that core model types produce: it names the data kinds, extracts each kind from a
+Connects the analyses to the data that core system types produce: it names the data kinds, extracts each kind from a
 trajectory or an experiment, lists the analyses that apply, and gives every data kind one default analysis.
 
 ## Requirements
 
 ### Requirement: Analyses are keyed by data kind
 Every analysis SHALL declare the one data kind it consumes, series, jump path, field, agent snapshot, network, or
-system, SHALL measure plain arrays or graphs of that kind once prepared, and SHALL NOT read a model, a domain, or a
-library model name.
+system, SHALL measure plain arrays or graphs of that kind once prepared, and SHALL NOT read a system, a domain, or a
+library system name.
 
 #### Scenario: Same function on two domains
 - **WHEN** a user prepares the same structure factor analysis on the last frame of an Ising lattice and on the last
@@ -51,12 +51,12 @@ arrays or graphs. The extraction SHALL NOT be a public function.
 The analysis layer SHALL list the analysis classes that apply to a trajectory, a system, or an array, each with its data
 kind and how it reads the object.
 
-#### Scenario: Lattice model
+#### Scenario: Lattice system
 - **WHEN** a user lists the analyses for an Ising system
 - **THEN** the list holds the structure factor, correlation length, cluster size, and Binder cumulant analyses under the
   field kind, and series analyses for its observables, and no agent analysis
 
-#### Scenario: Agent model
+#### Scenario: Agent system
 - **WHEN** a user lists the analyses for a Vicsek trajectory
 - **THEN** the list holds the order parameter, nearest-neighbour, and mean squared displacement analyses under the agent
   kind
@@ -78,12 +78,12 @@ example can plot it without choosing an analysis.
   wavelength, agents the order parameter over time and the nearest-neighbour distance distribution, and a network its
   degree distribution
 
-#### Scenario: Model with several data kinds
-- **WHEN** a user runs the signature analysis on an agent model on a lattice that also records reporters
+#### Scenario: System with several data kinds
+- **WHEN** a user runs the signature analysis on an agent system on a lattice that also records reporters
 - **THEN** the analysis holds one signature per data kind, in the order agents, field, series
 
 #### Scenario: Gallery figure
-- **WHEN** a gallery example of the model library plots its analysis figure without naming an analysis
+- **WHEN** a gallery example of the system library plots its analysis figure without naming an analysis
 - **THEN** the figure shows the signature analysis of its own run, with the labelled axes and the title the signature
   carries
 
@@ -93,4 +93,4 @@ the core uses is a runtime dependency.
 
 #### Scenario: Default install
 - **WHEN** a user lists the analyses of a jump path in the default install
-- **THEN** the Markov state model is listed under the path kind and estimates a model from the path
+- **THEN** the Markov state model is listed under the path kind and estimates a system from the path

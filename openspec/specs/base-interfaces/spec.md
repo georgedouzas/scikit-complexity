@@ -54,7 +54,7 @@ attribute SHALL end in `_` and be set only by `prepare` or `run`, and the checks
 - **THEN** `size_` is 20, `n_dim_` is 2, and `positions_` has 20 rows
 
 ### Requirement: Values carry fields and validate when prepared
-Every dataclass of the library outside the models SHALL be a frozen spec that derives from `BaseSpec`, itself a
+Every dataclass of the library outside the systems SHALL be a frozen spec that derives from `BaseSpec`, itself a
 `BaseConfig`, SHALL be named with the suffix `Spec`, and SHALL be importable from `skcomplex.core.specs`. A spec SHALL hold
 only its fields, the hook `_check`, and readers of its own fields. Validation SHALL validate every law of a system, and
 a spec SHALL validate when it is prepared on its own or when its owner is prepared.
@@ -78,7 +78,7 @@ view class generated per group.
 - **THEN** none defines one besides `__init__` and the quantum operator arithmetic
 
 #### Scenario: Reading a trajectory
-- **WHEN** a user runs a Lotka-Volterra model and reads `trajectory.values('prey.n')`
+- **WHEN** a user runs a Lotka-Volterra system and reads `trajectory.values('prey.n')`
 - **THEN** the values of every frame return, and `trajectory['prey.n']` raises `TypeError`
 
 #### Scenario: Unknown symbol
@@ -107,22 +107,22 @@ The runtime, the visuals, and the analyses SHALL read a problem only through the
 
 #### Scenario: Quantum run through the base
 - **WHEN** a quantum system is simulated, recorded, and shown in Rerun
-- **THEN** the run succeeds, and no module of `skcomplex.engine` reads a quantum problem's own methods
+- **THEN** the run succeeds, and no module of `skcomplex.core.engine` reads a quantum problem's own methods
 
 ### Requirement: Specs live in one package
 Every spec SHALL be a frozen `BaseSpec` in a module of its own, in the lowest package that can import every type its
-fields name: `skcomplex.specs` for specs built from root types, `skcomplex.core.specs` for specs that name core
-classes, the engine package whose classes they name, such as `skcomplex.engine.problems` for the problem and kernel
-specs, and `skcomplex.experiments.specs` for experiment specs. Each of these packages SHALL export its public specs.
+fields name: `skcomplex.core.specs` for specs built from root types, `skcomplex.core.specs` for specs that name core
+classes, the engine package whose classes they name, such as `skcomplex.core.engine.problems` for the problem and kernel
+specs, and `skcomplex.core.experiments.specs` for experiment specs. Each of these packages SHALL export its public specs.
 
 #### Scenario: Specs from one place
-- **WHEN** a user imports `StateSpec` and `SupportSpec` from `skcomplex.specs`, `NodeSpec` from
-  `skcomplex.core.specs`, and `ProblemSpec` and `FrameSpec` from `skcomplex.engine.problems`
+- **WHEN** a user imports `StateSpec` and `SupportSpec` from `skcomplex.core.specs`, `NodeSpec` from
+  `skcomplex.core.specs`, and `ProblemSpec` and `FrameSpec` from `skcomplex.core.engine.problems`
 - **THEN** every import succeeds and each class is a frozen `BaseSpec`
 
 #### Scenario: No scattered dataclass
-- **WHEN** a test lists every dataclass defined in `skcomplex.core`, `skcomplex.engine`, `skcomplex.analysis`, and
-  `skcomplex.experiments`
+- **WHEN** a test lists every dataclass defined in `skcomplex.core.components`, `skcomplex.core.engine`, `skcomplex.core.analysis`, and
+  `skcomplex.core.experiments`
 - **THEN** every one of them is a frozen `BaseSpec`
 
 ### Requirement: Acting objects are classes, not dataclasses
@@ -134,11 +134,11 @@ An object that keeps state between calls or acts SHALL be a class under the base
 - **THEN** it derives from `BaseConfig` and is not a dataclass
 
 ### Requirement: Kinds and protocols are types
-Every enum of the library outside the models SHALL live in `skcomplex.types` and end in `Kind`, and every protocol
-SHALL live in `skcomplex.types` and end in `Protocol`.
+Every enum of the library outside the systems SHALL live in `skcomplex.core.types` and end in `Kind`, and every protocol
+SHALL live in `skcomplex.core.types` and end in `Protocol`.
 
 #### Scenario: Kinds from types
-- **WHEN** a user imports `NoiseKind`, `OrderKind`, `FormKind`, and `RecordProtocol` from `skcomplex.types`
+- **WHEN** a user imports `NoiseKind`, `OrderKind`, `FormKind`, and `RecordProtocol` from `skcomplex.core.types`
 - **THEN** every import succeeds and no other module of the library defines an enum or a protocol
 
 ### Requirement: Runs keep their results as attributes
