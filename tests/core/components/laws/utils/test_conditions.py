@@ -12,7 +12,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import both, either, mod, where
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.problems import ExpressionPrinter
 from skcomplex.core.specs import StateSpec, VisualSpec
 
@@ -101,6 +101,6 @@ def test_condition_on_a_nested_modulo_of_time_compiles():
             return [RateLaw(s.y, where(s.y < sin(where(mod(s.t, 2) < 1, 1, 0)), 1, 0))]
 
     nested = NestedElement
-    problem = compile_system(System(elements=[nested('n')]))
+    problem = PassCompiler().prepare(System(elements=[nested('n')])).run().problem_
     assert problem.drift(0.5, problem.initial_state, problem.initial_parameters)[0] == 1.0
     assert problem.drift(1.5, problem.initial_state, problem.initial_parameters)[0] == 0.0

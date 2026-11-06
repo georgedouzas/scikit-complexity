@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ParameterError
@@ -75,7 +75,7 @@ def test_tunnel_diode_limit_cycle_amplitude():
 def test_impulsive_circuit_kicks_the_rate():
     """Test that every impulse fires once per period and raises the rate by `A / (L C)`."""
     system = impulsive_circuits(A=0.5, L=2.0, C=0.5, T=2.0)
-    rate = compile_system(system).states.names.index('circuit.x_d1')
+    rate = PassCompiler().prepare(system).run().problem_.states.names.index('circuit.x_d1')
     trajectory = Simulation(system, dt=0.05).prepare().run(until=10).trajectory_
     events = [event for event in trajectory.events if event.label == 'impulse']
     assert [round(event.time, 6) for event in events] == [2.0, 4.0, 6.0, 8.0, 10.0][: len(events)]

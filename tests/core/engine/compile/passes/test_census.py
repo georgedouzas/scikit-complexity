@@ -14,7 +14,7 @@ from skcomplex.core.components.laws.utils import laplacian, logistic
 from skcomplex.core.components.spaces import LatticeSpace, MeshSpace, NetworkSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
@@ -51,7 +51,8 @@ class PlainElement(Element):
 
 def _rate(group, interactions=(), backend=NumpyBackend):
     """Return the rate of the state of a group at its initial values."""
-    problem = compile_system(System(elements=[group], interactions=list(interactions)), backend=backend())
+    system = System(elements=[group], interactions=list(interactions))
+    problem = PassCompiler(backend=backend()).prepare(system).run().problem_
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     return np.ravel(problem.states.read(drift, 'm.u'))
 

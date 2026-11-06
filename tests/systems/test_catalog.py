@@ -10,7 +10,7 @@ from sklearn.base import clone
 
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler, compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.problems import ProblemSpec
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
@@ -211,7 +211,7 @@ def test_system_conforms(entry, tmp_path):
     system = create_system(entry.name)
     compiler = defaults.get('compiler', PassCompiler())
     assert clone(compiler).prepare(system).report_.ok
-    problem = compile_system(system, compiler=compiler)
+    problem = clone(compiler).prepare(system).run().problem_
     assert _undeclared_laws(system) == []
     settings = {key: value for key, value in defaults.items() if key != 'until'}
     dt = settings.get('dt', 1.0)
@@ -229,14 +229,14 @@ def test_system_conforms(entry, tmp_path):
         )
     copy = clone(system)
     assert copy is not system
-    assert compile_system(copy, compiler=compiler).states.names == problem.states.names
+    assert clone(compiler).prepare(copy).run().problem_.states.names == problem.states.names
 
 
 @pytest.mark.parametrize('entry', catalog(), ids=lambda entry: entry.name)
 def test_jacobian_pattern_holds_finite_differences(entry):
     """Test that the Jacobian pattern of every system with an ODE form holds its finite differences at random states."""
-    compiler = describe(entry.name).defaults.get('compiler')
-    problem = compile_system(create_system(entry.name), backend=NumpyBackend(), compiler=compiler)
+    compiler = clone(describe(entry.name).defaults.get('compiler', PassCompiler())).set_params(backend=NumpyBackend())
+    problem = compiler.prepare(create_system(entry.name)).run().problem_
     if not isinstance(problem, ProblemSpec) or problem.jacobian is None or problem.delays or problem.drift is None:
         pytest.skip('The system has no ODE form without delays.')
     rng = np.random.default_rng(0)

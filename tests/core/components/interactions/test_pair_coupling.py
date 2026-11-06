@@ -13,7 +13,7 @@ from skcomplex.core.components.elements import Element, GroupElement, PointEleme
 from skcomplex.core.components.interactions import PairCouplingInteraction
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError
@@ -90,7 +90,7 @@ def _soft(namespace, r):
 
 def _rates(system, path):
     """Return the rates of a state at the initial state, one row per member."""
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     entry = problem.states.entry(path)
     drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     return drift[entry.start : entry.start + entry.size].reshape(entry.rows, entry.columns)

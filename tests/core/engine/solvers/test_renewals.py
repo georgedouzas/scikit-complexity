@@ -11,7 +11,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import JumpLaw, RateLaw
 from skcomplex.core.components.laws.utils import bernoulli, draw, mean, normal
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import RenewalSolver, RK4Solver, ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
@@ -187,7 +187,7 @@ def test_renewal_stepper_reproduces_runs_with_one_seed():
 
 def test_renewal_stepper_counts_exponential_renewals():
     """Test that exponential waits of mean 1 give 1000 renewals by time 1000 within 2 standard errors over 100 runs."""
-    problem = compile_system(System(elements=[CounterElement('c')]))
+    problem = PassCompiler().prepare(System(elements=[CounterElement('c')])).run().problem_
     counts = [
         (Simulation(problem, dt=1000, random_state=seed).prepare().run(1000).trajectory_.values('c.n')[-1])
         for seed in range(100)
@@ -294,7 +294,7 @@ def test_renewal_records_name_their_states():
 
 def test_stepper_rejects_renewals_it_does_not_fire():
     """Test that a stepper without renewals names the steppers that fire them."""
-    problem = compile_system(System(elements=[FlierElement('f')]))
+    problem = PassCompiler().prepare(System(elements=[FlierElement('f')])).run().problem_
     with pytest.raises(SolverError, match=r'ScipyODESolver does not fire renewal laws. Use RK4Solver'):
         ScipyODESolver(random_state=0).prepare(problem)
 

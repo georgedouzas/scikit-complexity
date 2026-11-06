@@ -13,7 +13,7 @@ from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import derivative, lag
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import OperatorCompiler, compile_system
+from skcomplex.core.engine.compile import OperatorCompiler, PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -37,7 +37,7 @@ def test_equations_of_logistic_growth():
         elements=[PopulationElement('p', n=10)],
         interactions=[LogisticGrowthInteraction('g', target='p')],
     )
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     n = function('n_p')(problem.time)
     r, K = problem.symbols['g.r'], problem.symbols['g.K']
     equation = SymbolicAnalysis().prepare(system).run().equations_['p.n']
@@ -50,7 +50,7 @@ def test_equations_of_discrete_map_gives_next_value():
     """Test that a discrete map gives the value at `t + 1`."""
     system = System(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
     equation = SymbolicAnalysis().prepare(system).run().equations_['m.price']
-    t = compile_system(system).time
+    t = PassCompiler().prepare(system).run().problem_.time
     assert bool(equation.lhs() == function('price_m')(t + 1))
 
 
@@ -74,7 +74,7 @@ def test_solve_symbolically_free_particle():
     """Test that a free particle moves linearly with two integration constants."""
     system = System(elements=[MassPointElement('p')], space=ContinuousSpace(n_dim=1))
     solution = SymbolicAnalysis('solve').prepare(system).run().solutions_['p.x[0]']
-    t = compile_system(system).time
+    t = PassCompiler().prepare(system).run().problem_.time
     slope, start = solution.rhs().diff(t), solution.rhs().subs({t: 0})
     assert solution.rhs().diff(t, 2) == 0
     assert not slope.is_numeric()
@@ -89,7 +89,7 @@ def test_solve_symbolically_constant_acceleration():
         interactions=[ConstantForceInteraction('push', target='p', F=3.0)],
         space=ContinuousSpace(n_dim=1),
     )
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     (F,) = problem.symbols['push.F']
     m = problem.symbols['p.m']
     solution = SymbolicAnalysis('solve', use_initial_state=True).prepare(system).run().solutions_['p.x[0]']
@@ -103,7 +103,7 @@ def test_solve_symbolically_harmonic_oscillator():
         interactions=[HarmonicPotentialInteraction('trap', target='p')],
         space=ContinuousSpace(n_dim=1),
     )
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     k, m, t = problem.symbols['trap.k'], problem.symbols['p.m'], problem.time
     (center,) = problem.symbols['trap.center']
     solution = (
@@ -380,7 +380,7 @@ def test_remaining_sign_question_names_parameter():
 def test_hamiltonian_prints_operators_and_equations_refuse():
     """Test that an operator system prints its Hamiltonian and has no state equations."""
     system = create_system('quantum_heisenberg', n_sites=2, boundary='open')
-    problem = compile_system(system, compiler=OperatorCompiler())
+    problem = OperatorCompiler().prepare(system).run().problem_
     hamiltonian = SymbolicAnalysis('hamiltonian').prepare(problem).run().hamiltonian_
     assert {'J_exchange', 'delta_exchange', 'h_field'} <= {str(variable) for variable in hamiltonian.variables()}
     assert 'local_operator(psi_chain_0, x)*local_operator(psi_chain_1, x)' in str(hamiltonian)

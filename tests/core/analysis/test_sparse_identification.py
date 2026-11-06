@@ -6,7 +6,7 @@ import pytest
 from skcomplex.core.analysis import SparseIdentificationAnalysis
 from skcomplex.core.components.spaces import ContinuousTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler, compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.solvers._defaults import DEFAULT_SOLVERS
@@ -54,7 +54,7 @@ def test_sparse_identification_system_validates_with_ode_solver():
     report = PassCompiler().prepare(system.system_).report_
     assert not report.errors
     assert isinstance(system.system_.time, ContinuousTime)
-    assert DEFAULT_SOLVERS[compile_system(system.system_).form] is ScipyODESolver
+    assert DEFAULT_SOLVERS[PassCompiler().prepare(system.system_).run().problem_.form] is ScipyODESolver
 
 
 def test_sparse_identification_system_follows_trajectory():

@@ -23,18 +23,17 @@ class GillespieSolver(Solver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.compile import compile_system
+        >>> from skcomplex.core.engine.compile import PassCompiler
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.core.components.elements import CompartmentElement
         >>> from skcomplex.systems.biology.epidemiology import RecoveryInteraction
         >>> from skcomplex.core.engine.solvers import GillespieSolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> problem = compile_system(
-        ...     System(
-        ...         elements=[CompartmentElement('I', n=10), CompartmentElement('R', n=0)],
-        ...         interactions=[RecoveryInteraction('rec', infected='I', recovered='R', gamma=1.0, stochastic=True)],
-        ...     ),
+        >>> system = System(
+        ...     elements=[CompartmentElement('I', n=10), CompartmentElement('R', n=0)],
+        ...     interactions=[RecoveryInteraction('rec', infected='I', recovered='R', gamma=1.0, stochastic=True)],
         ... )
+        >>> problem = PassCompiler().prepare(system).run().problem_
         >>> stepper = GillespieSolver(random_state=0).prepare(problem)
         >>> stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 100.0)).state_.tolist()
         [0.0, 10.0]

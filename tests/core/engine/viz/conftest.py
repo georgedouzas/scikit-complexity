@@ -7,7 +7,7 @@ import pytest
 import rerun as rr
 
 from skcomplex.core.components.spaces import BaseSpace
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec, ProblemSpec
 from skcomplex.core.engine.viz import BaseVisual
 from skcomplex.core.specs import AgentSnapshotSpec
@@ -17,7 +17,7 @@ from skcomplex.systems import create_system
 @pytest.fixture(scope='module')
 def log_agents() -> Callable[..., BaseVisual]:
     """Return a function that prepares a visual for agents in a space and logs one frame per snapshot."""
-    problem = compile_system(create_system('moran_process'))
+    problem = PassCompiler().prepare(create_system('moran_process')).run().problem_
     assert isinstance(problem, ProblemSpec)
 
     def log(

@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 import rerun as rr
 
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import LinearProgramVisual, RerunObserver
@@ -19,7 +19,7 @@ TOY_ROWS = 8
 
 def _prepared(**settings):
     """Return the problem of the toy network and its visual, prepared with a recording."""
-    problem = compile_system(create_system('flux_balance'))
+    problem = PassCompiler().prepare(create_system('flux_balance')).run().problem_
     recording = rr.RecordingStream('linear_program')
     visual = LinearProgramVisual(path='cell', recording=recording, **settings)
     return problem, visual.prepare(problem)
@@ -74,7 +74,7 @@ def test_visual_leaves_the_graph_out_on_request():
 
 def test_visual_rejects_an_element_without_a_program():
     """Test that an element that no program sets raises an error."""
-    problem = compile_system(create_system('lotka_volterra'))
+    problem = PassCompiler().prepare(create_system('lotka_volterra')).run().problem_
     with pytest.raises(ValidationError, match='no program sets a state of prey'):
         LinearProgramVisual(path='prey', recording=rr.RecordingStream('none')).prepare(problem)
 

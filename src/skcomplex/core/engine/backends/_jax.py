@@ -47,11 +47,12 @@ class JaxBackend(BaseBackend):
             differential equations or the update of a discrete map.
 
     Examples:
-        >>> from skcomplex.core.engine.compile import compile_system
+        >>> from skcomplex.core.engine.compile import PassCompiler
         >>> from skcomplex.core.engine.backends import JaxBackend
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
-        >>> problem = compile_system(System(elements=[PopulationElement('a', n=2.0)]), backend=JaxBackend())
+        >>> system = System(elements=[PopulationElement('a', n=2.0)])
+        >>> problem = PassCompiler(backend=JaxBackend()).prepare(system).run().problem_
         >>> problem.backend
         'jax'
     """

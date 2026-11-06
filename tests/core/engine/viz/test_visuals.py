@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import Element, GroupElement, LatticeEle
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.runtime import BaseObserver, Simulation
 from skcomplex.core.engine.viz import AgentsVisual, ImageVisual, PointsVisual, ScalarsVisual
@@ -345,7 +345,8 @@ def test_agents_visual_draws_boids_in_three_dimensions(log_agents):
 def test_agents_visual_has_a_three_dimensional_view():
     """Test that the view of agents in a three-dimensional space is a 3D spatial view with their path as origin."""
     flock = GroupElement('flock', element=RestingElement, size=2)
-    problem = compile_system(System(elements=[flock], space=ContinuousSpace(extent=(5.0, 5.0, 5.0))))
+    system = System(elements=[flock], space=ContinuousSpace(extent=(5.0, 5.0, 5.0)))
+    problem = PassCompiler().prepare(system).run().problem_
     view = AgentsVisual(path='flock').prepare(problem).views_[0]
     assert type(view).__name__ == 'Spatial3DView'
 

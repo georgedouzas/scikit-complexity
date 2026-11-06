@@ -6,7 +6,7 @@ import inspect
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.systems_biology import (
@@ -36,7 +36,7 @@ YEAST_RECORDED = (
 def _damage(k, seed, n_nodes=100, steps=40):
     """Return the Hamming distance after `steps` updates between a random Boolean network and a copy with one flip."""
     system = random_boolean_network(n_nodes, k, random_state=seed)
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     start = problem.initial_state.copy()
     flipped = start.copy()
     flipped[0] = 1 - flipped[0]
@@ -68,7 +68,7 @@ def _damage_share(factory, connectivity, seed):
     options = {size: N_NODES, inputs: connectivity}
     if 'random_state' in parameters:
         options['random_state'] = seed
-    problem = compile_system(factory(**options))
+    problem = PassCompiler().prepare(factory(**options)).run().problem_
     name = problem.states.names[0]
     perturbed = problem.initial_state.copy()
     perturbed[problem.states.entry(name).start] = 1 - perturbed[problem.states.entry(name).start]

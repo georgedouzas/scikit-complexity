@@ -36,17 +36,16 @@ class EulerSolver(Solver):
             The end time of the run the solver prepares for, infinite for a run that goes on until it is stopped.
 
     Examples:
-        >>> from skcomplex.core.engine.compile import compile_system
+        >>> from skcomplex.core.engine.compile import PassCompiler
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import EulerSolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> problem = compile_system(
-        ...     System(
-        ...         elements=[PopulationElement('a', n=1)],
-        ...         interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
-        ...     ),
+        >>> system = System(
+        ...     elements=[PopulationElement('a', n=1)],
+        ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
+        >>> problem = PassCompiler().prepare(system).run().problem_
         >>> stepper = EulerSolver(dt=0.5, random_state=0).prepare(problem)
         >>> step = StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)
         >>> float(stepper.run(step).state_[0])

@@ -8,8 +8,10 @@ import inspect
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
+from sklearn.base import clone
+
 from ..core.components.system import System
-from ..core.engine.compile import BaseCompiler, compile_system
+from ..core.engine.compile import BaseCompiler, PassCompiler
 from ..core.errors import ValidationError
 from ..core.specs import ObservableSpec
 from .types import Factory
@@ -166,5 +168,6 @@ class SystemEntry:
             if compiler is not None and not isinstance(compiler, BaseCompiler):
                 error_msg = f'The default compiler of {self.name} is {compiler!r}, which is not a compiler.'
                 raise ValidationError(error_msg)
-            _FORMALISMS[self.name] = str(compile_system(self.factory(), compiler=compiler).form)
+            compiler = PassCompiler() if compiler is None else clone(compiler)
+            _FORMALISMS[self.name] = str(compiler.prepare(self.factory()).run().problem_.form)
         return _FORMALISMS[self.name]

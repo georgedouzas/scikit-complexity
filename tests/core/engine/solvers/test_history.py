@@ -12,7 +12,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import CrossingLaw, NoiseLaw, RateLaw
 from skcomplex.core.components.laws.utils import delayed, pulse_train, series, step
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import BaseObserver, Simulation
 from skcomplex.core.engine.solvers import (
     EulerMaruyamaSolver,
@@ -229,7 +229,7 @@ def test_history_is_keyed_by_state():
             """Return the laws of the remembered element."""
             return _with_history(s)
 
-    assert compile_system(System(elements=[RememberedElement('d')])).history == {'d.x': 2.0}
+    assert PassCompiler().prepare(System(elements=[RememberedElement('d')])).run().problem_.history == {'d.x': 2.0}
 
 
 @pytest.mark.parametrize('solver', [ScipyODESolver, RK4Solver])
@@ -338,7 +338,7 @@ def test_pulse_train_and_series_breakpoints():
                 RateLaw(s.y, pulse_train(s.t, 2.0, 0.5) + series(s.t, [1.0, 3.0], [0.0, 1.0], kind='previous')),
             ]
 
-    problem = compile_system(System(elements=[DrivenElement('d')]))
+    problem = PassCompiler().prepare(System(elements=[DrivenElement('d')])).run().problem_
     assert problem.breakpoints.between(0.0, 5.0) == [0.5, 1.0, 2.0, 2.5, 3.0, 4.0, 4.5]
     trajectory = Simulation(problem, dt=0.5).prepare().run(until=5).trajectory_
     assert trajectory.values('d.y')[-1] == pytest.approx(1.5 + 2.0, abs=1e-6)
@@ -361,7 +361,7 @@ def test_schedule_ramps_a_parameter():
 @pytest.mark.parametrize('stepper', [EulerMaruyamaSolver, MilsteinSolver, HeunSolver])
 def test_stratonovich_geometric_brownian_motion(stepper):
     """Test that the Stratonovich mean of geometric Brownian motion at 1 is exp(mu + sigma^2 / 2) within 3 SE."""
-    system = compile_system(System(elements=[GeometricElement('g', convention='stratonovich')]))
+    system = PassCompiler().prepare(System(elements=[GeometricElement('g', convention='stratonovich')])).run().problem_
     values = np.asarray(
         [
             (
@@ -380,7 +380,7 @@ def test_stratonovich_geometric_brownian_motion(stepper):
 def test_noise_convention_adds_drift_correction():
     """Test that the Stratonovich and anti-Itô corrections add half and all of `g dg/dx` to the drift."""
     for noise, alpha in [('ito', 0.0), ('stratonovich', 0.5), ('anti-ito', 1.0)]:
-        problem = compile_system(System(elements=[GeometricElement('g', convention=noise)]))
+        problem = PassCompiler().prepare(System(elements=[GeometricElement('g', convention=noise)])).run().problem_
         drift = problem.drift(0.0, np.asarray([2.0]), problem.initial_parameters)
         assert drift[0] == pytest.approx(0.5 * 2 + alpha * 0.8**2 * 2)
 
@@ -388,7 +388,7 @@ def test_noise_convention_adds_drift_correction():
 def test_unknown_noise_convention_is_rejected():
     """Test that a noise convention other than the three is rejected."""
     with pytest.raises(ValidationError, match='noise convention'):
-        compile_system(System(elements=[GeometricElement('g', convention='marcus')]))
+        PassCompiler().prepare(System(elements=[GeometricElement('g', convention='marcus')])).run()
 
 
 @pytest.mark.slow
@@ -430,7 +430,7 @@ def test_milstein_and_heun_converge_on_additive_noise():
 
 def test_steppers_without_hybrid_path_reject_events():
     """Test that velocity Verlet and Gillespie name the steppers to use for events and delays."""
-    problem = compile_system(bouncing_ball())
+    problem = PassCompiler().prepare(bouncing_ball()).run().problem_
     with pytest.raises(SolverError, match='does not integrate delays or events'):
         VelocityVerletSolver(random_state=0).prepare(problem)
     with pytest.raises(SolverError):
@@ -518,7 +518,7 @@ def test_periodic_breakpoints_over_unbounded_runs():
             """Return the laws of the dosed element."""
             return _monthly_dose(s)
 
-    problem = compile_system(System(elements=[DosedElement('a')]))
+    problem = PassCompiler().prepare(System(elements=[DosedElement('a')])).run().problem_
     assert problem.breakpoints.next_after(1.0) == 21.0
     trajectory = Simulation(problem, dt=0.5).prepare().run(until=10).trajectory_
     expected = (1 - math.exp(-0.1 / 24)) / 0.1 * math.exp(-0.1 * (10 - 1 / 24))
@@ -552,7 +552,7 @@ def test_delay_of_parameter_expression():
             """Return the laws of the scaled element."""
             return _scaled_delay(s)
 
-    problem = compile_system(System(elements=[ScaledElement('d')]))
+    problem = PassCompiler().prepare(System(elements=[ScaledElement('d')])).run().problem_
     assert problem.delays[0].minimum == 1.0
     trajectory = Simulation(problem, dt=0.5).prepare().run(until=3).trajectory_
     assert trajectory.values('d.x')[-1] == pytest.approx(-1 / 6, abs=1e-6)
@@ -569,7 +569,7 @@ def test_state_conditions_restart_the_integrator_without_stalling():
 
 def test_state_conditions_compile_into_hidden_events():
     """Test that the condition of a rate law compiles into a hidden event without a reset."""
-    problem = compile_system(bathtub(water=20.0))
+    problem = PassCompiler().prepare(bathtub(water=20.0)).run().problem_
     hidden = [event for event in problem.events if event.hidden]
     assert len(hidden) == 1
     assert hidden[0].reset is None
@@ -577,5 +577,5 @@ def test_state_conditions_compile_into_hidden_events():
 
 def test_sign_conditions_compile_into_hidden_events():
     """Test that the escapement `sign(|theta| - theta_c)` of each clock compiles into a hidden event."""
-    problem = compile_system(huygens_clocks())
+    problem = PassCompiler().prepare(huygens_clocks()).run().problem_
     assert sum(event.hidden for event in problem.events) == 2

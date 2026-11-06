@@ -12,7 +12,7 @@ from skcomplex.core.components.laws import DissipatorLaw, GeneratorLaw
 from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import OperatorCompiler, compile_system
+from skcomplex.core.engine.compile import OperatorCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import JumpTrajectoriesSolver, LindbladSolver, UnitarySolver
 from skcomplex.core.errors import SolverError
@@ -216,7 +216,7 @@ def test_jump_trajectories_are_reproducible():
 def test_jump_trajectories_average_to_the_master_equation():
     """Test that 500 trajectories average to the Lindblad decay within three standard errors."""
     system = System(elements=[DecayingElement('q')])
-    problem = compile_system(system, observables=Z, compiler=OperatorCompiler())
+    problem = OperatorCompiler(observables=Z).prepare(system).run().problem_
     rng = np.random.default_rng(0)
     values = np.array(
         [

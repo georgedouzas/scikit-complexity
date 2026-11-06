@@ -8,7 +8,7 @@ import rerun.blueprint as rrb
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.problems import BaseProblemSpec
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import (
@@ -28,7 +28,7 @@ from skcomplex.systems.physics.heat import HeatElement
 
 def _prepared(system, **settings):
     """Return a Rerun observer prepared on a system or a compiled problem."""
-    problem = system if isinstance(system, BaseProblemSpec) else compile_system(system)
+    problem = system if isinstance(system, BaseProblemSpec) else PassCompiler().prepare(system).run().problem_
     return RerunObserver(**settings).prepare(problem)
 
 
@@ -57,10 +57,10 @@ def _views(blueprint):
 
 def test_views_of_builtin_visuals():
     """Test that the scalars, 3D points, image, and network agents visuals declare their views."""
-    lotka = compile_system(create_system('lotka_volterra'))
-    gas = compile_system(create_system('ideal_gas', n_molecules=10, n_dim=3))
-    gray = compile_system(create_system('gray_scott', shape=(16, 16)))
-    voters = compile_system(create_system('voter_system'))
+    lotka = PassCompiler().prepare(create_system('lotka_volterra')).run().problem_
+    gas = PassCompiler().prepare(create_system('ideal_gas', n_molecules=10, n_dim=3)).run().problem_
+    gray = PassCompiler().prepare(create_system('gray_scott', shape=(16, 16))).run().problem_
+    voters = PassCompiler().prepare(create_system('voter_system')).run().problem_
     views = [
         ScalarsVisual(path=lotka.elements[0].path).prepare(lotka).views_[0],
         PointsVisual(position='x', states=(), path=gas.elements[0].path).prepare(gas).views_[0],
@@ -73,13 +73,13 @@ def test_views_of_builtin_visuals():
 
 def test_views_of_user_visual_are_empty_by_default():
     """Test that a visual that declares no views is left out of the layout."""
-    problem = compile_system(create_system('lotka_volterra'))
+    problem = PassCompiler().prepare(create_system('lotka_volterra')).run().problem_
     assert BaseVisual(path=problem.elements[0].path).prepare(problem).views_ == []
 
 
 def test_views_of_points_log_other_states_as_series():
     """Test that the states other than the position get a time series view."""
-    problem = compile_system(create_system('ideal_gas', n_molecules=10))
+    problem = PassCompiler().prepare(create_system('ideal_gas', n_molecules=10)).run().problem_
     views = PointsVisual(position='x', path=problem.elements[0].path).prepare(problem).views_
     assert [type(view).__name__ for view in views] == ['Spatial2DView', 'TimeSeriesView']
 
@@ -244,7 +244,7 @@ def test_primary_view_of_one_dimensional_lattice_is_space_time():
 
 def test_primary_view_of_agents_without_space_is_a_trait_series():
     """Test that agents without a space show the statistics of their colored trait first, not the reporters."""
-    problem = compile_system(create_system('moran_process'))
+    problem = PassCompiler().prepare(create_system('moran_process')).run().problem_
     assert problem.agent_space is None
     assert AgentsVisual(path=problem.agents[0].path).prepare(problem).views_ == []
     view = primary_view(problem)
@@ -253,14 +253,14 @@ def test_primary_view_of_agents_without_space_is_a_trait_series():
 
 def test_views_of_image_without_history_leave_out_space_time():
     """Test that a history of 0 rows declares no space-time view."""
-    problem = compile_system(create_system('elementary_automaton'))
+    problem = PassCompiler().prepare(create_system('elementary_automaton')).run().problem_
     views = ImageVisual(history=0, path=problem.elements[0].path).prepare(problem).views_
     assert [str(view.origin) for view in views] == ['cells/alive']
 
 
 def test_fields_on_networks_are_drawn_as_colored_graphs():
     """Test that a field on a network without a visual is drawn as a colored graph, not one series per node."""
-    problem = compile_system(create_system('network_diffusion'))
+    problem = PassCompiler().prepare(create_system('network_diffusion')).run().problem_
     assert problem.elements[0].visual.kind == 'sites'
     assert any(type(view).__name__ == 'GraphView' for view in _views(default_blueprint(problem)))
 
@@ -268,4 +268,4 @@ def test_fields_on_networks_are_drawn_as_colored_graphs():
 def test_fields_keep_a_given_visual():
     """Test that a field keeps the visual it is given."""
     field = FieldElement('plate', element=HeatElement, space=LatticeSpace((4, 4)), visual=VisualSpec('sites'))
-    assert compile_system(System(elements=[field])).elements[0].visual.kind == 'sites'
+    assert PassCompiler().prepare(System(elements=[field])).run().problem_.elements[0].visual.kind == 'sites'

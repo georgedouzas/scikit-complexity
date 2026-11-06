@@ -16,7 +16,7 @@ from ....core.analysis import BaseAnalysis
 from ....core.analysis.types import Source
 from ....core.components.spaces import StaticTime
 from ....core.components.system import System
-from ....core.engine.compile import compile_system
+from ....core.engine.compile import PassCompiler
 from ....core.engine.problems import ProblemSpec
 from ....core.errors import AnalysisError, ValidationError
 from ....core.specs import BaseSpec, RunStateSpec
@@ -467,7 +467,7 @@ class LabellingAnalysis(BaseAnalysis):
                 reactions=self.network_.reactions,
                 default_objective=self.network_.default_objective,
             ).set_params(**identifiers)
-            problem = compile_system(System(elements=[element], time=StaticTime()))
+            problem = PassCompiler().prepare(System(elements=[element], time=StaticTime())).run().problem_
             if not isinstance(problem, ProblemSpec):
                 error_msg = f'The network compiles to a {type(problem).__name__}, not a linear program.'
                 raise AnalysisError(error_msg)

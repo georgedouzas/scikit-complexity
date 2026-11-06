@@ -19,7 +19,7 @@ from ..base import BaseConfig
 from ..components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from ..components.specs import CompiledElementSpec
 from ..components.system import System
-from ..engine.compile import compile_system
+from ..engine.compile import PassCompiler
 from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError, ValidationError
@@ -119,7 +119,7 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
         if isinstance(source, Trajectory):
             return source.problem
         if isinstance(source, System):
-            return compile_system(source)
+            return PassCompiler().prepare(source).run().problem_
         return source
 
     @staticmethod
@@ -141,7 +141,7 @@ class BaseAnalysis(BaseConfig[Source, object], ABC):
             ValidationError:
                 A compiler of whole systems compiles the system to a problem of its own, which the work cannot read.
         """
-        problem = system if isinstance(system, BaseProblemSpec) else compile_system(system)
+        problem = system if isinstance(system, BaseProblemSpec) else PassCompiler().prepare(system).run().problem_
         if isinstance(problem, ProblemSpec):
             return problem
         error_msg = (

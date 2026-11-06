@@ -15,7 +15,7 @@ from skcomplex.core.components.laws import EmissionLaw, RateLaw, TransitionLaw, 
 from skcomplex.core.components.laws.utils import bernoulli, categorical, normal, shift_member, total, uniform, where
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import IncompatibleLawsError, ParameterError, ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -225,28 +225,28 @@ def _run_lengths(series, symbol):
     return edges[1::2] - edges[::2]
 
 
-def test_compile_system_draws_uniform_values():
+def test_compiler_draws_uniform_values():
     """Test that a uniform draw has mean 0.5 and no lag-1 autocorrelation over 100000 steps."""
     x = _run(System(elements=[UniformElement('a')]), 100000).values('a.x')[1:]
     assert abs(x.mean() - 0.5) < 0.005
     assert abs(np.corrcoef(x[:-1], x[1:])[0, 1]) < 0.01
 
 
-def test_compile_system_draws_independently_for_members():
+def test_compiler_draws_independently_for_members():
     """Test that 1000 normal walkers reach variance 100 after 100 steps with uncorrelated halves."""
     final = _run(System(elements=[GroupElement('g', element=WalkerElement, size=1000)]), 100).values('g.x')[-1]
     assert final.var() == pytest.approx(100, rel=0.15)
     assert abs(np.corrcoef(final[:500], final[500:])[0, 1]) < 0.1
 
 
-def test_compile_system_reads_arguments_before_the_step():
+def test_compiler_reads_arguments_before_the_step():
     """Test that a draw's probability uses the state and parameter values before the step."""
     y = _run(System(elements=[RampElement('r')]), 20).values('r.y')
     assert y[1] == 0
     assert np.all(y[3:] == 1)
 
 
-def test_compile_system_keeps_conditions_on_draws_undecided():
+def test_compiler_keeps_conditions_on_draws_undecided():
     """Test that a condition on a draw with constant arguments is drawn at every step, not decided when written."""
 
     class CoinElement(Element):
@@ -271,13 +271,13 @@ def test_compile_system_keeps_conditions_on_draws_undecided():
     assert np.mean(x) == pytest.approx(0.5, abs=0.02)
 
 
-def test_compile_system_shares_a_draw_within_a_step():
+def test_compiler_shares_a_draw_within_a_step():
     """Test that two uses of one draw name read the same value at every frame."""
     trajectory = _run(System(elements=[FlipElement('f')]), 200)
     assert np.all((trajectory.values('f.a') + trajectory.values('f.b'))[1:] == 1)
 
 
-def test_compile_system_reads_the_draw_of_the_member_at_an_offset():
+def test_compiler_reads_the_draw_of_the_member_at_an_offset():
     """Test that a draw read at a member offset is the value the member at that offset draws."""
 
     class PairedElement(Element):
@@ -305,17 +305,17 @@ def test_compile_system_reads_the_draw_of_the_member_at_an_offset():
     assert len(np.unique(a)) == a.size
 
 
-def test_compile_system_rejects_conflicting_draws():
+def test_compiler_rejects_conflicting_draws():
     """Test that one draw name with two argument lists raises an error naming both declarations."""
     declarations = r"c uses the draw name 'u' for uniform_u\(0, 1\) and for uniform_u\(0, 2\)"
     with pytest.raises(ValidationError, match=declarations):
-        compile_system(System(elements=[ConflictElement('c')]))
+        PassCompiler().prepare(System(elements=[ConflictElement('c')])).run()
 
 
-def test_compile_system_rejects_draws_in_rate_laws():
+def test_compiler_rejects_draws_in_rate_laws():
     """Test that a draw in a rate law raises an error that suggests a noise law."""
     with pytest.raises(IncompatibleLawsError, match=r'RateLaw of d holds the random draw normal_kick.*Noise laws'):
-        compile_system(System(elements=[DriftingElement('d')]))
+        PassCompiler().prepare(System(elements=[DriftingElement('d')])).run()
 
 
 def test_transition_reaches_the_stationary_distribution():
@@ -338,7 +338,7 @@ def test_transition_follows_a_live_matrix_change():
 def test_transition_rejects_a_row_that_does_not_sum_to_one():
     """Test that compiling a matrix with a row that sums to 0.9 names the law, the row, and the sum."""
     with pytest.raises(ValidationError, match=r'row 0 of the transition law of b\.x.* sums to 0\.9'):
-        compile_system(System(elements=[BrokenElement('b')]))
+        PassCompiler().prepare(System(elements=[BrokenElement('b')])).run()
 
 
 def test_transition_rejects_a_live_change_that_breaks_a_row():
@@ -363,14 +363,14 @@ def test_emission_draws_from_the_selected_row():
         assert np.mean(observed[hidden == row] == 0) == pytest.approx(EMISSION[row][0], abs=0.01)
 
 
-def test_compile_system_reproduces_runs_with_one_seed():
+def test_compiler_reproduces_runs_with_one_seed():
     """Test that a hidden Markov source run twice with random state 0 gives equal trajectories."""
     first = _run(System(elements=[HiddenElement('s')]), 500)
     second = _run(System(elements=[HiddenElement('s')]), 500)
     assert np.array_equal(_codes(first.values('s.o')), _codes(second.values('s.o')))
 
 
-def test_compile_system_ignores_the_order_of_laws():
+def test_compiler_ignores_the_order_of_laws():
     """Test that the same source with its laws in two orders gives equal trajectories."""
     first = _run(System(elements=[HiddenElement('s', order=1)]), 500)
     second = _run(System(elements=[HiddenElement('s', order=2)]), 500)
@@ -378,7 +378,7 @@ def test_compile_system_ignores_the_order_of_laws():
     assert np.array_equal(_codes(first.values('s.o')), _codes(second.values('s.o')))
 
 
-def test_compile_system_draws_beside_reductions():
+def test_compiler_draws_beside_reductions():
     """Test that a draw compared with a weighted sum over a group reads both values, each in its own slot."""
     weights = np.array([[0.0, 5.0], [-5.0, 0.0]])
 
@@ -409,7 +409,7 @@ def test_compile_system_draws_beside_reductions():
     assert trajectory.values('g.h')[-1].tolist() == [1.0, -1.0]
 
 
-def test_compile_system_agrees_across_backends():
+def test_compiler_agrees_across_backends():
     """Test that uniform, Bernoulli, and categorical draws give equal trajectories on NumPy and Numba."""
 
     class MixedElement(Element):
@@ -444,7 +444,7 @@ def test_compile_system_agrees_across_backends():
         assert np.allclose(numpy.values(name), numba.values(name), atol=1e-12)
 
 
-def test_compile_system_keeps_deterministic_maps_unchanged():
+def test_compiler_keeps_deterministic_maps_unchanged():
     """Test that a map without draws keeps its deterministic signature and has no draws."""
 
     class LogisticElement(Element):
@@ -465,14 +465,14 @@ def test_compile_system_keeps_deterministic_maps_unchanged():
             return [UpdateLaw(s.x, 3.7 * s.x * (1 - s.x))]
 
     logistic = LogisticElement
-    problem = compile_system(System(elements=[logistic('l')]))
+    problem = PassCompiler().prepare(System(elements=[logistic('l')])).run().problem_
     assert not problem.stochastic
     assert problem.update(0.0, problem.initial_state, problem.initial_parameters).tolist() == pytest.approx([0.777])
 
 
-def test_compile_system_writes_draws_into_equations():
+def test_compiler_writes_draws_into_equations():
     """Test that the equation of a component that draws reads the uniform value of the draw."""
-    problem = compile_system(System(elements=[RampElement('r')]))
+    problem = PassCompiler().prepare(System(elements=[RampElement('r')])).run().problem_
     assert str(problem.equations['r.y']) == 'where(bernoulli_b_r < p_r*x_r, 1, 0)'
 
 
@@ -489,7 +489,7 @@ def _elapsed(problem, rng):
 
 
 @pytest.mark.benchmark
-def test_compile_system_runs_compiled_chains_fast():
+def test_compiler_runs_compiled_chains_fast():
     """Test that 100000 two-state chains take less than 10 times a deterministic map of the same size."""
 
     class TwoElement(Element):
@@ -529,7 +529,9 @@ def test_compile_system_runs_compiled_chains_fast():
             return [UpdateLaw(s.x, 1 - s.x)]
 
     flip = FlipperElement
-    chains = compile_system(System(elements=[GroupElement('c', element=two, size=100000)]), backend=NumbaBackend())
-    flips = compile_system(System(elements=[GroupElement('c', element=flip, size=100000)]), backend=NumbaBackend())
+    system = System(elements=[GroupElement('c', element=two, size=100000)])
+    chains = PassCompiler(backend=NumbaBackend()).prepare(system).run().problem_
+    system = System(elements=[GroupElement('c', element=flip, size=100000)])
+    flips = PassCompiler(backend=NumbaBackend()).prepare(system).run().problem_
     rng = np.random.default_rng(0)
     assert _elapsed(chains, rng) < 10 * _elapsed(flips, rng)

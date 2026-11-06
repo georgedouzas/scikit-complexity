@@ -30,7 +30,7 @@ from ...specs import SupportSpec
 from ...types import Array, FormKind, NoiseKind, OrderKind, VariableKind
 from .._utils import declarations_of, symbol, symbols_of
 from ..backends import NumpyBackend
-from ..compile import compile_system
+from ..compile import PassCompiler
 from ..problems import ExpressionPrinter, ProblemSpec
 from ..problems._steps import step_count
 from ..types import PairArguments
@@ -643,7 +643,7 @@ class LammpsSolver(ExternalSolver):
         if system is None:
             error_msg = 'LammpsSolver evaluates external interactions of a system, but the problem has none.'
             raise SolverError(error_msg)
-        problem = compile_system(LammpsSolver._filter_system(system, keep), backend=backend)
+        problem = PassCompiler(backend=backend).prepare(LammpsSolver._filter_system(system, keep)).run().problem_
         if not isinstance(problem, ProblemSpec):
             error_msg = f'The external interactions compile to a {type(problem).__name__}, not a ProblemSpec.'
             raise SolverError(error_msg)

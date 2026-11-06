@@ -14,7 +14,7 @@ from skcomplex.core.components.laws.utils import shift_member
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
@@ -91,7 +91,7 @@ def _ahead(backend, **settings):
         elements=[GroupElement('cars', element=CarElement, size=4, values={'x': [10.0, 11.0, 12.0, 13.0]})],
         interactions=[LookAheadInteraction('look', cars='cars', **settings)],
     )
-    problem = compile_system(system, backend=backend)
+    problem = PassCompiler(backend=backend).prepare(system).run().problem_
     state = problem.update(0.0, problem.initial_state, problem.initial_parameters)
     return problem.states.read(state, 'cars.ahead').tolist()
 
@@ -130,7 +130,7 @@ def test_shift_member_of_a_single_element_raises_error():
     """Test that an offset read of a single element's state names the component and the state."""
     system = System(elements=[CarElement('car', x=1.0)], interactions=[LookAheadInteraction('look', cars='car')])
     with pytest.raises(ValidationError, match=r'look reads car\.x at a member offset'):
-        compile_system(system)
+        PassCompiler().prepare(system).run()
 
 
 class ShiftedGapInteraction(Interaction):
@@ -158,7 +158,7 @@ def test_shift_member_reads_a_parameter_of_an_interaction_as_it_is():
         elements=[GroupElement('cars', element=CarElement, size=3, values={'x': [1.0, 2.0, 3.0]})],
         interactions=[ShiftedGapInteraction('gap', cars='cars', gap=0.5)],
     )
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     state = problem.update(0.0, problem.initial_state, problem.initial_parameters)
     assert problem.states.read(state, 'cars.ahead').tolist() == [2.5, 3.5, 1.5]
 
@@ -217,7 +217,7 @@ def _hopping(occupations, boundary='periodic'):
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_jump_at_member_offset_conserves_particles_on_a_ring(backend):
     """Test that a hop to the next member of a ring keeps every particle and moves one per event."""
-    problem = compile_system(_hopping(np.full(50, 3.0)), backend=backend())
+    problem = PassCompiler(backend=backend()).prepare(_hopping(np.full(50, 3.0))).run().problem_
     assert problem.jumps[0].size == 50
     np.testing.assert_array_equal(problem.stoichiometry, np.roll(np.eye(50), 1, axis=1) - np.eye(50))
     for seed in range(3):
@@ -229,7 +229,8 @@ def test_jump_at_member_offset_conserves_particles_on_a_ring(backend):
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_jump_at_member_offset_leaves_past_a_fixed_end(backend):
     """Test that the hop of the last member past a fixed end removes the particle and changes no other member."""
-    problem = compile_system(_hopping([0.0, 0.0, 0.0, 0.0, 1.0], boundary='fixed'), backend=backend())
+    system = _hopping([0.0, 0.0, 0.0, 0.0, 1.0], boundary='fixed')
+    problem = PassCompiler(backend=backend()).prepare(system).run().problem_
     assert problem.stoichiometry[4].tolist() == [0.0, 0.0, 0.0, 0.0, -1.0]
     trajectory = Simulation(problem, dt=10.0, random_state=0).prepare().run(until=100).trajectory_
     assert np.asarray(trajectory.values('sites.n'))[-1].tolist() == [0.0] * 5
@@ -251,7 +252,7 @@ def test_jump_at_member_offset_matches_per_link_interactions(backend):
     ]
     profiles = []
     for system in systems:
-        problem = compile_system(system, backend=backend())
+        problem = PassCompiler(backend=backend()).prepare(system).run().problem_
         finals = [
             np.asarray(
                 Simulation(

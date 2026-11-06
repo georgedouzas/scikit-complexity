@@ -1,16 +1,14 @@
-"""Test that the public names of the compile package are its bases, its compilers, its values, and `compile_system`."""
+"""Test that the public names of the compile package are its bases, its compilers, and its values."""
 
 import inspect
 
 from skcomplex.core.engine import compile as package
 
-FUNCTIONS = {'compile_system'}
 
-
-def test_public_names_are_classes_or_compile_system():
-    """Every public name is a class, or `compile_system`."""
+def test_public_names_are_classes():
+    """Every public name is a class."""
     for name in package.__all__:
-        assert inspect.isclass(getattr(package, name)) or name in FUNCTIONS, name
+        assert inspect.isclass(getattr(package, name)), name
 
 
 def test_compilers_are_public():
@@ -25,7 +23,15 @@ def test_compilers_are_public():
 
 def test_removed_functions_are_not_public():
     """The functions that became methods of the compiler are not public."""
-    removed = {'validate', 'claiming_compiler', 'compiled_problem', 'observables_of', 'order_passes', 'run_passes'}
+    removed = {
+        'compile_system',
+        'validate',
+        'claiming_compiler',
+        'compiled_problem',
+        'observables_of',
+        'order_passes',
+        'run_passes',
+    }
     assert not (removed | {'partition_system'}) & set(package.__all__)
 
 

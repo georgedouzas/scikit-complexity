@@ -12,7 +12,7 @@ from skcomplex.core.components.laws import BoundaryLaw, Sink, Source, TransferLa
 from skcomplex.core.components.laws.utils import shift_member, where
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import ConservationObserver, Simulation
 from skcomplex.core.errors import ConservationError, LabelError, ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -217,7 +217,7 @@ def test_flow_between_quantities_is_rejected():
 
     mixed = MixedElement
     with pytest.raises(ConservationError, match='different quantities'):
-        compile_system(System(elements=[mixed('m')]))
+        PassCompiler().prepare(System(elements=[mixed('m')])).run()
 
 
 def test_flow_holders_and_labels_are_checked():
@@ -244,7 +244,7 @@ def test_flow_holders_and_labels_are_checked():
 
     twice = TwiceElement
     with pytest.raises(LabelError, match="'f'"):
-        compile_system(System(elements=[twice('twice')]))
+        PassCompiler().prepare(System(elements=[twice('twice')])).run()
 
     class ReadsElement(Element):
         """Reads element."""
@@ -267,7 +267,7 @@ def test_flow_holders_and_labels_are_checked():
 
     reads = ReadsElement
     with pytest.raises(ValidationError, match='not a state'):
-        compile_system(System(elements=[reads('reads')]))
+        PassCompiler().prepare(System(elements=[reads('reads')])).run()
 
 
 def test_flow_takes_one_holder_read_at_a_member_offset():
@@ -293,7 +293,7 @@ def test_flow_owner_reports_the_flow_under_another_part():
     assert 'other.flow' in trajectory.names
     assert 'tanks.flow' not in trajectory.names
     with pytest.raises(LabelError, match="'flow'"):
-        compile_system(System(elements=[ReportedElement('tanks'), TanksElement('other')]))
+        PassCompiler().prepare(System(elements=[ReportedElement('tanks'), TanksElement('other')])).run()
     with pytest.raises(ValidationError, match='owner'):
         TransferLaw(var('a'), var('b'), 1.0, owner=3).prepare()
 

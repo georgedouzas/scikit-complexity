@@ -15,13 +15,7 @@ from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine._utils import symbol
-from skcomplex.core.engine.compile import (
-    BaseCompiler,
-    BasePass,
-    ObservableEvaluator,
-    OperatorCompiler,
-    compile_system,
-)
+from skcomplex.core.engine.compile import BaseCompiler, BasePass, ObservableEvaluator, OperatorCompiler
 from skcomplex.core.errors import IncompatibleLawsError, ValidationError
 from skcomplex.core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.common.populations import PopulationElement
@@ -119,7 +113,7 @@ def local_z(member):
     return local_operator(member.psi, 'z')
 
 
-def test_compile_system_counts_one_exchange_term_per_bond():
+def test_compiler_counts_one_exchange_term_per_bond():
     """Test that an exchange on a periodic lattice of 8 spins equals the sum of the 8 bond terms."""
     system = System(
         elements=[
@@ -127,7 +121,7 @@ def test_compile_system_counts_one_exchange_term_per_bond():
         ],
         interactions=[HeisenbergInteraction('h', target='chain')],
     )
-    problem = compile_system(system, compiler=OperatorCompiler())
+    problem = OperatorCompiler().prepare(system).run().problem_
     matrix = problem._generator_at(0.0, problem.initial_parameters).toarray()
     spins = [[qutip.jmat(0.5, axis) for axis in 'xyz'] for _ in range(8)]
     expected = 0
@@ -140,85 +134,76 @@ def test_compile_system_counts_one_exchange_term_per_bond():
     assert len(problem.generator) == 1
 
 
-def test_compile_system_folds_constant_generators():
+def test_compiler_folds_constant_generators():
     """Test that a generator with numeric coefficients folds to one constant matrix."""
     system = System(
         elements=[
             FixedElement('q'),
         ],
     )
-    problem = compile_system(system, compiler=OperatorCompiler())
+    problem = OperatorCompiler().prepare(system).run().problem_
     assert len(problem.generator) == 1
     assert problem.generator[0].function is None
 
 
-def test_compile_system_rejects_non_hermitian_generators():
+def test_compiler_rejects_non_hermitian_generators():
     """Test that a generator without its adjoint raises an error that names the law."""
     with pytest.raises(ValidationError, match=r'generator of q is not Hermitian.*adjoint'):
-        compile_system(System(elements=[PlusElement('q')]), compiler=OperatorCompiler())
+        OperatorCompiler().prepare(System(elements=[PlusElement('q')])).run()
 
 
-def test_compile_system_rejects_classical_symbols_in_coefficients():
+def test_compiler_rejects_classical_symbols_in_coefficients():
     """Test that a coefficient reading a symbol other than parameters and time raises an error."""
     with pytest.raises(ValidationError, match='n_rabbits'):
-        compile_system(System(elements=[ForeignElement('q')]), compiler=OperatorCompiler())
+        OperatorCompiler().prepare(System(elements=[ForeignElement('q')])).run()
 
 
-def test_compile_system_rejects_classical_elements_and_laws():
+def test_compiler_rejects_classical_elements_and_laws():
     """Test that operator systems hold neither classical elements nor classical laws."""
     with pytest.raises(IncompatibleLawsError, match='rabbits'):
-        compile_system(System(elements=[QubitElement('q'), PopulationElement('rabbits')]), compiler=OperatorCompiler())
+        OperatorCompiler().prepare(System(elements=[QubitElement('q'), PopulationElement('rabbits')])).run()
     with pytest.raises(IncompatibleLawsError, match='RateLaw'):
-        compile_system(System(elements=[ClassicalElement('q')]), compiler=OperatorCompiler())
+        OperatorCompiler().prepare(System(elements=[ClassicalElement('q')])).run()
 
 
-def test_compile_system_rejects_negative_rates():
+def test_compiler_rejects_negative_rates():
     """Test that a dissipator with a negative rate raises an error."""
     with pytest.raises(ValidationError, match='non-negative'):
-        compile_system(System(elements=[NegativeElement('q')]), compiler=OperatorCompiler())
+        OperatorCompiler().prepare(System(elements=[NegativeElement('q')])).run()
 
 
-def test_compile_system_stores_neel_states():
+def test_compiler_stores_neel_states():
     """Test that a Néel state has norm 1 and one nonzero amplitude at its basis index."""
     labels = ['up', 'down'] * 3
-    problem = compile_system(
-        System(
-            elements=[
-                LatticeElement('chain', element=SpinElement, space=LatticeSpace(6), values={'psi': labels}),
-            ],
-        ),
-        compiler=OperatorCompiler(),
+    system = System(
+        elements=[
+            LatticeElement('chain', element=SpinElement, space=LatticeSpace(6), values={'psi': labels}),
+        ],
     )
+    problem = OperatorCompiler().prepare(system).run().problem_
     state = problem._state_of(problem.initial_state)
     assert np.linalg.norm(state) == pytest.approx(1)
     assert np.flatnonzero(state).tolist() == [int('010101', 2)]
 
 
 @pytest.mark.parametrize(('initial', 'message'), [(np.array([2.0, 0.0]), 'norm 2'), ('hot', 'ground')])
-def test_compile_system_rejects_invalid_initial_states(initial, message):
+def test_compiler_rejects_invalid_initial_states(initial, message):
     """Test that an unnormalised vector or an unknown name raises an error that names the system."""
     with pytest.raises(ValidationError, match=message):
-        compile_system(
-            System('box', elements=[QubitElement('q')]),
-            initial_state={'box.state': initial},
-            compiler=OperatorCompiler(),
-        )
+        OperatorCompiler().prepare(System('box', elements=[QubitElement('q')])).run({'box.state': initial})
 
 
-def test_compile_system_stores_density_matrices_of_open_systems():
+def test_compiler_stores_density_matrices_of_open_systems():
     """Test that an open system and a mixed initial state compile to density matrices."""
-    problem = compile_system(System(elements=[DecayingElement('q')]), compiler=OperatorCompiler())
+    problem = OperatorCompiler().prepare(System(elements=[DecayingElement('q')])).run().problem_
     assert not problem.pure
     assert problem._state_of(problem.initial_state).shape == (2, 2)
-    mixed = compile_system(
-        System(elements=[QubitElement('q')]),
-        initial_state={'system.state': np.eye(2) / 2},
-        compiler=OperatorCompiler(),
-    )
+    system = System(elements=[QubitElement('q')])
+    mixed = OperatorCompiler().prepare(system).run({'system.state': np.eye(2) / 2}).problem_
     assert not mixed.pure
 
 
-def test_compile_system_starts_from_the_ground_state():
+def test_compiler_starts_from_the_ground_state():
     """Test that the initial state 'ground' is the lowest eigenstate."""
     system = System(
         elements=[
@@ -226,7 +211,7 @@ def test_compile_system_starts_from_the_ground_state():
         ],
         interactions=[HeisenbergInteraction('h', target='chain')],
     )
-    problem = compile_system(system, initial_state={'system.state': 'ground'}, compiler=OperatorCompiler())
+    problem = OperatorCompiler().prepare(system).run({'system.state': 'ground'}).problem_
     energy = (
         ObservableEvaluator(problem)
         .prepare()
@@ -252,7 +237,7 @@ def test_observable_evaluator_reads_local_magnetization():
         ObservableSpec('sz', local_z, group='chain', reduce=np.asarray),
         ObservableSpec('total', local_z, group='chain', reduce='sum'),
     ]
-    problem = compile_system(system, observables=observables, compiler=OperatorCompiler())
+    problem = OperatorCompiler(observables=observables).prepare(system).run().problem_
     values = ObservableEvaluator(problem).prepare().evaluate(0.0, problem.initial_state, problem.initial_parameters)
     assert values['sz'].tolist() == [0.5, -0.5] * 4
     assert values['total'] == 0.0
@@ -263,7 +248,7 @@ def test_observable_evaluator_rejects_non_operators():
     system = System(elements=[QubitElement('q')])
     with pytest.raises(ValidationError, match='must give an operator'):
         ObservableEvaluator(
-            compile_system(system, observables=[ObservableSpec('label', attrgetter('t'))], compiler=OperatorCompiler()),
+            OperatorCompiler(observables=[ObservableSpec('label', attrgetter('t'))]).prepare(system).run().problem_,
         ).prepare()
 
 

@@ -254,14 +254,14 @@ class ImageVisual(BaseVisual):
                 dimension.
 
         Examples:
-            >>> from skcomplex.core.engine.compile import compile_system
+            >>> from skcomplex.core.engine.compile import PassCompiler
             >>> from skcomplex.core.engine.viz import ImageVisual
             >>> from skcomplex.systems import create_system
-            >>> problem = compile_system(create_system('gray_scott', shape=(16, 16)))
+            >>> problem = PassCompiler().prepare(create_system('gray_scott', shape=(16, 16))).run().problem_
             >>> views = ImageVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [str(view.origin) for view in views]
             ['cells/u', 'cells/v']
-            >>> problem = compile_system(create_system('elementary_automaton'))
+            >>> problem = PassCompiler().prepare(create_system('elementary_automaton')).run().problem_
             >>> views = ImageVisual(path=problem.elements[0].path).prepare(problem).views_
             >>> [str(view.origin) for view in views]
             ['cells/space_time/alive', 'cells/alive']

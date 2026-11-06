@@ -7,7 +7,7 @@ import numpy as np
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.systems.biology.common.populations import PopulationElement
 from skcomplex.systems.biology.ecology import TripletInteraction
 
@@ -23,7 +23,9 @@ def test_triplet_interaction_sums_over_the_pairs_of_other_species():
     x = rng.random(size)
     species = GroupElement('species', element=PopulationElement, size=size, values={'n': x})
     triplets = TripletInteraction('triplets', target='species', a=tensor, state='n')
-    problem = compile_system(System(elements=[species], interactions=[triplets]), backend=NumpyBackend())
+    problem = (
+        PassCompiler(backend=NumpyBackend()).prepare(System(elements=[species], interactions=[triplets])).run().problem_
+    )
     rate = problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'species.n')
     expected = [
         x[i] * sum(tensor[i, j, k] * x[j] * x[k] for j, k in combinations(set(range(size)) - {i}, 2))

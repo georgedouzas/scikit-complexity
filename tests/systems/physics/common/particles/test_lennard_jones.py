@@ -6,7 +6,7 @@ import pytest
 from skcomplex.core.components.elements import GroupElement, PointElement
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import LammpsSolver, VelocityVerletSolver
 from skcomplex.systems.physics.common.particles import LAMMPS_FIXES, LAMMPS_PAIRS, LennardJonesInteraction
@@ -35,7 +35,6 @@ def test_lennard_jones_force_vanishes_at_minimum(solver):
 
 def test_lennard_jones_drift_vanishes_at_minimum():
     """Test that the compiled Lennard-Jones force is zero at `2 ** (1 / 6)`."""
-    problem = compile_system(
-        _pair(LennardJonesInteraction('lj', first='pair', second='pair', cutoff=2.5), 2 ** (1 / 6)),
-    )
+    system = _pair(LennardJonesInteraction('lj', first='pair', second='pair', cutoff=2.5), 2 ** (1 / 6))
+    problem = PassCompiler().prepare(system).run().problem_
     assert np.allclose(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 0.0, atol=1e-12)

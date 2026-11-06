@@ -45,7 +45,7 @@ from skcomplex.core.components.spaces import (
 )
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import PassCompiler, compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.problems._reduction_kernel import ReductionKernel
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import RK4Solver
@@ -204,7 +204,7 @@ def _expected(kind, values, weights):
 
 def _outputs(system, backend):
     """Return the values of `out` after one update of the first group of a system."""
-    problem = compile_system(system, backend=backend)
+    problem = PassCompiler(backend=backend).prepare(system).run().problem_
     after = problem.update(0.0, problem.initial_state, problem.initial_parameters)
     return problem.states.read(after, f'{system.elements[0].label}.out')
 
@@ -430,7 +430,7 @@ def test_neighbourhood_reads_a_place_by_its_role_and_not_a_state_named_x():
 
     group = GroupElement('g', element=UnplacedElement, size=2, values={'over': RadiusNeighborhood(1.0)})
     with pytest.raises(ValidationError, match='position'):
-        compile_system(System(elements=[group], space=ContinuousSpace(extent=(10.0, 10.0))))
+        PassCompiler().prepare(System(elements=[group], space=ContinuousSpace(extent=(10.0, 10.0)))).run()
 
 
 def test_interaction_reduces_over_the_neighbours_of_its_group():
@@ -473,7 +473,7 @@ def test_interaction_reduces_over_the_neighbours_of_its_group():
         interactions=[diffusion('d', target='g')],
         space=NetworkSpace(nx.path_graph(3)),
     )
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     assert problem.drift(0.0, problem.initial_state, problem.initial_parameters).tolist() == [1.0, 2.0, -3.0]
 
 
@@ -500,7 +500,7 @@ def test_neighbour_symbols_outside_a_reduction_are_rejected():
     stray = StrayElement
     system = System(elements=[GroupElement('g', element=stray, size=3)], space=NetworkSpace(nx.path_graph(3)))
     with pytest.raises(ValidationError, match='neighbors'):
-        compile_system(system)
+        PassCompiler().prepare(system).run()
 
 
 def test_validate_reports_a_metric_neighbourhood_on_a_network():
@@ -791,7 +791,7 @@ def _pairwise_drift(values, reduction, backend):
         elements=[GroupElement('g', element=PhaseElement, size=len(values), values={'x': values})],
         interactions=[PairwiseInteraction('pairs', group='g', reduction=reduction)],
     )
-    problem = compile_system(system, backend=backend)
+    problem = PassCompiler(backend=backend).prepare(system).run().problem_
     return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'g.x')
 
 
@@ -902,7 +902,7 @@ def _keyed_drift(values, keys, reduction, backend):
         elements=[GroupElement('g', element=KeyedElement, size=len(values), values={'x': values, 'k': keys})],
         interactions=[PairwiseInteraction('pairs', group='g', reduction=reduction)],
     )
-    problem = compile_system(system, backend=backend)
+    problem = PassCompiler(backend=backend).prepare(system).run().problem_
     return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'g.x')
 
 
@@ -1029,7 +1029,7 @@ def _around_drift(term, values, backend):
             LatticeElement('nodes', element=AroundElement, space=space, values={'x': values, 'term': term}),
         ],
     )
-    problem = compile_system(system, backend=backend)
+    problem = PassCompiler(backend=backend).prepare(system).run().problem_
     return problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'nodes.x')
 
 

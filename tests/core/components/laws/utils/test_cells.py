@@ -19,7 +19,7 @@ from skcomplex.core.components.laws.utils import (
 from skcomplex.core.components.spaces import CellComplexSpace, CofaceNeighborhood, LatticeSpace, NetworkSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import RK4Solver, VelocityVerletSolver
 from skcomplex.core.specs import ParameterSpec, StateSpec
@@ -117,7 +117,7 @@ def _groups(space, sites=None, links=None, faces=None):
 
 def _rates(system, backend, name):
     """Return the rates of a dotted state of a system at its initial state."""
-    problem = compile_system(system, backend=backend())
+    problem = PassCompiler(backend=backend()).prepare(system).run().problem_
     rates = np.asarray(problem.drift(0.0, problem.initial_state, problem.initial_parameters))
     entry = next(item for item in problem.states.entries if item.name == name)
     return rates[entry.start : entry.start + entry.size]

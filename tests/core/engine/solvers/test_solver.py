@@ -9,7 +9,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.problems._steps import step_count
 from skcomplex.core.engine.solvers import (
     EulerMaruyamaSolver,
@@ -70,7 +70,7 @@ def _growth_problem():
         elements=[PopulationElement('a', n=1)],
         interactions=[ExponentialGrowthInteraction('g', target='a', r=1.0)],
     )
-    return compile_system(system)
+    return PassCompiler().prepare(system).run().problem_
 
 
 def test_stepper_wrong_form_raises_error():
@@ -117,7 +117,7 @@ def test_fixed_step_steppers_agree_on_both_backends(stepper, kind):
     """Test that every fixed-step stepper takes the same steps and draws on the NumPy and Numba backends."""
     states, generators = [], []
     for backend in (NumpyBackend(), NumbaBackend()):
-        problem = compile_system(_system(kind), backend=backend)
+        problem = PassCompiler(backend=backend).prepare(_system(kind)).run().problem_
         rng = np.random.default_rng(0)
         stepper.set_params(random_state=rng).prepare(problem)
         states.append(stepper.run(StepSpec(0.1, problem.initial_state, problem.initial_parameters, 3.4)).state_)

@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -47,7 +47,7 @@ simulation = (
 # of the tables give, and the share of runs in which `x1` used its first function, which should be its probability
 # 0.6 at every step.
 
-problem = compile_system(create_system(SYSTEM, active=('x1', 'x3')))
+problem = PassCompiler().prepare(create_system(SYSTEM, active=('x1', 'x3'))).run().problem_
 rng = np.random.default_rng(0)
 names = problem.states.names
 values = [names.index(f'{gene}.x') for gene in ('x1', 'x2', 'x3')]

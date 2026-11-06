@@ -13,7 +13,7 @@ from skcomplex.core.components.elements import Element, GroupElement, PointEleme
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler, compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.errors import SpaceError, ValidationError
 from skcomplex.core.specs import LayerSpec, StateSpec, VisualSpec
 
@@ -150,13 +150,13 @@ def test_group_vector_state_has_member_shape():
         elements=[GroupElement('gas', element=PointElement, size=1000, values={'x': np.zeros((1000, 2))})],
         space=ContinuousSpace(n_dim=2),
     )
-    assert compile_system(system).states.entry('gas.x').shape == (1000, 2)
+    assert PassCompiler().prepare(system).run().problem_.states.entry('gas.x').shape == (1000, 2)
 
 
 def test_group_takes_state_named_size():
     """Test that a state named size takes per-member values, since the group size is a constructor argument."""
     group = GroupElement('cells', element=CellElement, size=3, values={'size': [1.0, 2.0, 3.0]})
-    problem = compile_system(System(elements=[group]))
+    problem = PassCompiler().prepare(System(elements=[group])).run().problem_
     assert problem.states.read(problem.initial_state, 'cells.size').tolist() == [1.0, 2.0, 3.0]
 
 
@@ -165,7 +165,10 @@ def test_clone_keeps_values_and_compiles_to_the_same_problem():
     group = GroupElement('herds', element=PopulationElement, size=100, values={'n': np.linspace(1.0, 2.0, 100)})
     cloned = clone(group)
     assert np.array_equal(cloned.values['n'], group.values['n'])
-    first, second = compile_system(System(elements=[group])), compile_system(System(elements=[cloned]))
+    first, second = (
+        PassCompiler().prepare(System(elements=[group])).run().problem_,
+        PassCompiler().prepare(System(elements=[cloned])).run().problem_,
+    )
     assert np.array_equal(first.initial_state, second.initial_state)
     assert first.equations == second.equations
 

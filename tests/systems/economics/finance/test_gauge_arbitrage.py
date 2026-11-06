@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.systems import create_simulation
 from skcomplex.systems.economics.finance import gauge_arbitrage_market
 
@@ -27,7 +27,7 @@ def test_current_and_field_follow_the_signs_of_the_book():
     """Test the rates against `J = -D (d rho - q A rho)`, `rho_t = -div J`, `A_t = E`, and `E_t = -curl curl A - J`."""
     D, q = 0.5, 0.2
     system = gauge_arbitrage_market(4, D=D, q=q)
-    problem = compile_system(system)
+    problem = PassCompiler().prepare(system).run().problem_
     space = system.elements[0].space
     edges, faces = space.incidences_[:2]
     state = problem.initial_state.copy()

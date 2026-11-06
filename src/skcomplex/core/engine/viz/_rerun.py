@@ -155,9 +155,9 @@ class RerunObserver(BaseObserver):
 
         The default blueprint of a compiled problem, with a chosen view first:
 
-        >>> from skcomplex.core.engine.compile import compile_system
+        >>> from skcomplex.core.engine.compile import PassCompiler
         >>> from skcomplex.systems import create_system
-        >>> problem = compile_system(create_system('gray_scott', shape=(16, 16)))
+        >>> problem = PassCompiler().prepare(create_system('gray_scott', shape=(16, 16))).run().problem_
         >>> observer = RerunObserver(blueprint='default', primary='cells/v').prepare(problem)
         >>> [str(view.origin) for view in observer.blueprint_.root_container.contents]
         ['cells/v', 'cells/u']

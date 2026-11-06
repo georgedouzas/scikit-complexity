@@ -213,7 +213,7 @@ class ObservableEvaluator:
 
     Examples:
         >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.core.engine.compile import ObservableEvaluator, compile_system
+        >>> from skcomplex.core.engine.compile import ObservableEvaluator, PassCompiler
         >>> from skcomplex.core.specs import ObservableSpec
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import PopulationElement
@@ -221,7 +221,7 @@ class ObservableEvaluator:
         ...     elements=[GroupElement('herd', element=PopulationElement, size=2, values={'n': [2.0, 6.0]})]
         ... )
         >>> total = ObservableSpec('total', group='herd', reduce='sum', variable='n')
-        >>> problem = compile_system(system, observables=[total])
+        >>> problem = PassCompiler(observables=[total]).prepare(system).run().problem_
         >>> ObservableEvaluator(problem).prepare().evaluate(0.0, problem.initial_state, problem.initial_parameters)
         {'total': 8.0}
     """
@@ -884,11 +884,11 @@ class ObservableEvaluator:
                 The namespace.
 
         Examples:
-            >>> from skcomplex.core.engine.compile import compile_system
+            >>> from skcomplex.core.engine.compile import PassCompiler
             >>> from skcomplex.core.engine.compile import ObservableEvaluator
             >>> from skcomplex.core.components.system import System
             >>> from skcomplex.systems.biology.common.populations import PopulationElement
-            >>> problem = compile_system(System(elements=[PopulationElement('rabbits')]))
+            >>> problem = PassCompiler().prepare(System(elements=[PopulationElement('rabbits')])).run().problem_
             >>> ObservableEvaluator._namespace_of(problem).rabbits.n
             n_rabbits
         """
@@ -947,10 +947,10 @@ class ObservableEvaluator:
                 The path of every element that holds a reduction, with the reduction.
 
         Examples:
-            >>> from skcomplex.core.engine.compile import compile_system
+            >>> from skcomplex.core.engine.compile import PassCompiler
             >>> from skcomplex.core.engine.compile import ObservableEvaluator
             >>> from skcomplex.systems import create_system
-            >>> problem = compile_system(create_system('harvesting'))
+            >>> problem = PassCompiler().prepare(create_system('harvesting')).run().problem_
             >>> [path for path, _ in ObservableEvaluator._held_reductions_of(problem)]
             ['village/farmers_count']
         """

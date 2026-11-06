@@ -418,7 +418,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         if block is None:
             error_msg = (
                 f'The reduction {reduction.call} of {spec.owner} reduces the agents of {held.group}, which only a '
-                'co-simulation computes, at its synchronisation points. Compile the system with `compile_system`.'
+                'co-simulation computes, at its synchronisation points. Compile the system with `PassCompiler`.'
             )
             raise ValidationError(error_msg)
         value = block.symbols['value']

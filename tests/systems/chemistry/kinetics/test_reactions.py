@@ -6,7 +6,7 @@ import pytest
 from skcomplex.core.components.elements import CompartmentElement
 from skcomplex.core.components.interactions import ReactionInteraction
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems import describe
@@ -102,7 +102,7 @@ def test_reaction_of_unknown_mode_is_rejected():
         ],
     )
     with pytest.raises(ValidationError, match='binding'):
-        compile_system(system)
+        PassCompiler().prepare(system).run()
 
 
 def test_chemical_langevin_network_conserves_totals():

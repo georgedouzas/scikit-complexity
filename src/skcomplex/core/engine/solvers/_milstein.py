@@ -25,11 +25,11 @@ class MilsteinSolver(SDESolver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.compile import compile_system
+        >>> from skcomplex.core.engine.compile import PassCompiler
         >>> from skcomplex.systems.economics.finance import geometric_brownian_motion
         >>> from skcomplex.core.engine.solvers import MilsteinSolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> problem = compile_system(geometric_brownian_motion())
+        >>> problem = PassCompiler().prepare(geometric_brownian_motion()).run().problem_
         >>> stepper = MilsteinSolver(dt=0.01, random_state=0).prepare(problem)
         >>> bool(stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_[0] > 0)
         True

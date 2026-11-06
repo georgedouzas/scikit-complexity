@@ -11,7 +11,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import count, maximum, mean, total
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler, compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.compile._observables import ObservableEvaluator
 from skcomplex.core.engine.runtime import RealTimeClock, Simulation
 from skcomplex.core.engine.solvers import CoSimulationSolver, ScipyODESolver
@@ -217,7 +217,7 @@ def _counting_system(agents=3):
 
 def test_agents_and_ode_split_into_two_partitions():
     """Test that agents and differential equations in sibling subsystems give an agent and an ODE partition."""
-    problem = compile_system(harvesting())
+    problem = PassCompiler().prepare(harvesting()).run().problem_
     assert problem.form == FormKind.COUPLED
     assert [(item.name, item.problem.form) for item in problem.partitions] == [
         ('land', FormKind.ODE),
@@ -234,7 +234,7 @@ def test_laws_join_the_partition_of_their_target():
         ],
         interactions=[TendingInteraction('tend', soil='land/soil', farmers='village/farmers')],
     )
-    land, village = compile_system(system).partitions
+    land, village = PassCompiler().prepare(system).run().problem_.partitions
     assert (land.problem.form, village.problem.form) == (FormKind.ODE, FormKind.AGENT)
     assert [path for path, _ in village.problem.system_rules] == ['tend']
     assert Simulation(system, dt=1).prepare().run(until=2).trajectory_.values('land/soil.n')[-1] == pytest.approx(2 * 2)
@@ -255,7 +255,7 @@ def test_mixed_leaf_subsystem_names_itself():
         ],
     )
     with pytest.raises(IncompatibleLawsError, match=r'economy: No form takes the laws.*nested system'):
-        compile_system(system)
+        PassCompiler().prepare(system).run()
 
 
 def test_mix_across_subsystems_gives_partitions():
@@ -274,7 +274,10 @@ def test_mix_across_subsystems_gives_partitions():
             ),
         ],
     )
-    assert [item.problem.form for item in compile_system(system).partitions] == [FormKind.DISCRETE, FormKind.ODE]
+    assert [item.problem.form for item in PassCompiler().prepare(system).run().problem_.partitions] == [
+        FormKind.DISCRETE,
+        FormKind.ODE,
+    ]
 
 
 def test_held_input_keeps_start_of_interval_value():
@@ -323,7 +326,7 @@ def test_held_reductions_of_one_group_share_an_element():
             CountingInteraction('third', target='land/dust', source='village/farmers'),
         ],
     )
-    paths = [path for path, _ in ObservableEvaluator._held_reductions_of(compile_system(system))]
+    paths = [path for path, _ in ObservableEvaluator._held_reductions_of(PassCompiler().prepare(system).run().problem_)]
     assert paths == ['village/farmers_sum', 'village/farmers_count']
 
 
@@ -341,7 +344,7 @@ def test_reduction_of_element_group_reads_other_partition():
         interactions=[TallyInteraction('tally', target='ledger/tally', source='herds/herd')],
     )
     trajectory = Simulation(system, dt=1).prepare().run(until=1).trajectory_
-    assert ObservableEvaluator._held_reductions_of(compile_system(system)) == []
+    assert ObservableEvaluator._held_reductions_of(PassCompiler().prepare(system).run().problem_) == []
     assert trajectory.values('ledger/tally.k')[-1] == pytest.approx(6.0)
 
 

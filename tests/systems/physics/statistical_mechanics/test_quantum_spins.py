@@ -6,7 +6,7 @@ import rerun.blueprint as rrb
 from scipy.special import jv
 
 from skcomplex.core.analysis import OperatorAnalysis
-from skcomplex.core.engine.compile import OperatorCompiler, compile_system
+from skcomplex.core.engine.compile import OperatorCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import LindbladSolver
 from skcomplex.core.engine.viz import ExpectationVisual, RerunObserver
@@ -67,9 +67,7 @@ def test_quantum_heisenberg_rejects_unknown_options(values, message):
 def test_quantum_heisenberg_streams_a_light_cone(tmp_path):
     """Test that the chain logs a space-time image of the local magnetisation as its primary view."""
     system = create_system('quantum_heisenberg', initial='domain_wall', boundary='open')
-    blueprint = (
-        RerunObserver(blueprint='default').prepare(compile_system(system, compiler=OperatorCompiler())).blueprint_
-    )
+    blueprint = RerunObserver(blueprint='default').prepare(OperatorCompiler().prepare(system).run().problem_).blueprint_
     first = blueprint.root_container.contents[0]
     assert isinstance(first, rrb.Container | rrb.Spatial2DView)
     observer = RerunObserver('light_cone', save_path=tmp_path / 'run.rrd')

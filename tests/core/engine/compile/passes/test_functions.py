@@ -12,7 +12,7 @@ from skcomplex.core.components.laws import BaseLaw, UpdateLaw
 from skcomplex.core.components.spaces import DiscreteTime
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
@@ -102,7 +102,7 @@ def test_lower_runs_a_phase_in_the_steps_of_its_period():
 
 def test_lower_composes_the_equations_of_the_phases():
     """Test that the symbolic map of a later phase reads the values the earlier phases set."""
-    problem = compile_system(_system(PhaseSpec('count'), PhaseSpec('copy')))
+    problem = PassCompiler().prepare(_system(PhaseSpec('count'), PhaseSpec('copy'))).run().problem_
     count = problem.equation_symbols['c.count']
     assert bool(problem.equations['c.copy'] == count + 1)
 
@@ -118,7 +118,7 @@ def test_lower_composes_the_equations_of_the_phases():
 def test_lower_rejects_undeclared_and_repeated_phases_of_update_laws(phases, match):
     """Test that an update law in an undeclared phase, or a phase that repeats or has an activation, fails."""
     with pytest.raises(ValidationError, match=match):
-        compile_system(_system(*phases))
+        PassCompiler().prepare(_system(*phases)).run()
 
 
 def test_lower_reads_the_phases_of_a_nested_system():

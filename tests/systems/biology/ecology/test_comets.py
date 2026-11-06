@@ -5,7 +5,7 @@ import inspect
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation, Trajectory
 from skcomplex.core.engine.solvers import IMEXEulerSolver
 from skcomplex.core.specs import RunStateSpec
@@ -83,8 +83,10 @@ def test_comets_defaults_are_the_published_values():
 
 def test_comets_steps_are_the_published_diffusion_numbers():
     """Test that the coefficients come to about 45 and 0.0027 boxes^2/h, and that only diffusion is the linear part."""
-    terms = {term.target.entry.name: term for term in compile_system(comets(shape=(3, 3))).linear}
-    assert len(compile_system(comets(shape=(3, 3))).linear) == 2
+    terms = {
+        term.target.entry.name: term for term in PassCompiler().prepare(comets(shape=(3, 3))).run().problem_.linear
+    }
+    assert len(PassCompiler().prepare(comets(shape=(3, 3))).run().problem_.linear) == 2
     assert float(terms['glucose.c'].coefficient) / 0.02**2 == pytest.approx(45.0)
     assert float(terms['biomass.x'].coefficient) / 0.02**2 == pytest.approx(0.0027)
 
@@ -149,7 +151,7 @@ def test_comets_gives_zero_fluxes_to_the_sites_without_biomass():
 
 def test_comets_program_solves_only_the_sites_with_biomass():
     """Test that one evaluation solves the one inoculated site."""
-    problem = compile_system(create_system('comets', shape=(5, 5)))
+    problem = PassCompiler().prepare(create_system('comets', shape=(5, 5))).run().problem_
     kernel = problem.programs[0]
     kernel.run(RunStateSpec(0.0, problem.initial_state, problem.initial_parameters))
     assert kernel.solves_ == 1
@@ -194,7 +196,9 @@ def test_comets_default_run_holds_its_budget_and_its_caption(published: Trajecto
     assert times.size <= 300
     assert slope > 0
     assert abs(np.mean(speeds[len(speeds) // 2 :]) - slope) < 0.3 * slope
-    terms = {term.target.entry.name: term for term in compile_system(comets(shape=(3, 3))).linear}
+    terms = {
+        term.target.entry.name: term for term in PassCompiler().prepare(comets(shape=(3, 3))).run().problem_.linear
+    }
     assert float(terms['glucose.c'].coefficient) / float(terms['biomass.x'].coefficient) == pytest.approx(
         17000,
         rel=0.03,

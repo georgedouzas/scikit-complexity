@@ -11,7 +11,7 @@ from skcomplex.core.components.laws import FluxLaw, RateLaw
 from skcomplex.core.components.laws.utils import laplacian
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import (
@@ -93,7 +93,7 @@ def test_spectral_accuracy():
 
 def test_kuramoto_sivashinsky_is_fourth_order():
     """Test that ETDRK4 is stable at steps 0.25 and 0.125 and its error shrinks at fourth order."""
-    problem = compile_system(kuramoto_sivashinsky())
+    problem = PassCompiler().prepare(kuramoto_sivashinsky()).run().problem_
     reference = Simulation(problem, dt=1.0, solver=ETDRK4Solver(dt=1 / 256)).prepare().run(until=1).state_
     errors = [
         np.abs(
@@ -111,7 +111,7 @@ def test_kuramoto_sivashinsky_is_fourth_order():
 @pytest.mark.parametrize('stepper', [IMEXEulerSolver(dt=1e-3), IMEX2Solver(dt=1e-3), CrankNicolsonSolver(dt=1e-3)])
 def test_implicit_explicit_steppers_agree(stepper):
     """Test that the implicit-explicit steppers converge to the ETDRK4 solution of the Kuramoto-Sivashinsky equation."""
-    problem = compile_system(kuramoto_sivashinsky())
+    problem = PassCompiler().prepare(kuramoto_sivashinsky()).run().problem_
     reference = Simulation(problem, dt=1.0, solver=ETDRK4Solver(dt=1 / 64)).prepare().run(until=1).state_
     values = Simulation(problem, dt=1.0, solver=stepper).prepare().run(until=1).state_
     tolerance = 1e-2 if isinstance(stepper, IMEXEulerSolver) else 1e-5
@@ -170,8 +170,9 @@ def test_fluxes_need_finite_volume_field():
             """Return the laws of the shock element."""
             return [FluxLaw(s.u, s.u**2 / 2)]
 
+    system = System(elements=[FieldElement('line', element=ShockElement, space=LatticeSpace(10))])
     with pytest.raises(ValidationError, match='finite-volume'):
-        compile_system(System(elements=[FieldElement('line', element=ShockElement, space=LatticeSpace(10))]))
+        PassCompiler().prepare(system).run()
 
 
 def test_mesh_fields_stream_as_meshes(tmp_path):
@@ -226,7 +227,7 @@ def test_symmetry_needs_periodic_lattice():
     """Test that parities on a lattice with fixed edges are rejected."""
     rod = FieldElement('rod', element=HeatElement, space=LatticeSpace(8, boundary='fixed'), symmetry={'u': ('odd',)})
     with pytest.raises(ValidationError, match='periodic lattice'):
-        compile_system(System(elements=[rod]))
+        PassCompiler().prepare(System(elements=[rod])).run()
 
 
 def test_swift_hohenberg_rolls():

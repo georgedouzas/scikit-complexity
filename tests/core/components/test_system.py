@@ -22,7 +22,7 @@ from skcomplex.core.components.spaces import (
     StaticTime,
 )
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import OperatorCompiler, PassCompiler, compile_system
+from skcomplex.core.engine.compile import OperatorCompiler, PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import UnitarySolver
 from skcomplex.core.errors import ValidationError
@@ -274,7 +274,7 @@ def test_variable_group_of_elements_grows():
 def test_group_on_edges_has_one_member_per_edge():
     """Test that a group on the edges of a network with 30 edges holds 30 members, sized from the inherited space."""
     weights = GroupElement('weights', element=StockElement, on='edges')
-    problem = compile_system(System(elements=[weights], space=NetworkSpace(nx.cycle_graph(30))))
+    problem = PassCompiler().prepare(System(elements=[weights], space=NetworkSpace(nx.cycle_graph(30)))).run().problem_
     assert problem.states.entry('weights.n').shape == (30,)
 
 

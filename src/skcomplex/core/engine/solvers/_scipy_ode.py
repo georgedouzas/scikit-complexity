@@ -145,17 +145,16 @@ class ScipyODESolver(Solver):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.compile import compile_system
+        >>> from skcomplex.core.engine.compile import PassCompiler
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
         >>> from skcomplex.core.engine.solvers import ScipyODESolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> problem = compile_system(
-        ...     System(
-        ...         elements=[PopulationElement('a', n=1)],
-        ...         interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
-        ...     ),
+        >>> system = System(
+        ...     elements=[PopulationElement('a', n=1)],
+        ...     interactions=[ExponentialGrowthInteraction('g', target='a', r=1)],
         ... )
+        >>> problem = PassCompiler().prepare(system).run().problem_
         >>> stepper = ScipyODESolver(rtol=1e-8, random_state=0).prepare(problem)
         >>> x = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 1.0)).state_
         >>> round(float(x[0]), 4)

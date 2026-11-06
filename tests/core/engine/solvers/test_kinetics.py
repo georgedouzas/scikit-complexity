@@ -12,7 +12,7 @@ from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BilinearLaw, EncounterLaw, RateLaw
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.compile import PassCompiler, compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import KineticSolver
 from skcomplex.core.errors import SolverError
@@ -194,6 +194,6 @@ def test_particle_solver_rejects_rate_laws_in_validation():
 
 def test_particle_solver_rejects_rate_laws_when_run():
     """Test that the particle solver refuses a compiled problem with rate laws."""
-    problem = compile_system(_system(DecayInteraction('decay', population='wealth')))
+    problem = PassCompiler().prepare(_system(DecayInteraction('decay', population='wealth'))).run().problem_
     with pytest.raises(SolverError, match='encounter laws alone'):
         KineticSolver(random_state=0).prepare(problem)

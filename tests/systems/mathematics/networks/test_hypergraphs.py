@@ -8,7 +8,7 @@ import xgi
 
 from skcomplex.core.analysis import FitAnalysis
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.compile import compile_system
+from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.systems import create_system
 from skcomplex.systems.mathematics.networks import growing_simplicial_complex, hypergraph_random_walk
@@ -29,7 +29,7 @@ def _transitions(hypergraph: xgi.Hypergraph) -> np.ndarray:
 def test_hypergraph_random_walk_drift_follows_the_master_equation(backend):
     """Test that the drift equals `p T - p` for the size-biased transition matrix of the incidence matrix."""
     hypergraph = xgi.fast_random_hypergraph(12, [0.2, 0.05, 0.01], seed=2)
-    problem = compile_system(hypergraph_random_walk(hypergraph), backend=backend)
+    problem = PassCompiler(backend=backend).prepare(hypergraph_random_walk(hypergraph)).run().problem_
     state = problem.initial_state.copy()
     state[:] = np.random.default_rng(0).dirichlet(np.ones(state.size))
     drift = problem.states.read(problem.drift(0.0, state, problem.initial_parameters), 'nodes.p')
