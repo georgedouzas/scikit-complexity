@@ -1,7 +1,9 @@
-"""Physiology: delayed feedback, excitable tissue, the circulation, cell exchange, regulation, and adaptivity."""
+"""Physiology: delayed feedback, excitable tissue, the circulation, cell exchange, regulation, adaptivity, tissues."""
 
 from ._adaptivity import AdaptiveResponderElement, adaptive_response_costs
 from ._cardiac import AlievPanfilovElement, aliev_panfilov
+from ._cell_adhesion import CellAdhesionInteraction
+from ._cellular_potts import cellular_potts
 from ._chamber import ChamberElement
 from ._circulation import cardiovascular
 from ._coagulation import CoagulationElement
@@ -16,11 +18,13 @@ from ._pharmacokinetics import TwoCompartmentElement, two_compartment_pharmacoki
 from ._physiology import fitzhugh_nagumo, mackey_glass
 from ._regulation import coagulation_positive_feedback, glucose_dual_hormone_control
 from ._resistive_flow import ResistiveFlowInteraction
+from ._tissue_site import TissueSiteElement
 from ._toxicity import DrugToxicityElement, drug_toxicity
 
 __all__: list[str] = [
     'AdaptiveResponderElement',
     'AlievPanfilovElement',
+    'CellAdhesionInteraction',
     'ChamberElement',
     'CoagulationElement',
     'ContourCellElement',
@@ -31,10 +35,12 @@ __all__: list[str] = [
     'GlucoseControlElement',
     'MackeyGlassElement',
     'ResistiveFlowInteraction',
+    'TissueSiteElement',
     'TwoCompartmentElement',
     'adaptive_response_costs',
     'aliev_panfilov',
     'cardiovascular',
+    'cellular_potts',
     'closed_contour_cell_exchange',
     'coagulation_positive_feedback',
     'drug_toxicity',

@@ -248,6 +248,70 @@ arrays in node order, or mappings from node to value.
 - The padded table grows with the largest degree. Graphs with hubs of very high degree, beyond scale-free graphs of
   about 10^5 nodes, therefore use much memory.
 
+## Label copies and regions
+
+Use label copies when the sites of one label form a region whose total size matters, such as the cells of the cellular
+Potts model. The example grows one region of 9 sites in a medium to a volume of 30:
+
+```python
+from typing import Annotated
+
+import numpy as np
+
+from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.interactions import SamplingInteraction
+from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.specs import RegionScoreSpec, StateSpec
+
+
+class SiteElement(Element):
+    def __init__(self, label, region: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.region = region
+
+
+def contact(first, second):
+    return np.ones(np.broadcast(first, second).shape)
+
+
+def volume(labels):
+    return np.where(labels == 0, 0.0, 1.0), np.full(labels.shape, 30.0)
+
+
+regions = np.zeros((12, 12))
+regions[4:7, 4:7] = 1
+copies = SamplingInteraction(
+    'copies', target='sites', state='region', objective=RegionScoreSpec(contact, volume), move='copy'
+)
+sites = LatticeElement('sites', element=SiteElement, space=LatticeSpace((12, 12)), values={'region': regions})
+system = System(elements=[sites], interactions=[copies], time=DiscreteTime())
+labels = Simulation(system, random_state=0).prepare().run(until=200).trajectory_.values('sites.region')
+abs((labels[50:].reshape(-1, 144) == 1).sum(axis=1).mean() - 30) < 2
+```
+
+`SamplingInteraction` takes a `RegionScoreSpec(contact, volume=None, surface=None, hits=1)` as its objective, with the
+move `'copy'`. The state holds integer labels from 0, and the objective is
+`sum_<i,j> w_ij contact(l_i, l_j) [l_i != l_j] + sum_l a_l (V_l - A_l)^2 + b_l (S_l - B_l)^2`.
+
+- `contact(first, second)` is the energy per unit contact between two labels, evaluated once per sweep on all pairs
+  of labels.
+- `volume(labels)` and `surface(labels)` return the strength and the target of the constraint of every label. A
+  strength of 0 leaves a label free, such as the medium.
+- The volume of a region sums the volumes of its sites, and its surface the weights of its contacts with other labels.
+  The sampler keeps both per label and updates them on every accepted copy, so a copy costs the size of the
+  neighbourhood, whatever the number of regions.
+- Every sweep proposes `hits` copies per site, each of the label of a random neighbour into a random site, accepted by
+  the Metropolis or Glauber rule.
+- The neighbourhood is that of the interaction, or the default of the space: the Moore neighbourhood of a square
+  lattice, the six neighbours of a triangular one, or the edges of a network. On a `NetworkSpace` the edge attribute
+  `'weight'` weighs a contact and the node attribute `'volume'` the volume of a site, so a Voronoi tessellation of
+  irregular points is a disordered lattice.
+
+The catalog system `cellular_potts` sorts cells of two kinds by differential adhesion on square, triangular, and
+disordered lattices.
+
 ## Neighbour sums and colored schedules
 
 The graph example above uses two tools that work on every lattice.
