@@ -435,6 +435,7 @@ class MobilityInteraction(Interaction):
             *self._get_stresslet(s, dimension),
             *self._get_vector(self.dipole, s, dimension),
             *(self._get_parameter_symbol(name, s) for name in ('radius', 'viscosity', 'temperature', 'dt')),
+            SR(self._get_cutoff(s)),
             *symbols,
         )
         law = RateLaw if self.form == 'rate' else UpdateLaw
@@ -462,14 +463,34 @@ class MobilityInteraction(Interaction):
             return np.ascontiguousarray(values, dtype=float)
         return np.ascontiguousarray(np.column_stack([values, np.zeros(values.shape[0])]), dtype=float)
 
-    def _get_pair_forces(self, x: Array, pair_force: Callable[..., float] | None, constants: list[float]) -> Array:
-        """Return the total force of the pair potential on every member."""
+    def _get_cutoff(self, namespace: SimpleNamespace) -> object:
+        """Return the cutoff of the pair potential, the hook a subclass overrides to derive it from its parameters.
+
+        Args:
+            namespace:
+                The namespace of the symbols the cutoff can use.
+
+        Returns:
+            cutoff:
+                The largest distance of a pair of the potential, a number or an expression of the parameters, or -1
+                for every pair.
+        """
+        return -1.0 if self.cutoff is None else self.cutoff
+
+    def _get_pair_forces(
+        self,
+        x: Array,
+        pair_force: Callable[..., float] | None,
+        cutoff: float,
+        constants: list[float],
+    ) -> Array:
+        """Return the total force of the pair potential on every pair closer than the cutoff, -1 for every pair."""
         forces = np.zeros_like(x)
         if pair_force is None:
             return forces
         separations = x[:, None, :] - x[None, :, :]
         distances = np.linalg.norm(separations, axis=-1)
-        cutoff = np.inf if self.cutoff is None else self.cutoff
+        cutoff = np.inf if cutoff < 0 else cutoff
         first, second = np.nonzero(np.triu((distances > 0) & (distances <= cutoff), 1))
         if not first.size:
             return forces
@@ -581,9 +602,9 @@ class MobilityInteraction(Interaction):
         stresslet = np.zeros((size, 3, 3))
         stresslet[:, :dimension, :dimension] = planar
         dipole = self._embed(take(dimension), dimension)
-        a, eta, kT, dt = (float(next(columns)[0]) for _ in range(4))
+        a, eta, kT, dt, cutoff = (float(next(columns)[0]) for _ in range(5))
         constants = [float(column[0]) for column in columns]
-        force = force + self._get_pair_forces(x, pair_force, constants)
+        force = force + self._get_pair_forces(x, pair_force, cutoff, constants)
         kind = TENSORS.index(self.tensor)
         linear, spin = _mobility_product(x, force, np.ascontiguousarray(torque), (a, eta), kind)
         linear = linear + velocity

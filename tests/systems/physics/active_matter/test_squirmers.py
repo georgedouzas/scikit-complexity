@@ -61,3 +61,22 @@ def test_suspension_keeps_unit_orientations_and_separated_spheres():
     assert np.linalg.norm(orientations, axis=-1) == pytest.approx(1.0, abs=1e-3)
     distances = np.linalg.norm(positions[:, None] - positions[None], axis=-1)[np.triu_indices(8, 1)]
     assert distances.min() > 1.5
+
+
+def test_repulsion_range_follows_the_current_radius():
+    """Test that `set_params(radius=2.0)` widens the repulsion, so it pushes spheres 3 apart away from each other."""
+
+    def gap(slip):
+        group = GroupElement(
+            'squirmers',
+            element=SquirmerElement,
+            size=2,
+            values={'x': [[0.0, 0.0, 0.0], [3.0, 0.0, 0.0]], 'p': [[0.0, 0.0, 1.0], [0.0, 0.0, 1.0]]},
+        )
+        system = System(elements=[group], interactions=[slip], space=ContinuousSpace(n_dim=3))
+        positions = Simulation(system, dt=0.5).prepare().run(until=1.0).trajectory_.values('squirmers.x')[-1]
+        return float(np.linalg.norm(positions[1] - positions[0]))
+
+    slip = SquirmerSlipInteraction('slip', target='squirmers', B1=0.0, B2=0.0)
+    assert gap(slip) == pytest.approx(3.0)
+    assert gap(slip.set_params(radius=2.0)) > 3.1

@@ -24,7 +24,8 @@ class SquirmerSlipInteraction(MobilityInteraction):
     as the stresslet `4 pi eta a^2 B2 (p p - I / 3)` and the potential dipole `B1 a^3 p / 3` (Ishikawa, Simmonds, and
     Pedley 2006). So `beta = B2 / B1 < 0` makes a pusher, which pushes fluid out along its axis, and `beta > 0` a
     puller, which draws it in. The flows of the other squirmers move every squirmer and turn it by half their vorticity,
-    through `MobilityInteraction`. A Weeks-Chandler-Andersen repulsion of strength `epsilon` keeps the spheres apart.
+    through `MobilityInteraction`. A Weeks-Chandler-Andersen repulsion of strength `epsilon` keeps the spheres apart,
+    within `2^(1/6)` diameters of the current radius.
 
     Args:
         label:
@@ -50,8 +51,8 @@ class SquirmerSlipInteraction(MobilityInteraction):
 
     Examples:
         >>> from skcomplex.systems.physics.active_matter import SquirmerSlipInteraction
-        >>> SquirmerSlipInteraction('slip', target='squirmers', B2=-5.0).cutoff
-        2.244924...
+        >>> SquirmerSlipInteraction('slip', target='squirmers', B2=-5.0).B2
+        -5.0
     """
 
     def __init__(
@@ -73,7 +74,6 @@ class SquirmerSlipInteraction(MobilityInteraction):
             stresslet=self._get_stresslet_of,
             dipole=self._get_dipole_of,
             potential=self._get_repulsion,
-            cutoff=2 ** (7 / 6) * radius,
             radius=radius,
             viscosity=viscosity,
         )
@@ -95,6 +95,10 @@ class SquirmerSlipInteraction(MobilityInteraction):
     def _get_dipole_of(self, namespace: SimpleNamespace) -> FreeModuleElement:
         """Return the potential dipole `B1 a^3 p / 3`."""
         return namespace.B1 * namespace.radius**3 * namespace.target.p / 3
+
+    def _get_cutoff(self, namespace: SimpleNamespace) -> Expression:
+        """Return the range `2^(1/6) 2 a` of the repulsion, from the current radius."""
+        return 2 ** (7 / 6) * namespace.radius
 
     def _get_repulsion(self, namespace: SimpleNamespace, r: Expression) -> Expression:
         """Return the Weeks-Chandler-Andersen repulsion of spheres of diameter `2 a`, valid within the cutoff."""
