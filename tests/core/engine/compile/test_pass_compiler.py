@@ -21,9 +21,13 @@ from skcomplex.core.components.laws import BoundaryLaw, JumpLaw, NoiseLaw, RateL
 from skcomplex.core.components.laws.utils import (
     codifferential,
     convolve,
+    coordinate,
+    cumulative_integral,
     displacement,
     exterior_derivative,
     hodge_star,
+    integral_transform,
+    integration_variable,
     inverse_helmholtz,
     laplacian,
     mod,
@@ -38,6 +42,8 @@ from skcomplex.core.components.spaces import (
     DiscreteTime,
     LatticeSpace,
     NetworkSpace,
+    PhaseSpace,
+    SimplexSpace,
 )
 from skcomplex.core.components.system import System
 from skcomplex.core.engine._utils import domain_of, symbol
@@ -54,7 +60,15 @@ from skcomplex.core.errors import (
     SpaceError,
     ValidationError,
 )
-from skcomplex.core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, ValidationReportSpec, VisualSpec
+from skcomplex.core.specs import (
+    AxisSpec,
+    ObservableSpec,
+    ParameterSpec,
+    RoleSpec,
+    StateSpec,
+    ValidationReportSpec,
+    VisualSpec,
+)
 from skcomplex.core.types import FormKind
 from skcomplex.systems.biology.common.populations import (
     ExponentialGrowthInteraction,
@@ -181,6 +195,40 @@ def test_compiler_reports_a_kernel_that_reads_a_state():
     report = PassCompiler().prepare(System(elements=[field])).report_
     assert [(issue.code, issue.path) for issue in report.errors] == [('kernel-state', 'm')]
     assert 'u_m' in report.errors[0].message
+
+
+def test_compiler_reports_a_two_point_kernel_that_reads_a_state():
+    """Test that a two-point kernel that reads a state is a `kernel-state` issue naming the state."""
+    space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('z', 8, 0.0, 1.0)])
+    field = _nonlocal_field('m', lambda s: integral_transform(s.u, s.u * integration_variable('z'), ('z',)), space)
+    report = PassCompiler().prepare(System(elements=[field])).report_
+    assert [(issue.code, issue.path) for issue in report.errors] == [('kernel-state', 'm')]
+    assert 'u_m' in report.errors[0].message
+
+
+def test_compiler_reports_a_two_point_integral_without_class_axes():
+    """Test that an integral over class axes of a field on a lattice is a `law-space` issue."""
+    field = _nonlocal_field('m', lambda s: integral_transform(s.u, integration_variable('z'), ('z',)), LatticeSpace(8))
+    report = PassCompiler().prepare(System(elements=[field])).report_
+    assert {(issue.code, issue.path) for issue in report.errors} == {('law-space', 'm')}
+    assert any('two-point kernel' in issue.message for issue in report.errors)
+
+
+def test_compiler_reports_a_cumulative_integral_on_a_network():
+    """Test that a cumulative integral on a network is a `law-space` issue saying it needs a lattice space."""
+    field = _nonlocal_field('net', lambda s: cumulative_integral(s.u, 0), NetworkSpace(nx.path_graph(4)))
+    report = PassCompiler().prepare(System(elements=[field])).report_
+    assert [(issue.code, issue.path) for issue in report.errors] == [('law-space', 'net')]
+    assert 'cumulative integral' in report.errors[0].message
+
+
+def test_compiler_reports_a_local_operator_on_a_simplex():
+    """Test that a Laplacian of a field on a simplex is a `law-space` issue asking for finite-volume fluxes."""
+    space = SimplexSpace(LatticeSpace((1,)), [AxisSpec('x', 6, 0.0, 1.0), AxisSpec('y', 6, 0.0, 1.0)])
+    field = _nonlocal_field('m', lambda s: laplacian(s.u) * coordinate('x'), space)
+    report = PassCompiler().prepare(System(elements=[field])).report_
+    assert [(issue.code, issue.path) for issue in report.errors] == [('law-space', 'm')]
+    assert 'finite-volume' in report.errors[0].message
 
 
 def test_compiler_reports_a_convolution_on_a_network():

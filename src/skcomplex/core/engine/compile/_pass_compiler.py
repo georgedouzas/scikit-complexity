@@ -56,6 +56,7 @@ from ...components.spaces import (
     MeshSpace,
     NetworkSpace,
     PhaseSpace,
+    SimplexSpace,
     StaticTime,
 )
 from ...components.specs import CensusRecordSpec, CensusSpec, NodeSpec
@@ -126,6 +127,9 @@ _REPLACEMENTS = {
 }
 _PARTITIONS = ('plan', 'subsystems')
 POLYGON_COORDINATES = 2
+NONLOCAL_OPERATORS = ('convolve', 'shifted', 'inverse_helmholtz', 'integral_transform', 'cumulative_integral')
+LOCAL_OPERATORS = ('laplacian', 'partial', 'upwind')
+KERNEL_OPERATORS = ('convolve', 'integral_transform')
 _PLANNING = frozenset({'nodes', 'census', 'plan'})
 _FIELDS = (
     'system',
@@ -1318,14 +1322,17 @@ class PassCompiler(BaseCompiler):
         law = PassCompiler._law_name(record)
         operands = call.operands()
         places = {id(fields[str(item)]): fields[str(item)] for item in operands[0].variables() if str(item) in fields}
+        if name in LOCAL_OPERATORS:
+            simplex = [place for place in places.values() if isinstance(place.space, SimplexSpace)]
+            return PassCompiler._place_issue(record, name, simplex[0]) if simplex else None
         if len({id(place.space) for place in places.values()}) > 1:
             message = f'The {law} applies {name} to {operands[0]}, which reads fields of more than one space.'
             return IssueSpec('operator-spaces', record.path, message, 'Apply the operator to the states of one field.')
-        if name == 'convolve':
+        if name in KERNEL_OPERATORS:
             states = sorted(str(item) for item in operands[1].variables() if str(item) in fields)
             if states:
-                message = f'The {law} convolves with a kernel that reads the state {", ".join(states)}.'
-                fix = 'Write the kernel in the displacements and the parameters only.'
+                message = f'The {law} applies {name} with a kernel that reads the state {", ".join(states)}.'
+                fix = 'Write the kernel in the displacements or the coordinates, and the parameters only.'
                 return IssueSpec('kernel-state', record.path, message, fix)
         if name == 'inverse_helmholtz' and PassCompiler._is_negative(SR(operands[1]), fields, numbers):
             message = (
@@ -1341,8 +1348,18 @@ class PassCompiler(BaseCompiler):
         """Return the issue of a nonlocal operator that the space or discretization of its field lacks, or `None`."""
         law = PassCompiler._law_name(record)
         space = place.space
-        if name in {'convolve', 'shifted'} and not isinstance(space, LatticeSpace):
-            verb = 'convolution' if name == 'convolve' else 'shifted read'
+        if isinstance(space, SimplexSpace) and name in LOCAL_OPERATORS:
+            message = f'The {law} applies {name} to a field on a simplex, which only takes finite-volume fluxes.'
+            fix = 'Write the transport as a flux of the finite-volume discretization.'
+            return IssueSpec('law-space', record.path, message, fix)
+        if name == 'integral_transform' and not isinstance(space, PhaseSpace):
+            message = (
+                f'The {law} integrates against a two-point kernel over class axes, but the field lives on '
+                f'{type(space).__name__}.'
+            )
+            return IssueSpec('law-space', record.path, message, 'Give the field a `PhaseSpace` with the class axes.')
+        if name in {'convolve', 'shifted', 'cumulative_integral'} and not isinstance(space, LatticeSpace):
+            verb = {'convolve': 'convolution', 'shifted': 'shifted read'}.get(name, 'cumulative integral')
             message = (
                 f'The {law} uses a {verb}, which needs a lattice space, but the field lives on {type(space).__name__}.'
             )
@@ -1366,7 +1383,7 @@ class PassCompiler(BaseCompiler):
                     continue
                 calls = [
                     call
-                    for name in ('convolve', 'shifted', 'inverse_helmholtz')
+                    for name in (*NONLOCAL_OPERATORS, *LOCAL_OPERATORS)
                     for call in FieldLowering._operator_calls(SR(value), name)
                 ]
                 found = [PassCompiler._operator_issue(record, call, fields, numbers) for call in calls]

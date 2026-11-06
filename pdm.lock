@@ -5,7 +5,7 @@
 groups = ["default", "changelog", "checks", "docs", "formatting", "gallery", "maintenance", "metabolism", "release", "rna", "structures", "tests", "trajectories"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.1"
-content_hash = "sha256:7841edf3473ea81d9a37d1ca9de8c4b039d6d371369093ab9158f49554e631f5"
+content_hash = "sha256:075cf620298317f3d0dc344e8df601271e04cccec432ec145fdc64dae268055c"
 
 [[metadata.targets]]
 requires_python = ">=3.12,!=3.14.1,<3.15"

@@ -23,6 +23,7 @@ from ._nearest import NearestNeighborhood
 from ._network import NetworkSpace
 from ._phase import PhaseSpace
 from ._radius import RadiusNeighborhood
+from ._simplex import SimplexSpace
 from ._static_time import StaticTime
 from ._triangular import TriangularNeighborhood
 from ._von_neumann import VonNeumannNeighborhood
@@ -50,6 +51,7 @@ __all__: list[str] = [
     'NetworkSpace',
     'PhaseSpace',
     'RadiusNeighborhood',
+    'SimplexSpace',
     'StaticTime',
     'TriangularNeighborhood',
     'VonNeumannNeighborhood',

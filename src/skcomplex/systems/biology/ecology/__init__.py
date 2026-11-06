@@ -21,6 +21,7 @@ from ._factories import (
     varying_capacity_logistic,
 )
 from ._forager import ForagerElement
+from ._forest_size_structure import forest_size_structure
 from ._fronts import FisherKPPElement, fisher_kpp
 from ._generalized_lotka_volterra import GeneralizedLotkaVolterraInteraction
 from ._grass import GrassElement
@@ -111,6 +112,7 @@ __all__: list[str] = [
     'fibonacci_rabbits',
     'fisher_kpp',
     'food_webs',
+    'forest_size_structure',
     'generalized_lotka_volterra',
     'higher_order_random_lotka_volterra',
     'hutchinson',

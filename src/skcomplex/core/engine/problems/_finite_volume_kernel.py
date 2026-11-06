@@ -81,6 +81,14 @@ class FiniteVolumeKernel(BaseKernel):
             One function per dimension of the states and the parameters that returns the closed-form eigenvalues of
             the flux Jacobian, or none when the Jacobian has no closed form.
 
+        volumes:
+            The fraction of the volume of every cell inside the domain, broadcast over the lattice shape, or `None`
+            for whole cells. A cell of no volume has no rate.
+
+        apertures:
+            The fraction of the area of every face inside the domain along every axis, broadcast over the faces, or
+            an empty tuple for whole faces.
+
     Attributes:
         values_:
             The rates of the conserved states of the last run, as a full vector.
@@ -107,6 +115,8 @@ class FiniteVolumeKernel(BaseKernel):
         critical: tuple[Callable[..., object], ...] = (),
         expressions: tuple[tuple[Expression, ...], ...] = (),
         speeds: tuple[Callable[..., object], ...] = (),
+        volumes: Array | None = None,
+        apertures: tuple[Array, ...] = (),
     ) -> None:
         self.owner = owner
         self.starts = starts
@@ -124,6 +134,8 @@ class FiniteVolumeKernel(BaseKernel):
         self.critical = critical
         self.expressions = expressions
         self.speeds = speeds
+        self.volumes = volumes
+        self.apertures = apertures
 
     @property
     def size(self) -> int:
@@ -320,8 +332,11 @@ class FiniteVolumeKernel(BaseKernel):
                     for first, second, lower, upper in zip(left_flux, right_flux, left, right, strict=True)
                 ]
             for index, flux in enumerate(interfaces):
-                walled = self._walled(flux, axis, n)
+                walled = self._walled(flux, axis, n) * (self.apertures[axis] if self.apertures else 1.0)
                 totals[index] = totals[index] - (walled[right_faces] - walled[left_faces]) / self.spacings[axis]
+        if self.volumes is not None:
+            inside = self.volumes > 0
+            totals = [np.where(inside, total / np.where(inside, self.volumes, 1.0), 0.0) for total in totals]
         rates = np.zeros_like(x)
         for start, total in zip(self.starts, totals, strict=True):
             rates[start : start + self.size] = total.ravel()
@@ -337,7 +352,7 @@ class FiniteVolumeKernel(BaseKernel):
         return result
 
     def max_speed(self, x: Array, p: Array) -> float:
-        """Return the largest wave speed over the cells and the dimensions.
+        """Return the largest wave speed over the cells and the dimensions, divided by the smallest cell volume.
 
         Args:
             x:
@@ -352,7 +367,10 @@ class FiniteVolumeKernel(BaseKernel):
         """
         states = self._states(x)
         parameters = self._parameters(x, p)
-        return max(float(self._speed(axis, states, parameters).max()) for axis in range(len(self.dimensions)))
+        speed = max(float(self._speed(axis, states, parameters).max()) for axis in range(len(self.dimensions)))
+        if self.volumes is None:
+            return speed
+        return speed / float(self.volumes[self.volumes > 0].min())
 
     def drift_of(self, axis: int, states: Sequence[Array], x: Array, p: Array, t: float) -> list[Array]:
         """Return the coefficient of the linear drift of every state along an axis.

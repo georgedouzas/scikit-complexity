@@ -11,6 +11,7 @@ from ._conditions import both, either, mod, where
 from ._contractions import contraction, contractions_in
 from ._delays import delay1, delay3, delay_parts, distributed_delay, smooth
 from ._history import delayed, derivative, lag, residence
+from ._integrals import cumulative_integral, integral_transform, integration_variable
 from ._local_operators import dagger, has_operator, local_operator, operator_product
 from ._lookups import lookup
 from ._moments import moment
@@ -80,6 +81,7 @@ __all__: list[str] = [
     'coordinate',
     'coordinates_of',
     'count',
+    'cumulative_integral',
     'dagger',
     'delay1',
     'delay3',
@@ -100,6 +102,8 @@ __all__: list[str] = [
     'hodge_star',
     'hyperedges',
     'hyperedges_in',
+    'integral_transform',
+    'integration_variable',
     'inverse_helmholtz',
     'inverse_laplacian',
     'lag',
