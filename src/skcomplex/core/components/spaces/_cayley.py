@@ -120,9 +120,6 @@ class CayleySpace(BaseSpace):
             SpaceError:
                 Knuth-Bendix completion finds no confluent rewriting system.
         """
-        # KBMAG runs its programs in the current directory of GAP, which GAP caches on first use and a change of the
-        # directory in Python does not update, so it would point to a removed folder after the first one is deleted.
-        libgap.ChangeDirectoryCurrent(str(Path.cwd()))
         limit = libgap.eval('function(system, name, value) system!.options.(name) := value; end')
         for ordering in ORDERINGS:
             system = libgap.KBMAGRewritingSystem(group)
@@ -291,6 +288,9 @@ class CayleySpace(BaseSpace):
 
     def _prepare(self, context: None = None) -> None:
         """Enumerate the sites, and set their words, their neighbours by generator, their edges, and their positions."""
+        # GAP caches its current directory on first use, and a change of directory in Python does not update it. Loading
+        # a package and running KBMAG both use it, so it would point to a removed folder after that folder is deleted.
+        libgap.ChangeDirectoryCurrent(str(Path.cwd()))
         group = self._get_gap_group()
         names = [str(generator) for generator in libgap.GeneratorsOfGroup(group)]
         if not all(IDENTIFIER.match(name) for name in names) or len(set(names)) != len(names):
