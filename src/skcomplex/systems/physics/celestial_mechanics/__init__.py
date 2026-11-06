@@ -1,17 +1,24 @@
-"""Celestial mechanics: orbits of bodies under gravity and charges in planetary magnetic fields."""
+"""Celestial mechanics: orbits under gravity and relativity, spin-orbit coupling, and charges in magnetic fields."""
 
 from ._dipoles import DipoleChargeElement, stormer_problem
+from ._dumbbell import DumbbellElement
 from ._kepler_body import KeplerBodyElement
 from ._orbits import n_body, restricted_three_body, sitnikov, two_body_orbit
+from ._relativistic_orbit import RelativisticOrbitElement
 from ._rotating_frame_body import RotatingFrameBodyElement
 from ._sitnikov_body import SitnikovBodyElement
+from ._spin_orbit import keplerian_dumbbell, relativistic_orbit
 
 __all__: list[str] = [
     'DipoleChargeElement',
+    'DumbbellElement',
     'KeplerBodyElement',
+    'RelativisticOrbitElement',
     'RotatingFrameBodyElement',
     'SitnikovBodyElement',
+    'keplerian_dumbbell',
     'n_body',
+    'relativistic_orbit',
     'restricted_three_body',
     'sitnikov',
     'stormer_problem',

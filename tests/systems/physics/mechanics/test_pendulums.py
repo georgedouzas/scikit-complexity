@@ -99,3 +99,15 @@ def test_huygens_pendulums_without_escapement_conserve_energy():
     potential = -9.8 * (np.cos(t1) + np.cos(t2)) + (x2 - x1) ** 2
     assert np.ptp(kinetic + potential) < 1e-6
     assert np.abs(t2).max() > 0.05
+
+
+def test_parametric_pendulum_driven_horizontally_resonates_linearly_from_rest():
+    """Test that a horizontal drive at the natural frequency grows the swing as `ε Ω t / 2`, unlike a vertical one."""
+    frequency = math.sqrt(9.81)
+    systems = [
+        parametric_pendulum(theta=0.0, epsilon=0.002, Omega=frequency, direction=direction)
+        for direction in ('horizontal', 'vertical')
+    ]
+    horizontal, vertical = (_series(_run(system, 20.0, 0.01), 'swing.theta')[0] for system in systems)
+    assert np.abs(horizontal[-200:]).max() == pytest.approx(0.002 * frequency * 20.0 / 2, rel=0.05)
+    assert np.abs(vertical).max() == 0
