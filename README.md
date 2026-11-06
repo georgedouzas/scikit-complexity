@@ -56,16 +56,44 @@ state, interactions change it through laws, and systems nest and compose. Learn 
 
 <table>
   <tr>
-    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/physics.png" alt="Decaying 2D turbulence" width="100%"><br><b>Physics</b><br><sub>Decaying 2D turbulence</sub></td>
-    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/chemistry.png" alt="Gray-Scott patterns" width="100%"><br><b>Chemistry</b><br><sub>Gray-Scott patterns</sub></td>
-    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/biology.png" alt="Boids flocking" width="100%"><br><b>Biology</b><br><sub>Boids flocking</sub></td>
-    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/economics.png" alt="Sugarscape" width="100%"><br><b>Economics</b><br><sub>Sugarscape</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/cooling_coffee.png" alt="Cooling coffee" width="100%"><br><b>Physics</b><br><sub>Cooling coffee</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/duffing.png" alt="Duffing" width="100%"><br><b>Physics</b><br><sub>Duffing</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/mirollo_strogatz.png" alt="Mirollo-Strogatz" width="100%"><br><b>Physics</b><br><sub>Mirollo-Strogatz</sub></td>
   </tr>
   <tr>
-    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/engineering.png" alt="Nagel-Schreckenberg traffic" width="100%"><br><b>Engineering</b><br><sub>Nagel-Schreckenberg traffic</sub></td>
-    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/mathematics.png" alt="Julia sets" width="100%"><br><b>Mathematics</b><br><sub>Julia sets</sub></td>
-    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/computer_science.png" alt="Game of Life" width="100%"><br><b>Computer science</b><br><sub>Game of Life</sub></td>
-    <td align="center" valign="top" width="25%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/social.png" alt="Schelling segregation" width="100%"><br><b>Social science</b><br><sub>Schelling segregation</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/brusselator_ode.png" alt="Brusselator" width="100%"><br><b>Chemistry</b><br><sub>Brusselator</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/cubic_autocatalysis.png" alt="Cubic autocatalysis" width="100%"><br><b>Chemistry</b><br><sub>Cubic autocatalysis</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/cyclic_cellular_automaton.png" alt="Cyclic cellular automaton" width="100%"><br><b>Chemistry</b><br><sub>Cyclic cellular automaton</sub></td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/agent_based_sir.png" alt="Agent-based SIR" width="100%"><br><b>Biology</b><br><sub>Agent-based SIR</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/boolean_repressilator.png" alt="Boolean repressilator" width="100%"><br><b>Biology</b><br><sub>Boolean repressilator</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/replicator_dynamics.png" alt="Replicator dynamics" width="100%"><br><b>Biology</b><br><sub>Replicator dynamics</sub></td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/correlated_geometric_brownian_motion.png" alt="Correlated geometric Brownian motions" width="100%"><br><b>Economics</b><br><sub>Correlated geometric Brownian motions</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/fishery_capital.png" alt="Fishery capital" width="100%"><br><b>Economics</b><br><sub>Fishery capital</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/geometric_brownian_motion.png" alt="Geometric Brownian motion" width="100%"><br><b>Economics</b><br><sub>Geometric Brownian motion</sub></td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/chua.png" alt="Chua's circuit" width="100%"><br><b>Engineering</b><br><sub>Chua's circuit</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/memristor_oscillator.png" alt="Memristor oscillator" width="100%"><br><b>Engineering</b><br><sub>Memristor oscillator</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/tunnel_diode_oscillator.png" alt="Tunnel-diode oscillator" width="100%"><br><b>Engineering</b><br><sub>Tunnel-diode oscillator</sub></td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/finite_time_blow_up.png" alt="Finite-time blow-up" width="100%"><br><b>Mathematics</b><br><sub>Finite-time blow-up</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/hypergraph_random_walk.png" alt="Random walk on a hypergraph" width="100%"><br><b>Mathematics</b><br><sub>Random walk on a hypergraph</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/julia.png" alt="Julia set" width="100%"><br><b>Mathematics</b><br><sub>Julia set</sub></td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/baumslag_solitar_automaton.png" alt="Majority automaton on the Baumslag-Solitar group" width="100%"><br><b>Computer science</b><br><sub>Majority automaton on the Baumslag-Solitar group</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/free_group_automaton.png" alt="Majority automaton on the free group" width="100%"><br><b>Computer science</b><br><sub>Majority automaton on the free group</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/game_of_life.png" alt="Game of Life" width="100%"><br><b>Computer science</b><br><sub>Game of Life</sub></td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/hegselmann_krause.png" alt="Hegselmann-Krause" width="100%"><br><b>Social science</b><br><sub>Hegselmann-Krause</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/hypergraph_public_goods.png" alt="Public goods game on a hypergraph" width="100%"><br><b>Social science</b><br><sub>Public goods game on a hypergraph</sub></td>
+    <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/prisoners_dilemma_tournament.png" alt="Prisoner's dilemma tournament" width="100%"><br><b>Social science</b><br><sub>Prisoner's dilemma tournament</sub></td>
   </tr>
 </table>
 
@@ -178,7 +206,7 @@ Each run can stream to the Rerun viewer:
   </tr>
 </table>
 
-The [catalog](https://georgedouzas.github.io/scikit-complexity/models/catalog/) lists every system by field and tag, and the page of each system shows the classes
+The [catalog](https://georgedouzas.github.io/scikit-complexity/systems/catalog/) lists every system by field and tag, and the page of each system shows the classes
 it is built from.
 
 ### Build a custom system
