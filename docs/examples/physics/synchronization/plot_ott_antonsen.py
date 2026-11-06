@@ -12,15 +12,15 @@ The order parameter of infinitely many Kuramoto oscillators obeys one exact equa
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'ott_antonsen'
+SYSTEM = 'ott_antonsen'
 
-system = create(MODEL, r=0.1, K=2.0, Delta=0.5)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=20)
+system = create_system(SYSTEM, r=0.1, K=2.0, Delta=0.5)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=20)
 
 # %%
 # Exact growth and the bifurcation diagram
@@ -36,7 +36,7 @@ exact = np.sqrt(final / (1 + (final / 0.1**2 - 1) * np.exp(-(2.0 - 1.0) * times)
 couplings = np.linspace(0.2, 5.0, 25)
 settled = []
 for coupling in couplings:
-    run = Simulation(create(MODEL, r=0.1, K=coupling, Delta=0.5), dt=0.5).check().prepare().run(until=200)
+    run = Simulation(create_system(SYSTEM, r=0.1, K=coupling, Delta=0.5), dt=0.5).prepare().run(until=200)
     settled.append(
         np.hypot(np.ravel(run.trajectory_.values('field.x'))[-1], np.ravel(run.trajectory_.values('field.y'))[-1]),
     )

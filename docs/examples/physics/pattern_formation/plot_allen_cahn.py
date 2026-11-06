@@ -8,25 +8,24 @@ run: large yellow and purple domains with smooth, gently curved walls.
 """
 
 # %%
-# The model is created by name from the catalog on a periodic square of 128 sites with unit spacing, from noise of
+# The system is created by name from the catalog on a periodic square of 128 sites with unit spacing, from noise of
 # amplitude 0.05 around 0. The catalog defaults integrate it with exponential time differencing, and the default
 # blueprint shows the order parameter as an image, one frame per time unit.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ETDRK4Solver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ETDRK4Solver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'allen_cahn'
+SYSTEM = 'allen_cahn'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(system, dt=1.0, solver=ETDRK4Solver(dt=0.5), observers=[observer], random_state=0)
-    .check()
     .prepare()
     .run(
         until=100,

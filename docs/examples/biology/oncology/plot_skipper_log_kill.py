@@ -6,22 +6,22 @@ falls in a sawtooth.
 """
 
 # %%
-# The model is created by name from the catalog: a tumour of a million cells grows at the breast cancer rate of 0.223
+# The system is created by name from the catalog: a tumour of a million cells grows at the breast cancer rate of 0.223
 # a day, and a one-day dose every week kills at the rate 2. The observer saves every second frame with the default
 # blueprint, whose primary view is the time series of the number of cells.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'skipper_log_kill'
+SYSTEM = 'skipper_log_kill'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=42)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=42)
 
 # %%
 # Logarithmic steps

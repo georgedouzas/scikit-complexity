@@ -6,21 +6,21 @@ and a constant drug infusion ends the bursts by clearing the tumour in one of it
 """
 
 # %%
-# The model is created by name from the catalog with a constant infusion of 0.03, the top of the book's range, and the
+# The system is created by name from the catalog with a constant infusion of 0.03, the top of the book's range, and the
 # conversion delay of 45.6. The observer saves every frame with the default blueprint, whose primary view is the time
 # series of the cells and the drug.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'delayed_resting_hunting_chemotherapy'
+SYSTEM = 'delayed_resting_hunting_chemotherapy'
 
-system = create(MODEL, u=0.03)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=5.0, observers=[observer]).check().prepare().run(until=1000)
+system = create_system(SYSTEM, u=0.03)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=5.0, observers=[observer]).prepare().run(until=1000)
 
 # %%
 # Oscillations and clearance
@@ -28,7 +28,7 @@ simulation = Simulation(system, dt=5.0, observers=[observer]).check().prepare().
 # Untreated, the tumour and the hunting cells should keep oscillating out of phase, with the tumour repeatedly nearly
 # cleared and regrowing. With the infusion, the drug should finish the tumour off in its first deep trough.
 
-untreated = Simulation(create(MODEL), dt=5.0).check().prepare().run(until=1000).trajectory_
+untreated = Simulation(create_system(SYSTEM), dt=5.0).prepare().run(until=1000).trajectory_
 treated = simulation.trajectory_
 fig, (tumour, phase) = plt.subplots(1, 2, figsize=(10, 4))
 tumour.plot(untreated.times, untreated.values('patient.A'), label='untreated')

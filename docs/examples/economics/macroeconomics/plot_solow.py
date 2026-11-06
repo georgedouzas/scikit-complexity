@@ -14,15 +14,15 @@ every economy with the same saving rate converges to the same steady state.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'solow'
+SYSTEM = 'solow'
 ALPHA, DELTA, UNTIL = 0.3, 0.05, 150
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(create(MODEL, k=1.0, s=0.2), dt=1.0, observers=[observer]).check().prepare().run(until=UNTIL)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(create_system(SYSTEM, k=1.0, s=0.2), dt=1.0, observers=[observer]).prepare().run(until=UNTIL)
 
 # %%
 # Exact convergence and the golden rule
@@ -34,14 +34,14 @@ simulation = Simulation(create(MODEL, k=1.0, s=0.2), dt=1.0, observers=[observer
 
 
 def exact(k0, s, times):
-    """Return the closed-form capital per worker of the Solow model."""
+    """Return the closed-form capital per worker of the Solow system."""
     z = s / DELTA + (k0 ** (1 - ALPHA) - s / DELTA) * np.exp(-(1 - ALPHA) * DELTA * times)
     return z ** (1 / (1 - ALPHA))
 
 
 fig, (paths, golden) = plt.subplots(1, 2, figsize=(10, 4))
 for index, k0 in enumerate((1.0, 4.0, 12.0)):
-    trajectory = Simulation(create(MODEL, k=k0, s=0.2), dt=1.0).check().prepare().run(until=UNTIL).trajectory_
+    trajectory = Simulation(create_system(SYSTEM, k=k0, s=0.2), dt=1.0).prepare().run(until=UNTIL).trajectory_
     paths.plot(
         trajectory.times[::5],
         trajectory.values('economy.k')[::5],
@@ -58,7 +58,7 @@ paths.set_title('Simulated (dots) and exact (lines) paths')
 paths.legend()
 savings = np.linspace(0.05, 0.9, 18)
 final = [
-    (Simulation(create(MODEL, k=1.0, s=s), dt=1.0).check().prepare().run(until=400).trajectory_.values('economy.k')[-1])
+    (Simulation(create_system(SYSTEM, k=1.0, s=s), dt=1.0).prepare().run(until=400).trajectory_.values('economy.k')[-1])
     for s in savings
 ]
 grid = np.linspace(0.02, 0.95, 200)

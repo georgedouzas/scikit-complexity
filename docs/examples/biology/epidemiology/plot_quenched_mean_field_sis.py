@@ -7,7 +7,7 @@ almost surely infected and the poorly connected nodes rarely are.
 """
 
 # %%
-# The model is created by name from the catalog on its default Barabási-Albert network of 300 nodes, with a spreading
+# The system is created by name from the catalog on its default Barabási-Albert network of 300 nodes, with a spreading
 # rate twice the threshold. The observer saves every frame with the default blueprint, whose primary view is the
 # network colored by the infection probability of every node.
 
@@ -15,17 +15,17 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'quenched_mean_field_sis'
+SYSTEM = 'quenched_mean_field_sis'
 
-graph = create(MODEL).elements[0].space.graph
+graph = create_system(SYSTEM).elements[0].space.graph
 threshold = 1 / max(np.linalg.eigvalsh(nx.to_numpy_array(graph)))
-system = create(MODEL, lam=2 * threshold)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=40)
+system = create_system(SYSTEM, lam=2 * threshold)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=40)
 
 # %%
 # Infection probability by degree
@@ -37,8 +37,7 @@ final = simulation.trajectory_.values('nodes.p')[-1]
 adjacency = nx.to_numpy_array(graph)
 pressure = 2 * threshold * adjacency @ final
 below = (
-    Simulation(create(MODEL, lam=0.5 * threshold), dt=0.5)
-    .check()
+    Simulation(create_system(SYSTEM, lam=0.5 * threshold), dt=0.5)
     .prepare()
     .run(until=40)
     .trajectory_.values('nodes.p')[-1]

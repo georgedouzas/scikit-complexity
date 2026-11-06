@@ -7,7 +7,7 @@ comes to rest in a few seconds.
 """
 
 # %%
-# The model is created by name from the catalog with the natural frequency 1, the weight 1 of the displacement and the
+# The system is created by name from the catalog with the natural frequency 1, the weight 1 of the displacement and the
 # velocity, and the weight 0.1 of the force, so the gain is `K = (2.32, 3.82)`. RK4 integrates it with steps of 1 ms,
 # and the regulator sets the force after every step. The default blueprint shows the displacement and the force in one
 # time series view.
@@ -15,17 +15,17 @@ comes to rest in a few seconds.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import LinearizationAnalysis
-from skcomplex.core.system import System
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.analysis import LinearizationAnalysis
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'lqr_oscillator'
+SYSTEM = 'lqr_oscillator'
 
-system = create(MODEL)
-entry = describe(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM)
+entry = describe(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = (
     Simulation(
         system,
@@ -34,7 +34,6 @@ simulation = (
         observers=[observer],
         observables=entry.observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=10)
 )
@@ -45,9 +44,9 @@ simulation = (
 # The closed loop `x' = (A - B K) x` decays at the rate of its slowest eigenvalue, so the energy, a quadratic form of
 # the state, should fall as `exp(2 Re(lambda) t)` once the faster mode has died out.
 
-model = LinearizationAnalysis().check().prepare(System(elements=list(system.elements))).run()
+linearization = LinearizationAnalysis().prepare(System(elements=list(system.elements))).run()
 gain = np.array([system.interactions[0].gain])
-slowest = max(np.linalg.eigvals(model.A_ - model.B_ @ gain).real)
+slowest = max(np.linalg.eigvals(linearization.A_ - linearization.B_ @ gain).real)
 trajectory = simulation.trajectory_
 times, energy = trajectory.times, trajectory.values('energy')
 decay = energy[40] * np.exp(2 * slowest * (times - times[40]))

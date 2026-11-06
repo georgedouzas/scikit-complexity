@@ -7,22 +7,22 @@ the number of distinct words grows in proportion to the length of the text.
 """
 
 # %%
-# The model is created by name from the catalog with the innovation probability 0.1 and 100 words written per step, and
+# The system is created by name from the catalog with the innovation probability 0.1 and 100 words written per step, and
 # runs for 100 steps, a text of 10,000 words. The default blueprint shows the number of distinct words, which grows
 # linearly.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'simon_yule'
+SYSTEM = 'simon_yule'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=100)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=100)
 
 # %%
 # Zipf's law and vocabulary growth

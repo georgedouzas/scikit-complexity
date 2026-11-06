@@ -7,7 +7,7 @@ once the target energy is reached.
 """
 
 # %%
-# The model is created by name from the catalog at the periapsis of the orbit with energy -0.7 and angular momentum
+# The system is created by name from the catalog at the periapsis of the orbit with energy -0.7 and angular momentum
 # 0.7, with the thrust 0.1 and the target energy -0.2, and is integrated with RK4 for 20 time units. The blueprint shows
 # the distance from the planet and the effective energy in one time series view.
 
@@ -15,12 +15,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4Solver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'satellite_transfer'
+SYSTEM = 'satellite_transfer'
 
 transfer = rrb.TimeSeriesView(
     origin='/',
@@ -36,17 +36,16 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
 simulation = (
     Simulation(
         system,
         dt=0.05,
         solver=RK4Solver(dt=0.005),
         observers=[observer],
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=20)
 )

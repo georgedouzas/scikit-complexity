@@ -9,7 +9,7 @@ as a sound wave.
 """
 
 # %%
-# The model is created by name from the catalog with disks of diameter 0.8 at the Knudsen number 0.2 of the dilute gas,
+# The system is created by name from the catalog with disks of diameter 0.8 at the Knudsen number 0.2 of the dilute gas,
 # 16 positions, and 16 points on each velocity axis. The stepper is the registered Strang splitting of semi-Lagrangian
 # streaming and of collisions advanced by RK4. The observable `density_wave` is the component of wave number 1 of the
 # density over position, computed at every frame of 0.1 up to `t = 5.5`, and the default blueprint shows the observables
@@ -18,13 +18,13 @@ as a sound wave.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
-from skcomplex.specs import ObservableSpec
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.specs import ObservableSpec
+from skcomplex.systems import create_system
 
-MODEL = 'enskog'
+SYSTEM = 'enskog'
 POSITIONS, VELOCITIES = 16, 16
 SPACING = 12.0 / VELOCITIES
 KNUDSEN = 0.2
@@ -37,14 +37,11 @@ def density_wave(_, values):
 
 
 observables = [ObservableSpec('density_wave', function=density_wave)]
-system = create(MODEL, positions=POSITIONS, velocities=VELOCITIES, knudsen=KNUDSEN, diameter=0.8)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='observables', interval=1)
+system = create_system(SYSTEM, positions=POSITIONS, velocities=VELOCITIES, knudsen=KNUDSEN, diameter=0.8)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
 solver = StrangSplittingSolver(SemiLagrangianSolver(0.1), RK4Solver(0.05), 0.1)
 simulation = (
-    Simulation(system, solver=solver, dt=0.1, observers=[observer], observables=observables)
-    .check()
-    .prepare()
-    .run(until=5.5)
+    Simulation(system, solver=solver, dt=0.1, observers=[observer], observables=observables).prepare().run(until=5.5)
 )
 
 # %%
@@ -58,7 +55,7 @@ simulation = (
 
 def relative_wave(gas):
     """Return the times and the density wave of a gas, relative to its start."""
-    run = Simulation(gas, solver=solver, dt=0.1, observables=observables).check().prepare().run(until=5.5)
+    run = Simulation(gas, solver=solver, dt=0.1, observables=observables).prepare().run(until=5.5)
     wave = run.trajectory_.values('density_wave')
     return run.trajectory_.times, wave / wave[0]
 
@@ -67,10 +64,10 @@ fig, axis = plt.subplots(figsize=(7, 4))
 for diameter in (0.01, 0.5, 0.8):
     fraction = np.pi * diameter**2 / 4
     contact = (1 - 7 * fraction / 16) / (1 - fraction) ** 2
-    dense = create(MODEL, positions=POSITIONS, velocities=VELOCITIES, knudsen=KNUDSEN, diameter=diameter)
+    dense = create_system(SYSTEM, positions=POSITIONS, velocities=VELOCITIES, knudsen=KNUDSEN, diameter=diameter)
     times, wave = relative_wave(dense)
     line = axis.plot(times, wave, label=f'Enskog, diameter {diameter:g}, contact value {contact:.2f}')[0]
-    dilute = create('boltzmann_equation', positions=POSITIONS, velocities=VELOCITIES, knudsen=KNUDSEN / contact)
+    dilute = create_system('boltzmann_equation', positions=POSITIONS, velocities=VELOCITIES, knudsen=KNUDSEN / contact)
     times, wave = relative_wave(dilute)
     axis.plot(times[::4], wave[::4], 'o', markersize=4, color=line.get_color())
 axis.plot([], [], 'o', markersize=4, color='gray', label='Boltzmann, Knudsen number over the contact value')

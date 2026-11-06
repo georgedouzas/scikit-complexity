@@ -6,22 +6,22 @@ settles on sustained oscillations around it, because the delay `tau` times the g
 """
 
 # %%
-# The model is created by name from the catalog with `r tau = 2`, above the threshold of π/2. The observer saves
+# The system is created by name from the catalog with `r tau = 2`, above the threshold of π/2. The observer saves
 # every fourth frame with the default blueprint, whose primary view is the time series of the population.
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import find_peaks
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'hutchinson'
+SYSTEM = 'hutchinson'
 
-system = create(MODEL, n=50.0, r=1.0, K=100.0, tau=2.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=100)
+system = create_system(SYSTEM, n=50.0, r=1.0, K=100.0, tau=2.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=100)
 
 # %%
 # Period of the oscillation

@@ -7,22 +7,22 @@ apart.
 """
 
 # %%
-# The model is created by name from the catalog with Elowitz and Leibler's rates and started with only the first
+# The system is created by name from the catalog with Elowitz and Leibler's rates and started with only the first
 # protein. The observer saves every third frame with the default blueprint, whose primary view is the time series of
 # the mRNA and protein counts.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'repressilator'
+SYSTEM = 'repressilator'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=3)
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=300)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
+simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=300)
 
 # %%
 # Deterministic and noisy oscillations
@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().
 # process of single molecules should still oscillate, with irregular amplitudes and periods.
 
 deterministic = simulation.trajectory_
-noisy = Simulation(create(MODEL, stochastic=True), dt=0.5, random_state=0).check().prepare().run(until=300).trajectory_
+noisy = Simulation(create_system(SYSTEM, stochastic=True), dt=0.5, random_state=0).prepare().run(until=300).trajectory_
 fig, axes = plt.subplots(2, 1, figsize=(9, 6), sharex=True)
 for ax, trajectory, title in zip(axes, [deterministic, noisy], ['Differential equations', 'Jump process'], strict=True):
     for gene in range(3):

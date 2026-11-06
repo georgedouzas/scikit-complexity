@@ -7,7 +7,7 @@ the mean size stays constant.
 """
 
 # %%
-# The model runs one population of ten founders with mean offspring `m = 1` for 40 generations and logs its size.
+# The system runs one population of ten founders with mean offspring `m = 1` for 40 generations and logs its size.
 # Seven more independent populations are run alike, and the sizes of all eight are logged as time series after the run,
 # and the blueprint puts them first, as the primary view.
 
@@ -16,11 +16,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'galton_watson'
+SYSTEM = 'galton_watson'
 
 
 def sizes(trajectory):
@@ -35,15 +35,14 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = (
-    Simulation(create(MODEL, n_individuals=10), dt=1, observers=[observer], random_state=0)
-    .check()
+    Simulation(create_system(SYSTEM, n_individuals=10), dt=1, observers=[observer], random_state=0)
     .prepare()
     .run(until=40)
 )
 runs = [simulation.trajectory_] + [
-    Simulation(create(MODEL, n_individuals=10), dt=1, random_state=seed).check().prepare().run(until=40).trajectory_
+    Simulation(create_system(SYSTEM, n_individuals=10), dt=1, random_state=seed).prepare().run(until=40).trajectory_
     for seed in range(1, 8)
 ]
 for index, run in enumerate(runs):
@@ -67,8 +66,7 @@ extinct = [
     np.mean(
         [
             len(
-                Simulation(create(MODEL, n_individuals=1, m=m), dt=1, random_state=seed)
-                .check()
+                Simulation(create_system(SYSTEM, n_individuals=1, m=m), dt=1, random_state=seed)
                 .prepare()
                 .run(until=12)
                 .trajectory_.agents('population', 12)

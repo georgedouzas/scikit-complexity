@@ -17,11 +17,11 @@ import numpy as np
 import rerun.blueprint as rrb
 from scipy import stats
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'kinetic_wealth_exchange'
+SYSTEM = 'kinetic_wealth_exchange'
 STEPS = 150
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
@@ -31,16 +31,15 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-model_system = create(MODEL, n_agents=500)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+system_system = create_system(SYSTEM, n_agents=500)
 simulation = (
     Simulation(
-        model_system,
+        system_system,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(model_system),
+        observables=describe(SYSTEM).observables_of(system_system),
     )
-    .check()
     .prepare()
     .run(until=STEPS)
 )
@@ -56,10 +55,9 @@ simulation = (
 
 def final_wealth(**options):
     """Return the final wealth of every agent of a run."""
-    model_system = create(MODEL, n_agents=500, **options)
+    system_system = create_system(SYSTEM, n_agents=500, **options)
     trajectory = (
-        Simulation(model_system, random_state=0, observables=describe(MODEL).observables_of(model_system))
-        .check()
+        Simulation(system_system, random_state=0, observables=describe(SYSTEM).observables_of(system_system))
         .prepare()
         .run(until=STEPS)
         .trajectory_

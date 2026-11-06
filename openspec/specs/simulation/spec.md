@@ -21,12 +21,12 @@ SHALL choose a method whose storage fits the size of the state.
 - **WHEN** a user gives a jump process solver to a simulation of an ODE system
 - **THEN** running it raises a named error that names the form and the solver
 
-#### Scenario: Stiff model built directly
+#### Scenario: Stiff system built directly
 - **WHEN** `Simulation(create('nanoparticle_corona')).run(until=10800)` runs with the solver left to its default
 - **THEN** it finishes within 5 seconds, and its final state matches the run of its registered solver within a
   relative tolerance of 1e-4
 
-#### Scenario: Non-stiff model keeps its accuracy
+#### Scenario: Non-stiff system keeps its accuracy
 - **WHEN** a harmonic oscillator runs until 10 with the default solver
 - **THEN** its final state matches the analytic solution within a relative tolerance of 1e-5
 
@@ -162,7 +162,7 @@ Runge-Kutta stepper for ODE systems and a velocity Verlet stepper for systems of
 - **THEN** its energy stays within 1e-3 relative error of the initial energy
 
 #### Scenario: Velocity Verlet needs position and velocity pairs
-- **WHEN** a population model is given to `VelocityVerlet`
+- **WHEN** a population system is given to `VelocityVerlet`
 - **THEN** a named solver error names the states that are not positions or velocities
 
 #### Scenario: Same stochastic results as before
@@ -230,14 +230,14 @@ change.
 
 ### Requirement: Simulations take observables
 A simulation SHALL take the observables to record as an argument. A catalog entry SHALL declare the standard observables
-of its model, which `create` and `run` pass to the simulation. Trajectories SHALL record observables as before.
+of its system, which `create_simulation` passes to the simulation. Trajectories SHALL record observables as before.
 
 #### Scenario: Observables given to a simulation
 - **WHEN** a user simulates a system with `Simulation(system, observables=[total_population])`
 - **THEN** the trajectory records `total_population` at every frame
 
 #### Scenario: Catalog observables
-- **WHEN** a user runs a catalog model with `run`
+- **WHEN** a user runs a catalog system with `create_simulation(name).prepare().run()`
 - **THEN** the trajectory records the observables declared by its catalog entry
 
 ### Requirement: Simulations take initial states
@@ -288,15 +288,15 @@ SHALL not declare support for it, so validation rejects the combination before c
 - **WHEN** a system with a shared process is validated with the LAMMPS backend
 - **THEN** the report holds an error that names the process's first law and lists the backends that support shared noise
 
-### Requirement: A model package plugs in its own compiler
-A compiler defined outside the engine, on `BaseCompiler`, SHALL compile a system passed to `Simulation` or
-`compile_system` with `compiler=`, and the simulation SHALL run the solver that compiler names, without the engine
+### Requirement: A system package plugs in its own compiler
+A compiler defined outside the engine, on `BaseCompiler`, SHALL compile a system passed to `Simulation` with
+`compiler=`, and the simulation SHALL run the solver that compiler names, without the engine
 importing the package.
 
-#### Scenario: Rewriting from the models library
-- **WHEN** `Simulation(create('koch_curve'), compiler=RewritingCompiler())` runs, with `RewritingCompiler` imported
-  from `skcomplex.engine.compile`
-- **THEN** the run rewrites the word once per frame, and `skcomplex.engine` imports nothing from `skcomplex.models`
+#### Scenario: Rewriting from the systems library
+- **WHEN** `Simulation(create_system('koch_curve'), compiler=RewritingCompiler())` runs, with `RewritingCompiler` imported
+  from `skcomplex.core.engine.compile`
+- **THEN** the run rewrites the word once per frame, and `skcomplex.core.engine` imports nothing from `skcomplex.systems`
 
 #### Scenario: Quantum system without its compiler
 - **WHEN** a quantum system runs with the default compiler
@@ -316,3 +316,19 @@ SHALL raise `SolverError` naming the state that prevents it and a solver that ne
 - **WHEN** the restricted three-body problem, whose Hamiltonian couples coordinates and momenta in one term, is prepared
   with `Yoshida4Solver`
 - **THEN** `SolverError` is raised that names a momentum whose rate reads a momentum and suggests `RK4Solver`
+
+### Requirement: A simulation holds a default end time
+A simulation SHALL take an optional end time `until` as an argument. `run()` without an end time SHALL run to it, an
+end time passed to `run` SHALL take precedence, and a run with neither SHALL raise a validation error that asks for one.
+
+#### Scenario: Stored end time
+- **WHEN** a user calls `Simulation(system, until=20).prepare().run()`
+- **THEN** the run ends at time 20
+
+#### Scenario: Passed end time wins
+- **WHEN** a user calls `Simulation(system, until=20).prepare().run(until=5)`
+- **THEN** the run ends at time 5
+
+#### Scenario: No end time
+- **WHEN** a user calls `Simulation(system).prepare().run()`
+- **THEN** it raises a validation error that shows how to pass an end time

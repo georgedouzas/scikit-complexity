@@ -6,26 +6,23 @@ tissue and the serum rises with them.
 """
 
 # %%
-# The model is created by name from the catalog: a 60 year old man with 1.5 billion normal epithelial cells and one
+# The system is created by name from the catalog: a 60 year old man with 1.5 billion normal epithelial cells and one
 # billion cancer cells, at receptor activations of 40 nM, simulated for three years in hours. The observer saves every
 # frame with the default blueprint, whose primary view is the time series of the cells and the PSA.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODESolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'prostate_androgen_receptor'
+SYSTEM = 'prostate_androgen_receptor'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(system, dt=168.0, solver=ScipyODESolver(method='LSODA'), observers=[observer])
-    .check()
-    .prepare()
-    .run(until=26280)
+    Simulation(system, dt=168.0, solver=ScipyODESolver(method='LSODA'), observers=[observer]).prepare().run(until=26280)
 )
 
 # %%
@@ -36,8 +33,7 @@ simulation = (
 
 trajectory = simulation.trajectory_
 ablated = (
-    Simulation(create(MODEL, UT=5.0, UD=5.0), dt=168.0, solver=ScipyODESolver(method='LSODA'))
-    .check()
+    Simulation(create_system(SYSTEM, UT=5.0, UD=5.0), dt=168.0, solver=ScipyODESolver(method='LSODA'))
     .prepare()
     .run(until=26280)
 )

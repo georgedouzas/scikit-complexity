@@ -13,10 +13,10 @@ secondary structures, and it is the limited conformational space of the early st
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
-from skcomplex.models.biology.systems_biology import (
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
+from skcomplex.systems.biology.systems_biology import (
     AMINO_ACIDS,
     EllipsePath,
     read_cell_probabilities,
@@ -24,11 +24,11 @@ from skcomplex.models.biology.systems_biology import (
     read_structure,
 )
 
-MODEL = 'early_stage_folding_intermediate'
+SYSTEM = 'early_stage_folding_intermediate'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-trajectory = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=299).trajectory_
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+trajectory = Simulation(system, observers=[observer], random_state=0).prepare().run(until=299).trajectory_
 
 # %%
 # Projection and sampled cells
@@ -39,7 +39,7 @@ trajectory = Simulation(system, observers=[observer], random_state=0).check().pr
 
 structure = read_structure('5PTI')
 names, native = read_native_pairs(structure)
-path = EllipsePath().check().prepare()
+path = EllipsePath().prepare()
 projected = path.run(native).angles_
 curve = path.read_points(np.linspace(0, 2 * np.pi, 400))
 probabilities = read_cell_probabilities()

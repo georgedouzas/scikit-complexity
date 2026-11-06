@@ -7,7 +7,7 @@ square: a mixing map that keeps area.
 """
 
 # %%
-# The model runs from one point for 200 steps and logs its coordinates as time series. A grid of 1600 starting points
+# The system runs from one point for 200 steps and logs its coordinates as time series. A grid of 1600 starting points
 # in the square `[0.4, 0.6]²`, iterated for 3 steps, is logged once as points coloured by their starting `x`, and the
 # blueprint puts this picture of the mixing first, as the primary view.
 
@@ -16,12 +16,12 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import LyapunovAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import LyapunovAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'cat_map'
+SYSTEM = 'cat_map'
 STEPS = 3
 
 # Every view shows the whole run, not the default window that follows the latest frame.
@@ -42,11 +42,11 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer]).check().prepare().run(until=200)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer]).prepare().run(until=200)
 grid = np.linspace(0.4, 0.6, 40)
 starts = np.array([(x, y) for x in grid for y in grid])
-runs = [Simulation(create(MODEL, x=x, y=y), dt=1).check().prepare().run(until=6).trajectory_ for x, y in starts]
+runs = [Simulation(create_system(SYSTEM, x=x, y=y), dt=1).prepare().run(until=6).trajectory_ for x, y in starts]
 x = np.array([run.values('map.x') for run in runs])
 y = np.array([run.values('map.y') for run in runs])
 colors = plt.get_cmap('plasma')((starts[:, 0] - 0.4) / 0.2)[:, :3]
@@ -64,7 +64,7 @@ observer.recording_.flush()
 # `± 2 ln φ ≈ ± 0.962` and the square should be stretched about 2.6 times per step. Once the stripes are thinner than
 # a cell, the share of the 100 cells of a 10 by 10 grid that the points occupy should approach 1.
 
-exponents = LyapunovAnalysis(until=2000).check().prepare(simulation.system).run().exponents_
+exponents = LyapunovAnalysis(until=2000).prepare(simulation.system).run().exponents_
 cells = [len(set(zip((10 * x[:, step]).astype(int), (10 * y[:, step]).astype(int), strict=True))) for step in range(7)]
 fig, (snapshots, occupied) = plt.subplots(1, 2, figsize=(10, 4.5))
 for step in (0, 1, STEPS):

@@ -14,16 +14,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import iv
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'lattice_gauge_fields'
+SYSTEM = 'lattice_gauge_fields'
 
-system = create(MODEL, size=16)
-observables = describe(MODEL).observables_of(system)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=10)
-simulation = Simulation(system, dt=1, observers=[observer], observables=observables, random_state=0).check().prepare()
+system = create_system(SYSTEM, size=16)
+observables = describe(SYSTEM).observables_of(system)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
+simulation = Simulation(system, dt=1, observers=[observer], observables=observables, random_state=0).prepare()
 series = simulation.run(until=400).trajectory_.values('mean_plaquette')
 
 # %%

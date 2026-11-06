@@ -7,22 +7,22 @@ and threshold settle.
 """
 
 # %%
-# The model is created by name from the catalog with the target mean rate `mu = 0.2`. The observer saves every second
+# The system is created by name from the catalog with the target mean rate `mu = 0.2`. The observer saves every second
 # step with the default blueprint, whose primary view is the time series of the potential, the gain, and the
 # threshold.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'polyhomeostatic_neuron'
+SYSTEM = 'polyhomeostatic_neuron'
 
-system = create(MODEL, mu=0.2)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1.0, observers=[observer]).check().prepare().run(until=400)
+system = create_system(SYSTEM, mu=0.2)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=400)
 
 # %%
 # The firing rate approaches its target

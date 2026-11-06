@@ -6,7 +6,7 @@ coefficients for long, so the dark slow walkers stay near the origin while the b
 """
 
 # %%
-# The model is created by name from the catalog with 500 walkers in the plane, whose diffusion coefficients `D` have
+# The system is created by name from the catalog with 500 walkers in the plane, whose diffusion coefficients `D` have
 # the density `D^(-1/2) / 2` on `(0, 1)` and last for exponential times of mean `1 / D`, and simulated to time 500.
 # Noise laws move the walkers, and the solver stops every walker at its own changes of coefficient. The observer saves
 # every frame with the default blueprint, whose primary view shows the walkers colored by their coefficients.
@@ -14,19 +14,17 @@ coefficients for long, so the dark slow walkers stay near the origin while the b
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'annealed_transient_time_motion'
+SYSTEM = 'annealed_transient_time_motion'
 
-system = create(MODEL, n_walkers=500, sigma=0.5, gamma=1.0, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, n_walkers=500, sigma=0.5, gamma=1.0, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.5)
-simulation = (
-    Simulation(system, solver=solver, dt=2.5, observers=[observer], random_state=0).check().prepare().run(until=500)
-)
+simulation = Simulation(system, solver=solver, dt=2.5, observers=[observer], random_state=0).prepare().run(until=500)
 
 # %%
 # Subdiffusion from heterogeneous diffusion

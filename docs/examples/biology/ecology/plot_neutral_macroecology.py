@@ -7,22 +7,22 @@ as in the abundances of tropical trees.
 """
 
 # %%
-# The model is created by name from the catalog with a hundred species of ten individuals each. The observer saves
+# The system is created by name from the catalog with a hundred species of ten individuals each. The observer saves
 # every frame with the default blueprint, whose primary view is the time series of the abundances.
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import nbinom
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'neutral_macroecology'
+SYSTEM = 'neutral_macroecology'
 
-system = create(MODEL, species=100, n=10.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer], random_state=0).check().prepare().run(until=100)
+system = create_system(SYSTEM, species=100, n=10.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=1.0, observers=[observer], random_state=0).prepare().run(until=100)
 
 # %%
 # The negative binomial law

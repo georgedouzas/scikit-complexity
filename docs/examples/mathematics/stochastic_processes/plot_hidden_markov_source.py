@@ -13,11 +13,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'hidden_markov_source'
+SYSTEM = 'hidden_markov_source'
 TRANSITION = np.array([[0.9, 0.1], [0.4, 0.6]])
 EMISSION = np.array([[0.7, 0.3], [0.2, 0.8]])
 
@@ -31,9 +31,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-system = create(MODEL, transition=TRANSITION, emission=EMISSION)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(299)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM, transition=TRANSITION, emission=EMISSION)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(299)
 
 # %%
 # Emission frequencies
@@ -43,8 +43,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).chec
 # stationary distribution `(0.8, 0.2)` of the hidden chain.
 
 long = (
-    Simulation(create(MODEL, transition=TRANSITION, emission=EMISSION), dt=1, random_state=1)
-    .check()
+    Simulation(create_system(SYSTEM, transition=TRANSITION, emission=EMISSION), dt=1, random_state=1)
     .prepare()
     .run(100000)
 )

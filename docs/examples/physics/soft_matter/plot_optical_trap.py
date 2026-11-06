@@ -8,27 +8,25 @@ thermal cloud of the trap.
 """
 
 # %%
-# The model is created by name from the catalog with stiffnesses `k = (1, 0.25)`, friction `gamma = 1`, and thermal
+# The system is created by name from the catalog with stiffnesses `k = (1, 0.25)`, friction `gamma = 1`, and thermal
 # energy `kT = 1`. The Euler-Maruyama stepper takes steps of 0.01 and the observer saves every frame of 0.1 with the
 # default blueprint, whose primary view shows the beads.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import DistributionAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'optical_trap'
+SYSTEM = 'optical_trap'
 
-system = create(MODEL, n_particles=500, k=(1.0, 0.25))
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, n_particles=500, k=(1.0, 0.25))
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-simulation = (
-    Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).check().prepare().run(until=25)
-)
+simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).prepare().run(until=25)
 
 # %%
 # Equipartition calibrates the trap
@@ -42,7 +40,7 @@ positions = simulation.trajectory_.values('beads.x')[150:]
 fig, ax = plt.subplots(figsize=(7, 4))
 for axis, (stiffness, color) in enumerate(((1.0, 'tab:blue'), (0.25, 'tab:orange'))):
     values = positions[..., axis].ravel()
-    histogram = DistributionAnalysis('histogram', bins=40).check().prepare(values).run()
+    histogram = DistributionAnalysis('histogram', bins=40).prepare(values).run()
     edges, density = histogram.edges_, histogram.density_
     grid = np.linspace(edges[0], edges[-1], 200)
     ax.stairs(density, edges, color=color, label=f'axis {axis}, measured k = {1 / values.var():.2f}')

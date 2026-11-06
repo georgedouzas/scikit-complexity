@@ -8,7 +8,7 @@ it comes close to the wall. The view shows the height of the particle above the 
 """
 
 # %%
-# The model is created by name from the catalog with the diffusion coefficient `D0 = 1` far from the wall, the
+# The system is created by name from the catalog with the diffusion coefficient `D0 = 1` far from the wall, the
 # hindrance length `a = 1`, the settling velocity `0.2`, and the anti-Itô convention, released at height 20. The
 # Euler-Maruyama stepper takes steps of 0.01 and the observer saves every frame of 1 with the default blueprint,
 # whose primary view is the time series of the height.
@@ -16,20 +16,18 @@ it comes close to the wall. The view shows the height of the particle above the 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import DistributionAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'brownian_near_wall'
+SYSTEM = 'brownian_near_wall'
 
-system = create(MODEL, z=20.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, z=20.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-simulation = (
-    Simulation(system, solver=solver, dt=1.0, observers=[observer], random_state=0).check().prepare().run(until=250)
-)
+simulation = Simulation(system, solver=solver, dt=1.0, observers=[observer], random_state=0).prepare().run(until=250)
 
 # %%
 # Barometric equilibrium
@@ -40,13 +38,12 @@ simulation = (
 # fill this exponential profile.
 
 run = (
-    Simulation(create(MODEL, z=1.0), solver=EulerMaruyamaSolver(dt=0.02), dt=0.5, random_state=1)
-    .check()
+    Simulation(create_system(SYSTEM, z=1.0), solver=EulerMaruyamaSolver(dt=0.02), dt=0.5, random_state=1)
     .prepare()
     .run(until=15000)
 )
 heights = run.trajectory_.values('particle.z')[200:]
-histogram = DistributionAnalysis('histogram', bins=30).check().prepare(heights).run()
+histogram = DistributionAnalysis('histogram', bins=30).prepare(heights).run()
 edges, density = histogram.edges_, histogram.density_
 grid = np.linspace(0, edges[-1], 200)
 fig, ax = plt.subplots(figsize=(7, 4))

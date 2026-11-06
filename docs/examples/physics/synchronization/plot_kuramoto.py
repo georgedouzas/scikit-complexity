@@ -13,22 +13,21 @@ strong enough: a synchronized cluster forms, and the order parameter `r` jumps f
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'kuramoto'
+SYSTEM = 'kuramoto'
 
-system = create(MODEL, n_oscillators=50, K=4.0, sigma=1.0, seed=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='observables', interval=1)
+system = create_system(SYSTEM, n_oscillators=50, K=4.0, sigma=1.0, seed=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
 simulation = (
     Simulation(
         system,
         dt=0.2,
         observers=[observer],
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
-    .check()
     .prepare()
     .run(
         until=30,
@@ -45,10 +44,9 @@ simulation = (
 couplings = np.linspace(0.0, 4.0, 17)
 order = []
 for coupling in couplings:
-    model_system = create(MODEL, n_oscillators=400, K=coupling, sigma=1.0, seed=1)
+    system_system = create_system(SYSTEM, n_oscillators=400, K=coupling, sigma=1.0, seed=1)
     run = (
-        Simulation(model_system, dt=0.2, observables=describe(MODEL).observables_of(model_system))
-        .check()
+        Simulation(system_system, dt=0.2, observables=describe(SYSTEM).observables_of(system_system))
         .prepare()
         .run(until=60)
     )

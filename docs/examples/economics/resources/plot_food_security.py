@@ -15,10 +15,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import run
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_simulation
 
-MODEL = 'food_security'
+SYSTEM = 'food_security'
 
 # Every view shows the whole run, not the default window that follows the latest frame.
 whole_run = rrb.TimeAxis(
@@ -33,8 +33,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = run(MODEL, settings={'until': 50, 'dt': 0.25, 'observers': [observer]})
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+simulation = create_simulation(SYSTEM).set_params(dt=0.25, observers=[observer]).prepare().run(until=50)
 
 # %%
 # Policies against a growing requirement
@@ -59,7 +59,9 @@ policies = {
 }
 for name, changes in policies.items():
     scenario = (
-        simulation.trajectory_ if not changes else run(MODEL, settings={'until': 50, 'dt': 0.25}, **changes).trajectory_
+        simulation.trajectory_
+        if not changes
+        else create_simulation(SYSTEM, **changes).set_params(dt=0.25).prepare().run(until=50).trajectory_
     )
     ax.plot(np.asarray(scenario.times), scenario.values('rice.self_sufficiency'), label=name)
 times = np.asarray(simulation.trajectory_.times)

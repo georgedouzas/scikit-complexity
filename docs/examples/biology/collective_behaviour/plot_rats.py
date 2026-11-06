@@ -6,34 +6,34 @@ rats start an outbreak and the colony settles with a share `1 - calming / contag
 """
 
 # %%
-# The model runs as a jump process of single rats becoming nervous or calm, with a hundred rats, five of them nervous,
+# The system runs as a jump process of single rats becoming nervous or calm, with a hundred rats, five of them nervous,
 # and contagion twice the calming. The observer saves every frame with the default blueprint, whose primary view is
 # the time series of the calm and the nervous rats.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'rats'
+SYSTEM = 'rats'
 
-system = create(MODEL, n_rats=100, nervous=5, contagion=2.0, calming=1.0, spontaneous=0.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer], random_state=0).check().prepare().run(until=20)
+system = create_system(SYSTEM, n_rats=100, nervous=5, contagion=2.0, calming=1.0, spontaneous=0.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=0.1, observers=[observer], random_state=0).prepare().run(until=20)
 
 # %%
 # The phase transition
 # --------------------
 # Without spontaneous alarm, the long-run share of nervous rats should be zero below `contagion = calming` and
-# `1 - calming / contagion` above it. The deterministic mode of the model should trace that curve.
+# `1 - calming / contagion` above it. The deterministic mode of the system should trace that curve.
 
 contagions = np.linspace(0.25, 4.0, 16)
 shares = []
 for contagion in contagions:
-    system = create(MODEL, contagion=contagion, calming=1.0, spontaneous=0.0, stochastic=False)
-    trajectory = Simulation(system, dt=0.1).check().prepare().run(until=60).trajectory_
+    system = create_system(SYSTEM, contagion=contagion, calming=1.0, spontaneous=0.0, stochastic=False)
+    trajectory = Simulation(system, dt=0.1).prepare().run(until=60).trajectory_
     shares.append(trajectory.values('nervous.n')[-1] / 100)
 grid = np.linspace(0.25, 4.0, 200)
 fig, ax = plt.subplots(figsize=(7, 4))

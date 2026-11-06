@@ -8,9 +8,9 @@ gathered in clumps at the hotspots of the field.
 """
 
 # %%
-# The model is created by name from the catalog with 50 hotspots in a square of side 100 and the field strength
+# The system is created by name from the catalog with 50 hotspots in a square of side 100 and the field strength
 # 30. The Euler-Maruyama stepper takes steps of 0.01 and the observer saves every frame of 0.25. The blueprint shows
-# the particles over the square of the hotspots, drawn larger than the model's visual does, so they read in the
+# the particles over the square of the hotspots, drawn larger than the system's visual does, so they read in the
 # gallery thumbnail.
 
 import matplotlib.pyplot as plt
@@ -18,14 +18,14 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'diffusion_in_a_speckle_field'
+SYSTEM = 'diffusion_in_a_speckle_field'
 
-system = create(MODEL, n_particles=300, strength=30.0, random_state=0)
+system = create_system(SYSTEM, n_particles=300, strength=30.0, random_state=0)
 view = rrb.Spatial2DView(
     origin='/beads',
     name='beads',
@@ -39,11 +39,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-simulation = (
-    Simulation(system, solver=solver, dt=0.25, observers=[observer], random_state=0).check().prepare().run(until=60)
-)
+simulation = Simulation(system, solver=solver, dt=0.25, observers=[observer], random_state=0).prepare().run(until=60)
 
 # %%
 # Trapping slows diffusion
@@ -55,11 +53,12 @@ simulation = (
 
 fig, ax = plt.subplots(figsize=(7, 4))
 for strength in (0.0, 30.0, 100.0):
-    run = (
-        Simulation(create(MODEL, n_particles=300, strength=strength), solver=solver, dt=0.25, random_state=1)
-        .check()
-        .prepare()
-    )
+    run = Simulation(
+        create_system(SYSTEM, n_particles=300, strength=strength),
+        solver=solver,
+        dt=0.25,
+        random_state=1,
+    ).prepare()
     positions = run.run(until=70).trajectory_.values('beads.x')[40:]
     times = run.trajectory_.times[41:] - 10
     squared = np.mean(np.sum((positions[1:] - positions[0]) ** 2, axis=-1), axis=1)

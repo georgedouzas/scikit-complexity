@@ -2,14 +2,14 @@
 
 ## Purpose
 
-Lets a user of the model library attach atom transitions to the reactions of a metabolic network, simulate how labelled
+Lets a user of the system library attach atom transitions to the reactions of a metabolic network, simulate how labelled
 atoms of a tracer spread through it at metabolic and isotopic steady state, and estimate the fluxes from measured
 labelling patterns and fluxes, with confidence intervals and a goodness-of-fit test.
 
 ## Requirements
 
 ### Requirement: Reactions declare atom transitions
-`AtomMapSpec` of `skcomplex.models.biology.systems_biology` SHALL pair each reactant and product occurrence of a
+`AtomMapSpec` of `skcomplex.systems.biology.systems_biology` SHALL pair each reactant and product occurrence of a
 reaction with a string of atom letters, so that every traced atom of a product names the reactant atom it comes from.
 Invalid maps SHALL raise a named error that names the reaction and the offending metabolite or letter.
 

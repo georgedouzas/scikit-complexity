@@ -15,24 +15,23 @@ with a power-law, Pareto tail, whose exponent is set by the floor alone.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import DistributionAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'multiplicative_process'
+SYSTEM = 'multiplicative_process'
 N_FIRMS, MU, SIGMA, FLOOR, STEPS = 2000, 1.0, 0.2, 0.3, 250
 
-system = create(MODEL, n_firms=N_FIRMS, mu=MU, sigma=SIGMA, c=FLOOR)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, n_firms=N_FIRMS, mu=MU, sigma=SIGMA, c=FLOOR)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(
         system,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=STEPS)
 )
@@ -47,7 +46,7 @@ simulation = (
 trajectory = simulation.trajectory_
 sizes = np.array([trajectory.agents('firms', frame).values['x'] for frame in range(STEPS + 1)])
 relative = sizes / sizes.mean(axis=1, keepdims=True)
-ccdf = DistributionAnalysis('ccdf').check().prepare(relative[-100:].ravel()).run()
+ccdf = DistributionAnalysis('ccdf').prepare(relative[-100:].ravel()).run()
 values, probabilities = ccdf.support_, ccdf.survival_
 alpha = 1 / (1 - FLOOR)
 fig, (tail, spread) = plt.subplots(1, 2, figsize=(10, 4))

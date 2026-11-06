@@ -12,14 +12,14 @@ triangles of every size: a one-dimensional rule of three neighbours that produce
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'elementary_automaton'
+SYSTEM = 'elementary_automaton'
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(create(MODEL, rule=30, size=201), dt=1, observers=[observer]).check().prepare().run(until=100)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(create_system(SYSTEM, rule=30, size=201), dt=1, observers=[observer]).prepare().run(until=100)
 
 # %%
 # Regular and random rules
@@ -30,8 +30,7 @@ simulation = Simulation(create(MODEL, rule=30, size=201), dt=1, observers=[obser
 
 rule30 = simulation.trajectory_.lattice('cells.alive')
 rule90 = (
-    Simulation(create(MODEL, rule=90, size=201), dt=1)
-    .check()
+    Simulation(create_system(SYSTEM, rule=90, size=201), dt=1)
     .prepare()
     .run(until=100)
     .trajectory_.lattice('cells.alive')

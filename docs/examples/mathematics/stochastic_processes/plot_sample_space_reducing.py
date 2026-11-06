@@ -7,7 +7,7 @@ low ones, the visits follow Zipf's law, the frequency of state `i` falling as `1
 """
 
 # %%
-# Twenty balls jump for 40 steps with `lam = 1`, so every jump goes down. The model logs only the number of balls, so
+# Twenty balls jump for 40 steps with `lam = 1`, so every jump goes down. The system logs only the number of balls, so
 # after the run the level of one ball is logged as a time series, and the blueprint puts it first, as the primary view.
 
 import matplotlib.pyplot as plt
@@ -15,11 +15,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'sample_space_reducing'
+SYSTEM = 'sample_space_reducing'
 
 
 def levels(trajectory):
@@ -34,8 +34,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer], random_state=0).check().prepare().run(until=40)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer], random_state=0).prepare().run(until=40)
 path = levels(simulation.trajectory_)
 observer.recording_.send_columns(
     'levels/ball_0',
@@ -55,8 +55,7 @@ fig, ax = plt.subplots(figsize=(6.5, 4.5))
 states = np.arange(1, 100)
 for lam in (1.0, 0.7, 0.4, 0.0):
     run = (
-        Simulation(create(MODEL, n_balls=200, n_states=100, lam=lam), dt=1, random_state=1)
-        .check()
+        Simulation(create_system(SYSTEM, n_balls=200, n_states=100, lam=lam), dt=1, random_state=1)
         .prepare()
         .run(until=1000)
     )

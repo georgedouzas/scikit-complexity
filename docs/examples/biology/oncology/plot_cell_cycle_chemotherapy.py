@@ -6,22 +6,22 @@ compartment of the cell cycle decay after an initial redistribution of the cells
 """
 
 # %%
-# The model is created by name from the catalog with the three compartments of Table 3.8, a killing agent `u1 = 0.6`,
+# The system is created by name from the catalog with the three compartments of Table 3.8, a killing agent `u1 = 0.6`,
 # and a blocking agent `u2 = 0.3`. The observer saves every frame with the default blueprint, whose primary view is the
 # time series of the three compartments.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'cell_cycle_chemotherapy'
+SYSTEM = 'cell_cycle_chemotherapy'
 
-system = create(MODEL, u1=0.6, u2=0.3)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=100)
+system = create_system(SYSTEM, u1=0.6, u2=0.3)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=100)
 
 # %%
 # The kill threshold
@@ -34,7 +34,7 @@ l1, l2, l3, u2 = 0.197, 0.395, 0.107, 0.3
 kills = np.linspace(0.0, 0.8, 9)
 rates, eigenvalues = [], []
 for u1 in kills:
-    trajectory = Simulation(create(MODEL, u1=u1, u2=u2), dt=2.0).check().prepare().run(until=300).trajectory_
+    trajectory = Simulation(create_system(SYSTEM, u1=u1, u2=u2), dt=2.0).prepare().run(until=300).trajectory_
     total = np.log(trajectory.values('tumour.A1') + trajectory.values('tumour.A2') + trajectory.values('tumour.A3'))
     late = trajectory.times >= 200
     rates.append(np.polyfit(trajectory.times[late], total[late], 1)[0])

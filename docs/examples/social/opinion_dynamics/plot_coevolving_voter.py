@@ -14,13 +14,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'coevolving_voter'
+SYSTEM = 'coevolving_voter'
 
-system = create(MODEL, rewiring=0.6)
+system = create_system(SYSTEM, rewiring=0.6)
 # The graph view lays out the nodes of a changing network by forces, which these settings keep compact and centred.
 blueprint = rrb.Blueprint(
     rrb.GraphView(
@@ -36,8 +36,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).check().prepare().run(until=200)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
+simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).prepare().run(until=200)
 
 
 def discordant(trajectory, frame):
@@ -57,8 +57,7 @@ def discordant(trajectory, frame):
 fig, axis = plt.subplots(figsize=(6, 4))
 for rewiring in (0.1, 0.3, 0.6, 0.9):
     run = (
-        Simulation(create(MODEL, n_voters=400, rewiring=rewiring), dt=5.0, random_state=1)
-        .check()
+        Simulation(create_system(SYSTEM, n_voters=400, rewiring=rewiring), dt=5.0, random_state=1)
         .prepare()
         .run(until=300)
     )

@@ -13,15 +13,15 @@ amplitude and period `2π sqrt(m / k)`, and the velocity follows a quarter of a 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'harmonic_oscillator'
+SYSTEM = 'harmonic_oscillator'
 
-system = create(MODEL, x=1.0, v=0.0, k=1.0, mass=1.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare().run(until=20)
+system = create_system(SYSTEM, x=1.0, v=0.0, k=1.0, mass=1.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=20)
 
 # %%
 # Exact solution and energy

@@ -6,26 +6,23 @@ spike, over and over: a mixed-mode oscillation.
 """
 
 # %%
-# The model is created by name from the catalog with `epsilon = 0.01` and `c = 0.00053`, integrated with the Radau
+# The system is created by name from the catalog with `epsilon = 0.01` and `c = 0.00053`, integrated with the Radau
 # method for the stiff fast variable, and runs for 200 time units. The default blueprint shows `x`, `y`, and `z` in one
 # time series view.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODESolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'mixed_mode_chua'
+SYSTEM = 'mixed_mode_chua'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
 simulation = (
-    Simulation(system, dt=0.5, solver=ScipyODESolver(method='Radau'), observers=[observer])
-    .check()
-    .prepare()
-    .run(until=200)
+    Simulation(system, dt=0.5, solver=ScipyODESolver(method='Radau'), observers=[observer]).prepare().run(until=200)
 )
 
 # %%
@@ -37,8 +34,7 @@ simulation = (
 fig, axes = plt.subplots(3, 1, figsize=(8, 6), sharex=True)
 for ax, c in zip(axes, [0.0, 0.00053, 0.00105], strict=True):
     run = (
-        Simulation(create(MODEL, c=c), dt=0.25, solver=ScipyODESolver(method='Radau'))
-        .check()
+        Simulation(create_system(SYSTEM, c=c), dt=0.25, solver=ScipyODESolver(method='Radau'))
         .prepare()
         .run(until=200)
         .trajectory_

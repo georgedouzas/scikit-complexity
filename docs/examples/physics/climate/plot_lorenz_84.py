@@ -6,21 +6,21 @@ while the eddies are weak, the eddies then grow on it and weaken it, and the cyc
 """
 
 # %%
-# The model is created by name from the catalog with Lorenz's parameters `a = 0.25`, `b = 4`, `F = 8`, and `G = 1`, and
+# The system is created by name from the catalog with Lorenz's parameters `a = 0.25`, `b = 4`, `F = 8`, and `G = 1`, and
 # runs for 100 time units. The default blueprint shows the jet and the two eddy phases in one time series view.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.analysis import LyapunovAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import LyapunovAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'lorenz_84'
+SYSTEM = 'lorenz_84'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=8)
-simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare().run(until=100)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=8)
+simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=100)
 
 # %%
 # A chaotic attractor
@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare()
 
 trajectory = simulation.trajectory_
 settled = trajectory.times > 10
-exponents = LyapunovAnalysis(until=500.0, dt=0.01).check().prepare(system).run().exponents_
+exponents = LyapunovAnalysis(until=500.0, dt=0.01).prepare(system).run().exponents_
 fig, (attractor, spectrum) = plt.subplots(1, 2, figsize=(10, 4))
 attractor.plot(trajectory.values('atmosphere.x')[settled], trajectory.values('atmosphere.y')[settled], linewidth=0.5)
 attractor.set_xlabel('jet x')

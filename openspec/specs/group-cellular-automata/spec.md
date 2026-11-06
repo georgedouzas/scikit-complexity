@@ -36,20 +36,20 @@ issue with its path and a fix, before any group is built.
 - **THEN** validation reports that the ball exceeds the site limit and names the largest radius that fits, without
   calling GAP
 
-### Requirement: Named groups live in the automata models
+### Requirement: Named groups live in the automata systems
 The core SHALL name no specific group, and SHALL take finitely presented, automaton, permutation, and matrix groups in
 their general form, as native GAP or Sage groups.
 Named groups, such as the free, Heisenberg, lamplighter, Baumslag-Solitar, and Grigorchuk groups, SHALL be realizations
-in `skcomplex.models.computer_science.automata`.
+in `skcomplex.systems.computer_science.automata`.
 
 #### Scenario: Grigorchuk group from the library
-- **WHEN** a user imports `grigorchuk_group` from `skcomplex.models.computer_science.automata`
-- **THEN** it returns an automaton group built by `libgap.AutomatonGroup`, and no public name of `skcomplex.core`
+- **WHEN** a user imports `grigorchuk_group` from `skcomplex.systems.computer_science.automata`
+- **THEN** it returns an automaton group built by `libgap.AutomatonGroup`, and no public name of `skcomplex.core.components`
   names a specific group
 
 #### Scenario: Grigorchuk group in the general form
 - **WHEN** a user writes the Grigorchuk group with `libgap.AutomatonGroup` from its wreath recursion
-- **THEN** `CayleySpace` takes it, and no field module of `skcomplex.models` is imported
+- **THEN** `CayleySpace` takes it, and no field module of `skcomplex.systems` is imported
 
 ### Requirement: Groups are given by other presentations
 Group spaces SHALL be built from automaton groups given by a Mealy automaton as a wreath recursion, and from permutation

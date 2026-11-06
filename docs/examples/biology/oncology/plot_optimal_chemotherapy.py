@@ -7,23 +7,23 @@ the tumour shrinks to well below its untreated size.
 """
 
 # %%
-# The model is created by name from the catalog with the de Pillis-Radunskaya cells of the book and the weight 0.1 of
+# The system is created by name from the catalog with the de Pillis-Radunskaya cells of the book and the weight 0.1 of
 # the squared infusion. The Pontryagin solver of its catalog entry solves the problem over 30 days. The default
 # blueprint shows the cells, the drug, and the infusion rate in one time series view.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.system import System
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
-from skcomplex.models.biology.oncology import TumourImmuneChemotherapyElement
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
+from skcomplex.systems.biology.oncology import TumourImmuneChemotherapyElement
 
-MODEL = 'optimal_chemotherapy'
+SYSTEM = 'optimal_chemotherapy'
 
-system = create(MODEL)
-entry = describe(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+entry = describe(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(
         system,
@@ -32,7 +32,6 @@ simulation = (
         observers=[observer],
         observables=entry.observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=30)
 )
@@ -46,7 +45,6 @@ simulation = (
 
 untreated = (
     Simulation(System(elements=[TumourImmuneChemotherapyElement('patient')]), dt=0.25)
-    .check()
     .prepare()
     .run(until=30)
     .trajectory_

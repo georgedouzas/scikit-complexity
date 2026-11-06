@@ -1,0 +1,327 @@
+# Lattice systems
+
+Use a lattice for systems that live on a grid of cells, such as cellular automata, sandpiles, and spin systems. You
+write the laws for one cell, and the library runs them on every site.
+
+```python
+from skcomplex.core.components.spaces import LatticeSpace
+
+space = LatticeSpace((4, 3)).prepare()
+space.size_, space.shape_, space.periodic_, space.positions_[4].tolist()
+```
+
+- `LatticeSpace(shape, boundary=...)` is a box of `Z^d` with `'periodic'`, `'fixed'`, or `'reflecting'` edges.
+- `LatticeElement(label, element=..., space=space, values={...})` puts one member of an element type on every site,
+  with values given as arrays of the lattice shape.
+
+A space is a part of its system and speaks the same verbs. `space.prepare()` checks its arguments and derives its
+facts, whose names end in `_`:
+
+- `size_` is the number of sites, and `n_dim_` the dimension.
+- `shape_` is the shape of the arrays of its sites, and `positions_` the position of every site.
+- `periodic_` says whether it wraps, and `default_visual_` is the visual of its groups.
+
+Compiling a system prepares its spaces, so you call `prepare()` on a space only when you read its facts before that.
+
+## Local rules
+
+Use a local rule when a cell's next value depends on the values of its neighbours. Conway's Game of Life is one, and
+a glider moves one cell diagonally every four steps:
+
+```python
+from typing import Annotated
+
+import numpy as np
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+
+from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.laws import LocalRuleLaw
+from skcomplex.core.components.spaces import LatticeSpace, MooreNeighborhood
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.specs import OuterTotalisticSpec, StateSpec
+
+
+class LifeElement(Element):
+    def __init__(self, label, *, alive: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0):
+        super().__init__(label)
+        self.alive = alive
+
+    def _get_laws(self, s):
+        return [LocalRuleLaw(s.alive, MooreNeighborhood(), OuterTotalisticSpec({(0, 3): 1, (1, 2): 1, (1, 3): 1}))]
+
+
+glider = np.zeros((20, 20))
+glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
+space = LatticeSpace((20, 20))
+cells = System(elements=[LatticeElement('cells', element=LifeElement, space=space, values={'alive': glider})])
+trajectory = Simulation(cells, dt=1).prepare().run(until=4).trajectory_
+np.array_equal(trajectory.lattice('cells.alive')[-1], np.roll(glider, (1, 1), axis=(0, 1)))
+```
+
+`LocalRuleLaw(targets, over, rule)` computes a cell's next value from the ordered values of its neighbourhood.
+
+- `MooreNeighborhood`, `VonNeumannNeighborhood`, `BoxNeighborhood`, or `LatticeNeighborhood(offsets)` give the
+  offsets of the neighbours.
+- A rule is a `TableSpec` of patterns, a `TotalisticSpec` or `OuterTotalisticSpec` rule, a rule code whose `table()`
+  returns a table, or a function of NumPy arrays, one per neighbour. A function also receives the parameters it names
+  and, for stochastic rules, uniform random numbers.
+- Tables and totalistic rules run as lookups, fused into one compiled loop on the Numba backend.
+- Rules update synchronously by default, every cell from the previous configuration. `schedule='random-sequential'`,
+  `'random-site'`, `'checkerboard'`, or `'colored'` update cells one at a time, or one class of sites at a time.
+- One unit of time is one application of every rule, so `dt` is an integer. `trajectory.lattice(name)` returns the
+  states in lattice shape.
+- `DriveLaw(target, function)` changes a whole lattice at once, such as dropping a grain on a random site.
+
+## Cascades
+
+Use a cascade when a slow drive builds up stress and a fast relaxation releases it in avalanches, as in
+self-organised criticality. The sandpile of the catalog records the size of every avalanche:
+
+```python
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.systems import create_system
+
+sandpile = create_system('sandpile', shape=(20, 20))
+trajectory = Simulation(sandpile, dt=100, random_state=0).prepare().run(until=2000).trajectory_
+max(event.size for event in trajectory.events)
+```
+
+`CascadeLaw(drive, relax, stable)` separates the slow drive from the fast cascade. Every step applies the drive laws
+once, and the relax laws until `stable` holds. Each cascade is recorded among the trajectory's events with its size,
+duration, and area. `activity` marks the sites that count as updates, such as the toppling sites of a sandpile.
+
+## Monte Carlo
+
+Use a sampling law to draw the configurations of a lattice at a temperature, such as an Ising magnet, whose spins
+align below the critical temperature:
+
+```python
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import ZZ
+
+from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.laws import SampleLaw
+from skcomplex.core.components.laws.utils import neighbors
+from skcomplex.core.components.spaces import LatticeSpace, VonNeumannNeighborhood
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.specs import MoveSpec, ObjectiveSpec, ParameterSpec, SamplerSpec, StateSpec
+
+nearest = VonNeumannNeighborhood()
+
+
+class SpinElement(Element):
+    def __init__(
+        self,
+        label,
+        *,
+        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
+        J: Annotated[float, ParameterSpec()] = 1.0,
+        temperature: Annotated[float, ParameterSpec()] = 1.5,
+    ):
+        super().__init__(label)
+        self.spin = spin
+        self.J = J
+        self.temperature = temperature
+
+    def _get_laws(self, s):
+        energy = -s.J * s.spin * sum(neighbors(s.spin, nearest, reduce='each'))
+        sampler = SamplerSpec('metropolis', 1 / s.temperature)
+        return [SampleLaw(ObjectiveSpec(energy, nearest), MoveSpec(s.spin, 'flip'), sampler)]
+
+
+spins = System(elements=[LatticeElement('spins', element=SpinElement, space=LatticeSpace((32, 32)))])
+abs(Simulation(spins, dt=50, random_state=0).prepare().run(until=200).state_.mean()) > 0.9
+```
+
+A `SampleLaw(objective, move, sampler)` samples states.
+
+- `ObjectiveSpec(expression, over)` is the local objective of a site, every term of the total objective that involves
+  it. Neighbour values are read through `neighbors`.
+- `MoveSpec(target, kind)` proposes changes, with the kinds `'flip'`, `'random-value'`, and `'rotate'`.
+- `SamplerSpec('metropolis' | 'glauber' | 'heat-bath', intensity)` accepts them.
+
+The change of the objective is derived symbolically, and sweeps update the two sublattices in turn. The intensity is
+an expression of parameters, so it can change while the simulation runs.
+
+## Triangular lattices
+
+Use a triangular lattice when every site needs six neighbours, as hexagonal cells and lattice gases do. A fire spreads
+from one site to its six neighbours at every step:
+
+```python
+from typing import Annotated
+
+import numpy as np
+
+from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.laws import LocalRuleLaw
+from skcomplex.core.components.spaces import LatticeSpace, TriangularNeighborhood
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.specs import StateSpec
+
+
+def spread(*values):
+    return np.max(values, axis=0)
+
+
+class BurnElement(Element):
+    def __init__(self, label, *, fire: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.fire = fire
+
+    def _get_laws(self, s):
+        return [LocalRuleLaw(s.fire, TriangularNeighborhood(center=True), spread)]
+
+
+fire = np.zeros((40, 40))
+fire[20, 20] = 1
+space = LatticeSpace((40, 40), geometry='triangular')
+forest = System(elements=[LatticeElement('forest', element=BurnElement, space=space, values={'fire': fire})])
+burning = Simulation(forest, dt=1).prepare().run(until=3).trajectory_.lattice('forest.fire')
+[int(item.sum()) for item in burning]
+```
+
+- `LatticeSpace(shape, geometry='triangular')` keeps integer coordinates on a skewed grid, so every boundary works as
+  on a square lattice.
+- It places site `(i, j)` at `(j + i / 2, i sqrt(3) / 2)` in the plane, given by the fitted `positions_`.
+- `TriangularNeighborhood()` holds the six neighbours counterclockwise from 0 degrees, so direction `k + 3` modulo 6 is
+  opposite to direction `k`, as lattice gases need.
+- The cells of the sites are the hexagons of a hexagonal tiling.
+
+## Lattices on graphs
+
+Use a graph as the lattice when the sites are the nodes of a network, such as an Ising magnet on a random regular
+graph:
+
+```python
+from typing import Annotated
+
+import networkx as nx
+from sage.all__sagemath_symbolics import ZZ
+
+from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.laws import SampleLaw
+from skcomplex.core.components.laws.utils import neighbors
+from skcomplex.core.components.spaces import AdjacencyNeighborhood, NetworkSpace
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.specs import MoveSpec, ObjectiveSpec, ParameterSpec, SamplerSpec, StateSpec
+
+
+class GraphSpinElement(Element):
+    def __init__(
+        self,
+        label,
+        *,
+        spin: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
+        J: Annotated[float, ParameterSpec()] = 1.0,
+        temperature: Annotated[float, ParameterSpec()] = 1.0,
+    ):
+        super().__init__(label)
+        self.spin = spin
+        self.J = J
+        self.temperature = temperature
+
+    def _get_laws(self, s):
+        energy = -s.J * s.spin * neighbors(s.other.spin, reduce='sum')
+        sampler = SamplerSpec('metropolis', 1 / s.temperature, schedule='colored')
+        return [SampleLaw(ObjectiveSpec(energy, AdjacencyNeighborhood()), MoveSpec(s.spin, 'flip'), sampler)]
+
+
+graph = nx.random_regular_graph(4, 200, seed=0)
+spins = System(elements=[LatticeElement('spins', element=GraphSpinElement, space=NetworkSpace(graph))])
+abs(Simulation(spins, dt=50, random_state=0).prepare().run(until=200).state_.mean()) > 0.9
+```
+
+`LatticeElement` also takes a `NetworkSpace`, with one site per node in the order of `graph.nodes`. Initial values are
+arrays in node order, or mappings from node to value.
+
+- `AdjacencyNeighborhood(center=False)` is the neighbourhood of a node, its neighbours along its edges, padded to the
+  largest degree with the network's `fill` value.
+- Local rules, drives, relaxations, Monte Carlo laws, and extremal laws run on graphs as on lattices.
+- Lookup rules on graphs take the totalistic forms. A function rule that names the keyword `degree` receives the
+  number of real neighbours of every site.
+- The padded table grows with the largest degree. Graphs with hubs of very high degree, beyond scale-free graphs of
+  about 10^5 nodes, therefore use much memory.
+
+## Neighbour sums and colored schedules
+
+The graph example above uses two tools that work on every lattice.
+
+- `neighbors(expression, reduce='sum')` sums an expression of a site and one neighbour, read through `s.other`, over
+  the real neighbours of the site. Local energies are therefore exact on sites of any degree and outside fixed edges.
+- `schedule='colored'` on local rules and samplers updates the classes of a proper coloring of the neighbour graph in
+  turn. NetworkX computes the coloring once per law. The checkerboard schedule stays the two-color case of square
+  lattices.
+
+## Extremal updates
+
+Use an extremal update when each step acts on the worst or best site, such as the least fit species of the Bak-Sneppen
+system of evolution, which is replaced together with its neighbours:
+
+```python
+from typing import Annotated
+
+import numpy as np
+
+from skcomplex.core.components.elements import Element, LatticeElement
+from skcomplex.core.components.laws import ExtremalLaw
+from skcomplex.core.components.spaces import LatticeNeighborhood, LatticeSpace
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.specs import StateSpec
+
+
+def renew(fitness, random):
+    return random
+
+
+class SpeciesElement(Element):
+    def __init__(self, label, *, fitness: Annotated[float, StateSpec()] = 0.5):
+        super().__init__(label)
+        self.fitness = fitness
+
+    def _get_laws(self, s):
+        return [ExtremalLaw(s.fitness, LatticeNeighborhood(((-1,), (1,))), renew, repeat=100, label='extinction')]
+
+
+fitness = np.random.default_rng(0).random(100)
+space = LatticeSpace(100)
+ring = System(elements=[LatticeElement('ring', element=SpeciesElement, space=space, values={'fitness': fitness})])
+trajectory = Simulation(ring, dt=10, random_state=0).prepare().run(until=100).trajectory_
+len(trajectory.events), trajectory.events[0].label
+```
+
+`ExtremalLaw(targets, over, rule, key=None, extremum='min', repeat=1)` finds the site with the smallest or largest
+value of a key state. It breaks ties with the simulation's random stream, and applies
+`rule(*values, random, **parameters)` to the site and its real neighbours, `repeat` times per step.
+
+- Every application is recorded among the trajectory's events as an `ExtremalRecord` with its time, site, and
+  extremal value.
+- On the Numba backend, the applications of a step run in one compiled loop when Numba compiles the rule. The rule
+  then takes its arguments by position or keyword, with no keyword-only arguments.
+- Both backends give the same events.
+
+## Viewing lattices and ready-made lattice systems
+
+Square lattice groups stream to Rerun as images colored by value. Triangular lattices and graph lattices stream as
+sites with `SiteVisual`: hexagonal cells at the site positions, or nodes colored by state with their edges logged once.
+
+The catalog holds ready-made lattice systems, each under the field path of its science, such as
+`computer_science/automata` for `game_of_life` and `physics/statistical_mechanics` for `ising`:
+
+```python
+from skcomplex.systems import catalog
+
+lattice_systems = [
+    'elementary_automaton', 'game_of_life', 'majority_rule', 'langtons_ant', 'nagel_schreckenberg', 'hodgepodge',
+    'sandpile', 'forest_fire', 'hexagonal_forest_fire', 'earthquakes', 'ising', 'graph_ising', 'potts', 'xy',
+    'fhp_lattice_gas', 'bak_sneppen',
+]
+fields = {entry.name: entry.field for entry in catalog()}
+{name: fields[name] for name in lattice_systems}
+```

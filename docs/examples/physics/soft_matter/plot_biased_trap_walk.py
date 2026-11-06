@@ -7,30 +7,29 @@ grow in bursts and end at very different lengths.
 """
 
 # %%
-# The model is created by name from the catalog with 56 walkers, each in its own line of 80 traps whose trapping times
+# The system is created by name from the catalog with 56 walkers, each in its own line of 80 traps whose trapping times
 # are distributed as `tau^(-3/2)`, and simulated for 1495 steps. The observer saves every frame with the default
 # blueprint, whose primary view is the lattice of the sites the walkers have visited.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'biased_trap_walk'
+SYSTEM = 'biased_trap_walk'
 
-system = create(MODEL, n_walkers=56, n_sites=80, alpha=0.5, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, n_walkers=56, n_sites=80, alpha=0.5, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(
         system,
         dt=5,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=1495)
 )
@@ -45,17 +44,13 @@ simulation = (
 
 fig, (scaling, spread) = plt.subplots(1, 2, figsize=(10, 4))
 for alpha in (0.3, 0.5, 0.7):
-    model_system = create(MODEL, n_walkers=100, n_sites=400, alpha=alpha, random_state=1)
-    run = (
-        Simulation(
-            model_system,
-            dt=10,
-            random_state=0,
-            observables=describe(MODEL).observables_of(model_system),
-        )
-        .check()
-        .prepare()
-    )
+    system_system = create_system(SYSTEM, n_walkers=100, n_sites=400, alpha=alpha, random_state=1)
+    run = Simulation(
+        system_system,
+        dt=10,
+        random_state=0,
+        observables=describe(SYSTEM).observables_of(system_system),
+    ).prepare()
     trajectory = run.run(until=3000).trajectory_
     times, position = trajectory.times[1:], trajectory.values('position')[1:]
     (line,) = scaling.loglog(times, position, label=f'alpha = {alpha}')

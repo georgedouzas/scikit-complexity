@@ -6,7 +6,7 @@ squeezed in the third at every step: hyperchaos, with two positive Lyapunov expo
 """
 
 # %%
-# The map runs for 6000 steps from its default start, and the model logs `x`, `y`, and `z` as time series. After the
+# The map runs for 6000 steps from its default start, and the system logs `x`, `y`, and `z` as time series. After the
 # run, the orbit is logged once more as points in three dimensions, with `y` stretched four times to show the
 # folds, and the blueprint puts this view of the attractor first, as the primary view.
 
@@ -15,12 +15,12 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import LyapunovAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import LyapunovAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'towel_map'
+SYSTEM = 'towel_map'
 
 # Every view shows the whole run, not the default window that follows the latest frame.
 whole_run = rrb.TimeAxis(
@@ -37,8 +37,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=24)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer]).check().prepare().run(until=6000)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=24)
+simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer]).prepare().run(until=6000)
 trajectory = simulation.trajectory_
 points = np.column_stack([trajectory.values(f'map.{name}') for name in 'xyz'])[50:]
 colors = plt.get_cmap('plasma')(points[:, 1] / np.ptp(points[:, 1]) - points[:, 1].min() / np.ptp(points[:, 1]))
@@ -51,7 +51,7 @@ observer.recording_.flush()
 # The Lyapunov spectrum should have two positive exponents and one strongly negative one, about 0.4, 0.4, and
 # -3.3, and the Kaplan-Yorke dimension they give should lie between 2 and 3, a sheet folded on itself.
 
-lyapunov = LyapunovAnalysis(until=20000).check().prepare(simulation.system).run()
+lyapunov = LyapunovAnalysis(until=20000).prepare(simulation.system).run()
 exponents = lyapunov.exponents_
 fig, (sheet, spectrum) = plt.subplots(1, 2, figsize=(10, 4))
 sheet.scatter(points[:, 0], points[:, 2], s=0.3, c=colors)

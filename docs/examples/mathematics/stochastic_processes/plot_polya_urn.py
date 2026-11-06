@@ -6,8 +6,8 @@ in each of six urns wanders at first and then freezes at its own random limit.
 """
 
 # %%
-# Six urns start with one red and one blue ball and make 200 draws. The model logs the numbers of red and blue
-# balls; after the run the share of red in every urn is logged as a time series, and the blueprint puts it first, as
+# Six urns start with one red and one blue ball and make 200 draws. The system logs the numbers of red and blue
+# balls. After the run the share of red in every urn is logged as a time series, and the blueprint puts it first, as
 # the primary view.
 
 import matplotlib.pyplot as plt
@@ -16,11 +16,11 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy import stats
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'polya_urn'
+SYSTEM = 'polya_urn'
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
@@ -29,9 +29,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = (
-    Simulation(create(MODEL, n_urns=6), dt=1.0, observers=[observer], random_state=0).check().prepare().run(until=200)
+    Simulation(create_system(SYSTEM, n_urns=6), dt=1.0, observers=[observer], random_state=0).prepare().run(until=200)
 )
 trajectory = simulation.trajectory_
 share = trajectory.values('urns.red') / (trajectory.values('urns.red') + trajectory.values('urns.blue'))
@@ -58,8 +58,7 @@ shares.set_title('Each urn freezes at its own share')
 grid = np.linspace(0, 1, 100)
 for red, color in ((1, 'C0'), (2, 'C1')):
     urns = (
-        Simulation(create(MODEL, n_urns=2000, red=red), dt=1.0, random_state=1)
-        .check()
+        Simulation(create_system(SYSTEM, n_urns=2000, red=red), dt=1.0, random_state=1)
         .prepare()
         .run(until=200)
         .trajectory_

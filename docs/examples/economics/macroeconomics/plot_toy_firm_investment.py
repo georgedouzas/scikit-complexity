@@ -1,7 +1,7 @@
 """
 # Toy firm investment
 
-The toy model of Bargigli and co-authors: every firm invests in proportion to its last profit, produces in
+The toy system of Bargigli and co-authors: every firm invests in proportion to its last profit, produces in
 proportion to its capital, and sells at a random price, and a firm whose net worth turns negative is replaced by a
 small entrant. Investment out of random profits makes capital grow multiplicatively, so the firms become extremely
 unequal in size, with a heavy, power-law tail, and aggregate production grows as the largest firms pull away.
@@ -9,7 +9,7 @@ unequal in size, with a heavy, power-law tail, and aggregate production grows as
 
 # %%
 # A thousand firms start with capital and net worth 1, an investment accelerator `gamma = 1.1`, productivity
-# `phi = 0.1`, and the interest rate `r = 0.1`, and trade for 250 periods. An observable added to the model measures
+# `phi = 0.1`, and the interest rate `r = 0.1`, and trade for 250 periods. An observable added to the system measures
 # the share of all capital held by the largest 1 percent of firms, which the blueprint shows climbing from 1 percent
 # as a few lucky firms pull away.
 
@@ -17,13 +17,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import DistributionAnalysis, FitAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
-from skcomplex.specs import ObservableSpec
+from skcomplex.core.analysis import DistributionAnalysis, FitAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.specs import ObservableSpec
+from skcomplex.systems import create_system, describe
 
-MODEL = 'toy_firm_investment'
+SYSTEM = 'toy_firm_investment'
 N_FIRMS, STEPS = 1000, 250
 
 
@@ -32,9 +32,9 @@ def top_share(capital):
     return float(np.sort(capital)[-len(capital) // 100 :].sum() / capital.sum())
 
 
-system = create(MODEL, n_firms=N_FIRMS, random_state=0)
+system = create_system(SYSTEM, n_firms=N_FIRMS, random_state=0)
 top = ObservableSpec('top_share', group='firms', variable='K', reduce=top_share)
-observables = [*describe(MODEL).observables_of(system), top]
+observables = [*describe(SYSTEM).observables_of(system), top]
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
     rrb.TimeSeriesView(
@@ -46,9 +46,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = (
-    Simulation(system, observers=[observer], random_state=0, observables=observables).check().prepare().run(until=STEPS)
+    Simulation(system, observers=[observer], random_state=0, observables=observables).prepare().run(until=STEPS)
 )
 
 # %%
@@ -61,8 +61,8 @@ simulation = (
 
 trajectory = simulation.trajectory_
 capital = trajectory.agents('firms', STEPS).values['K']
-fit = FitAnalysis().check().prepare(capital).run()
-ccdf = DistributionAnalysis('ccdf').check().prepare(capital).run()
+fit = FitAnalysis().prepare(capital).run()
+ccdf = DistributionAnalysis('ccdf').prepare(capital).run()
 values, probabilities = ccdf.support_, ccdf.survival_
 tail = values >= fit.minimum_
 anchor = probabilities[tail][0]

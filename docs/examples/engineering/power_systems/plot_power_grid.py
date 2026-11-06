@@ -6,19 +6,19 @@ should only help, yet it reroutes the flows so that one line overloads, and the 
 """
 
 # %%
-# The model is created by name from the catalog with eight nodes on a ring, four generators and four consumers, lines of
-# capacity `K = 2.75`, and the extra line `(0, 2)`, and runs for 300 time units. The blueprint shows the frequency
+# The system is created by name from the catalog with eight nodes on a ring, four generators and four consumers, lines
+# of capacity `K = 2.75`, and the extra line `(0, 2)`, and runs for 300 time units. The blueprint shows the frequency
 # deviations of all eight nodes, which split apart when synchrony is lost.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'power_grid'
+SYSTEM = 'power_grid'
 
 frequencies = rrb.TimeSeriesView(
     origin='/',
@@ -34,9 +34,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, added_line=(0, 2))
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(system, dt=1.0, observers=[observer]).check().prepare().run(until=300)
+system = create_system(SYSTEM, added_line=(0, 2))
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
+simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=300)
 
 # %%
 # Synchrony with and without the extra capacity
@@ -50,7 +50,7 @@ for ax, (label, arguments) in zip(axes, grids, strict=True):
     run = (
         simulation.trajectory_
         if arguments is None
-        else Simulation(create(MODEL, **arguments), dt=1.0).check().prepare().run(300).trajectory_
+        else Simulation(create_system(SYSTEM, **arguments), dt=1.0).prepare().run(300).trajectory_
     )
     for node in range(8):
         ax.plot(run.times, run.values(f'node_{node}.phi_d1'), linewidth=0.8)

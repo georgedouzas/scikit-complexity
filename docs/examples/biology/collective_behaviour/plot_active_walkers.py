@@ -6,21 +6,21 @@ are used, so instead of a lawn worn evenly a few shared trails emerge that bundl
 """
 
 # %%
-# The model is created by name from the catalog with twenty walkers on a green of 30 by 30 cells. The observer saves
+# The system is created by name from the catalog with twenty walkers on a green of 30 by 30 cells. The observer saves
 # every second step with the default blueprint, whose primary view is the image of the trails.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.analysis import DistributionAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'active_walkers'
+SYSTEM = 'active_walkers'
 
-system = create(MODEL, size=30, n_walkers=20, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=300)
+system = create_system(SYSTEM, size=30, n_walkers=20, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=300)
 
 # %%
 # Trails concentrate the wear
@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).chec
 
 trajectory = simulation.trajectory_
 trails = trajectory.lattice('land/ground.G')
-concentration = [DistributionAnalysis('gini').check().prepare(frame.ravel()).run().gini_ for frame in trails]
+concentration = [DistributionAnalysis('gini').prepare(frame.ravel()).run().gini_ for frame in trails]
 fig, (image, inequality) = plt.subplots(1, 2, figsize=(11, 4.5))
 image.imshow(trails[-1], cmap='Greens', origin='lower')
 image.set_title(f'Trails at step {trajectory.times[-1]:.0f}')

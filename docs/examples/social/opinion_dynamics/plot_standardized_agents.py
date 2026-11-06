@@ -8,7 +8,7 @@ ordering.
 """
 
 # %%
-# The model is created by name from the catalog with `H = 50` configurations without the characteristic, the couplings
+# The system is created by name from the catalog with `H = 50` configurations without the characteristic, the couplings
 # `K = 10` and `J = 1`, and every agent standardized at the start, with a random spin. A schedule holds the
 # temperature at 0.4 for 600 units of time, raises it linearly to 2.4 over 900 units, lowers it back to 0.4 over the
 # next 900, and holds it again for 600, through the intensity of choice, its inverse. The observer saves every
@@ -17,11 +17,11 @@ ordering.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'standardized_agents'
+SYSTEM = 'standardized_agents'
 K, J, H = 10.0, 1.0, 50
 LOW, HIGH, HOLD, RAMP = 0.4, 2.4, 600.0, 900.0
 PEAK, END = HOLD + RAMP, 2 * (HOLD + RAMP)
@@ -32,8 +32,8 @@ def temperature_at(time):
     return LOW + (HIGH - LOW) * float(np.clip(1 - abs(time - PEAK) / RAMP, 0, 1))
 
 
-system = create(MODEL, agents=100, K=K, J=J, H=H, T=LOW, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=12)
+system = create_system(SYSTEM, agents=100, K=K, J=J, H=H, T=LOW, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=12)
 schedule = {'standardization.intensity': lambda time: 1 / temperature_at(time)}
 simulation = (
     Simulation(
@@ -41,9 +41,8 @@ simulation = (
         observers=[observer],
         schedule=schedule,
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=END)
 )

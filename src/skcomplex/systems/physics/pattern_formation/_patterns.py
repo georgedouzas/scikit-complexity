@@ -1,0 +1,135 @@
+"""Pattern formation systems: amplitude equations and rolls."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+import math
+from collections.abc import Sequence
+
+import numpy as np
+
+from ....core.components.elements import FieldElement
+from ....core.components.spaces import LatticeSpace
+from ....core.components.system import System
+from ....core.engine.solvers import ETDRK4Solver
+from ....core.types import Array
+from ..._catalog import register_system
+from ..common.fields import SwiftHohenbergEnergyInteraction
+from ._ginzburg_landau import GinzburgLandauElement
+from ._pattern_field import PatternFieldElement
+
+
+def _noise(shape: tuple[int, ...], scale: float, random_state: int | np.random.Generator | None) -> Array:
+    """Return small uniform noise of a shape."""
+    return scale * np.random.default_rng(random_state).uniform(-1.0, 1.0, size=shape)
+
+
+@register_system(
+    field='physics/pattern_formation',
+    tags=('field', 'chaos', 'spirals', 'spectral', 'pde'),
+    references=('Aranson and Kramer 2002', 'Gros 2015'),
+    defaults={'until': 50.0, 'dt': 1.0, 'solver': ETDRK4Solver(dt=0.1)},
+)
+def complex_ginzburg_landau(
+    shape: Sequence[int] = (64, 64),
+    *,
+    length: float = 64.0,
+    b: float = 1.0,
+    c: float = -1.5,
+    random_state: int | np.random.Generator | None = 0,
+) -> System:
+    """Return the complex Ginzburg-Landau equation `A_t = A + (1 + i b) laplacian(A) - (1 + i c) |A|^2 A`.
+
+    The amplitude `A = u + i v` is held as its real and imaginary parts, and the linear part couples them per Fourier
+    mode. With `1 + b c < 0` the uniform oscillation is unstable and spiral defects turn into turbulence.
+
+    Args:
+        shape:
+            The number of sites along both axes of the periodic lattice.
+
+        length:
+            The side of the square.
+
+        b:
+            The linear dispersion.
+
+        c:
+            The nonlinear dispersion.
+
+        random_state:
+            The seed or generator of the small random initial amplitude.
+
+    Returns:
+        system:
+            The system, with the real part `medium.u` and the imaginary part `medium.v`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.pattern_formation import complex_ginzburg_landau
+        >>> complex_ginzburg_landau((8, 8)).elements[0].values['c']
+        -1.5
+    """
+    shape = tuple(shape)
+    rng = np.random.default_rng(random_state)
+    values = {'u': _noise(shape, 0.01, rng), 'v': _noise(shape, 0.01, rng), 'b': b, 'c': c}
+    space = LatticeSpace(shape, spacing=length / shape[0])
+    return System(
+        elements=[
+            FieldElement(
+                'medium',
+                element=GinzburgLandauElement,
+                space=space,
+                values=values,
+                discretization='spectral',
+            ),
+        ],
+    )
+
+
+@register_system(
+    field='physics/pattern_formation',
+    tags=('field', 'rolls', 'convection', 'spectral', 'pde'),
+    references=('Swift and Hohenberg 1977', 'Cross and Hohenberg 1993', 'Datseris and Parlitz 2022'),
+    defaults={'until': 200.0, 'dt': 5.0, 'solver': ETDRK4Solver(dt=0.5)},
+)
+def swift_hohenberg(
+    shape: Sequence[int] = (64, 64),
+    *,
+    length: float = 16 * math.pi,
+    r: float = 0.3,
+    random_state: int | np.random.Generator | None = 0,
+) -> System:
+    """Return the Swift-Hohenberg equation `u_t = r u - (1 + laplacian)^2 u - u^3`, which forms rolls of length 2 pi.
+
+    Above onset, `r > 0`, small noise grows into rolls whose wavenumber is near 1, the fastest growing one.
+
+    Args:
+        shape:
+            The number of sites along every axis of the periodic lattice.
+
+        length:
+            The side of the domain.
+
+        r:
+            The distance above onset.
+
+        random_state:
+            The seed or generator of the noise.
+
+    Returns:
+        system:
+            The system, with the field `cells.u`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.pattern_formation import swift_hohenberg
+        >>> swift_hohenberg((8, 8), r=0.1).interactions[0].r
+        0.1
+    """
+    shape = tuple(shape)
+    values = {'u': _noise(shape, 0.01, random_state)}
+    space = LatticeSpace(shape, spacing=length / shape[0])
+    return System(
+        elements=[
+            FieldElement('cells', element=PatternFieldElement, space=space, values=values, discretization='spectral'),
+        ],
+        interactions=[SwiftHohenbergEnergyInteraction('energy', target='cells', r=r)],
+    )

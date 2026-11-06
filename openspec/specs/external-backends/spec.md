@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Lets a model described once in the framework run inside a third-party solver library, such as LAMMPS for particle
+Lets a system described once in the framework run inside a third-party solver library, such as LAMMPS for particle
 systems, while frames, trajectories, live parameters, and Rerun visualization keep working.
 
 ## Requirements
@@ -19,7 +19,7 @@ logs with the same names as a native solver.
 An external backend SHALL check every element, interaction, and law of a problem before the first frame and SHALL
 raise a named error that lists each unsupported one.
 
-#### Scenario: Population model on LAMMPS
+#### Scenario: Population system on LAMMPS
 - **WHEN** a Lotka-Volterra system is given to the LAMMPS backend
 - **THEN** a named error is raised that names the backend and the unsupported elements and interactions
 

@@ -14,23 +14,22 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'gibrat_process'
+SYSTEM = 'gibrat_process'
 N_FIRMS, SIZE, MU, SIGMA, STEPS = 1000, 100.0, 1.02, 0.05, 150
 
-system = create(MODEL, n_firms=N_FIRMS, x=SIZE, mu=MU, sigma=SIGMA)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, n_firms=N_FIRMS, x=SIZE, mu=MU, sigma=SIGMA)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(
         system,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=STEPS)
 )

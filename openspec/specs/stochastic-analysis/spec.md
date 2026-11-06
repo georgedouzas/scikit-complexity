@@ -2,7 +2,7 @@
 
 ## Purpose
 Measures stochastic dynamics from jump paths, noisy series, transition matrices, and ensembles: first passage,
-stationary laws, counting statistics, irreversibility, large deviations, Markov models, aging, response, and extremes.
+stationary laws, counting statistics, irreversibility, large deviations, Markov systems, aging, response, and extremes.
 
 ## Requirements
 
@@ -92,7 +92,7 @@ histograms of an order parameter at several sizes, and histograms reweighted by 
 - **THEN** it satisfies `lambda(k) = lambda(-k - ln 2)` within 1e-8
 
 #### Scenario: Mean-field order parameter
-- **WHEN** a user estimates the rate function of the magnetization of the mean-field Ising model above its critical
+- **WHEN** a user estimates the rate function of the magnetization of the mean-field Ising system above its critical
   temperature from histograms at sizes 50, 100, and 200
 - **THEN** it agrees with the exact rate function within 0.02 for `|m| < 0.5`
 
@@ -101,12 +101,12 @@ The analysis layer SHALL estimate Markov state models from discrete paths at a l
 metastable sets, committors between two sets, and mean first-passage times between sets.
 
 #### Scenario: Known three-state chain
-- **WHEN** a user estimates a model at lag 1 from 10^5 steps of a known three-state chain
+- **WHEN** a user estimates a system at lag 1 from 10^5 steps of a known three-state chain
 - **THEN** every transition probability lies within 0.02 of the true one, and the implied timescales are flat in the
   lag within 5 percent
 
 #### Scenario: Double well on two domains
-- **WHEN** a user estimates models of an overdamped particle in a double well, discretized in 50 bins, and of a
+- **WHEN** a user estimates systems of an overdamped particle in a double well, discretized in 50 bins, and of a
   bistable Schlögl reaction network on its copy numbers
 - **THEN** both find two metastable sets, and the slowest implied timescale is within 20 percent of
   `1 / (1 / T_AB + 1 / T_BA)`, with `T_AB` and `T_BA` the mean times the path stays in each well
@@ -122,12 +122,12 @@ waiting time alone, collapse distributions on the ratio of times, and compute fl
 
 #### Scenario: Aging on two domains
 - **WHEN** a user computes the two-time correlations of a Glauber Ising quench below its critical temperature and of
-  Bouchaud's trap model with `T / T_g = 0.5`
+  Bouchaud's trap system with `T / T_g = 0.5`
 - **THEN** in each the correlation at fixed `tau` grows with the waiting time, and the curves collapse onto
   `tau / t_w` within 0.05
 
-#### Scenario: Trap model distribution
-- **WHEN** a user collapses the trapping-time distributions `P(tau, t)` of the trap model at ages 10^3, 10^4, and 10^5
+#### Scenario: Trap system distribution
+- **WHEN** a user collapses the trapping-time distributions `P(tau, t)` of the trap system at ages 10^3, 10^4, and 10^5
   for `tau / t` between 0.3 and 3
 - **THEN** `t P(tau, t)` against `tau / t` collapses within 10 percent
 
@@ -150,7 +150,7 @@ stable laws to sums, and compare samples with a named law by a goodness-of-fit t
   and the money per agent within 2 percent
 
 #### Scenario: Reweighted magnetization
-- **WHEN** a user reweights the magnetization histogram of the mean-field Ising model of size 100 at field 0 to field
+- **WHEN** a user reweights the magnetization histogram of the mean-field Ising system of size 100 at field 0 to field
   0.05
 - **THEN** the reweighted mean lies within 0.02 of the mean of a run at field 0.05
 

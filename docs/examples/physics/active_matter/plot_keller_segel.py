@@ -8,7 +8,7 @@ dark uniform background with a few bright, compact aggregates.
 """
 
 # %%
-# The model is created by name from the catalog on a periodic square of side 32 with 32 sites per side, with the
+# The system is created by name from the catalog on a periodic square of side 32 with 32 sites per side, with the
 # chemotactic sensitivity `chi = 5`, five times the threshold, and the cells at density 1 with 1% noise. In two
 # dimensions the aggregates collapse in finite time, so the run stops at `t = 10.5`, shortly before the density blows
 # up. The default blueprint shows the cell density as an image.
@@ -16,15 +16,15 @@ dark uniform background with a few bright, compact aggregates.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'keller_segel'
+SYSTEM = 'keller_segel'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.25, observers=[observer], random_state=0).check().prepare().run(until=10.5)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=0.25, observers=[observer], random_state=0).prepare().run(until=10.5)
 
 # %%
 # Linear instability and conservation

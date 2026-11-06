@@ -6,7 +6,7 @@ are huge, so the cloud has a dense core and walkers scattered far away by single
 """
 
 # %%
-# The model is created by name from the catalog with 500 walkers in the plane, whose jump lengths have the tail
+# The system is created by name from the catalog with 500 walkers in the plane, whose jump lengths have the tail
 # `l^(-2.2)`, and iterated for 200 steps. Every step draws the jump lengths from SciPy's Pareto distribution and the
 # directions from normal draws. The observer saves every frame with the default blueprint, whose primary view shows
 # the walkers.
@@ -14,15 +14,15 @@ are huge, so the cloud has a dense core and walkers scattered far away by single
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'levy_flight'
+SYSTEM = 'levy_flight'
 
-system = create(MODEL, n_walkers=500, mu=1.2)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=200)
+system = create_system(SYSTEM, n_walkers=500, mu=1.2)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=200)
 
 # %%
 # Superdiffusive spreading

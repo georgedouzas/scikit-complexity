@@ -22,7 +22,7 @@ A plain `pytest` run SHALL not measure coverage, and the `tests` session of nox 
 and `tests`.
 
 #### Scenario: Plain run
-- **WHEN** a contributor runs `pytest tests/core/laws`
+- **WHEN** a contributor runs `pytest tests/core/components/laws`
 - **THEN** the run reports no coverage and writes no coverage file
 
 #### Scenario: Gate coverage

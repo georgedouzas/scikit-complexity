@@ -8,22 +8,22 @@ the stock left over has no value.
 """
 
 # %%
-# The model is created by name from the catalog with the growth rate and the capacity 1, the cost 0.2 per unit of
+# The system is created by name from the catalog with the growth rate and the capacity 1, the cost 0.2 per unit of
 # effort, and the discount rate 0.1, from a full stock. The collocation solver of its catalog entry transcribes the
 # problem on 101 nodes over 20 years. The default blueprint shows the stock and the effort in one time series view.
 
 import matplotlib.pyplot as plt
 from scipy.optimize import brentq
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'optimal_harvesting'
+SYSTEM = 'optimal_harvesting'
 
-system = create(MODEL)
-entry = describe(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+entry = describe(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(
         system,
@@ -32,7 +32,6 @@ simulation = (
         observers=[observer],
         observables=entry.observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=20)
 )

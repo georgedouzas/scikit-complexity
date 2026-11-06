@@ -14,12 +14,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.compile import compile_system
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'probabilistic_boolean_network'
+SYSTEM = 'probabilistic_boolean_network'
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
@@ -33,9 +33,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = (
-    Simulation(create(MODEL, active=('x1', 'x3')), dt=1, observers=[observer], random_state=4).check().prepare().run(30)
+    Simulation(create_system(SYSTEM, active=('x1', 'x3')), dt=1, observers=[observer], random_state=4).prepare().run(30)
 )
 
 # %%
@@ -47,7 +47,7 @@ simulation = (
 # of the tables give, and the share of runs in which `x1` used its first function, which should be its probability
 # 0.6 at every step.
 
-problem = compile_system(create(MODEL, active=('x1', 'x3')))
+problem = PassCompiler().prepare(create_system(SYSTEM, active=('x1', 'x3'))).run().problem_
 rng = np.random.default_rng(0)
 names = problem.states.names
 values = [names.index(f'{gene}.x') for gene in ('x1', 'x2', 'x3')]

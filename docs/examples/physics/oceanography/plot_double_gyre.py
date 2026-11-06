@@ -2,25 +2,25 @@
 # Quasi-geostrophic double gyre
 
 A steady wind over a closed basin on the beta plane spins up two gyres of opposite sign. In the interior the Sverdrup
-balance sets the flow, and the return flow closes in narrow boundary layers along the western wall, the viscous model of
-currents such as the Gulf Stream. The state is the potential vorticity, and every step inverts it into a streamfunction.
+balance sets the flow, and the return flow closes in narrow boundary layers along the western wall, the viscous system
+of currents such as the Gulf Stream. The state is the potential vorticity, inverted into a streamfunction at each step.
 """
 
 # %%
-# The model is created by name from the catalog on a square basin of 64 by 64 sites with walls, in its viscous steady
+# The system is created by name from the catalog on a square basin of 64 by 64 sites with walls, in its viscous steady
 # regime, and integrated with RK4 for 400 time units. The catalog entry streams the streamfunction as the observable
 # `psi`, and the default blueprint shows it as an image.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import run
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_simulation
 
-MODEL = 'double_gyre'
+SYSTEM = 'double_gyre'
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=50)
-simulation = run(MODEL, settings={'observers': [observer]})
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=50)
+simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run()
 
 # %%
 # Western intensification

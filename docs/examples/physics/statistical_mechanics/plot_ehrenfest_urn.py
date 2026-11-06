@@ -7,7 +7,7 @@ returning near forty, although every step can be undone. The view shows the coun
 """
 
 # %%
-# The model is created by name from the catalog with 40 balls, all in the first box. One step moves one ball, and the
+# The system is created by name from the catalog with 40 balls, all in the first box. One step moves one ball, and the
 # blueprint shows the count over the whole run.
 
 import math
@@ -16,11 +16,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'ehrenfest_urn'
+SYSTEM = 'ehrenfest_urn'
 BALLS = 40
 
 # The view shows the whole run, not the default window that follows the latest frame.
@@ -33,9 +33,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = (
-    Simulation(create(MODEL, n_balls=BALLS), dt=1, observers=[observer], random_state=0).check().prepare().run(250)
+    Simulation(create_system(SYSTEM, n_balls=BALLS), dt=1, observers=[observer], random_state=0).prepare().run(250)
 )
 
 # %%
@@ -48,8 +48,7 @@ simulation = (
 steps = np.arange(301)
 urns = np.array(
     [
-        Simulation(create(MODEL, n_balls=BALLS), dt=1, random_state=seed)
-        .check()
+        Simulation(create_system(SYSTEM, n_balls=BALLS), dt=1, random_state=seed)
         .prepare()
         .run(300)
         .trajectory_.values('urn.n')
@@ -57,8 +56,7 @@ urns = np.array(
     ],
 )
 counts = np.asarray(
-    Simulation(create(MODEL, n_balls=BALLS), dt=1, random_state=1)
-    .check()
+    Simulation(create_system(SYSTEM, n_balls=BALLS), dt=1, random_state=1)
     .prepare()
     .run(20000)
     .trajectory_.values('urn.n'),

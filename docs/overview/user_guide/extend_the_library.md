@@ -1,0 +1,315 @@
+# Extend the library
+
+Add your own elements, interactions, laws, and other parts without changing the library, and see where everything
+lives.
+
+## Extending the general classes
+
+Give a general class of the library the words of your field, without losing its checks and laws. A general class names
+a mathematical operation, and a subclass names what it means in a field. The subclass overrides hooks, and the checks
+and the laws of its parent keep working.
+
+### Roles and parameters
+
+Rename a role or a parameter of a general interaction, or fix a parameter to a value.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.interactions import MovementInteraction, RateInteraction
+from skcomplex.core.components.spaces import DiscreteTime, LatticeSpace
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
+
+
+class StockElement(Element):
+    def __init__(self, label, visual=None, *, level: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label, visual=visual)
+        self.level = level
+
+
+class InflowInteraction(RateInteraction):
+    def __init__(self, label, *, stock: Annotated[str, RoleSpec()]):
+        super().__init__(label, target=stock, state='level', rate=lambda s: 1.0)
+        self.stock = stock
+
+    def _get_role(self, role):
+        return {'target': 'stock'}.get(role, role)
+
+
+inflow = System(elements=[StockElement('tank')], interactions=[InflowInteraction('fill', stock='tank')])
+round(float(Simulation(inflow, dt=0.1).prepare().run(until=1).trajectory_.values('tank.level')[-1]), 3)
+```
+
+`_get_role` renames a role, here `target` to `stock`, in the symbolic form and the agent form alike. `_get_parameter`
+renames a parameter in the same way. An argument that the class does not declare as a parameter is a plain value, so a
+subclass fixes a parameter by setting it, as `InflowInteraction` fixes the rate to 1.
+
+```python continuation
+class BoldWalkInteraction(MovementInteraction):
+    def __init__(self, label, *, target: Annotated[str, RoleSpec()], boldness: Annotated[float, ParameterSpec()] = 1.0):
+        super().__init__(label, target=target)
+        self.boldness = boldness
+
+    def _get_parameter(self, name):
+        return {'probability': 'boldness'}.get(name, name)
+
+
+class WalkerElement(StockElement):
+    def _get_laws(self, s):
+        return []
+
+
+walkers = GroupElement('walkers', element=WalkerElement, size=2, location=[(2, 2)] * 2)
+walk = System(
+    elements=[walkers],
+    interactions=[BoldWalkInteraction('walk', target='walkers')],
+    space=LatticeSpace((5, 5)),
+    time=DiscreteTime(),
+)
+len(Simulation(walk, random_state=0).prepare().run(until=2).trajectory_.agent_locations('walkers'))
+```
+
+Here the movement probability of `MovementInteraction` becomes the `boldness` of a walker.
+
+### Variants
+
+Choose the variant of a general interaction with a named value, a spec, or a function. Each argument takes some of
+these:
+
+- The pairing of a transfer, a matching, or a grouping takes a `PartnerSpec` or a function.
+- The rule of a choice or an imitation, the groups of a grouping, the selection and the replacement of an evolution,
+  the action of a topology, and the mode of a cascade, a coupling, or a map take their named values or a spec of a
+  subclass.
+- A step, a placement, and a move take their named values or a function, and a pick takes its named values. None of
+  them takes a spec, because a function already says what a spec would. A spec given to one of them raises an error
+  that lists what the argument takes.
+
+Every other value raises the same error, so the checks of the parent keep working.
+
+### Partners and settlement
+
+Say whom an agent pairs with in a transfer, and how both partners settle the amount.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.interactions import TransferInteraction
+from skcomplex.core.components.laws import RuleLaw
+from skcomplex.core.components.spaces import ContinuousSpace, DiscreteTime
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.specs import PartnerSpec, StateSpec
+
+
+class EaterElement(Element):
+    def __init__(
+        self,
+        label,
+        visual=None,
+        *,
+        level: Annotated[float, StateSpec()] = 0.0,
+        sold: Annotated[float, StateSpec()] = 0.0,
+    ):
+        super().__init__(label, visual=visual)
+        self.level = level
+        self.sold = sold
+
+    def _get_laws(self, s):
+        return [RuleLaw(lambda agent, system: None)]
+
+
+def settle(source, target, amounts, system):
+    source.level += sum(amounts)
+    target.sold += 1.0
+
+
+space = ContinuousSpace(extent=(10.0, 10.0))
+eaters = GroupElement('eaters', element=EaterElement, size=3, space=space)
+providers = GroupElement('providers', element=EaterElement, size=2, space=space)
+meal = TransferInteraction(
+    'meal',
+    source='eaters',
+    target='providers',
+    state='level',
+    into='sold',
+    amount=lambda source, target, system: 2.0,
+    pairing=PartnerSpec(1.0, fallback='nearest'),
+    form='agent',
+    settlement=settle,
+)
+system = System(elements=[eaters, providers], interactions=[meal], time=DiscreteTime())
+trajectory = Simulation(system, random_state=0).prepare().run(until=1).trajectory_
+trajectory.agents('eaters', 1).values['level'].tolist()
+```
+
+`PartnerSpec(candidates, choice, fallback, capacity, score, clearing)` says whom an agent pairs with:
+
+- The candidates are `'all'`, `'neighbors'`, `'cell'`, `'local'` for both of these, a distance, or the name of a state
+  that holds a distance per agent. So it works in continuous space too.
+- The choice is `'uniform'`, `'score'`, `'nearest'`, or `'all'`.
+- The fallback `'nearest'` takes the nearest partner when no one is within reach.
+
+A `settlement(source, target, amounts, system)` of a transfer receives both partners and the drawn amounts, so both ends
+credit one draw.
+
+### Agent states that hold objects
+
+Give an agent a state that holds any value, such as a tuple of orders, and tell analyses what a state means.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.laws import RuleLaw
+from skcomplex.core.components.spaces import DiscreteTime
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.specs import StateSpec
+
+
+class QueueElement(Element):
+    def __init__(self, label, visual=None, *, orders: Annotated[object, StateSpec(domain=None)] = ()):
+        super().__init__(label, visual=visual)
+        self.orders = orders
+
+    def _get_laws(self, s):
+        return [RuleLaw(self._step)]
+
+    def _step(self, agent, system):
+        agent.orders = (*agent.orders, int(system.time))[-2:]
+
+
+group = GroupElement('queues', element=QueueElement, size=2, values={'orders': [(), (7,)]})
+queues = System(elements=[group], time=DiscreteTime())
+trajectory = Simulation(queues, random_state=0).prepare().run(until=1).trajectory_
+trajectory.agents('queues', 1).values['orders'].tolist()
+```
+
+A state of an agent with `StateSpec(domain=None)` or `StateSpec(domain=object)` holds any hashable value, such as a
+tuple, a string, or a frozen set:
+
+- A snapshot keeps one object per agent in a one-dimensional array.
+- A composition counts the agents by value.
+- A history keeps any value.
+- An analysis that needs numbers names the state and refuses it.
+
+Symbolic systems hold numbers only, in the vectors of their solvers.
+
+`StateSpec(role='position')`, `StateSpec(role='direction')`, `StateSpec(role='phase')`, and
+`StateSpec(role='velocity')` tell analyses what a state means. Analyses read positions, directions, phases, and
+velocities from these roles, not from the names of the states. So a state named `phase` is no phase unless it says so.
+
+- A group is a particle group when a state has the role `'position'`, and the first derivative of that state is its
+  velocity.
+- The scalar states of any other group count as series, one per member. A displacement refuses them, since they are no
+  positions.
+- A variable group has no fixed members, so its states are series only when named, with NaN in the rows that hold no
+  member.
+- In a continuous space, a vector state with the role `'position'` is the place of its element. The boundary acts on it,
+  and neighbourhoods measure distances from it.
+- `StateSpec(role='site')` does the same for a place that does not make a member a particle, such as the fixed sites of
+  oscillators on a ring.
+
+## Package layout
+
+Find where every class lives, so you know what to import and where a part of your own belongs. The package has two
+parts:
+
+- `skcomplex.core` is the general library: what a system is, how it runs, and how you analyse and experiment with it.
+- `skcomplex.systems` is the catalog of ready-made systems, built from the core.
+
+```python
+from skcomplex.core.analysis import SymbolicAnalysis
+from skcomplex.core.base import BaseConfig
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.experiments import Experiment
+from skcomplex.systems import describe
+
+[issubclass(cls, BaseConfig) for cls in (System, Simulation, SymbolicAnalysis, Experiment)]
+describe('lotka_volterra').field
+```
+
+A system, a simulation, an analysis, and an experiment all derive from one root class, `BaseConfig`, and every
+ready-made system belongs to a field and a subfield of the catalog.
+
+The parts of the core are layered, so that each imports only the parts below it. From top to bottom:
+
+1. `skcomplex.core.experiments` runs many simulations.
+2. `skcomplex.core.analysis` measures systems, trajectories, and data.
+3. `skcomplex.core.engine` runs systems.
+4. `skcomplex.core.components` defines what a system is.
+5. `skcomplex.core.specs` holds the specs.
+6. `skcomplex.core.base` holds `BaseConfig`.
+7. `skcomplex.core.types` and `skcomplex.core.errors` hold the types and the errors.
+
+No part of the core imports `skcomplex.systems`, and the systems import only the public modules of the core. Tests of
+the import contracts enforce the layering.
+
+### The root modules
+
+Every package of the core shares the root modules:
+
+- `skcomplex.core.base` holds `BaseConfig`, the root of every configurable class. It stores the settings of a class
+  under their own names, as scikit-learn does, so `get_params`, `set_params`, and `clone` work on every class. It gives
+  every class the verbs `prepare` and `run`.
+- `skcomplex.core.errors` holds the errors and warnings, such as `ValidationError`, `RoleError`, `SolverError`, and
+  `RewritingError`.
+- `skcomplex.core.types` holds the types that every layer reads, such as arrays, functions, keys, and kinds.
+- `skcomplex.core.specs` holds the specs, frozen values that declare, record, or hold what the classes read. These
+  include the specs that annotate states, parameters, and roles, such as `StateSpec`, `ParameterSpec`, and `RoleSpec`,
+  the specs of runs and structures, such as `ObservableSpec` and `WienerProcessSpec`, and the specs of rules, domains,
+  and geometries, such as `TableSpec`, `LinearRuleSpec`, `SubshiftSpec`, and `GeometrySpec`.
+
+### The core
+
+`skcomplex.core.components` defines what a system is, and nothing about how it runs. Its modules are listed in their
+import order, so a module imports only the modules above it:
+
+- `types`: the types of the components, such as the targets of laws and the pairings and rules of matches.
+- `base`: `BasePart`, the base of every part of a system, built on `BaseConfig`.
+- `spaces`: the continuous, lattice, network, mesh, and Cayley spaces, their neighbourhoods, and the kinds of time.
+- `laws`: the `BaseLaw` base and every law. `laws.utils` holds what laws are written with besides Sage, such as
+  `where`, reductions, draws, delays, and calls.
+- `elements` and `interactions`: `Element`, `GroupElement`, `FieldElement`, and the other elements, and the binding
+  bases `Interaction`, `NeighborInteraction`, `PairInteraction`, and `HyperedgeInteraction`, with the general
+  interactions built on them.
+- `system`: `System`.
+- `specs`: the specs that name classes of the components, as a compilation reads them, such as `ScenarioSpec`.
+
+### The engine
+
+`skcomplex.core.engine` runs systems. Its packages are listed in their import order too:
+
+- `types`: the types that only the engine reads.
+- `problems`: the compiled problems, their layouts of states and parameters, and their numeric functions.
+- `backends`: the NumPy, Numba, and JAX backends, which lower expressions to numeric functions.
+- `compile`: the compilers and the passes that turn a system into a problem.
+- `solvers`: the solver contract, `step_count`, and every solver.
+- `runtime`: `Simulation`, clocks, observers, and trajectories.
+- `viz`: the visuals and the Rerun observer.
+- `translators`: the translators of system files of other tools, such as `SystemDynamicsTranslator`.
+
+### Analysis and experiments
+
+`skcomplex.core.analysis` holds the analyses of systems, trajectories, and data, with the types that only they read in
+`skcomplex.core.analysis.types`. `skcomplex.core.experiments` holds the experiments over designs of parameters,
+scenarios, and replicates, the designs, sensitivity analysis, and calibration. Its `types` and `specs` hold the rows of
+a design and the runs of an experiment.
+
+### The systems
+
+`skcomplex.systems` is the catalog. You use it through four functions: `catalog`, `describe`, `create_system`, and
+`create_simulation`. Behind them, the systems are organised by field, `biology`, `chemistry`, `computer_science`,
+`economics`, `engineering`, `mathematics`, `physics`, and `social`, and by subfield inside each field, such as
+`physics.mechanics` or `biology.ecology`.
+
+- A subfield package is self-contained, and imports no other subfield.
+- A realization that several subfields of one field share lives in the `common` package of that field, such as
+  `physics.common`.
+- Every system is written with the same public classes of the core as a custom system, so its source also works as a
+  pattern.

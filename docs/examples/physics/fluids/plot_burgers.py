@@ -9,24 +9,24 @@ smooth sine turning into a sharp moving jump.
 """
 
 # %%
-# The model is created by name from the catalog with 200 finite-volume cells, mean `1.5`, and amplitude `1`. The
-# catalog registers the strong-stability-preserving Runge-Kutta stepper for this model, which keeps the shock free of
+# The system is created by name from the catalog with 200 finite-volume cells, mean `1.5`, and amplitude `1`. The
+# catalog registers the strong-stability-preserving Runge-Kutta stepper for this system, which keeps the shock free of
 # new extrema, so it is passed explicitly. The observer saves every frame of 0.01 with the default blueprint, whose
 # primary view is the space-time image of the field.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import SSPRKSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import SSPRKSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'burgers'
+SYSTEM = 'burgers'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, solver=SSPRKSolver(), dt=0.01, observers=[observer]).check().prepare().run(until=2.99)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, solver=SSPRKSolver(), dt=0.01, observers=[observer]).prepare().run(until=2.99)
 
 # %%
 # Shock formation and conservation

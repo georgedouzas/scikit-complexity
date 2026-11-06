@@ -7,21 +7,21 @@ settle in the thermal mode.
 """
 
 # %%
-# The model is created by name from the catalog with the forcings `eta1 = 3`, `eta2 = 1.2`, and `eta3 = 0.3`, starting
+# The system is created by name from the catalog with the forcings `eta1 = 3`, `eta2 = 1.2`, and `eta3 = 0.3`, starting
 # at `T = 3` and `S = 0`. The default blueprint shows the temperature and salinity differences in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'stommel'
+SYSTEM = 'stommel'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=50)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=50)
 
 # %%
 # Two basins of circulation
@@ -32,7 +32,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().
 fig, ax = plt.subplots(figsize=(6, 5))
 for T0 in np.linspace(0.1, 2.9, 8):
     for S0 in np.linspace(0.1, 2.9, 8):
-        run = Simulation(create(MODEL, T=T0, S=S0), dt=0.1).check().prepare().run(until=50).trajectory_
+        run = Simulation(create_system(SYSTEM, T=T0, S=S0), dt=0.1).prepare().run(until=50).trajectory_
         T, S = run.values('ocean.T'), run.values('ocean.S')
         ax.plot(T, S, color='C3' if T[-1] > S[-1] else 'C0', linewidth=0.7)
         ax.plot(T[-1], S[-1], 'o', color='black', markersize=6)

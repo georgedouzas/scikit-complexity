@@ -12,13 +12,13 @@ from pathlib import Path
 from ._cache import ScreenshotCache, cache_key
 from ._checks import is_placeholder
 from ._errors import GalleryError
-from ._examples import Example, find_examples, model_sources
+from ._examples import Example, find_examples, system_sources
 from ._settings import BACKENDS, DEFAULT_BACKEND, CaptureSettings
 
 SELECTION_VARIABLE = 'SKCOMPLEX_GALLERY'
 BACKEND_VARIABLE = 'SKCOMPLEX_GALLERY_BACKEND'
 RUN_ALL = 'all'
-SAMPLE_MODELS = frozenset(
+SAMPLE_SYSTEMS = frozenset(
     {
         'agent_based_sir',
         'baumslag_solitar_automaton',
@@ -62,7 +62,7 @@ class GalleryBuild:
             The root of the generated gallery, with one folder per field.
 
         run_all:
-            Whether to run every example, or only the sample of three fast models per field.
+            Whether to run every example, or only the sample of three fast systems per field.
 
         backend:
             The capture backend.
@@ -125,7 +125,7 @@ class GalleryBuild:
             examples:
                 The examples to run.
         """
-        return [example for example in find_examples(self.examples) if self.run_all or example.model in SAMPLE_MODELS]
+        return [example for example in find_examples(self.examples) if self.run_all or example.system in SAMPLE_SYSTEMS]
 
     def filename_pattern(self) -> str:
         """Return the `mkdocs-gallery` pattern of the scripts to run.
@@ -227,7 +227,7 @@ class GalleryBuild:
     def mark_stale(self) -> list[Example]:
         """Make `mkdocs-gallery` run again the selected examples whose page does not show the current screenshots.
 
-        `mkdocs-gallery` skips a script whose source has not changed since its last run. A change of the model's code,
+        `mkdocs-gallery` skips a script whose source has not changed since its last run. A change of the system's code,
         of Rerun, of the backend, or of the capture settings changes the cache key without changing the script, so the
         checksum file of an example is removed when its screenshots are not cached or its page holds another key.
 
@@ -237,7 +237,7 @@ class GalleryBuild:
         """
         stale = []
         for example in self.selected():
-            key = cache_key(example.path, model_sources(example.model), self.backend, self.settings)
+            key = cache_key(example.path, system_sources(example.system), self.backend, self.settings)
             stamp = self.stamp(example)
             if self.cache.get(key) is not None and stamp.exists() and stamp.read_text() == key:
                 continue

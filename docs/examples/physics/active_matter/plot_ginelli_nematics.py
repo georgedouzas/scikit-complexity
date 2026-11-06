@@ -7,7 +7,7 @@ move both ways along it: the points split into two colors, the two opposite head
 
 # %%
 # Four hundred particles move `v0 = 0.3` per step in a periodic box of side 10 with noise `eta = 0.08`. The blueprint
-# shows the whole box and draws the particles larger than the model's visual does, so they read in the gallery
+# shows the whole box and draws the particles larger than the system's visual does, so they read in the gallery
 # thumbnail.
 
 import matplotlib.pyplot as plt
@@ -15,11 +15,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'ginelli_nematics'
+SYSTEM = 'ginelli_nematics'
 
 box = rrb.Spatial2DView(
     origin='/flock',
@@ -34,14 +34,11 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, n_particles=400, seed=0)
-observables = describe(MODEL).observables_of(system)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
+system = create_system(SYSTEM, n_particles=400, seed=0)
+observables = describe(SYSTEM).observables_of(system)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 simulation = (
-    Simulation(system, dt=1.0, observers=[observer], random_state=0, observables=observables)
-    .check()
-    .prepare()
-    .run(until=150)
+    Simulation(system, dt=1.0, observers=[observer], random_state=0, observables=observables).prepare().run(until=150)
 )
 
 # %%
@@ -54,17 +51,13 @@ simulation = (
 noises = np.linspace(0.04, 0.4, 10)
 nematic, polar = [], []
 for noise in noises:
-    model_system = create(MODEL, n_particles=400, eta=noise, seed=1)
-    run = (
-        Simulation(
-            model_system,
-            dt=5.0,
-            random_state=1,
-            observables=describe(MODEL).observables_of(model_system),
-        )
-        .check()
-        .prepare()
-    )
+    system_system = create_system(SYSTEM, n_particles=400, eta=noise, seed=1)
+    run = Simulation(
+        system_system,
+        dt=5.0,
+        random_state=1,
+        observables=describe(SYSTEM).observables_of(system_system),
+    ).prepare()
     trajectory = run.run(until=150).trajectory_
     nematic.append(np.mean(np.asarray(trajectory.values('nematic_order'), dtype=float)[-10:]))
     polar.append(np.mean(np.asarray(trajectory.values('polarization'), dtype=float)[-10:]))

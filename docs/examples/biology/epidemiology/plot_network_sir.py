@@ -7,22 +7,22 @@ and the outbreak in the whole network rises, peaks, and burns out.
 """
 
 # %%
-# The model is created by name from the catalog on its default Barabási-Albert network of 20 cities with 20
+# The system is created by name from the catalog on its default Barabási-Albert network of 20 cities with 20
 # travellers each. The recorded run stops at day 25, near the peak of the outbreak, so that the default blueprint's view
-# of the network shows the cities in the middle of the epidemic; the analysis runs the outbreak to its end.
+# of the network shows the cities in the middle of the epidemic. The analysis runs the outbreak to its end.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'network_sir'
+SYSTEM = 'network_sir'
 
-system = create(MODEL, residents=20, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=25)
+system = create_system(SYSTEM, residents=20, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=25)
 
 # %%
 # The outbreak in the network
@@ -31,8 +31,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).chec
 # accumulate, as in a single well-mixed SIR epidemic but slowed by the travel between cities.
 
 trajectory = (
-    Simulation(create(MODEL, residents=20, random_state=0), dt=1, random_state=0)
-    .check()
+    Simulation(create_system(SYSTEM, residents=20, random_state=0), dt=1, random_state=0)
     .prepare()
     .run(until=150)
     .trajectory_

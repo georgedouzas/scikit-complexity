@@ -6,22 +6,22 @@ a Hill coefficient of 12.
 """
 
 # %%
-# The model is created by name from the catalog with three stages, mRNA `x1`, enzyme `x2`, and product `x3`, and a
+# The system is created by name from the catalog with three stages, mRNA `x1`, enzyme `x2`, and product `x3`, and a
 # Hill coefficient of 12. The observer saves every third frame of the 60 time units with the default blueprint, whose
 # primary view is the time series of the three concentrations.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'goodwin_oscillator'
+SYSTEM = 'goodwin_oscillator'
 
-system = create(MODEL, n=12.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=3)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=60)
+system = create_system(SYSTEM, n=12.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=60)
 
 # %%
 # The threshold of the Hill coefficient
@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().
 coefficients = np.arange(4.0, 15.0)
 amplitudes = []
 for n in coefficients:
-    late = Simulation(create(MODEL, n=float(n)), dt=0.1).check().prepare().run(until=200).trajectory_
+    late = Simulation(create_system(SYSTEM, n=float(n)), dt=0.1).prepare().run(until=200).trajectory_
     product = late.values('x3.x')[late.times >= 150.0]
     amplitudes.append(product.max() - product.min())
 trajectory = simulation.trajectory_

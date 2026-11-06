@@ -1,4 +1,4 @@
-"""Build the model gallery: scaffold examples, capture their Rerun thumbnails, check, cache, and scrape them."""
+"""Build the system gallery: scaffold examples, capture their Rerun thumbnails, check, cache, and scrape them."""
 
 from ._build import GalleryBuild, build_from_environment
 from ._cache import ScreenshotCache, cache_key
@@ -33,10 +33,10 @@ from ._examples import (
     check_coverage,
     find_examples,
     gallery_interval,
-    library_models,
-    model_sources,
+    library_systems,
     scaffold_example,
     scaffold_examples,
+    system_sources,
 )
 from ._runner import RunReport, run_example, run_examples, summarize
 from ._scraper import EMBED_CLASS, RerunScraper, images_markdown
@@ -81,9 +81,8 @@ __all__: list[str] = [
     'images_markdown',
     'is_blank',
     'is_placeholder',
-    'library_models',
+    'library_systems',
     'missing_series',
-    'model_sources',
     'plot_signature',
     'plot_signatures',
     'run_example',
@@ -91,6 +90,7 @@ __all__: list[str] = [
     'scaffold_example',
     'scaffold_examples',
     'summarize',
+    'system_sources',
     'thumbnail_blueprint',
     'thumbnail_of',
     'trim_border',

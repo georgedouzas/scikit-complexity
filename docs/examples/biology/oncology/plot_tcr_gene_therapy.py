@@ -6,22 +6,22 @@ twelve thousand cells, far below the carrying capacity of a billion.
 """
 
 # %%
-# The model is created by name from the catalog with the book's parameters and a thousand effector and tumour cells,
+# The system is created by name from the catalog with the book's parameters and a thousand effector and tumour cells,
 # and runs for 1500 days. The observer saves every second frame with the default blueprint, whose primary view is the
 # time series of the two populations.
 
 import matplotlib.pyplot as plt
 from scipy.optimize import fsolve
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'tcr_gene_therapy'
+SYSTEM = 'tcr_gene_therapy'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=5.0, observers=[observer]).check().prepare().run(until=1500)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=5.0, observers=[observer]).prepare().run(until=1500)
 
 # %%
 # Spiral into the dormant state

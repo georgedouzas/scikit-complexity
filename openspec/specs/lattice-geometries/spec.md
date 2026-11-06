@@ -51,7 +51,7 @@ expression of a site and one neighbour over the real neighbours of the site only
 - **THEN** the energy change of every proposed rotation equals the change summed over the real neighbours, to 1e-12
 
 #### Scenario: Ising on a graph
-- **WHEN** the Ising model runs on the periodic 64 × 64 grid graph with a neighbour-sum energy at temperatures from
+- **WHEN** the Ising system runs on the periodic 64 × 64 grid graph with a neighbour-sum energy at temperatures from
   1.5 to 3.5 with ensembles
 - **THEN** the mean absolute magnetisation drops below one half between temperatures 2.2 and 2.4, as on the square
   lattice
@@ -81,7 +81,7 @@ number of times per step. Every application SHALL be recorded as an event with i
   its old value
 
 #### Scenario: Reproducible extremal runs
-- **WHEN** an extremal model runs twice with the same seed on the NumPy and on the Numba backend
+- **WHEN** an extremal system runs twice with the same seed on the NumPy and on the Numba backend
 - **THEN** all four runs give identical lattices and identical events at every step
 
 ### Requirement: Non-square lattices stream as sites

@@ -1,4 +1,4 @@
-"""Cache thumbnails under a key computed from the example, its model's and the core's code, Rerun, and the settings."""
+"""Cache thumbnails under a key computed from the example, its system's and the core's code, Rerun, and the settings."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +21,7 @@ METADATA = 'metadata.json'
 def cache_key(example: Path, sources: Sequence[Path], backend: str, settings: CaptureSettings) -> str:
     """Return the key of the screenshots of an example.
 
-    The key is the SHA-256 of the example source, the sources of the subfield package of its model and of the core
+    The key is the SHA-256 of the example source, the sources of the subfield package of its system and of the core
     package, the installed Rerun version, the backend, and the capture settings.
 
     Args:
@@ -29,8 +29,8 @@ def cache_key(example: Path, sources: Sequence[Path], backend: str, settings: Ca
             The path of the example script.
 
         sources:
-            The source files of the subfield package of the example's model and of the core package, as
-            `model_sources` returns them.
+            The source files of the subfield package of the example's system and of the core package, as
+            `system_sources` returns them.
 
         backend:
             The capture backend.
@@ -44,9 +44,9 @@ def cache_key(example: Path, sources: Sequence[Path], backend: str, settings: Ca
 
     Examples:
         >>> from pathlib import Path
-        >>> from gallery_tools import CaptureSettings, cache_key, model_sources
+        >>> from gallery_tools import CaptureSettings, cache_key, system_sources
         >>> example = Path('docs/examples/mathematics/dynamical_systems/plot_lorenz.py')
-        >>> len(cache_key(example, model_sources('lorenz'), 'native', CaptureSettings()))
+        >>> len(cache_key(example, system_sources('lorenz'), 'native', CaptureSettings()))
         64
     """
     digest = hashlib.sha256()
@@ -96,7 +96,7 @@ class ScreenshotCache:
                 The thumbnail.
 
             metadata:
-                The example, the model, the backend, the number of frames, and the run time.
+                The example, the system, the backend, the number of frames, and the run time.
 
         Returns:
             thumbnail:

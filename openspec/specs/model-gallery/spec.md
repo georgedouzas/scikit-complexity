@@ -1,32 +1,32 @@
-# model-gallery Specification
+# system-gallery Specification
 
 ## Purpose
-Gives every registered model a runnable example and a Rerun screenshot of its known behaviour, captured
+Gives every registered system a runnable example and a Rerun screenshot of its known behaviour, captured
 reproducibly, checked automatically, cached between builds, and shown in the documentation.
 
 ## Requirements
 
-### Requirement: Every registered model has one example
-The documentation SHALL hold exactly one example script per registered model, at
-`docs/examples/<field>/<subfield>/plot_<name>.py`, in the format of `mkdocs-gallery`. Each script SHALL name its model
-in a module constant, use only public names of `skcomplex`, run the model, stream it to Rerun with a blueprint, and
+### Requirement: Every registered system has one example
+The documentation SHALL hold exactly one example script per registered system, at
+`docs/examples/<field>/<subfield>/plot_<name>.py`, in the format of `mkdocs-gallery`. Each script SHALL name its system
+in a module constant, use only public names of `skcomplex`, run the system, stream it to Rerun with a blueprint, and
 state in its docstring a caption of what the screenshot shows.
 
-#### Scenario: Example of a model
+#### Scenario: Example of a system
 - **WHEN** a user opens `docs/examples/biology/ecology/plot_lotka_volterra.py`
 - **THEN** it creates `lotka_volterra` by name, runs it with a `RerunObserver` and a blueprint, and its docstring says
   that the prey and predator populations cycle out of phase
 
 #### Scenario: Missing example
-- **WHEN** a model is registered and no example names it
-- **THEN** the gallery coverage check fails and names the model
+- **WHEN** a system is registered and no example names it
+- **THEN** the gallery coverage check fails and names the system
 
 #### Scenario: Orphan example
-- **WHEN** an example names a model that is not registered, or two examples name the same model
+- **WHEN** an example names a system that is not registered, or two examples name the same system
 - **THEN** the gallery coverage check fails and names the example
 
 ### Requirement: Examples run within a budget
-Every example SHALL run its model with gallery settings that record at most 300 frames and a recording of at most
+Every example SHALL run its system with gallery settings that record at most 300 frames and a recording of at most
 20 MB, and SHALL finish within 60 seconds on the reference machine, so the capture can load the whole recording.
 
 #### Scenario: Recording budget
@@ -41,7 +41,7 @@ Every example SHALL run its model with gallery settings that record at most 300 
 ### Requirement: Screenshots are the gallery thumbnails
 Every example SHALL produce exactly one Rerun screenshot, which its Rerun scraper returns as the first image of the
 example, before any analysis figure, so that `mkdocs-gallery` makes it the example's thumbnail in the gallery grid. The
-screenshot SHALL show the model's primary view alone, at the aspect ratio of the gallery's `thumbnail_size`, and read
+screenshot SHALL show the system's primary view alone, at the aspect ratio of the gallery's `thumbnail_size`, and read
 at the size the gallery displays it.
 
 #### Scenario: Thumbnail in the gallery grid
@@ -49,7 +49,7 @@ at the size the gallery displays it.
 - **THEN** the Gray-Scott thumbnail is the Rerun image of its `v` field at the last frame, with spots, filling the
   thumbnail at the 10:7 ratio of the configured `thumbnail_size` of 400x280
 
-#### Scenario: Primary view of a time series model
+#### Scenario: Primary view of a time series system
 - **WHEN** the `lotka_volterra` thumbnail is captured
 - **THEN** it shows one time series view of the prey and predator populations, with no parameter views and no panels
 
@@ -60,14 +60,14 @@ at the size the gallery displays it.
 
 ### Requirement: Examples show analysis plots from the simulation
 Every curated example SHALL show at least one Matplotlib figure computed from its own run, from the trajectory, the
-observables, or the agents of the simulation, that exhibits the behaviour its model is known for. Each figure SHALL
+observables, or the agents of the simulation, that exhibits the behaviour its system is known for. Each figure SHALL
 have labelled axes and a title, and the text before it SHALL state the agreement the reader should see. The analysis
-SHALL use the functions of `skcomplex.analysis` where they fit, and NumPy or SciPy otherwise.
+SHALL use the functions of `skcomplex.core.analysis` where they fit, and NumPy or SciPy otherwise.
 
 #### Scenario: Ideal gas speeds
 - **WHEN** a user opens the ideal gas example page
 - **THEN** below the Rerun screenshot it shows the histogram of the simulated molecular speeds at the end of the run
-  against the Maxwell-Boltzmann speed distribution, in the dimension of the model, at the temperature measured from the
+  against the Maxwell-Boltzmann speed distribution, in the dimension of the system, at the temperature measured from the
   kinetic energy of the simulated molecules
 
 #### Scenario: Thumbnail stays the Rerun screenshot
@@ -126,8 +126,8 @@ SHALL remain selectable. Both SHALL produce images that pass the same checks.
 - **THEN** the gallery is captured with that backend
 
 ### Requirement: Captures are reproducible
-A screenshot SHALL depend only on the example, the model's code, the Rerun version, and the capture settings. Seeded
-models SHALL use a fixed seed in their example, the window size and pixel density SHALL be fixed, and two captures of
+A screenshot SHALL depend only on the example, the system's code, the Rerun version, and the capture settings. Seeded
+systems SHALL use a fixed seed in their example, the window size and pixel density SHALL be fixed, and two captures of
 an unchanged example SHALL pass the same checks and differ by at most a small pixel tolerance.
 
 #### Scenario: Repeated capture
@@ -135,7 +135,7 @@ an unchanged example SHALL pass the same checks and differ by at most a small pi
 - **THEN** both images pass the checks and their mean absolute pixel difference is below 2%
 
 ### Requirement: Screenshots are cached
-The gallery SHALL cache each screenshot under a key computed from the example source, the source of the model's
+The gallery SHALL cache each screenshot under a key computed from the example source, the source of the system's
 subfield package, the installed Rerun version, the backend, and the capture settings. It SHALL capture only the
 examples whose key changed. Screenshots SHALL NOT be committed to the repository.
 
@@ -143,24 +143,24 @@ examples whose key changed. Screenshots SHALL NOT be committed to the repository
 - **WHEN** the gallery is built twice with no change in between
 - **THEN** the second build runs no example and captures no screenshot
 
-#### Scenario: Changed model
+#### Scenario: Changed system
 - **WHEN** the source of `biology/ecology` changes
 - **THEN** the next build recaptures the ecology examples only
 
 ### Requirement: The gallery is part of the documentation
 The documentation build SHALL show every example with its code, its caption, and its screenshot in a gallery grouped by
-field and subfield. Every registered model SHALL have a page with its pattern, whichever examples the build runs, and
-the page of a model with an example SHALL show its screenshot above its pattern and link to the example. A default build
-SHALL run a sample of three fast models per field, and a
+field and subfield. Every registered system SHALL have a page with its pattern, whichever examples the build runs, and
+the page of a system with an example SHALL show its screenshot above its pattern and link to the example. A default build
+SHALL run a sample of three fast systems per field, and a
 build of every example, `SKCOMPLEX_GALLERY=all`, SHALL run them all. A strict build of every example SHALL fail when an
-implemented model has no screenshot. The page of an example SHALL show the description and the references of its model from the catalog.
+implemented system has no screenshot. The page of an example SHALL show the description and the references of its system from the catalog.
 
-#### Scenario: Model page
-- **WHEN** a user opens the documentation page of a model with an example
+#### Scenario: System page
+- **WHEN** a user opens the documentation page of a system with an example
 - **THEN** the page shows its screenshot and a link to its example above its factory and equations
 
-#### Scenario: Model page without an example in the build
-- **WHEN** a sample build leaves out the example of a model and a user opens the page of the model
+#### Scenario: System page without an example in the build
+- **WHEN** a sample build leaves out the example of a system and a user opens the page of the system
 - **THEN** the page shows its factory and equations, without a screenshot or a link to an example
 
 #### Scenario: Example references
@@ -168,8 +168,8 @@ implemented model has no screenshot. The page of an example SHALL show the descr
 - **THEN** the page shows the description and the references the catalog gives for `wolf_sheep`
 
 #### Scenario: Strict build without a screenshot
-- **WHEN** the strict documentation build of every example finds a registered model without a cached or captured screenshot
-- **THEN** the build fails and names the model
+- **WHEN** the strict documentation build of every example finds a registered system without a cached or captured screenshot
+- **THEN** the build fails and names the system
 
 ### Requirement: Recordings open interactively
 Each example page SHALL offer the example's recording in an embedded Rerun web viewer, loaded only when the user asks
@@ -181,7 +181,7 @@ for it. The recording SHALL be published with the documentation within the recor
   the click
 
 ### Requirement: Screenshots are reviewed
-Every screenshot SHALL be reviewed once by a contributor against the behaviour its model is known for, and the
+Every screenshot SHALL be reviewed once by a contributor against the behaviour its system is known for, and the
 example's caption SHALL state that behaviour. A screenshot whose caption the image does not show SHALL be fixed by
 changing the example's settings or blueprint, not by editing the image.
 

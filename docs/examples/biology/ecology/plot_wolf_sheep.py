@@ -13,11 +13,11 @@ import matplotlib.pyplot as plt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'wolf_sheep'
+SYSTEM = 'wolf_sheep'
 
 whole = rrb.TimeRangeBoundary.infinite()
 agents = rrb.Spatial2DView(
@@ -47,14 +47,14 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, width=30, height=30, sheep=200, wolves=20, regrowth=20.0, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=300)
+system = create_system(SYSTEM, width=30, height=30, sheep=200, wolves=20, regrowth=20.0, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
+simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=300)
 
 # %%
 # Populations over time
 # ---------------------
-# The counts should oscillate out of phase, as in the Lotka-Volterra model: wolves increase after the sheep peak,
+# The counts should oscillate out of phase, as in the Lotka-Volterra system: wolves increase after the sheep peak,
 # and the sheep recover after the wolves decline. The grass, regrowing in 20 steps, keeps the sheep from growing
 # without bound.
 

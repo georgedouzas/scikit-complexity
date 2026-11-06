@@ -6,21 +6,21 @@ Fibonacci numbers 1, 1, 2, 3, 5, 8, ... and grows by the golden ratio every mont
 """
 
 # %%
-# The model is created by name from the catalog from one newborn pair and run for 20 months. The observer saves
+# The system is created by name from the catalog from one newborn pair and run for 20 months. The observer saves
 # every month with the default blueprint, whose primary view is the time series of the pairs.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'fibonacci_rabbits'
+SYSTEM = 'fibonacci_rabbits'
 
-system = create(MODEL, pairs=1.0, previous=0.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=20)
+system = create_system(SYSTEM, pairs=1.0, previous=0.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=20)
 
 # %%
 # The golden ratio

@@ -14,10 +14,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import run
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_simulation
 
-MODEL = 'rice_milling'
+SYSTEM = 'rice_milling'
 
 # Every view shows the whole run, not the default window that follows the latest frame.
 whole_run = rrb.TimeAxis(
@@ -33,8 +33,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=4)
-simulation = run(MODEL, settings={'until': 120, 'dt': 0.25, 'observers': [observer]})
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=4)
+simulation = create_simulation(SYSTEM).set_params(dt=0.25, observers=[observer]).prepare().run(until=120)
 
 # %%
 # Capacity lags the harvest

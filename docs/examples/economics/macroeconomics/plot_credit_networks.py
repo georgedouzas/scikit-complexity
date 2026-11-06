@@ -16,11 +16,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'credit_networks'
+SYSTEM = 'credit_networks'
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
@@ -34,16 +34,15 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-model_system = create(MODEL, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+system_system = create_system(SYSTEM, random_state=0)
 simulation = (
     Simulation(
-        model_system,
+        system_system,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(model_system),
+        observables=describe(SYSTEM).observables_of(system_system),
     )
-    .check()
     .prepare()
     .run(until=100)
 )
@@ -59,10 +58,9 @@ simulation = (
 intensities = np.array([0.0, 0.5, 2.0, 5.0, 20.0])
 herfindahl, spread = [], []
 for intensity in intensities:
-    model_system = create(MODEL, intensity=intensity, random_state=0)
+    system_system = create_system(SYSTEM, intensity=intensity, random_state=0)
     trajectory = (
-        Simulation(model_system, random_state=0, observables=describe(MODEL).observables_of(model_system))
-        .check()
+        Simulation(system_system, random_state=0, observables=describe(SYSTEM).observables_of(system_system))
         .prepare()
         .run(100)
         .trajectory_

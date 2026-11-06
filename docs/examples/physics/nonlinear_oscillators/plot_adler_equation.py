@@ -12,15 +12,15 @@ value when the detuning is smaller than the coupling, and slips by full turns at
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'adler_equation'
+SYSTEM = 'adler_equation'
 
-system = create(MODEL, phi=0.0, detuning=0.5, epsilon=1.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=20)
+system = create_system(SYSTEM, phi=0.0, detuning=0.5, epsilon=1.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=20)
 
 # %%
 # Locking and phase slips
@@ -32,7 +32,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().
 detunings = np.linspace(0.0, 3.0, 25)
 rates = []
 for detuning in detunings:
-    run = Simulation(create(MODEL, phi=0.0, detuning=detuning, epsilon=1.0), dt=0.05).check().prepare().run(until=400)
+    run = Simulation(create_system(SYSTEM, phi=0.0, detuning=detuning, epsilon=1.0), dt=0.05).prepare().run(until=400)
     phase = np.unwrap(np.ravel(run.trajectory_.values('difference.phi')))
     times = np.asarray(run.trajectory_.times)
     half = times > 200

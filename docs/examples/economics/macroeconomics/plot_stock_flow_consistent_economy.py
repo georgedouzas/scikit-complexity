@@ -15,12 +15,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import LoopAnalysis
-from skcomplex.engine.runtime import ConservationObserver, Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import LoopAnalysis
+from skcomplex.core.engine.runtime import ConservationObserver, Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'stock_flow_consistent_economy'
+SYSTEM = 'stock_flow_consistent_economy'
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
@@ -34,8 +34,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=1, observers=[observer, ConservationObserver()]).check().prepare().run(100)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer, ConservationObserver()]).prepare().run(100)
 
 # %%
 # Money changes only at the boundary
@@ -50,7 +50,7 @@ money = (
     trajectory.values('households.deposits') + trajectory.values('firms.deposits') + trajectory.values('bank.deposits')
 )
 created = trajectory.values('circuit.lending') - trajectory.values('circuit.repayments')
-matrix = LoopAnalysis('flow-matrix', frame=10).check().prepare(trajectory).run()
+matrix = LoopAnalysis('flow-matrix', frame=10).prepare(trajectory).run()
 fig, (totals, table) = plt.subplots(1, 2, figsize=(11, 4))
 totals.plot(times, money - money[0], label='change of total money')
 totals.plot(times[1:], np.cumsum(created[:-1]), '--', color='black', label='cumulative lending - repayment')

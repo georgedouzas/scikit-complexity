@@ -1,3 +1,3 @@
 # Chemistry
 
-Examples of the models of `skcomplex.models.chemistry`.
+Examples of the systems of `skcomplex.systems.chemistry`.

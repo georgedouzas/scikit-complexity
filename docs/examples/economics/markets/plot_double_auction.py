@@ -16,11 +16,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'double_auction'
+SYSTEM = 'double_auction'
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
@@ -34,9 +34,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = (
-    Simulation(create(MODEL, random_state=0), observers=[observer], random_state=0).check().prepare().run(until=20)
+    Simulation(create_system(SYSTEM, random_state=0), observers=[observer], random_state=0).prepare().run(until=20)
 )
 
 # %%
@@ -50,8 +50,8 @@ simulation = (
 efficiencies = {}
 for protocol in ('order_book', 'call_auction'):
     for constrained in (True, False):
-        system = create(MODEL, protocol=protocol, constrained=constrained, random_state=0)
-        trajectory = Simulation(system, random_state=0).check().prepare().run(until=20).trajectory_
+        system = create_system(SYSTEM, protocol=protocol, constrained=constrained, random_state=0)
+        trajectory = Simulation(system, random_state=0).prepare().run(until=20).trajectory_
         efficiencies[protocol, constrained] = trajectory.values('ledger.efficiency')[1:]
 labels = [
     f'{protocol.replace("_", " ")}\n{"ZI-C" if constrained else "ZI-U"}' for protocol, constrained in efficiencies

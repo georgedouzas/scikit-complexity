@@ -2,14 +2,14 @@
 # Takens-Bogdanov normal form
 
 Near the Takens-Bogdanov point three bifurcations meet. At `beta2 = -1`, lowering `beta1` through 0 turns the stable
-focus into a small limit cycle in a Hopf bifurcation; the cycle grows, slows down, and near `beta1 = -0.21` it
+focus into a small limit cycle in a Hopf bifurcation. The cycle grows, slows down, and near `beta1 = -0.21` it
 touches the saddle and disappears in a homoclinic bifurcation, after which orbits escape.
 """
 
 # %%
 # The run starts next to the focus at `beta1 = -0.1`, where the focus repels and the orbit spirals out onto the
-# limit cycle. The model logs `x` and `y` as time series. After the run, its orbit is logged once as a line in the phase
-# plane together with the separatrix of the saddle, and the blueprint puts this view first, as the primary view.
+# limit cycle. The system logs `x` and `y` as time series. After the run, its orbit is logged once as a line in the
+# phase plane together with the separatrix of the saddle, and the blueprint puts this view first, as the primary view.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,11 +17,11 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.signal import find_peaks
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'takens_bogdanov_form'
+SYSTEM = 'takens_bogdanov_form'
 
 
 def focus(beta1, beta2=-1.0):
@@ -47,12 +47,12 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, x=focus(-0.1) + 0.02, y=0.0, beta1=-0.1)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=8)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=200)
+system = create_system(SYSTEM, x=focus(-0.1) + 0.02, y=0.0, beta1=-0.1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=8)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=200)
 saddle = (1 + np.sqrt(1 + 0.4)) / 2
 outside = (
-    Simulation(create(MODEL, x=saddle - 0.01, y=0.0, beta1=-0.1), dt=0.1).check().prepare().run(until=60).trajectory_
+    Simulation(create_system(SYSTEM, x=saddle - 0.01, y=0.0, beta1=-0.1), dt=0.1).prepare().run(until=60).trajectory_
 )
 strips = [
     np.column_stack([100 * run.values('form.x'), -100 * run.values('form.y')])
@@ -82,8 +82,7 @@ values = -np.linspace(0.005, 0.21, 21)
 amplitudes, periods = [], []
 for beta1 in values:
     run = (
-        Simulation(create(MODEL, x=focus(beta1) + 0.02, y=0.0, beta1=beta1), dt=0.05)
-        .check()
+        Simulation(create_system(SYSTEM, x=focus(beta1) + 0.02, y=0.0, beta1=beta1), dt=0.05)
         .prepare()
         .run(until=600)
         .trajectory_

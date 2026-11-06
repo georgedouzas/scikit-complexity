@@ -7,7 +7,7 @@ starts to push current back.
 """
 
 # %%
-# The model is created by name from the catalog for a car of 1000 kg at 20 m/s and a supercapacitor of 680 F, and runs
+# The system is created by name from the catalog for a car of 1000 kg at 20 m/s and a supercapacitor of 680 F, and runs
 # for one minute. The blueprint shows the speed and the capacitor voltage in one time series view, leaving out the
 # current, which is a hundred times larger.
 
@@ -15,11 +15,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'regenerative_braking'
+SYSTEM = 'regenerative_braking'
 
 braking = rrb.TimeSeriesView(
     origin='/',
@@ -35,9 +35,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=60)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
+simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=60)
 
 # %%
 # Where the kinetic energy goes

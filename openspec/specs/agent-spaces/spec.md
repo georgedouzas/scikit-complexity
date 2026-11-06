@@ -15,10 +15,10 @@ the compile report SHALL hold an initial location whose length differs from the 
 
 #### Scenario: Three-dimensional box
 - **WHEN** a user simulates agents in `ContinuousSpace(extent=(10.0, 5.0, 2.0))` with `MesaSolver`
-- **THEN** the model view reports 3 dimensions, and agents placed without a location get positions inside the box
+- **THEN** the system view reports 3 dimensions, and agents placed without a location get positions inside the box
 
 #### Scenario: Two-dimensional space unchanged
-- **WHEN** an existing model on a two-dimensional continuous space is simulated twice with random state 0
+- **WHEN** an existing system on a two-dimensional continuous space is simulated twice with random state 0
 - **THEN** the trajectories equal the ones recorded before this change
 
 #### Scenario: Wrong number of coordinates
@@ -72,7 +72,7 @@ point in that triangle, with no rejection loop or fallback point.
 - **THEN** 100 agents start inside the first polygon and 50 inside the second
 
 #### Scenario: Reproducible placement
-- **WHEN** the same model with region locations is simulated twice with random state 0
+- **WHEN** the same system with region locations is simulated twice with random state 0
 - **THEN** the agents start at the same points in both runs
 
 #### Scenario: Uniform placement in a concave polygon
@@ -94,7 +94,7 @@ A trajectory SHALL report the location of an agent in a three-dimensional space 
 ids at every frame.
 
 #### Scenario: Three coordinates per agent
-- **WHEN** a user asks a trajectory of a model in a three-dimensional space for the agent locations at frame 5
+- **WHEN** a user asks a trajectory of a system in a three-dimensional space for the agent locations at frame 5
 - **THEN** it returns an array with one row of 3 coordinates per agent alive at frame 5
 
 ### Requirement: Agents are drawn in three dimensions and over regions
@@ -102,9 +102,9 @@ ids at every frame.
 layers of a space once as static outlines under the agents' 2D points.
 
 #### Scenario: Boids in 3D
-- **WHEN** a model of boids in a three-dimensional space is logged
+- **WHEN** a system of boids in a three-dimensional space is logged
 - **THEN** one `Points3D` batch per group is logged per frame at the agents' positions
 
 #### Scenario: Island map
-- **WHEN** a model in a space with a boundary layer is logged
+- **WHEN** a system in a space with a boundary layer is logged
 - **THEN** the boundary is logged once as static line strips, and the agents are logged per frame as `Points2D`

@@ -7,21 +7,21 @@ which changes the network and starts a new linear stretch. Bursts of extinctions
 """
 
 # %%
-# The model is created by name from the catalog with 60 species that read 4 species each. The observer saves every
+# The system is created by name from the catalog with 60 species that read 4 species each. The observer saves every
 # step with the default blueprint, whose primary view is the network of influences colored by the abundances.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'sequentially_linear_ecosystem'
+SYSTEM = 'sequentially_linear_ecosystem'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer], random_state=1).check().prepare().run(until=299)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=1.0, observers=[observer], random_state=1).prepare().run(until=299)
 
 # %%
 # Extinctions and the turnover of the network

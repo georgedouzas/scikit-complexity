@@ -6,7 +6,7 @@ their speeds keep the Maxwell-Boltzmann distribution: slow (purple) and fast (ye
 """
 
 # %%
-# The molecules are drawn as points colored by speed. The blueprint draws them larger than the model's visual does, so
+# The molecules are drawn as points colored by speed. The blueprint draws them larger than the system's visual does, so
 # they read in the gallery thumbnail.
 
 import matplotlib.pyplot as plt
@@ -14,12 +14,12 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import DistributionAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'ideal_gas'
+SYSTEM = 'ideal_gas'
 
 box = rrb.Spatial2DView(
     origin='/gas',
@@ -34,9 +34,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, n_molecules=800, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=0.01, observers=[observer]).check().prepare().run(until=2.0)
+system = create_system(SYSTEM, n_molecules=800, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
+simulation = Simulation(system, dt=0.01, observers=[observer]).prepare().run(until=2.0)
 
 # %%
 # Speeds against the Maxwell-Boltzmann distribution
@@ -49,7 +49,7 @@ simulation = Simulation(system, dt=0.01, observers=[observer]).check().prepare()
 velocities = simulation.trajectory_.values('gas.x_d1')[-1]
 speeds = np.linalg.norm(velocities, axis=1)
 kt = float(np.mean(np.sum(velocities**2, axis=1))) / 2
-histogram = DistributionAnalysis('histogram', bins=25).check().prepare(speeds).run()
+histogram = DistributionAnalysis('histogram', bins=25).prepare(speeds).run()
 edges, density = histogram.edges_, histogram.density_
 grid = np.linspace(0.0, speeds.max(), 200)
 fig, ax = plt.subplots(figsize=(6, 4))

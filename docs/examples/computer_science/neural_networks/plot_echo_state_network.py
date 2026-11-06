@@ -16,11 +16,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'echo_state_network'
+SYSTEM = 'echo_state_network'
 UNITS = (0, 2, 4)
 COLORS = ((31, 119, 180), (255, 127, 14), (44, 160, 44))
 
@@ -31,11 +31,11 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-system = create(MODEL, n_units=200, spectral_radius=0.9, leak=0.3)
-first = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=100).trajectory_
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM, n_units=200, spectral_radius=0.9, leak=0.3)
+first = Simulation(system, dt=1, observers=[observer]).prepare().run(until=100).trajectory_
 start = np.random.default_rng(1).uniform(-1.0, 1.0, 200)
-second = Simulation(system, dt=1, initial_state={'units.r': start}).check().prepare().run(until=100).trajectory_
+second = Simulation(system, dt=1, initial_state={'units.r': start}).prepare().run(until=100).trajectory_
 time = [rr.TimeColumn('sim_time', duration=first.times)]
 for copy, trajectory in (('first', first), ('second', second)):
     for unit, color in zip(UNITS, COLORS, strict=True):
@@ -67,11 +67,10 @@ activity.set_ylabel('activity r')
 activity.set_title('Two copies, solid and dashed')
 activity.legend()
 for radius in (0.5, 0.9, 2.0):
-    copies = create(MODEL, n_units=200, spectral_radius=radius, leak=0.3)
-    one = Simulation(copies, dt=1).check().prepare().run(until=300).trajectory_.values('units.r')
+    copies = create_system(SYSTEM, n_units=200, spectral_radius=radius, leak=0.3)
+    one = Simulation(copies, dt=1).prepare().run(until=300).trajectory_.values('units.r')
     two = (
         Simulation(copies, dt=1, initial_state={'units.r': start})
-        .check()
         .prepare()
         .run(until=300)
         .trajectory_.values('units.r')

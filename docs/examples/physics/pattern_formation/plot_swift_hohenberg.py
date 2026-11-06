@@ -13,14 +13,14 @@ the wavelength `2π`. Patches of rolls with different orientations meet at defec
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import DomainAnalysis, SpectrumAnalysis
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import run
+from skcomplex.core.analysis import DomainAnalysis, SpectrumAnalysis
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_simulation
 
-MODEL = 'swift_hohenberg'
+SYSTEM = 'swift_hohenberg'
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = run(MODEL, random_state=0, settings={'observers': [observer], 'random_state': 0})
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = create_simulation(SYSTEM, random_state=0).set_params(observers=[observer]).prepare().run()
 
 # %%
 # Selected wavelength
@@ -30,8 +30,8 @@ simulation = run(MODEL, random_state=0, settings={'observers': [observer], 'rand
 
 field = simulation.trajectory_.lattice('cells.u')[-1]
 spacing = 16 * np.pi / field.shape[0]
-factor = SpectrumAnalysis('structure-factor', spacing=spacing).check().prepare(field).run()
-wavelength = DomainAnalysis('wavelength', spacing=spacing).check().prepare(field).run().wavelength_[0]
+factor = SpectrumAnalysis('structure-factor', spacing=spacing).prepare(field).run()
+wavelength = DomainAnalysis('wavelength', spacing=spacing).prepare(field).run().wavelength_[0]
 fig, (image, spectrum) = plt.subplots(1, 2, figsize=(10, 4))
 image.imshow(field, cmap='viridis', extent=(0, 16 * np.pi, 0, 16 * np.pi))
 image.set_xlabel('x')

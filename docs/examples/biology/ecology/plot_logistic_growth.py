@@ -6,21 +6,21 @@ its carrying capacity of 100 along an S-shaped curve.
 """
 
 # %%
-# The model is created by name from the catalog and run from a population of two until it has saturated. The observer
+# The system is created by name from the catalog and run from a population of two until it has saturated. The observer
 # saves every frame with the default blueprint, whose primary view is the time series of the population.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'logistic_growth'
+SYSTEM = 'logistic_growth'
 
-system = create(MODEL, n=2.0, r=0.5, K=100.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=20)
+system = create_system(SYSTEM, n=2.0, r=0.5, K=100.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=20)
 
 # %%
 # Closed-form solution and growth rate

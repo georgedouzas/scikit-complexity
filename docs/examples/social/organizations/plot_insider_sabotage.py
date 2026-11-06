@@ -7,23 +7,23 @@ employees drift into a high-risk tail.
 """
 
 # %%
-# The model is created by name from the catalog with 130 employees and 3 supervisors on a 20 by 20 office and a yearly
+# The system is created by name from the catalog with 130 employees and 3 supervisors on a 20 by 20 office and a yearly
 # turnover of 15%, and runs for one year, one step per day. The default blueprint shows the employees colored by risk,
 # from 0 (dark) to 5 (bright), with the supervisors.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import DistributionAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'insider_sabotage'
+SYSTEM = 'insider_sabotage'
 
-system = create(MODEL, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=365)
+system = create_system(SYSTEM, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=365)
 
 # %%
 # Risk builds up over the year
@@ -41,7 +41,7 @@ trend.set_ylabel('risk of sabotage')
 trend.set_title('Risk creeps up over the year')
 trend.legend()
 for frame, label in [(0, 'first day'), (len(risks) - 1, 'last day')]:
-    histogram = DistributionAnalysis('histogram', bins=20).check().prepare(risks[frame]).run()
+    histogram = DistributionAnalysis('histogram', bins=20).prepare(risks[frame]).run()
     edges, density = histogram.edges_, histogram.density_
     spread.stairs(density, edges, fill=True, alpha=0.5, label=label)
 spread.set_xlabel('risk of sabotage')

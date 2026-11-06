@@ -14,18 +14,16 @@ the chapter are left out.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'kauai_population'
+SYSTEM = 'kauai_population'
 
-system = create(MODEL)
-observables = describe(MODEL).observables_of(system)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = (
-    Simulation(system, observers=[observer], observables=observables, random_state=0).check().prepare().run(until=30)
-)
+system = create_system(SYSTEM)
+observables = describe(SYSTEM).observables_of(system)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
+simulation = Simulation(system, observers=[observer], observables=observables, random_state=0).prepare().run(until=30)
 
 # %%
 # Where the residents stand

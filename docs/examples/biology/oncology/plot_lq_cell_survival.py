@@ -8,22 +8,22 @@ term, and 30 fractions of 2 Gy at `alpha / beta = 10` give the biologically effe
 """
 
 # %%
-# The model solves its three equations once, for 30 fractions of 2 Gy, in one frame.
+# The system solves its three equations once, for 30 fractions of 2 Gy, in one frame.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.experiments import Experiment, GridDesign
-from skcomplex.models import create
-from skcomplex.models.biology.oncology import lq_cell_survival
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.experiments import Experiment, GridDesign
+from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import lq_cell_survival
 
-MODEL = 'lq_cell_survival'
+SYSTEM = 'lq_cell_survival'
 
-system = create(MODEL, dose=60.0, fractions=30.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer]).check().prepare().run(until=1.0)
+system = create_system(SYSTEM, dose=60.0, fractions=30.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, observers=[observer]).prepare().run(until=1.0)
 
 # %%
 # Survival against the dose
@@ -36,7 +36,7 @@ def survival(fractions: float) -> tuple[np.ndarray, np.ndarray]:
     """Return the doses and the surviving fractions of a number of fractions."""
     bounds = {'dose': np.linspace(0.0, 20.0, 21).tolist(), 'fractions': [fractions]}
     experiment = Experiment(lq_cell_survival, GridDesign(), bounds, until=1.0, outputs=['cells.survival'])
-    result = experiment.check().prepare().run().result_
+    result = experiment.prepare().run().result_
     return result.column('dose'), result.series('cells.survival')[:, 0]
 
 

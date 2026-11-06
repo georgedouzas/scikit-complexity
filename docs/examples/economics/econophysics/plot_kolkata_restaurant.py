@@ -15,11 +15,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'kolkata_restaurant'
+SYSTEM = 'kolkata_restaurant'
 EVENINGS = 100
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
@@ -33,9 +33,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-system = create(MODEL, n_agents=200, strategy='crowd_avoiding', random_state=0)
-simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=EVENINGS)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM, n_agents=200, strategy='crowd_avoiding', random_state=0)
+simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=EVENINGS)
 
 # %%
 # Utilization of the two strategies
@@ -45,8 +45,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).check().pr
 # crowd avoiding strategy, reached within a few evenings.
 
 random = (
-    Simulation(create(MODEL, n_agents=200, strategy='random', random_state=0), random_state=0)
-    .check()
+    Simulation(create_system(SYSTEM, n_agents=200, strategy='random', random_state=0), random_state=0)
     .prepare()
     .run(EVENINGS)
 )

@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-from skcomplex.analysis import SignatureAnalysis
-from skcomplex.specs import SignatureSpec
+from skcomplex.core.analysis import SignatureAnalysis
+from skcomplex.core.specs import SignatureSpec
 
 PANEL_WIDTH = 5.0
 PANEL_HEIGHT = 4.0

@@ -1,7 +1,7 @@
 """
 # Phone adoption
 
-Hamill and Gilbert's model of how British households took up fixed-line phones from 1951. A household buys a phone
+Hamill and Gilbert's system of how British households took up fixed-line phones from 1951. A household buys a phone
 once its income passes a threshold, but only if a neighbour already has one to call. Incomes grow every year, so the
 phones spread outwards from the rich upper-class quarter in an S-shaped adoption curve, lagging behind the households
 that could already afford one.
@@ -16,23 +16,22 @@ that could already afford one.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'phone_adoption'
+SYSTEM = 'phone_adoption'
 THRESHOLD, YEARS = 1.2, 50
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-model_system = create(MODEL, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+system_system = create_system(SYSTEM, random_state=0)
 simulation = (
     Simulation(
-        model_system,
+        system_system,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(model_system),
+        observables=describe(SYSTEM).observables_of(system_system),
     )
-    .check()
     .prepare()
     .run(until=18)
 )
@@ -44,10 +43,9 @@ simulation = (
 # a phone should rise along an S-curve below the share that can afford one, starting with the upper class, and the lag
 # should be longest for the lower class, whose quarter the phones reach last.
 
-model_system = create(MODEL, random_state=0)
+system_system = create_system(SYSTEM, random_state=0)
 trajectory = (
-    Simulation(model_system, random_state=0, observables=describe(MODEL).observables_of(model_system))
-    .check()
+    Simulation(system_system, random_state=0, observables=describe(SYSTEM).observables_of(system_system))
     .prepare()
     .run(until=YEARS)
     .trajectory_

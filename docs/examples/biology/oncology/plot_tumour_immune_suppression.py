@@ -6,23 +6,23 @@ it recruits cut it back, and it regrows once regulatory T cells, IL-10, and TGF-
 """
 
 # %%
-# The model is created by name from the catalog with an antigenicity of `10^-3` and runs for 200 days from a single
+# The system is created by name from the catalog with an antigenicity of `10^-3` and runs for 200 days from a single
 # tumour cell. The observer saves every frame with the default blueprint, whose primary view is the time series of the
 # tumour, the immune cells, and the cytokines.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODESolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'tumour_immune_suppression'
+SYSTEM = 'tumour_immune_suppression'
 
 solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, solver=solver, observers=[observer]).check().prepare().run(until=200)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=1.0, solver=solver, observers=[observer]).prepare().run(until=200)
 
 # %%
 # Antigenicity decides escape
@@ -34,8 +34,7 @@ simulation = Simulation(system, dt=1.0, solver=solver, observers=[observer]).che
 fig, (tumour, cells) = plt.subplots(1, 2, figsize=(10, 4))
 for antigenicity in (1e-5, 1e-4, 1e-3, 1e-2, 1.0, 100.0):
     trajectory = (
-        Simulation(create(MODEL, alpha_a=antigenicity), dt=1.0, solver=solver)
-        .check()
+        Simulation(create_system(SYSTEM, alpha_a=antigenicity), dt=1.0, solver=solver)
         .prepare()
         .run(until=200)
         .trajectory_

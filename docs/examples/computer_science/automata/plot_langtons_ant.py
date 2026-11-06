@@ -13,16 +13,16 @@ along a diagonal: the highway, which it builds forever.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'langtons_ant'
+SYSTEM = 'langtons_ant'
 CENTER = 60
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(create(MODEL, shape=(120, 120)), dt=100, observers=[observer]).check().prepare().run(until=12000)
+    Simulation(create_system(SYSTEM, shape=(120, 120)), dt=100, observers=[observer]).prepare().run(until=12000)
 )
 
 # %%

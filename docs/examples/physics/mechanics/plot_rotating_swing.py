@@ -16,11 +16,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'rotating_swing'
+SYSTEM = 'rotating_swing'
 
 
 # Workaround: remove once the core draws angles wrapped to (-π, π] and lets a blueprint leave the stand angle out.
@@ -46,9 +46,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, omega=2.0, theta=0.1)
-observer = SwingObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare().run(until=20)
+system = create_system(SYSTEM, omega=2.0, theta=0.1)
+observer = SwingObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
+simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=20)
 
 # %%
 # Angular momentum and the equilibrium angle

@@ -8,26 +8,24 @@ direction. The view shows 50 particles started at the origin, flying apart along
 """
 
 # %%
-# The model is created by name from the catalog with friction `gamma = 20`, intake `q = 10`, internal loss `c = 1`,
+# The system is created by name from the catalog with friction `gamma = 20`, intake `q = 10`, internal loss `c = 1`,
 # conversion `d = 10`, and velocity noise `D = 0.01`. The Euler-Maruyama stepper takes steps of 0.01 and the observer
 # saves every frame of 0.1 with the default blueprint, whose primary view shows the particles.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'depot_brownian_particles'
+SYSTEM = 'depot_brownian_particles'
 
-system = create(MODEL, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-simulation = (
-    Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).check().prepare().run(until=20)
-)
+simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).prepare().run(until=20)
 
 # %%
 # Bifurcation to active motion
@@ -41,8 +39,7 @@ intakes = np.linspace(0.5, 12, 12)
 speeds = []
 for intake in intakes:
     run = (
-        Simulation(create(MODEL, q=intake, random_state=1), solver=solver, dt=0.5, random_state=1)
-        .check()
+        Simulation(create_system(SYSTEM, q=intake, random_state=1), solver=solver, dt=0.5, random_state=1)
         .prepare()
         .run(until=40)
     )

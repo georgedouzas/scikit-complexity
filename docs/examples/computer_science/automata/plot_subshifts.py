@@ -12,17 +12,17 @@ shift, the configurations without two adjacent ones, whose number grows as the p
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import AutomatonAnalysis
-from skcomplex.core.spaces import LatticeSpace
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import AutomatonAnalysis
+from skcomplex.core.components.spaces import LatticeSpace
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'subshifts'
+SYSTEM = 'subshifts'
 
-system = create(MODEL, size=200)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=50)
+system = create_system(SYSTEM, size=200)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
+simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=50)
 
 # %%
 # Density and entropy
@@ -34,12 +34,11 @@ simulation = Simulation(system, observers=[observer], random_state=0).check().pr
 
 alive = simulation.trajectory_.values('cells.alive')
 admissible = all(
-    AutomatonAnalysis('admissible', configuration=row.astype(int)).check().prepare(system).run().admissible_
-    for row in alive
+    AutomatonAnalysis('admissible', configuration=row.astype(int)).prepare(system).run().admissible_ for row in alive
 )
 lengths = np.arange(2, 31, 4)
 windows = [LatticeSpace(int(length), boundary='fixed') for length in lengths]
-entropies = AutomatonAnalysis('entropy', windows=windows).check().prepare(system).run().entropy_
+entropies = AutomatonAnalysis('entropy', windows=windows).prepare(system).run().entropy_
 fig, (left, right) = plt.subplots(1, 2, figsize=(9, 4))
 left.plot(simulation.trajectory_.times, alive.mean(axis=1), label='density of ones')
 left.axhline((5 - np.sqrt(5)) / 10, linestyle='--', color='gray', label='maximal entropy')

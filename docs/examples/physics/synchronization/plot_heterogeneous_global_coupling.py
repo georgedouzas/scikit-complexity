@@ -14,14 +14,14 @@ spread of time scales the coupling could not stabilize it.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'heterogeneous_global_coupling'
+SYSTEM = 'heterogeneous_global_coupling'
 
-system = create(MODEL, n_systems=50, k=2.0, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, n_systems=50, k=2.0, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 
 
 def coupling_at(time):
@@ -35,9 +35,8 @@ simulation = (
         dt=0.2,
         observers=[observer],
         schedule={'coupling_x.K': coupling_at, 'coupling_y.K': coupling_at},
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=40)
 )
@@ -62,10 +61,9 @@ leading = [max((nu - k / 2 + sign * np.sqrt(k**2 / 4 + sigma**2 * nu**2)).real f
 couplings = [0.1, 0.3, 0.6, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 12.0, 16.0]
 rates = []
 for k in couplings:
-    model_system = create(MODEL, n_systems=50, k=k)
+    system_system = create_system(SYSTEM, n_systems=50, k=k)
     run = (
-        Simulation(model_system, dt=0.5, observables=describe(MODEL).observables_of(model_system))
-        .check()
+        Simulation(system_system, dt=0.5, observables=describe(SYSTEM).observables_of(system_system))
         .prepare()
         .run(until=100)
         .trajectory_

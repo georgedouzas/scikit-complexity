@@ -1,3 +1,3 @@
 # Mathematics
 
-Examples of the models of `skcomplex.models.mathematics`.
+Examples of the systems of `skcomplex.systems.mathematics`.

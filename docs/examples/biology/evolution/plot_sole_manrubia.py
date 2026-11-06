@@ -7,22 +7,22 @@ avalanches. New species fill the empty niches, so the number of species stays co
 """
 
 # %%
-# The model is created by name from the catalog with 100 species of 5 dependencies each. The observer saves every
+# The system is created by name from the catalog with 100 species of 5 dependencies each. The observer saves every
 # step with the default blueprint, whose primary view is the network of the species, colored by their age, so recent
 # replacements are dark.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'sole_manrubia'
+SYSTEM = 'sole_manrubia'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer], random_state=1).check().prepare().run(until=299)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=1.0, observers=[observer], random_state=1).prepare().run(until=299)
 
 # %%
 # Sizes of the extinction avalanches

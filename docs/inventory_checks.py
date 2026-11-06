@@ -1,4 +1,4 @@
-"""Check the inventory of surveyed models against the catalog, its own vocabularies, and the OpenSpec changes."""
+"""Check the inventory of surveyed systems against the catalog, its own vocabularies, and the OpenSpec changes."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,14 +9,14 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
-from skcomplex.models import catalog
+from skcomplex.systems import catalog
 
 ROOT = Path(str(files('gallery_tools'))).parent.parent
 INVENTORY = ROOT / 'docs' / 'overview' / 'inventory.toml'
 CHANGES = ROOT / 'openspec' / 'changes'
 ARXIV = re.compile(r'(\d{4}\.\d{4,5}|[a-z-]+/\d{7})( |$)')
 CITATION = re.compile(r'.+ \d{4}( |$)')
-INVENTORY_CHANGE = 'organize-model-library'
+INVENTORY_CHANGE = 'organize-system-library'
 STATUSES = re.compile(r'implemented|(pending|blocked) [a-z0-9-]+')
 PRIORITIES = ('core', 'example')
 
@@ -32,14 +32,14 @@ def _load() -> tuple[dict[str, str], list[Entry], dict[str, Any], dict[str, Any]
     entries = [
         (name, f'{field}/{subfield}', entry)
         for field, subfields in data.items()
-        for subfield, models in subfields.items()
-        for name, entry in models.items()
+        for subfield, systems in subfields.items()
+        for name, entry in systems.items()
     ]
     return keys, entries, primitives, vocabulary
 
 
 def _registered() -> dict[str, str]:
-    """Return the field path of every registered model of the library, by name."""
+    """Return the field path of every registered system of the library, by name."""
     return {entry.name: entry.field for entry in catalog() if not entry.field.startswith(('examples', 'test'))}
 
 
@@ -74,14 +74,14 @@ def _shape_problems(entries: list[Entry], keys: dict[str, str]) -> list[str]:
 
 
 def _catalog_problems(entries: list[Entry], registered: dict[str, str]) -> list[str]:
-    """Return the disagreements between the inventory entries and the registered models."""
+    """Return the disagreements between the inventory entries and the registered systems."""
     problems = []
     recorded = {name for name, _, _ in entries}
     for name, path, entry in entries:
         if entry['status'] != 'implemented':
             continue
         if name not in registered:
-            problems.append(f'{name} is marked implemented and no model of that name is registered')
+            problems.append(f'{name} is marked implemented and no system of that name is registered')
         elif registered[name] != path:
             problems.append(f'{name} is recorded under {path} and registered under {registered[name]}')
     problems += [f'{name} is registered without an inventory entry' for name in sorted(set(registered) - recorded)]
@@ -193,4 +193,4 @@ def inventory_problems() -> list[str]:
 
 
 class InventoryError(Exception):
-    """The inventory of surveyed models disagrees with the catalog or breaks its own rules."""
+    """The inventory of surveyed systems disagrees with the catalog or breaks its own rules."""

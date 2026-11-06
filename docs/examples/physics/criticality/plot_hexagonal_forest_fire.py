@@ -7,23 +7,23 @@ every size. The view shows the cells colored by cover, empty, tree, or burning, 
 """
 
 # %%
-# The model is created by name from the catalog on a periodic 80 x 80 triangular lattice with half of the cells
+# The system is created by name from the catalog on a periodic 80 x 80 triangular lattice with half of the cells
 # forested. The observer saves every second step with the default blueprint, whose primary view shows the cells.
 
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.analysis import DistributionAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'hexagonal_forest_fire'
+SYSTEM = 'hexagonal_forest_fire'
 
-system = create(MODEL, shape=(80, 80))
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=2, observers=[observer], random_state=0).check().prepare().run(until=400)
+system = create_system(SYSTEM, shape=(80, 80))
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=2, observers=[observer], random_state=0).prepare().run(until=400)
 
 # %%
 # Fire activity and fronts on a graph
@@ -33,9 +33,9 @@ simulation = Simulation(system, dt=2, observers=[observer], random_state=0).chec
 # lattice. On a graph, fire moves along edges, so on a fully forested Watts-Strogatz graph without growth a fire lit
 # at one node should burn, at every step, exactly the nodes at that graph distance from it.
 
-steady = Simulation(create(MODEL, shape=(64, 64)), dt=1, random_state=1).check().prepare().run(5000)
+steady = Simulation(create_system(SYSTEM, shape=(64, 64)), dt=1, random_state=1).prepare().run(5000)
 burning = (steady.trajectory_.values('forest.cover')[1000:] == 2).sum(axis=1)
-histogram = DistributionAnalysis('histogram', bins=15, log=True).check().prepare(burning[burning > 0]).run()
+histogram = DistributionAnalysis('histogram', bins=15, log=True).prepare(burning[burning > 0]).run()
 bins, density = histogram.edges_, histogram.density_
 centers = np.sqrt(bins[1:] * bins[:-1])
 
@@ -43,7 +43,7 @@ graph = nx.connected_watts_strogatz_graph(500, 4, 0.1, seed=0)
 start = np.ones(500)
 start[0] = 2
 spread = (
-    Simulation(create(MODEL, graph=graph, growth=0.0, lightning=0.0, cover=start), dt=1).check().prepare().run(until=15)
+    Simulation(create_system(SYSTEM, graph=graph, growth=0.0, lightning=0.0, cover=start), dt=1).prepare().run(until=15)
 )
 front = (spread.trajectory_.values('forest.cover') == 2).sum(axis=1)
 distances = np.bincount(list(nx.single_source_shortest_path_length(graph, 0).values()), minlength=len(front))

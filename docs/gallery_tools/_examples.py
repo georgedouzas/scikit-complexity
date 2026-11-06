@@ -1,4 +1,4 @@
-"""Scaffold, find, and check the gallery examples: one script per registered model, within a budget."""
+"""Scaffold, find, and check the gallery examples: one script per registered system, within a budget."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,14 +14,14 @@ from dataclasses import dataclass, field
 from importlib.resources import files
 from pathlib import Path
 
-from skcomplex.models import ModelEntry, ModelListing, catalog, describe
+from skcomplex.systems import SystemEntry, SystemListing, catalog, describe
 
 from ._errors import GalleryError
 from ._settings import Budget
 
 SCAFFOLD_MARK = 'This example is scaffolded from the catalog and awaits curation.'
 EXAMPLE_PREFIX = 'plot_'
-STEPWISE_FORMS = {'discrete map', 'agent-based model', 'lattice dynamics', 'Monte Carlo sampling'}
+STEPWISE_FORMS = {'discrete map', 'agent-based system', 'lattice dynamics', 'Monte Carlo sampling'}
 STEPWISE_DT = 1.0
 CONTINUOUS_DT = 0.01
 DEFAULT_UNTIL = 10.0
@@ -34,48 +34,48 @@ SCAFFOLD = '''"""
 {caption}
 """
 
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import run
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_simulation
 from importlib.resources import files
 
-MODEL = '{name}'
+SYSTEM = '{name}'
 
-observer = RerunObserver(MODEL, save_path=f'{{MODEL}}.rrd', blueprint='default', interval={interval})
-simulation = run(MODEL, settings={{'observers': [observer], 'random_state': 0}}{parameters})
+observer = RerunObserver(SYSTEM, save_path=f'{{SYSTEM}}.rrd', blueprint='default', interval={interval})
+simulation = create_simulation(SYSTEM{parameters}).set_params(observers=[observer]).prepare().run()
 '''
 
 
 @dataclass(frozen=True)
 class Example:
-    """Gallery example of one model.
+    """Gallery example of one system.
 
     Args:
         path:
             The path of the script.
 
-        model:
-            The name of the model the script sets in its `MODEL` constant.
+        system:
+            The name of the system the script sets in its `SYSTEM` constant.
 
         scaffolded:
             Whether the script is still the scaffold the generator wrote.
     """
 
     path: Path
-    model: str
+    system: str
     scaffolded: bool
 
 
 @dataclass(frozen=True)
 class Coverage:
-    """Comparison of the examples with the registered models.
+    """Comparison of the examples with the registered systems.
 
     Args:
         missing:
-            The registered models without an example.
+            The registered systems without an example.
 
         orphans:
-            The examples that name no registered model, name a model already named by another example, or sit outside
-            the folder of their model's field.
+            The examples that name no registered system, name a system already named by another example, or sit outside
+            the folder of their system's field.
     """
 
     missing: list[str] = field(default_factory=list)
@@ -83,7 +83,7 @@ class Coverage:
 
     @property
     def complete(self) -> bool:
-        """Whether every model has exactly one example in its place."""
+        """Whether every system has exactly one example in its place."""
         return not self.missing and not self.orphans
 
     def problems(self, without_screenshot: list[str]) -> list[str]:
@@ -95,46 +95,46 @@ class Coverage:
 
         Returns:
             problems:
-                One sentence per gap: the models without an example, and the examples without a screenshot.
+                One sentence per gap: the systems without an example, and the examples without a screenshot.
 
         Examples:
             >>> from gallery_tools import Coverage
             >>> for problem in Coverage(missing=['lorenz']).problems(['plot_sir']):
             ...     print(problem)
-            These registered models have no gallery example: lorenz.
+            These registered systems have no gallery example: lorenz.
             These gallery examples have no screenshot: plot_sir.
         """
         problems = []
         if self.missing:
-            problems.append(f'These registered models have no gallery example: {", ".join(self.missing)}.')
+            problems.append(f'These registered systems have no gallery example: {", ".join(self.missing)}.')
         if without_screenshot:
             problems.append(f'These gallery examples have no screenshot: {", ".join(without_screenshot)}.')
         return problems
 
 
-def _model_of(path: Path) -> str | None:
-    """Return the value of the `MODEL` constant of a script, or `None` when it sets none."""
+def _system_of(path: Path) -> str | None:
+    """Return the value of the `SYSTEM` constant of a script, or `None` when it sets none."""
     for node in ast.parse(path.read_text()).body:
         if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Constant):
             continue
-        if any(isinstance(target, ast.Name) and target.id == 'MODEL' for target in node.targets):
+        if any(isinstance(target, ast.Name) and target.id == 'SYSTEM' for target in node.targets):
             return str(node.value.value)
     return None
 
 
-def library_models() -> list[ModelListing]:
-    """Return the registered models of the library, without models registered by other code such as tests.
+def library_systems() -> list[SystemListing]:
+    """Return the registered systems of the library, without systems registered by other code such as tests.
 
     Returns:
         entries:
-            The registered models whose factory lives in `skcomplex.models`.
+            The registered systems whose factory lives in `skcomplex.systems`.
 
     Examples:
-        >>> from gallery_tools import library_models
-        >>> 'lotka_volterra' in [entry.name for entry in library_models()]
+        >>> from gallery_tools import library_systems
+        >>> 'lotka_volterra' in [entry.name for entry in library_systems()]
         True
     """
-    return [entry for entry in catalog() if entry.module.startswith('skcomplex.models.')]
+    return [entry for entry in catalog() if entry.module.startswith('skcomplex.systems.')]
 
 
 def find_examples(folder: Path) -> list[Example]:
@@ -146,36 +146,36 @@ def find_examples(folder: Path) -> list[Example]:
 
     Returns:
         examples:
-            The scripts named `plot_<name>.py` that set a `MODEL` constant.
+            The scripts named `plot_<name>.py` that set a `SYSTEM` constant.
 
     Examples:
         >>> from pathlib import Path
         >>> from gallery_tools import find_examples
         >>> examples = find_examples(Path('docs/examples'))
-        >>> next(example for example in examples if example.model == 'lorenz').path.parent.name
+        >>> next(example for example in examples if example.system == 'lorenz').path.parent.name
         'dynamical_systems'
     """
     examples = []
     for path in sorted(folder.rglob(f'{EXAMPLE_PREFIX}*.py')):
-        model = _model_of(path)
-        if model is not None:
-            examples.append(Example(path, model, SCAFFOLD_MARK in ' '.join(path.read_text().split())))
+        system = _system_of(path)
+        if system is not None:
+            examples.append(Example(path, system, SCAFFOLD_MARK in ' '.join(path.read_text().split())))
     return examples
 
 
-def check_coverage(folder: Path, entries: list[ModelListing] | None = None) -> Coverage:
-    """Compare the examples under a folder with the registered models.
+def check_coverage(folder: Path, entries: list[SystemListing] | None = None) -> Coverage:
+    """Compare the examples under a folder with the registered systems.
 
     Args:
         folder:
             The root of the examples.
 
         entries:
-            The registered models, or `None` for the models of the library.
+            The registered systems, or `None` for the systems of the library.
 
     Returns:
         coverage:
-            The models without an example and the examples that are orphans.
+            The systems without an example and the examples that are orphans.
 
     Examples:
         >>> from pathlib import Path
@@ -183,21 +183,21 @@ def check_coverage(folder: Path, entries: list[ModelListing] | None = None) -> C
         >>> check_coverage(Path('docs/examples')).complete
         True
     """
-    entries = library_models() if entries is None else entries
+    entries = library_systems() if entries is None else entries
     fields = {entry.name: entry.field for entry in entries}
     examples = find_examples(folder)
-    counts = Counter(example.model for example in examples)
+    counts = Counter(example.system for example in examples)
     orphans = []
     for example in examples:
         place = example.path.parent.relative_to(folder).as_posix()
-        if example.model not in fields or counts[example.model] > 1 or place != fields[example.model]:
+        if example.system not in fields or counts[example.system] > 1 or place != fields[example.system]:
             orphans.append(example.path.relative_to(folder).as_posix())
     missing = sorted(set(fields) - set(counts))
     return Coverage(missing, orphans)
 
 
 def _titles(inventory: Path) -> dict[str, str]:
-    """Return the title of every model of the inventory."""
+    """Return the title of every system of the inventory."""
     data = tomllib.loads(inventory.read_text())
     data.pop('sources', None)
     data.pop('primitives', None)
@@ -205,8 +205,8 @@ def _titles(inventory: Path) -> dict[str, str]:
     return {
         name: entry['title']
         for subfields in data.values()
-        for models in subfields.values()
-        for name, entry in models.items()
+        for systems in subfields.values()
+        for name, entry in systems.items()
     }
 
 
@@ -241,8 +241,8 @@ def gallery_interval(until: float, dt: float, max_frames: int) -> int:
     return smallest
 
 
-def _settings_of(entry: ModelEntry) -> tuple[float, float]:
-    """Return the simulated time and the time between frames of a model's default run."""
+def _settings_of(entry: SystemEntry) -> tuple[float, float]:
+    """Return the simulated time and the time between frames of a system's default run."""
     until = entry.defaults.get('until', DEFAULT_UNTIL)
     dt = entry.defaults.get('dt')
     if dt is None:
@@ -253,12 +253,12 @@ def _settings_of(entry: ModelEntry) -> tuple[float, float]:
     return float(until), float(dt)
 
 
-def scaffold_example(entry: ModelEntry, title: str, budget: Budget | None = None) -> str:
-    """Return the scaffold of the example of a model: its title, its caption, its run, and its blueprint.
+def scaffold_example(entry: SystemEntry, title: str, budget: Budget | None = None) -> str:
+    """Return the scaffold of the example of a system: its title, its caption, its run, and its blueprint.
 
     Args:
         entry:
-            The registered model.
+            The registered system.
 
         title:
             The title of the example.
@@ -272,9 +272,9 @@ def scaffold_example(entry: ModelEntry, title: str, budget: Budget | None = None
 
     Examples:
         >>> from gallery_tools import scaffold_example
-        >>> from skcomplex.models import describe
+        >>> from skcomplex.systems import describe
         >>> print(scaffold_example(describe('lorenz'), 'LorenzElement').splitlines()[-1])
-        simulation = run(MODEL, settings={'observers': [observer], 'random_state': 0})
+        simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run()
     """
     budget = budget or Budget()
     interval = gallery_interval(*_settings_of(entry), budget.max_frames)
@@ -300,7 +300,7 @@ def _write_readmes(folder: Path, field_path: str) -> None:
     headers = {
         folder
         / field_name
-        / README: f'# {_title(field_name)}\n\nExamples of the models of `skcomplex.models.{field_name}`.\n',
+        / README: f'# {_title(field_name)}\n\nExamples of the systems of `skcomplex.systems.{field_name}`.\n',
         folder / field_path / README: f'## {_title(subfield)}\n',
     }
     for path, text in headers.items():
@@ -310,14 +310,14 @@ def _write_readmes(folder: Path, field_path: str) -> None:
 
 
 def scaffold_examples(folder: Path, inventory: Path, *, overwrite: bool = False) -> list[Path]:
-    """Write the scaffold of the example of every registered model that has none, with the gallery headers.
+    """Write the scaffold of the example of every registered system that has none, with the gallery headers.
 
     Args:
         folder:
             The root of the examples.
 
         inventory:
-            The inventory of models, which gives the titles.
+            The inventory of systems, which gives the titles.
 
         overwrite:
             Whether to rewrite examples that are still scaffolds.
@@ -327,9 +327,9 @@ def scaffold_examples(folder: Path, inventory: Path, *, overwrite: bool = False)
             The written scripts.
     """
     titles = _titles(inventory)
-    existing = {example.model: example for example in find_examples(folder)}
+    existing = {example.system: example for example in find_examples(folder)}
     written = []
-    for entry in library_models():
+    for entry in library_systems():
         example = existing.get(entry.name)
         if example is not None and not (overwrite and example.scaffolded):
             continue
@@ -383,30 +383,28 @@ def check_budget(name: str, frames: int, size: int, seconds: float | None, budge
         raise GalleryError(error_msg)
 
 
-def model_sources(model: str) -> list[Path]:
-    """Return the source files whose change can change the screenshots of a registered model's example.
+def system_sources(system: str) -> list[Path]:
+    """Return the source files whose change can change the screenshots of a registered system's example.
 
-    These are the files of the subfield package of the model, then the files of the core package, which compiles,
-    runs, and logs every model.
+    These are the files of the subfield package of the system, then the files of the core package, which compiles,
+    runs, and logs every system.
 
     Args:
-        model:
-            The name of the model.
+        system:
+            The name of the system.
 
     Returns:
         paths:
-            The Python files of the subfield package, sorted, followed by those of the specs, the core, and the
-            engine, each sorted.
+            The Python files of the subfield package, sorted, followed by those of the core, sorted.
 
     Examples:
-        >>> from gallery_tools import model_sources
-        >>> sources = model_sources('lotka_volterra')
-        >>> sources[0].parent.name, sources[-1].parts[-3]
-        ('ecology', 'engine')
+        >>> from gallery_tools import system_sources
+        >>> sources = system_sources('lotka_volterra')
+        >>> sources[0].parent.name, sources[-1].parent.name
+        ('ecology', 'core')
     """
-    package = importlib.import_module('skcomplex.models.' + describe(model).field.replace('/', '.'))
-    framework = [importlib.import_module(f'skcomplex.{name}') for name in ('specs', 'core', 'engine')]
+    package = importlib.import_module('skcomplex.systems.' + describe(system).field.replace('/', '.'))
     return [
         *sorted(Path(str(files(package.__name__))).rglob('*.py')),
-        *(path for module in framework for path in sorted(Path(str(files(module.__name__))).rglob('*.py'))),
+        *sorted(Path(str(files('skcomplex.core'))).rglob('*.py')),
     ]

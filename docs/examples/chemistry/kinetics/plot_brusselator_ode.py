@@ -6,20 +6,20 @@ cycle: the concentrations `u` and `v` oscillate out of phase with a fixed amplit
 """
 
 # %%
-# The model is created by name from the catalog with `a = 1` and `b = 3`, starting at `u = v = 1`, and runs for about
+# The system is created by name from the catalog with `a = 1` and `b = 3`, starting at `u = v = 1`, and runs for about
 # seven periods. The default blueprint shows both concentrations in one time series view.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'brusselator_ode'
+SYSTEM = 'brusselator_ode'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=50)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=50)
 
 # %%
 # One limit cycle from every initial state
@@ -29,7 +29,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().
 
 fig, ax = plt.subplots(figsize=(6, 5))
 for u0, v0 in [(1.0, 3.2), (0.5, 0.5), (4.0, 1.0), (3.0, 5.0)]:
-    run = Simulation(create(MODEL, u=u0, v=v0), dt=0.05).check().prepare().run(until=100).trajectory_
+    run = Simulation(create_system(SYSTEM, u=u0, v=v0), dt=0.05).prepare().run(until=100).trajectory_
     ax.plot(run.values('reactor.u'), run.values('reactor.v'), linewidth=0.8, alpha=0.7)
     ax.plot(u0, v0, 'o', color='gray', markersize=4)
 trajectory = simulation.trajectory_

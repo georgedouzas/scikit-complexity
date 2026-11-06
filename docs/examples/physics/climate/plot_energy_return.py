@@ -15,10 +15,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import run
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_simulation
 
-MODEL = 'energy_return'
+SYSTEM = 'energy_return'
 
 # Every view shows the whole run, not the default window that follows the latest frame.
 whole_run = rrb.TimeAxis(
@@ -33,8 +33,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = run(MODEL, settings={'until': 250, 'dt': 1.0, 'observers': [observer]})
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+simulation = create_simulation(SYSTEM).set_params(dt=1.0, observers=[observer]).prepare().run(until=250)
 
 # %%
 # Three peaks

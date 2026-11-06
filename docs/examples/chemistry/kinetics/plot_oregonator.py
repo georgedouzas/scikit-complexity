@@ -6,25 +6,25 @@ while bromous acid and the catalyst stay low, and spikes again once it falls bel
 """
 
 # %%
-# The model is created by name from the catalog with the standard parameters and integrated with LSODA, since the
+# The system is created by name from the catalog with the standard parameters and integrated with LSODA, since the
 # small `epsilon` and `delta` make it stiff. The run covers five periods, and the default blueprint shows the three
 # concentrations in one time series view, where the spikes of bromide dominate.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import EventAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODESolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import EventAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'oregonator'
+SYSTEM = 'oregonator'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=3)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
 solver = ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-9)
-simulation = Simulation(system, dt=0.05, solver=solver, observers=[observer]).check().prepare().run(until=30)
+simulation = Simulation(system, dt=0.05, solver=solver, observers=[observer]).prepare().run(until=30)
 
 # %%
 # Limit cycle and period
@@ -40,7 +40,7 @@ times, x, y, z = (
     trajectory.values('reactor.y'),
     trajectory.values('reactor.z'),
 )
-spikes = EventAnalysis(variables=['reactor.y'], threshold=10.0).check().prepare(trajectory).run().starts_
+spikes = EventAnalysis(variables=['reactor.y'], threshold=10.0).prepare(trajectory).run().starts_
 periods = np.diff(spikes[1:])
 fig, (orbit, intervals) = plt.subplots(1, 2, figsize=(10, 4))
 cycle = times > spikes[1]

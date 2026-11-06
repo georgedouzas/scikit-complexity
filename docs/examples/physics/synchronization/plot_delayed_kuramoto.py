@@ -12,15 +12,15 @@ natural frequency: the delay shifts the collective frequency, and several locked
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'delayed_kuramoto'
+SYSTEM = 'delayed_kuramoto'
 
-system = create(MODEL, n_oscillators=5, K=2.0, tau=1.0, spread=0.2, seed=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=50)
+system = create_system(SYSTEM, n_oscillators=5, K=2.0, tau=1.0, spread=0.2, seed=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=50)
 
 # %%
 # Collective frequency against the delay
@@ -36,8 +36,7 @@ delays = np.linspace(0.1, 3.0, 30)
 measured = []
 for delay in delays:
     run = (
-        Simulation(create(MODEL, n_oscillators=5, K=2.0, tau=delay, spread=0.2, seed=0), dt=0.1)
-        .check()
+        Simulation(create_system(SYSTEM, n_oscillators=5, K=2.0, tau=delay, spread=0.2, seed=0), dt=0.1)
         .prepare()
         .run(until=150)
     )

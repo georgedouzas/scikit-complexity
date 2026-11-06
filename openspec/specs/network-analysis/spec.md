@@ -24,8 +24,8 @@ The analysis layer SHALL compute degree assortativity and assortativity by any n
 degree against degree.
 
 #### Scenario: Attribute mixing on two domains
-- **WHEN** a user computes the assortativity by state of the contact network of a Schelling model after relaxation and
-  of a stochastic block model with two blocks and in-block probability ten times the out-block probability
+- **WHEN** a user computes the assortativity by state of the contact network of a Schelling system after relaxation and
+  of a stochastic block system with two blocks and in-block probability ten times the out-block probability
 - **THEN** both exceed 0.5, while a random relabelling of the same states gives within 0.05 of 0
 
 ### Requirement: Communities are detected
@@ -33,14 +33,14 @@ The analysis layer SHALL detect communities by modularity maximization and by la
 partition, its modularity, and its agreement with a reference partition by normalized mutual information.
 
 #### Scenario: Planted partition
-- **WHEN** a user detects communities of a stochastic block model of 4 blocks of 100 nodes with mean in-block degree 16
+- **WHEN** a user detects communities of a stochastic block system of 4 blocks of 100 nodes with mean in-block degree 16
   and out-block degree 2
 - **THEN** modularity maximization agrees with the planted blocks above 0.9 with a modularity above 0.5, and label
   propagation agrees above 0.5
 
 ### Requirement: Motifs are scored against null ensembles
 The analysis layer SHALL count motifs of three and four nodes in directed and undirected graphs, and give their
-z-scores against ensembles of configuration-model graphs or degree-preserving edge switches of a chosen size and seed.
+z-scores against ensembles of configuration-system graphs or degree-preserving edge switches of a chosen size and seed.
 
 #### Scenario: Feed-forward loop
 - **WHEN** a user scores the three-node motifs of a directed graph of 200 nodes with 50 planted feed-forward loops on a
@@ -56,7 +56,7 @@ frame, with the fitted degree exponent where the degree distribution has a heavy
 - **THEN** the result holds one row per frame, and the degree exponent fitted at the last frame lies within 0.2 of 3
 
 #### Scenario: Adaptive rewiring
-- **WHEN** a user computes the assortativity by state over the frames of an adaptive voter model with rewiring
+- **WHEN** a user computes the assortativity by state over the frames of an adaptive voter system with rewiring
 - **THEN** the assortativity rises over frames and ends above 0.9 when the network fragments
 
 ### Requirement: Networks renormalize across scales

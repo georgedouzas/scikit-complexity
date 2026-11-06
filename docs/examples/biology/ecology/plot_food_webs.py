@@ -7,22 +7,22 @@ its predators.
 """
 
 # %%
-# The model is created by name from the catalog with its default web. The observer saves every frame with the default
+# The system is created by name from the catalog with its default web. The observer saves every frame with the default
 # blueprint, whose primary view is the time series of the four populations.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import StabilityAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import StabilityAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'food_webs'
+SYSTEM = 'food_webs'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=100)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=100)
 
 # %%
 # Stability of the equilibrium
@@ -34,7 +34,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().
 trajectory = simulation.trajectory_
 species = ['frogs', 'mice', 'snakes', 'hawks']
 final = {f'{name}.n': trajectory.values(f'{name}.n')[-1] for name in species}
-result = StabilityAnalysis(points=[final]).check().prepare(system).run()
+result = StabilityAnalysis(points=[final]).prepare(system).run()
 eigenvalues = np.asarray(result.eigenvalues_[0], dtype=complex)
 fig, (series, spectrum) = plt.subplots(1, 2, figsize=(11, 4))
 for name in species:

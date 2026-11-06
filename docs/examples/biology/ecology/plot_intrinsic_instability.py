@@ -2,7 +2,7 @@
 # Intrinsic instability
 
 The resident population fluctuates about 1 until a rare mutation seeds an invader. The invader grows exponentially and
-drives the resident population to collapse, although no parameter of the model changes.
+drives the resident population to collapse, although no parameter of the system changes.
 """
 
 # %%
@@ -14,11 +14,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'intrinsic_instability'
+SYSTEM = 'intrinsic_instability'
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
@@ -30,8 +30,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL), dt=10, observers=[observer], random_state=0).check().prepare().run(2000)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+simulation = Simulation(create_system(SYSTEM), dt=10, observers=[observer], random_state=0).prepare().run(2000)
 
 # %%
 # Leaving the fixed point along its unstable direction

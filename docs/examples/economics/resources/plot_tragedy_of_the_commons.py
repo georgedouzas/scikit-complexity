@@ -16,11 +16,11 @@ in cycles of boom and bust.
 import matplotlib.pyplot as plt
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'tragedy_of_the_commons'
+SYSTEM = 'tragedy_of_the_commons'
 STEPS = 100
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
@@ -33,16 +33,15 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = (
     Simulation(
         system,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=STEPS)
 )
@@ -56,14 +55,13 @@ simulation = (
 # herder whenever the grass falls below half of its capacity, and raises it by one cow above 80%, should keep the
 # grass above a quarter of its capacity and a steady herd.
 
-regulated_system = create(MODEL, quota=2.0, random_state=0)
+regulated_system = create_system(SYSTEM, quota=2.0, random_state=0)
 regulated = (
     Simulation(
         regulated_system,
         random_state=0,
-        observables=describe(MODEL).observables_of(regulated_system),
+        observables=describe(SYSTEM).observables_of(regulated_system),
     )
-    .check()
     .prepare()
     .run(until=STEPS)
 )

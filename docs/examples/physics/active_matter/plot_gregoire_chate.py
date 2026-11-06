@@ -8,18 +8,18 @@ travels as one: the points take one color, the common heading, at nearly even sp
 # %%
 # Two hundred particles move `v0 = 0.05` per step in a periodic box of side 5, with alignment `alpha = 1`, cohesion
 # `beta = 0.5`, and vectorial noise `eta = 0.1`. The blueprint shows the whole box and draws the particles larger than
-# the model's visual does, so they read in the gallery thumbnail.
+# the system's visual does, so they read in the gallery thumbnail.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'gregoire_chate'
+SYSTEM = 'gregoire_chate'
 
 box = rrb.Spatial2DView(
     origin='/flock',
@@ -34,14 +34,11 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, n_particles=200, seed=0)
-observables = describe(MODEL).observables_of(system)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
+system = create_system(SYSTEM, n_particles=200, seed=0)
+observables = describe(SYSTEM).observables_of(system)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
 simulation = (
-    Simulation(system, dt=1.0, observers=[observer], random_state=0, observables=observables)
-    .check()
-    .prepare()
-    .run(until=300)
+    Simulation(system, dt=1.0, observers=[observer], random_state=0, observables=observables).prepare().run(until=300)
 )
 
 # %%

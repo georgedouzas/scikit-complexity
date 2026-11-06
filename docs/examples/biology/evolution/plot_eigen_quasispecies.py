@@ -2,12 +2,12 @@
 # Eigen's quasispecies
 
 Mutations carry a population away from the master sequence and selection pulls it back. Below the error threshold the
-two balance in a quasispecies, a stable cloud of mutants around a master sequence that keeps a share `1 - u / sigma`;
-above it the master sequence is lost, the error catastrophe.
+two balance in a quasispecies, a stable cloud of mutants around a master sequence that keeps a share `1 - u / sigma`.
+Above it the master sequence is lost, the error catastrophe.
 """
 
 # %%
-# The model is created by name from the catalog with the mutation rate `u = 0.3` below the selective disadvantage
+# The system is created by name from the catalog with the mutation rate `u = 0.3` below the selective disadvantage
 # `sigma = 0.5`, starting from the master sequence alone. The blueprint shows the shares of the master sequence and
 # of the first five classes of mutants in one time series view.
 
@@ -16,11 +16,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'eigen_quasispecies'
+SYSTEM = 'eigen_quasispecies'
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 shares = rrb.TimeSeriesView(
@@ -36,9 +36,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, u=0.3, sigma=0.5)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=40)
+system = create_system(SYSTEM, u=0.3, sigma=0.5)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=40)
 
 # %%
 # The error threshold
@@ -48,8 +48,7 @@ simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().ru
 
 rates = np.linspace(0.0, 0.7, 15)
 shares = [
-    Simulation(create(MODEL, u=rate, sigma=0.5), dt=1)
-    .check()
+    Simulation(create_system(SYSTEM, u=rate, sigma=0.5), dt=1)
     .prepare()
     .run(until=200)
     .trajectory_.values('master.x')[-1]

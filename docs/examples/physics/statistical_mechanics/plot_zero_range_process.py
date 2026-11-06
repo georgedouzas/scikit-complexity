@@ -8,7 +8,7 @@ one bright column, the condensate, holds about 125 particles while the other sit
 """
 
 # %%
-# The model is created by name from the catalog on 50 sites at density 3 with `u(n) = 1 + 4 / n`, so the critical
+# The system is created by name from the catalog on 50 sites at density 3 with `u(n) = 1 + 4 / n`, so the critical
 # density is 0.5 and the condensate should hold about `50 (3 - 0.5) = 125` particles. The observer saves every frame
 # with the default blueprint, whose primary view is the space-time image of the occupations. The Numba backend runs
 # the hops in a compiled loop.
@@ -17,20 +17,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import gammaln
 
-from skcomplex.engine.backends import NumbaBackend
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.backends import NumbaBackend
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'zero_range_process'
+SYSTEM = 'zero_range_process'
 
-system = create(MODEL, n_sites=50, density=3.0, b=4.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, n_sites=50, density=3.0, b=4.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(system, dt=12.0, observers=[observer], random_state=0, backend=NumbaBackend())
-    .check()
-    .prepare()
-    .run(until=3000)
+    Simulation(system, dt=12.0, observers=[observer], random_state=0, backend=NumbaBackend()).prepare().run(until=3000)
 )
 
 # %%

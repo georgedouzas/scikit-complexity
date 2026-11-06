@@ -17,11 +17,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'arthur_polak'
+SYSTEM = 'arthur_polak'
 STEPS, SEEDS = 3000, 12
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
@@ -36,8 +36,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=20)
-simulation = Simulation(create(MODEL), observers=[observer], random_state=0).check().prepare().run(until=STEPS)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=20)
+simulation = Simulation(create_system(SYSTEM), observers=[observer], random_state=0).prepare().run(until=STEPS)
 
 # %%
 # Complexity and the time of invention
@@ -48,7 +48,7 @@ simulation = Simulation(create(MODEL), observers=[observer], random_state=0).che
 
 fig, (pools, invention) = plt.subplots(1, 2, figsize=(10, 4))
 for seed in range(SEEDS):
-    trajectory = Simulation(create(MODEL), random_state=seed).check().prepare().run(until=STEPS).trajectory_
+    trajectory = Simulation(create_system(SYSTEM), random_state=seed).prepare().run(until=STEPS).trajectory_
     count = trajectory.values('technologies.count')
     pools.step(trajectory.times, count, where='post', color='C0', alpha=0.4)
     costs = trajectory.agents('technologies', len(trajectory.times) - 1).values['cost']

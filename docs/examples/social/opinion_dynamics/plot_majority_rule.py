@@ -14,17 +14,17 @@ whichever opinion starts in the majority.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import DomainAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import DomainAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'majority_rule'
+SYSTEM = 'majority_rule'
 STEPS = 20
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(create(MODEL, density=0.5, random_state=0), observers=[observer]).check().prepare().run(until=STEPS)
+    Simulation(create_system(SYSTEM, density=0.5, random_state=0), observers=[observer]).prepare().run(until=STEPS)
 )
 
 # %%
@@ -38,8 +38,7 @@ simulation = (
 grids = simulation.trajectory_.lattice('voters.opinion')
 densities = np.linspace(0.3, 0.7, 17)
 finals = [
-    Simulation(create(MODEL, density=density, random_state=0))
-    .check()
+    Simulation(create_system(SYSTEM, density=density, random_state=0))
     .prepare()
     .run(until=STEPS)
     .trajectory_.values('voters.opinion')[-1]
@@ -47,7 +46,7 @@ finals = [
     for density in densities
 ]
 fig, (interfaces, amplification) = plt.subplots(1, 2, figsize=(10, 4))
-domains = DomainAnalysis('interface-density', times=simulation.trajectory_.times).check().prepare(grids)
+domains = DomainAnalysis('interface-density', times=simulation.trajectory_.times).prepare(grids)
 interfaces.plot(domains.times_, domains.run().density_, 'o-', ms=3)
 interfaces.set_xlabel('step')
 interfaces.set_ylabel('interface density')

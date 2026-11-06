@@ -40,7 +40,7 @@ package index, on every supported platform. The published metadata SHALL NOT nam
 
 ### Requirement: Every declared version has the same features
 
-Every model and analysis SHALL be available on every declared Python version, and no feature SHALL be disabled by the
+Every system and analysis SHALL be available on every declared Python version, and no feature SHALL be disabled by the
 version of Python.
 
 #### Scenario: Markov analyses on Python 3.14
@@ -57,7 +57,7 @@ first-passage times, for the reversible and the non-reversible fit.
 
 #### Scenario: Reversible fit of a known path
 
-- **WHEN** a user estimates a reversible state model from the reference path
+- **WHEN** a user estimates a reversible state system from the reference path
 - **THEN** its transition matrix, stationary distribution, and implied timescales agree with the recorded reference
   values within 0.001 relative tolerance
 
@@ -83,7 +83,7 @@ The declared dependency ranges SHALL exclude every version known to break the pa
 which takes the newest versions the ranges allow rather than the lock file, passes the fast tests on the newest declared
 Python version.
 
-#### Scenario: Hypergraph model after a fresh install
+#### Scenario: Hypergraph system after a fresh install
 
 - **WHEN** a user installs the package from the index into a new environment and simulates `hypergraph_kuramoto`
 - **THEN** the simulation runs

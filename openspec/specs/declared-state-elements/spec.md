@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Let a model declare the states and parameters of an element from data, so that no model generates a class to do it.
+Let a system declare the states and parameters of an element from data, so that no system generates a class to do it.
 
 ## Requirements
 
@@ -31,12 +31,12 @@ No module of the library SHALL set `__signature__` or build a part with `type()`
 - **THEN** it finds no `__signature__` assignment and no part built with `type()`; the Mesa agent and view classes that
   `MesaSolver` builds are not parts
 
-### Requirement: Moved models keep their results
+### Requirement: Moved systems keep their results
 
 `SparseIdentificationAnalysis`, `next_generation_reservoir`, and the metabolism family SHALL keep their results after moving
 to the primitive.
 
 #### Scenario: Reference values
 
-- **WHEN** the moved models run on inputs recorded before the move
+- **WHEN** the moved systems run on inputs recorded before the move
 - **THEN** their results agree with the recorded values within 1e-9 relative tolerance

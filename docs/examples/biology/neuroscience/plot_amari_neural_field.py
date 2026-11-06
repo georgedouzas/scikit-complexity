@@ -3,26 +3,26 @@
 
 A line of neurons excites its near neighbours and inhibits those further away, through a convolution of the firing rate
 against a lateral-inhibition kernel. Below the firing threshold the field rests, but a local excitation settles into a
-stationary bump of activity that outlasts its cause, a model of working memory. Amari's condition gives its width.
+stationary bump of activity that outlasts its cause, a system of working memory. Amari's condition gives its width.
 """
 
 # %%
-# The model is created by name from the catalog on a line of length 20 in 800 sites, with the kernel of a Mexican hat,
+# The system is created by name from the catalog on a line of length 20 in 800 sites, with the kernel of a Mexican hat,
 # from a localized excitation. The default blueprint shows the history of the potential.
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import brentq
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'amari_neural_field'
+SYSTEM = 'amari_neural_field'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=40.0)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
+simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=40.0)
 
 # %%
 # Width of the bump

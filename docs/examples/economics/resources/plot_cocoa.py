@@ -14,10 +14,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import run
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_simulation
 
-MODEL = 'cocoa'
+SYSTEM = 'cocoa'
 
 # Every view shows the whole run, not the default window that follows the latest frame.
 whole_run = rrb.TimeAxis(
@@ -32,8 +32,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = run(MODEL, settings={'until': 50, 'dt': 0.25, 'observers': [observer]})
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+simulation = create_simulation(SYSTEM).set_params(dt=0.25, observers=[observer]).prepare().run(until=50)
 
 # %%
 # Subsidy coverage decides the bust
@@ -45,7 +45,10 @@ simulation = run(MODEL, settings={'until': 50, 'dt': 0.25, 'observers': [observe
 fig, (area, crop) = plt.subplots(1, 2, figsize=(10, 4))
 runs = {0.0: simulation.trajectory_}
 runs.update(
-    {subsidy: run(MODEL, settings={'until': 50, 'dt': 0.25}, subsidy=subsidy).trajectory_ for subsidy in (0.6, 1.0)},
+    {
+        subsidy: create_simulation(SYSTEM, subsidy=subsidy).set_params(dt=0.25).prepare().run(until=50).trajectory_
+        for subsidy in (0.6, 1.0)
+    },
 )
 for subsidy, scenario in runs.items():
     times = np.asarray(scenario.times)

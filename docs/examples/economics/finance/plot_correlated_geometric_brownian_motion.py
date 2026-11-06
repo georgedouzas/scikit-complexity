@@ -7,7 +7,7 @@ they rise and fall together, and their log returns are correlated with `rho`.
 """
 
 # %%
-# The model is created by name from the catalog with prices of 100, drifts of 5 and 8 percent, and volatilities of 20
+# The system is created by name from the catalog with prices of 100, drifts of 5 and 8 percent, and volatilities of 20
 # and 30 percent a year. It is simulated for three years in frames of 0.02 with the Euler-Maruyama scheme. The default
 # blueprint shows both prices in one time series view. The `WienerProcess` that both motions bind is no component and
 # draws no view.
@@ -15,20 +15,18 @@ they rise and fall together, and their log returns are correlated with `rho`.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'correlated_geometric_brownian_motion'
+SYSTEM = 'correlated_geometric_brownian_motion'
 RHO = 0.7
 
-system = create(MODEL, rho=RHO)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
+system = create_system(SYSTEM, rho=RHO)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
 solver = EulerMaruyamaSolver(dt=0.001)
-simulation = (
-    Simulation(system, dt=0.02, solver=solver, observers=[observer], random_state=0).check().prepare().run(until=3)
-)
+simulation = Simulation(system, dt=0.02, solver=solver, observers=[observer], random_state=0).prepare().run(until=3)
 
 # %%
 # Correlated log returns

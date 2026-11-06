@@ -1,0 +1,199 @@
+"""Test the particle solver of encounter laws against the gain and loss equations."""
+
+from typing import Annotated
+
+import numpy as np
+import pytest
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.laws import BilinearLaw, EncounterLaw, RateLaw
+from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import KineticSolver
+from skcomplex.core.errors import SolverError
+from skcomplex.core.experiments import Experiment
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
+
+CLASSES = 9
+HORIZON = 2.0
+PARTICLES = (1_000, 10_000, 100_000)
+
+
+class DensityElement(Element):
+    """Density of particles at one activity value."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        f: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.f = f
+
+
+def _table():
+    """Return the transition table where a candidate moves one class toward the field particle with probability 1/2."""
+    table = np.zeros((CLASSES, CLASSES, CLASSES))
+    for candidate in range(CLASSES):
+        for field in range(CLASSES):
+            table[candidate, field, candidate + int(np.sign(field - candidate))] += 0.5
+            table[candidate, field, candidate] += 0.5
+    return table
+
+
+class ExchangeInteraction(Interaction):
+    """Conservative encounters of a population with itself."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        population: Annotated[str, RoleSpec()],
+        eta: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.population = population
+        self.eta = eta
+
+    def _get_laws(self, s):
+        """Return the encounter."""
+        return [EncounterLaw(s.population.f, s.population.f, s.eta, _table())]
+
+
+class TurnoverInteraction(Interaction):
+    """Proliferation and destruction of a population by encounters with a fixed field."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        population: Annotated[str, RoleSpec()],
+        field: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.population = population
+        self.field = field
+
+    def _get_laws(self, s):
+        """Return the proliferation and the destruction."""
+        return [
+            BilinearLaw(s.population.f, s.population.f, s.field.f, 0.6),
+            BilinearLaw(s.population.f, s.population.f, s.field.f, -0.2),
+        ]
+
+
+class DecayInteraction(Interaction):
+    """Decay of a density written as a rate law."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        population: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.population = population
+
+    def _get_laws(self, s):
+        """Return the rate."""
+        return [RateLaw(s.population.f, -s.population.f)]
+
+
+def _profile():
+    """Return a normalised initial profile peaked at a low activity."""
+    grid = np.linspace(0.0, 1.0, CLASSES)
+    profile = np.exp(-((grid - 0.3) ** 2) / 0.02)
+    return profile / profile.sum()
+
+
+def _system(*others):
+    """Return a wealth distribution over 9 classes with conservative encounters and other interactions."""
+    return System(
+        elements=[GroupElement('wealth', element=DensityElement, on='sites', values={'f': _profile()})],
+        interactions=[ExchangeInteraction('exchange', population='wealth'), *others],
+        space=LatticeSpace(CLASSES, boundary='fixed'),
+        time=ContinuousTime(),
+    )
+
+
+def _ode_solution(system):
+    """Return the densities of the gain and loss equations at the horizon."""
+    return Simulation(system, dt=HORIZON).prepare().run(until=HORIZON).trajectory_.values('wealth.f')[-1]
+
+
+def _mean_error(system, particles, solution, replicates):
+    """Return the mean L1 error of the empirical densities against the ODE solution over an ensemble."""
+
+    def error(trajectory):
+        """Return the L1 error of the last frame."""
+        return float(np.abs(trajectory.values('wealth.f')[-1] - solution).sum())
+
+    experiment = Experiment(
+        system,
+        replicates=replicates,
+        until=HORIZON,
+        dt=HORIZON,
+        solver=KineticSolver(n=particles, dt=0.002),
+        outputs=[error],
+        random_state=0,
+    )
+    return float(np.mean(experiment.prepare().run().result_.column('error')))
+
+
+def test_particles_converge_to_the_ode_solution():
+    """Test that the mean error of the particles falls roughly as one over the square root of their number."""
+    system = _system()
+    solution = _ode_solution(system)
+    errors = [_mean_error(system, particles, solution, 16) for particles in PARTICLES]
+    slope = np.polyfit(np.log(PARTICLES), np.log(errors), 1)[0]
+    assert -0.65 < slope < -0.35
+    assert errors[0] > errors[1] > errors[2]
+
+
+def test_particles_keep_the_density_of_conservative_encounters():
+    """Test that conservative encounters keep the number of particles, so the total density stays exact."""
+    trajectory = (
+        Simulation(_system(), dt=0.5, solver=KineticSolver(n=2000), random_state=1).prepare().run(until=2).trajectory_
+    )
+    totals = np.asarray(trajectory.values('wealth.f')).sum(axis=1)
+    np.testing.assert_allclose(totals, totals[0], rtol=1e-12)
+    assert np.all(np.asarray(trajectory.values('wealth.f')) >= 0)
+
+
+def test_particles_sample_proliferation_and_destruction():
+    """Test that proliferation and destruction change the particle density at the net rate of the equations."""
+    system = System(
+        elements=[
+            GroupElement('wealth', element=DensityElement, on='sites', values={'f': _profile()}),
+            GroupElement('field', element=DensityElement, on='sites', values={'f': np.full(CLASSES, 1 / CLASSES)}),
+        ],
+        interactions=[TurnoverInteraction('turnover', population='wealth', field='field')],
+        space=LatticeSpace(CLASSES, boundary='fixed'),
+        time=ContinuousTime(),
+    )
+    simulation = Simulation(system, dt=1.0, solver=KineticSolver(n=50_000), random_state=2).prepare().run(until=1)
+    total = float(np.sum(simulation.trajectory_.values('wealth.f')[-1]))
+    assert total == pytest.approx(np.exp(0.4), rel=0.02)
+
+
+def test_particle_solver_rejects_rate_laws_in_validation():
+    """Test that validation reports a rate law with the particle solver."""
+    system = _system(DecayInteraction('decay', population='wealth'))
+    report = PassCompiler(solver=KineticSolver()).prepare(system).report_
+    issue = next(item for item in report.errors if item.code == 'solver-unsupported')
+    assert 'KineticSolver does not support the laws RateLaw' in issue.message
+    assert PassCompiler(solver=KineticSolver()).prepare(_system()).report_.ok
+
+
+def test_particle_solver_rejects_rate_laws_when_run():
+    """Test that the particle solver refuses a compiled problem with rate laws."""
+    problem = PassCompiler().prepare(_system(DecayInteraction('decay', population='wealth'))).run().problem_
+    with pytest.raises(SolverError, match='encounter laws alone'):
+        KineticSolver(random_state=0).prepare(problem)

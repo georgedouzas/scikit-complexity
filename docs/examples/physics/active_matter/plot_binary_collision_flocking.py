@@ -8,7 +8,7 @@ most particles fly in one direction, so the points take one colour, which shows 
 # %%
 # The particles fly at unit speed on a torus of side 20 at the density 1, with self-diffusion events at unit rate,
 # collisions at the distance 1/2, and the noise `sigma = 0.3`. The blueprint shows the whole torus and draws the
-# particles larger than the model's visual does, so they read in the gallery thumbnail.
+# particles larger than the system's visual does, so they read in the gallery thumbnail.
 
 import math
 
@@ -18,11 +18,11 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.optimize import brentq
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'binary_collision_flocking'
+SYSTEM = 'binary_collision_flocking'
 
 torus = rrb.Spatial2DView(
     origin='/birds',
@@ -37,17 +37,16 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, sigma=0.3, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
+system = create_system(SYSTEM, sigma=0.3, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 simulation = (
     Simulation(
         system,
         dt=1,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=200)
 )
@@ -71,15 +70,14 @@ threshold = brentq(lambda sigma: threshold_density(sigma) - 1.0, 0.05, 0.89)
 noises = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0])
 polarizations = []
 for sigma in noises:
-    model_system = create(MODEL, sigma=float(sigma), random_state=1)
+    system_system = create_system(SYSTEM, sigma=float(sigma), random_state=1)
     run = (
         Simulation(
-            model_system,
+            system_system,
             dt=1,
             random_state=1,
-            observables=describe(MODEL).observables_of(model_system),
+            observables=describe(SYSTEM).observables_of(system_system),
         )
-        .check()
         .prepare()
         .run(
             until=150,

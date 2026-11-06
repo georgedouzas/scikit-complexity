@@ -6,22 +6,22 @@ excitatory pulses, they kick each other over threshold and the whole network fir
 """
 
 # %%
-# The model is created by name from the catalog with excitabilities centred below threshold, `eta = -0.2`, and the
+# The system is created by name from the catalog with excitabilities centred below threshold, `eta = -0.2`, and the
 # coupling `kappa = 1.5`. The recorded run keeps four neurons for ten time units, so that their phases read in the
-# time series view of the default blueprint; the analysis below uses fifty.
+# time series view of the default blueprint. The analysis below uses fifty.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'theta_neurons'
+SYSTEM = 'theta_neurons'
 
-system = create(MODEL, n_neurons=4, kappa=1.5, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=10)
+system = create_system(SYSTEM, n_neurons=4, kappa=1.5, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=10)
 
 # %%
 # Coupling switches on collective firing
@@ -39,15 +39,13 @@ def spikes_of(trajectory):
 
 
 coupled = (
-    Simulation(create(MODEL, n_neurons=50, kappa=1.5, random_state=0), dt=0.1)
-    .check()
+    Simulation(create_system(SYSTEM, n_neurons=50, kappa=1.5, random_state=0), dt=0.1)
     .prepare()
     .run(until=20)
     .trajectory_
 )
 uncoupled = (
-    Simulation(create(MODEL, n_neurons=50, kappa=0.0, random_state=0), dt=0.1)
-    .check()
+    Simulation(create_system(SYSTEM, n_neurons=50, kappa=0.0, random_state=0), dt=0.1)
     .prepare()
     .run(until=20)
     .trajectory_

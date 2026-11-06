@@ -1,7 +1,7 @@
 """
 # Stochastic Schelling
 
-Grauwin, Bertin, Lemoy, and Jensen's stochastic Schelling model: agents move between the blocks of a city, and a move
+Grauwin, Bertin, Lemoy, and Jensen's stochastic Schelling system: agents move between the blocks of a city, and a move
 is accepted with a logit probability of the change of utility, which mixes the mover's own utility of the density of
 its block with the change of the collective utility. When the moves are noisy the agents spread evenly over the
 blocks, and above the inverse temperature `beta = 2` they pile into a few full blocks and leave the others empty, a
@@ -16,17 +16,16 @@ segregation that nobody's utility asks for.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'stochastic_schelling'
+SYSTEM = 'stochastic_schelling'
 BLOCKS, CELLS, STEPS = 16, 25, 150
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(create(MODEL, beta=4.0, random_state=0), observers=[observer], random_state=0)
-    .check()
+    Simulation(create_system(SYSTEM, beta=4.0, random_state=0), observers=[observer], random_state=0)
     .prepare()
     .run(until=STEPS)
 )
@@ -49,8 +48,7 @@ def densities(trajectory, frame):
 def final_densities(beta, seed):
     """Return the block densities after a run."""
     trajectory = (
-        Simulation(create(MODEL, beta=beta, random_state=seed), random_state=seed)
-        .check()
+        Simulation(create_system(SYSTEM, beta=beta, random_state=seed), random_state=seed)
         .prepare()
         .run(until=STEPS)
         .trajectory_

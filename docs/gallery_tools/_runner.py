@@ -17,7 +17,7 @@ from pathlib import Path
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.viz import RerunObserver
+from skcomplex.core.engine.viz import RerunObserver
 
 from ._build import GalleryBuild
 from ._errors import GalleryError
@@ -115,7 +115,7 @@ def run_example(example: Example, build: GalleryBuild, budget: Budget) -> RunRep
             frames, size = int(observer.logged_frames_), Path(str(observer.save_path)).stat().st_size
             thumbnail, cached = thumbnail_of(
                 example.path.absolute(),
-                example.model,
+                example.system,
                 observer,
                 build.cache,
                 backend=build.backend,

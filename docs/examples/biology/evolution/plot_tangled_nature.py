@@ -7,7 +7,7 @@ collapse abruptly into new ones, a punctuated equilibrium.
 """
 
 # %%
-# One hundred organisms of a single random type start the run, with genomes of eight bits. The model's blueprint shows
+# One hundred organisms of a single random type start the run, with genomes of eight bits. The system's blueprint shows
 # the number of distinct genome types alive, which jumps from one to about forty as mutants spread and then fluctuates
 # around thirty. The abrupt transitions between quasi-stable configurations take thousands of generations, longer than
 # this run.
@@ -15,15 +15,15 @@ collapse abruptly into new ones, a punctuated equilibrium.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'tangled_nature'
+SYSTEM = 'tangled_nature'
 
-system = create(MODEL, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=300)
+system = create_system(SYSTEM, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=300)
 
 # %%
 # Population and dominant types

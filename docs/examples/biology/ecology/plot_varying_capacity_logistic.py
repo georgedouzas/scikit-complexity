@@ -6,22 +6,22 @@ it started and settles on a cycle of one season. The cycle lags behind the capac
 """
 
 # %%
-# The model is created by name from the catalog and run from two populations, one far below and one far above the
+# The system is created by name from the catalog and run from two populations, one far below and one far above the
 # mean capacity of 100, for eight seasons. The observer saves every frame with the default blueprint, whose
 # primary view is the time series of the population.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'varying_capacity_logistic'
+SYSTEM = 'varying_capacity_logistic'
 
-system = create(MODEL, n=5.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare().run(until=8)
+system = create_system(SYSTEM, n=5.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=8)
 
 # %%
 # A unique periodic solution
@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare()
 # to the same cycle, which peaks after the capacity and stays inside its range.
 
 low = simulation.trajectory_
-high = Simulation(create(MODEL, n=180.0), dt=0.05).check().prepare().run(until=8).trajectory_
+high = Simulation(create_system(SYSTEM, n=180.0), dt=0.05).prepare().run(until=8).trajectory_
 capacity = 100.0 * (1 + 0.5 * np.sin(2 * np.pi * low.times))
 fig, ax = plt.subplots(figsize=(8, 4))
 ax.plot(low.times, capacity, color='grey', linestyle=':', label='carrying capacity')

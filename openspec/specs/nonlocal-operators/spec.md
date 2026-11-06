@@ -10,7 +10,7 @@ neighbours of a field lower on the field.
 
 ### Requirement: Fields convolve with kernels
 Laws of a `FieldElement` on a lattice SHALL convolve an expression of the field's states with a kernel written as a
-symbolic function of the displacement, whose free symbols are the displacement and parameters of the model. The
+symbolic function of the displacement, whose free symbols are the displacement and parameters of the system. The
 convolution SHALL approximate the integral over the domain by the sum over sites weighted by the cell volume, and a
 kernel MAY declare a radius beyond which it is zero.
 
@@ -37,7 +37,7 @@ A convolution SHALL use the current values of the kernel's parameters, so a chan
 the members of an experiment changes the convolution without the user resampling the kernel.
 
 #### Scenario: Wider kernel
-- **WHEN** a model is run twice with the kernel width parameter set to 1 and then to 2
+- **WHEN** a system is run twice with the kernel width parameter set to 1 and then to 2
 - **THEN** the second convolution of the same field equals a direct convolution with the kernel of width 2
 
 ### Requirement: Laws read fields at shifted positions
@@ -64,7 +64,7 @@ wrap, zero-flux edges mirror, and fixed edges read the fixed value.
 
 ### Requirement: Fields invert modified-Helmholtz operators
 Laws SHALL use the solution `psi` of `(laplacian - screening²) psi = expression` of an expression of a field's
-states, where the screening is a non-negative expression of the model's parameters. With zero screening the operator
+states, where the screening is a non-negative expression of the system's parameters. With zero screening the operator
 SHALL equal the inverse Laplacian.
 
 #### Scenario: Single Fourier mode

@@ -14,16 +14,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'random_walk'
+SYSTEM = 'random_walk'
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(create(MODEL, n_walkers=6), dt=0.5, observers=[observer], random_state=0)
-    .check()
+    Simulation(create_system(SYSTEM, n_walkers=6), dt=0.5, observers=[observer], random_state=0)
     .prepare()
     .run(until=100)
 )
@@ -39,8 +38,7 @@ simulation = (
 fig, (spread, distribution) = plt.subplots(1, 2, figsize=(11, 4))
 for bias in (0.5, 0.7):
     run = (
-        Simulation(create(MODEL, n_walkers=2000, bias=bias), dt=1.0, random_state=1)
-        .check()
+        Simulation(create_system(SYSTEM, n_walkers=2000, bias=bias), dt=1.0, random_state=1)
         .prepare()
         .run(until=100)
         .trajectory_

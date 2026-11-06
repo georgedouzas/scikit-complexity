@@ -7,7 +7,7 @@ those of ordinary houses.
 """
 
 # %%
-# The model is created by name from the catalog on a 30 by 30 grid of three cities with 40 houses, 3 brothels, 12
+# The system is created by name from the catalog on a 30 by 30 grid of three cities with 40 houses, 3 brothels, 12
 # victims, and 30 free women, and runs for one year, one step per day. The default blueprint shows the premises and the
 # women, with brothels and victims bright and houses and free women dark: the bright points are the few brothel cells
 # where all the victims are held.
@@ -15,15 +15,15 @@ those of ordinary houses.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'trafficking'
+SYSTEM = 'trafficking'
 
-system = create(MODEL, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=360)
+system = create_system(SYSTEM, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=360)
 
 # %%
 # Traces in the bills

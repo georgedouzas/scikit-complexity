@@ -1,32 +1,30 @@
 """
 # Lennard-Jones fluid
 
-Particles that repel at short range and attract weakly at longer range, the Lennard-Jones model of simple atoms like
+Particles that repel at short range and attract weakly at longer range, the Lennard-Jones system of simple atoms like
 argon, start on a square lattice with random velocities. The lattice melts within a few collision times and the
 particles move as a dense fluid in which every particle sits in a cage of neighbours at about the distance of the
 potential minimum. The view shows 400 particles in a periodic box at density 0.5.
 """
 
 # %%
-# The model is created by name from the catalog at constant energy. The velocity Verlet stepper takes steps of 0.005
+# The system is created by name from the catalog at constant energy. The velocity Verlet stepper takes steps of 0.005
 # and the observer saves every second step with the default blueprint, whose primary view shows the particles.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import NeighborAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import VelocityVerletSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import NeighborAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import VelocityVerletSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'lennard_jones_fluid'
+SYSTEM = 'lennard_jones_fluid'
 
-system = create(MODEL, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = (
-    Simulation(system, solver=VelocityVerletSolver(), dt=0.005, observers=[observer]).check().prepare().run(until=2.5)
-)
+system = create_system(SYSTEM, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, solver=VelocityVerletSolver(), dt=0.005, observers=[observer]).prepare().run(until=2.5)
 
 # %%
 # Structure of a gas and a liquid
@@ -40,14 +38,14 @@ simulation = (
 fig, ax = plt.subplots(figsize=(7, 4))
 for density in (0.2, 0.8):
     side = np.sqrt(400 / density)
-    run = (
-        Simulation(create(MODEL, density=density, temperature=1.0, random_state=1), dt=0.05, random_state=1)
-        .check()
-        .prepare()
-    )
+    run = Simulation(
+        create_system(SYSTEM, density=density, temperature=1.0, random_state=1),
+        dt=0.05,
+        random_state=1,
+    ).prepare()
     positions = np.mod(run.run(until=20).trajectory_.values('fluid.x')[100:], side)
     neighbors = NeighborAnalysis('radial-distribution', box=[side, side], bins=120, r_max=5.0)
-    neighbors.check().prepare(positions).run()
+    neighbors.prepare(positions).run()
     distances, g = neighbors.radii_, neighbors.distribution_
     ax.plot(distances, g, label=f'density {density}')
 ax.axvline(2 ** (1 / 6), color='gray', linestyle='--', label='potential minimum 2^(1/6)')

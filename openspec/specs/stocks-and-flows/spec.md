@@ -1,7 +1,7 @@
 # stocks-and-flows Specification
 
 ## Purpose
-Lets a user build models from stocks and named flows of conserved quantities, with auxiliaries, lookup tables, delays,
+Lets a user build systems from stocks and named flows of conserved quantities, with auxiliaries, lookup tables, delays,
 feedback loop analysis, and balance-sheet ledgers for agents.
 
 ## Requirements

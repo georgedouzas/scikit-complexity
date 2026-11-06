@@ -1,7 +1,7 @@
-# algebraic-models Specification
+# algebraic-systems Specification
 
 ## Purpose
-Lets a user write a model whose states are closed forms of its parameters or solutions of algebraic equations, under
+Lets a user write a system whose states are closed forms of its parameters or solutions of algebraic equations, under
 static time, and solve it once per run.
 
 ## Requirements

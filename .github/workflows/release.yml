@@ -113,7 +113,7 @@ jobs:
       run: sudo apt-get update && sudo apt-get install -y mesa-vulkan-drivers libvulkan1 xvfb
 
     - name: Install dependencies
-      run: pdm install -dG maintenance -dG docs -dG gallery
+      run: pdm install -dG maintenance -dG docs -dG gallery -G structures -G rna -G metabolism
 
     - name: Deploy the documentation
       env:

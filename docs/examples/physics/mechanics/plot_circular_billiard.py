@@ -11,16 +11,16 @@ that never enters an inner circle, the caustic. The circular billiard is integra
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'circular_billiard'
+SYSTEM = 'circular_billiard'
 
 
-system = create(MODEL, x=0.3, y=0.0, vx=0.4, vy=1.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.02, observers=[observer]).check().prepare().run(until=20)
+system = create_system(SYSTEM, x=0.3, y=0.0, vx=0.4, vy=1.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
+simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(until=20)
 
 # %%
 # The caustic

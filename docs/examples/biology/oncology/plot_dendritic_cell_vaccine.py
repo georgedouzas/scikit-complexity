@@ -6,23 +6,23 @@ without vaccine, and the tumour regrows once the injections stop.
 """
 
 # %%
-# The model is created by name from the catalog with its default schedule, a one-hour injection of 0.5 dendritic cells
+# The system is created by name from the catalog with its default schedule, a one-hour injection of 0.5 dendritic cells
 # per hour every week, 8 times, and runs for 120 days in hours. The observer saves every frame with the default
 # blueprint, whose primary view is the time series of the T cells, the tumour, the dendritic cells, and IL-2.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODESolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'dendritic_cell_vaccine'
+SYSTEM = 'dendritic_cell_vaccine'
 
 solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=12.0, solver=solver, observers=[observer]).check().prepare().run(until=2880)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=12.0, solver=solver, observers=[observer]).prepare().run(until=2880)
 
 # %%
 # Vaccinated and unvaccinated tumours
@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=12.0, solver=solver, observers=[observer]).ch
 # `1 - c1 s2 / (d2 r3) = 0.9`. With the vaccine it should fall below 0.05 during the injections.
 
 vaccinated = simulation.trajectory_
-unvaccinated = Simulation(create(MODEL, dose=0.0), dt=12.0, solver=solver).check().prepare().run(until=2880).trajectory_
+unvaccinated = Simulation(create_system(SYSTEM, dose=0.0), dt=12.0, solver=solver).prepare().run(until=2880).trajectory_
 days = vaccinated.times / 24
 fig, (tumour, cells) = plt.subplots(1, 2, figsize=(10, 4))
 tumour.plot(days, unvaccinated.values('site.A'), label='no vaccine')

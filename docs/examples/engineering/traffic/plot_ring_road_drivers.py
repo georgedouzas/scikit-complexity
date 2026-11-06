@@ -7,7 +7,7 @@ reaches the speed limit.
 """
 
 # %%
-# The model is created by name from the catalog with 30 cars on a ring of 1000, the speed limit 40, and speed errors up
+# The system is created by name from the catalog with 30 cars on a ring of 1000, the speed limit 40, and speed errors up
 # to 2%, and runs for 300 steps. The road is 1000 long and 1 wide, so the blueprint frames the whole road with a
 # margin above and below it and draws the cars as large dots, which bunch together where a jam holds them.
 
@@ -15,11 +15,11 @@ import matplotlib.pyplot as plt
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'ring_road_drivers'
+SYSTEM = 'ring_road_drivers'
 
 road = rrb.Spatial2DView(
     origin='/drivers',
@@ -33,9 +33,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=300)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=300)
 
 # %%
 # Jams keep the traffic slow
@@ -46,7 +46,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).chec
 
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for n_cars in (10, 30, 60):
-    run = Simulation(create(MODEL, n_cars=n_cars), dt=1, random_state=1).check().prepare().run(until=300).trajectory_
+    run = Simulation(create_system(SYSTEM, n_cars=n_cars), dt=1, random_state=1).prepare().run(until=300).trajectory_
     speeds = [run.agents('drivers', frame).values['speed'].mean() for frame in range(len(run.times))]
     ax.plot(run.times, speeds, label=f'{n_cars} cars')
 ax.axhline(40.0, color='black', linestyle='--', linewidth=0.8, label='speed limit')

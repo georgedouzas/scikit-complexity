@@ -8,7 +8,7 @@ a dilute gas. The view shows 600 disks at packing fraction 0.5 that have gathere
 """
 
 # %%
-# The model is created by name from the catalog with 600 disks of unit diameter, packing fraction 0.5, speed `v = 1`,
+# The system is created by name from the catalog with 600 disks of unit diameter, packing fraction 0.5, speed `v = 1`,
 # and rotational diffusion `D_r = 0.01`, a Péclet number `v / (D_r sigma) = 100`. The Euler-Maruyama stepper takes
 # steps of 0.005 and the observer saves every frame of 0.5 with the default blueprint, whose primary view shows the
 # disks.
@@ -17,26 +17,24 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import cKDTree
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'motility_induced_phase_separation'
+SYSTEM = 'motility_induced_phase_separation'
 
-system = create(MODEL, n_particles=600, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, n_particles=600, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.005)
-simulation = (
-    Simulation(system, solver=solver, dt=0.5, observers=[observer], random_state=0).check().prepare().run(until=120)
-)
+simulation = Simulation(system, solver=solver, dt=0.5, observers=[observer], random_state=0).prepare().run(until=120)
 
 # %%
 # Bimodal local density
 # ---------------------
 # The local packing fraction around each disk is the area of the disks within a distance 2.5, the disk itself
 # included, over the area of that circle. The disks start uniformly spread, with local packing fractions around the
-# mean 0.5; once the phases have separated the distribution should split into a dilute peak and a dense peak near
+# mean 0.5. Once the phases have separated the distribution should split into a dilute peak and a dense peak near
 # close packing.
 
 side = np.sqrt(600 * np.pi / 4 / 0.5)

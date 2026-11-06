@@ -8,22 +8,22 @@ near half of the population without vaccination.
 """
 
 # %%
-# The model is created by name from the catalog with the transmission rate 0.5, the recovery rate 0.1, and 1% of the
+# The system is created by name from the catalog with the transmission rate 0.5, the recovery rate 0.1, and 1% of the
 # population infected at the start, so the basic reproduction number is 5. The Pontryagin solver of its catalog entry
 # derives the costates and the vaccination rate `u = (lambda_S - lambda_R) S / b` symbolically. The default blueprint
 # shows the three fractions and the vaccination rate in one time series view.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'sir_vaccination'
+SYSTEM = 'sir_vaccination'
 
-system = create(MODEL)
-entry = describe(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+entry = describe(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(
         system,
@@ -32,7 +32,6 @@ simulation = (
         observers=[observer],
         observables=entry.observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=30)
 )
@@ -45,8 +44,7 @@ simulation = (
 # reaches them.
 
 uncontrolled = (
-    Simulation(create(MODEL, a=0.0), dt=0.2, solver=entry.defaults['solver'])
-    .check()
+    Simulation(create_system(SYSTEM, a=0.0), dt=0.2, solver=entry.defaults['solver'])
     .prepare()
     .run(until=30)
     .trajectory_

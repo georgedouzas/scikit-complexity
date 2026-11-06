@@ -6,34 +6,30 @@ by short bursts in which it rises to values of order one and falls back.
 """
 
 # %%
-# The model is created by name from the catalog with two independent realizations at the bifurcation point
+# The system is created by name from the catalog with two independent realizations at the bifurcation point
 # `epsilon = 0`, with noise intensity `D = 1/2`, and simulated for 600 time units in the Stratonovich convention. The
 # observer saves every frame with the default blueprint, whose primary view holds the two variables.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import DistributionAnalysis, EventAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import DistributionAnalysis, EventAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'on_off_intermittency'
+SYSTEM = 'on_off_intermittency'
 
-system = create(MODEL, n_realizations=2, epsilon=0.0, D=0.5)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(
-        system,
-        dt=2.0,
-        solver=EulerMaruyamaSolver(dt=0.01),
-        observers=[observer],
-        random_state=0,
-    )
-    .check()
-    .prepare()
-)
+system = create_system(SYSTEM, n_realizations=2, epsilon=0.0, D=0.5)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(
+    system,
+    dt=2.0,
+    solver=EulerMaruyamaSolver(dt=0.01),
+    observers=[observer],
+    random_state=0,
+).prepare()
 simulation.run(until=598)
 
 # %%
@@ -45,23 +41,19 @@ simulation.run(until=598)
 # of the phases below `x = 0.05` in 50 realizations should follow this power law over two decades, and `ln x` of the
 # run above should wander far below 0 and never far above it.
 
-ensemble = (
-    Simulation(
-        create(MODEL, n_realizations=50),
-        dt=0.1,
-        solver=EulerMaruyamaSolver(dt=0.02),
-        random_state=1,
-    )
-    .check()
-    .prepare()
-)
+ensemble = Simulation(
+    create_system(SYSTEM, n_realizations=50),
+    dt=0.1,
+    solver=EulerMaruyamaSolver(dt=0.02),
+    random_state=1,
+).prepare()
 values = ensemble.run(until=500).trajectory_.values('variables.x')
 step = float(np.median(np.diff(ensemble.trajectory_.times)))
-events = EventAnalysis(threshold=-0.05).check()
+events = EventAnalysis(threshold=-0.05)
 durations = step * np.concatenate(
     [events.prepare(-values[:, index]).run().durations_[1:-1] for index in range(values.shape[1])],
 )
-histogram = DistributionAnalysis('histogram', bins=12, log=True).check().prepare(durations[durations >= 0.5]).run()
+histogram = DistributionAnalysis('histogram', bins=12, log=True).prepare(durations[durations >= 0.5]).run()
 edges, density = histogram.edges_, histogram.density_
 centers = np.sqrt(edges[1:] * edges[:-1])
 

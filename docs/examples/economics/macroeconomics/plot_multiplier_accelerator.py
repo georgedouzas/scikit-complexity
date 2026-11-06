@@ -14,16 +14,16 @@ or explode.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'multiplier_accelerator'
+SYSTEM = 'multiplier_accelerator'
 G, UNTIL = 20.0, 40
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-system = create(MODEL, income=110.0, previous=100.0, c=0.8, v=0.9, G=G)
-simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=UNTIL)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, income=110.0, previous=100.0, c=0.8, v=0.9, G=G)
+simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=UNTIL)
 
 # %%
 # Samuelson's regions
@@ -38,8 +38,7 @@ cases[(0.9, 4.0)] = 'monotone, explosive'
 fig, (paths, regions) = plt.subplots(1, 2, figsize=(10, 4))
 for index, ((c, v), name) in enumerate(cases.items()):
     trajectory = (
-        Simulation(create(MODEL, income=110.0, previous=100.0, c=c, v=v, G=G), dt=1)
-        .check()
+        Simulation(create_system(SYSTEM, income=110.0, previous=100.0, c=c, v=v, G=G), dt=1)
         .prepare()
         .run(until=25)
         .trajectory_

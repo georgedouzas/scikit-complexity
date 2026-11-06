@@ -1,27 +1,27 @@
 """
-# Boolean model of the mammalian cell cycle
+# Boolean system of the mammalian cell cycle
 
 With the growth signal CycD on, the ten proteins of the cell cycle leave the quiescent state and run through a cycle
 of period 7, in which the cyclins E, A, and B rise and fall in turn.
 """
 
 # %%
-# The model is created by name from the catalog and started from the quiescent state, Rb, p27, and Cdh1 on, with
+# The system is created by name from the catalog and started from the quiescent state, Rb, p27, and Cdh1 on, with
 # CycD switched on. The observer saves every step with the default blueprint, whose primary view is the time series of
 # the proteins.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'mammalian_cell_cycle'
+SYSTEM = 'mammalian_cell_cycle'
 PROTEINS = ('CycD', 'Rb', 'E2F', 'CycE', 'CycA', 'p27', 'Cdc20', 'Cdh1', 'Ubc', 'CycB')
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=21)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=21)
 
 # %%
 # The cycle of the cyclins
@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().ru
 # state stays fixed.
 
 cycling = simulation.trajectory_
-resting = Simulation(create(MODEL, active=('Rb', 'p27', 'Cdh1')), dt=1).check().prepare().run(until=21).trajectory_
+resting = Simulation(create_system(SYSTEM, active=('Rb', 'p27', 'Cdh1')), dt=1).prepare().run(until=21).trajectory_
 fig, axes = plt.subplots(1, 2, figsize=(11, 4), sharey=True)
 for ax, trajectory, title in zip(
     axes,

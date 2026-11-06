@@ -6,22 +6,22 @@ infected cells rise behind it.
 """
 
 # %%
-# The model is created by name from the catalog with the initial conditions of Malinzi: one unit of uninfected cells,
+# The system is created by name from the catalog with the initial conditions of Malinzi: one unit of uninfected cells,
 # a million cells, a tenth of a unit of virus, and a constant drug infusion. One unit of time is two days. The observer
 # saves every frame with the default blueprint, whose primary view is the time series of the cells, the virus, and the
 # drug.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'chemovirotherapy'
+SYSTEM = 'chemovirotherapy'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.2, observers=[observer]).check().prepare().run(until=32)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(until=32)
 
 # %%
 # Each therapy alone and both together
@@ -30,11 +30,11 @@ simulation = Simulation(system, dt=0.2, observers=[observer]).check().prepare().
 # virus bursts through the tumour, the combination should leave the smallest tumour, about a tenth below either therapy
 # alone.
 
-arms = {'chemotherapy alone': create(MODEL, V=0.0), 'virus alone': create(MODEL, u1=0.0)}
+arms = {'chemotherapy alone': create_system(SYSTEM, V=0.0), 'virus alone': create_system(SYSTEM, u1=0.0)}
 fig, (curves, bars) = plt.subplots(1, 2, figsize=(10, 4))
 finals = {}
 for name, arm in arms.items():
-    trajectory = Simulation(arm, dt=0.2).check().prepare().run(until=32).trajectory_
+    trajectory = Simulation(arm, dt=0.2).prepare().run(until=32).trajectory_
     total = trajectory.values('tumour.AU') + trajectory.values('tumour.AV')
     curves.semilogy(2 * trajectory.times, total, label=name)
     finals[name] = total[-1]

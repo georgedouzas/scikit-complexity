@@ -1,0 +1,157 @@
+"""Chemical kinetics systems: reactions and excitable media."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from collections.abc import Sequence
+from typing import Annotated
+
+import numpy as np
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
+
+from ....core.components.elements import Element, LatticeElement
+from ....core.components.interactions import LocalRuleInteraction
+from ....core.components.spaces import LatticeSpace, MooreNeighborhood
+from ....core.components.system import System
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.types import Array
+from ..._catalog import register_system
+
+
+def _infect(
+    level: Array,
+    *around: Array,
+    n: float | Array,
+    k1: float | Array,
+    k2: float | Array,
+    g: float | Array,
+) -> Array:
+    """Return the next levels: healthy cells catch the infection, infected cells worsen, and ill cells heal."""
+    neighbours = np.stack(around)
+    infected = ((neighbours > 0) & (neighbours < n)).sum(axis=0)
+    ill = (neighbours >= n).sum(axis=0)
+    healthy = np.floor(infected / k1) + np.floor(ill / k2)
+    worsening = np.minimum(np.floor((level + neighbours.sum(axis=0)) / (infected + ill + 1)) + g, n)
+    return np.where(level <= 0, np.minimum(healthy, n), np.where(level >= n, 0.0, worsening))
+
+
+class HodgepodgeCellElement(Element):
+    """Cell of the hodgepodge machine of Gerhardt and Schuster, healthy at 0, infected below `n`, and ill at `n`.
+
+    Healthy cells catch the infection from their infected and ill neighbours, infected cells worsen by the mean of their
+    neighbourhood plus `g`, and ill cells heal, by the local rule of `hodgepodge`.
+
+    Args:
+        label:
+            The label of the cell or the lattice group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        level:
+            The initial level of infection from 0 to `n`.
+
+        n:
+            The level of illness.
+
+        k1:
+            The weight of infected neighbours for healthy cells.
+
+        k2:
+            The weight of ill neighbours for healthy cells.
+
+        g:
+            The speed of the infection.
+
+    Examples:
+        >>> from skcomplex.systems.chemistry.kinetics import HodgepodgeCellElement
+        >>> HodgepodgeCellElement('cell').n
+        100.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        level: Annotated[float, StateSpec(domain=NN)] = 0,
+        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+        k1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        k2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+        g: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 34.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.level = level
+        self.n = n
+        self.k1 = k1
+        self.k2 = k2
+        self.g = g
+
+
+@register_system(
+    field='chemistry/kinetics',
+    tags=('lattice', 'excitable media', 'spirals'),
+    references=('Gerhardt and Schuster 1989', 'Charbonneau 2017'),
+    defaults={'until': 200, 'dt': 1},
+)
+def hodgepodge(
+    shape: Sequence[int] = (100, 100),
+    *,
+    n: float = 100.0,
+    k1: float = 2.0,
+    k2: float = 3.0,
+    g: float = 34.0,
+    random_state: int | np.random.Generator | None = 0,
+) -> System:
+    """Return the hodgepodge machine, a system of a chemical reaction whose waves form spirals.
+
+    Args:
+        shape:
+            The number of rows and columns.
+
+        n:
+            The level of illness.
+
+        k1:
+            The weight of infected neighbours for healthy cells.
+
+        k2:
+            The weight of ill neighbours for healthy cells.
+
+        g:
+            The speed of the infection.
+
+        random_state:
+            The seed or generator of the initial levels.
+
+    Returns:
+        system:
+            The system, with the levels `cells.level`.
+
+    Examples:
+        >>> from skcomplex.systems.chemistry.kinetics import hodgepodge
+        >>> hodgepodge((10, 10)).elements[0].values['g']
+        34.0
+    """
+    levels = np.random.default_rng(random_state).integers(0, int(n) + 1, size=tuple(shape)).astype(float)
+    space = LatticeSpace(tuple(shape))
+    return System(
+        elements=[
+            LatticeElement(
+                'cells',
+                element=HodgepodgeCellElement,
+                space=space,
+                values={'level': levels, 'n': n, 'k1': k1, 'k2': k2, 'g': g},
+            ),
+        ],
+        interactions=[
+            LocalRuleInteraction(
+                'infection',
+                target='cells',
+                state='level',
+                rule=_infect,
+                neighborhood=MooreNeighborhood(center=True),
+            ),
+        ],
+    )

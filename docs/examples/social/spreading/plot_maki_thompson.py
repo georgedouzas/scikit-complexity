@@ -6,7 +6,7 @@ and become stiflers, so the rumour dies out before it reaches everyone: about a 
 """
 
 # %%
-# The model is created by name from the catalog with 1000 people, one of them a spreader, and equal rates of spreading
+# The system is created by name from the catalog with 1000 people, one of them a spreader, and equal rates of spreading
 # and stifling, and runs for 20 time units. The default blueprint shows the ignorants, spreaders, and stiflers in one
 # time series view.
 
@@ -14,15 +14,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import brentq
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'maki_thompson'
+SYSTEM = 'maki_thompson'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, dt=0.5, observers=[observer], random_state=0).check().prepare().run(until=20)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
+simulation = Simulation(system, dt=0.5, observers=[observer], random_state=0).prepare().run(until=20)
 
 # %%
 # The fifth who never hear
@@ -37,8 +37,7 @@ for n_people in (200, 1000, 5000):
     fractions = []
     for seed in range(20):
         run = (
-            Simulation(create(MODEL, n_people=n_people), dt=1.0, random_state=seed)
-            .check()
+            Simulation(create_system(SYSTEM, n_people=n_people), dt=1.0, random_state=seed)
             .prepare()
             .run(until=40)
             .trajectory_

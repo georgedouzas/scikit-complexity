@@ -7,7 +7,7 @@ more customers.
 """
 
 # %%
-# The model is created by name from the catalog with half a product per customer in each shop and products that age
+# The system is created by name from the catalog with half a product per customer in each shop and products that age
 # over one unit of time, so the control parameter is `R = 1` and the critical temperature `T_c = R / (1 + R)^2 = 0.25`.
 # The customers choose at the temperature 0.1. The two shops are the isolated nodes of a network, so the customers are
 # not drawn in space: the blueprint shows the time series of `m` and, below it, the shares of customers at each shop,
@@ -19,11 +19,11 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.optimize import brentq
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'perishable_goods_duopoly'
+SYSTEM = 'perishable_goods_duopoly'
 CONTROL = 1.0
 CRITICAL = CONTROL / (1 + CONTROL) ** 2
 
@@ -40,16 +40,15 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, customers=200, stock=0.5, tau_a=1.0, T=0.1, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
+system = create_system(SYSTEM, customers=200, stock=0.5, tau_a=1.0, T=0.1, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
 simulation = (
     Simulation(
         system,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=300)
 )
@@ -92,14 +91,13 @@ def mean_field_asymmetry(temperature):
 temperatures = np.linspace(0.3, 1.6, 6) * CRITICAL
 asymmetries = []
 for temperature in temperatures:
-    model_system = create(MODEL, customers=100, T=temperature, random_state=1)
+    system_system = create_system(SYSTEM, customers=100, T=temperature, random_state=1)
     run = (
         Simulation(
-            model_system,
+            system_system,
             random_state=1,
-            observables=describe(MODEL).observables_of(model_system),
+            observables=describe(SYSTEM).observables_of(system_system),
         )
-        .check()
         .prepare()
         .run(until=300)
     )

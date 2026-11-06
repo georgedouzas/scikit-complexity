@@ -3,14 +3,14 @@
 
 The propulsion of each particle is an Ornstein-Uhlenbeck process, a random velocity that keeps its direction and size
 for the persistence time `tau` before it changes. The particles therefore move in smooth, persistent excursions over
-short times and diffuse with the coefficient `D` over long times, a simple model of active colloids and cells. The
+short times and diffuse with the coefficient `D` over long times, a simple system of active colloids and cells. The
 view shows 200 particles spread over a periodic square.
 """
 
 # %%
-# The model is created by name from the catalog with persistence time `tau = 1`, active diffusion `D = 1`, and no
+# The system is created by name from the catalog with persistence time `tau = 1`, active diffusion `D = 1`, and no
 # thermal diffusion, in a square of side 50. The Euler-Maruyama stepper takes steps of 0.01 and the observer saves
-# every frame of 0.1. The blueprint shows the square with the particles drawn larger than the model's visual does, so
+# every frame of 0.1. The blueprint shows the square with the particles drawn larger than the system's visual does, so
 # they read in the gallery thumbnail.
 
 import matplotlib.pyplot as plt
@@ -18,14 +18,14 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'active_ornstein_uhlenbeck_particles'
+SYSTEM = 'active_ornstein_uhlenbeck_particles'
 
-system = create(MODEL, random_state=0)
+system = create_system(SYSTEM, random_state=0)
 view = rrb.Spatial2DView(
     origin='/swimmers',
     name='swimmers',
@@ -39,11 +39,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-simulation = (
-    Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).check().prepare().run(until=20)
-)
+simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).prepare().run(until=20)
 
 # %%
 # Persistent motion and long-time diffusion
@@ -54,8 +52,8 @@ simulation = (
 
 fig, ax = plt.subplots(figsize=(7, 4))
 for tau, color in ((1.0, 'tab:blue'), (10.0, 'tab:orange')):
-    system_t = create(MODEL, n_particles=500, tau=tau, size=1e5, random_state=1)
-    run = Simulation(system_t, solver=solver, dt=0.1, random_state=1).check().prepare().run(until=40)
+    system_t = create_system(SYSTEM, n_particles=500, tau=tau, size=1e5, random_state=1)
+    run = Simulation(system_t, solver=solver, dt=0.1, random_state=1).prepare().run(until=40)
     positions = run.trajectory_.values('swimmers.x')
     times = run.trajectory_.times[1:]
     squared = np.mean(np.sum((positions[1:] - positions[0]) ** 2, axis=-1), axis=1)

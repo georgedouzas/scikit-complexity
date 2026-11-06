@@ -3,26 +3,26 @@
 
 In Landau's theory the order parameter of a magnet slides down the free energy
 `F = a (T - Tc) phi^2 / 2 + b phi^4 / 4`. Below the critical temperature the free energy has two minima at
-`phi = +-sqrt(a (Tc - T) / b)` and a small initial magnetization grows to one of them; above it the only minimum is
+`phi = +-sqrt(a (Tc - T) / b)` and a small initial magnetization grows to one of them. Above it the only minimum is
 zero. The view shows the order parameter at `T = 0.5 Tc` growing from 0.1 along an S-shaped curve to `sqrt(0.5)`.
 """
 
 # %%
-# The model is created by name from the catalog with `a = b = Gamma = 1` and `Tc = 1`. The observer saves every frame
+# The system is created by name from the catalog with `a = b = Gamma = 1` and `Tc = 1`. The observer saves every frame
 # of 0.1 with the default blueprint, whose primary view is the time series of the order parameter.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'landau_relaxation'
+SYSTEM = 'landau_relaxation'
 
-system = create(MODEL, T=0.5)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=20)
+system = create_system(SYSTEM, T=0.5)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=20)
 
 # %%
 # Critical slowing down
@@ -35,7 +35,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().
 def relaxation_time(temperature):
     """Return the relaxation time from the late exponential decay of the distance to the minimum."""
     until = 10 / abs(temperature - 1)
-    run = Simulation(create(MODEL, T=temperature), dt=until / 400).check().prepare().run(until=until)
+    run = Simulation(create_system(SYSTEM, T=temperature), dt=until / 400).prepare().run(until=until)
     phi = run.trajectory_.values('magnet.phi')
     target = np.sqrt(max(1 - temperature, 0))
     distance = np.abs(phi - target)

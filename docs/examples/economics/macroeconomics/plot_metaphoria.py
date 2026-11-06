@@ -9,7 +9,7 @@ between about 80 and 150, above the births and the starvations of every step.
 """
 
 # %%
-# The model is created by name with 100 adults on a periodic 20 x 20 lattice of patches whose food capacity is drawn
+# The system is created by name with 100 adults on a periodic 20 x 20 lattice of patches whose food capacity is drawn
 # up to 15 and whose resistance up to 5. Every adult brings 5 units of labour and eats 2 units of food per step. The
 # blueprint shows the observable `population` above the reporters `census.births` and `census.starvations`.
 
@@ -17,11 +17,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'metaphoria'
+SYSTEM = 'metaphoria'
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
@@ -38,16 +38,15 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, n_people=100, mode='hunter_gatherer', random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM, n_people=100, mode='hunter_gatherer', random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = (
     Simulation(
         system,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=250)
 )
@@ -62,13 +61,11 @@ simulation = (
 # with a Gini coefficient above the 0.5 that Gooding reports. The money of all holders, the bank's issued money
 # included, should sum to zero.
 
-observables = describe(MODEL).observables_of
-monetary = create(MODEL, n_people=100, mode='monetary', random_state=0)
-scarce = (
-    Simulation(monetary, random_state=0, observables=observables(monetary)).check().prepare().run(until=150).trajectory_
-)
-rich = create(MODEL, n_people=100, mode='monetary', max_food=50.0, max_resistance=0.0, random_state=0)
-abundant = Simulation(rich, random_state=0, observables=observables(rich)).check().prepare().run(until=150).trajectory_
+observables = describe(SYSTEM).observables_of
+monetary = create_system(SYSTEM, n_people=100, mode='monetary', random_state=0)
+scarce = Simulation(monetary, random_state=0, observables=observables(monetary)).prepare().run(until=150).trajectory_
+rich = create_system(SYSTEM, n_people=100, mode='monetary', max_food=50.0, max_resistance=0.0, random_state=0)
+abundant = Simulation(rich, random_state=0, observables=observables(rich)).prepare().run(until=150).trajectory_
 holders = [abundant.agents(group, 150).values for group in ('people', 'businesses', 'bank')]
 net_money = sum(np.sum(values['money']) for values in holders)
 

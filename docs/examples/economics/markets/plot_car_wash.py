@@ -15,11 +15,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'car_wash'
+SYSTEM = 'car_wash'
 DAY, P_PASS, P_ENTER, P_VALET, WASH, VALET = 8 * 3600, 0.33, 0.005, 0.5, 4.0, 10.0
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
@@ -34,9 +34,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=100)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=100)
 simulation = (
-    Simulation(create(MODEL, n_workers=4), observers=[observer], random_state=0).check().prepare().run(until=DAY)
+    Simulation(create_system(SYSTEM, n_workers=4), observers=[observer], random_state=0).prepare().run(until=DAY)
 )
 
 # %%
@@ -53,7 +53,7 @@ revenue = [trajectory.agents('till', frame).values['revenue'][0] for frame in fr
 expected = P_PASS * P_ENTER * ((1 - P_VALET) * WASH + P_VALET * VALET)
 workers = np.array([1, 2, 3, 4, 6])
 days = [
-    Simulation(create(MODEL, n_workers=n), random_state=0).check().prepare().run(until=DAY).trajectory_ for n in workers
+    Simulation(create_system(SYSTEM, n_workers=n), random_state=0).prepare().run(until=DAY).trajectory_ for n in workers
 ]
 earned = np.array([day.agents('till', len(day.times) - 1).values['revenue'][0] for day in days])
 fig, (till, labour) = plt.subplots(1, 2, figsize=(10, 4))

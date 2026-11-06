@@ -6,22 +6,22 @@ exponent keeps the growth fast for longer before it stops.
 """
 
 # %%
-# The model is created by name from the catalog with the logistic fit of Padmanabhan et al. to breast cancer,
+# The system is created by name from the catalog with the logistic fit of Padmanabhan et al. to breast cancer,
 # `r = 0.305` and `K = 1221`, and the exponent `p = 2`, and run for 40 days from 10 mm³. The observer saves every
 # frame with the default blueprint, whose primary view is the time series of the volume.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'generalized_logistic'
+SYSTEM = 'generalized_logistic'
 
-system = create(MODEL, n=10.0, p=2.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.2, observers=[observer]).check().prepare().run(until=40)
+system = create_system(SYSTEM, n=10.0, p=2.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(until=40)
 
 # %%
 # Exponents of the saturation
@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=0.2, observers=[observer]).check().prepare().
 r, K, n0 = 0.305, 1221.0, 10.0
 fig, (curves, rates) = plt.subplots(1, 2, figsize=(10, 4))
 for p in (0.5, 1.0, 2.0):
-    trajectory = Simulation(create(MODEL, n=n0, p=p), dt=0.2).check().prepare().run(until=40).trajectory_
+    trajectory = Simulation(create_system(SYSTEM, n=n0, p=p), dt=0.2).prepare().run(until=40).trajectory_
     times, volume = trajectory.times, trajectory.values('tumour.n')
     exact = n0 * K / (n0**p + (K**p - n0**p) * np.exp(-r * p * times)) ** (1 / p)
     curves.plot(times, volume, label=f'p = {p}')

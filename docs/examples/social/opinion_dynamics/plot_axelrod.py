@@ -14,18 +14,18 @@ small cultural regions.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
-from skcomplex.models.social.opinion_dynamics import culture_observables
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
+from skcomplex.systems.social.opinion_dynamics import culture_observables
 
-MODEL = 'axelrod'
+SYSTEM = 'axelrod'
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=5)
-system = create(MODEL, width=20, height=20, features=3, traits=5, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=5)
+system = create_system(SYSTEM, width=20, height=20, features=3, traits=5, random_state=0)
 observables = culture_observables(20, 20)
 simulation = Simulation(system, observers=[observer], observables=observables, random_state=0)
-simulation.check().prepare().run(until=150)
+simulation.prepare().run(until=150)
 
 # %%
 # Order-disorder transition
@@ -38,15 +38,11 @@ simulation.check().prepare().run(until=150)
 traits = [2, 4, 8, 16, 32]
 shares = []
 for q in traits:
-    run = (
-        Simulation(
-            create(MODEL, width=8, height=8, features=3, traits=q, random_state=0),
-            observables=culture_observables(8, 8),
-            random_state=0,
-        )
-        .check()
-        .prepare()
-    )
+    run = Simulation(
+        create_system(SYSTEM, width=8, height=8, features=3, traits=q, random_state=0),
+        observables=culture_observables(8, 8),
+        random_state=0,
+    ).prepare()
     shares.append(run.run(until=300).trajectory_.values('largest_region')[-1])
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(simulation.trajectory_.times, simulation.trajectory_.values('largest_region'))

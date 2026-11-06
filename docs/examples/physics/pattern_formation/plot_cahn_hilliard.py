@@ -8,23 +8,23 @@ run: an interpenetrating labyrinth of yellow and purple domains of equal area.
 """
 
 # %%
-# The model is created by name from the catalog on a periodic square of 64 sites with unit spacing, from noise of
+# The system is created by name from the catalog on a periodic square of 64 sites with unit spacing, from noise of
 # amplitude 0.05 around the critical composition 0. The catalog defaults integrate it with exponential time
 # differencing, and the default blueprint shows the order parameter as an image, one frame every 10 time units.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import SpectrumAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ETDRK4Solver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import SpectrumAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ETDRK4Solver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'cahn_hilliard'
+SYSTEM = 'cahn_hilliard'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(
         system,
@@ -33,7 +33,6 @@ simulation = (
         observers=[observer],
         random_state=0,
     )
-    .check()
     .prepare()
     .run(
         until=1000,
@@ -51,7 +50,7 @@ phi = simulation.trajectory_.lattice('mixture.phi')
 times = simulation.trajectory_.times
 sizes = []
 for field in phi[1:]:
-    factor = SpectrumAnalysis('structure-factor').check().prepare(field - field.mean()).run()
+    factor = SpectrumAnalysis('structure-factor').prepare(field - field.mean()).run()
     sizes.append(2 * np.pi * factor.power_.sum() / (factor.wavenumbers_ * factor.power_).sum())
 late = times[1:] >= 100
 slope = np.polyfit(np.log(times[1:][late]), np.log(np.array(sizes)[late]), 1)[0]

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Lets a user write models with delays, discrete events, time-dependent drivers, and noise of a chosen convention, and
+Lets a user write systems with delays, discrete events, time-dependent drivers, and noise of a chosen convention, and
 derive Poincaré sections from them.
 
 ## Requirements

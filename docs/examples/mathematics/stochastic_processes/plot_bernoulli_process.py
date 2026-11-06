@@ -13,11 +13,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'bernoulli_process'
+SYSTEM = 'bernoulli_process'
 
 
 def successes(trajectory):
@@ -25,10 +25,9 @@ def successes(trajectory):
     return np.array([trajectory.agents('trials', frame).values['successes'] for frame in range(len(trajectory.times))])
 
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(create(MODEL, n_sequences=6), dt=1, observers=[observer], random_state=0)
-    .check()
+    Simulation(create_system(SYSTEM, n_sequences=6), dt=1, observers=[observer], random_state=0)
     .prepare()
     .run(until=100)
 )
@@ -44,11 +43,10 @@ grid = np.arange(0, 80)
 for p, color in ((0.2, 'C1'), (0.5, 'C0')):
     final = successes(
         Simulation(
-            create(MODEL, n_sequences=2000, p=p),
+            create_system(SYSTEM, n_sequences=2000, p=p),
             dt=1,
             random_state=1,
         )
-        .check()
         .prepare()
         .run(until=100)
         .trajectory_,

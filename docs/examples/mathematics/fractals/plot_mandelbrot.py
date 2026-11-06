@@ -7,23 +7,23 @@ stops. The escape times draw bands that wrap ever closer around the set as the r
 """
 
 # %%
-# The model is created by name from the catalog on a lattice of 240 by 300 points that covers the set. The map runs
+# The system is created by name from the catalog on a lattice of 240 by 300 points that covers the set. The map runs
 # for 100 steps, and the observer saves every fifth frame with the default blueprint, whose primary view is the image
 # of the escape counts.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'mandelbrot'
+SYSTEM = 'mandelbrot'
 WINDOW = (-2.2, 0.8, -1.2, 1.2)
 
-system = create(MODEL, shape=(240, 300), window=WINDOW)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=5)
-simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=100)
+system = create_system(SYSTEM, shape=(240, 300), window=WINDOW)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=5)
+simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=100)
 
 # %%
 # Escape times and the area of the set

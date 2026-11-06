@@ -1,7 +1,7 @@
 # quantum-systems Specification
 
 ## Purpose
-Lets a user model quantum systems of spins, qubits, and bosonic modes with symbolic Hamiltonians and dissipators, run
+Lets a user build quantum systems of spins, qubits, and bosonic modes with symbolic Hamiltonians and dissipators, run
 them with unitary, Lindblad, or quantum trajectory dynamics through the same interface as classical systems, and read
 expectation values, spectra, and entanglement from the result.
 

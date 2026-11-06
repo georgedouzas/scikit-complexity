@@ -1,5 +1,5 @@
 """
-# Min-protein skeleton model
+# Min-protein skeleton system
 
 In the bacterium E. coli, the proteins MinD and MinE cycle between the cell membrane and the cytosol and form patterns
 that mark the middle of the cell. MinD recruits more MinD and MinE to the membrane, and MinE detaches MinD again, while
@@ -9,7 +9,7 @@ bright spots, and new bands leave every meeting point in the opposite directions
 """
 
 # %%
-# The model is created by name from the catalog on a periodic line of length 100 with 128 sites, with the mean total
+# The system is created by name from the catalog on a periodic line of length 100 with 128 sites, with the mean total
 # densities 200 of MinD and 120 of MinE and 1% noise on membrane MinD. The catalog registers the implicit `BDF` method
 # with the exact Jacobian, since the fast cytosolic diffusion makes the system stiff. The default blueprint shows every
 # state as a space-time image, with membrane MinD first.
@@ -17,16 +17,16 @@ bright spots, and new bands leave every meeting point in the opposite directions
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import StabilityAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODESolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import StabilityAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'min_protein_skeleton'
+SYSTEM = 'min_protein_skeleton'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(
         system,
@@ -35,7 +35,6 @@ simulation = (
         observers=[observer],
         random_state=0,
     )
-    .check()
     .prepare()
     .run(until=400)
 )
@@ -51,7 +50,7 @@ simulation = (
 trajectory = simulation.trajectory_
 mind_total = sum(trajectory.values(f'cell.{name}') for name in ('md', 'mde', 'cdt', 'cdd')).sum(axis=1)
 mine_total = sum(trajectory.values(f'cell.{name}') for name in ('mde', 'ce')).sum(axis=1)
-relation = StabilityAnalysis('dispersion').check().prepare(create(MODEL, n_sites=512, length=400.0)).run()
+relation = StabilityAnalysis('dispersion').prepare(create_system(SYSTEM, n_sites=512, length=400.0)).run()
 order = np.argsort(relation.magnitudes_)
 
 fig, (rates, totals) = plt.subplots(1, 2, figsize=(10, 4))

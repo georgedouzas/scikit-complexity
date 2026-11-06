@@ -6,21 +6,21 @@ outbreak, ever smaller waves follow until the infection settles at an endemic le
 """
 
 # %%
-# The model is created by name from the catalog with its default rates, an immunity that lasts 50 days on average,
+# The system is created by name from the catalog with its default rates, an immunity that lasts 50 days on average,
 # and run for 300 days. The observer saves every second day with the default blueprint, whose primary view is the
 # time series of the three compartments.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'sirs'
+SYSTEM = 'sirs'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1.0, observers=[observer]).check().prepare().run(until=300)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=300)
 
 # %%
 # Damped waves to the endemic equilibrium

@@ -15,11 +15,11 @@ attractor it had before, a hysteresis loop.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'subcritical_hopf_form'
+SYSTEM = 'subcritical_hopf_form'
 SWEEP = [(0.0, -0.1), (50.0, -0.35), (100.0, -0.1), (150.0, 0.3), (230.0, -0.1)]
 
 
@@ -28,10 +28,10 @@ def alpha_at(time):
     return [value for start, value in SWEEP if start <= time][-1]
 
 
-system = create(MODEL, x=1.0, alpha=-0.1)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, x=1.0, alpha=-0.1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(system, dt=1.0, observers=[observer], schedule={'form.alpha': alpha_at}).check().prepare().run(until=290)
+    Simulation(system, dt=1.0, observers=[observer], schedule={'form.alpha': alpha_at}).prepare().run(until=290)
 )
 
 # %%
@@ -48,10 +48,9 @@ finals = {
     start: [
         np.hypot(
             *Simulation(
-                create(MODEL, x=start, alpha=alpha),
+                create_system(SYSTEM, x=start, alpha=alpha),
                 dt=1.0,
             )
-            .check()
             .prepare()
             .run(until=150)
             .state_,

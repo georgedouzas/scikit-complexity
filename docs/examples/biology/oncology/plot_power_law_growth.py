@@ -6,27 +6,27 @@ volume proliferates.
 """
 
 # %%
-# The model is created by name from the catalog and run for 40 days from 10 mm³ with the breast cancer fit of
+# The system is created by name from the catalog and run for 40 days from 10 mm³ with the breast cancer fit of
 # Padmanabhan et al., `r = 1.32` and `p = 0.58`. The observer saves every frame with the default blueprint, whose
 # primary view is the time series of the volume.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'power_law_growth'
+SYSTEM = 'power_law_growth'
 
-system = create(MODEL, n=10.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.2, observers=[observer]).check().prepare().run(until=40)
+system = create_system(SYSTEM, n=10.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(until=40)
 
 # %%
 # Growth rate against volume
 # --------------------------
-# The model `dn/dt = r n^p` gives a straight line of slope `p` between `log(dn/dt)` and `log(n)`, and the volume
+# The system `dn/dt = r n^p` gives a straight line of slope `p` between `log(dn/dt)` and `log(n)`, and the volume
 # follows `(n0^(1-p) + (1-p) r t)^(1/(1-p))`.
 
 times, volume = simulation.trajectory_.times, simulation.trajectory_.values('tumour.n')

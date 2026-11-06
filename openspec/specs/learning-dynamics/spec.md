@@ -1,24 +1,24 @@
 # learning-dynamics Specification
 
 ## Purpose
-Lets a user make the parameters of any differentiable model evolve by learning: a loss defined from the model's own
+Lets a user make the parameters of any differentiable system evolve by learning: a loss defined from the system's own
 states over an unrolled run, its exact gradient, an optimizer, mini-batches of data, and epochs as the time of the
 system that trains, so neural networks, adaptive controllers, learning agents, and parameter fits run through the same
-system, simulation, trajectory, and visualization interface as every other model.
+system, simulation, trajectory, and visualization interface as every other system.
 
 ## Requirements
 
 ### Requirement: Gradient-step laws evolve adaptive parameters over epochs
 `GradientStepLaw` SHALL be a discrete-time law, returned by a `TrainingInteraction` bound to a nested system through
-its role `model`, that trains adaptive parameters of that system named by dotted path. A system holding it under
+its role `system`, that trains adaptive parameters of that system named by dotted path. A system holding it under
 discrete time SHALL advance one epoch, a pass over its dataset, per unit of time, record the trained parameters with
-their inner paths and shapes, and hold the inner model's initial values in frame 0, without any subclass of `System`.
+their inner paths and shapes, and hold the inner system's initial values in frame 0, without any subclass of `System`.
 
 #### Scenario: Epochs as frames
 - **WHEN** a system `elman` holding an Elman network `net` with 4 hidden units and a training interaction runs with
   `dt=1` until 200
 - **THEN** the trajectory has 201 frames at times 0 to 200, `trajectory.values('net/readout.W')` has shape
-  `(201, 1, 4)`, and its first row equals the initial readout weights of the inner model
+  `(201, 1, 4)`, and its first row equals the initial readout weights of the inner system
 
 #### Scenario: Time between frames
 - **WHEN** a system holding a gradient-step law runs with `dt=0.5`
@@ -26,16 +26,16 @@ their inner paths and shapes, and hold the inner model's initial values in frame
   whole number of epochs and names the value
 
 #### Scenario: Untrained parameter path
-- **WHEN** a gradient-step law names `readout.V` as trained and the inner model has no such parameter
+- **WHEN** a gradient-step law names `readout.V` as trained and the inner system has no such parameter
 - **THEN** the compiler's report holds an issue with the code `learning-trained-path` whose path is the law and whose
-  message names the path and lists the parameters of the inner model
+  message names the path and lists the parameters of the inner system
 
 #### Scenario: Parameter not adaptive
 - **WHEN** a gradient-step law names a trained parameter that is not declared `adaptive=True`
 - **THEN** the compiler's report holds an issue with the code `learning-not-adaptive` whose fix says to declare the
   parameter `ParameterSpec(adaptive=True)`
 
-### Requirement: Losses and metrics are observables of the inner model
+### Requirement: Losses and metrics are observables of the inner system
 The loss of a gradient-step law SHALL be an `ObservableSpec` over the symbols of its nested system, evaluated at every
 inner step and averaged over the steps and sequences of a batch with the dataset's step weights. The law SHALL record
 the mean training loss of each epoch as `<interaction path>/loss`, and every metric it names, another observable of the
@@ -45,7 +45,7 @@ of the epoch.
 #### Scenario: Loss at the start
 - **WHEN** a system holding a gradient-step law is compiled and its frame 0 is recorded
 - **THEN** its metric equal to the loss matches the weighted mean of the loss observable over a NumPy run of the
-  inner model on every sequence with the initial parameters, within 1e-10
+  inner system on every sequence with the initial parameters, within 1e-10
 
 #### Scenario: Unknown loss
 - **WHEN** a gradient-step law is given a loss observable that reads a variable the nested system does not have
@@ -56,7 +56,7 @@ of the epoch.
 A `DatasetSpec` SHALL map dotted inner parameter paths to arrays of shape `(sequences, steps)` followed by the shape of
 the parameter, and SHALL set each parameter to its value at the current inner step before the step's laws are evaluated,
 as a schedule does in a simulation. It SHALL take optional step weights of shape `(sequences, steps)`, and every
-sequence SHALL start from the inner model's initial states.
+sequence SHALL start from the inner system's initial states.
 
 #### Scenario: Inputs and targets
 - **WHEN** a dataset maps `inputs.x` and `outputs.target` to arrays of shape `(996, 12, 1)` for an input group and an
@@ -98,7 +98,7 @@ compiler SHALL report a nested system with noise, jump, rule, or callable laws b
 - **THEN** they agree within 1e-6 relative error for every trained parameter
 
 #### Scenario: Gradient through an ODE
-- **WHEN** the loss of a Lotka-Volterra model is the squared error to observed prey and predator series at given times
+- **WHEN** the loss of a Lotka-Volterra system is the squared error to observed prey and predator series at given times
 - **THEN** its gradient with respect to the four rate parameters agrees with central finite differences within 1e-5
   relative error
 
@@ -139,7 +139,7 @@ persist across frames and SHALL reset when the simulation is reset.
 
 #### Scenario: Unknown optimizer
 - **WHEN** a `TrainingInteraction` names the optimizer `'lbfgs-b'`
-- **THEN** `check()` raises `ValidationError` that names the optimizer and lists the supported ones
+- **THEN** `prepare` raises `ValidationError` that names the optimizer and lists the supported ones
 
 ### Requirement: The learning solver and the JAX backend declare their support
 `GradientDescentSolver` SHALL solve the learning form, and `JaxBackend` SHALL declare support for continuous and
@@ -193,19 +193,19 @@ on the NumPy, Numba, and JAX backends.
   `contraction`
 - **THEN** its gradient agrees with central finite differences within 1e-6 relative error
 
-### Requirement: The trained model is a system
-The inner model with the trained parameters of any recorded frame SHALL be the nested system with the recorded values
-set through `set_params`, a system that runs with every backend and solver that supports it, so the trained model is
-simulated, analysed, and visualised like any model.
+### Requirement: The trained system is a system
+The inner system with the trained parameters of any recorded frame SHALL be the nested system with the recorded values
+set through `set_params`, a system that runs with every backend and solver that supports it, so the trained system is
+simulated, analysed, and visualised like any system.
 
-#### Scenario: Trained model agrees with training
-- **WHEN** the inner model takes the trained values of the last frame through `set_params` and runs with the NumPy
+#### Scenario: Trained system agrees with training
+- **WHEN** the inner system takes the trained values of the last frame through `set_params` and runs with the NumPy
   backend on the first sequence, its inputs given by a schedule and the loss given as an observable
 - **THEN** the loss it records equals the one the gradient-step law evaluates for that sequence within 1e-10
 
-### Requirement: Any differentiable model can be fitted
+### Requirement: Any differentiable system can be fitted
 A gradient-step law SHALL accept any nested system that validates as differentiable, not only neural networks, so the
-parameters of a model of any field can be fitted to observed series by gradient descent.
+parameters of a system of any field can be fitted to observed series by gradient descent.
 
 #### Scenario: Lotka-Volterra fit
 - **WHEN** a gradient-step law with Adam fits the four adaptive rate parameters of `lotka_volterra`, started 30% off, to

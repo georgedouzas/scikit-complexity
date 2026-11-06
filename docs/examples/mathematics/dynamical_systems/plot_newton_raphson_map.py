@@ -7,7 +7,7 @@ every neighbourhood of a boundary point holds starts that go to all three roots.
 """
 
 # %%
-# Six runs of the model start near the basin boundaries and are iterated for 30 steps; the model logs their
+# Six runs of the system start near the basin boundaries and are iterated for 30 steps. The system logs their
 # coordinates as time series. The basins over the square `[-1.5, 1.5]²` are computed with the same map in one NumPy
 # pass over a 300 by 300 grid and logged once as an image, coloured by the root each start reaches, and the
 # blueprint puts this view first, as the primary view.
@@ -17,12 +17,12 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import ScalingAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import ScalingAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'newton_raphson_map'
+SYSTEM = 'newton_raphson_map'
 ROOTS = np.exp(2j * np.pi * np.arange(3) / 3)
 SIZE = 300
 
@@ -55,10 +55,10 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create(MODEL, x=-0.5, y=0.02), dt=1, observers=[observer]).check().prepare().run(until=30)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+simulation = Simulation(create_system(SYSTEM, x=-0.5, y=0.02), dt=1, observers=[observer]).prepare().run(until=30)
 starts = [(-0.5, 0.02), (-0.5, -0.02), (0.3, 0.55), (0.3, 0.45), (0.3, -0.55), (0.3, -0.45)]
-orbits = [Simulation(create(MODEL, x=x, y=y), dt=1).check().prepare().run(until=30).trajectory_ for x, y in starts]
+orbits = [Simulation(create_system(SYSTEM, x=x, y=y), dt=1).prepare().run(until=30).trajectory_ for x, y in starts]
 labels = basins(SIZE)
 palette = np.array([[230, 90, 60], [70, 160, 220], [250, 200, 60]], dtype=np.uint8)
 observer.recording_.log('basins', rr.Image(palette[labels]), static=True)
@@ -76,7 +76,7 @@ finals = [
 ]
 fine = basins(1024)
 boundary = (np.diff(fine, axis=0, prepend=fine[:1]) != 0) | (np.diff(fine, axis=1, prepend=fine[:, :1]) != 0)
-dimension = ScalingAnalysis('box-counting').check().prepare(boundary).run().exponent_
+dimension = ScalingAnalysis('box-counting').prepare(boundary).run().exponent_
 fig, (picture, edges) = plt.subplots(1, 2, figsize=(10, 4.5))
 picture.imshow(palette[labels], extent=(-1.5, 1.5, -1.5, 1.5))
 for run in orbits:

@@ -11,16 +11,16 @@ projections on the nodes and on the triangles, and the two layers scale each oth
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'topological_kuramoto'
+SYSTEM = 'topological_kuramoto'
 
-system = create(MODEL, coupling=8.0)
-observables = describe(MODEL).observables_of(system)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-Simulation(system, dt=0.5, observers=[observer], observables=observables).check().prepare().run(until=20)
+system = create_system(SYSTEM, coupling=8.0)
+observables = describe(SYSTEM).observables_of(system)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+Simulation(system, dt=0.5, observers=[observer], observables=observables).prepare().run(until=20)
 
 # %%
 # Synchronization against the coupling
@@ -30,10 +30,9 @@ Simulation(system, dt=0.5, observers=[observer], observables=observables).check(
 couplings = np.linspace(0.0, 8.0, 5)
 orders = []
 for coupling in couplings:
-    model_system = create(MODEL, coupling=coupling)
+    system_system = create_system(SYSTEM, coupling=coupling)
     run = (
-        Simulation(model_system, dt=0.5, observables=describe(MODEL).observables_of(model_system))
-        .check()
+        Simulation(system_system, dt=0.5, observables=describe(SYSTEM).observables_of(system_system))
         .prepare()
         .run(until=20)
     )

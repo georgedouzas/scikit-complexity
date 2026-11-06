@@ -6,33 +6,29 @@ time, and it follows the noise smoothly with a smaller amplitude.
 """
 
 # %%
-# The model is created by name from the catalog with one particle, unit friction and noise intensity, and a noise
+# The system is created by name from the catalog with one particle, unit friction and noise intensity, and a noise
 # correlation time `tau = 1`, and simulated for 60 relaxation times. The observer saves every frame with the default
 # blueprint, whose primary view holds the velocity `v` and the noise `xi` of the particle.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'colored_noise_langevin'
+SYSTEM = 'colored_noise_langevin'
 
-system = create(MODEL, n_particles=1, gamma=1.0, D=1.0, tau=1.0, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(
-        system,
-        dt=0.2,
-        solver=EulerMaruyamaSolver(dt=0.01),
-        observers=[observer],
-        random_state=0,
-    )
-    .check()
-    .prepare()
-)
+system = create_system(SYSTEM, n_particles=1, gamma=1.0, D=1.0, tau=1.0, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(
+    system,
+    dt=0.2,
+    solver=EulerMaruyamaSolver(dt=0.01),
+    observers=[observer],
+    random_state=0,
+).prepare()
 simulation.run(until=59.8)
 
 # %%
@@ -48,12 +44,11 @@ variances = []
 for tau in taus:
     run = (
         Simulation(
-            create(MODEL, n_particles=500, tau=tau, random_state=0),
+            create_system(SYSTEM, n_particles=500, tau=tau, random_state=0),
             dt=0.5,
             solver=EulerMaruyamaSolver(dt=min(0.01, tau / 20)),
             random_state=0,
         )
-        .check()
         .prepare()
         .run(until=20)
     )

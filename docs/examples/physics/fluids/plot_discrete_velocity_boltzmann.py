@@ -1,7 +1,7 @@
 """
 # Carleman discrete-velocity gas
 
-In Carleman's model of a gas the particles move only to the right or to the left at the speed `c`, and collisions
+In Carleman's system of a gas the particles move only to the right or to the left at the speed `c`, and collisions
 turn pairs of particles moving the same way into pairs moving opposite ways, at the rate
 `kappa (f_minus^2 - f_plus^2)`. A pulse of right movers on a uniform background therefore splits: part of it runs
 on to the right, collisions feed a pulse that runs to the left, and both fade as collisions even out the two
@@ -10,24 +10,24 @@ top: the pulse runs to the right, spreads, and fades.
 """
 
 # %%
-# The model is created by name from the catalog on a periodic line of length 10 with 200 finite-volume cells, speed
+# The system is created by name from the catalog on a periodic line of length 10 with 200 finite-volume cells, speed
 # `c = 1`, and a slow collision rate `kappa = 0.2`, so the pulse travels far before it fades. The catalog registers
-# the strong-stability-preserving Runge-Kutta stepper for this model, so it is passed explicitly. The observer saves
+# the strong-stability-preserving Runge-Kutta stepper for this system, so it is passed explicitly. The observer saves
 # every frame of 0.015 with the default blueprint, whose primary view is the space-time image of the right movers.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import SSPRKSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import SSPRKSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'discrete_velocity_boltzmann'
+SYSTEM = 'discrete_velocity_boltzmann'
 
-system = create(MODEL, kappa=0.2)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, solver=SSPRKSolver(), dt=0.015, observers=[observer]).check().prepare().run(until=3)
+system = create_system(SYSTEM, kappa=0.2)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, solver=SSPRKSolver(), dt=0.015, observers=[observer]).prepare().run(until=3)
 
 # %%
 # Conserved mass and relaxing current
@@ -36,7 +36,7 @@ simulation = Simulation(system, solver=SSPRKSolver(), dt=0.015, observers=[obser
 # initial value to round-off, while the total current `c sum(f_plus - f_minus)`, which collisions do not conserve,
 # should decay towards zero as the gas relaxes to the equilibrium `f_plus = f_minus`, over a longer run.
 
-trajectory = Simulation(create(MODEL), solver=SSPRKSolver(), dt=0.05).check().prepare().run(until=10).trajectory_
+trajectory = Simulation(create_system(SYSTEM), solver=SSPRKSolver(), dt=0.05).prepare().run(until=10).trajectory_
 right, left = trajectory.values('gas.f_plus'), trajectory.values('gas.f_minus')
 mass = (right + left).sum(axis=1)
 current = (right - left).sum(axis=1)

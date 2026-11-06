@@ -14,11 +14,11 @@ import numpy as np
 import rerun.blueprint as rrb
 from scipy import integrate
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'diluted_hopfield'
+SYSTEM = 'diluted_hopfield'
 K, P, BETA = 50.0, 10, 3.0 / 50.0
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
@@ -28,17 +28,16 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-system = create(MODEL, n_neurons=4000, connectivity=K, load=0.2, temperature_scale=3.0, overlap=0.3)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM, n_neurons=4000, connectivity=K, load=0.2, temperature_scale=3.0, overlap=0.3)
 simulation = (
     Simulation(
         system,
         dt=1,
         observers=[observer],
         random_state=0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
-    .check()
     .prepare()
     .run(20)
 )

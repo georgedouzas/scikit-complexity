@@ -6,24 +6,24 @@ cells hold down the adaptive response, which the vaccine starts only after the d
 """
 
 # %%
-# The model is created by name from the catalog with four weekly one-day doses of `10^6` dendritic cells per day and
+# The system is created by name from the catalog with four weekly one-day doses of `10^6` dendritic cells per day and
 # runs for 30 days, from the book's initial state. The delays read the history of the run, which before the start is
 # the initial state. The observer saves every second frame with the default blueprint, whose primary view is the time
 # series of the nine populations.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ScipyODESolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'delayed_dc_vaccine'
+SYSTEM = 'delayed_dc_vaccine'
 
 solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, solver=solver, observers=[observer]).check().prepare().run(until=30)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=0.1, solver=solver, observers=[observer]).prepare().run(until=30)
 
 # %%
 # The lag of two divisions
@@ -32,10 +32,10 @@ simulation = Simulation(system, dt=0.1, solver=solver, observers=[observer]).che
 # small until two divisions `2 tau3`, when the first vaccinated naive helper cells mature, and then rise steeply.
 
 vaccinated = simulation.trajectory_
-unvaccinated = Simulation(create(MODEL, dose=0.0), dt=0.1, solver=solver).check().prepare().run(until=30).trajectory_
-early = Simulation(create(MODEL), dt=0.02, solver=solver).check().prepare().run(until=2).trajectory_
+unvaccinated = Simulation(create_system(SYSTEM, dose=0.0), dt=0.1, solver=solver).prepare().run(until=30).trajectory_
+early = Simulation(create_system(SYSTEM), dt=0.02, solver=solver).prepare().run(until=2).trajectory_
 early_unvaccinated = (
-    Simulation(create(MODEL, dose=0.0), dt=0.02, solver=solver).check().prepare().run(until=2).trajectory_
+    Simulation(create_system(SYSTEM, dose=0.0), dt=0.02, solver=solver).prepare().run(until=2).trajectory_
 )
 fig, (lag, cells) = plt.subplots(1, 2, figsize=(10, 4))
 lag.plot(

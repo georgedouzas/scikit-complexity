@@ -238,10 +238,11 @@ class NativeCapturer(Capturer):
         deadline = time.monotonic() + STARTUP_SECONDS
         while True:
             try:
-                # Connecting fails until the viewer listens, which takes longer on a busy machine, so it is retried.
+                # Connecting fails until the viewer listens, and a viewer still starting can miss the deadline of its
+                # first answer. Both take longer on a busy machine, so both are retried.
                 self._client = ViewerClient.connect(self._url)
                 self._client.viewer_state()
-            except ConnectionError:
+            except (ConnectionError, TimeoutError):
                 if time.monotonic() > deadline or self._process.poll() is not None:
                     self._close()
                     error_msg = 'The headless Rerun viewer did not start. Check that a graphics adapter is available.'

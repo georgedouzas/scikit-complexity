@@ -8,7 +8,7 @@ that grows as the square root of the distance to the bifurcation.
 
 # %%
 # The run starts near the origin at `x = 0.1` with `mu = 0.25` and `a = -1`, and spirals out onto the circle of radius
-# 0.5. The model logs `x` and `y` as time series. After the run, its orbit and an orbit started outside the cycle are
+# 0.5. The system logs `x` and `y` as time series. After the run, its orbit and an orbit started outside the cycle are
 # logged once as lines in the phase plane, and the blueprint puts this view first, as the primary view.
 
 import matplotlib.pyplot as plt
@@ -16,11 +16,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'hopf_form'
+SYSTEM = 'hopf_form'
 
 # Every view shows the whole run, not the default window that follows the latest frame.
 whole_run = rrb.TimeAxis(
@@ -40,9 +40,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(create(MODEL, x=0.1), dt=0.1, observers=[observer]).check().prepare().run(until=50)
-outside = Simulation(create(MODEL, x=1.0), dt=0.1).check().prepare().run(until=50).trajectory_
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
+simulation = Simulation(create_system(SYSTEM, x=0.1), dt=0.1, observers=[observer]).prepare().run(until=50)
+outside = Simulation(create_system(SYSTEM, x=1.0), dt=0.1).prepare().run(until=50).trajectory_
 strips = [
     np.column_stack([100 * run.values('form.x'), -100 * run.values('form.y')])
     for run in (simulation.trajectory_, outside)
@@ -62,7 +62,7 @@ observer.recording_.flush()
 
 rates = np.linspace(-0.2, 0.5, 15)
 amplitudes = [
-    np.hypot(*Simulation(create(MODEL, x=0.3, mu=mu), dt=0.1).check().prepare().run(until=300).state_) for mu in rates
+    np.hypot(*Simulation(create_system(SYSTEM, x=0.3, mu=mu), dt=0.1).prepare().run(until=300).state_) for mu in rates
 ]
 fig, (plane, amplitude) = plt.subplots(1, 2, figsize=(10, 4.5))
 for strip, label in zip(strips, ('from inside', 'from outside'), strict=True):

@@ -1,7 +1,7 @@
 # data-driven-dynamics Specification
 
 ## Purpose
-Lets a user fit runnable surrogate systems to trajectories, by mode decomposition, sparse identification of symbolic laws, or reservoir computing, and run them through the same interface as hand-written models.
+Lets a user fit runnable surrogate systems to trajectories, by mode decomposition, sparse identification of symbolic laws, or reservoir computing, and run them through the same interface as hand-written systems.
 
 ## Requirements
 

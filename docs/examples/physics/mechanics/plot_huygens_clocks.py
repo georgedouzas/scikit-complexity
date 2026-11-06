@@ -2,23 +2,23 @@
 # Huygens clocks
 
 Two pendulum clocks hang from supports that can move and are joined by a spring. One starts swinging and the other at
-rest; the motion of the supports passes energy between them until both swing with the same amplitude in antiphase,
+rest. The motion of the supports passes energy between them until both swing with the same amplitude in antiphase,
 the sympathy of clocks that Huygens observed in 1665.
 """
 
 # %%
-# The model is created by name from the catalog with two identical clocks, the first released from 0.2, and runs for
+# The system is created by name from the catalog with two identical clocks, the first released from 0.2, and runs for
 # 100 time units. The blueprint shows the angles of both pendulums over the whole run.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'huygens_clocks'
+SYSTEM = 'huygens_clocks'
 
 angles = rrb.TimeSeriesView(
     origin='/',
@@ -34,9 +34,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=8)
-simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare().run(until=100)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=8)
+simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=100)
 
 # %%
 # Antiphase synchronization

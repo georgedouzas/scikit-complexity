@@ -9,40 +9,37 @@ times.
 """
 
 # %%
-# The model is created by name from the catalog with six particles and noise intensity `D = 0.07`. The Euler-Maruyama
+# The system is created by name from the catalog with six particles and noise intensity `D = 0.07`. The Euler-Maruyama
 # stepper takes steps of 0.01 and the observer saves every frame of 1.5 with the default blueprint, whose primary view
 # is the time series of the positions.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'kramers_escape'
+SYSTEM = 'kramers_escape'
 
-system = create(MODEL, n_particles=6, D=0.07, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, n_particles=6, D=0.07, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-simulation = (
-    Simulation(system, solver=solver, dt=1.5, observers=[observer], random_state=0).check().prepare().run(until=300)
-)
+simulation = Simulation(system, solver=solver, dt=1.5, observers=[observer], random_state=0).prepare().run(until=300)
 
 # %%
 # Exponential survival at the Kramers rate
 # ----------------------------------------
 # A particle has escaped once it first reaches the bottom of the right well at `x = 1`. For a low noise the share of
 # particles that have not yet escaped should decay as `exp(-r t)`, a straight line on a semi-log plot. Kramers' rate
-# `r = sqrt(U''(-1) |U''(0)|) / (2 pi) exp(-1 / (4 D))` is exact only for barriers much higher than `D`; at barriers
+# `r = sqrt(U''(-1) |U''(0)|) / (2 pi) exp(-1 / (4 D))` is exact only for barriers much higher than `D`. At barriers
 # of 2.5 to 3 times `D`, as for these 2000 particles, the measured slopes should fall about 15% below it.
 
 fig, ax = plt.subplots(figsize=(7, 4))
 for intensity, color in ((0.08, 'tab:blue'), (0.1, 'tab:orange')):
     run = (
-        Simulation(create(MODEL, n_particles=2000, D=intensity), solver=solver, dt=1.0, random_state=1)
-        .check()
+        Simulation(create_system(SYSTEM, n_particles=2000, D=intensity), solver=solver, dt=1.0, random_state=1)
         .prepare()
         .run(400)
     )

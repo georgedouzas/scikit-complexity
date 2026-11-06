@@ -63,7 +63,7 @@ synchronisation points.
 Fields SHALL stream to Rerun as images colored by a color map with a declared range.
 
 #### Scenario: Gray-Scott in the viewer
-- **WHEN** a Gray-Scott model streams to Rerun
+- **WHEN** a Gray-Scott system streams to Rerun
 - **THEN** the viewer shows each field as an image that updates every frame
 
 ### Requirement: The spectral Laplacian damps the Nyquist mode
@@ -81,7 +81,7 @@ The spectral Laplacian SHALL give every Fourier mode, the Nyquist mode included,
 ### Requirement: Noise can conserve a field
 A noise law on a state of a field on a lattice SHALL conserve the field when declared `conserved`: it adds the
 finite-difference divergence of a random flux with one Wiener process per link, so the total of the field changes only
-by its rate laws. The library SHALL provide `active_model_b` built on it.
+by its rate laws. The library SHALL provide `active_system_b` built on it.
 
 #### Scenario: Total is conserved
 - **WHEN** a field on a periodic lattice runs with only a conserved noise law for 1000 steps

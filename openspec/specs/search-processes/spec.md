@@ -1,7 +1,7 @@
 # search-processes Specification
 
 ## Purpose
-Lets a user model optimisers as processes: a population of candidate solutions moving on an objective landscape, one
+Lets a user build optimisers as processes: a population of candidate solutions moving on an objective landscape, one
 generation per time step.
 
 ## Requirements

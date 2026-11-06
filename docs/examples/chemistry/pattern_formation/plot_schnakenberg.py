@@ -6,25 +6,23 @@ Turing pattern that forms because the inhibitor `v` diffuses forty times faster 
 """
 
 # %%
-# The model is created by name from the catalog on a 64 by 64 grid with `a = 0.1`, `b = 0.9`, `Du = 1`, and `Dv = 40`,
+# The system is created by name from the catalog on a 64 by 64 grid with `a = 0.1`, `b = 0.9`, `Du = 1`, and `Dv = 40`,
 # and integrated with RK4. Naming the `u` field as primary puts its view first, so it becomes the thumbnail.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import SpectrumAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4Solver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import SpectrumAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'schnakenberg'
+SYSTEM = 'schnakenberg'
 
-system = create(MODEL, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='cells/u')
-simulation = (
-    Simulation(system, dt=2.0, solver=RK4Solver(dt=0.005), observers=[observer]).check().prepare().run(until=200)
-)
+system = create_system(SYSTEM, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='cells/u')
+simulation = Simulation(system, dt=2.0, solver=RK4Solver(dt=0.005), observers=[observer]).prepare().run(until=200)
 
 # %%
 # Pattern wavelength against the linear instability
@@ -36,7 +34,7 @@ simulation = (
 a, b, Du, Dv = 0.1, 0.9, 1.0, 40.0
 u0, v0 = a + b, b / (a + b) ** 2
 u = simulation.trajectory_.lattice('cells.u')[-1]
-factor = SpectrumAnalysis('structure-factor').check().prepare(u).run()
+factor = SpectrumAnalysis('structure-factor').prepare(u).run()
 q = np.linspace(0.01, 1.5, 300)
 growth = np.array(
     [

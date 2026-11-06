@@ -1,13 +1,13 @@
-# model-library Specification
+# system-library Specification
 
 ## Purpose
 
-Provides ready-made elements and interactions for common scientific models, built only on the public framework, so a
-user can assemble a model without writing laws.
+Provides ready-made elements and interactions for common scientific systems, built only on the public framework, so a
+user can assemble a system without writing laws.
 
 ## Requirements
 
-### Requirement: Physics models
+### Requirement: Physics systems
 The library SHALL provide particles with position, velocity, and mass, constant forces, linear drag, and potentials
 whose forces are derived from an energy expression, including harmonic potentials, springs, and gravity.
 
@@ -19,14 +19,14 @@ whose forces are derived from an energy expression, including harmonic potential
 - **WHEN** two particles joined by a spring are simulated with no drag
 - **THEN** their total energy stays constant within solver tolerance
 
-### Requirement: Ecology models
+### Requirement: Ecology systems
 The library SHALL provide populations with exponential growth, logistic growth, mortality, and predation.
 
 #### Scenario: Logistic saturation
 - **WHEN** a population with logistic growth is simulated for a long time
 - **THEN** its count approaches the carrying capacity
 
-### Requirement: Epidemiology models
+### Requirement: Epidemiology systems
 The library SHALL provide compartments with infection and recovery interactions, each with a deterministic mode and a
 stochastic mode.
 
@@ -34,8 +34,8 @@ stochastic mode.
 - **WHEN** a user sets the infection and recovery interactions to stochastic mode
 - **THEN** the system compiles to a jump process and the compartment counts stay non-negative integers
 
-### Requirement: Economics models
-The library SHALL provide a Solow growth model in continuous time and a cobweb market model in discrete time.
+### Requirement: Economics systems
+The library SHALL provide a Solow growth system in continuous time and a cobweb market system in discrete time.
 
 #### Scenario: Solow steady state
 - **WHEN** a Solow economy is simulated for a long time
@@ -45,7 +45,7 @@ The library SHALL provide a Solow growth model in continuous time and a cobweb m
 - **WHEN** a cobweb market with a supply slope smaller than the demand slope is simulated
 - **THEN** its price converges to the equilibrium price
 
-### Requirement: Finance models
+### Requirement: Finance systems
 The library SHALL provide an asset with geometric Brownian motion.
 
 #### Scenario: Asset price stays positive
@@ -81,71 +81,71 @@ backend.
 - **WHEN** an ideal gas starts at temperature 0.5 under a Langevin thermostat whose `temperature` is 2
 - **THEN** its kinetic temperature approaches 2 within 5 percent after many relaxation times
 
-### Requirement: Social agent-based models
-The library SHALL provide a `social` module with Schelling segregation, Boltzmann wealth exchange, and the voter model.
+### Requirement: Social agent-based systems
+The library SHALL provide a `social` module with Schelling segregation, Boltzmann wealth exchange, and the voter system.
 
 #### Scenario: Schelling segregation increases
-- **WHEN** a Schelling model with a similarity threshold of 0.5 runs until no agent moves or 100 steps pass
+- **WHEN** a Schelling system with a similarity threshold of 0.5 runs until no agent moves or 100 steps pass
 - **THEN** the share of similar neighbours is higher at the end than at the start
 
 #### Scenario: Wealth stays constant
-- **WHEN** a Boltzmann wealth model runs for any number of steps
+- **WHEN** a Boltzmann wealth system runs for any number of steps
 - **THEN** the total wealth of all agents stays equal to its initial value
 
 #### Scenario: Voter consensus on a small network
-- **WHEN** a voter model runs on a connected network of 20 agents for long enough
+- **WHEN** a voter system runs on a connected network of 20 agents for long enough
 - **THEN** every agent ends with the same opinion
 
 ### Requirement: Agent-based predator and prey
-The ecology module SHALL provide a wolf and sheep model on a grid with grass regrowth, in which agents gain energy by
+The ecology module SHALL provide a wolf and sheep system on a grid with grass regrowth, in which agents gain energy by
 eating, reproduce, and die.
 
 #### Scenario: Populations change
-- **WHEN** the wolf and sheep model runs for 100 steps with its default parameters
+- **WHEN** the wolf and sheep system runs for 100 steps with its default parameters
 - **THEN** both the wolf and sheep counts change over the run and are reported every frame
 
 ### Requirement: Coupled harvesting example
-The library SHALL provide a socio-ecological model in which farmer agents harvest a resource whose stock regrows by a
+The library SHALL provide a socio-ecological system in which farmer agents harvest a resource whose stock regrows by a
 logistic ODE, and the harvest depends on the number of farmers through an aggregate.
 
 #### Scenario: Overharvesting collapses the resource
-- **WHEN** the harvesting model runs with a harvest effort high enough that harvest exceeds the largest regrowth
+- **WHEN** the harvesting system runs with a harvest effort high enough that harvest exceeds the largest regrowth
 - **THEN** the resource stock falls towards zero over the run
 
 #### Scenario: Sustainable effort
-- **WHEN** the harvesting model runs with a harvest effort below the largest regrowth
+- **WHEN** the harvesting system runs with a harvest effort below the largest regrowth
 - **THEN** the resource stock settles at a positive level
 
-### Requirement: Ready-made models are registered factories
-Every ready-made model SHALL be a factory function registered in a catalog with its field path, description, tags,
-references, and default run settings, and the catalog SHALL list, describe, create, and run models by name.
+### Requirement: Ready-made systems are registered factories
+Every ready-made system SHALL be a factory function registered in a catalog with its field path, description, tags,
+references, and default run settings, and the catalog SHALL list, describe, create, and run systems by name.
 
 #### Scenario: Browse the catalog
 - **WHEN** a user lists the catalog filtered by the field `biology`, or by the field path `biology/ecology`
-- **THEN** the result holds every model of that field or subfield with its description, its references, and the
+- **THEN** the result holds every system of that field or subfield with its description, its references, and the
   formalism inferred from its laws
 
 #### Scenario: Create by name
 - **WHEN** a user creates `lotka_volterra` with a predation rate of 0.2
-- **THEN** the result is a system that the simulation runs like the same model built from its components
+- **THEN** the result is a system that the simulation runs like the same system built from its components
 
-### Requirement: Every registered model runs through the generic interface
-Every registered model SHALL be created with its defaults, compiled, simulated, logged to Rerun, and cloned through the
-same public interface, without code specific to the model.
+### Requirement: Every registered system runs through the generic interface
+Every registered system SHALL be created with its defaults, compiled, simulated, logged to Rerun, and cloned through the
+same public interface, without code specific to the system.
 
 #### Scenario: Conformance
 - **WHEN** the conformance suite runs over the catalog
-- **THEN** every model completes all five steps, and its trajectory holds every declared state and observable
+- **THEN** every system completes all five steps, and its trajectory holds every declared state and observable
 
 ### Requirement: The library uses only the public interface
-Library modules SHALL build their models only from the public names of `skcomplex.core` and third-party numerical
-libraries used inside laws, and no model package SHALL import another.
+Library modules SHALL build their systems only from the public names of `skcomplex.core` and third-party numerical
+libraries used inside laws, and no system package SHALL import another.
 
 #### Scenario: Private import
 - **WHEN** a library module imports a private name of another package
 - **THEN** the library import check fails and names the module and the import
 
-### Requirement: Higher-order models across fields
+### Requirement: Higher-order systems across fields
 The library SHALL provide, as registered factories written in their natural order:
 - the nonlinear pendulum as Newton's law;
 - a driven damped oscillator;
@@ -158,15 +158,15 @@ The library SHALL provide, as registered factories written in their natural orde
 - **WHEN** the RLC circuit and the damped oscillator run with matching coefficients `L = m`, `R = c`, and `1 / C = k`
 - **THEN** the charge and the displacement trajectories are identical
 
-### Requirement: Nonlinear dynamics models
-The library SHALL provide the Lorenz, Rössler, Hénon, logistic map, Duffing, Van der Pol, and Hénon-Heiles models as
+### Requirement: Nonlinear dynamics systems
+The library SHALL provide the Lorenz, Rössler, Hénon, logistic map, Duffing, Van der Pol, and Hénon-Heiles systems as
 registered factories with their standard parameters.
 
 #### Scenario: Strange attractor
-- **WHEN** a user runs the Lorenz model with its defaults for 50 time units
+- **WHEN** a user runs the Lorenz system with its defaults for 50 time units
 - **THEN** the trajectory stays bounded and visits both lobes of the attractor
 
-### Requirement: Delay, event, and forced models
+### Requirement: Delay, event, and forced systems
 The library SHALL provide Mackey-Glass, Hutchinson's delayed logistic, delayed Kuramoto, a bouncing ball, Newton's
 cradle, a circular billiard, integrate-and-fire and Izhikevich neurons, the forced Duffing oscillator, stochastic
 resonance, and a Brownian particle near a wall with multiplicative noise as registered factories.
@@ -175,38 +175,38 @@ resonance, and a Brownian particle near a wall with multiplicative noise as regi
 - **WHEN** the Izhikevich neuron runs with the regular-spiking parameters and a constant input of 10
 - **THEN** it fires periodically with each spike reset recorded as an event
 
-### Requirement: Lattice models
+### Requirement: Lattice systems
 The library SHALL provide elementary automata, Game of Life, majority rule, Langton's ant, Nagel-Schreckenberg traffic,
 the hodgepodge machine, the Bak-Tang-Wiesenfeld sandpile, the Drossel-Schwabl forest fire, Olami-Feder-Christensen
-earthquakes, and the Ising, Potts, and XY models as registered factories.
+earthquakes, and the Ising, Potts, and XY systems as registered factories.
 
 #### Scenario: Traffic jams
-- **WHEN** the Nagel-Schreckenberg model runs at densities 0.1 and 0.5 with slowdown probability 0.3
+- **WHEN** the Nagel-Schreckenberg system runs at densities 0.1 and 0.5 with slowdown probability 0.3
 - **THEN** the mean flow at density 0.5 is lower than at the critical density near 0.15, and jams appear as backward
   moving clusters of stopped cars
 
-### Requirement: Field models
+### Requirement: Field systems
 The library SHALL provide heat diffusion, Fisher-KPP, Gray-Scott, Brusselator, FitzHugh-Nagumo spirals, Schnakenberg
 Turing patterns, and pheromone foraging as registered factories.
 
 #### Scenario: Fisher front speed
-- **WHEN** the Fisher-KPP model runs with growth rate `r` and diffusion `D` from a step profile
+- **WHEN** the Fisher-KPP system runs with growth rate `r` and diffusion `D` from a step profile
 - **THEN** the front moves at a speed within 5% of `2 * sqrt(r * D)`
 
 #### Scenario: Turing spots
-- **WHEN** the Schnakenberg model runs in its Turing-unstable regime from small noise
+- **WHEN** the Schnakenberg system runs in its Turing-unstable regime from small noise
 - **THEN** a stationary pattern with a dominant wavelength within 10% of the linear prediction forms
 
-### Requirement: PDE models
+### Requirement: PDE systems
 The library SHALL provide Kuramoto-Sivashinsky, complex Ginzburg-Landau, Swift-Hohenberg, Burgers' shock, the
 shallow-water dam break, decaying two-dimensional turbulence, Rayleigh-Bénard convection, and heat on an L-shaped
 domain as registered factories.
 
 #### Scenario: Swift-Hohenberg rolls
-- **WHEN** the Swift-Hohenberg model runs above onset from small noise
+- **WHEN** the Swift-Hohenberg system runs above onset from small noise
 - **THEN** a roll pattern forms with a wavelength within 5% of 2π
 
-### Requirement: Mean-field models read group reductions
+### Requirement: Mean-field systems read group reductions
 The library SHALL build Kuramoto, Kuramoto-Sakaguchi chimeras, Winfree, theta neurons, LEGION, winners take all,
 replicator dynamics, hypercycles, heterogeneous mean-field SIS, and Bouchaud-Mézard wealth with reductions over groups,
 with no placeholder positions, no stand-in synapse, no vector state used as members, and no pair interaction covering
@@ -271,13 +271,13 @@ every pair.
 - **THEN** each agent exchanges with the group mean, the exchange part of the drift equals that of the
   complete-graph Laplacian form within 1e-12, and the exchange conserves the total wealth within 1e-12
 
-### Requirement: Models are recorded in the model inventory
-Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
-inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
-model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+### Requirement: Systems are recorded in the system inventory
+Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
+inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
+system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
 twice.
 
-#### Scenario: Inventory models registered
+#### Scenario: Inventory systems registered
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** these entries are rebuilt on group reductions under their names and field paths, and marked implemented:
   - `kuramoto` in `physics/synchronization`
@@ -291,13 +291,13 @@ twice.
   - `heterogeneous_mean_field_sis` in `biology/epidemiology`
   - `bouchaud_mezard_wealth` in `economics/finance`
 
-#### Scenario: Neighbourhood models stay blocked
+#### Scenario: Neighbourhood systems stay blocked
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** `szabo_cells` and `active_passive_flocking` in `physics/active_matter` stay blocked on
   `add-adaptive-networks`, which specifies the neighbourhood reductions they need
 
-#### Scenario: New model recorded
-- **WHEN** the change registers a model with no inventory entry
+#### Scenario: New system recorded
+- **WHEN** the change registers a system with no inventory entry
 - **THEN** the inventory check fails until the entry is added with its sources and field path
 
 ### Requirement: Pulse-coupled oscillators are members of a group
@@ -326,7 +326,7 @@ reads any number of inputs up to the number of nodes and no input role is bound 
   stationary G1 state with only Cdh1 and Sic1 on
 
 ### Requirement: Ring roads are one group of cars
-`optimal_velocity` and `intelligent_driver_model` SHALL hold their cars as one group and one interaction that reads the
+`optimal_velocity` and `intelligent_driver_system` SHALL hold their cars as one group and one interaction that reads the
 car ahead by a periodic member offset, for any number of cars.
 
 #### Scenario: One group whatever the number of cars
@@ -335,17 +335,17 @@ car ahead by a periodic member offset, for any number of cars.
   `cars.v` with 50 columns
 
 #### Scenario: Same dynamics as one interaction per car
-- **WHEN** `optimal_velocity(n_cars=20)` and `intelligent_driver_model(n_cars=20)` run with their default settings
+- **WHEN** `optimal_velocity(n_cars=20)` and `intelligent_driver_system(n_cars=20)` run with their default settings
 - **THEN** positions and speeds match those of the per-car versions recorded before the rebuild within a relative
   tolerance of 1e-8
 
 #### Scenario: Jam on the rebuilt ring
-- **WHEN** the rebuilt optimal velocity model runs above its critical density from near-uniform flow
+- **WHEN** the rebuilt optimal velocity system runs above its critical density from near-uniform flow
 - **THEN** the spread of the car speeds grows and a stop-and-go wave forms
 
-### Requirement: Agent models read groups through roles and the space through the model
+### Requirement: Agent systems read groups through roles and the space through the system
 `trafficking` and `meadow_capacity` SHALL bind every group their rules read to a role, `trafficking` and
-`ring_road_drivers` SHALL read the space's extent from the model view, no rule of an interaction in the library SHALL
+`ring_road_drivers` SHALL read the space's extent from the system view, no rule of an interaction in the library SHALL
 read a group other than through its roles, and no rule SHALL read its own parameters by its label. Rules of agent
 types, which have no roles, SHALL read the groups of their own system by relative label.
 
@@ -355,22 +355,22 @@ types, which have no roles, SHALL read the groups of their own system by relativ
   bills and trips equal those recorded before the rebuild
 
 #### Scenario: Nested meadow
-- **WHEN** the meadow model built with random state 0 is placed as the subsystem `farm` of another system and run
+- **WHEN** the meadow system built with random state 0 is placed as the subsystem `farm` of another system and run
 - **THEN** it runs, its grazing and herding interactions bind the role `pasture`, and its cow counts equal those of the
-  model run at the root
+  system run at the root
 
 #### Scenario: Ring road without a length parameter
 - **WHEN** `ring_road_drivers(10, length=500.0)` runs
 - **THEN** the drivers have no `road_length` parameter and every position stays in `[0, 500)`
 
 #### Scenario: No rule reads its own label
-- **WHEN** the library's layout test scans the source of every model
-- **THEN** no rule reads a parameter by its own label, and no interaction names a group in `model.agents`,
-  `model.count`, or `model.create` by a string or an attribute that is not one of its roles
+- **WHEN** the library's layout test scans the source of every system
+- **THEN** no rule reads a parameter by its own label, and no interaction names a group in `system.agents`,
+  `system.count`, or `system.create` by a string or an attribute that is not one of its roles
 
 ### Requirement: Tumour growth laws
 The library SHALL provide `exponential_linear_growth`, `power_law_growth`, `von_bertalanffy`, `generalized_logistic`,
-`gompertz`, and `dynamic_carrying_capacity` as registered factories under `biology/oncology`, as the model inventory
+`gompertz`, and `dynamic_carrying_capacity` as registered factories under `biology/oncology`, as the system inventory
 lists them with their sources, each with a gallery example.
 
 #### Scenario: Gompertz growth
@@ -380,7 +380,7 @@ lists them with their sources, each with a gallery example.
 
 ### Requirement: Cell kill and toxicity
 The library SHALL provide `skipper_log_kill`, `norton_simon`, and `drug_toxicity` as registered factories under
-`biology/oncology` and `biology/physiology`, as the model inventory lists them with their sources, each with a gallery
+`biology/oncology` and `biology/physiology`, as the system inventory lists them with their sources, each with a gallery
 example.
 
 #### Scenario: Log kill
@@ -390,7 +390,7 @@ example.
 ### Requirement: Chemotherapy
 The library SHALL provide `de_pillis_radunskaya`, `multidrug_resistance`, `drug_resistance_switching`,
 `delayed_resting_hunting_chemotherapy`, `delayed_metastasis`, `cell_cycle_chemotherapy`, and
-`erythropoiesis_mercaptopurine` as registered factories under `biology/oncology`, as the model inventory lists them with
+`erythropoiesis_mercaptopurine` as registered factories under `biology/oncology`, as the system inventory lists them with
 their sources, each with a gallery example.
 
 #### Scenario: Chemotherapy clears a tumour
@@ -400,7 +400,7 @@ their sources, each with a gallery example.
 
 ### Requirement: Immunotherapy
 The library SHALL provide `kirschner_panetta`, `dendritic_cell_vaccine`, `anti_pd1_checkpoint`, `delayed_dc_vaccine`,
-and `tumour_immune_suppression` as registered factories under `biology/oncology`, as the model inventory lists them with
+and `tumour_immune_suppression` as registered factories under `biology/oncology`, as the system inventory lists them with
 their sources, each with a gallery example.
 
 #### Scenario: Tumour-immune oscillations and clearance
@@ -410,7 +410,7 @@ their sources, each with a gallery example.
 
 ### Requirement: Anti-angiogenic therapy
 The library SHALL provide `hahnfeldt` and `vascular_core_periphery` as registered factories under `biology/oncology`, as
-the model inventory lists them with their sources, each with a gallery example.
+the system inventory lists them with their sources, each with a gallery example.
 
 #### Scenario: Hahnfeldt equilibrium
 - **WHEN** `hahnfeldt` runs untreated
@@ -418,7 +418,7 @@ the model inventory lists them with their sources, each with a gallery example.
 
 ### Requirement: Radiotherapy
 The library SHALL provide `radiotherapy_competition` and `lq_radiosensitizer` as registered factories under
-`biology/oncology`, as the model inventory lists them with their sources, each with a gallery example.
+`biology/oncology`, as the system inventory lists them with their sources, each with a gallery example.
 
 #### Scenario: Linear-quadratic fractions
 - **WHEN** `lq_radiosensitizer` delivers a fraction of dose `d` without radiosensitizer
@@ -427,7 +427,7 @@ The library SHALL provide `radiotherapy_competition` and `lq_radiosensitizer` as
 ### Requirement: Hormone therapy
 The library SHALL provide `continuous_androgen_suppression`, `ideta_intermittent_androgen`, `prostate_cell_quota`,
 `droop_cell_quota`, `prostate_androgen_receptor`, `piecewise_linear_ias`, and `tamoxifen_cell_cycle` as registered
-factories under `biology/ecology` and `biology/oncology`, as the model inventory lists them with their sources, each
+factories under `biology/ecology` and `biology/oncology`, as the system inventory lists them with their sources, each
 with a gallery example.
 
 #### Scenario: Intermittent suppression
@@ -439,7 +439,7 @@ with a gallery example.
 The library SHALL provide `tcr_gene_therapy`, `sirna_tgf_beta`, `oncolytic_virus`, `oncolytic_virus_dendritic`,
 `nanoparticle_corona`, `two_compartment_pharmacokinetics`, `stem_cell_differentiation`, `bone_marrow_blood_leukaemia`,
 and `leukaemia_stem_cells` as registered factories under `biology/oncology`, `biology/physiology`, and
-`chemistry/kinetics`, as the model inventory lists them with their sources, each with a gallery example.
+`chemistry/kinetics`, as the system inventory lists them with their sources, each with a gallery example.
 
 #### Scenario: Two-compartment pharmacokinetics
 - **WHEN** `two_compartment_pharmacokinetics` receives one bolus dose
@@ -449,17 +449,17 @@ and `leukaemia_stem_cells` as registered factories under `biology/oncology`, `bi
 ### Requirement: Combination therapies
 The library SHALL provide `chemoimmunotherapy`, `clonal_chemoimmunotherapy`, `chemovirotherapy`,
 `glioma_chemovirotherapy`, `her2_targeted_therapy`, and `angiogenesis_immunotherapy` as registered factories under
-`biology/oncology`, as the model inventory lists them with their sources, each with a gallery example.
+`biology/oncology`, as the system inventory lists them with their sources, each with a gallery example.
 
 #### Scenario: Combination beats each therapy alone
 - **WHEN** `chemovirotherapy` runs with the book's chemotherapy alone, the virus alone, and both
 - **THEN** the tumour at the end of the default run of 64 days, before the virus bursts through the tumour, is
   smallest under the combination
 
-### Requirement: Cellular network models
+### Requirement: Cellular network systems
 The library SHALL provide `phosphorylation_oscillator`, `biochemical_systems_theory`, `three_gene_boolean_network`,
 `mammalian_cell_cycle`, `boolean_repressilator`, `goodwin_oscillator`, and `generalized_lotka_volterra` as registered
-factories under `biology/ecology` and `biology/systems_biology`, as the model inventory lists them with their sources,
+factories under `biology/ecology` and `biology/systems_biology`, as the system inventory lists them with their sources,
 each with a gallery example.
 
 #### Scenario: Goodwin oscillations
@@ -467,18 +467,18 @@ each with a gallery example.
 - **THEN** it settles on its stable fixed point at 6 and on a limit cycle at 12, the threshold for three equal
   degradation rates being 8
 
-### Requirement: Surveyed models are recorded in the inventory
-The inventory SHALL record every model of Padmanabhan et al. 2021, Konieczny et al. 2023, and Raman 2021 under the
-source keys `Pa`, `Ko`, and `Rm`: the models above as pending this change, models pending other changes, models blocked
-on `add-constraint-based-models`, out-of-scope entries, and the new sources of models the library already implements.
+### Requirement: Surveyed systems are recorded in the inventory
+The inventory SHALL record every system of Padmanabhan et al. 2021, Konieczny et al. 2023, and Raman 2021 under the
+source keys `Pa`, `Ko`, and `Rm`: the systems above as pending this change, systems pending other changes, systems blocked
+on `add-constraint-based-models`, out-of-scope entries, and the new sources of systems the library already implements.
 
-#### Scenario: Source of an implemented model
+#### Scenario: Source of an implemented system
 - **WHEN** a contributor reads the inventory entry of `michaelis_menten`
 - **THEN** its sources include `Ko 1.1.4` and `Rm 5.3.1`
 
 ### Requirement: Mean-field and disordered spin systems
 The library SHALL provide `curie_weiss`, `mattis_spin_glass`, `edwards_anderson`, and `sherrington_kirkpatrick` as
-registered factories under `physics/statistical_mechanics`, as the model inventory lists them with their sources, each
+registered factories under `physics/statistical_mechanics`, as the system inventory lists them with their sources, each
 with a gallery example.
 
 #### Scenario: Curie-Weiss magnetization
@@ -489,7 +489,7 @@ with a gallery example.
 ### Requirement: Driven and noisy particles
 The library SHALL provide `colored_noise_langevin`, `on_off_intermittency`, `biased_trap_walk`,
 `tilted_periodic_potential`, `flashing_ratchet`, and `shaken_spring_block` as registered factories under
-`mathematics/stochastic_processes` and `physics/soft_matter`, as the model inventory lists them with their sources, each
+`mathematics/stochastic_processes` and `physics/soft_matter`, as the system inventory lists them with their sources, each
 with a gallery example.
 
 #### Scenario: Ratchet current
@@ -500,7 +500,7 @@ with a gallery example.
 ### Requirement: Birth-death and interacting particle processes
 The library SHALL provide `birth_death_queue`, `absorbing_birth_death`, `zero_range_process`, `dissipative_zero_range`,
 and `asep` as registered factories under `mathematics/stochastic_processes` and `physics/statistical_mechanics`, as the
-model inventory lists them with their sources, each with a gallery example.
+system inventory lists them with their sources, each with a gallery example.
 
 #### Scenario: Stationary queue
 - **WHEN** `birth_death_queue` runs as an M/M/1 queue with load `rho = 0.5`
@@ -508,7 +508,7 @@ model inventory lists them with their sources, each with a gallery example.
 
 ### Requirement: Active matter and traffic
 The library SHALL provide `aligning_active_brownian_particles`, `binary_collision_flocking`, `langevin_traffic`, and
-`traffic_density_equation` as registered factories under `engineering/traffic` and `physics/active_matter`, as the model
+`traffic_density_equation` as registered factories under `engineering/traffic` and `physics/active_matter`, as the system
 inventory lists them with their sources, each with a gallery example.
 
 #### Scenario: Alignment transition
@@ -519,7 +519,7 @@ inventory lists them with their sources, each with a gallery example.
 The library SHALL provide `perishable_goods_duopoly`, `standardized_agents`, `origin_fixation_walk`,
 `neutral_biodiversity`, `neutral_clustering`, and `heterogeneous_mean_field_sir` as registered factories under
 `biology/ecology`, `biology/epidemiology`, `biology/evolution`, `economics/markets`, and `social/opinion_dynamics`, as
-the model inventory lists them with their sources, each with a gallery example.
+the system inventory lists them with their sources, each with a gallery example.
 
 #### Scenario: Epidemic threshold on networks
 - **WHEN** `heterogeneous_mean_field_sir` runs on a degree distribution with transmission rates below and above the
@@ -529,20 +529,20 @@ the model inventory lists them with their sources, each with a gallery example.
 ### Requirement: Maps and coupled oscillators
 The library SHALL provide `cubic_chaotic_map`, `skew_tent_map`, `doubling_map`, `subcritical_hopf_form`,
 `oscillator_death`, and `heterogeneous_global_coupling` as registered factories under `mathematics/dynamical_systems`
-and `physics/synchronization`, as the model inventory lists them with their sources, each with a gallery example.
+and `physics/synchronization`, as the system inventory lists them with their sources, each with a gallery example.
 
 #### Scenario: Invariant density of the tent map
 - **WHEN** `skew_tent_map` iterates an ensemble of 10000 points for 200 steps
 - **THEN** the histogram of the final points is uniform on [0, 1] within the sampling error of each of 20 bins
 
-### Requirement: Bertin models are recorded in the inventory
-The inventory SHALL record every model of Bertin 2021 under the source key `Bt`: the models above as pending this
-change, `levy_flight` and `trap_model` as pending `add-anomalous-processes`, `random_walk_with_memory` and
+### Requirement: Bertin systems are recorded in the inventory
+The inventory SHALL record every system of Bertin 2021 under the source key `Bt`: the systems above as pending this
+change, `levy_flight` and `trap_system` as pending `add-anomalous-processes`, `random_walk_with_memory` and
 `diluted_hopfield` as pending `add-stochastic-maps`, `random_graph_ensembles` as pending `add-adaptive-networks`,
-`random_energy_model` and `perceptron_satisfiability` as blocked on `add-static-models`, and the new sources of models
+`random_energy_system` and `perceptron_satisfiability` as blocked on `add-static-models`, and the new sources of systems
 the library already has.
 
-#### Scenario: Source of an existing model
+#### Scenario: Source of an existing system
 - **WHEN** a contributor reads the inventory entry of `kuramoto`
 - **THEN** its sources include `Bt 7.3.1`
 
@@ -552,20 +552,20 @@ The library SHALL provide the Mandelbrot set and the filled Julia sets of the co
 every site of a lattice of complex points and record the step at which the modulus first exceeds an escape radius.
 
 #### Scenario: Mandelbrot escape times
-- **WHEN** the Mandelbrot model runs for 100 steps on a lattice whose sites include `c = 1`, `c = -1`, `c = -2`, and
+- **WHEN** the Mandelbrot system runs for 100 steps on a lattice whose sites include `c = 1`, `c = -1`, `c = -2`, and
   `c = i`
 - **THEN** the site at `c = 1` escapes at step 3, since `0 → 1 → 2 → 5`, and the sites at `c = -1`, `c = -2`, and
   `c = i` never escape
 
 #### Scenario: Julia set of the squaring map
-- **WHEN** the Julia model with `c = 0` runs for 100 steps on a 201 × 201 lattice over the square `[-2, 2]²`
+- **WHEN** the Julia system with `c = 0` runs for 100 steps on a 201 × 201 lattice over the square `[-2, 2]²`
 - **THEN** every site with `|z₀| < 0.99` never escapes, and every site with `|z₀| > 1.01` has escaped
 
 #### Scenario: Mandelbrot symmetry
-- **WHEN** the Mandelbrot model runs on a window symmetric about the real axis
+- **WHEN** the Mandelbrot system runs on a window symmetric about the real axis
 - **THEN** the escape-time image equals its mirror image across the real axis
 
-### Requirement: Stochastic map models
+### Requirement: Stochastic map systems
 The library SHALL provide, as registered factories built only on the public core, the persistent random walk under
 `mathematics/stochastic_processes` (Jensen 2023 §10.4), Markov and hidden Markov sources under
 `mathematics/stochastic_processes` (Lindgren 2024 §3.2), and iterated function systems drawn by the chaos game under
@@ -600,13 +600,13 @@ poses it.
   probabilities 0.7 and 0.3
 - **THEN** the share of steps that used the first function is 0.7 within three standard errors
 
-### Requirement: Bertin models on stochastic maps
-The library SHALL provide `random_walk_with_memory` in `mathematics/stochastic_processes` and `diluted_hopfield` in `computer_science/neural_networks`, as Bertin 2021 poses them and the model inventory records them, built on this
+### Requirement: Bertin systems on stochastic maps
+The library SHALL provide `random_walk_with_memory` in `mathematics/stochastic_processes` and `diluted_hopfield` in `computer_science/neural_networks`, as Bertin 2021 poses them and the system inventory records them, built on this
 change's capability, each with a gallery example.
 
 #### Scenario: Registered under the inventory names
 - **WHEN** the change is applied and the inventory check runs
-- **THEN** both models are registered under their field paths and marked implemented
+- **THEN** both systems are registered under their field paths and marked implemented
 
 ### Requirement: Intrinsic-instability populations
 The library SHALL provide `intrinsic_instability` in `biology/ecology`, the resident and invading populations of
@@ -640,28 +640,28 @@ simulation's steps (Thurner et al. 2018 §3.5.2, Trzaska 2023 §3.5).
 - **THEN** the patch holds 4096 squares and their area is `(8/9)^4` of the unit square within 1e-12
 
 #### Scenario: Gallery analysis
-- **WHEN** the gallery example of any of the three models runs
+- **WHEN** the gallery example of any of the three systems runs
 - **THEN** its analysis figure plots the log measure against the generation with the exact line, and the log box count
   against the log box size with the slope of the similarity dimension
 
-### Requirement: Rewriting models are recorded in the model inventory
-Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
-inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
-model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+### Requirement: Rewriting systems are recorded in the system inventory
+Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
+inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
+system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
 twice.
 
-#### Scenario: Inventory models registered
+#### Scenario: Inventory systems registered
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** these entries are registered under their field paths and marked implemented:
   - `koch_curve` in `mathematics/fractals` (Th 3.5.2, Tr 3.5)
   - `cantor_set` in `mathematics/fractals` (Th 3.5.2, Tr 3.5)
   - `sierpinski_substitution` in `mathematics/fractals` (Th 3.5.2, Tr 3.5)
 
-#### Scenario: New model recorded
-- **WHEN** the change registers a model with no inventory entry
+#### Scenario: New system recorded
+- **WHEN** the change registers a system with no inventory entry
 - **THEN** the inventory check fails until the entry is added with its sources and field path
 
-### Requirement: Anomalous random walk models
+### Requirement: Anomalous random walk systems
 The library SHALL provide, as registered factories under the field path `physics/soft_matter`:
 - the continuous-time random walk, Gaussian jumps after power-law waiting times (Argun et al. 2021 §6.3, Metzler and
   Klafter 2000);
@@ -676,14 +676,14 @@ The library SHALL provide, as registered factories under the field path `physics
 - **WHEN** the Lévy walk with flight-time exponent `σ = 1.5` runs for 2000 walkers to time 2000
 - **THEN** the ensemble mean squared displacement grows with a scaling exponent within 0.1 of `3 - σ = 1.5`
 
-### Requirement: Anomalous diffusion models with memory or heterogeneity
+### Requirement: Anomalous diffusion systems with memory or heterogeneity
 The library SHALL provide, as registered factories under the field path `physics/soft_matter`:
 - annealed transient time motion, Brownian motion whose diffusion coefficient is redrawn at renewals with waiting
   times that depend on it (Argun et al. 2021 §6.3, Massignan et al. 2014);
 - fractional Brownian motion of a given Hurst index (Argun et al. 2021 §6.1, Mandelbrot and Van Ness 1968).
 
 #### Scenario: Fractional Brownian motion
-- **WHEN** the fractional Brownian motion model with Hurst index 0.3 runs for 1000 members
+- **WHEN** the fractional Brownian motion system with Hurst index 0.3 runs for 1000 members
 - **THEN** the ensemble mean squared displacement grows with a scaling exponent within 0.05 of 0.6, and the Hurst
   exponent of the increments by detrended fluctuation analysis lies within 0.05 of 0.3
 
@@ -693,30 +693,30 @@ The library SHALL provide, as registered factories under the field path `physics
 - **THEN** the ensemble mean squared displacement grows with a scaling exponent within 0.1 of `σ / γ = 0.5`, as
   derived by Massignan et al. (2014)
 
-### Requirement: No inventory model is blocked by anomalous processes
-The model inventory SHALL mark the continuous-time random walk, the Lévy walk, annealed transient time motion, and
+### Requirement: No inventory system is blocked by anomalous processes
+The system inventory SHALL mark the continuous-time random walk, the Lévy walk, annealed transient time motion, and
 fractional Brownian motion in `physics/soft_matter` as implemented.
 
 #### Scenario: Inventory status
 - **WHEN** the inventory is read after this change
-- **THEN** no entry has the status `blocked add-anomalous-processes`, and each of the four models resolves to a
+- **THEN** no entry has the status `blocked add-anomalous-processes`, and each of the four systems resolves to a
   registered factory under `physics/soft_matter`
 
-### Requirement: Lévy flights and trap models
-The library SHALL provide `levy_flight` in `physics/soft_matter` and `trap_model` in `physics/statistical_mechanics`, as Bertin 2021 poses them and the model inventory records them, built on this
+### Requirement: Lévy flights and trap systems
+The library SHALL provide `levy_flight` in `physics/soft_matter` and `trap_system` in `physics/statistical_mechanics`, as Bertin 2021 poses them and the system inventory records them, built on this
 change's capability, each with a gallery example.
 
 #### Scenario: Registered under the inventory names
 - **WHEN** the change is applied and the inventory check runs
-- **THEN** both models are registered under their field paths and marked implemented
+- **THEN** both systems are registered under their field paths and marked implemented
 
-### Requirement: Models on lattice geometries and graphs
+### Requirement: Systems on lattice geometries and graphs
 The library SHALL provide, as registered factories:
-- the Ising model on a graph under `physics/statistical_mechanics` (Argun et al. 2021 §2.1);
+- the Ising system on a graph under `physics/statistical_mechanics` (Argun et al. 2021 §2.1);
 - the Drossel-Schwabl forest fire on triangular lattices and on graphs under `physics/criticality` (Argun et al. 2021
   ch. 3);
 - the FHP lattice gas under `physics/fluids` (Dilão 2023 §5.16);
-- the Bak-Sneppen model of coevolution with the extremal update under `biology/evolution` (Gros 2015 §6.6, Thurner et
+- the Bak-Sneppen system of coevolution with the extremal update under `biology/evolution` (Gros 2015 §6.6, Thurner et
   al. 2018 §5.4.4, Jensen 2023 §4.2).
 
 #### Scenario: FHP conserves mass and momentum
@@ -729,7 +729,7 @@ The library SHALL provide, as registered factories:
   around the critical value 0.667
 
 #### Scenario: Ising on a graph orders
-- **WHEN** the Ising model on a graph runs on a random 4-regular graph of 1000 nodes at temperatures 1.0 and 6.0
+- **WHEN** the Ising system on a graph runs on a random 4-regular graph of 1000 nodes at temperatures 1.0 and 6.0
   with ensembles
 - **THEN** the mean absolute magnetisation is above 0.9 at temperature 1.0 and below 0.1 at temperature 6.0
 
@@ -738,14 +738,14 @@ The library SHALL provide, as registered factories:
   lightning, from one burning node
 - **THEN** every node burns, and each node starts burning at the step equal to its graph distance from the first one
 
-### Requirement: Network structure analysis model
+### Requirement: Network structure analysis system
 The library SHALL provide `network_structure_analysis` under `mathematics/networks` (Rm 3.1, 3.3, 3.4, Bt 6.1.1,
 6.1.2), a registered factory built on the public core that takes a NetworkX graph, records it as one agent per node,
 and reports its centralities, mixing, communities, and triangle z-score as observables. The inventory SHALL mark it as
 implemented.
 
 #### Scenario: Measures of a generated network
-- **WHEN** `network_structure_analysis` runs on a stochastic block model of 4 blocks of 100 nodes
+- **WHEN** `network_structure_analysis` runs on a stochastic block system of 4 blocks of 100 nodes
 - **THEN** its trajectory holds the network and observables of clustering, mean path length, assortativity, modularity,
   and the agreement of the detected communities with the blocks above 0.9
 
@@ -759,42 +759,42 @@ implemented.
 - **THEN** it shows the Rerun screenshot of the graph colored by community, and below it the degree distribution and the
   motif z-scores as analysis figures
 
-### Requirement: Models are organized by scientific field
-The library SHALL organize models into packages per scientific field, `physics`, `chemistry`, `biology`,
+### Requirement: Systems are organized by scientific field
+The library SHALL organize systems into packages per scientific field, `physics`, `chemistry`, `biology`,
 `economics`, `social`, `engineering`, `mathematics`, and `computer_science`, each split into subfield packages. Every
-model SHALL live in exactly one subfield.
+system SHALL live in exactly one subfield.
 
 #### Scenario: Import by field
-- **WHEN** a user imports `skcomplex.models.physics.fluids`, `skcomplex.models.biology.ecology`, or
-  `skcomplex.models.chemistry.pattern_formation`
+- **WHEN** a user imports `skcomplex.systems.physics.fluids`, `skcomplex.systems.biology.ecology`, or
+  `skcomplex.systems.chemistry.pattern_formation`
 - **THEN** each package exports the factories and component types of its subfield, such as `burgers`,
   `lotka_volterra`, and `gray_scott`
 
 #### Scenario: Technique packages are gone
-- **WHEN** a user imports `skcomplex.models.fluids`, `skcomplex.models.lattices`, `skcomplex.models.fields`, or
-  `skcomplex.models.nonlinear`
-- **THEN** the import fails, and every model of those packages is found in its scientific subfield
+- **WHEN** a user imports `skcomplex.systems.fluids`, `skcomplex.systems.lattices`, `skcomplex.systems.fields`, or
+  `skcomplex.systems.nonlinear`
+- **THEN** the import fails, and every system of those packages is found in its scientific subfield
 
-#### Scenario: One home per model
+#### Scenario: One home per system
 - **WHEN** the catalog is listed in full
-- **THEN** every model name appears once, with a field path of the form `<field>/<subfield>`
+- **THEN** every system name appears once, with a field path of the form `<field>/<subfield>`
 
-### Requirement: Models document their pattern
-Every registered model SHALL document how it is built from the interface: its states, parameters, and laws as written,
-and its equations as the symbolic layer shows them, so a user can copy it as the pattern for a model of their own.
+### Requirement: Systems document their pattern
+Every registered system SHALL document how it is built from the interface: its states, parameters, and laws as written,
+and its equations as the symbolic layer shows them, so a user can copy it as the pattern for a system of their own.
 
 #### Scenario: Equations in the documentation
 - **WHEN** a user reads the documentation page of the field `biology`
-- **THEN** every ODE, SDE, map, and field model of the field shows its equations as `equations_of` returns them, and
-  every agent, lattice, and Monte Carlo model shows its laws as written
+- **THEN** every ODE, SDE, map, and field system of the field shows its equations as `equations_of` returns them, and
+  every agent, lattice, and Monte Carlo system shows its laws as written
 
-### Requirement: Physics model collection
-The physics packages SHALL provide models across mechanics, celestial mechanics, oscillators and synchronization,
-statistical mechanics, stochastic processes and soft matter, active matter, fluids, waves, and cosmology, as the model
+### Requirement: Physics system collection
+The physics packages SHALL provide systems across mechanics, celestial mechanics, oscillators and synchronization,
+statistical mechanics, stochastic processes and soft matter, active matter, fluids, waves, and cosmology, as the system
 inventory lists them.
 
 #### Scenario: Kepler orbit
-- **WHEN** the Kepler two-body model runs for ten periods
+- **WHEN** the Kepler two-body system runs for ten periods
 - **THEN** its energy and angular momentum stay within solver tolerance, and its period matches Kepler's third law
   within 0.1%
 
@@ -802,17 +802,17 @@ inventory lists them.
 - **WHEN** active Brownian particles run in two dimensions with speed `v` and rotational diffusion `D_r`
 - **THEN** their mean squared displacement at long times grows as `(4 D_t + 2 v^2 / D_r) t` within 5%
 
-### Requirement: Chemistry model collection
-The chemistry packages SHALL provide reaction kinetics, oscillating reactions, and pattern formation models, as the
-model inventory lists them.
+### Requirement: Chemistry system collection
+The chemistry packages SHALL provide reaction kinetics, oscillating reactions, and pattern formation systems, as the
+system inventory lists them.
 
 #### Scenario: Oregonator oscillates
 - **WHEN** the Oregonator runs with its standard parameters
 - **THEN** it settles on a relaxation limit cycle with a stable period
 
-### Requirement: Biology model collection
+### Requirement: Biology system collection
 The biology packages SHALL provide ecology, epidemiology, evolution, neuroscience, systems biology, physiology, and
-collective behaviour models, as the model inventory lists them.
+collective behaviour systems, as the system inventory lists them.
 
 #### Scenario: Repressilator oscillates
 - **WHEN** the repressilator runs as ODEs and as a jump process with the same rates
@@ -822,56 +822,56 @@ collective behaviour models, as the model inventory lists them.
 - **WHEN** the Hodgkin-Huxley neuron receives a constant current above threshold
 - **THEN** it fires periodically, and its spike threshold current lies within 10% of the published value
 
-### Requirement: Earth science model collection
-The earth packages SHALL provide climate, oceanography, atmosphere, and seismology models, as the model inventory
+### Requirement: Earth science system collection
+The earth packages SHALL provide climate, oceanography, atmosphere, and seismology systems, as the system inventory
 lists them.
 
 #### Scenario: Ice-albedo bistability
-- **WHEN** the energy-balance model runs from a warm and from a cold initial temperature at the same solar constant
+- **WHEN** the energy-balance system runs from a warm and from a cold initial temperature at the same solar constant
 - **THEN** the runs settle in different stable climates
 
-### Requirement: Economics model collection
-The economics packages SHALL provide macroeconomics, markets, finance, and econophysics models, as the model
+### Requirement: Economics system collection
+The economics packages SHALL provide macroeconomics, markets, finance, and econophysics systems, as the system
 inventory lists them.
 
 #### Scenario: Kinetic wealth exchange
-- **WHEN** the random money exchange model runs with conserved money
+- **WHEN** the random money exchange system runs with conserved money
 - **THEN** the total money stays constant and the wealth distribution approaches an exponential
 
-### Requirement: Social science model collection
-The social packages SHALL provide opinion dynamics, segregation, spreading, cooperation, and crowd models, as the model
+### Requirement: Social science system collection
+The social packages SHALL provide opinion dynamics, segregation, spreading, cooperation, and crowd systems, as the system
 inventory lists them.
 
 #### Scenario: Bounded confidence clusters
-- **WHEN** the Deffuant model runs with confidence bound 0.2 from uniform opinions
+- **WHEN** the Deffuant system runs with confidence bound 0.2 from uniform opinions
 - **THEN** opinions converge to a few clusters, about `1 / (2 * 0.2)` of them
 
-### Requirement: Engineering model collection
-The engineering packages SHALL provide circuits, control, traffic, and power-system models, as the model inventory
+### Requirement: Engineering system collection
+The engineering packages SHALL provide circuits, control, traffic, and power systems, as the system inventory
 lists them.
 
 #### Scenario: Optimal velocity jams
-- **WHEN** the optimal velocity model of cars on a ring runs above its critical density from uniform flow
+- **WHEN** the optimal velocity system of cars on a ring runs above its critical density from uniform flow
 - **THEN** a stop-and-go wave forms and moves against the direction of travel
 
-### Requirement: Mathematics model collection
-The mathematics packages SHALL provide dynamical systems, stochastic processes, network processes, and fractal models,
-as the model inventory lists them.
+### Requirement: Mathematics system collection
+The mathematics packages SHALL provide dynamical systems, stochastic processes, network processes, and fractal systems,
+as the system inventory lists them.
 
 #### Scenario: Standard map
 - **WHEN** the Chirikov standard map runs above `K = 0.971635` from an orbit near the golden-mean torus
 - **THEN** the orbit diffuses in momentum, and below that value it stays bounded
 
-### Requirement: Computer science model collection
-The computer science packages SHALL provide automata, evolutionary computation, and neural network models, as the model
+### Requirement: Computer science system collection
+The computer science packages SHALL provide automata, evolutionary computation, and neural network systems, as the system
 inventory lists them.
 
 #### Scenario: Random Boolean network phases
 - **WHEN** Kauffman networks with connectivity 1 and 3 run from random states
 - **THEN** perturbations die out at connectivity 1 and spread at connectivity 3
 
-### Requirement: Quantum spin chain models
-The library SHALL provide the quantum Heisenberg model (Mihailović et al. 2023 §7.3) under
+### Requirement: Quantum spin chain systems
+The library SHALL provide the quantum Heisenberg system (Mihailović et al. 2023 §7.3) under
 `physics/statistical_mechanics`: a chain of spins one half with the XXZ Hamiltonian
 `J Σ (S^x_i S^x_j + S^y_i S^y_j + Δ S^z_i S^z_j) - h Σ S^z_i` over neighbouring pairs, optional dephasing at a rate
 `gamma`, and an initial Néel state, a single flipped spin, a domain wall, or the ground state.
@@ -891,8 +891,8 @@ The library SHALL provide the quantum Heisenberg model (Mihailović et al. 2023 
 - **THEN** the solver is the Lindblad solver, the purity never increases from frame to frame and ends below 1, and
   the total magnetisation stays constant within 1e-8
 
-### Requirement: Operator formulation of the Schrödinger model
-The `schrodinger` model SHALL accept a `formulation` of `'fields'`, the default, which keeps its two real fields, or
+### Requirement: Operator formulation of the Schrödinger system
+The `schrodinger` system SHALL accept a `formulation` of `'fields'`, the default, which keeps its two real fields, or
 `'operators'`, which builds a particle on the same lattice as a single-particle Hilbert space with the kinetic operator
 of the lattice's spectral Laplacian and the harmonic potential as a diagonal operator, and accepts position dephasing
 at a rate `gamma`. Both formulations SHALL register under the one name `schrodinger` in `physics/waves`.
@@ -906,40 +906,40 @@ at a rate `gamma`. Both formulations SHALL register under the one name `schrodin
 - **WHEN** `schrodinger` runs with the operator formulation and `gamma = 0.5`
 - **THEN** the trace stays 1 within 1e-10 and the purity never increases from frame to frame
 
-### Requirement: Quantum models are recorded in the model inventory
-Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
-inventory, and a model the inventory records as out of scope or blocked by this change SHALL register under the name of
-its entry. A model that the library already implements SHALL gain the new formulation under the same name, not be
+### Requirement: Quantum systems are recorded in the system inventory
+Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
+inventory, and a system the inventory records as out of scope or blocked by this change SHALL register under the name of
+its entry. A system that the library already implements SHALL gain the new formulation under the same name, not be
 registered twice.
 
-#### Scenario: Inventory models registered
+#### Scenario: Inventory systems registered
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** these entries are registered under their field paths and marked implemented:
   - `quantum_heisenberg` in `physics/statistical_mechanics` (Mi 7.3)
   - `schrodinger` in `physics/waves` (Sc 4), with the operator formulation
 
-#### Scenario: Gallery example of a quantum model
+#### Scenario: Gallery example of a quantum system
 - **WHEN** the gallery runs the example `docs/examples/physics/statistical_mechanics/plot_quantum_heisenberg.py`
 - **THEN** it creates `quantum_heisenberg` by name, streams the run to Rerun within the recording budget, its
   thumbnail is the space-time image of the local magnetisation with a light cone, and its analysis figure compares the
   ground-state energy per site with `1/4 - ln 2`
 
-### Requirement: Economic and social agent models
-The library SHALL provide registered agent models that exercise the phases and the core's matching, feedback, choice,
-and evolution interactions in distinct ways, and SHALL cover spatial cooperation with the existing lattice model of the
+### Requirement: Economic and social agent systems
+The library SHALL provide registered agent systems that exercise the phases and the core's matching, feedback, choice,
+and evolution interactions in distinct ways, and SHALL cover spatial cooperation with the existing lattice system of the
 spatial prisoner's dilemma rather than registering it again.
 
 #### Scenario: Spatial cooperation
 - **WHEN** the spatial prisoner's dilemma runs with imitate-the-best updating and a temptation payoff of 1.6
 - **THEN** cooperators survive in clusters for 200 steps instead of dying out
 
-### Requirement: Agent economy models are recorded in the model inventory
-Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
-inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
-model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+### Requirement: Agent economy systems are recorded in the system inventory
+Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
+inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
+system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
 twice.
 
-#### Scenario: Inventory models registered
+#### Scenario: Inventory systems registered
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** these entries are registered under their field paths and marked implemented:
   - `credit_networks` in `economics/macroeconomics`
@@ -957,7 +957,7 @@ twice.
 
 #### Scenario: Example entries left pending
 - **WHEN** the change is applied
-- **THEN** these entries, which repeat patterns the implemented models already exercise, stay pending this change:
+- **THEN** these entries, which repeat patterns the implemented systems already exercise, stay pending this change:
   - `goods_traders` in `economics/markets`
   - `shops` in `economics/markets`
   - `barter` in `economics/markets`
@@ -965,28 +965,28 @@ twice.
   - `tragedy_of_the_commons` in `economics/resources`
   - `ridesharing` in `engineering/traffic`
 
-#### Scenario: New model recorded
-- **WHEN** the change registers a model with no inventory entry
+#### Scenario: New system recorded
+- **WHEN** the change registers a system with no inventory entry
 - **THEN** the inventory check fails until the entry is added with its sources and field path
 
-### Requirement: System-dynamics and stock-flow consistent models
+### Requirement: System-dynamics and stock-flow consistent systems
 The library SHALL provide Meadows' systems zoo (bathtub, coffee cooling, thermostat, inventory with delays, renewable
 and nonrenewable resources), the system traps (success to the successful, shifting the burden, escalation), Bass
 diffusion, the beer game, and a stock-flow consistent monetary economy as registered factories, with `bathtub` and
 `car_dealer` rebuilt on flows under their names. The tragedy of the commons belongs to `add-agent-economies`.
 
 #### Scenario: Inventory oscillation
-- **WHEN** the car-dealership inventory model receives a 10% step in demand
+- **WHEN** the car-dealership inventory system receives a 10% step in demand
 - **THEN** the inventory oscillates before settling, and shortening the perception delay reduces the oscillation's
   amplitude
 
-### Requirement: Stock-flow models are recorded in the model inventory
-Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
-inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
-model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+### Requirement: Stock-flow systems are recorded in the system inventory
+Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
+inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
+system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
 twice.
 
-#### Scenario: Inventory models registered
+#### Scenario: Inventory systems registered
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** these entries, which probe flows, sources and sinks, auxiliaries, lookups, delays, smoothing, loops, and
   discrete flows in distinct ways, are registered under their field paths and marked implemented:
@@ -1004,31 +1004,31 @@ twice.
 
 #### Scenario: Repeated patterns registered
 - **WHEN** the change is applied and the inventory check runs
-- **THEN** these entries, which repeat patterns of stocks and flows that the models above probe, are registered under
+- **THEN** these entries, which repeat patterns of stocks and flows that the systems above probe, are registered under
   their field paths and marked implemented: `energy_return` in `physics/climate`, and `cocoa`, `hilsa_fishery`, and
   `food_security` in `economics/resources`
 
-#### Scenario: Meadows' resource models rebuilt
+#### Scenario: Meadows' resource systems rebuilt
 - **WHEN** the change is applied
-- **THEN** Meadows' nonrenewable and renewable resource models stay registered as `oil_economy` and
+- **THEN** Meadows' nonrenewable and renewable resource systems stay registered as `oil_economy` and
   `fishery_capital`, rebuilt on flows, and the duplicate survey entries `renewable_resource` and
   `nonrenewable_resource` are removed from the inventory
 
-#### Scenario: New model recorded
-- **WHEN** the change registers a model with no inventory entry
+#### Scenario: New system recorded
+- **WHEN** the change registers a system with no inventory entry
 - **THEN** the inventory check fails until the entry is added with its sources and field path
 
-### Requirement: Every registered model has a gallery example
-Every model registered in the library SHALL ship with a gallery example and a reviewed screenshot. A change that adds or
-rebuilds a model SHALL add or update its example in the same change, and a model whose screenshot cannot show its
+### Requirement: Every registered system has a gallery example
+Every system registered in the library SHALL ship with a gallery example and a reviewed screenshot. A change that adds or
+rebuilds a system SHALL add or update its example in the same change, and a system whose screenshot cannot show its
 behaviour within the gallery budget SHALL say so in its caption and show the closest faithful view.
 
-#### Scenario: New model without an example
-- **WHEN** a change registers a new model and adds no example
-- **THEN** the gallery coverage check fails and names the model
+#### Scenario: New system without an example
+- **WHEN** a change registers a new system and adds no example
+- **THEN** the gallery coverage check fails and names the system
 
 #### Scenario: Behaviour beyond the budget
-- **WHEN** a model's known behaviour, such as a 100 thousand year glacial cycle, needs a longer run than the budget
+- **WHEN** a system's known behaviour, such as a 100 thousand year glacial cycle, needs a longer run than the budget
 - **THEN** its example runs it with coarser frames within the budget, and its caption states what the image shows
 
 ### Requirement: The chemical Langevin equation switches by noise
@@ -1049,10 +1049,10 @@ behaviour within the gallery budget SHALL say so in its caption and show the clo
 `social_impact` SHALL flip an opinion when the net pressure to change plus the random field is positive.
 
 #### Scenario: No pressure keeps opinions
-- **WHEN** a social impact model without noise starts with every agent of opinion -1
+- **WHEN** a social impact system without noise starts with every agent of opinion -1
 - **THEN** no opinion changes in 5 steps
 
-### Requirement: Model defaults show the described behaviour
+### Requirement: System defaults show the described behaviour
 `restricted_three_body`, `diffusion_in_a_speckle_field`, and `legion` with their defaults SHALL show chaos, anomalous
 diffusion, and alternating objects within short runs, and `burridge_knopoff` SHALL register a solver that does not
 stall on its stick-slip switches.
@@ -1074,43 +1074,43 @@ stall on its stick-slip switches.
 - **WHEN** the default Burridge-Knopoff fault runs until 400 with its registered solver
 - **THEN** no warning is raised, no block moves backwards, and some frame holds a slip above 0.3
 
-### Requirement: Specific realizations live in the model library
+### Requirement: Specific realizations live in the system library
 The library SHALL hold every specific realization of a core primitive or a general analysis in its own private module
-of the model package that uses it, next to the model definitions, exported from that package. A realization that
-several packages of one field share SHALL live in `skcomplex.models.<field>.common`, grouped in family packages such as
+of the system package that uses it, next to the system definitions, exported from that package. A realization that
+several packages of one field share SHALL live in `skcomplex.systems.<field>.common`, grouped in family packages such as
 `particles`, `oscillators`, `excitable`, or `forecasting`, with no loose modules beside the families, and only that
 field's packages import it. A realization SHALL be a subclass of a general core class, even a pure renaming, and no field
 SHALL define the same realization twice. A field whose packages share no code SHALL have no `common`
-package. A model class whose mechanism the core provides SHALL use the core class and keep only what is its own.
+package. A system class whose mechanism the core provides SHALL use the core class and keep only what is its own.
 
 #### Scenario: Order book from the library
-- **WHEN** the finance models build their order book, and an engineering model pairs riders with cars
+- **WHEN** the finance systems build their order book, and an engineering system pairs riders with cars
 - **THEN** both use the core `MatchingInteraction`, the order book binds it to bids, asks, money, and goods with
   `ContinuousMatchingSpec`, and the earlier of two same-limit sell orders trades first
 
 #### Scenario: Potential from the library
-- **WHEN** a user imports the Lennard-Jones potential from `skcomplex.models.physics.common.particles`
+- **WHEN** a user imports the Lennard-Jones potential from `skcomplex.systems.physics.common.particles`
 - **THEN** it is a realization built on the core `PairCouplingInteraction`, and the existing LAMMPS agreement tests pass
   with it
 
 #### Scenario: Realization of one package
-- **WHEN** only the climate models use `EarlyWarningAnalysis`
-- **THEN** it lives in `skcomplex.models.physics.climate`
+- **WHEN** only the climate systems use `EarlyWarningAnalysis`
+- **THEN** it lives in `skcomplex.systems.physics.climate`
 
 #### Scenario: No copy across fields
-- **WHEN** the ecology meadow and the economics commons models are built
+- **WHEN** the ecology meadow and the economics commons systems are built
 - **THEN** both build foraging and regrowth from the core `TransferInteraction`, `LifeCycleInteraction`, and
   `MapInteraction`
 
-### Requirement: Library models keep their behaviour across the redesign
-Every library model SHALL produce the same trajectory on fixed seeds after migrating to the new vocabulary, within the
+### Requirement: Library systems keep their behaviour across the redesign
+Every library system SHALL produce the same trajectory on fixed seeds after migrating to the new vocabulary, within the
 tolerances of the conformance suite.
 
 #### Scenario: Conformance before and after
-- **WHEN** the conformance suite runs every catalog model before and after the migration with random state 0
+- **WHEN** the conformance suite runs every catalog system before and after the migration with random state 0
 - **THEN** every trajectory agrees within its declared tolerance
 
-### Requirement: Echo state network model
+### Requirement: Echo state network system
 The library SHALL provide `echo_state_network` in `computer_science/neural_networks`, a reservoir of leaky tanh units driven by an input, with a curated gallery example.
 
 #### Scenario: Echo state property
@@ -1139,26 +1139,26 @@ The finance module SHALL provide two assets whose prices follow geometric Browni
 with a given correlation, as a registered factory.
 
 #### Scenario: Correlated returns
-- **WHEN** the model runs with correlation 0.7 over 10 000 frames
+- **WHEN** the system runs with correlation 0.7 over 10 000 frames
 - **THEN** the sample correlation of the two assets' log returns per frame is 0.7 within 0.05
 
-### Requirement: Correlated noise models are recorded in the model inventory
-Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
-inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
-model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+### Requirement: Correlated noise systems are recorded in the system inventory
+Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
+inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
+system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
 twice.
 
-#### Scenario: Inventory models registered
+#### Scenario: Inventory systems registered
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** these entries are registered under their field paths and marked implemented:
   - `chemical_langevin_network` in `chemistry/kinetics`
   - `correlated_geometric_brownian_motion` in `economics/finance`
 
-#### Scenario: New model recorded
-- **WHEN** the change registers a model with no inventory entry
+#### Scenario: New system recorded
+- **WHEN** the change registers a system with no inventory entry
 - **THEN** the inventory check fails until the entry is added with its sources and field path
 
-### Requirement: Fractional models
+### Requirement: Fractional systems
 The library SHALL provide fractional relaxation, a fractional damped oscillator, fractional Van der Pol, and fractional
 Lorenz as registered factories with the order as an argument.
 
@@ -1166,13 +1166,13 @@ Lorenz as registered factories with the order as an argument.
 - **WHEN** fractional relaxation runs with orders 1 and 0.5 from the same state
 - **THEN** the order 0.5 trajectory stays above the exponential one at long times
 
-### Requirement: Fractional dynamics models are recorded in the model inventory
-Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
-inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
-model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+### Requirement: Fractional dynamics systems are recorded in the system inventory
+Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
+inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
+system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
 twice.
 
-#### Scenario: Inventory models registered
+#### Scenario: Inventory systems registered
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** these entries are registered under their field paths and marked implemented:
   - `fractional_relaxation` in `mathematics/fractional_dynamics`
@@ -1180,15 +1180,15 @@ twice.
   - `fractional_van_der_pol` in `mathematics/fractional_dynamics`
   - `fractional_lorenz` in `mathematics/fractional_dynamics`
 
-#### Scenario: New model recorded
-- **WHEN** the change registers a model with no inventory entry
+#### Scenario: New system recorded
+- **WHEN** the change registers a system with no inventory entry
 - **THEN** the inventory check fails until the entry is added with its sources and field path
 
-### Requirement: Repeated agent economy models
+### Requirement: Repeated agent economy systems
 The library SHALL provide `goods_traders`, `shops`, `barter`, `order_book`, `tragedy_of_the_commons`, and
 `ridesharing` as registered factories, each with a curated gallery example. Each SHALL be a `System` under discrete
 time with a phases schedule, with agents as elements with rule laws in groups, built on the core's matching, transfer,
-and invariant laws and on the trading realizations of `skcomplex.models.economics.realizations`, and none SHALL add a
+and invariant laws and on the trading realizations of `skcomplex.systems.economics.realizations`, and none SHALL add a
 core primitive.
 
 #### Scenario: Barter reaches the contract curve
@@ -1208,7 +1208,7 @@ core primitive.
 The library SHALL provide `evolutionary_sk_game` in `physics/criticality`, after Lesmana et al. (2026, arXiv
 2604.15669): learning agents on a Sherrington-Kirkpatrick landscape with Bak-Sneppen replacement of the least fit,
 built from the core's group, reduction, draw, and update primitives under discrete time, with the extremal replacement
-an update switched by the group minimum, and with its softmax choice defined in its model package rather than imported
+an update switched by the group minimum, and with its softmax choice defined in its system package rather than imported
 from another field's realizations.
 
 #### Scenario: Rules of the game
@@ -1227,7 +1227,7 @@ from another field's realizations.
 - **THEN** its thumbnail shows the evolved temperature distribution and its analysis compares the cascade sizes and the
   ergodicity-breaking diagnostic with the paper's results
 
-### Requirement: Emergence models are recorded in the model inventory
+### Requirement: Emergence systems are recorded in the system inventory
 The inventory SHALL record `evolutionary_sk_game` with its arXiv source, its primitives, and its priority, pending this
 change until it is implemented.
 
@@ -1236,22 +1236,22 @@ change until it is implemented.
 - **THEN** it cites arXiv 2604.15669, is tagged with discrete time, no space, a group, no binding, and the discrete
   law class, and has priority `core`
 
-### Requirement: Kinetic models of active particles
+### Requirement: Kinetic systems of active particles
 The library SHALL provide wealth and welfare dynamics, criminality against security forces, tumour-immune
 competition, and opinion formation as registered kinetic factories built on site groups and encounter laws, with their
-transition tables in their model packages and their standard moments declared by their catalog entries.
+transition tables in their system packages and their standard moments declared by their catalog entries.
 
 #### Scenario: Immune response
-- **WHEN** the tumour-immune model runs with an immune activity above its threshold
+- **WHEN** the tumour-immune system runs with an immune activity above its threshold
 - **THEN** the tumour density decays, and below the threshold it grows
 
-### Requirement: Kinetic models are recorded in the model inventory
-Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
-inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
-model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+### Requirement: Kinetic systems are recorded in the system inventory
+Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
+inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
+system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
 twice.
 
-#### Scenario: Inventory models registered
+#### Scenario: Inventory systems registered
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** these entries are registered under their field paths and marked implemented:
   - `immune_competition` in `biology/oncology`
@@ -1260,11 +1260,11 @@ twice.
   - `evacuation` in `social/crowds`
   - `criminality` in `social/crowds`
 
-#### Scenario: New model recorded
-- **WHEN** the change registers a model with no inventory entry
+#### Scenario: New system recorded
+- **WHEN** the change registers a system with no inventory entry
 - **THEN** the inventory check fails until the entry is added with its sources and field path
 
-### Requirement: Control models
+### Requirement: Control systems
 The library SHALL provide optimal harvesting, SIR vaccination, Ramsey optimal growth, a PID-stabilised inverted
 pendulum, and a linear-quadratic regulated oscillator as registered factories.
 
@@ -1273,8 +1273,8 @@ pendulum, and a linear-quadratic regulated oscillator as registered factories.
 - **THEN** the optimally controlled epidemic peak is lower than the uncontrolled one
 
 ### Requirement: Feedback controllers are engineering realizations
-The library SHALL provide PID and state-feedback controllers in `skcomplex.models.engineering.control`, the package of
-the control models that use them, as components whose laws read states and set bounded adaptive parameters during a
+The library SHALL provide PID and state-feedback controllers in `skcomplex.systems.engineering.control`, the package of
+the control systems that use them, as components whose laws read states and set bounded adaptive parameters during a
 run, with the integral of the PID error in an element, so their internal states are part of the compiled system and
 the core holds no controller.
 
@@ -1284,15 +1284,15 @@ the core holds no controller.
 
 #### Scenario: No controller in the core
 - **WHEN** the field-term and import-graph tests of the core run
-- **THEN** they pass, and the controllers are importable only from the control models
+- **THEN** they pass, and the controllers are importable only from the control systems
 
-### Requirement: Optimal control models are recorded in the model inventory
-Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
-inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
-model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+### Requirement: Optimal control systems are recorded in the system inventory
+Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
+inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
+system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
 twice.
 
-#### Scenario: Inventory models registered
+#### Scenario: Inventory systems registered
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** these entries are registered under their field paths and marked implemented:
   - `sir_vaccination` in `biology/epidemiology`
@@ -1303,11 +1303,11 @@ twice.
   - `optimal_chemotherapy` in `biology/oncology`
   - `optimal_immunotherapy` in `biology/oncology`
 
-#### Scenario: New model recorded
-- **WHEN** the change registers a model with no inventory entry
+#### Scenario: New system recorded
+- **WHEN** the change registers a system with no inventory entry
 - **THEN** the inventory check fails until the entry is added with its sources and field path
 
-### Requirement: Group automata models
+### Requirement: Group automata systems
 The library SHALL provide the majority automaton on the free group, the lamplighter automaton, the discrete Laplacian
 as a linear automaton, the reversible Q2R Ising automaton, the golden mean shift, and the majority automaton on the
 Grigorchuk group as registered factories, each with a gallery example whose thumbnail is its Rerun screenshot and
@@ -1329,13 +1329,13 @@ which shows an analysis plot from its run.
   that the local log-log slope rises while `log |B(n)| / n` falls, so the growth is faster than polynomial and slower
   than exponential
 
-### Requirement: Group cellular automaton models are recorded in the model inventory
-Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
-inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
-model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+### Requirement: Group cellular automaton systems are recorded in the system inventory
+Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
+inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
+system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
 twice.
 
-#### Scenario: Inventory models registered
+#### Scenario: Inventory systems registered
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** these entries are registered under their field paths and marked implemented:
   - `free_group_automaton` in `computer_science/automata`
@@ -1346,11 +1346,11 @@ twice.
   - `subshifts` in `computer_science/automata`
   - `grigorchuk_automaton` in `computer_science/automata` (CC 6.9)
 
-#### Scenario: New model recorded
-- **WHEN** the change registers a model with no inventory entry
+#### Scenario: New system recorded
+- **WHEN** the change registers a system with no inventory entry
 - **THEN** the inventory check fails until the entry is added with its sources and field path
 
-### Requirement: Surveyed physics models
+### Requirement: Surveyed physics systems
 The library SHALL provide `swarmalators`, `ehrenfest_urn`, `directed_percolation_langevin`, `sk_game`,
 `keller_segel`, `benard_marangoni`, `charged_schrodinger`, `cahn_hilliard`, and `allen_cahn` as
 registered factories built from core primitives, each with a curated gallery example.
@@ -1363,7 +1363,7 @@ registered factories built from core primitives, each with a curated gallery exa
 - **WHEN** `directed_percolation_langevin` sweeps its control parameter across the absorbing transition
 - **THEN** the stationary density vanishes below a threshold and grows above it
 
-### Requirement: Surveyed biology models
+### Requirement: Surveyed biology systems
 The library SHALL provide `hormone_cascade_amplifier`, `min_protein_skeleton`, `nanotube_gap_junction_exchange`,
 `closed_contour_cell_exchange`, `adaptive_response_costs`, `glucose_dual_hormone_control`,
 `coagulation_positive_feedback`, and `couzin_leadership` as registered factories built from core primitives, each with
@@ -1373,7 +1373,7 @@ a curated gallery example.
 - **WHEN** `couzin_leadership` runs with a small informed minority sharing a preferred direction
 - **THEN** the group's mean heading turns towards that direction, and the accuracy grows with the minority's size
 
-### Requirement: Surveyed earth, economics, and mathematics models
+### Requirement: Surveyed earth, economics, and mathematics systems
 The library SHALL provide `sutera_fraedrich_tipping`, `ramped_stochastic_fold`, `metaphoria`,
 `wilhite_trade_networks`, `koopman_slow_manifold`, and `ou_driven_rossler` as registered factories built from core
 primitives, each with a curated gallery example.
@@ -1382,22 +1382,22 @@ primitives, each with a curated gallery example.
 - **WHEN** `ramped_stochastic_fold` ramps its control parameter through the fold faster than the system relaxes
 - **THEN** the state tips after the control passes the static fold point, later for faster ramps
 
-### Requirement: Network models
+### Requirement: Network systems
 The library SHALL provide Kuramoto on complete graphs and networks, the power-grid swing equation, SIS and SIR on
-networks, adaptive SIS with rewiring, Barabási-Albert growth, voter and majority models on networks, random Boolean
+networks, adaptive SIS with rewiring, Barabási-Albert growth, voter and majority systems on networks, random Boolean
 networks, coupled logistic maps, Vicsek flocking, and DebtRank interbank contagion as registered factories.
 
 #### Scenario: Random Boolean network phases
 - **WHEN** random Boolean networks with in-degree 1, 2, and 3 run from random states
 - **THEN** damage from a single flipped node dies out at in-degree 1, stays near constant at 2, and spreads at 3
 
-### Requirement: Adaptive network models are recorded in the model inventory
-Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
-inventory, and a model the inventory records as pending this change SHALL register under the name of its entry. A
-model that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
+### Requirement: Adaptive network systems are recorded in the system inventory
+Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
+inventory, and a system the inventory records as pending this change SHALL register under the name of its entry. A
+system that the library already implements SHALL be rebuilt on the new formalism under the same name, not registered
 twice.
 
-#### Scenario: Inventory models registered
+#### Scenario: Inventory systems registered
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** these entries are registered under their field paths and marked implemented:
   - `kuramoto_on_networks` in `physics/synchronization`
@@ -1420,11 +1420,11 @@ twice.
   - `network_attack` in `mathematics/networks`
   - `random_graph_ensembles` in `mathematics/networks`
 
-#### Scenario: New model recorded
-- **WHEN** the change registers a model with no inventory entry
+#### Scenario: New system recorded
+- **WHEN** the change registers a system with no inventory entry
 - **THEN** the inventory check fails until the entry is added with its sources and field path
 
-### Requirement: Dynamics analysis probe models
+### Requirement: Dynamics analysis probe systems
 The library SHALL provide `kinouchi_copelli`, `nonreciprocal_cahn_hilliard`, `nonreciprocal_vicsek`, and `tipping_cascade_network`, each with a curated gallery example.
 
 #### Scenario: Maximal dynamic range
@@ -1435,38 +1435,38 @@ The library SHALL provide `kinouchi_copelli`, `nonreciprocal_cahn_hilliard`, `no
 - **WHEN** `nonreciprocal_cahn_hilliard` runs with nonreciprocal coupling above threshold
 - **THEN** its demixed domains travel, as Brauns and Marchetti (2023) predict
 
-### Requirement: Field measures with logic of their own live with their models
+### Requirement: Field measures with logic of their own live with their systems
 A measure named by one field that only picks a choice of a general analysis, such as the Binder cumulant or the polar
-order, SHALL have no class of its own: models, examples, and tests SHALL use the general analysis. A field measure with
+order, SHALL have no class of its own: systems, examples, and tests SHALL use the general analysis. A field measure with
 logic of its own, such as the susceptibility peak or the crackling-noise relation, SHALL be a subclass of the closest
-general analysis in the model package whose models it measures.
+general analysis in the system package whose systems it measures.
 
 #### Scenario: Binder cumulant without a class
 - **WHEN** a user computes the Binder cumulant of magnetisation samples
-- **THEN** they run `DistributionAnalysis('moment-ratio')` with orders 4 and 2, and no model package defines a class for
+- **THEN** they run `DistributionAnalysis('moment-ratio')` with orders 4 and 2, and no system package defines a class for
   it
 
 #### Scenario: Crackling noise with the sandpiles
 - **WHEN** a user checks the crackling-noise relation of a sandpile's avalanches
-- **THEN** they run `CracklingNoiseAnalysis` from `skcomplex.models.physics.criticality`, a subclass of the event
+- **THEN** they run `CracklingNoiseAnalysis` from `skcomplex.systems.physics.criticality`, a subclass of the event
   analysis
 
-### Requirement: Specialized code moves to the model library
+### Requirement: Specialized code moves to the system library
 When a library package is generalised, its specialized code that still means something in a field, such as a field's
-measure, a field's naming, or a composite of general operations, SHALL move to the model library as realizations of the
-general classes, and SHALL NOT be removed. The model library SHALL serve as worked examples of how to extend the library
+measure, a field's naming, or a composite of general operations, SHALL move to the system library as realizations of the
+general classes, and SHALL NOT be removed. The system library SHALL serve as worked examples of how to extend the library
 packages by subclassing their bases and general classes.
 
 #### Scenario: Crackling noise kept
 - **WHEN** the avalanche analysis dissolves into the general event analysis
-- **THEN** the crackling-noise relation stays available as a realization of the criticality models, with the same
+- **THEN** the crackling-noise relation stays available as a realization of the criticality systems, with the same
   values as before
 
-### Requirement: Higher-order probe models
-The library SHALL provide the probe models of higher-order interactions that the inventory records as pending or
+### Requirement: Higher-order probe systems
+The library SHALL provide the probe systems of higher-order interactions that the inventory records as pending or
 blocked by this change, each with a curated gallery example, built on the classes and reductions this change adds.
 
-#### Scenario: Inventory models registered
+#### Scenario: Inventory systems registered
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** these entries are registered under their names and field paths and marked implemented:
   - `hypergraph_kuramoto` in `physics/synchronization`
@@ -1491,7 +1491,7 @@ their previous trajectories over 20 seeds. Kolkata and the minority game SHALL k
 - **WHEN** `galam_majority` runs from a share of 0.6 for 20 steps over 20 seeds
 - **THEN** the mean final share agrees with the previous agent form within the standard error of the 20 seeds
 
-### Requirement: Hamiltonian mechanics models
+### Requirement: Hamiltonian mechanics systems
 The library SHALL build the Kepler problem `two_body_orbit`, the restricted three-body problem, and Hénon-Heiles on
 `HamiltonianInteraction`, and their catalog entries SHALL pass the Hamiltonian as an observable with an invariant
 tolerance, so the `InvariantObserver` checks its drift.
@@ -1504,11 +1504,11 @@ tolerance, so the `InvariantObserver` checks its drift.
 - **WHEN** `henon_heiles` runs from an energy of 1/12 to time 1000
 - **THEN** the orbit stays bounded and the energy stays within its invariant tolerance
 
-### Requirement: Variational mechanics models are recorded in the model inventory
-Every model this change rebuilds SHALL keep its name and field path in the model inventory, and SHALL list the
+### Requirement: Variational mechanics systems are recorded in the system inventory
+Every system this change rebuilds SHALL keep its name and field path in the system inventory, and SHALL list the
 `variational-mechanics` primitive.
 
-#### Scenario: Inventory models rebuilt
+#### Scenario: Inventory systems rebuilt
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** these entries are rebuilt on `HamiltonianInteraction` under their names and field paths, list the primitive
   `variational-mechanics`, and are marked implemented:
@@ -1561,28 +1561,28 @@ and correlation of its Eqs. 4 and 5, a shaped parameter drawn by the factory fro
 experiment changes it, with a curated gallery example.
 
 #### Scenario: No interactions
-- **WHEN** the model runs with a tensor of zeros
+- **WHEN** the system runs with a tensor of zeros
 - **THEN** every species converges to its carrying capacity within 1e-6
 
 #### Scenario: Random community
-- **WHEN** the model runs with its defaults, the equations, scaling, and parameters of Sidhom and Galla (2024, arXiv
+- **WHEN** the system runs with its defaults, the equations, scaling, and parameters of Sidhom and Galla (2024, arXiv
   2409.10990), over 20 seeds
 - **THEN** every abundance stays non-negative and finite, and the mean fraction of surviving species matches the
   paper's result at those parameters within its stated precision: 200 species, `mu = -4`, `sigma = 1`, and `gamma = 0`
   give 0.928 from its Eq. 17, and the paper states no number, so the check allows 0.02, three standard errors of 20 seeds
 
-### Requirement: Learning models are recorded in the model inventory
-Every model this change implements SHALL register under the field path of its subfield and SHALL have an entry in the
-model inventory, and a model the inventory records as blocked by this change SHALL register under the name of its
+### Requirement: Learning systems are recorded in the system inventory
+Every system this change implements SHALL register under the field path of its subfield and SHALL have an entry in the
+system inventory, and a system the inventory records as blocked by this change SHALL register under the name of its
 entry.
 
-#### Scenario: Inventory models registered
+#### Scenario: Inventory systems registered
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** these entries are registered under their field paths and marked implemented:
   - `elman_network` in `computer_science/neural_networks`, with the sources Gr 10.5.1 and Elman 1990
   - `higher_order_random_lotka_volterra` in `biology/ecology`
 
-### Requirement: Nonlocal field models
+### Requirement: Nonlocal field systems
 The library SHALL provide, as registered factories built on the general interactions and the nonlocal operators:
 - `amari_neural_field` under `biology/neuroscience` (2112.12147 §1.3.1);
 - `double_gyre` under `physics/oceanography` (1910.00583 §III.6.1);
@@ -1603,7 +1603,7 @@ The library SHALL provide, as registered factories built on the general interact
   is within 10% of the Sverdrup balance `beta psi_x = curl(tau)`
 
 #### Scenario: Stop-and-go waves
-- **WHEN** the gas-kinetic-based traffic model runs on a ring road with a small local density perturbation, once at a
+- **WHEN** the gas-kinetic-based traffic system runs on a ring road with a small local density perturbation, once at a
   density of 15 vehicles per kilometre and once at a density in its unstable range
 - **THEN** the perturbation decays at the low density, and at the unstable density it grows into congested clusters
   whose downstream fronts move upstream at between 10 and 25 kilometres per hour
@@ -1624,18 +1624,18 @@ The library SHALL provide, as registered factories built on the general interact
   equal within 1e-10 over a short window before rounding grows
 
 ### Requirement: Kinetic equations of gases and plasmas
-The library SHALL provide the spatially inhomogeneous Boltzmann equation, its BGK model, the Vlasov-Poisson equation
+The library SHALL provide the spatially inhomogeneous Boltzmann equation, its BGK system, the Vlasov-Poisson equation
 with Landau damping and two-stream set-ups, and the local Enskog equation as registered factories under
 `physics/fluids` (Bellomo et al. 2017 §2.2–2.3), built on `PhaseSpace`, `AdvectionInteraction`,
 `EncounterInteraction`, and `RelaxationInteraction`. The inventory SHALL record them as implemented.
 
 #### Scenario: Sod shock tube near the fluid limit
-- **WHEN** the BGK model runs the Sod shock tube in one position and one velocity dimension at a Knudsen number of 1e-4
+- **WHEN** the BGK system runs the Sod shock tube in one position and one velocity dimension at a Knudsen number of 1e-4
 - **THEN** the density moment at time 0.2 matches the exact Euler solution within 2% in the L1 norm
 
-#### Scenario: Landau damping model
+#### Scenario: Landau damping system
 - **WHEN** the Vlasov-Poisson factory runs with its default Landau damping set-up
-- **THEN** the measured damping rate of the electric energy lies within 5% of 0.1533, and the model passes the
+- **THEN** the measured damping rate of the electric energy lies within 5% of 0.1533, and the system passes the
   conformance suite
 
 ### Requirement: Kinetic theory of flocking
@@ -1645,12 +1645,12 @@ diffusion and binary alignment are `EncounterInteraction` subclasses on a period
 record it as implemented.
 
 #### Scenario: Flocking onset
-- **WHEN** the model runs from a homogeneous disordered state with a small polar perturbation, at densities 20% below
+- **WHEN** the system runs from a homogeneous disordered state with a small polar perturbation, at densities 20% below
   and 20% above the transition density that Bertin, Droz, and Grégoire give in closed form for the chosen noise
 - **THEN** the polarization moment decays below the transition and grows above it
 
-### Requirement: Static models
-The library SHALL provide `lq_cell_survival` in `biology/oncology`, `random_energy_model` and `continuum_percolation`
+### Requirement: Static systems
+The library SHALL provide `lq_cell_survival` in `biology/oncology`, `random_energy_system` and `continuum_percolation`
 in `physics/statistical_mechanics`, `oligopoly_equilibria` in `economics/markets`, `von_thunen` in
 `economics/resources`, `gravity_urban_scaling` in `social/organizations`, and `mandelbrot_least_effort` in
 `social/language`, as registered factories of systems under `StaticTime` that run through `create` and `run` and sweep
@@ -1662,7 +1662,7 @@ their parameters through `Experiment`.
   of a constant dose rate tends to 1 as the delivery time tends to 0
 
 #### Scenario: Glass transition
-- **WHEN** an `Experiment` sweeps the temperature of `random_energy_model` with `N = 20` over 10 replicates
+- **WHEN** an `Experiment` sweeps the temperature of `random_energy_system` with `N = 20` over 10 replicates
 - **THEN** the entropy follows `ln 2 - 1/(4 T^2)` above `T_g = 0.6006` and stays below 0.1 at `T = 0.3`
 
 #### Scenario: Mixed price equilibrium
@@ -1693,7 +1693,7 @@ their parameters through `Experiment`.
 - **THEN** the probabilities follow `(i + 1)^-lambda` with the solved `lambda` within 1e-9, and the ratio of cost to
   entropy at the solved `lambda` is lower than at `lambda ± 0.1`
 
-### Requirement: Dynamic equilibrium, satisfiability, and search models
+### Requirement: Dynamic equilibrium, satisfiability, and search systems
 The library SHALL provide the fictitious play of `oligopoly_equilibria` with `dynamics='fictitious-play'`, built on
 `ChoiceInteraction` and `ReinforcementInteraction`, `perceptron_satisfiability` in `computer_science/neural_networks`,
 built on `SatisfiabilityInteraction`, and `evolutionary_optimisers` in `computer_science/evolutionary_computation`,
@@ -1712,15 +1712,15 @@ built on `OptimizationInteraction` and on `SamplingInteraction` with `cooling`, 
   generations with the same seed
 - **THEN** every run reports a best value that never increases, and differential evolution ends below 1e-3
 
-### Requirement: Static models are recorded in the model inventory
-Every model this change adds SHALL register under the field path of its subfield and SHALL be marked implemented in
-the model inventory, with a gallery example whose analysis plot comes from an `Experiment` over its swept parameter.
+### Requirement: Static systems are recorded in the system inventory
+Every system this change adds SHALL register under the field path of its subfield and SHALL be marked implemented in
+the system inventory, with a gallery example whose analysis plot comes from an `Experiment` over its swept parameter.
 
-#### Scenario: Inventory models registered
+#### Scenario: Inventory systems registered
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** these entries are registered under their field paths and marked implemented:
   - `lq_cell_survival` in `biology/oncology`
-  - `random_energy_model` in `physics/statistical_mechanics`
+  - `random_energy_system` in `physics/statistical_mechanics`
   - `oligopoly_equilibria` in `economics/markets`
   - `von_thunen` in `economics/resources`
   - `perceptron_satisfiability` in `computer_science/neural_networks`
@@ -1763,18 +1763,18 @@ the Landau-de Gennes energy in its own package. The inventory SHALL list it as i
 
 ### Requirement: Acausal component library
 The library SHALL provide the electrical connector and components with ports and equations in
-`skcomplex.models.engineering.common.electrical`, and the thermal connector and components in
-`skcomplex.models.engineering.control`.
+`skcomplex.systems.engineering.common.electrical`, and the thermal connector and components in
+`skcomplex.systems.engineering.control`.
 
 #### Scenario: Connector from the library
-- **WHEN** a user imports the electrical connector from `skcomplex.models.engineering.common.electrical`
+- **WHEN** a user imports the electrical connector from `skcomplex.systems.engineering.common.electrical`
 - **THEN** it is a `ConnectorSpec`, and no module of the core names it
 
 #### Scenario: Component Chua circuit
 - **WHEN** Chua's circuit is assembled from the electrical components with the values of `chua`
 - **THEN** its capacitor voltages follow the trajectory of `chua` within the tolerance of its test
 
-### Requirement: Engineering models on components and Lagrangians
+### Requirement: Engineering systems on components and Lagrangians
 The library SHALL provide `heated_room` in `engineering/control`, and `dc_motor` and `quarter_car` in
 `engineering/mechatronics`, as registered factories, each with the standard observables of its catalog entry.
 `quarter_car` SHALL be built on `SpringDamperInteraction`, and the inertia of `dc_motor` on `EulerLagrangeInteraction`.
@@ -1787,19 +1787,19 @@ The library SHALL provide `heated_room` in `engineering/control`, and `dc_motor`
 - **WHEN** `quarter_car` drives over a road step with its standard values
 - **THEN** the body and wheel displacements settle at the step height, and the energy of the springs decays
 
-### Requirement: Acausal component models are recorded in the model inventory
-Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
+### Requirement: Acausal component systems are recorded in the system inventory
+Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
 inventory, tagged with the time kind, space kind, component kinds, interaction bindings, and law classes of the system
 it builds.
 
-#### Scenario: Inventory models registered
+#### Scenario: Inventory systems registered
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** these entries are registered under their field paths and marked implemented:
   - `heated_room` in `engineering/control`
   - `quarter_car` in `engineering/mechatronics`
   - `dc_motor` in `engineering/mechatronics`
 
-### Requirement: Lattice gauge model samples the Wilson action
+### Requirement: Lattice gauge system samples the Wilson action
 The library SHALL provide `lattice_gauge_fields` in `physics/waves`, after Schwichtenberg (2020 §2.1, §4.4). With its
 default Monte Carlo dynamics, it SHALL sample the Wilson action of U(1) or Z_N link angles on the cell complex of a
 periodic lattice under discrete time, through `WilsonSamplingInteraction`, a subclass of `SamplingInteraction` in its
@@ -1814,7 +1814,7 @@ package, and its catalog entry SHALL declare the mean plaquette as an observable
 - **WHEN** a random gauge transformation is applied to the initial links before a Monte Carlo run with a fixed seed
 - **THEN** the mean plaquette series equals the series of the untransformed run within 1e-12
 
-### Requirement: Lattice gauge model evolves Maxwell fields
+### Requirement: Lattice gauge system evolves Maxwell fields
 With `dynamics='hamiltonian'`, `lattice_gauge_fields` SHALL return a system under continuous time that evolves a lattice
 Maxwell potential and electric field on links from optional static charges on sites. Its catalog entry SHALL declare
 the Gauss residual and the field energy as observables.
@@ -1825,9 +1825,9 @@ the Gauss residual and the field energy as observables.
   relative error
 
 ### Requirement: Gauge observables are measured in the gauge package
-The package `skcomplex.models.physics.waves` SHALL hold `GaugeAnalysis`, a subclass of `BaseAnalysis` that measures
+The package `skcomplex.systems.physics.waves` SHALL hold `GaugeAnalysis`, a subclass of `BaseAnalysis` that measures
 Wilson loops of given extents, Polyakov loops along the last axis, the topological charge of a 2D U(1) link state, and
-the Gauss residual of an electric link state against a site charge. No public name of `skcomplex.core` SHALL contain
+the Gauss residual of an electric link state against a site charge. No public name of `skcomplex.core.components` SHALL contain
 `wilson`, `gauge`, or `polyakov`.
 
 #### Scenario: Invariance of loops
@@ -1838,7 +1838,7 @@ the Gauss residual of an electric link state against a site charge. No public na
 - **WHEN** the topological charge of any U(1) configuration on a periodic 2D lattice is computed
 - **THEN** it equals an integer within 1e-9
 
-### Requirement: Topological Kuramoto model
+### Requirement: Topological Kuramoto system
 The library SHALL provide `topological_kuramoto` in `physics/synchronization`, after Millán, Torres, and Bianconi
 (2203.06601 III): phases on the nodes and links of a clique complex, the link phases driven through the codifferential
 and the exterior derivative of the sines of the phases, with node and link dynamics coupled by their global order
@@ -1850,7 +1850,7 @@ parameters.
 - **THEN** the order parameter of the link phases at the end of the strong-coupling run exceeds that of the run at zero
   coupling by at least 0.3
 
-### Requirement: Gauge arbitrage market model
+### Requirement: Gauge arbitrage market system
 The library SHALL provide `gauge_arbitrage_market` in `economics/finance`, after Schwichtenberg (2020 §1.7, §2.1,
 §2.2.1): exchange-rate potentials on the links of a lattice complex evolved by the discrete inhomogeneous Maxwell
 equations, sourced by the trader current on links, and the good on sites moved along the links by its covariant
@@ -1872,11 +1872,11 @@ its package, so frustrated loops prevent global agreement.
   the ring
 - **THEN** the flat ring reaches agreement with zero energy, and the frustrated ring keeps a residual energy and a twist
 
-### Requirement: Link field models are recorded in the model inventory
-Every model this change adds SHALL register under the field path of its subfield and SHALL be marked implemented in
-the model inventory.
+### Requirement: Link field systems are recorded in the system inventory
+Every system this change adds SHALL register under the field path of its subfield and SHALL be marked implemented in
+the system inventory.
 
-#### Scenario: Inventory models registered
+#### Scenario: Inventory systems registered
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** these entries are registered under their field paths and marked implemented:
   - `lattice_gauge_fields` in `physics/waves`
@@ -1884,10 +1884,10 @@ the model inventory.
   - `gauge_arbitrage_market` in `economics/finance`
   - `gauge_network_agents` in `social/opinion_dynamics`
 
-### Requirement: Agent models in three-dimensional spaces and on region layers
+### Requirement: Agent systems in three-dimensional spaces and on region layers
 The library SHALL provide, as registered factories built on `MovementInteraction` and agent-form interactions:
 - boids in three dimensions under `biology/collective_behaviour` (Think Complexity ch. 10),
-- the Kauai population sentiment model on region layers under `social/organizations` (Carmichael et al. 2019 ch. 3),
+- the Kauai population sentiment system on region layers under `social/organizations` (Carmichael et al. 2019 ch. 3),
   with a small synthetic island dataset in its package.
 
 #### Scenario: Boids align in three dimensions
@@ -1897,17 +1897,17 @@ The library SHALL provide, as registered factories built on `MovementInteraction
   coordinates of the boids still spread over more than half of the box depth
 
 #### Scenario: Population follows the census layer
-- **WHEN** the Kauai model is created from the synthetic island's census layer with populations 100, 50, and 0
+- **WHEN** the Kauai system is created from the synthetic island's census layer with populations 100, 50, and 0
 - **THEN** it has 150 resident agents, each with a home point inside its census region
 
 #### Scenario: Positive event raises sentiment
-- **WHEN** the Kauai model runs with a positive event on a topic that half of the residents weight above zero
+- **WHEN** the Kauai system runs with a positive event on a topic that half of the residents weight above zero
 - **THEN** the mean sentiment of those residents rises and stays within -1 and 1, and the others' mean changes only
   through interaction
 
-### Requirement: Flux balance model
+### Requirement: Flux balance system
 The library SHALL provide `flux_balance`, which runs FBA, FVA, and parsimonious FBA on Raman's toy network of Table 8.2
-by default without the extra, and on the E. coli core model with the extra, under static time. A sweep of an uptake
+by default without the extra, and on the E. coli core system with the extra, under static time. A sweep of an uptake
 bound SHALL run as an `Experiment` over a `GridDesign`.
 
 #### Scenario: Toy network growth
@@ -1917,13 +1917,13 @@ bound SHALL run as an `Experiment` over a `GridDesign`.
   `v7 = 100`, `b1 = 600`, and `b2 = 1000`, as Raman Eq. 8.12 gives
 
 #### Scenario: E. coli core aerobic and anaerobic growth
-- **WHEN** `flux_balance` runs on the E. coli core model over a sweep of the oxygen uptake bound from 0 to 25
+- **WHEN** `flux_balance` runs on the E. coli core system over a sweep of the oxygen uptake bound from 0 to 25
 - **THEN** growth is 0.2117 h⁻¹ within 1e-4 at no oxygen, rises with oxygen, and reaches 0.8739 h⁻¹ within 1e-4 once
   oxygen no longer limits, above an uptake of about 21.8
 
-### Requirement: Metabolic perturbations model
+### Requirement: Metabolic perturbations system
 The library SHALL provide `metabolic_perturbations`, which applies gene and reaction knock-outs, MoMA, ROOM, OptKnock,
-synthetic lethal scans, and FSEOF to the E. coli core model through the analyses of
+synthetic lethal scans, and FSEOF to the E. coli core system through the analyses of
 `biology/common/metabolism`.
 
 #### Scenario: Essential gene
@@ -1931,10 +1931,10 @@ synthetic lethal scans, and FSEOF to the E. coli core model through the analyses
 - **THEN** growth is zero within 1e-6
 
 #### Scenario: Single-deletion scan
-- **WHEN** every gene of the E. coli core model is deleted in turn
+- **WHEN** every gene of the E. coli core system is deleted in turn
 - **THEN** exactly 7 deletions give growth below 1e-6
 
-### Requirement: Regulatory FBA model
+### Requirement: Regulatory FBA system
 The library SHALL provide `regulatory_fba`, where Boolean gene rules alternate with FBA (Raman Eq. 9.7) in a batch
 culture on glucose and acetate, with the switches set by `UpdateLaw`s from the Boolean nodes.
 
@@ -1943,8 +1943,8 @@ culture on glucose and acetate, with the switches set by `UpdateLaw`s from the B
 - **THEN** the acetate uptake flux is zero while glucose is above the repression threshold. After depletion it becomes
   positive, and biomass grows in two phases with a lag between them.
 
-### Requirement: Dynamic FBA model
-The library SHALL provide `dynamic_fba`, a batch culture of the E. coli core model with Michaelis-Menten glucose uptake
+### Requirement: Dynamic FBA system
+The library SHALL provide `dynamic_fba`, a batch culture of the E. coli core system with Michaelis-Menten glucose uptake
 and the static optimisation approach (Raman Eqs. 9.8–9.9). The direct approach SHALL be available as an option.
 
 #### Scenario: Batch culture
@@ -1953,8 +1953,8 @@ and the static optimisation approach (Raman Eqs. 9.8–9.9). The direct approach
   while glucose exceeds ten half-saturation constants. Biomass then stays at 0.01 + 0.0874 · 10 g/L within 2%, with
   one growth phase and no diauxic shift.
 
-### Requirement: Dynamic multispecies FBA model
-The library SHALL provide `dynamic_multispecies_fba`, the dynamic multi-species metabolic model of microbes competing
+### Requirement: Dynamic multispecies FBA system
+The library SHALL provide `dynamic_multispecies_fba`, the dynamic multi-species metabolic system of microbes competing
 for a shared medium, each species with its own program, uptake kinetics, and biomass.
 
 #### Scenario: Competition for glucose
@@ -1962,7 +1962,7 @@ for a shared medium, each species with its own program, uptake kinetics, and bio
 - **THEN** the share of the faster strain rises monotonically. The glucose consumed equals the time integral of each
   strain's uptake flux times its biomass, summed over the strains, within 1%.
 
-### Requirement: COMETS model
+### Requirement: COMETS system
 
 The library SHALL provide `comets`, dynamic FBA on a 2D lattice in which metabolites and biomass diffuse, and only sites
 that hold biomass are solved, through the activity of the linear program law.
@@ -1974,8 +1974,8 @@ that hold biomass are solved, through the activity of the linear program law.
   matches the integral of uptake flux times biomass over sites and time within 1%, and sites without biomass have zero
   fluxes.
 
-### Requirement: Community FBA model
-The library SHALL provide `community_fba`, which models a microbial community by joint FBA as merged programs,
+### Requirement: Community FBA system
+The library SHALL provide `community_fba`, which simulates a microbial community by joint FBA as merged programs,
 community FBA with abundances at one specific growth rate (Raman §11.1.3.2), SteadyCom (Raman Eq. 11.3), and, with the
 extra, the cooperative trade-off of MICOM (Diener et al. 2020).
 
@@ -1984,7 +1984,7 @@ extra, the cooperative trade-off of MICOM (Diener et al. 2020).
   joined
 - **THEN** each member alone has zero growth, and the community has positive growth with both members active
 
-### Requirement: Elementary flux modes model
+### Requirement: Elementary flux modes system
 The library SHALL provide `elementary_flux_modes`, which enumerates the elementary flux modes and extreme pathways of a
 metabolic network (Raman 2021 §9.8), Raman's toy network of Table 8.2 by default, ordered by growth yield on the
 substrate, through `ElementaryModeAnalysis`, without any extra.
@@ -1998,7 +1998,7 @@ substrate, through `ElementaryModeAnalysis`, without any extra.
 - **WHEN** `elementary_flux_modes` runs with `v1` knocked out
 - **THEN** it finds 1 mode, through `v2` and `v3`, with the same growth yield `1/12`
 
-### Requirement: Carbon-13 metabolic flux analysis model
+### Requirement: Carbon-13 metabolic flux analysis system
 The library SHALL provide `carbon_13_mfa`, which estimates the fluxes of a network with atom transitions from
 labelling data of parallel tracer experiments (Raman 2021 §9.7), with confidence intervals and a goodness-of-fit test.
 By default it SHALL use the TCA example network of Antoniewicz et al. (2007) with data simulated from known fluxes plus
@@ -2015,7 +2015,7 @@ any extra.
 - **THEN** the distribution is `[0.3464, 0.2695, 0.2708, 0.0807, 0.0286, 0.0039]` within 5e-5
 
 ### Requirement: Static analyses come with an optional extra
-With the extra `metabolism` installed, `CobraAnalysis` of `skcomplex.models.biology.common.metabolism` SHALL analyse a
+With the extra `metabolism` installed, `CobraAnalysis` of `skcomplex.systems.biology.common.metabolism` SHALL analyse a
 metabolic network with:
 - flux variability,
 - parsimonious fluxes,
@@ -2026,11 +2026,11 @@ metabolic network with:
 Results SHALL be indexed by reaction or gene name.
 
 #### Scenario: Flux variability at the optimum
-- **WHEN** flux variability runs on the E. coli core model at 100% of the optimum
+- **WHEN** flux variability runs on the E. coli core system at 100% of the optimum
 - **THEN** the range of the biomass flux is 0.8739 within 1e-4 at both ends
 
 #### Scenario: Parity with the core solve
-- **WHEN** the E. coli core model is solved by its linear program law and by COBRApy
+- **WHEN** the E. coli core system is solved by its linear program law and by COBRApy
 - **THEN** the growth agrees within 1e-7, and the parsimonious total flux agrees with the core's lexicographic total
   flux within 1e-6
 
@@ -2043,7 +2043,7 @@ With the extra installed, `StrainDesignAnalysis` SHALL compute OptKnock, RobustK
 designs with a maximum number of interventions, and SHALL return each design as sets of reaction or gene names.
 
 #### Scenario: Growth-coupled succinate
-- **WHEN** OptKnock designs succinate production in the E. coli core model with at most 3 knock-outs and growth of at
+- **WHEN** OptKnock designs succinate production in the E. coli core system with at most 3 knock-outs and growth of at
   least 0.1
 - **THEN** a returned design, at maximal growth, secretes at least 9 mmol/gDW/h of succinate at its minimum, where the
   wild type secretes none
@@ -2053,7 +2053,7 @@ designs with a maximum number of interventions, and SHALL return each design as 
 increasing levels, and report the reactions whose absolute flux rises monotonically with it, without the extra.
 
 #### Scenario: Scan toward a product
-- **WHEN** FSEOF scans the succinate exchange of the E. coli core model in 10 steps
+- **WHEN** FSEOF scans the succinate exchange of the E. coli core system in 10 steps
 - **THEN** the reported reactions carry a flux that rises with every step, and the growth falls from its optimum
 
 ### Requirement: Communities are modelled jointly and with trade-offs
@@ -2064,7 +2064,7 @@ The library SHALL:
 - compute MICOM's cooperative trade-off by `CommunityAnalysis(kind='tradeoff')`, with the extra.
 
 #### Scenario: Identical members
-- **WHEN** two copies of the E. coli core model share one medium whose uptake allows each of them a glucose uptake of 10
+- **WHEN** two copies of the E. coli core system share one medium whose uptake allows each of them a glucose uptake of 10
 - **THEN** joint FBA gives each member growth 0.8739 within 1e-4, and SteadyCom gives the common rate 0.8739 within
   1e-4 with abundances that sum to 1
 
@@ -2072,21 +2072,21 @@ The library SHALL:
 - **WHEN** the cooperative trade-off runs at fraction 1
 - **THEN** the community growth equals the joint FBA optimum within 1e-5
 
-### Requirement: Models import and export standard formats
+### Requirement: Systems import and export standard formats
 With the extra installed, `load_network` SHALL read SBML and BiGG JSON files and BiGG identifiers into metabolic
 network elements, keeping the identifiers of reactions, metabolites, and genes, the bounds, the objective, and the gene
 rules, and `save_network` SHALL write them back to both formats.
 
 #### Scenario: Bundled E. coli core
-- **WHEN** a user loads the bundled E. coli core model and solves it in the core
+- **WHEN** a user loads the bundled E. coli core system and solves it in the core
 - **THEN** aerobic growth is 0.8739 within 1e-4, and with oxygen uptake bounded at 0 it is 0.2117 within 1e-4
 
 #### Scenario: Round trip
 - **WHEN** a network is written to SBML and to JSON and read back
 - **THEN** both copies have the same matrix, bounds, rules, and optimum as the original
 
-### Requirement: Constraint-based models have gallery examples
-Each model of this change SHALL have a gallery example at `docs/examples/biology/<subfield>/plot_<name>.py` that runs
+### Requirement: Constraint-based systems have gallery examples
+Each system of this change SHALL have a gallery example at `docs/examples/biology/<subfield>/plot_<name>.py` that runs
 within the gallery budget. It SHALL show its Rerun primary view as the thumbnail and at least one analysis plot from
 its own run, with a caption stating the behaviour shown.
 
@@ -2101,16 +2101,16 @@ its own run, with a caption stating the behaviour shown.
   estimated net fluxes with their 95% intervals against the true fluxes, and a plot shows the measured and simulated
   glutamate distributions.
 
-#### Scenario: Coverage of the new models
+#### Scenario: Coverage of the new systems
 - **WHEN** the gallery coverage check runs after this change
-- **THEN** each of the nine models has exactly one example, and the check names any that does not
+- **THEN** each of the nine systems has exactly one example, and the check names any that does not
 
-### Requirement: Constraint-based models are recorded in the model inventory
-Every model this change adds SHALL register under the field path of its subfield and SHALL have an entry in the model
-inventory tagged with the system it builds, and a model the inventory records as pending this change SHALL register
+### Requirement: Constraint-based systems are recorded in the system inventory
+Every system this change adds SHALL register under the field path of its subfield and SHALL have an entry in the system
+inventory tagged with the system it builds, and a system the inventory records as pending this change SHALL register
 under the name of its entry.
 
-#### Scenario: Inventory models registered
+#### Scenario: Inventory systems registered
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** these entries are registered under their field paths and marked implemented:
   - `flux_balance` in `biology/systems_biology`
@@ -2123,18 +2123,18 @@ under the name of its entry.
   - `elementary_flux_modes` in `biology/systems_biology`
   - `carbon_13_mfa` in `biology/systems_biology`
 
-#### Scenario: Models that need the extra
-- **WHEN** a user without the extra `metabolism` creates a model that needs it
-- **THEN** a named error names the model and the extra, and `flux_balance` with its default toy network still runs
+#### Scenario: Systems that need the extra
+- **WHEN** a user without the extra `metabolism` creates a system that needs it
+- **THEN** a named error names the system and the extra, and `flux_balance` with its default toy network still runs
 
-#### Scenario: Models blocked on this change
+#### Scenario: Systems blocked on this change
 - **WHEN** the inventory check runs after this change
 - **THEN** `elementary_flux_modes` and `carbon_13_mfa`, which the inventory recorded as blocked on this change, are
   recorded as implemented with the sources `Rm 9.8` and `Rm 9.7`
 
-### Requirement: Models on radius reductions, pair couplings, and surrogates
+### Requirement: Systems on radius reductions, pair couplings, and surrogates
 The library SHALL provide `szabo_cells` and `active_passive_flocking` in `physics/active_matter`,
-`koopman_model_predictive_control` in `engineering/control`, and `next_generation_reservoir` in
+`koopman_system_predictive_control` in `engineering/control`, and `next_generation_reservoir` in
 `computer_science/neural_networks` as registered factories built from the general classes of the core, each with a
 curated gallery example and an inventory entry tagged with the system it builds.
 
@@ -2157,7 +2157,7 @@ curated gallery example and an inventory entry tagged with the system it builds.
 - **THEN** the two mean distances over the last 10 time units, as a mean over four seeds, stay within 0.01 of each other
 
 #### Scenario: Surrogate predictive control
-- **WHEN** `koopman_model_predictive_control` steers each of its plants to a reference with its fitted surrogate
+- **WHEN** `koopman_system_predictive_control` steers each of its plants to a reference with its fitted surrogate
 - **THEN** the controlled state tracks the reference with a smaller mean squared error than the uncontrolled plant
 
 #### Scenario: Reservoir forecast
@@ -2174,7 +2174,7 @@ NOT fit a readout of its own.
 - **THEN** the system's forecast over one Lyapunov time agrees with the analysis's `forecast_` within 1e-6 of the
   attractor size
 
-### Requirement: Multiscale network models
+### Requirement: Multiscale network systems
 The library SHALL provide `popularity_similarity_network` in `mathematics/networks` and `urban_scaling_interactions` in
 `social/organizations`, both grown by `TopologyInteraction` with attachment weights of the hyperbolic distance, each
 with a curated gallery example and an inventory entry tagged with the system it builds.
@@ -2190,7 +2190,7 @@ with a curated gallery example and an inventory entry tagged with the system it 
   `ScalingAnalysis(kind='allometric')`
 - **THEN** the exponent of the number of interactions is above 1, as Ribeiro and Netto (2024) review
 
-### Requirement: RNA neutral networks model
+### Requirement: RNA neutral networks system
 The library SHALL provide `rna_neutral_networks` in `biology/evolution` (Raman 2021 §13.2–13.3): walkers, one RNA
 sequence per row of a lattice, propose one point mutation per unit of time, accepted at temperature zero when the fold
 keeps the target in the neutral regime, or when the base-pair distance to the target does not grow in the adaptive
@@ -2203,16 +2203,16 @@ regime. It SHALL raise `MissingExtraError` without the extra `rna`.
   the end
 
 #### Scenario: Adaptive walk reaches the target
-- **WHEN** the model runs in the adaptive regime from 8 random sequences of length 30 toward the default target
+- **WHEN** the system runs in the adaptive regime from 8 random sequences of length 30 toward the default target
 - **THEN** the base-pair distance of every walker never increases, and its mean at the end is lower than at the start
 
-#### Scenario: Model that needs the extra
+#### Scenario: System that needs the extra
 - **WHEN** a user without the extra `rna` creates `rna_neutral_networks`
-- **THEN** a `MissingExtraError` names the model and the extra, and `fuzzy_oil_drop` and
+- **THEN** a `MissingExtraError` names the system and the extra, and `fuzzy_oil_drop` and
   `early_stage_folding_intermediate` still run with the extra `structures`
 
 ### Requirement: RNA folds and neutral networks are analysed in the evolution package
-The package `skcomplex.models.biology.evolution` SHALL fold an RNA sequence into its minimum free energy secondary
+The package `skcomplex.systems.biology.evolution` SHALL fold an RNA sequence into its minimum free energy secondary
 structure with its free energy and the base-pair distance to a target, memoised per sequence, and SHALL provide
 `NeutralNetworkAnalysis`, a subclass of `BaseAnalysis` that gives, for any function from sequences of an alphabet to
 phenotype keys, the neutral network of a phenotype and the genotype and phenotype robustness and evolvability as Wagner
@@ -2231,31 +2231,31 @@ defines them.
 - **WHEN** the genotype robustness and evolvability of the walkers of a neutral run are pooled over walkers and frames
 - **THEN** their Spearman correlation is below −0.4, as Wagner found for genotypes of RNA folds
 
-### Requirement: Fuzzy oil drop model
+### Requirement: Fuzzy oil drop system
 The library SHALL provide `fuzzy_oil_drop` in `biology/systems_biology` (Konieczny et al. 2023 §1.3.1, Eqs. 1.1–1.9).
-By default it replays the bundled NMR ensemble of the Trp-cage 1L2Y through a `DriveLaw`, one model per frame. With
+By default it replays the bundled NMR ensemble of the Trp-cage 1L2Y through a `DriveLaw`, one system per frame. With
 `dynamics='folding'` it samples the dihedral angles of a chain from an extended start with a row score of `RD` and a
 clash penalty. Its catalog entry SHALL declare `RD` and `K` as observables in the default install.
 
 #### Scenario: Ensemble of the Trp-cage
 - **WHEN** `fuzzy_oil_drop` runs with its defaults
 - **THEN** the trajectory has 38 frames, every `RD` lies in `[0, 1]`, and the recorded `RD` of each frame equals the
-  `RD` that `FuzzyOilDropAnalysis` gives for that model within 1e-12
+  `RD` that `FuzzyOilDropAnalysis` gives for that system within 1e-12
 
 #### Scenario: Folding lowers the relative distance
-- **WHEN** the model folds the Trp-cage sequence from an extended chain at temperature zero for 300 units of time
+- **WHEN** the system folds the Trp-cage sequence from an extended chain at temperature zero for 300 units of time
 - **THEN** `RD` never increases, and the radius of gyration at the end is lower than at the start
 
 ### Requirement: Structures and the fuzzy oil drop live in the systems biology package
-The package `skcomplex.models.biology.systems_biology` SHALL read and write PDB and mmCIF files as structures holding
-every model of an ensemble with the extra `structures`, read molecular dynamics trajectories with the extra
+The package `skcomplex.systems.biology.systems_biology` SHALL read and write PDB and mmCIF files as structures holding
+every system of an ensemble with the extra `structures`, read molecular dynamics trajectories with the extra
 `trajectories`, rebuild a protein
 backbone from its dihedral angles, and provide `FuzzyOilDropAnalysis`, a subclass of `BaseAnalysis` that gives `T`,
 `O`, `R`, the divergences, `RD`, and `K` of a structure and a hydrophobicity scale.
 
 #### Scenario: NMR ensemble
 - **WHEN** a user reads the bundled structure 1L2Y
-- **THEN** it holds 38 models of 20 residues and 304 atoms each
+- **THEN** it holds 38 systems of 20 residues and 304 atoms each
 
 #### Scenario: Round trip
 - **WHEN** a structure is written to mmCIF and to PDB and read back
@@ -2278,9 +2278,9 @@ backbone from its dihedral angles, and provide `FuzzyOilDropAnalysis`, a subclas
 - **WHEN** a structure holds a residue `SEP` that the scale does not cover
 - **THEN** the analysis raises an `AnalysisError` that names `SEP`, its chain and number, and the scale
 
-### Requirement: Early-stage folding intermediate model
+### Requirement: Early-stage folding intermediate system
 The library SHALL provide `early_stage_folding_intermediate` in `biology/systems_biology` (Konieczny et al. 2023
-§3.7.1). Each residue's dihedral angles lie on an ellipse path on the Ramachandran map. The model SHALL project a native
+§3.7.1). Each residue's dihedral angles lie on an ellipse path on the Ramachandran map. The system SHALL project a native
 structure onto the path by the shortest periodic distance, and SHALL sample each residue's cell of the path with the
 heat-bath rule of `SamplingInteraction` from per-amino-acid probabilities estimated from the bundled structures.
 
@@ -2290,24 +2290,24 @@ heat-bath rule of `SamplingInteraction` from per-amino-acid probabilities estima
   sampling of the path is closer to the native pair than the projected one
 
 #### Scenario: Sampled cells follow the sequence's probabilities
-- **WHEN** the model samples the cells of a sequence for 300 units of time
+- **WHEN** the system samples the cells of a sequence for 300 units of time
 - **THEN** each residue's frequency of each cell over the last 200 frames matches its amino acid's probability within
   0.15
 
-### Requirement: Protein models need the structures extra
+### Requirement: Protein systems need the structures extra
 `fuzzy_oil_drop` and `early_stage_folding_intermediate` SHALL read structures through Biopython from the extra
 `structures`, and SHALL raise `MissingExtraError` without it while staying listed in the catalog.
 
-#### Scenario: Protein model that needs the extra
+#### Scenario: Protein system that needs the extra
 - **WHEN** a user without the extra `structures` creates `fuzzy_oil_drop` or `early_stage_folding_intermediate`
-- **THEN** a `MissingExtraError` names the model, the extra `structures`, and the install command
+- **THEN** a `MissingExtraError` names the system, the extra `structures`, and the install command
 
-### Requirement: Molecular structure models are recorded in the model inventory
-Every model this change adds SHALL register under the field path of its subfield and SHALL be marked implemented in
-the model inventory, with a gallery example under `docs/examples/biology/<subfield>/plot_<name>.py` that runs within
+### Requirement: Molecular structure systems are recorded in the system inventory
+Every system this change adds SHALL register under the field path of its subfield and SHALL be marked implemented in
+the system inventory, with a gallery example under `docs/examples/biology/<subfield>/plot_<name>.py` that runs within
 the gallery budget.
 
-#### Scenario: Inventory models registered
+#### Scenario: Inventory systems registered
 - **WHEN** the change is applied and the inventory check runs
 - **THEN** these entries are registered under their field paths and marked implemented:
   - `rna_neutral_networks` in `biology/evolution`

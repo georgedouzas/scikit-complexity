@@ -8,29 +8,29 @@ Boltzmann-like law, with many agents at zero and a few rich ones, and the Gini c
 """
 
 # %%
-# Three hundred agents trade for 200 steps. The model has no inequality measure of its own, so an observable adds the
+# Three hundred agents trade for 200 steps. The system has no inequality measure of its own, so an observable adds the
 # Gini coefficient of the wealth of the traders, which the blueprint shows.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import DistributionAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
-from skcomplex.specs import ObservableSpec
+from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.specs import ObservableSpec
+from skcomplex.systems import create_system
 
-MODEL = 'boltzmann_wealth'
+SYSTEM = 'boltzmann_wealth'
 STEPS = 200
 
 
 def gini(wealth: np.ndarray) -> float:
     """Return the Gini coefficient of the wealth."""
-    return DistributionAnalysis('gini').check().prepare(wealth).run().gini_
+    return DistributionAnalysis('gini').prepare(wealth).run().gini_
 
 
-system = create(MODEL, n_agents=300)
+system = create_system(SYSTEM, n_agents=300)
 observables = [ObservableSpec('gini', group='traders', variable='wealth', reduce=gini)]
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
@@ -39,9 +39,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = (
-    Simulation(system, observers=[observer], random_state=0, observables=observables).check().prepare().run(until=STEPS)
+    Simulation(system, observers=[observer], random_state=0, observables=observables).prepare().run(until=STEPS)
 )
 
 # %%

@@ -6,22 +6,22 @@ point of their interaction matrix.
 """
 
 # %%
-# The model is created by name from the catalog, three species of the group `species` that start at 0.1. The
+# The system is created by name from the catalog, three species of the group `species` that start at 0.1. The
 # interaction matrix is read through a total over the group weighted by its rows. The observer saves every second
 # frame of the 30 time units with the default blueprint, whose primary view is the time series of the abundances.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'generalized_lotka_volterra'
+SYSTEM = 'generalized_lotka_volterra'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=30)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=30)
 
 # %%
 # Coexistence at the interior fixed point

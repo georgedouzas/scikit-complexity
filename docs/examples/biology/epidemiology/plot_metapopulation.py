@@ -6,7 +6,7 @@ connections, are reached first, and the less connected cities peak later, one wa
 """
 
 # %%
-# The model is created by name from the catalog on its default Barabási-Albert network of 30 cities, with the
+# The system is created by name from the catalog on its default Barabási-Albert network of 30 cities, with the
 # infection starting in the first. The observer saves every day with the default blueprint, whose primary view is the
 # time series of the subpopulations.
 
@@ -14,16 +14,16 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'metapopulation'
+SYSTEM = 'metapopulation'
 
 graph = nx.barabasi_albert_graph(30, 2, seed=0)
-system = create(MODEL, graph=graph)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer]).check().prepare().run(until=150)
+system = create_system(SYSTEM, graph=graph)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=150)
 
 # %%
 # Arrival time against distance

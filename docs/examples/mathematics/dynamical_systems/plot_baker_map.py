@@ -8,7 +8,7 @@ gaps within gaps, uniform along `x`.
 
 # %%
 # The map cuts the square at `alpha = 0.4` and squeezes the two pieces into bands of heights 0.25 and 0.4, and the
-# model logs `x` and `y` as time series over 20000 steps. After the run, the whole orbit is logged once more as points
+# system logs `x` and `y` as time series over 20000 steps. After the run, the whole orbit is logged once more as points
 # in the square, and the blueprint puts this view of the attractor first, as the primary view.
 
 import matplotlib.pyplot as plt
@@ -16,12 +16,12 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import LyapunovAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import LyapunovAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'baker_map'
+SYSTEM = 'baker_map'
 ALPHA, LAMBDA_A, LAMBDA_B = 0.4, 0.25, 0.4
 
 # Every view shows the whole run, not the default window that follows the latest frame.
@@ -42,9 +42,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, alpha=ALPHA, lambda_a=LAMBDA_A, lambda_b=LAMBDA_B)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=80)
-simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=20000)
+system = create_system(SYSTEM, alpha=ALPHA, lambda_a=LAMBDA_A, lambda_b=LAMBDA_B)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=80)
+simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=20000)
 x, y = simulation.trajectory_.values('map.x')[20:], simulation.trajectory_.values('map.y')[20:]
 observer.recording_.log(
     'attractor',
@@ -61,7 +61,7 @@ observer.recording_.flush()
 # and `alpha ln lambda_a + (1 - alpha) ln lambda_b`, and the Kaplan-Yorke dimension they give should match the
 # information dimension `1 + λ1 / |λ2|` of Farmer, Ott, and Yorke.
 
-lyapunov = LyapunovAnalysis(until=20000).check().prepare(system).run()
+lyapunov = LyapunovAnalysis(until=20000).prepare(system).run()
 exponents = lyapunov.exponents_
 expected = [
     -ALPHA * np.log(ALPHA) - (1 - ALPHA) * np.log(1 - ALPHA),

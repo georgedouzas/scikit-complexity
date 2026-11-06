@@ -12,17 +12,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
-from skcomplex.analysis import DistributionAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'poisson_process'
+SYSTEM = 'poisson_process'
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(create(MODEL, n_processes=6), dt=0.2, observers=[observer], random_state=0)
-    .check()
+    Simulation(create_system(SYSTEM, n_processes=6), dt=0.2, observers=[observer], random_state=0)
     .prepare()
     .run(until=50)
 )
@@ -34,7 +33,7 @@ simulation = (
 # the variance over the mean, should be 1 at every time, within the few percent of sampling
 # error of 2000 counters, the signature of independent events.
 
-counts = Simulation(create(MODEL, n_processes=2000), dt=1.0, random_state=1).check().prepare().run(until=50).trajectory_
+counts = Simulation(create_system(SYSTEM, n_processes=2000), dt=1.0, random_state=1).prepare().run(until=50).trajectory_
 values = counts.values('counters.count')
 fig, (distribution, fano) = plt.subplots(1, 2, figsize=(11, 4))
 grid = np.arange(25, 80)
@@ -44,7 +43,7 @@ distribution.set_xlabel('count')
 distribution.set_ylabel('probability')
 distribution.set_title('Counts at t = 50')
 distribution.legend()
-fano.plot(counts.times[1:], DistributionAnalysis('dispersion-index').check().prepare(values[1:].T).run().index_)
+fano.plot(counts.times[1:], DistributionAnalysis('dispersion-index').prepare(values[1:].T).run().index_)
 fano.axhline(1, color='black', linestyle=':')
 fano.set_ylim(0.5, 1.5)
 fano.set_xlabel('time')

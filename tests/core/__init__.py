@@ -1,1 +1,1 @@
-"""Tests of the core."""
+"""Tests of the general library."""

@@ -13,15 +13,15 @@ where the string never moves, and only swells and flips with the mode frequency 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'standing_waves'
+SYSTEM = 'standing_waves'
 
-system = create(MODEL, n_sites=99, length=2.0, c=1.0, mode=3, amplitude=1.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare().run(until=4.0)
+system = create_system(SYSTEM, n_sites=99, length=2.0, c=1.0, mode=3, amplitude=1.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=4.0)
 
 # %%
 # Nodes and frequency

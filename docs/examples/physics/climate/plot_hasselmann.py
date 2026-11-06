@@ -6,22 +6,22 @@ noise, with long excursions above and below zero instead of the rapid flicker of
 """
 
 # %%
-# The model is created by name from the catalog with the damping `lam = 0.5` and the noise amplitude `sigma = 0.3`, and
+# The system is created by name from the catalog with the damping `lam = 0.5` and the noise amplitude `sigma = 0.3`, and
 # is integrated with the Euler-Maruyama scheme. The default blueprint shows the anomaly in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import CorrelationAnalysis, DistributionAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import CorrelationAnalysis, DistributionAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'hasselmann'
+SYSTEM = 'hasselmann'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
 simulation = (
     Simulation(
         system,
@@ -30,7 +30,6 @@ simulation = (
         observers=[observer],
         random_state=0,
     )
-    .check()
     .prepare()
     .run(
         until=100,
@@ -45,20 +44,19 @@ simulation = (
 
 lam, sigma = 0.5, 0.3
 run = (
-    Simulation(create(MODEL), dt=0.1, solver=EulerMaruyamaSolver(dt=0.01), random_state=1)
-    .check()
+    Simulation(create_system(SYSTEM), dt=0.1, solver=EulerMaruyamaSolver(dt=0.01), random_state=1)
     .prepare()
     .run(until=2000)
     .trajectory_
 )
 anomaly = run.values('ocean.T')[100:]
 lags = np.arange(80) * 0.1
-histogram = DistributionAnalysis('histogram', bins=40).check().prepare(anomaly).run()
+histogram = DistributionAnalysis('histogram', bins=40).prepare(anomaly).run()
 edges, density = histogram.edges_, histogram.density_
 variance = sigma**2 / (2 * lam)
 grid = np.linspace(edges[0], edges[-1], 200)
 fig, (memory, distribution) = plt.subplots(1, 2, figsize=(10, 4))
-correlation = CorrelationAnalysis(max_lag=79).check().prepare(anomaly).run().correlation_[0]
+correlation = CorrelationAnalysis(max_lag=79).prepare(anomaly).run().correlation_[0]
 memory.plot(lags, correlation, label='simulation')
 memory.plot(lags, np.exp(-lam * lags), color='black', linestyle='--', label='exp(-lam t)')
 memory.set_xlabel('lag')

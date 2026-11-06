@@ -1,7 +1,7 @@
 """
 # Influentials
 
-A belief diffusion model with influentials: everyone on a grid weighs four levels of caring about an issue, from not
+A belief diffusion system with influentials: everyone on a grid weighs four levels of caring about an issue, from not
 at all to passionately, and every step adds the influence of each neighbour to the weight of the level that neighbour
 cares at. Beliefs lock in as the weights grow, so the grid freezes into patches of agreement. A handful of influentials
 who care passionately and weigh more with their neighbours enlarge the passionate patches around them, and a news
@@ -16,18 +16,20 @@ report that nudges everyone towards passion sweeps almost the whole population.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'influentials'
+SYSTEM = 'influentials'
 STEPS = 20
 LEVELS = ('not at all', 'less', 'a bit', 'passionately')
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(create(MODEL, influence=3.0, random_state=0), observers=[observer], random_state=0).check().prepare()
-)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(
+    create_system(SYSTEM, influence=3.0, random_state=0),
+    observers=[observer],
+    random_state=0,
+).prepare()
 simulation.run(until=STEPS)
 
 # %%
@@ -49,8 +51,8 @@ def passionate(influence, news_report):
     """Return the mean final share of people caring passionately over three runs."""
     finals = []
     for seed in range(3):
-        system = create(MODEL, influence=influence, news_report=news_report, random_state=seed)
-        trajectory = Simulation(system, random_state=seed).check().prepare().run(until=STEPS).trajectory_
+        system = create_system(SYSTEM, influence=influence, news_report=news_report, random_state=seed)
+        trajectory = Simulation(system, random_state=seed).prepare().run(until=STEPS).trajectory_
         finals.append(shares(trajectory, STEPS)[-1])
     return np.mean(finals)
 

@@ -13,15 +13,15 @@ lock their phases: the phase difference stays bounded instead of drifting, chaot
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'coupled_rossler'
+SYSTEM = 'coupled_rossler'
 
-system = create(MODEL, n_oscillators=2, k=0.06, mismatch=0.02, seed=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.2, observers=[observer]).check().prepare().run(until=100)
+system = create_system(SYSTEM, n_oscillators=2, k=0.06, mismatch=0.02, seed=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(until=100)
 
 # %%
 # Phase difference
@@ -33,8 +33,7 @@ simulation = Simulation(system, dt=0.2, observers=[observer]).check().prepare().
 fig, ax = plt.subplots(figsize=(6, 4))
 for coupling in [0.0, 0.02, 0.06]:
     run = (
-        Simulation(create(MODEL, n_oscillators=2, k=coupling, mismatch=0.02, seed=0), dt=0.1)
-        .check()
+        Simulation(create_system(SYSTEM, n_oscillators=2, k=coupling, mismatch=0.02, seed=0), dt=0.1)
         .prepare()
         .run(until=500)
     )

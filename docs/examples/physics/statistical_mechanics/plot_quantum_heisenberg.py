@@ -1,5 +1,5 @@
 """
-# Quantum Heisenberg model
+# Quantum Heisenberg system
 
 One flipped spin in a ring of 12 spins one half spreads as a magnon. The space-time image shows the local
 magnetisation of every site, one row per frame with the earliest at the top, with the flip leaving the middle site in a
@@ -7,7 +7,7 @@ light cone whose edges move at the largest group velocity of the chain.
 """
 
 # %%
-# The model is created by name from the catalog with the isotropic exchange `J = Δ = 1`, from one flipped spin at
+# The system is created by name from the catalog with the isotropic exchange `J = Δ = 1`, from one flipped spin at
 # site 6. The state is a vector of `2^12 = 4096` complex amplitudes that QuTiP evolves by the Schrödinger equation.
 # The observer saves every frame with the default blueprint, whose primary view is the space-time image of `S^z`.
 
@@ -15,27 +15,26 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import jv
 
-from skcomplex.analysis import OperatorAnalysis
-from skcomplex.engine.compile import OperatorCompiler
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe, run
-from skcomplex.models.physics.statistical_mechanics import total_magnetization
-from skcomplex.specs import SectorSpec
+from skcomplex.core.analysis import OperatorAnalysis
+from skcomplex.core.engine.compile import OperatorCompiler
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.specs import SectorSpec
+from skcomplex.systems import create_simulation, create_system, describe
+from skcomplex.systems.physics.statistical_mechanics import total_magnetization
 
-MODEL = 'quantum_heisenberg'
+SYSTEM = 'quantum_heisenberg'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(
         system,
         compiler=OperatorCompiler(),
         dt=0.05,
         observers=[observer],
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
-    .check()
     .prepare()
     .run(
         until=8.0,
@@ -51,12 +50,12 @@ simulation = (
 # antiferromagnetic rings from exact diagonalisation in the sector of zero magnetisation. It approaches the Bethe
 # ansatz value `1/4 - ln 2` of the infinite chain as the ring grows.
 
-magnon = run(MODEL, delta=0.0, settings={'until': 4.0, 'dt': 0.05}).trajectory_
+magnon = create_simulation(SYSTEM, delta=0.0).set_params(dt=0.05).prepare().run(until=4.0).trajectory_
 
 
 sizes = np.arange(4, 15, 2)
-ground = OperatorAnalysis(n_states=1, sector=SectorSpec(total_magnetization, 0.0)).check()
-energies = [ground.prepare(create(MODEL, n_sites=int(n))).run().energies_[0] / n for n in sizes]
+ground = OperatorAnalysis(n_states=1, sector=SectorSpec(total_magnetization, 0.0))
+energies = [ground.prepare(create_system(SYSTEM, n_sites=int(n))).run().energies_[0] / n for n in sizes]
 fig, (spread, ground) = plt.subplots(1, 2, figsize=(10, 4))
 for distance in (0, 1, 3):
     spread.plot(magnon.times, 0.5 - magnon.values('sz')[:, 6 + distance], label=f'd = {distance}')

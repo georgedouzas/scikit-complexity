@@ -7,29 +7,28 @@ its two natural frequencies.
 """
 
 # %%
-# The model is created by name from the catalog with a wheel of 40 kg, a body of 400 kg, and a road of amplitude 1 cm
+# The system is created by name from the catalog with a wheel of 40 kg, a body of 400 kg, and a road of amplitude 1 cm
 # driving at 9.42 rad/s, and runs for 10 seconds. The default blueprint shows the displacements of both masses with
 # their rates and the voltage of the bar.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'vibration_energy_harvester'
+SYSTEM = 'vibration_energy_harvester'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
 simulation = (
     Simulation(
         system,
         dt=0.01,
         observers=[observer],
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
-    .check()
     .prepare()
     .run(
         until=10,
@@ -48,10 +47,9 @@ natural = np.sqrt(np.linalg.eigvals(np.diag([1 / m1, 1 / m2]) @ np.array([[k1 + 
 frequencies = np.linspace(2.0, 100.0, 50)
 amplitudes = []
 for omega in frequencies:
-    model_system = create(MODEL, omega=omega)
+    system_system = create_system(SYSTEM, omega=omega)
     run = (
-        Simulation(model_system, dt=0.01, observables=describe(MODEL).observables_of(model_system))
-        .check()
+        Simulation(system_system, dt=0.01, observables=describe(SYSTEM).observables_of(system_system))
         .prepare()
         .run(until=10)
         .trajectory_

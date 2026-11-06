@@ -6,21 +6,21 @@ the albedo and keeps a cold planet cold. Started at 290 K, the temperature settl
 """
 
 # %%
-# The model is created by name from the catalog with the default parameters and the initial temperature of 290 K. The
+# The system is created by name from the catalog with the default parameters and the initial temperature of 290 K. The
 # default blueprint shows the temperature in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'energy_balance'
+SYSTEM = 'energy_balance'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, dt=5.0, observers=[observer]).check().prepare().run(until=500)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
+simulation = Simulation(system, dt=5.0, observers=[observer]).prepare().run(until=500)
 
 # %%
 # Two climates
@@ -43,7 +43,7 @@ balance.set_ylabel('dT/dt')
 balance.set_title('Three climates balance the energy')
 balance.legend()
 for T0 in np.linspace(220.0, 300.0, 17):
-    run = Simulation(create(MODEL, T=T0), dt=5.0).check().prepare().run(until=500).trajectory_
+    run = Simulation(create_system(SYSTEM, T=T0), dt=5.0).prepare().run(until=500).trajectory_
     runs.plot(run.times, run.values('earth.T'), color='C1' if roots[1] < T0 else 'C0', linewidth=0.8)
 for root in roots:
     runs.axhline(root, color='gray', linestyle='--', linewidth=0.8)

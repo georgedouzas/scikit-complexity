@@ -3,7 +3,7 @@
 ## Purpose
 
 Streams a running simulation to the Rerun viewer or to a recording file, laid out by the structure of the system, so
-a user sees a model evolve while it runs.
+a user sees a system evolve while it runs.
 
 ## Requirements
 
@@ -69,11 +69,11 @@ The Rerun observer SHALL draw agents on a grid or in a continuous space as one b
 agents on a network as graph nodes and edges, with colors from an agent variable.
 
 #### Scenario: Schelling grid
-- **WHEN** a Schelling segregation model on a 20 by 20 grid is logged
+- **WHEN** a Schelling segregation system on a 20 by 20 grid is logged
 - **THEN** one `Points2D` batch per agent group is logged per frame, at the agents' cell coordinates
 
-#### Scenario: Voter model network
-- **WHEN** a voter model on a network is logged
+#### Scenario: Voter system network
+- **WHEN** a voter system on a network is logged
 - **THEN** the network is logged as graph nodes and edges, and node colors follow the agents' opinions
 
 ### Requirement: Changing populations are logged consistently
@@ -156,7 +156,7 @@ no spatial view.
 - **THEN** the bodies have a radius of a fiftieth of the extent of the orbit, and each draws its recent orbit as a line
 
 #### Scenario: Agents without a space
-- **WHEN** the default blueprint of an agent model without a space, such as `moran_process`, is built
+- **WHEN** the default blueprint of an agent system without a space, such as `moran_process`, is built
 - **THEN** it holds no spatial view, and its primary view is the time series view of the reporters
 
 ### Requirement: Systems get a default blueprint
@@ -164,12 +164,12 @@ no spatial view.
 the primary view first, which `primary_view(system)` returns, unless `primary` names another view. Its scalar views SHALL be grouped by element, its
 parameters left out unless asked for, its side panels collapsed, and its time panel following the latest frame.
 
-#### Scenario: Blueprint of an ODE model
+#### Scenario: Blueprint of an ODE system
 - **WHEN** the default blueprint of `lotka_volterra` is built
 - **THEN** it holds one time series view with the prey and predator populations, no parameter view, collapsed side
   panels, and a time panel that follows the latest frame
 
-#### Scenario: Blueprint of a field model
+#### Scenario: Blueprint of a field system
 - **WHEN** the default blueprint of `gray_scott` is built
 - **THEN** it holds one 2D spatial view per field state, `u` and `v`, side by side
 
@@ -204,7 +204,7 @@ An image of a real state of the `ANGLE` domain SHALL be colored by the cyclic pa
 turn apart share a color.
 
 #### Scenario: Angles one turn apart
-- **WHEN** an image visual logs the angles of the XY model
+- **WHEN** an image visual logs the angles of the XY system
 - **THEN** the colors are those of the cyclic palette at the angles, so a site at `-pi` has the color of a site at `pi`
 
 ### Requirement: 2D positions are drawn with the vertical axis up
@@ -271,7 +271,7 @@ A visual that colors by a state without a given range SHALL widen its range to e
 The `'phase_ring'` visual SHALL log the wrapped phases of a group against the member position with the cyclic palette.
 
 #### Scenario: Chimera
-- **WHEN** the visual of a chimera model logs a frame
+- **WHEN** the visual of a chimera system logs a frame
 - **THEN** it logs one point per oscillator at its index and its phase in `(-pi, pi]`
 
 ### Requirement: Flows and observables of stocks and flows are logged
@@ -279,7 +279,7 @@ The observer SHALL log the flows of stocks and flows and the observables of the 
 element, so a view of an observed expression is not blank.
 
 #### Scenario: Hilsa fishery
-- **WHEN** a Rerun observer records `hilsa_fishery` for 10 frames with the observables of its model
+- **WHEN** a Rerun observer records `hilsa_fishery` for 10 frames with the observables of its system
 - **THEN** the recording holds the series `hilsa/adult_weight`
 
 ### Requirement: Matrix-valued states are drawn as heat maps
@@ -304,7 +304,7 @@ view of the loss and metrics, with the heat maps of the trained matrices next to
 
 #### Scenario: Default blueprint
 - **WHEN** the default blueprint of `elman_network` is built
-- **THEN** it holds the loss view and one heat map view per trained matrix, and no view of the inner model's states
+- **THEN** it holds the loss view and one heat map view per trained matrix, and no view of the inner system's states
 
 ### Requirement: A viewer that cannot run or be reached does not stop a run
 A run asked to spawn a Rerun viewer on a Linux machine without a display SHALL warn and run without a viewer. A run
@@ -349,7 +349,7 @@ variable per site.
 three dimensions, beside the points, colored by the same state as the points with a fixed color range.
 
 #### Scenario: Protein chain in three dimensions
-- **WHEN** the `fuzzy_oil_drop` model streams with a `RerunObserver`
+- **WHEN** the `fuzzy_oil_drop` system streams with a `RerunObserver`
 - **THEN** the recording holds 20 three-dimensional points of the chain at every frame and one line strip through them
 
 #### Scenario: Sequences as an image

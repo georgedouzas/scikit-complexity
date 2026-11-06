@@ -6,23 +6,23 @@ that moves upstream, against the traffic, at a constant speed, as arriving cars 
 """
 
 # %%
-# The model is created by name from the catalog on a road of 200 cells with free traffic at density 0.3 running into a
+# The system is created by name from the catalog on a road of 200 cells with free traffic at density 0.3 running into a
 # queue at density 0.8, with the Greenshields speed law, and is integrated with SSPRK for one time unit. The default
 # blueprint puts the history of the density first, where the shock is the edge that moves left.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import SSPRKSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import SSPRKSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'lighthill_whitham_richards'
+SYSTEM = 'lighthill_whitham_richards'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, dt=0.02, solver=SSPRKSolver(), observers=[observer]).check().prepare().run(until=1.0)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
+simulation = Simulation(system, dt=0.02, solver=SSPRKSolver(), observers=[observer]).prepare().run(until=1.0)
 
 # %%
 # Shock speed

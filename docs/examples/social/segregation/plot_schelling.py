@@ -1,7 +1,7 @@
 """
 # Schelling segregation
 
-Schelling's model of residential segregation: residents of two kinds live on a grid, and a resident moves to a
+Schelling's system of residential segregation: residents of two kinds live on a grid, and a resident moves to a
 random empty cell whenever fewer than a threshold share of its neighbours are of its own kind. Even residents who
 are content to be in a minority sort themselves into large homogeneous neighbourhoods, a macro pattern far more
 segregated than anyone's preference.
@@ -14,17 +14,17 @@ segregated than anyone's preference.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import NeighborAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import NeighborAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'schelling'
+SYSTEM = 'schelling'
 SIDE, STEPS = 50, 50
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-system = create(MODEL, width=SIDE, height=SIDE, minority=0.5, threshold=0.4, random_state=0)
-simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=STEPS)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, width=SIDE, height=SIDE, minority=0.5, threshold=0.4, random_state=0)
+simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=STEPS)
 
 # %%
 # Mild preferences, strong segregation
@@ -41,14 +41,14 @@ def like_share(trajectory, frame):
     grid = np.full((SIDE, SIDE), -1.0)
     columns, rows = np.asarray(residents.locations, dtype=int).T
     grid[rows, columns] = residents.values['kind']
-    return NeighborAnalysis('like-share', empty=-1.0).check().prepare(grid).run().share_[0]
+    return NeighborAnalysis('like-share', empty=-1.0).prepare(grid).run().share_[0]
 
 
 thresholds = np.linspace(0.1, 0.8, 8)
 finals = []
 for threshold in thresholds:
-    system = create(MODEL, width=SIDE, height=SIDE, minority=0.5, threshold=threshold, random_state=0)
-    trajectory = Simulation(system, random_state=0).check().prepare().run(until=STEPS).trajectory_
+    system = create_system(SYSTEM, width=SIDE, height=SIDE, minority=0.5, threshold=threshold, random_state=0)
+    trajectory = Simulation(system, random_state=0).prepare().run(until=STEPS).trajectory_
     finals.append(like_share(trajectory, STEPS))
 trajectory = simulation.trajectory_
 fig, (series, sweep) = plt.subplots(1, 2, figsize=(10, 4))

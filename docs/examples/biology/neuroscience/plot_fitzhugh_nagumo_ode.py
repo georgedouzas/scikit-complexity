@@ -6,22 +6,22 @@ catches up and pulls it down, and the cycle repeats as relaxation oscillations.
 """
 
 # %%
-# The model is created by name from the catalog with the current `I = 0.5`, inside the range of periodic firing. The
+# The system is created by name from the catalog with the current `I = 0.5`, inside the range of periodic firing. The
 # observer saves every second frame with the default blueprint, whose primary view is the time series of the
 # potential and the recovery.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'fitzhugh_nagumo_ode'
+SYSTEM = 'fitzhugh_nagumo_ode'
 
-system = create(MODEL, I=0.5)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.2, observers=[observer]).check().prepare().run(until=100)
+system = create_system(SYSTEM, I=0.5)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(until=100)
 
 # %%
 # Limit cycle and nullclines

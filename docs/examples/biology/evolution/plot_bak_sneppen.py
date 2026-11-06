@@ -7,27 +7,27 @@ every size. The view shows the space-time history of the fitnesses of the ring, 
 """
 
 # %%
-# The model is created by name from the catalog on a ring of 200 species with 200 updates per step. The observer
+# The system is created by name from the catalog on a ring of 200 species with 200 updates per step. The observer
 # saves every tenth step with the default blueprint, whose primary view is the space-time image of the fitnesses.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'bak_sneppen'
+SYSTEM = 'bak_sneppen'
 
-system = create(MODEL, size=200)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=10, observers=[observer], random_state=0).check().prepare().run(until=2000)
+system = create_system(SYSTEM, size=200)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=10, observers=[observer], random_state=0).prepare().run(until=2000)
 
 # %%
 # The gap and the distribution of fitnesses
 # -----------------------------------------
 # Every update is an `extinction` event with the minimum fitness it replaced. The gap, the largest minimum so far,
-# should rise in steps towards the critical value `f_c = 0.667` of the one-dimensional model, and at the end the
+# should rise in steps towards the critical value `f_c = 0.667` of the one-dimensional system, and at the end the
 # fitnesses should be spread uniformly above `f_c`, with few species below it.
 
 minima = np.asarray([event.value for event in simulation.trajectory_.events])

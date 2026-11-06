@@ -14,11 +14,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import LoopAnalysis
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, run
+from skcomplex.core.analysis import LoopAnalysis
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_simulation, create_system
 
-MODEL = 'shifting_the_burden'
+SYSTEM = 'shifting_the_burden'
 
 blueprint = rrb.Blueprint(
     rrb.Vertical(
@@ -29,8 +29,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-simulation = run(MODEL, settings={'until': 60, 'dt': 0.5, 'observers': [observer]})
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+simulation = create_simulation(SYSTEM).set_params(dt=0.5, observers=[observer]).prepare().run(until=60)
 
 # %%
 # With and without the quick fix
@@ -40,11 +40,11 @@ simulation = run(MODEL, settings={'until': 60, 'dt': 0.5, 'observers': [observer
 # symptom.
 # Without the fix, `fix_rate = 0`, the capability grows to the goal on its own.
 
-polarities = LoopAnalysis().check().prepare(create(MODEL)).run().polarities_
+polarities = LoopAnalysis().prepare(create_system(SYSTEM)).run().polarities_
 summary = ', '.join(f'{polarities.count(kind)} {kind}' for kind in ('reinforcing', 'balancing'))
 
 trajectory = simulation.trajectory_
-unaided = run(MODEL, settings={'until': 60, 'dt': 0.5}, fix_rate=0.0).trajectory_
+unaided = create_simulation(SYSTEM, fix_rate=0.0).set_params(dt=0.5).prepare().run(until=60).trajectory_
 times = np.asarray(trajectory.times)
 fig, (fixed, alone) = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
 for axis, scenario, title in ((fixed, trajectory, 'With the quick fix'), (alone, unaided, 'Without the quick fix')):

@@ -2,13 +2,13 @@
 # Robby the robot
 
 A genetic algorithm evolves lookup tables that tell Robby what to do in each of the 243 situations he can see. The
-random first strategies bump into walls and score far below zero; within a few dozen generations the population learns
+random first strategies bump into walls and score far below zero. Within a few dozen generations the population learns
 not to crash, and later it learns to pick up cans, so its best score keeps climbing in steps.
 """
 
 # %%
 # The population has 200 strategies, each scored over 10 sessions of 100 actions in a fresh room, and evolves for 290
-# generations with a mutation rate of 0.005 per gene. The model logs only the size of the population, so after the run
+# generations with a mutation rate of 0.005 per gene. The system logs only the size of the population, so after the run
 # the mean and the best score of every generation are logged as time series, and the blueprint puts them first, as the
 # primary view.
 
@@ -17,11 +17,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'robby_ga'
+SYSTEM = 'robby_ga'
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
@@ -30,9 +30,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-system = create(MODEL, n_strategies=200, mutation=0.005, random_state=0)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=290)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM, n_strategies=200, mutation=0.005, random_state=0)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=290)
 trajectory = simulation.trajectory_
 scores = np.array([trajectory.agents('strategies', frame).values['score'] for frame in range(len(trajectory.times))])
 for name, series in (('mean', scores.mean(axis=1)), ('best', scores.max(axis=1))):

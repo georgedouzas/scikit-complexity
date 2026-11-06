@@ -17,13 +17,13 @@ primary view.
 import matplotlib.pyplot as plt
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe, run
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_simulation, create_system, describe
 
-MODEL = 'active_passive_flocking'
+SYSTEM = 'active_passive_flocking'
 
-system = create(MODEL)
+system = create_system(SYSTEM)
 size = system.space.extent[0]
 box = rrb.Spatial2DView(
     origin='/',
@@ -37,8 +37,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-entry = describe(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
+entry = describe(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 simulation = (
     Simulation(
         system,
@@ -49,7 +49,6 @@ simulation = (
         random_state=0,
         observables=entry.observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=entry.defaults['until'])
 )
@@ -75,7 +74,7 @@ snapshot.set_ylim(0.0, size)
 snapshot.set_aspect('equal')
 snapshot.set_title('Agents after 50 time units')
 snapshot.legend(loc='upper right')
-without = run(MODEL, alpha=0.0, settings=SETTINGS).trajectory_
+without = create_simulation(SYSTEM, alpha=0.0).set_params(**SETTINGS).prepare().run().trajectory_
 distance.plot(trajectory.times, trajectory.values('active_distance'), color='tab:red', label='active, flocking on')
 distance.plot(trajectory.times, trajectory.values('passive_distance'), color='tab:green', label='passive, flocking on')
 distance.plot(

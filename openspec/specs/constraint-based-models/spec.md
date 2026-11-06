@@ -1,4 +1,4 @@
-# constraint-based-models Specification
+# constraint-based-systems Specification
 
 ## Purpose
 
@@ -110,7 +110,7 @@ member, and inactive members SHALL have zero variables and SHALL NOT be solved.
 - **WHEN** a lattice of 25 by 25 sites has biomass above the threshold at 9 sites
 - **THEN** one evaluation solves the program 9 times, and every other site's variables are zero
 
-#### Scenario: Single site reproduces the well-mixed model
+#### Scenario: Single site reproduces the well-mixed system
 - **WHEN** a lattice of one site runs the batch culture without diffusion
 - **THEN** its biomass matches the well-mixed dynamic FBA within 1e-6 relative error
 
@@ -175,7 +175,7 @@ It SHALL take the directions from the bounds at the initial values, and SHALL st
 - **THEN** there are 7 modes and 4 pathways, every pathway is a mode, and the pathways from `C` to `G` yield 1 and 2
 
 #### Scenario: Genome-scale network
-- **WHEN** the elementary modes of the E. coli core model are enumerated with a limit of 5 s
+- **WHEN** the elementary modes of the E. coli core system are enumerated with a limit of 5 s
 - **THEN** the analysis raises `EnumerationLimitError` within 6 s
 
 ### Requirement: The extra is optional and named
@@ -187,5 +187,5 @@ The default install SHALL NOT install or import COBRApy, StrainDesign, or MICOM.
 - **THEN** `MissingExtraError` says that it needs `pip install 'scikit-complexity[metabolism]'`
 
 #### Scenario: Default install stays importable
-- **WHEN** the package and its model catalog are imported without the extra
-- **THEN** no module of the extra is imported, and every model that needs it is listed in the catalog
+- **WHEN** the package and its system catalog are imported without the extra
+- **THEN** no module of the extra is imported, and every system that needs it is listed in the catalog

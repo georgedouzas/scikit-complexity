@@ -7,22 +7,22 @@ tumour is cleared, after which the treatments stop.
 """
 
 # %%
-# The model is created by name from the catalog, the Kirschner-Panetta model in units of `10^5` cells, with a tumour
+# The system is created by name from the catalog, the Kirschner-Panetta system in units of `10^5` cells, with a tumour
 # of low antigenicity that escapes the immune response when untreated. The Pontryagin solver of its catalog entry solves
 # the problem on 1001 nodes over 50 days, fine enough for the fast decay of IL-2. The default blueprint shows the
 # cells, IL-2, and both treatments in one time series view.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'optimal_immunotherapy'
+SYSTEM = 'optimal_immunotherapy'
 
-system = create(MODEL)
-entry = describe(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM)
+entry = describe(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
     Simulation(
         system,
@@ -31,7 +31,6 @@ simulation = (
         observers=[observer],
         observables=entry.observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=50)
 )
@@ -43,7 +42,7 @@ simulation = (
 # intrinsic rate 0.18 per day. With the optimal treatments the tumour should fall by orders of magnitude within weeks.
 
 untreated = (
-    Simulation(create(MODEL, w1=1e6, w2=1e6), dt=0.5, solver=entry.defaults['solver']).check().prepare().run(until=50)
+    Simulation(create_system(SYSTEM, w1=1e6, w2=1e6), dt=0.5, solver=entry.defaults['solver']).prepare().run(until=50)
 )
 trajectory, free = simulation.trajectory_, untreated.trajectory_
 fig, (tumour, doses) = plt.subplots(1, 2, figsize=(10, 4))

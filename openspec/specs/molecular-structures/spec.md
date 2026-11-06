@@ -4,7 +4,7 @@
 
 Lets a user sample sequences and chains held as lattice rows by Monte Carlo with a score of a whole row, replay an
 ensemble one member per step, and measure the geometry of point chains. The biological pieces live in
-`skcomplex.models.biology`.
+`skcomplex.systems.biology`.
 
 ## Requirements
 
@@ -67,18 +67,18 @@ root mean square deviation from a reference after optimal superposition.
 - **THEN** the deviation is below 1e-6
 
 ### Requirement: Missing extras raise a named error
-`skcomplex.errors` SHALL define `MissingExtraError`, which a model raises when an optional extra it needs is not
-installed, naming the model, the extra, and the install command. The default install SHALL NOT import Biopython,
+`skcomplex.core.errors` SHALL define `MissingExtraError`, which a system raises when an optional extra it needs is not
+installed, naming the system, the extra, and the install command. The default install SHALL NOT import Biopython,
 ViennaRNA, or MDTraj.
 
 #### Scenario: Default install stays importable
-- **WHEN** the package and its model catalog are imported without the extras
-- **THEN** no module of Biopython, ViennaRNA, or MDTraj is imported, and every model is listed in the catalog
+- **WHEN** the package and its system catalog are imported without the extras
+- **THEN** no module of Biopython, ViennaRNA, or MDTraj is imported, and every system is listed in the catalog
 
 ### Requirement: The core stays free of molecular biology
-`skcomplex.core`, `skcomplex.engine`, and `skcomplex.analysis` SHALL export no structure, RNA, hydrophobicity, genotype,
+`skcomplex.core.components`, `skcomplex.core.engine`, and `skcomplex.core.analysis` SHALL export no structure, RNA, hydrophobicity, genotype,
 or protein name, and SHALL import neither Biopython, ViennaRNA, nor MDTraj.
 
 #### Scenario: Field-term and import contracts
 - **WHEN** the field-term test and the import contracts run after this change
-- **THEN** both pass, and the biological pieces import from `skcomplex.models.biology`
+- **THEN** both pass, and the biological pieces import from `skcomplex.systems.biology`

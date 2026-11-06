@@ -13,17 +13,16 @@ content stays exactly the same.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'diffusion_automaton'
+SYSTEM = 'diffusion_automaton'
 R = 0.1
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(create(MODEL, shape=(80, 80), r=R, width=10), dt=1, observers=[observer])
-    .check()
+    Simulation(create_system(SYSTEM, shape=(80, 80), r=R, width=10), dt=1, observers=[observer])
     .prepare()
     .run(until=200)
 )

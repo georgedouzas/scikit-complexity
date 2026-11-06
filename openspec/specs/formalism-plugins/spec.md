@@ -19,19 +19,19 @@ specific to one formalism SHALL be imported from that formalism's package.
 - **THEN** every import succeeds
 
 #### Scenario: Old paths are gone
-- **WHEN** a user imports `LocalRule` from `skcomplex.core.laws`
+- **WHEN** a user imports `LocalRule` from `skcomplex.core.components.laws`
 - **THEN** the import fails
 
 ### Requirement: The shared core never imports a formalism
-No module of `skcomplex.core` or `skcomplex.engine` SHALL import a formalism, and a system built only from the core
+No module of `skcomplex.core.components` or `skcomplex.core.engine` SHALL import a formalism, and a system built only from the core
 SHALL compile and simulate with the engine and no formalism imported.
 
 #### Scenario: Shared core alone
-- **WHEN** a user builds, compiles, and simulates a logistic growth model written with `Element`, `Rate`, and `System`
+- **WHEN** a user builds, compiles, and simulates a logistic growth system written with `Element`, `Rate`, and `System`
 - **THEN** the run succeeds and no module of `skcomplex.formalisms` is loaded
 
 #### Scenario: Planted import
-- **WHEN** a module of `skcomplex.engine.compile` imports from `skcomplex.formalisms.lattices`
+- **WHEN** a module of `skcomplex.core.engine.compile` imports from `skcomplex.formalisms.lattices`
 - **THEN** the import contracts of the checks session fail and name the module
 
 ### Requirement: A formalism registers through one declaration
@@ -55,11 +55,11 @@ any module of the shared core.
 #### Scenario: Law from an outside formalism
 - **WHEN** a test package defines a formalism with a new law kind, a compilation pass for it, and a solver, and
   registers it
-- **THEN** a system using that law validates, compiles, and simulates without changes to `skcomplex.core`
+- **THEN** a system using that law validates, compiles, and simulates without changes to `skcomplex.core.components`
 
 ### Requirement: Formalisms declare their dependencies
-A formalism SHALL declare the formalisms it builds on, may import only those, `skcomplex.core`, and
-`skcomplex.engine`, and the declared dependencies SHALL form no cycle.
+A formalism SHALL declare the formalisms it builds on, may import only those, `skcomplex.core.components`, and
+`skcomplex.core.engine`, and the declared dependencies SHALL form no cycle.
 
 #### Scenario: Declared dependency
 - **WHEN** `fields` declares that it builds on `lattices`

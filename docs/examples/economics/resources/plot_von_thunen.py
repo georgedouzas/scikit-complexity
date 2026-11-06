@@ -8,22 +8,22 @@ use forms concentric rings, beyond which the land lies idle.
 """
 
 # %%
-# The model solves the crop of each of 41 x 41 cells once, drawn as an image.
+# The system solves the crop of each of 41 x 41 cells once, drawn as an image.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.experiments import Experiment, GridDesign
-from skcomplex.models import create
-from skcomplex.models.economics.resources import von_thunen
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.experiments import Experiment, GridDesign
+from skcomplex.systems import create_system
+from skcomplex.systems.economics.resources import von_thunen
 
-MODEL = 'von_thunen'
+SYSTEM = 'von_thunen'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer]).check().prepare().run(until=1.0)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, observers=[observer]).prepare().run(until=1.0)
 
 # %%
 # Rings against the transport rate of the inner crop
@@ -33,7 +33,7 @@ simulation = Simulation(system, observers=[observer]).check().prepare().run(unti
 
 rates = [(0.2, 0.2, 0.2), (0.25, 0.2, 0.2), (0.3, 0.2, 0.2)]
 experiment = Experiment(von_thunen, GridDesign(), {'rates': rates}, until=1.0, outputs=['plain.crop'])
-crops = experiment.check().prepare().run().result_.series('plain.crop')[:, 0]
+crops = experiment.prepare().run().result_.series('plain.crop')[:, 0]
 fig, axes = plt.subplots(1, 3, figsize=(10, 3.5))
 for ax, rate, crop in zip(axes, rates, crops, strict=True):
     ax.imshow(crop.reshape(41, 41), cmap='viridis', vmin=0, vmax=3)

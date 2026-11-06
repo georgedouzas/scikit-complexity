@@ -13,14 +13,14 @@ apart.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'hegselmann_krause'
+SYSTEM = 'hegselmann_krause'
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(create(MODEL), observers=[observer], random_state=0).check().prepare().run(until=20)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(create_system(SYSTEM), observers=[observer], random_state=0).prepare().run(until=20)
 opinions = simulation.trajectory_.values('people.opinion')
 
 # %%
@@ -32,7 +32,7 @@ opinions = simulation.trajectory_.values('people.opinion')
 confidences = np.array([0.05, 0.075, 0.1, 0.15, 0.2, 0.3])
 clusters = []
 for confidence in confidences:
-    run = Simulation(create(MODEL, confidence=confidence), random_state=0).check().prepare().run(until=40).trajectory_
+    run = Simulation(create_system(SYSTEM, confidence=confidence), random_state=0).prepare().run(until=40).trajectory_
     clusters.append(np.unique(np.round(run.values('people.opinion')[-1], 6)).size)
 fig, (paths, counts) = plt.subplots(1, 2, figsize=(11, 4))
 paths.plot(simulation.trajectory_.times, opinions, lw=0.5, color='C0')

@@ -13,12 +13,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import EntropyAnalysis, EpsilonMachineAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import EntropyAnalysis, EpsilonMachineAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'markov_source'
+SYSTEM = 'markov_source'
 TRANSITION = np.array([[0.9, 0.1], [0.4, 0.6]])
 
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
@@ -28,10 +28,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 simulation = (
-    Simulation(create(MODEL, transition=TRANSITION), dt=1, observers=[observer], random_state=0)
-    .check()
+    Simulation(create_system(SYSTEM, transition=TRANSITION), dt=1, observers=[observer], random_state=0)
     .prepare()
     .run(299)
 )
@@ -45,9 +44,9 @@ simulation = (
 # symbol of the past holds all the memory of the source.
 
 symbols = (
-    Simulation(create(MODEL, transition=TRANSITION), dt=1, random_state=1).check().prepare().run(100000).trajectory_
+    Simulation(create_system(SYSTEM, transition=TRANSITION), dt=1, random_state=1).prepare().run(100000).trajectory_
 )
-blocks = EntropyAnalysis('block', dimension=8).check().prepare(symbols.values('source.symbol').astype(int)).run()
+blocks = EntropyAnalysis('block', dimension=8).prepare(symbols.values('source.symbol').astype(int)).run()
 entropies = blocks.entropy_[0]
 stationary = np.array([0.8, 0.2])
 rate = -np.sum(stationary[:, None] * TRANSITION * np.log2(TRANSITION))
@@ -73,7 +72,7 @@ plt.show()
 # statistical complexity is then the entropy of `pi`, about 0.722 bits, and its entropy rate is `h`.
 
 source = symbols.values('source.symbol').astype(int)
-machine = EpsilonMachineAnalysis(max_length=3).check().prepare(source).run()
+machine = EpsilonMachineAnalysis(max_length=3).prepare(source).run()
 labels = [f'last symbol {state[0][-1]}' for state in machine.histories_]
 fig, occupancy = plt.subplots(figsize=(5, 4))
 occupancy.bar(labels, machine.stationary_)

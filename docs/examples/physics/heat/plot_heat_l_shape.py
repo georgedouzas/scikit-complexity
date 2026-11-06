@@ -12,12 +12,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import IMEXEulerSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import IMEXEulerSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'heat_l_shape'
+SYSTEM = 'heat_l_shape'
 
 camera = rrb.EyeControls3D(position=(2.6, -2.2, 1.4), look_target=(0.0, 0.0, 0.2), eye_up=(0.0, 0.0, 1.0))
 blueprint = rrb.Blueprint(
@@ -26,11 +26,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-system = create(MODEL)
-simulation = (
-    Simulation(system, dt=0.1, solver=IMEXEulerSolver(dt=0.05), observers=[observer]).check().prepare().run(until=2.0)
-)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
+system = create_system(SYSTEM)
+simulation = Simulation(system, dt=0.1, solver=IMEXEulerSolver(dt=0.05), observers=[observer]).prepare().run(until=2.0)
 
 # %%
 # Approach to the steady state
@@ -40,8 +38,8 @@ simulation = (
 # reaches the discretization error of the mesh, and at the last frame the temperature at every node should lie on the
 # line of the exact solution.
 
-nodes = system.elements[0].space.check().prepare().positions_
-exact = describe(MODEL).parameters['temperature'](nodes[:, 0], nodes[:, 1])
+nodes = system.elements[0].space.prepare().positions_
+exact = describe(SYSTEM).parameters['temperature'](nodes[:, 0], nodes[:, 1])
 temperature = simulation.trajectory_.values('plate.u')
 fig, (agreement, decay) = plt.subplots(1, 2, figsize=(10, 4))
 agreement.plot(exact, temperature[-1], '.', markersize=4)

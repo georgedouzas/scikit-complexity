@@ -15,12 +15,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
-from skcomplex.models.economics.econophysics import wealth_classes
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.econophysics import wealth_classes
 
-MODEL = 'kinetic_wealth_welfare'
+SYSTEM = 'kinetic_wealth_welfare'
 
 # The distribution has no spatial view that shows inequality, so the primary view is the Gini coefficient over the run.
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
@@ -30,16 +30,15 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-system = create(MODEL)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM)
 simulation = (
     Simulation(
         system,
         observers=[observer],
         dt=1.0,
-        observables=describe(MODEL).observables_of(system),
+        observables=describe(SYSTEM).observables_of(system),
     )
-    .check()
     .prepare()
     .run(
         until=100,
@@ -55,10 +54,9 @@ simulation = (
 
 def stationary(tax):
     """Return the stationary distribution and Gini coefficient of a run with a policy of a tax rate."""
-    model_system = create(MODEL, tax=tax)
+    system_system = create_system(SYSTEM, tax=tax)
     run = (
-        Simulation(model_system, dt=100.0, observables=describe(MODEL).observables_of(model_system))
-        .check()
+        Simulation(system_system, dt=100.0, observables=describe(SYSTEM).observables_of(system_system))
         .prepare()
         .run(until=200)
     )

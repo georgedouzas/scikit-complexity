@@ -2,29 +2,29 @@
 # Bak-Tang-Wiesenfeld sandpile
 
 Grains drop one at a time on random sites, and a site holding four grains topples, sending one grain to each
-neighbour, which may topple in turn; grains that fall off the open edges are lost. Without any tuning the pile
+neighbour, which may topple in turn. Grains that fall off the open edges are lost. Without any tuning the pile
 organizes itself into a critical state whose avalanches come in all sizes, from a single toppling to sweeps across
 the whole lattice. The view shows the heights of a 48 x 48 pile, from zero (dark) to three grains (bright).
 """
 
 # %%
-# The model is created by name from the catalog from random stable heights. One unit of time is one dropped grain
+# The system is created by name from the catalog from random stable heights. One unit of time is one dropped grain
 # followed by the full avalanche it triggers. The observer saves every 50th grain with the default blueprint, whose
 # primary view is the image of the heights.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import DistributionAnalysis, EventAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import DistributionAnalysis, EventAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'sandpile'
+SYSTEM = 'sandpile'
 
-system = create(MODEL, shape=(48, 48), random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=50, observers=[observer], random_state=0).check().prepare().run(until=14950)
+system = create_system(SYSTEM, shape=(48, 48), random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=50, observers=[observer], random_state=0).prepare().run(until=14950)
 
 # %%
 # Self-organized criticality
@@ -37,11 +37,10 @@ simulation = Simulation(system, dt=50, observers=[observer], random_state=0).che
 heights = simulation.trajectory_.values('pile.height').mean(axis=1)
 found = (
     EventAnalysis('excursions')
-    .check()
     .prepare([record for record in simulation.trajectory_.events if record.time > 5000 and record.size > 0])
     .run()
 )
-histogram = DistributionAnalysis('histogram', bins=20, log=True).check().prepare(found.sizes_).run()
+histogram = DistributionAnalysis('histogram', bins=20, log=True).prepare(found.sizes_).run()
 edges, density = histogram.edges_, histogram.density_
 centers = np.sqrt(edges[1:] * edges[:-1])
 shown = density > 0

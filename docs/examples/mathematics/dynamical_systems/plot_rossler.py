@@ -6,7 +6,7 @@ near the centre: one band that is stretched and folded over itself at every turn
 """
 
 # %%
-# The model logs its three states as time series. After the run, the whole trajectory is logged once more as a line in
+# The system logs its three states as time series. After the run, the whole trajectory is logged once more as a line in
 # three dimensions, and the blueprint puts that view of the attractor first, as the primary view.
 
 import matplotlib.pyplot as plt
@@ -15,12 +15,12 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.signal import find_peaks
 
-from skcomplex.analysis import SpectrumAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import SpectrumAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'rossler'
+SYSTEM = 'rossler'
 
 # Every view shows the whole run, not the default window that follows the latest frame.
 whole_run = rrb.TimeAxis(
@@ -42,8 +42,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=25)
-simulation = Simulation(create(MODEL), dt=0.05, observers=[observer]).check().prepare().run(until=300)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=25)
+simulation = Simulation(create_system(SYSTEM), dt=0.05, observers=[observer]).prepare().run(until=300)
 points = np.column_stack([simulation.trajectory_.values(f'rossler.{state}') for state in 'xyz'])[400:]
 observer.recording_.log('attractor', rr.LineStrips3D([points], radii=0.06, colors=[255, 170, 40]), static=True)
 observer.recording_.flush()
@@ -55,9 +55,9 @@ observer.recording_.flush()
 # single-humped curve like the logistic map, which is how the fold of the band makes the flow chaotic. The power
 # spectrum of `x` should keep a sharp peak at the mean rotation frequency near 1 / 6 above a broad chaotic background.
 
-x = Simulation(create(MODEL), dt=0.05).check().prepare().run(until=3000).trajectory_.values('rossler.x')[400:]
+x = Simulation(create_system(SYSTEM), dt=0.05).prepare().run(until=3000).trajectory_.values('rossler.x')[400:]
 maxima = x[find_peaks(x)[0]]
-spectrum = SpectrumAnalysis(dt=0.05).check().prepare(x).run()
+spectrum = SpectrumAnalysis(dt=0.05).prepare(x).run()
 frequencies, density = spectrum.frequencies_, spectrum.power_[0]
 fig, (returns, power) = plt.subplots(1, 2, figsize=(10, 4))
 returns.plot(maxima[:-1], maxima[1:], '.', markersize=5)

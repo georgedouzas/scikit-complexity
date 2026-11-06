@@ -1,12 +1,12 @@
 """
-# Optimal velocity model
+# Optimal velocity system
 
 Twenty cars start in uniform flow on a ring road, with one car slightly displaced. The uniform flow is unstable: the
 small disturbance grows into a stop-and-go wave, where cars alternately crawl through a jam and race to the next.
 """
 
 # %%
-# The model is created by name from the catalog with 20 cars on a ring of length 40, the sensitivity `a = 1`, and the
+# The system is created by name from the catalog with 20 cars on a ring of length 40, the sensitivity `a = 1`, and the
 # safety distance `hc = 2`, so that the uniform headway 2 is unstable, and runs for 200 time units. The blueprint shows
 # the speeds of all cars in one time series view, without a legend.
 
@@ -14,11 +14,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'optimal_velocity'
+SYSTEM = 'optimal_velocity'
 
 speeds = rrb.TimeSeriesView(
     origin='/cars/v',
@@ -34,9 +34,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=1.0, observers=[observer]).check().prepare().run(until=200)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
+simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=200)
 
 # %%
 # Instability of uniform flow
@@ -46,7 +46,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).check().prepare().
 # in a stop-and-go wave. A ring with a larger headway, where `V'(b) < a / 2`, should instead return to uniform flow.
 
 trajectory = simulation.trajectory_
-stable = Simulation(create(MODEL, length=80.0), dt=1.0).check().prepare().run(until=200).trajectory_
+stable = Simulation(create_system(SYSTEM, length=80.0), dt=1.0).prepare().run(until=200).trajectory_
 fig, (spread, cycle) = plt.subplots(1, 2, figsize=(10, 4))
 spread.semilogy(trajectory.times, trajectory.values('cars.v').std(axis=1) + 1e-12, label='headway 2, unstable')
 spread.semilogy(stable.times, stable.values('cars.v').std(axis=1) + 1e-12, label='headway 4, stable')

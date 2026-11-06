@@ -8,22 +8,22 @@ peak, and the glucagon that answers the dip.
 """
 
 # %%
-# The model is created by name from the catalog with both hormone loops, a meal of two hours from hour 2 and an
+# The system is created by name from the catalog with both hormone loops, a meal of two hours from hour 2 and an
 # exercise of two hours from hour 12. The glucose is relative to its norm, and the time unit is about an hour. The
 # observer saves every second frame with the default blueprint, whose primary view is the time series of the glucose
 # `G`, the insulin `I`, and the glucagon `N`.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'glucose_dual_hormone_control'
+SYSTEM = 'glucose_dual_hormone_control'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare().run(until=24)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=24)
 
 # %%
 # Attenuation by two antagonistic loops
@@ -32,7 +32,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare()
 # should be corrected almost as well, while the dip of the exercise should be deeper and last longer. With both loops
 # the excursions to both sides should stay small, the attenuation of Konieczny et al.
 
-single = Simulation(create(MODEL, glucagon=False), dt=0.05).check().prepare().run(until=24).trajectory_
+single = Simulation(create_system(SYSTEM, glucagon=False), dt=0.05).prepare().run(until=24).trajectory_
 times = simulation.trajectory_.times
 fig, (glucose, hormones) = plt.subplots(1, 2, figsize=(10, 4))
 glucose.plot(times, simulation.trajectory_.values('organism.G'), label='insulin and glucagon')

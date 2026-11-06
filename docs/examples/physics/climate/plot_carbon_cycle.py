@@ -7,7 +7,7 @@ ocean returns to rest, like the carbon cycle disruptions recorded in the geologi
 """
 
 # %%
-# The model is created by name from the catalog starting at the steady carbonate ion concentration `c = 83.58` with the
+# The system is created by name from the catalog starting at the steady carbonate ion concentration `c = 83.58` with the
 # dissolved inorganic carbon lowered to `w = 2050`, and runs for 20 time units. The blueprint shows only `c`, since `w`
 # is about 25 times larger and would flatten the excursion.
 
@@ -15,11 +15,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'carbon_cycle'
+SYSTEM = 'carbon_cycle'
 
 carbonate = rrb.TimeSeriesView(
     origin='/ocean/c',
@@ -34,9 +34,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare().run(until=20)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
+simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=20)
 
 # %%
 # A threshold for the excursion
@@ -49,7 +49,7 @@ starts = np.linspace(2050.0, 2190.0, 29)
 peaks = []
 fig, (runs, response) = plt.subplots(1, 2, figsize=(10, 4))
 for w0 in starts:
-    run = Simulation(create(MODEL, w=w0), dt=0.05).check().prepare().run(until=20).trajectory_
+    run = Simulation(create_system(SYSTEM, w=w0), dt=0.05).prepare().run(until=20).trajectory_
     peaks.append(run.values('ocean.c').max())
     if w0 in starts[::7]:
         runs.plot(run.times, run.values('ocean.c'), linewidth=1, label=f'w0 = {w0:.0f}')

@@ -6,22 +6,22 @@ gives the power law of Zipf, `p_i = (i + 1)^-lambda`, whose exponent makes the p
 """
 
 # %%
-# The model solves the exponent and the probabilities of 200 words once, from the stationarity of the ratio.
+# The system solves the exponent and the probabilities of 200 words once, from the stationarity of the ratio.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.experiments import Experiment, GridDesign
-from skcomplex.models import create
-from skcomplex.models.social.language import mandelbrot_least_effort
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.experiments import Experiment, GridDesign
+from skcomplex.systems import create_system
+from skcomplex.systems.social.language import mandelbrot_least_effort
 
-MODEL = 'mandelbrot_least_effort'
+SYSTEM = 'mandelbrot_least_effort'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer]).check().prepare().run(until=1.0)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, observers=[observer]).prepare().run(until=1.0)
 probabilities = simulation.trajectory_.values('words.probability')[0]
 
 # %%
@@ -38,7 +38,7 @@ experiment = Experiment(
     until=1.0,
     outputs=['language.exponent'],
 )
-exponents = experiment.check().prepare().run().result_.series('language.exponent')[:, 0]
+exponents = experiment.prepare().run().result_.series('language.exponent')[:, 0]
 ranks = np.arange(1, probabilities.size + 1)
 fig, (law, trend) = plt.subplots(1, 2, figsize=(10, 4))
 law.loglog(ranks + 1, probabilities, '.')

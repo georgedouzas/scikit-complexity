@@ -7,23 +7,23 @@ Belousov-Zhabotinsky reaction.
 """
 
 # %%
-# The model is created by name from the catalog on a 100 by 100 grid with 100 levels of illness, `k1 = 2`, `k2 = 3`,
+# The system is created by name from the catalog on a 100 by 100 grid with 100 levels of illness, `k1 = 2`, `k2 = 3`,
 # and the default infection rate `g = 34`, from random levels, and runs for 600 steps. The default blueprint shows the
 # levels on the grid.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import CorrelationAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import CorrelationAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'hodgepodge'
+SYSTEM = 'hodgepodge'
 
-system = create(MODEL, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=3)
-simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=600)
+system = create_system(SYSTEM, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
+simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=600)
 
 # %%
 # Every cell repeats one cycle
@@ -35,7 +35,7 @@ simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().ru
 fields = simulation.trajectory_.lattice('cells.level')[300:]
 levels = fields.reshape(len(fields), -1)
 cells = levels[:, ::7]
-correlations = CorrelationAnalysis(max_lag=60).check().prepare(cells).run().correlation_.mean(axis=0)
+correlations = CorrelationAnalysis(max_lag=60).prepare(cells).run().correlation_.mean(axis=0)
 period = np.argmax(correlations[5:]) + 5
 fig, (cell, correlation) = plt.subplots(1, 2, figsize=(10, 4))
 for index in (2020, 5070, 8030):

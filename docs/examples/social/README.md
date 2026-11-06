@@ -1,3 +1,3 @@
 # Social
 
-Examples of the models of `skcomplex.models.social`.
+Examples of the systems of `skcomplex.systems.social`.

@@ -6,21 +6,21 @@ their progeny out of it.
 """
 
 # %%
-# The model is created by name from the catalog with a niche of 100 normal stem cells and one leukaemic stem cell, and
+# The system is created by name from the catalog with a niche of 100 normal stem cells and one leukaemic stem cell, and
 # runs for 500 time units. The observer saves every second frame with the default blueprint, whose primary view is the
 # time series of the five populations.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'leukaemia_stem_cells'
+SYSTEM = 'leukaemia_stem_cells'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1.0, observers=[observer]).check().prepare().run(until=500)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=500)
 
 # %%
 # Competitive exclusion in the niche
@@ -40,7 +40,7 @@ series.legend()
 renewals = [0.45, 0.5, 0.55, 0.58, 0.6, 0.62, 0.65, 0.7, 0.8]
 shares = []
 for r4 in renewals:
-    run = Simulation(create(MODEL, r4=r4), dt=5.0).check().prepare().run(until=3000).trajectory_
+    run = Simulation(create_system(SYSTEM, r4=r4), dt=5.0).prepare().run(until=3000).trajectory_
     shares.append(run.values('niche.AS')[-1] / (run.values('niche.AS')[-1] + run.values('niche.NS')[-1]))
 switch.plot(renewals, shares, 'o-')
 switch.axvline(0.6, color='grey', linestyle=':', label='normal renewal r1')

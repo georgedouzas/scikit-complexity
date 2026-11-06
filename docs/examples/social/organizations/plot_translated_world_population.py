@@ -4,15 +4,15 @@
 Meadows describes a population with a reinforcing loop of births and a balancing loop of deaths. The world of 2007 holds
 6.6 billion people, with 21 births and 9 deaths a year for every 1,000 people. In her scenario, fertility falls steadily
 until it equals mortality in 2035, and then both stay constant, so the population levels off. This example writes that
-scenario as a Vensim file, translates the file into a model module, runs the module, and plots the shift in the
+scenario as a Vensim file, translates the file into a system module, runs the module, and plots the shift in the
 dominance of the two loops.
 """
 
 # %%
-# The model file
+# The system file
 # --------------
 # The file states the scenario in Vensim's language. `SystemDynamicsTranslator` reads it and writes the source of a
-# module, which the example saves and imports like any model.
+# module, which the example saves and imports like any system.
 
 import importlib
 import sys
@@ -22,10 +22,10 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import LoopAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.translators import SystemDynamicsTranslator
-from skcomplex.engine.viz import RerunObserver
+from skcomplex.core.analysis import LoopAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.translators import SystemDynamicsTranslator
+from skcomplex.core.engine.viz import RerunObserver
 
 FILE_TEXT = """
 Population = INTEG(Births - Deaths, 6.6) ~ Billion People ~ |
@@ -41,7 +41,7 @@ SAVEPER = 0.5 ~ Year ~ |
 
 folder = Path(tempfile.mkdtemp())
 (folder / 'world.mdl').write_text(FILE_TEXT)
-translator = SystemDynamicsTranslator(folder / 'world.mdl').check().prepare().run()
+translator = SystemDynamicsTranslator(folder / 'world.mdl').prepare().run()
 (folder / 'translated_world.py').write_text(translator.source_)
 sys.path.insert(0, str(folder))
 module = importlib.import_module('translated_world')
@@ -55,7 +55,7 @@ module = importlib.import_module('translated_world')
 system = module.create_system()
 observer = RerunObserver('translated_world_population', save_path='translated_world_population.rrd', interval=1)
 simulation = Simulation(system, dt=module.DT, observers=[observer], observables=module.observables(system))
-trajectory = simulation.check().prepare().run(until=module.UNTIL).trajectory_
+trajectory = simulation.prepare().run(until=module.UNTIL).trajectory_
 
 # %%
 # Shifting dominance
@@ -64,7 +64,7 @@ trajectory = simulation.check().prepare().run(until=module.UNTIL).trajectory_
 # is its fertility or its mortality. The reinforcing loop dominates while fertility is above mortality, and the two
 # gains meet in 2035, when births balance deaths and the population stays near 7.8 billion.
 
-dominance = LoopAnalysis('dominance').check().prepare(trajectory).run()
+dominance = LoopAnalysis('dominance').prepare(trajectory).run()
 years = module.START + dominance.times_
 fig, (stocks, gains) = plt.subplots(1, 2, figsize=(10, 4))
 stocks.plot(years, trajectory.values('world.population'))

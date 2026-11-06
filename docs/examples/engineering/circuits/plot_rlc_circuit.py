@@ -6,22 +6,22 @@ damps the ringing so the oscillation decays exponentially.
 """
 
 # %%
-# The model is created by name from the catalog with `L = 1`, `R = 0.1`, `C = 1`, no source, and the capacitor charged
+# The system is created by name from the catalog with `L = 1`, `R = 0.1`, `C = 1`, no source, and the capacitor charged
 # to `q = 1`, and runs for 50 time units. The default blueprint shows the charge and its rate, the current, in one time
 # series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'rlc_circuit'
+SYSTEM = 'rlc_circuit'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.05, observers=[observer]).check().prepare().run(until=50)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
+simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=50)
 
 # %%
 # Damped ringing and resonance
@@ -38,7 +38,7 @@ exact = np.exp(-R * times / (2 * L)) * (np.cos(omega_d * times) + R / (2 * L * o
 frequencies = np.linspace(0.5, 1.5, 21)
 amplitudes = []
 for omega in frequencies:
-    driven = Simulation(create(MODEL, q=0.0, V=0.1, omega=omega), dt=0.1).check().prepare().run(until=150).trajectory_
+    driven = Simulation(create_system(SYSTEM, q=0.0, V=0.1, omega=omega), dt=0.1).prepare().run(until=150).trajectory_
     amplitudes.append(np.abs(driven.values('circuit.q')[-300:]).max())
 grid = np.linspace(0.5, 1.5, 300)
 fig, (ringing, resonance) = plt.subplots(1, 2, figsize=(10, 4))

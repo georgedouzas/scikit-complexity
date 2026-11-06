@@ -6,25 +6,23 @@ Small noise around the uniform steady state grows into a pattern of spots of the
 """
 
 # %%
-# The model is created by name from the catalog on a 64 by 64 grid with `a = 1`, `b = 3`, `Du = 1`, and `Dv = 8`, and
+# The system is created by name from the catalog on a 64 by 64 grid with `a = 1`, `b = 3`, `Du = 1`, and `Dv = 8`, and
 # integrated with RK4. Naming the `u` field as primary puts its view first, so it becomes the thumbnail.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import SpectrumAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4Solver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import SpectrumAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'brusselator'
+SYSTEM = 'brusselator'
 
-system = create(MODEL, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='cells/u')
-simulation = (
-    Simulation(system, dt=1.0, solver=RK4Solver(dt=0.01), observers=[observer]).check().prepare().run(until=100)
-)
+system = create_system(SYSTEM, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='cells/u')
+simulation = Simulation(system, dt=1.0, solver=RK4Solver(dt=0.01), observers=[observer]).prepare().run(until=100)
 
 # %%
 # Pattern wavelength against the linear instability
@@ -36,7 +34,7 @@ simulation = (
 
 a, b, Du, Dv = 1.0, 3.0, 1.0, 8.0
 u = simulation.trajectory_.lattice('cells.u')[-1]
-factor = SpectrumAnalysis('structure-factor').check().prepare(u).run()
+factor = SpectrumAnalysis('structure-factor').prepare(u).run()
 q = np.linspace(0.01, 2.0, 300)
 growth = [np.linalg.eigvals([[b - 1 - Du * k**2, a**2], [-b, -(a**2) - Dv * k**2]]).real.max() for k in q]
 fig, (field, spectrum) = plt.subplots(1, 2, figsize=(10, 4))

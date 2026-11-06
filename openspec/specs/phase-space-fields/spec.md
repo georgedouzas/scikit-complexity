@@ -129,6 +129,6 @@ fields.
 and its moments over the class axes as series or images over the position lattice.
 
 #### Scenario: Two-stream instability in the viewer
-- **WHEN** a Vlasov-Poisson two-stream model streams to Rerun
+- **WHEN** a Vlasov-Poisson two-stream system streams to Rerun
 - **THEN** the recording holds the position-velocity image of the field and the density over position, both updated
   every frame

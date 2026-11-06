@@ -1,13 +1,13 @@
 """
 # Ising on a graph
 
-Below its critical temperature the Ising model on a graph orders, with domains of aligned spins that grow until one
+Below its critical temperature the Ising system on a graph orders, with domains of aligned spins that grow until one
 color fills the graph. The view shows the spins on the nodes of a honeycomb graph, a lattice with three neighbours per
 node, after domains have formed from random spins.
 """
 
 # %%
-# The model is created by name from the catalog on the honeycomb graph that NetworkX generates, whose nodes carry
+# The system is created by name from the catalog on the honeycomb graph that NetworkX generates, whose nodes carry
 # their positions in the plane, at `T = 1.2 J`, below the critical temperature `2 / ln(2 + sqrt 3) = 1.52 J` of the
 # honeycomb lattice. One unit of time is one sweep of Metropolis updates over the classes of a proper coloring of the
 # graph. The observer saves every frame with the default blueprint, whose primary view is the graph of the spins.
@@ -16,16 +16,16 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.experiments import Experiment, GridDesign
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.experiments import Experiment, GridDesign
+from skcomplex.systems import create_system
 
-MODEL = 'graph_ising'
+SYSTEM = 'graph_ising'
 
-system = create(MODEL, graph=nx.hexagonal_lattice_graph(14, 14), temperature=1.2)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=60)
+system = create_system(SYSTEM, graph=nx.hexagonal_lattice_graph(14, 14), temperature=1.2)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=60)
 
 
 # %%
@@ -46,7 +46,7 @@ graph = nx.random_regular_graph(4, 1000, seed=0)
 temperatures = [1.0, 1.5, 2.0, 2.4, 2.7, 2.9, 3.1, 3.5, 4.5, 6.0]
 result = (
     Experiment(
-        lambda temperature: create(MODEL, graph=graph, temperature=temperature, initial='up'),
+        lambda temperature: create_system(SYSTEM, graph=graph, temperature=temperature, initial='up'),
         GridDesign(),
         {'temperature': temperatures},
         replicates=4,
@@ -56,7 +56,6 @@ result = (
         outputs=[magnetization],
         random_state=0,
     )
-    .check()
     .prepare()
     .run()
     .result_

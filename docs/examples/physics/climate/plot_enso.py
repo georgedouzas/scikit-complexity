@@ -6,22 +6,22 @@ waves turns it around, so it swings regularly between El Niño, a warm anomaly, 
 """
 
 # %%
-# The model is created by name from the catalog with the delayed feedback `alpha = 0.75` and the delay of six time
+# The system is created by name from the catalog with the delayed feedback `alpha = 0.75` and the delay of six time
 # units, starting from a small warm anomaly. The default blueprint shows the anomaly in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import SpectrumAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import SpectrumAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'enso'
+SYSTEM = 'enso'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=200)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=200)
 
 # %%
 # A limit cycle with one period
@@ -34,7 +34,7 @@ trajectory = simulation.trajectory_
 anomaly = trajectory.values('pacific.T')
 shift = int(6.0 / 0.5)
 settled = slice(len(anomaly) // 2, None)
-spectrum = SpectrumAnalysis(dt=0.5).check().prepare(anomaly[settled]).run()
+spectrum = SpectrumAnalysis(dt=0.5).prepare(anomaly[settled]).run()
 frequencies, density = spectrum.frequencies_, spectrum.power_[0]
 peak = frequencies[1:][np.argmax(density[1:])]
 fig, (loop, spectrum) = plt.subplots(1, 2, figsize=(10, 4))

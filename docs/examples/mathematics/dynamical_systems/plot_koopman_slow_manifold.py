@@ -7,7 +7,7 @@ parabola that bend sharply onto it and run together toward the origin.
 """
 
 # %%
-# The model is created by name from the catalog with `mu = -0.05` and `lam = -1`, starting from `(1, -1)`. Six more
+# The system is created by name from the catalog with `mu = -0.05` and `lam = -1`, starting from `(1, -1)`. Six more
 # runs from other starting points share the phase plane. After the runs, every orbit is logged once as a line in the
 # phase plane together with the parabola `x2 = b x1^2`, `b = lam / (lam - 2 mu)`, in dark blue, and the blueprint puts
 # this view first, as the primary view. The vertical axis of the plane points up.
@@ -17,11 +17,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'koopman_slow_manifold'
+SYSTEM = 'koopman_slow_manifold'
 MU, LAM = -0.05, -1.0
 SCALE = 100.0
 
@@ -43,11 +43,11 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(create(MODEL), dt=0.1, observers=[observer]).check().prepare().run(until=40)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
+simulation = Simulation(create_system(SYSTEM), dt=0.1, observers=[observer]).prepare().run(until=40)
 starts = [(-1.0, -1.0), (1.5, 0.0), (-1.5, 0.0), (0.5, 1.5), (-0.5, 1.5), (1.2, 1.5)]
 orbits = [simulation.trajectory_] + [
-    Simulation(create(MODEL, x1=x1, x2=x2), dt=0.1).check().prepare().run(until=40).trajectory_ for x1, x2 in starts
+    Simulation(create_system(SYSTEM, x1=x1, x2=x2), dt=0.1).prepare().run(until=40).trajectory_ for x1, x2 in starts
 ]
 b = LAM / (LAM - 2 * MU)
 parabola = np.linspace(-1.6, 1.6, 101)

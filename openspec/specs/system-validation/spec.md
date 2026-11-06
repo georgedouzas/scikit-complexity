@@ -67,9 +67,9 @@ It SHALL check:
 - **THEN** the report holds one error whose fix names the installation extra
 
 ### Requirement: Compilation and simulation validate first
-`compile_system` and `Simulation` SHALL validate before doing any other work, raise one `ValidationError` listing every
-error of the report, and emit warnings as named warnings. A valid system SHALL compile without any further compatibility
-error.
+A compiler and `Simulation` SHALL validate in `prepare` before doing any other work, raise one `ValidationError` listing
+every error of the report, and emit warnings as named warnings. A valid system SHALL compile without any further
+compatibility error.
 
 #### Scenario: Error before compilation
 - **WHEN** an invalid system is passed to `Simulation`
@@ -156,7 +156,7 @@ states they carry through `get_states()`.
 - **THEN** the result names the role, the accepted element kinds, and that state
 
 #### Scenario: Every core interaction declares
-- **WHEN** the test suite reads the interactions of `skcomplex.core.interactions`
+- **WHEN** the test suite reads the interactions of `skcomplex.core.components.interactions`
 - **THEN** every role of each declares its requirements
 
 ### Requirement: A role filled by an unsuitable element is reported
@@ -171,6 +171,6 @@ issue `role-element`, with its path, the state or the kind, and a fix, among the
 - **WHEN** a law of an interaction raises an error that is not a missing attribute of a role
 - **THEN** that error reaches the user unchanged
 
-#### Scenario: Prebuilt models stay valid
-- **WHEN** every model of the catalog is validated
+#### Scenario: Prebuilt systems stay valid
+- **WHEN** every system of the catalog is validated
 - **THEN** none reports `role-element`

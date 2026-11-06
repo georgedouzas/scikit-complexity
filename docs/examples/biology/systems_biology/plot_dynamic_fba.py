@@ -7,26 +7,26 @@ biomass and the glucose, until the glucose runs out and growth stops.
 """
 
 # %%
-# The model is created by name from the catalog, which needs the extra `metabolism`, with a program in a discrete
+# The system is created by name from the catalog, which needs the extra `metabolism`, with a program in a discrete
 # partition that solves at every synchronisation point. The primary view is the series of the biomass and the glucose.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import CoSimulationSolver, RK4Solver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import CoSimulationSolver, RK4Solver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'dynamic_fba'
+SYSTEM = 'dynamic_fba'
 FRAME = 0.05
 KM = 0.015
 
 blueprint = rrb.Blueprint(rrb.TimeSeriesView(origin='culture', name='culture'), collapse_panels=True)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 solver = CoSimulationSolver(sync_dt=FRAME, solvers={'culture': RK4Solver(dt=0.005)})
-simulation = Simulation(create(MODEL), solver=solver, dt=FRAME, observers=[observer]).check().prepare().run(until=10.0)
+simulation = Simulation(create_system(SYSTEM), solver=solver, dt=FRAME, observers=[observer]).prepare().run(until=10.0)
 trajectory = simulation.trajectory_
 
 # %%

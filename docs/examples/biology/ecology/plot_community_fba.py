@@ -7,23 +7,23 @@ other secretes, 2-oxoglutarate one way and glutamate the other, and both grow.
 """
 
 # %%
-# The model is created by name from the catalog, which needs the extra `metabolism`. The programs of the members merge
+# The system is created by name from the catalog, which needs the extra `metabolism`. The programs of the members merge
 # through the medium, whose law holds the growth weighted by the abundances. The primary view is the bar chart of the
 # fluxes of the first member.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
-from skcomplex.models.biology.common.metabolism import CommunityAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
+from skcomplex.systems.biology.common.metabolism import CommunityAnalysis
 
-MODEL = 'community_fba'
+SYSTEM = 'community_fba'
 GROWTH = 'v_Biomass_Ecoli_core'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-trajectory = Simulation(system, observers=[observer]).check().prepare().run(until=0.0).trajectory_
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
+trajectory = Simulation(system, observers=[observer]).prepare().run(until=0.0).trajectory_
 
 # %%
 # Alone and together
@@ -34,8 +34,7 @@ trajectory = Simulation(system, observers=[observer]).check().prepare().run(unti
 
 alone = [
     float(
-        Simulation(create(MODEL, knockouts=(name,), abundances=(1.0,)))
-        .check()
+        Simulation(create_system(SYSTEM, knockouts=(name,), abundances=(1.0,)))
         .prepare()
         .run(until=0.0)
         .trajectory_.values('medium.objective_0')[0],
@@ -44,10 +43,10 @@ alone = [
 ]
 together = [float(trajectory.values(f'member_{index}.{GROWTH}')[0]) for index in range(2)]
 community = float(trajectory.values('medium.objective_0')[0])
-balanced = Simulation(create(MODEL, common_rate=True)).check().prepare().run(until=0.0).trajectory_
+balanced = Simulation(create_system(SYSTEM, common_rate=True)).prepare().run(until=0.0).trajectory_
 balanced_rate = float(balanced.values('medium.objective_0')[0])
-steadycom = CommunityAnalysis(medium={'EX_akg_e': 0.0, 'EX_glu__L_e': 0.0}).check().prepare(system).run()
-tradeoff = CommunityAnalysis('tradeoff', fraction=1.0).check().prepare(create(MODEL, knockouts=('', ''))).run()
+steadycom = CommunityAnalysis(medium={'EX_akg_e': 0.0, 'EX_glu__L_e': 0.0}).prepare(system).run()
+tradeoff = CommunityAnalysis('tradeoff', fraction=1.0).prepare(create_system(SYSTEM, knockouts=('', ''))).run()
 fig, axes = plt.subplots(1, 2, figsize=(10, 4))
 axes[0].bar(['ΔICDHyr alone', 'ΔNH4t alone', 'ΔICDHyr together', 'ΔNH4t together'], [*alone, *together])
 axes[0].tick_params(axis='x', rotation=20)

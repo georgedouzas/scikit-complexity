@@ -1,1 +1,1 @@
-"""What a system is: elements, interactions, laws, space and the system itself."""
+"""The general library: components, specs, engine, analysis, and experiments."""

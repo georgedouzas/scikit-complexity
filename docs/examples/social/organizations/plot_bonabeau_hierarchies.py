@@ -14,15 +14,15 @@ subordinate, while sparse agents stay alike.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'bonabeau_hierarchies'
+SYSTEM = 'bonabeau_hierarchies'
 
-system = create(MODEL, density=0.5, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer], random_state=0).check().prepare().run(until=100)
+system = create_system(SYSTEM, density=0.5, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=100)
 
 # %%
 # Spread of strengths against density
@@ -36,8 +36,7 @@ densities = np.linspace(0.1, 0.8, 8)
 spread_runs = []
 for density in densities:
     runs = [
-        Simulation(create(MODEL, density=density, random_state=seed), random_state=seed)
-        .check()
+        Simulation(create_system(SYSTEM, density=density, random_state=seed), random_state=seed)
         .prepare()
         .run(until=100)
         for seed in range(3)

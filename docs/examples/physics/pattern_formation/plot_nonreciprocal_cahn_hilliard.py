@@ -9,7 +9,7 @@ coarsening.
 """
 
 # %%
-# The model is created by name from the catalog with 128 sites, the purely nonreciprocal coupling `alpha = 0.3`, and
+# The system is created by name from the catalog with 128 sites, the purely nonreciprocal coupling `alpha = 0.3`, and
 # the diffusivity `D = 0.1` of the second field, above the threshold `alpha > D` of Brauns and Marchetti. Both fields
 # start from noise of amplitude 0.01 around the mixed state. The observer saves every frame of 2 time units with the
 # default blueprint, whose primary view is the space-time image of `phi`.
@@ -17,17 +17,17 @@ coarsening.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import StabilityAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import StabilityAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'nonreciprocal_cahn_hilliard'
+SYSTEM = 'nonreciprocal_cahn_hilliard'
 LENGTH = 40.0
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).check().prepare().run(until=400)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).prepare().run(until=400)
 
 # %%
 # A propagating unstable band
@@ -39,8 +39,8 @@ simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).ch
 # sites, whose wavenumbers resolve the band finely. In the run above, the phase of the dominant Fourier
 # mode of `phi` should advance at a constant rate once the domains form, the signature of domains that travel.
 
-above = StabilityAnalysis('dispersion').check().prepare(create(MODEL, shape=(512,), length=400.0)).run()
-below = StabilityAnalysis('dispersion').check().prepare(create(MODEL, shape=(512,), length=400.0, alpha=0.05)).run()
+above = StabilityAnalysis('dispersion').prepare(create_system(SYSTEM, shape=(512,), length=400.0)).run()
+below = StabilityAnalysis('dispersion').prepare(create_system(SYSTEM, shape=(512,), length=400.0, alpha=0.05)).run()
 edge = np.sqrt(1 - 0.1)
 phi = simulation.trajectory_.lattice('mixture.phi')
 times = 2.0 * np.arange(len(phi))

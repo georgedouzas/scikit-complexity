@@ -6,33 +6,29 @@ while thermal noise spreads them out, so the cloud moves at a steady mean veloci
 """
 
 # %%
-# The model is created by name from the catalog with 20 particles in the potential `0.5 cos(2 pi x) - f x` at
+# The system is created by name from the catalog with 20 particles in the potential `0.5 cos(2 pi x) - f x` at
 # `kT = 0.5`, with the force `f = 1`, and simulated for 50 time units. The observer saves every frame with the default
 # blueprint, whose primary view holds the positions of the particles.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import EulerMaruyamaSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'tilted_periodic_potential'
+SYSTEM = 'tilted_periodic_potential'
 
-system = create(MODEL, n_particles=20, f=1.0, U0=0.5, L=1.0, kT=0.5)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(
-        system,
-        dt=0.25,
-        solver=EulerMaruyamaSolver(dt=0.005),
-        observers=[observer],
-        random_state=0,
-    )
-    .check()
-    .prepare()
-)
+system = create_system(SYSTEM, n_particles=20, f=1.0, U0=0.5, L=1.0, kT=0.5)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(
+    system,
+    dt=0.25,
+    solver=EulerMaruyamaSolver(dt=0.005),
+    observers=[observer],
+    random_state=0,
+).prepare()
 simulation.run(until=50)
 
 # %%
@@ -60,16 +56,12 @@ def exact_velocity(f, U0=0.5, L=1.0, kT=0.5, gamma=1.0):
 forces = np.array([0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0])
 velocities = []
 for f in forces:
-    run = (
-        Simulation(
-            create(MODEL, n_particles=300, f=f),
-            dt=1.0,
-            solver=EulerMaruyamaSolver(dt=0.005),
-            random_state=1,
-        )
-        .check()
-        .prepare()
-    )
+    run = Simulation(
+        create_system(SYSTEM, n_particles=300, f=f),
+        dt=1.0,
+        solver=EulerMaruyamaSolver(dt=0.005),
+        random_state=1,
+    ).prepare()
     positions = run.run(until=30).trajectory_.values('particles.x')[..., 0]
     velocities.append((positions[-1] - positions[5]).mean() / 25)
 

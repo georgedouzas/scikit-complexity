@@ -1,14 +1,14 @@
 # rewriting-systems Specification
 
 ## Purpose
-Lets a user model systems that grow by replacing their parts in parallel, words by L-system productions, segments and
+Lets a user build systems that grow by replacing their parts in parallel, words by L-system productions, segments and
 polygons by affine substitution, and graphs by graph productions, with one generation per simulation step.
 
 ## Requirements
 
 ### Requirement: Rewriting systems are a form
 A system whose elements hold a word or a patch of tiles rewritten by productions SHALL compile to the rewriting form
-with `RewritingCompiler` of `skcomplex.engine.compile`. Each simulation step SHALL apply one
+with `RewritingCompiler` of `skcomplex.core.engine.compile`. Each simulation step SHALL apply one
 generation, every part of the structure rewritten in parallel, and the time between frames SHALL be a positive integer
 number of generations.
 
@@ -63,7 +63,7 @@ both written as symbolic expressions of the predecessor's parameters and the sys
   longer rewritten because its condition is false
 
 ### Requirement: Turtles interpret words as geometry
-A `GeometrySpec` of `skcomplex.specs`, the turtle interpretation of L-systems, SHALL interpret a word as line
+A `GeometrySpec` of `skcomplex.core.specs`, the turtle interpretation of L-systems, SHALL interpret a word as line
 segments in two or three dimensions from declared symbol meanings: moving with or without drawing, turning by a
 parameter angle, pushing and popping its state with brackets, and scaling its step per generation. A module's first
 parameter SHALL override the step or the angle. A word SHALL take it as its `geometry`.
@@ -122,18 +122,18 @@ rules from `_get_laws`. No rewriting rule SHALL be an interaction.
 - **THEN** the word is `ABAABABAABAAB`, and `ProductionLaw` is not a subclass of `BaseInteraction`
 
 ### Requirement: Rewriting parts live in the core
-`WordElement` and `PatchElement` SHALL live in `skcomplex.core.elements`, and `ProductionLaw` and `SubstitutionLaw` in
-`skcomplex.core.laws`. Their specs SHALL live in `skcomplex.specs`, and `RewritingError` in `skcomplex.errors`.
-Field-specific elements, such as `KochElement`, and their factories SHALL stay in `skcomplex.models.mathematics.fractals`.
+`WordElement` and `PatchElement` SHALL live in `skcomplex.core.components.elements`, and `ProductionLaw` and `SubstitutionLaw` in
+`skcomplex.core.components.laws`. Their specs SHALL live in `skcomplex.core.specs`, and `RewritingError` in `skcomplex.core.errors`.
+Field-specific elements, such as `KochElement`, and their factories SHALL stay in `skcomplex.systems.mathematics.fractals`.
 
 #### Scenario: A rewriting system from the core alone
 - **WHEN** a user writes an L-system from a `WordElement` and a `ProductionLaw`, and runs it with `RewritingCompiler`
-- **THEN** it runs without importing a field module of `skcomplex.models`
+- **THEN** it runs without importing a field module of `skcomplex.systems`
 
 ### Requirement: Rewriting runs in the engine
-`RewritingCompiler` SHALL live in `skcomplex.engine.compile`, `RewritingSolver` in `skcomplex.engine.solvers`,
-`RewritingProblemSpec` in `skcomplex.engine.problems`, and `GeometryVisual` in `skcomplex.engine.viz`.
+`RewritingCompiler` SHALL live in `skcomplex.core.engine.compile`, `RewritingSolver` in `skcomplex.core.engine.solvers`,
+`RewritingProblemSpec` in `skcomplex.core.engine.problems`, and `GeometryVisual` in `skcomplex.core.engine.viz`.
 
 #### Scenario: The core imports no engine
 - **WHEN** the import contracts run
-- **THEN** no module of `skcomplex.core` imports `skcomplex.engine`, although a spec of a word names its visual
+- **THEN** no module of `skcomplex.core.components` imports `skcomplex.core.engine`, although a spec of a word names its visual

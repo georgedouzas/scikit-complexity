@@ -6,22 +6,22 @@ deeper soil `y` averages it into small, damped fluctuations.
 """
 
 # %%
-# The model is created by name from the catalog with `r = 3.8` and the coupling `epsilon = 0.1`, and iterated for 200
+# The system is created by name from the catalog with `r = 3.8` and the coupling `epsilon = 0.1`, and iterated for 200
 # steps. The default blueprint shows both temperatures in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.experiments import OrbitDiagramExperiment
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.experiments import OrbitDiagramExperiment
+from skcomplex.systems import create_system, describe
 
-MODEL = 'soil_temperature'
+SYSTEM = 'soil_temperature'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().run(until=200)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
+simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=200)
 
 # %%
 # Route to chaos
@@ -33,14 +33,13 @@ simulation = Simulation(system, dt=1, observers=[observer]).check().prepare().ru
 epsilon = 0.1
 diagram = (
     OrbitDiagramExperiment(
-        describe(MODEL).factory,
+        describe(SYSTEM).factory,
         'r',
         np.linspace(2.5, 3.95, 300),
         'soil.x',
         transient=300,
         keep=80,
     )
-    .check()
     .prepare()
     .run()
 )

@@ -7,7 +7,7 @@ growing share of them crosses the obesity line at a body mass index of 30.
 """
 
 # %%
-# The model is created by name from the catalog with 100 people, 20 homes, 20 workplaces, and 20 restaurants of three
+# The system is created by name from the catalog with 100 people, 20 homes, 20 workplaces, and 20 restaurants of three
 # kinds on a square of side 280, and runs for one year, one step per day. A person eats at a random restaurant within
 # reach, or at the nearest one, and spends 1.55 times the basal metabolic rate a day. The default blueprint shows the
 # people at home, colored by body mass index from 18.5 (dark) to 35 (bright), next to the larger restaurants: the colors
@@ -16,15 +16,15 @@ growing share of them crosses the obesity line at a body mass index of 30.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'obesity'
+SYSTEM = 'obesity'
 
-system = create(MODEL, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=364)
+system = create_system(SYSTEM, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=364)
 
 # %%
 # Body mass index by habit

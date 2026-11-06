@@ -3,41 +3,41 @@
 
 The Q2R automaton is a deterministic, reversible Ising dynamics: a spin flips only when its four neighbours are split
 two against two, so the flip costs no energy, and the two sublattices of the checkerboard take turns. The energy is
-conserved exactly, so the automaton samples the microcanonical ensemble of the Ising model. Started from a random
+conserved exactly, so the automaton samples the microcanonical ensemble of the Ising system. Started from a random
 lattice with 10% of the spins up, which has the energy of an ordered Ising magnet, minority spins wander through the
 majority as ragged clusters. The view shows the spins of a 128 x 128 torus.
 """
 
 # %%
-# The model is created by name from the catalog with an initial fraction `up = 0.1` of spins up. One step updates one
+# The system is created by name from the catalog with an initial fraction `up = 0.1` of spins up. One step updates one
 # sublattice. The observer saves every step with the default blueprint, whose primary view is the image of the spins.
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import ellipk
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'q2r'
+SYSTEM = 'q2r'
 
-system = create(MODEL, shape=(128, 128), up=0.1, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=200)
+system = create_system(SYSTEM, shape=(128, 128), up=0.1, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=200)
 
 # %%
 # Microcanonical Ising magnetization
 # ----------------------------------
 # The initial fraction of up spins fixes the conserved energy per site `u = -<s_i s_j>` summed over the two bonds of a
 # site. If the automaton is ergodic, its long-time magnetization at that energy should match the spontaneous
-# magnetization of the Ising model at the temperature whose Onsager energy is `u`, zero above the critical energy
+# magnetization of the Ising system at the temperature whose Onsager energy is `u`, zero above the critical energy
 # `u_c = -sqrt 2`, with the rounding of a finite lattice near `u_c`.
 
 
 def energy_and_magnetization(up):
     """Return the energy per site and the late mean absolute magnetization of a run of the automaton."""
-    run = Simulation(create(MODEL, shape=(64, 64), up=up, random_state=1), dt=1).check().prepare().run(until=3000)
+    run = Simulation(create_system(SYSTEM, shape=(64, 64), up=up, random_state=1), dt=1).prepare().run(until=3000)
     spins = run.trajectory_.values('spins.spin').reshape(-1, 64, 64)
     bonds = spins * np.roll(spins, 1, axis=1) + spins * np.roll(spins, 1, axis=2)
     return -bonds.mean(axis=(1, 2))[-1], np.abs(spins[1000:].mean(axis=(1, 2))).mean()

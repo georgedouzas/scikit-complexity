@@ -8,23 +8,23 @@ play, each best responding to the prices of its rival so far, charge prices dist
 """
 
 # %%
-# The static model solves the Cournot best responses and the distribution on a grid of prices in one frame.
+# The static system solves the Cournot best responses and the distribution on a grid of prices in one frame.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.experiments import Experiment, GridDesign
-from skcomplex.models import create, describe
-from skcomplex.models.economics.markets import oligopoly_equilibria
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.experiments import Experiment, GridDesign
+from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.markets import oligopoly_equilibria
 
-MODEL = 'oligopoly_equilibria'
+SYSTEM = 'oligopoly_equilibria'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-observables = describe(MODEL).observables_of(system)
-simulation = Simulation(system, observers=[observer], observables=observables).check().prepare().run(until=1.0)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+observables = describe(SYSTEM).observables_of(system)
+simulation = Simulation(system, observers=[observer], observables=observables).prepare().run(until=1.0)
 
 # %%
 # The distribution of prices
@@ -40,12 +40,11 @@ experiment = Experiment(
     until=1.0,
     outputs=['prices.price', 'prices.distribution'],
 )
-result = experiment.check().prepare().run().result_
+result = experiment.prepare().run().result_
 prices, distributions = result.series('prices.price')[:, 0], result.series('prices.distribution')[:, 0]
 learning = oligopoly_equilibria(dynamics='fictitious-play')
 played = (
-    Simulation(learning, random_state=0, observables=describe(MODEL).observables_of(learning))
-    .check()
+    Simulation(learning, random_state=0, observables=describe(SYSTEM).observables_of(learning))
     .prepare()
     .run(until=2000)
     .trajectory_

@@ -6,22 +6,22 @@ capacity of 1964 mm³.
 """
 
 # %%
-# The model is created by name from the catalog and run for 100 days from a volume of 10 mm³, the breast cancer fit of
+# The system is created by name from the catalog and run for 100 days from a volume of 10 mm³, the breast cancer fit of
 # Padmanabhan et al. The observer saves every frame with the default blueprint, whose primary view is the time series
 # of the volume.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'gompertz'
+SYSTEM = 'gompertz'
 
-system = create(MODEL, n=10.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer]).check().prepare().run(until=100)
+system = create_system(SYSTEM, n=10.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=100)
 
 # %%
 # Closed-form solution

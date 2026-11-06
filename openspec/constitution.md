@@ -98,7 +98,7 @@ conventions are the taste it cannot check.
   the shared constants, and the shared building primitives, MUST live in a `core` subpackage, and every import MUST
   run downward, from `core` to domain packages to surfaces, so no cycle can form.
 - The only lazy import MUST defer an optional dependency, and MUST go through `importlib`, as
-  `skcomplex.models.import_extra` does, so it needs no suppression.
+  `skcomplex.systems.import_extra` does, so it needs no suppression.
 - Implementation modules, classes, and helpers MUST be private, named `_name`.
 - The package `__init__` MUST re-export the public surface with an explicit `__all__`, MUST carry only its docstring
   and those re-exports, and MUST be the only place a public name leaves a private module. A name MUST be re-exported
@@ -229,15 +229,15 @@ This section instantiates the body above for this repository. It is the repo-spe
 to fill in as the project takes shape.
 
 - Ecosystem contract: the scikit-learn estimator contract. Every configurable base derives from `BaseConfig` in
-  `skcomplex.base`, a child of `sklearn.base.BaseEstimator`, and speaks three verbs: `check()` validates the stored
-  arguments, `prepare(context)` derives every attribute ending in an underscore, and `run(inputs, final=False)`
+  `skcomplex.core.base`, a child of `sklearn.base.BaseEstimator`, and speaks two verbs: `prepare(context)` validates the
+  stored arguments and derives every attribute ending in an underscore, and `run(inputs, final=False)`
   performs the family's one action and, when `final` is true, releases what `prepare` acquired. Every verb returns the
   object, and a run keeps what it produces in attributes ending in an underscore, one name per family, such as
   `laws_` for elements, interactions, and systems, `value_` for laws, `problem_` for compilers, `state_` for solvers,
-  and `values_` for kernels. Each verb calls a private hook, `_check`, `_prepare`, or `_run`, which `BaseConfig`
+  and `values_` for kernels. The verbs call the private hooks `_check`, `_prepare`, and `_run`, which `BaseConfig`
   declares abstract and every class MUST implement, returning `None`; `_release` is optional and does nothing by
   default. No family MUST add a verb of its own. Domains, problems, terms, and compiled records are values: frozen specs
-  deriving from `BaseSpec`, the only base whose hooks have defaults, whose only shared method is `check()`. A system is
+  deriving from `BaseSpec`, the only base whose hooks have defaults, whose only hook they usually implement is `_check`. A system is
   defined by elements, interactions, and laws alone, its parts, which derive from `BasePart`. Elements and groups derive from
   `BaseElement`, and interactions from `BaseInteraction`, which both take the label and the values of the declared
   states, parameters, and roles in one explicit constructor and list them in `get_params`, through the declaration
@@ -284,9 +284,9 @@ to fill in as the project takes shape.
 - Optional extras: `structures` holds `biopython` for the structures of the protein models, `rna` holds `ViennaRNA`,
   whose licence is not OSI approved, for RNA folds, and `trajectories` holds `mdtraj`, under the LGPL, for molecular
   dynamics trajectories.
-- Dependency placement: a library that `skcomplex.core`, `skcomplex.engine`, or `skcomplex.analysis` uses MUST be a runtime dependency,
+- Dependency placement: a library that `skcomplex.core.components`, `skcomplex.core.engine`, or `skcomplex.core.analysis` uses MUST be a runtime dependency,
   whatever its licence, including copyleft licences such as that of `passagemath-symbolics`. An optional extra MUST
-  hold only libraries that a model of `skcomplex.models` alone needs, and a model that needs one MUST raise a named
+  hold only libraries that a model of `skcomplex.systems` alone needs, and a model that needs one MUST raise a named
   error naming the extra. The extra `metabolism` holds `cobra`, `straindesign`, and `micom`.
 - Symbolic layer: Sage is imported only through `sage.all__sagemath_symbolics`, `sage.all__sagemath_polyhedra`, and the
   modules they load, and the
@@ -295,16 +295,16 @@ to fill in as the project takes shape.
 - LAMMPS: `lammps` is a runtime dependency, with `mpich`, because the LAMMPS wheel links an MPI library it does not
   bundle.
 - Layout: library. The importable package under `src/skcomplex` is distributed to others and holds five packages.
-  `skcomplex.core` holds what a system is, in the order `base`, `spaces`, `laws`, `elements` and `interactions`,
-  `system`, and `specs`, and nothing about how it runs. `skcomplex.engine` holds what runs a system, in the order
-  `types`, `problems`, `backends`, `compile`, `solvers`, `runtime`, `viz`, and `translators`. `skcomplex.analysis` builds on the
-  engine, and `skcomplex.experiments` on the analysis. What every package shares lives in the root modules
-  `skcomplex.base` (`BaseConfig`, the root of every configurable class), `skcomplex.types`, `skcomplex.specs`, and
-  `skcomplex.errors`, which import no package. Within `core` and within `engine`, a package imports only the packages
+  `skcomplex.core.components` holds what a system is, in the order `base`, `spaces`, `laws`, `elements` and `interactions`,
+  `system`, and `specs`, and nothing about how it runs. `skcomplex.core.engine` holds what runs a system, in the order
+  `types`, `problems`, `backends`, `compile`, `solvers`, `runtime`, `viz`, and `translators`. `skcomplex.core.analysis` builds on the
+  engine, and `skcomplex.core.experiments` on the analysis. What every package shares lives in the root modules
+  `skcomplex.core.base` (`BaseConfig`, the root of every configurable class), `skcomplex.core.types`, `skcomplex.core.specs`, and
+  `skcomplex.core.errors`, which import no package. Within `core` and within `engine`, a package imports only the packages
   listed before it. Every kind of dynamics, such as agents, lattices, fields, kinetics, operators, or particles, is no
   package of its own: its laws, elements, and spaces are parts of the core, and its passes, solvers, and visuals parts
   of the engine. Every name of `core` and `engine` is a mathematical, modelling, or engineering term, and none of
-  them imports `skcomplex.models`. The test tree mirrors the source tree with no exceptions, so every test module
+  them imports `skcomplex.systems`. The test tree mirrors the source tree with no exceptions, so every test module
   tests one module of `skcomplex`, and no test module checks repository conventions, documentation tooling, or
   documentation data.
 - General core: a core element or interaction class names a mathematical operation, configured by the roles it binds,
@@ -313,12 +313,12 @@ to fill in as the project takes shape.
   paradigm, such as a variational principle, a conservation law, a Markov jump process, a reaction network, or
   imitation dynamics, that applies in principle to other domains than the one that first needs it. A class whose
   operation agent models use takes `form='symbolic'` or `form='agent'`, and a matching algorithm is a frozen rule spec
-  of `skcomplex.specs`.
-- Model library: `skcomplex.models` is organised by scientific field and subfield, as
-  `skcomplex.models.<field>.<subfield>`, and every model registers under the field path `<field>/<subfield>`. Models
+  of `skcomplex.core.specs`.
+- Model library: `skcomplex.systems` is organised by scientific field and subfield, as
+  `skcomplex.systems.<field>.<subfield>`, and every model registers under the field path `<field>/<subfield>`. Models
   are examples built only from the public names of `core`, `engine`, `analysis`, and `experiments`. Every model
   package is self-contained, so no model package imports another, except that the packages of one field may import
-  the code they share from `skcomplex.models.<field>.common.<family>`, such as `physics.common.particles` or
+  the code they share from `skcomplex.systems.<field>.common.<family>`, such as `physics.common.particles` or
   `biology.common.populations`, which never lives in the core. A case of one field of a general core class is a thin
   subclass of it, even a pure renaming, which lives with the one model package that uses it, or in the `common`
   family of its field when several packages of the field use it. A model the core cannot express MUST be recorded as
@@ -326,7 +326,7 @@ to fill in as the project takes shape.
   Models exist first to probe the core: a survey MUST record the primitives each model exercises and MUST implement
   models that exercise new primitives or combinations before models that repeat covered patterns. The import
   contracts enforce the import rules.
-- Surface: the top-level package, `skcomplex.core`, and `skcomplex.engine` re-export nothing, so every public name is
+- Surface: the top-level package, `skcomplex.core.components`, and `skcomplex.core.engine` re-export nothing, so every public name is
   imported from the subpackage that owns it.
 - Extension points: classes users subclass are the bases `BaseElement`, `Element`, `BaseInteraction`, `Interaction`,
   `NeighborInteraction`, `PairInteraction`, `HyperedgeInteraction`, and `BaseLaw`; the general interactions, such as

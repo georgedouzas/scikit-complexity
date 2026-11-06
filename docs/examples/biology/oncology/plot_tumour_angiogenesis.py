@@ -6,22 +6,22 @@ sprouts out of the vessel towards the tumour, and once the new vessels arrive an
 """
 
 # %%
-# The model is created by name from the catalog with five sprouts on a 40 by 25 grid, the parent vessel along the
+# The system is created by name from the catalog with five sprouts on a 40 by 25 grid, the parent vessel along the
 # left edge. The observer saves every step with the default blueprint, whose primary view shows the cells and the
 # fields.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'tumour_angiogenesis'
+SYSTEM = 'tumour_angiogenesis'
 
-system = create(MODEL, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=120)
+system = create_system(SYSTEM, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=120)
 
 # %%
 # Growth follows the vessels

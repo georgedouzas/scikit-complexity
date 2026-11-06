@@ -6,22 +6,22 @@ doses stop the metabolism lowers it.
 """
 
 # %%
-# The model is created by name from the catalog: a one-day infusion every week, a drug eliminated at the rate 0.5 a
+# The system is created by name from the catalog: a one-day infusion every week, a drug eliminated at the rate 0.5 a
 # day, and a toxicity cleared at the rate 0.05 a day. The observer saves every second frame with the default blueprint,
 # whose primary view is the time series of the concentration and the toxicity.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'drug_toxicity'
+SYSTEM = 'drug_toxicity'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.2, observers=[observer]).check().prepare().run(until=84)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(until=84)
 
 # %%
 # Toxicity and exposure
@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=0.2, observers=[observer]).check().prepare().
 # With clearance at the rate `eta`, the toxicity should decay as `exp(-eta t)` after the last dose.
 
 times = simulation.trajectory_.times
-cumulative = Simulation(create(MODEL, eta=0.0), dt=0.2).check().prepare().run(until=84).trajectory_
+cumulative = Simulation(create_system(SYSTEM, eta=0.0), dt=0.2).prepare().run(until=84).trajectory_
 exposure = np.concatenate(
     ([0.0], np.cumsum(np.diff(times) * (cumulative.values('patient.c')[1:] + cumulative.values('patient.c')[:-1]) / 2)),
 )

@@ -32,7 +32,7 @@ one renewal SHALL read the same value. Runs with the same random state SHALL be 
 - **THEN** `a + b` equals 0 after every renewal
 
 #### Scenario: Reproducible draws
-- **WHEN** a model with draws in renewal laws runs twice with random state 0
+- **WHEN** a system with draws in renewal laws runs twice with random state 0
 - **THEN** the two trajectories are equal
 
 ### Requirement: Renewal laws fire after drawn waiting times
@@ -86,7 +86,7 @@ count of every renewal law SHALL be available as an observable, so it is analyse
 observables.
 
 #### Scenario: Renewal count observable
-- **WHEN** a trajectory of a renewal model is asked for the observable `renewals` of its renewal law
+- **WHEN** a trajectory of a renewal system is asked for the observable `renewals` of its renewal law
 - **THEN** it returns at every frame the number of renewals recorded up to that frame's time
 
 ### Requirement: States are driven by fractional Gaussian noise

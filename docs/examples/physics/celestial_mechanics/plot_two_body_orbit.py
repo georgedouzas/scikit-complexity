@@ -14,18 +14,16 @@ approach and crawling at its farthest point, so that the line to the star sweeps
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import Yoshida4Solver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import Yoshida4Solver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'two_body_orbit'
+SYSTEM = 'two_body_orbit'
 
-system = create(MODEL, eccentricity=0.6, mass=1000.0, radius=10.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = (
-    Simulation(system, dt=0.05, solver=Yoshida4Solver(), observers=[observer]).check().prepare().run(until=24.8)
-)
+system = create_system(SYSTEM, eccentricity=0.6, mass=1000.0, radius=10.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=0.05, solver=Yoshida4Solver(), observers=[observer]).prepare().run(until=24.8)
 
 # %%
 # Kepler's first and second laws

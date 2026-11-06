@@ -7,7 +7,7 @@ strange attractor of one of the simplest chaotic flows.
 """
 
 # %%
-# The run lasts 300 time units from rest with unit acceleration, and the model logs `x` and its two derivatives as time
+# The run lasts 300 time units from rest with unit acceleration, and the system logs `x` and its two derivatives as time
 # series. After the run, the trajectory in `(x, x', x'')` is logged once more as a line in three dimensions, and the
 # blueprint puts this view of the attractor first, as the primary view.
 
@@ -17,12 +17,12 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.signal import find_peaks
 
-from skcomplex.analysis import LyapunovAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import LyapunovAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'sprott_jerk'
+SYSTEM = 'sprott_jerk'
 
 # Every view shows the whole run, not the default window that follows the latest frame.
 whole_run = rrb.TimeAxis(
@@ -38,8 +38,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=12)
-simulation = Simulation(create(MODEL), dt=0.1, observers=[observer]).check().prepare().run(until=300)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=12)
+simulation = Simulation(create_system(SYSTEM), dt=0.1, observers=[observer]).prepare().run(until=300)
 trajectory = simulation.trajectory_
 points = np.column_stack([trajectory.values(name) for name in ('jerk.x', 'jerk.x_d1', 'jerk.x_d2')])[200:]
 observer.recording_.log('attractor', rr.LineStrips3D([points], radii=0.01, colors=[255, 170, 40]), static=True)
@@ -51,10 +51,10 @@ observer.recording_.flush()
 # Successive maxima of `x` should lie close to a single curve, the trace of the fold of the band. The largest Lyapunov
 # exponent should be positive, near the 0.036 that Sprott reports, and the exponents should sum to the divergence `-A`.
 
-x = Simulation(create(MODEL), dt=0.05).check().prepare().run(until=3000).trajectory_.values('jerk.x')[2000:]
+x = Simulation(create_system(SYSTEM), dt=0.05).prepare().run(until=3000).trajectory_.values('jerk.x')[2000:]
 maxima = x[find_peaks(x)[0]]
 # The symbolic Jacobian of `|x|` divides by `|x|`, so the tangent dynamics start off `x = 0` (see fix-core-defects).
-exponents = LyapunovAnalysis(until=3000).check().prepare(create(MODEL, x=0.1)).run().exponents_
+exponents = LyapunovAnalysis(until=3000).prepare(create_system(SYSTEM, x=0.1)).run().exponents_
 fig, ax = plt.subplots(figsize=(5.5, 5))
 ax.plot(maxima[:-1], maxima[1:], '.', markersize=4)
 ax.set_xlabel('maximum $x_n$')

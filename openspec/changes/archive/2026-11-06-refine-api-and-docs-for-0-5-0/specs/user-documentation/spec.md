@@ -1,0 +1,78 @@
+# Spec Delta
+
+## ADDED Requirements
+
+### Requirement: The user guide is task-led
+The user guide SHALL be ordered by what a modeler does: select a ready-made system, change it, build a custom system,
+simulate it, record and observe it, analyse it, run experiments, and extend the library. Every current topic SHALL keep a
+section. Each section SHALL open with what the reader achieves, then show short code, in the style of the README.
+
+#### Scenario: Reading in order
+- **WHEN** a reader follows the sections of the guide from the top
+- **THEN** each section builds on the ones before it, and none needs a section that comes later
+
+#### Scenario: No topic lost
+- **WHEN** a reviewer compares the topics of the guide before and after the rewrite
+- **THEN** every earlier topic has a section
+
+### Requirement: The README shows code only
+The Python blocks of the README SHALL hold code only, with no `print` and no output written by hand, on GitHub and on
+the documentation site. Blocks that build on earlier ones SHALL be marked as their continuation and render on the site.
+
+#### Scenario: Continuation block on the site
+- **WHEN** the documentation site renders a README block marked `python continuation`
+- **THEN** it shows as highlighted Python code
+
+### Requirement: The guide shows the values of its code
+The documentation build SHALL run the Python blocks of the user guide and show the value of each top-level expression
+below its block, with no `print` in the source. Strings SHALL show plain, and `None` and configurable objects SHALL show
+nothing. A block that raises SHALL stop the build and name the block.
+
+#### Scenario: Shown value
+- **WHEN** a guide block ends with the expression `describe('sir').formalism`
+- **THEN** the built page shows the formalism below the block
+
+#### Scenario: Failing block
+- **WHEN** a guide block raises an error during the documentation build
+- **THEN** the build fails and names the page and the block
+
+### Requirement: The prose is plain and lasting
+The prose of the README, the guide, the docstrings, and the error messages SHALL use no semicolons and SHALL state no
+hard-coded count of the catalog's systems, which goes stale. It SHALL say "in any field of science".
+
+#### Scenario: Count in the prose
+- **WHEN** a reviewer reads the README and the guide
+- **THEN** no sentence states how many systems the catalog holds, except where generated from the catalog at build time
+
+## MODIFIED Requirements
+
+### Requirement: The documentation offers two paths
+
+The README and the user guide SHALL open by presenting two paths: select a ready-made system from the catalog, or build
+a custom system from the core.
+
+#### Scenario: First screen of the README
+
+- **WHEN** a reader opens the usage section of the README
+- **THEN** it shows selecting and simulating a ready-made system by name, and building a custom system from the core,
+  each with code that runs
+
+### Requirement: Custom models are built from the core
+
+Examples in the README and the user guide SHALL build custom systems from `skcomplex.core`, and SHALL reach ready-made
+systems only through `catalog`, `describe`, `create_system`, and `create_simulation` of `skcomplex.systems`.
+
+#### Scenario: Import from a field module
+
+- **WHEN** a Python block of the README or the user guide imports from `skcomplex.systems.<field>`
+- **THEN** the documentation test fails and names the file and the line
+
+#### Scenario: A field module in the prose
+
+- **WHEN** the prose of the README or the user guide names `skcomplex.systems.<field>`
+- **THEN** the documentation test fails and names the file and the line
+
+#### Scenario: A custom model from the core alone
+
+- **WHEN** a reader runs the first custom system of the README in a fresh interpreter
+- **THEN** it simulates, and no module of `skcomplex.systems.<field>` is loaded

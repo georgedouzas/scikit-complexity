@@ -14,14 +14,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.analysis import DistributionAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'vertex_copying'
+SYSTEM = 'vertex_copying'
 
-system = create(MODEL)
+system = create_system(SYSTEM)
 # The graph view lays out the nodes of a changing network by forces, which these settings keep compact and centred.
 blueprint = rrb.Blueprint(
     rrb.GraphView(
@@ -37,8 +37,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).check().prepare().run(until=300)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
+simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).prepare().run(until=300)
 
 # %%
 # Degree tails
@@ -49,18 +49,12 @@ simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).ch
 fig, axis = plt.subplots(figsize=(6, 4))
 for randomness in (1.0, 0.5, 0.1):
     run = (
-        Simulation(create(MODEL, n_nodes=3004, randomness=randomness), dt=1000.0, random_state=0)
-        .check()
+        Simulation(create_system(SYSTEM, n_nodes=3004, randomness=randomness), dt=1000.0, random_state=0)
         .prepare()
         .run(until=3000)
     )
     snapshot = run.trajectory_.network(-1)
-    ccdf = (
-        DistributionAnalysis('ccdf')
-        .check()
-        .prepare(np.bincount(np.concatenate([snapshot.sources, snapshot.targets])))
-        .run()
-    )
+    ccdf = DistributionAnalysis('ccdf').prepare(np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))).run()
     values, shares = ccdf.support_, ccdf.survival_
     axis.loglog(values, shares, 'o', markersize=3, label=f'randomness {randomness}')
 axis.set_xlabel('degree k')

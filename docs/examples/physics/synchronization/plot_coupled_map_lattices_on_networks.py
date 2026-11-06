@@ -14,16 +14,16 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'coupled_map_lattices_on_networks'
+SYSTEM = 'coupled_map_lattices_on_networks'
 
-system = create(MODEL, n_nodes=100, degree=20, epsilon=0.9, seed=0)
-observables = describe(MODEL).observables_of(system)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='maps/x', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer], observables=observables).check().prepare().run(until=60)
+system = create_system(SYSTEM, n_nodes=100, degree=20, epsilon=0.9, seed=0)
+observables = describe(SYSTEM).observables_of(system)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='maps/x', interval=1)
+simulation = Simulation(system, dt=1.0, observers=[observer], observables=observables).prepare().run(until=60)
 
 # %%
 # Synchronization window
@@ -39,10 +39,9 @@ low, high = 0.5 / eigenvalues[1], 1.5 / eigenvalues[-1]
 couplings = np.linspace(0.05, 1.0, 20)
 variances = []
 for coupling in couplings:
-    model_system = create(MODEL, n_nodes=100, degree=20, epsilon=coupling, seed=0)
+    system_system = create_system(SYSTEM, n_nodes=100, degree=20, epsilon=coupling, seed=0)
     run = (
-        Simulation(model_system, dt=1.0, observables=describe(MODEL).observables_of(model_system))
-        .check()
+        Simulation(system_system, dt=1.0, observables=describe(SYSTEM).observables_of(system_system))
         .prepare()
         .run(until=200)
     )

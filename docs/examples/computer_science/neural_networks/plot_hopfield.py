@@ -16,11 +16,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'hopfield'
+SYSTEM = 'hopfield'
 N = 100
 
 
@@ -41,9 +41,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint, interval=1)
-system = create(MODEL, patterns=patterns, noise=0.3, random_state=0)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=4)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
+system = create_system(SYSTEM, patterns=patterns, noise=0.3, random_state=0)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=4)
 frames = [spins(simulation.trajectory_, frame).reshape(10, 10) for frame in range(5)] + [patterns[0].reshape(10, 10)]
 tiles = [np.pad(frame, 1) for frame in frames]
 strip = np.block([tiles[:3], tiles[3:]])
@@ -66,11 +66,10 @@ final = [
         [
             spins(
                 Simulation(
-                    create(MODEL, n_neurons=N, n_patterns=p, noise=0.1, random_state=seed),
+                    create_system(SYSTEM, n_neurons=N, n_patterns=p, noise=0.1, random_state=seed),
                     dt=1,
                     random_state=seed,
                 )
-                .check()
                 .prepare()
                 .run(until=4)
                 .trajectory_,

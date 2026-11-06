@@ -6,21 +6,21 @@ falls. Off therapy the quotas refill and the tumour and the PSA regrow.
 """
 
 # %%
-# The model is created by name from the catalog: 15 billion androgen-dependent cells under therapy for 250 days every
+# The system is created by name from the catalog: 15 billion androgen-dependent cells under therapy for 250 days every
 # 500 days. The observer saves every second frame with the default blueprint, whose primary view is the time series of
 # the cells, the quotas, the PSA, and the androgen.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'prostate_cell_quota'
+SYSTEM = 'prostate_cell_quota'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=5.0, observers=[observer]).check().prepare().run(until=1500)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=5.0, observers=[observer]).prepare().run(until=1500)
 
 # %%
 # Quotas set the growth

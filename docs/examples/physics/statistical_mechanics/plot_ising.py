@@ -2,28 +2,28 @@
 # Ising
 
 Quenched from random spins to a temperature below the critical one `T_c = 2 / ln(1 + sqrt 2) = 2.27 J`, the
-two-dimensional Ising model coarsens: domains of up and down spins grow and their walls straighten until one
+two-dimensional Ising system coarsens: domains of up and down spins grow and their walls straighten until one
 orientation wins. The view shows the spins of a 256 x 256 torus 100 sweeps after the quench, purple down and yellow up.
 """
 
 # %%
-# The model is created by name from the catalog at `T = 2.0 J`, below `T_c`. One unit of time is one sweep of
+# The system is created by name from the catalog at `T = 2.0 J`, below `T_c`. One unit of time is one sweep of
 # checkerboard Metropolis updates. The observer saves every frame with the default blueprint, whose primary view is
 # the image of the spins.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import InformationAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import InformationAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'ising'
+SYSTEM = 'ising'
 
-system = create(MODEL, size=256, temperature=2.0, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).check().prepare().run(until=100)
+system = create_system(SYSTEM, size=256, temperature=2.0, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=100)
 
 # %%
 # Spontaneous magnetization against Onsager's solution
@@ -36,8 +36,8 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).chec
 temperatures = np.linspace(1.5, 3.5, 17)
 measured = []
 for temperature in temperatures:
-    system_t = create(MODEL, size=48, temperature=temperature, initial='up')
-    run = Simulation(system_t, dt=1, random_state=1).check().prepare().run(until=1500)
+    system_t = create_system(SYSTEM, size=48, temperature=temperature, initial='up')
+    run = Simulation(system_t, dt=1, random_state=1).prepare().run(until=1500)
     measured.append(np.abs(run.trajectory_.values('spins.spin')[300:].mean(axis=1)).mean())
 grid = np.linspace(1.5, 2 / np.log(1 + np.sqrt(2)), 300)
 fig, ax = plt.subplots(figsize=(7, 4))
@@ -46,7 +46,7 @@ ax.plot(grid, np.clip(1 - np.sinh(2 / grid) ** -4, 0, None) ** 0.125, color='bla
 ax.axvline(2 / np.log(1 + np.sqrt(2)), color='gray', linestyle='--', label='T_c')
 ax.set_xlabel('temperature T / J')
 ax.set_ylabel('mean |m|')
-ax.set_title('Spontaneous magnetization of the square-lattice Ising model')
+ax.set_title('Spontaneous magnetization of the square-lattice Ising system')
 ax.legend()
 fig.tight_layout()
 plt.show()
@@ -63,11 +63,11 @@ plt.show()
 
 information = []
 for temperature in temperatures:
-    system_t = create(MODEL, size=48, temperature=temperature, initial='up')
-    run = Simulation(system_t, dt=1, random_state=1).check().prepare().run(until=600)
+    system_t = create_system(SYSTEM, size=48, temperature=temperature, initial='up')
+    run = Simulation(system_t, dt=1, random_state=1).prepare().run(until=600)
     frames = np.asarray(run.trajectory_.values('spins.spin')[300::10]).reshape(-1, 48, 48)
     blocks = frames.reshape(-1, 24, 2, 24, 2).transpose(0, 1, 3, 2, 4).reshape(-1, 4)
-    analysis = InformationAnalysis('o-information').check().prepare((blocks > 0).astype(int)).run()
+    analysis = InformationAnalysis('o-information').prepare((blocks > 0).astype(int)).run()
     information.append(analysis.information_)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(temperatures, information, 'o-')

@@ -6,22 +6,22 @@ the androgen-independent cells grow throughout and cause the relapse.
 """
 
 # %%
-# The model is created by name from the catalog: ten dependent cells and 0.14 independent cells under a suppression
+# The system is created by name from the catalog: ten dependent cells and 0.14 independent cells under a suppression
 # of efficacy 0.9. The observer saves every frame with the default blueprint, whose primary view is the time series of
 # the cells and the androgen.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'continuous_androgen_suppression'
+SYSTEM = 'continuous_androgen_suppression'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=5.0, observers=[observer]).check().prepare().run(until=900)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=5.0, observers=[observer]).prepare().run(until=900)
 
 # %%
 # Androgen and relapse

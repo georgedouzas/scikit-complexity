@@ -7,23 +7,23 @@ have one yield, and the same bound limits the growth whichever of them carries t
 """
 
 # %%
-# The model is created by name from the catalog, and its modes come exactly from the steady-state cone of its program.
+# The system is created by name from the catalog, and its modes come exactly from the steady-state cone of its program.
 # The primary view is the bar chart of the optimum.
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import nnls
 
-from skcomplex.analysis import ElementaryModeAnalysis
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.analysis import ElementaryModeAnalysis
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'elementary_flux_modes'
+SYSTEM = 'elementary_flux_modes'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default')
-trajectory = Simulation(system, observers=[observer]).check().prepare().run(until=0.0).trajectory_
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
+trajectory = Simulation(system, observers=[observer]).prepare().run(until=0.0).trajectory_
 
 # %%
 # The modes and the optimum
@@ -31,7 +31,7 @@ trajectory = Simulation(system, observers=[observer]).check().prepare().run(unti
 # Normalised to the uptake `b1`, both modes should have the growth yield 1/12. The FBA optimum should be their
 # non-negative combination, with no residual, so its growth of 50 is the bound 1000 on `v6` over the ratio 20.
 
-analysis = ElementaryModeAnalysis(normalize='cell.v_b1', sort='cell.v_vbio').check().prepare(system).run()
+analysis = ElementaryModeAnalysis(normalize='cell.v_b1', sort='cell.v_vbio').prepare(system).run()
 modes = np.asarray(analysis.modes_, dtype=float)
 names = [label.rpartition('v_')[2] for label in analysis.labels_]
 optimum = np.array([float(trajectory.values(f'cell.v_{name}')[0]) for name in names])

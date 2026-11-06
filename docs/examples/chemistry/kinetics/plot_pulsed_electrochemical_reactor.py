@@ -7,21 +7,21 @@ into a periodic response locked to the pulse train.
 """
 
 # %%
-# The model is created by name from the catalog with pulses of current 5 lasting 2 time units every 10 time units, and
+# The system is created by name from the catalog with pulses of current 5 lasting 2 time units every 10 time units, and
 # runs for twelve pulses. The default blueprint shows the overpotential and the reactant in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'pulsed_electrochemical_reactor'
+SYSTEM = 'pulsed_electrochemical_reactor'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=5)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=120)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=5)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=120)
 
 # %%
 # Locking to the pulse train

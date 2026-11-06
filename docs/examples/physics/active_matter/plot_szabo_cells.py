@@ -1,5 +1,5 @@
 """
-# Szabó cell model
+# Szabó cell system
 
 Two hundred motile cells move at a constant speed in a periodic box. No cell reads the heading of another. Each heading
 only turns towards the velocity of its own cell, and adhesion and repulsion between touching cells change those
@@ -17,11 +17,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe, run
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_simulation, create_system, describe
 
-MODEL = 'szabo_cells'
+SYSTEM = 'szabo_cells'
 SIZE = float(np.sqrt(200.0))
 
 box = rrb.Spatial2DView(
@@ -36,9 +36,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL)
-entry = describe(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
+system = create_system(SYSTEM)
+entry = describe(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 simulation = (
     Simulation(
         system,
@@ -49,7 +49,6 @@ simulation = (
         random_state=1,
         observables=entry.observables_of(system),
     )
-    .check()
     .prepare()
     .run(until=entry.defaults['until'])
 )
@@ -76,7 +75,9 @@ CELLS = 100
 curves = {}
 for density in DENSITIES:
     settings = {'until': 40.0, 'random_state': 1}
-    trajectory = run(MODEL, n_cells=CELLS, density=density, settings=settings).trajectory_
+    trajectory = (
+        create_simulation(SYSTEM, n_cells=CELLS, density=density).set_params(**settings).prepare().run().trajectory_
+    )
     curves[density] = order_of(trajectory, np.sqrt(CELLS / density))
 finals = [curve[-20:].mean() for curve in curves.values()]
 

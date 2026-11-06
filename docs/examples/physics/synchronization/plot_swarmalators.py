@@ -8,19 +8,19 @@ with one jump where the phase wraps from pi to -pi.
 """
 
 # %%
-# The model is created by name from the catalog with 100 units, the attraction of like phases `J = 1`, and no phase
+# The system is created by name from the catalog with 100 units, the attraction of like phases `J = 1`, and no phase
 # coupling, `K = 0`. The units start at random in a square with random phases. The RK4 solver of the catalog
 # integrates the run, and the default blueprint shows the positions coloured by phase.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4Solver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'swarmalators'
+SYSTEM = 'swarmalators'
 
 
 def order_parameters(positions, phases):
@@ -31,13 +31,10 @@ def order_parameters(positions, phases):
     return plus, minus, abs(np.exp(1j * phases).mean())
 
 
-system = create(MODEL, J=1.0, K=0.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
+system = create_system(SYSTEM, J=1.0, K=0.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = (
-    Simulation(system, dt=1.0, solver=RK4Solver(dt=0.1), observers=[observer], random_state=0)
-    .check()
-    .prepare()
-    .run(until=100)
+    Simulation(system, dt=1.0, solver=RK4Solver(dt=0.1), observers=[observer], random_state=0).prepare().run(until=100)
 )
 
 # %%
@@ -55,8 +52,7 @@ couplings = [-1.0, -0.5, -0.1, 0.0, 0.5, 1.0]
 final = []
 for K in couplings:
     run = (
-        Simulation(create(MODEL, n_units=60, J=1.0, K=K), dt=1.0, solver=RK4Solver(dt=0.1))
-        .check()
+        Simulation(create_system(SYSTEM, n_units=60, J=1.0, K=K), dt=1.0, solver=RK4Solver(dt=0.1))
         .prepare()
         .run(until=60)
     )

@@ -9,8 +9,8 @@ to the left and the bore moving to the right.
 """
 
 # %%
-# The model is created by name from the catalog with 400 finite-volume cells in a channel of length 10, depths 2 and 1,
-# and `g = 9.81`. The catalog registers the strong-stability-preserving Runge-Kutta stepper for this model, which keeps
+# The system is created by name from the catalog with 400 finite-volume cells in a channel of length 10, depths 2 and 1,
+# and `g = 9.81`. The catalog registers the strong-stability-preserving Runge-Kutta stepper for this system, which keeps
 # the bore free of oscillations, so it is passed explicitly. The observer saves every frame of 0.005 with the default
 # blueprint, whose primary view is the space-time image of the depth.
 
@@ -18,16 +18,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import brentq
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import SSPRKSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import SSPRKSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'shallow_water'
+SYSTEM = 'shallow_water'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, solver=SSPRKSolver(), dt=0.005, observers=[observer]).check().prepare().run(until=0.6)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, solver=SSPRKSolver(), dt=0.005, observers=[observer]).prepare().run(until=0.6)
 
 # %%
 # Stoker's exact solution

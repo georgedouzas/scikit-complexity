@@ -7,7 +7,7 @@ the stimulus take turns, each one a synchronized block.
 """
 
 # %%
-# The model is created by name from the catalog with its default stimulus of two objects on a 4 by 4 lattice, an
+# The system is created by name from the catalog with its default stimulus of two objects on a 4 by 4 lattice, an
 # L-shape at the top left and a bar at the right, and the faster slow time scale `epsilon = 0.1`, so that several
 # turns fit in the run. The observer saves every step with the default blueprint, whose primary view shows the
 # oscillators.
@@ -15,15 +15,15 @@ the stimulus take turns, each one a synchronized block.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'legion'
+SYSTEM = 'legion'
 
-system = create(MODEL, epsilon=0.1, random_state=0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer]).check().prepare().run(until=290)
+system = create_system(SYSTEM, epsilon=0.1, random_state=0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=290)
 
 # %%
 # Synchrony within, alternation between

@@ -6,21 +6,21 @@ with the handling time of the partner's resource, so the populations settle inst
 """
 
 # %%
-# The model is created by name from the catalog with its default saturating mutualism and run from small
+# The system is created by name from the catalog with its default saturating mutualism and run from small
 # populations. The observer saves every second frame with the default blueprint, whose primary view is the time series
 # of both populations.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'mutualism'
+SYSTEM = 'mutualism'
 
-system = create(MODEL, first=5.0, second=2.0)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().run(until=30)
+system = create_system(SYSTEM, first=5.0, second=2.0)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=30)
 
 # %%
 # With and without the partner
@@ -28,7 +28,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).check().prepare().
 # Running each species alone, with the other set to zero, gives logistic growth to its carrying capacity of 50. With
 # the partner, both should settle clearly above that line.
 
-alone = Simulation(create(MODEL, first=5.0, second=0.0), dt=0.1).check().prepare().run(until=30).trajectory_
+alone = Simulation(create_system(SYSTEM, first=5.0, second=0.0), dt=0.1).prepare().run(until=30).trajectory_
 trajectory = simulation.trajectory_
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(trajectory.times, trajectory.values('first.n'), label='first, with partner')

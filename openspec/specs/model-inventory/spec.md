@@ -1,45 +1,45 @@
-# model-inventory Specification
+# system-inventory Specification
 
 ## Purpose
-Records every model surveyed from the reference books and articles, with its source, scientific field, and status, so
+Records every system surveyed from the reference books and articles, with its source, scientific field, and status, so
 the library's coverage and the interface's missing features are visible and tracked as specified changes.
 
 ## Requirements
 
-### Requirement: The inventory records surveyed models
-The project SHALL keep an inventory of surveyed models. Each entry SHALL give the model's name, its field path, its
+### Requirement: The inventory records surveyed systems
+The project SHALL keep an inventory of surveyed systems. Each entry SHALL give the system's name, its field path, its
 sources by book section or arXiv identifier, and its status: implemented, pending a planned change, or blocked by a
-missing feature. No surveyed model SHALL be out of scope: a model the core cannot express is blocked on the change that
+missing feature. No surveyed system SHALL be out of scope: a system the core cannot express is blocked on the change that
 specifies the general capability it needs.
 
-#### Scenario: Entry of a book model
-- **WHEN** a contributor reads the inventory entry of the Bak-Sneppen model
+#### Scenario: Entry of a book system
+- **WHEN** a contributor reads the inventory entry of the Bak-Sneppen system
 - **THEN** it names Gros 2015 §6.6, Thurner et al. 2018 §5.4.4, and Jensen §4.2 as sources, `biology/evolution` as its
   field, and its status
 
 ### Requirement: The inventory agrees with the catalog
-Every inventory entry marked implemented SHALL name a registered model of the same field path, and every registered
-model SHALL have an inventory entry.
+Every inventory entry marked implemented SHALL name a registered system of the same field path, and every registered
+system SHALL have an inventory entry.
 
 #### Scenario: Missing registration
-- **WHEN** an inventory entry is marked implemented and no model of that name is registered
+- **WHEN** an inventory entry is marked implemented and no system of that name is registered
 - **THEN** the inventory check fails and names the entry
 
-#### Scenario: Unrecorded model
-- **WHEN** a model is registered without an inventory entry
-- **THEN** the inventory check fails and names the model
+#### Scenario: Unrecorded system
+- **WHEN** a system is registered without an inventory entry
+- **THEN** the inventory check fails and names the system
 
 ### Requirement: Missing features are specified, not worked around
-A model that needs a feature the interface lacks SHALL be recorded as blocked, naming the feature and the OpenSpec
-change that specifies it, and the library SHALL NOT ship a version of the model that works around the interface.
+A system that needs a feature the interface lacks SHALL be recorded as blocked, naming the feature and the OpenSpec
+change that specifies it, and the library SHALL NOT ship a version of the system that works around the interface.
 
-#### Scenario: Blocked model
+#### Scenario: Blocked system
 - **WHEN** an inventory entry is marked blocked
 - **THEN** it names the missing feature and an OpenSpec change that exists, active or archived, which specifies it
 
-#### Scenario: Pending model
+#### Scenario: Pending system
 - **WHEN** an inventory entry is marked pending
-- **THEN** it names an active OpenSpec change whose specs list the model
+- **THEN** it names an active OpenSpec change whose specs list the system
 
 ### Requirement: Features build on mature libraries
 A change that specifies a missing feature SHALL survey the popular, mature, and performant libraries that implement
@@ -49,17 +49,17 @@ it, and SHALL build the feature on the chosen library unless its design states w
 - **WHEN** a contributor reads the design of a change that specifies a missing feature
 - **THEN** it names the libraries it considered and the one the feature wraps, or why it implements the feature itself
 
-### Requirement: Every registered model has a page
-The documentation SHALL give every registered model its own page, reached from a navigation grouped by field and
-subfield, and every field an index page that links its models. The inventory SHALL stay a checked source file, and the
+### Requirement: Every registered system has a page
+The documentation SHALL give every registered system its own page, reached from a navigation grouped by field and
+subfield, and every field an index page that links its systems. The inventory SHALL stay a checked source file, and the
 documentation SHALL NOT publish a page of its entries, statuses, or coverage.
 
-#### Scenario: Model page
-- **WHEN** a user opens the section `physics/climate` under Models in the navigation
-- **THEN** it lists every registered climate model, and each entry opens the page of that model
+#### Scenario: System page
+- **WHEN** a user opens the section `physics/climate` under Systems in the navigation
+- **THEN** it lists every registered climate system, and each entry opens the page of that system
 
-### Requirement: Models exist to exercise the core
-The library's models SHALL serve first to reveal what the core needs and to exercise its general primitives, and only
+### Requirement: Systems exist to exercise the core
+The library's systems SHALL serve first to reveal what the core needs and to exercise its general primitives, and only
 second as ready-made examples. Every inventory entry SHALL record the core primitives it exercises, named from a
 vocabulary the inventory defines, and the inventory check SHALL reject a primitive outside that vocabulary.
 
@@ -73,15 +73,15 @@ vocabulary the inventory defines, and the inventory check SHALL reject a primiti
 
 ### Requirement: Surveys prioritise new primitives
 Every inventory entry SHALL carry a priority: `core` when it exercises a primitive or a combination of primitives that
-no implemented model exercises, or needs a missing primitive, and `example` when it only repeats covered patterns. A
-change that implements models SHALL implement its `core` entries first, and MAY leave `example` entries pending.
+no implemented system exercises, or needs a missing primitive, and `example` when it only repeats covered patterns. A
+change that implements systems SHALL implement its `core` entries first, and MAY leave `example` entries pending.
 
 #### Scenario: Priority of a repeated pattern
-- **WHEN** a survey finds a one-population ODE growth law whose primitives every growth model already exercises
-- **THEN** its entry has priority `example`, and a change that implements models reaches it after the `core` entries
+- **WHEN** a survey finds a one-population ODE growth law whose primitives every growth system already exercises
+- **THEN** its entry has priority `example`, and a change that implements systems reaches it after the `core` entries
 
 #### Scenario: Priority of a new primitive
-- **WHEN** a survey finds a model that needs states on the links of a lattice
+- **WHEN** a survey finds a system that needs states on the links of a lattice
 - **THEN** its entry has priority `core` and is blocked on the change that adds link fields
 
 ### Requirement: Entries map to the system vocabulary
@@ -95,31 +95,31 @@ entry that does not map.
 
 ### Requirement: Every reference source is surveyed section by section
 Every textbook and paper in `references` SHALL be surveyed section by section, and the survey SHALL be recorded with the
-sections read, the models found, and the tags of each in the system vocabulary, so a source with few inventory entries is a source
-with few models and not an unread one.
+sections read, the systems found, and the tags of each in the system vocabulary, so a source with few inventory entries is a source
+with few systems and not an unread one.
 
 #### Scenario: Thinly cited textbook
 - **WHEN** a contributor reads the survey record of a textbook cited by four inventory entries or fewer
-- **THEN** it lists every chapter read and, for each, the models recorded or the reason none was
+- **THEN** it lists every chapter read and, for each, the systems recorded or the reason none was
 
 #### Scenario: Paper in the references
 - **WHEN** a paper is added to `references/papers`
-- **THEN** its models are in the inventory under its arXiv identifier, or its survey record says why it has none
+- **THEN** its systems are in the inventory under its arXiv identifier, or its survey record says why it has none
 
 ### Requirement: The docs build runs the inventory check
-The documentation build SHALL run the inventory check before it writes the model pages, and SHALL fail with every issue
+The documentation build SHALL run the inventory check before it writes the system pages, and SHALL fail with every issue
 the check finds:
-- entries marked implemented with no registered model;
-- registered models with no entry;
+- entries marked implemented with no registered system;
+- registered systems with no entry;
 - unknown primitives;
 - entries that do not map to the system vocabulary;
 - statuses that name changes which do not exist.
 
 #### Scenario: Inventory disagrees with the catalog
-- **WHEN** an inventory entry is marked implemented and no model of that name is registered, and the documentation is
+- **WHEN** an inventory entry is marked implemented and no system of that name is registered, and the documentation is
   built
 - **THEN** the build fails and its message names the entry
 
 #### Scenario: Consistent inventory
 - **WHEN** the inventory agrees with the catalog and follows its rules, and the documentation is built
-- **THEN** the build writes the model pages
+- **THEN** the build writes the system pages

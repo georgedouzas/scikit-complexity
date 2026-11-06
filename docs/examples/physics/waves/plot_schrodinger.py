@@ -6,23 +6,23 @@ velocity and spreads on a periodic lattice.
 """
 
 # %%
-# The model is created by name from the catalog and run with its default settings, the exponential integrator
+# The system is created by name from the catalog and run with its default settings, the exponential integrator
 # ETDRK4 for the two fields. The observer saves every frame with the default blueprint.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.analysis import OperatorAnalysis
-from skcomplex.engine.compile import OperatorCompiler
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import ETDRK4Solver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, run
+from skcomplex.core.analysis import OperatorAnalysis
+from skcomplex.core.engine.compile import OperatorCompiler
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ETDRK4Solver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_simulation, create_system
 
-MODEL = 'schrodinger'
+SYSTEM = 'schrodinger'
 
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = run(MODEL, settings={'observers': [observer], 'random_state': 0})
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run()
 
 # %%
 # Fields, operators, and dephasing
@@ -35,14 +35,13 @@ simulation = run(MODEL, settings={'observers': [observer], 'random_state': 0})
 
 spacing = 40.0 / 128
 fields = (
-    Simulation(create(MODEL, n_sites=128), dt=0.5, solver=ETDRK4Solver(dt=0.01))
-    .check()
+    Simulation(create_system(SYSTEM, n_sites=128), dt=0.5, solver=ETDRK4Solver(dt=0.01))
     .prepare()
     .run(until=4.0)
     .trajectory_
 )
-operators = create(MODEL, n_sites=128, formulation='operators')
-operators = Simulation(operators, compiler=OperatorCompiler(), dt=0.5).check().prepare().run(until=4.0).trajectory_
+operators = create_system(SYSTEM, n_sites=128, formulation='operators')
+operators = Simulation(operators, compiler=OperatorCompiler(), dt=0.5).prepare().run(until=4.0).trajectory_
 density = (fields.values('packet.u') ** 2 + fields.values('packet.w') ** 2) * spacing
 probability = np.abs(operators.values('schrodinger.state')) ** 2
 positions = spacing * np.arange(128) - 20.0
@@ -54,9 +53,9 @@ agreement.set_ylabel('probability of a site at t = 4')
 agreement.set_title('The two formulations agree')
 agreement.legend()
 for gamma in (0.1, 0.5, 2.0):
-    dephased = create(MODEL, n_sites=48, length=20.0, formulation='operators', gamma=gamma)
-    trajectory = Simulation(dephased, compiler=OperatorCompiler(), dt=0.1).check().prepare().run(until=4.0).trajectory_
-    purity = OperatorAnalysis('purity').check().prepare(trajectory).run().purity_
+    dephased = create_system(SYSTEM, n_sites=48, length=20.0, formulation='operators', gamma=gamma)
+    trajectory = Simulation(dephased, compiler=OperatorCompiler(), dt=0.1).prepare().run(until=4.0).trajectory_
+    purity = OperatorAnalysis('purity').prepare(trajectory).run().purity_
     coherence.plot(trajectory.times, purity, label=f'gamma = {gamma}')
 coherence.set_xlabel('time')
 coherence.set_ylabel('purity')

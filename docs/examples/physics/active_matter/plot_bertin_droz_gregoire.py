@@ -9,21 +9,21 @@ density, which grows exponentially and saturates.
 """
 
 # %%
-# The model is created by name from the catalog on a single position with 32 orientations, since the initial state of
-# the model is homogeneous and streaming therefore leaves it so. With the noise 0.5, the interaction range 0.5, and the
+# The system is created by name from the catalog on a single position with 32 orientations, since the initial state of
+# the system is homogeneous and streaming therefore leaves it so. With the noise 0.5, the interaction range 0.5, and the
 # unit speed and tumbling rate of the defaults, the transition density is close to 0.43. The observable `polar_order` is
 # computed from the density at every frame of 1 up to `t = 60`, and the default blueprint shows the observables first.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import RK4Solver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
-from skcomplex.specs import ObservableSpec
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.specs import ObservableSpec
+from skcomplex.systems import create_system
 
-MODEL = 'bertin_droz_gregoire'
+SYSTEM = 'bertin_droz_gregoire'
 ANGLES = 32
 NOISE = 0.5
 SURVIVAL = np.exp(-(NOISE**2) / 2)
@@ -38,14 +38,11 @@ def polar_order(_, values):
 
 
 observables = [ObservableSpec('polar_order', function=polar_order)]
-system = create(MODEL, positions=1, angles=ANGLES, density=2 * TRANSITION)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', primary='observables', interval=1)
+system = create_system(SYSTEM, positions=1, angles=ANGLES, density=2 * TRANSITION)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
 solver = RK4Solver(dt=0.2)
 simulation = (
-    Simulation(system, solver=solver, dt=1.0, observers=[observer], observables=observables)
-    .check()
-    .prepare()
-    .run(until=60)
+    Simulation(system, solver=solver, dt=1.0, observers=[observer], observables=observables).prepare().run(until=60)
 )
 
 # %%
@@ -61,15 +58,15 @@ simulation = (
 ratios = np.array([0.5, 0.8, 1.2, 1.5, 2.0, 3.0, 4.0])
 rates = []
 for ratio in ratios:
-    gas = create(MODEL, positions=1, angles=ANGLES, density=ratio * TRANSITION)
-    run = Simulation(gas, solver=solver, dt=10.0, observables=observables).check().prepare().run(until=10)
+    gas = create_system(SYSTEM, positions=1, angles=ANGLES, density=ratio * TRANSITION)
+    run = Simulation(gas, solver=solver, dt=10.0, observables=observables).prepare().run(until=10)
     order = run.trajectory_.values('polar_order')
     rates.append(np.log(order[-1] / order[0]) / 10)
 above = ratios[ratios > 1]
 orders = []
 for ratio in above:
-    gas = create(MODEL, positions=1, angles=ANGLES, density=ratio * TRANSITION, perturbation=0.5)
-    run = Simulation(gas, solver=solver, dt=150.0, observables=observables).check().prepare().run(until=150)
+    gas = create_system(SYSTEM, positions=1, angles=ANGLES, density=ratio * TRANSITION, perturbation=0.5)
+    run = Simulation(gas, solver=solver, dt=150.0, observables=observables).prepare().run(until=150)
     orders.append(run.trajectory_.values('polar_order')[-1])
 grid = np.linspace(ratios[0], ratios[-1], 100)
 theory = 8 * 0.5 * (SURVIVAL - 2 / 3) * (grid - 1) * TRANSITION / np.pi

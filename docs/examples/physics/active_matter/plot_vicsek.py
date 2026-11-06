@@ -1,5 +1,5 @@
 """
-# Vicsek model
+# Vicsek system
 
 Particles move at one speed and turn towards the mean heading of their neighbours, with a little noise. From random
 headings they align into a flock that crosses the box together: the points take one color, which shows the heading.
@@ -7,7 +7,7 @@ headings they align into a flock that crosses the box together: the points take 
 
 # %%
 # Four hundred particles move `v0 = 0.5` per step in a periodic box of side 10, at density 4 and noise `eta = 0.1`.
-# The blueprint shows the whole box and draws the particles larger than the model's visual does, so they read in the
+# The blueprint shows the whole box and draws the particles larger than the system's visual does, so they read in the
 # gallery thumbnail.
 
 import matplotlib.pyplot as plt
@@ -15,11 +15,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create, describe
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system, describe
 
-MODEL = 'vicsek'
+SYSTEM = 'vicsek'
 
 box = rrb.Spatial2DView(
     origin='/flock',
@@ -34,37 +34,30 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create(MODEL, n_particles=400, eta=0.1, seed=0)
-observables = describe(MODEL).observables_of(system)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint=blueprint)
+system = create_system(SYSTEM, n_particles=400, eta=0.1, seed=0)
+observables = describe(SYSTEM).observables_of(system)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 simulation = (
-    Simulation(system, dt=1.0, observers=[observer], random_state=0, observables=observables)
-    .check()
-    .prepare()
-    .run(until=150)
+    Simulation(system, dt=1.0, observers=[observer], random_state=0, observables=observables).prepare().run(until=150)
 )
 
 # %%
 # Order against noise
 # -------------------
-# The Vicsek model orders at low noise and disorders at high noise. The stationary polar order parameter
+# The Vicsek system orders at low noise and disorders at high noise. The stationary polar order parameter
 # `|<exp(i theta)>|` should fall from near one at small `eta` towards the finite-size level `1 / sqrt(N)` as the noise
 # grows, with the transition near `eta = 0.6` at this density.
 
 noises = np.linspace(0.05, 0.95, 10)
 orders = []
 for noise in noises:
-    model_system = create(MODEL, n_particles=400, eta=noise, seed=1)
-    run = (
-        Simulation(
-            model_system,
-            dt=5.0,
-            random_state=1,
-            observables=describe(MODEL).observables_of(model_system),
-        )
-        .check()
-        .prepare()
-    )
+    system_system = create_system(SYSTEM, n_particles=400, eta=noise, seed=1)
+    run = Simulation(
+        system_system,
+        dt=5.0,
+        random_state=1,
+        observables=describe(SYSTEM).observables_of(system_system),
+    ).prepare()
     orders.append(np.mean(np.asarray(run.run(until=150).trajectory_.values('polarization'), dtype=float)[-10:]))
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(simulation.trajectory_.times, np.asarray(simulation.trajectory_.values('polarization'), dtype=float))

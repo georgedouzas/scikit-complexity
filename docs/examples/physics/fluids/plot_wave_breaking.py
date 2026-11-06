@@ -9,24 +9,24 @@ number, one row per saved step with the earliest at the top, with the smooth mod
 """
 
 # %%
-# The model is created by name from the catalog with 200 finite-volume cells and the wave number
-# `k0 (1 + 0.5 sin x)`. The catalog registers the strong-stability-preserving Runge-Kutta stepper for this model, so it
+# The system is created by name from the catalog with 200 finite-volume cells and the wave number
+# `k0 (1 + 0.5 sin x)`. The catalog registers the strong-stability-preserving Runge-Kutta stepper for this system, so it
 # is passed explicitly. The observer saves every frame of 0.1 with the default blueprint, whose primary view is the
 # space-time image of the wave number.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.engine.runtime import Simulation
-from skcomplex.engine.solvers import SSPRKSolver
-from skcomplex.engine.viz import RerunObserver
-from skcomplex.models import create
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import SSPRKSolver
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
 
-MODEL = 'wave_breaking'
+SYSTEM = 'wave_breaking'
 
-system = create(MODEL)
-observer = RerunObserver(MODEL, save_path=f'{MODEL}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, solver=SSPRKSolver(), dt=0.1, observers=[observer]).check().prepare().run(until=25)
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
+simulation = Simulation(system, solver=SSPRKSolver(), dt=0.1, observers=[observer]).prepare().run(until=25)
 
 # %%
 # Breaking time and the conservation of waves

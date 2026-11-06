@@ -14,7 +14,7 @@ true pattern, include the diagonal, and leave fixed rows empty.
 
 #### Scenario: Superset of the true pattern
 - **WHEN** the central finite differences of the drift are taken in up to 40 sampled columns at three random states of
-  every library model with an ODE form and no delays
+  every library system with an ODE form and no delays
 - **THEN** every entry above `1e-8 + 1e-7 |f_i|` in absolute value lies inside the derived pattern
 
 #### Scenario: Stencil pattern
