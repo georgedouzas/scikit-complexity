@@ -17,6 +17,7 @@ from ._continuous import ContinuousSpace
 
 type Christoffel = tuple[tuple[tuple[Expression, ...], ...], ...]
 type Riemann = tuple[tuple[tuple[tuple[Expression, ...], ...], ...], ...]
+type Derivation = tuple[Matrix, tuple[Expression, ...], bool]
 
 
 class PseudoRiemannianSpace(ContinuousSpace):
@@ -73,6 +74,10 @@ class PseudoRiemannianSpace(ContinuousSpace):
 
         einstein_:
             The Einstein tensor `G_(mu nu)`, or `None` without `curvature`.
+
+        derived_from_:
+            The metric, the coordinates, and the curvature flag the tensors were derived from, which a later `prepare`
+            compares by value to skip the derivation when they have not changed.
 
     Raises:
         ValidationError:
@@ -170,8 +175,22 @@ class PseudoRiemannianSpace(ContinuousSpace):
         """Return a SymPy expression of EinsteinPy as a Sage expression, with the functions of the ansatz restored."""
         return self._rename(SR(value), [(new, old) for old, new in pairs])
 
+    def _is_derived(self, source: Derivation) -> bool:
+        """Return whether the tensors were derived from an equal metric, coordinates, and curvature flag."""
+        previous: Derivation | None = getattr(self, 'derived_from_', None)
+        if previous is None or previous[2] != source[2] or len(previous[1]) != len(source[1]):
+            return False
+        if previous[0].dimensions() != source[0].dimensions():
+            return False
+        pairs = [*zip(previous[1], source[1], strict=True), *zip(previous[0].list(), source[0].list(), strict=True)]
+        return all(SR(old).is_trivially_equal(SR(new)) for old, new in pairs)
+
     def _prepare(self, context: None = None) -> None:
-        """Set the coordinates, the metric and its inverse, the Christoffel symbols, and the curvature tensors."""
+        """Set the coordinates, the metric, its inverse, and the tensors, derived again only when their source changed.
+
+        A space is prepared again whenever a part that reads it is prepared, so the derivation, the slow step, runs only
+        for a metric, coordinates, or a curvature flag that differ by value from those of the last derivation.
+        """
         self.coordinates_ = self._get_coordinates()
         self.metric_ = self._get_metric()
         self.inverse_metric_ = self.metric_.inverse()
@@ -184,6 +203,14 @@ class PseudoRiemannianSpace(ContinuousSpace):
         self.periodic_ = False
         self.default_visual_ = None
         self.regions_ = {}
+        source: Derivation = (self.metric_, self.coordinates_, bool(self.curvature))
+        if not self._is_derived(source):
+            self._derive()
+            self.derived_from_ = source
+
+    def _derive(self) -> None:
+        """Set the Christoffel symbols and, with `curvature`, the curvature tensors, through EinsteinPy."""
+        n_dim = len(self.coordinates_)
         # SymPy reads some names of functions, such as `E` or `gamma`, as its own, so the ansatz is renamed on the way.
         functions = self._get_functions(self.metric_)
         pairs = [(item, function(f'skcomplex_ansatz_{index}')) for index, item in enumerate(functions)]

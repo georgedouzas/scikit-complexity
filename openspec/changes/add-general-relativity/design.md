@@ -87,7 +87,8 @@ shell follows the same cycloid.
 
 - EinsteinPy simplifies every component, which is slow for metrics with many entries. → `curvature=False`, and the
   systems that need the curvature use diagonal ansatzes.
-- The compiler prepares an interaction several times, and every preparation derives the connection again. → The
-  derivations of the probe systems take well under a second each, apart from the curvature of the ansatzes.
+- The compiler prepares an interaction several times, and each preparation prepares its space. → `prepare` keeps the
+  derived tensors in `derived_from_` with the metric, the coordinates, and the curvature flag they came from, and
+  derives again only when these differ by value, so a run derives once.
 - Constraints are not enforced during the run. → The adaptive solvers keep them to the tolerance of the run, and the
   tests check them.

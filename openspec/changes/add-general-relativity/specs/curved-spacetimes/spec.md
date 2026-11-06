@@ -21,6 +21,10 @@ raise a `ValidationError` from `prepare`.
 - **WHEN** a user prepares a space with `curvature=False`
 - **THEN** it has `christoffel_` and its curvature attributes are `None`
 
+#### Scenario: Prepared again
+- **WHEN** a prepared space is prepared again with the same metric, coordinates, and curvature flag
+- **THEN** it keeps the same `christoffel_` object, and after `set_params(curvature=True)` it derives the tensors again
+
 #### Scenario: Degenerate metric
 - **WHEN** a user prepares the metric `diag(1, 0)`
 - **THEN** `prepare` raises a `ValidationError` that says the metric is degenerate

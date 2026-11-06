@@ -83,3 +83,14 @@ def test_friedmann_universe_has_the_einstein_tensor_of_the_friedmann_equations()
     mixed = space.inverse_metric_ * space.einstein_
     assert bool((mixed[0, 0] + 3 * a.diff(t) ** 2 / a**2).simplify_full() == 0)
     assert bool((mixed[1, 1] + (2 * a * a.diff(t, 2) + a.diff(t) ** 2) / a**2).simplify_full() == 0)
+
+
+def test_prepared_space_derives_again_only_when_its_source_changes():
+    """Test that preparing again keeps the derived tensors of an equal metric and derives them for a changed one."""
+    space = _schwarzschild().set_params(curvature=False).prepare()
+    christoffel = space.christoffel_
+    assert space.prepare().christoffel_ is christoffel
+    assert space.set_params(curvature=True).prepare().christoffel_ is not christoffel
+    assert space.ricci_ is not None
+    plane = PseudoRiemannianSpace([[1, 0], [0, r**2]], ('r', 'phi')).prepare()
+    assert plane.set_params(metric=[[1, 0], [0, 4 * r**2]]).prepare().christoffel_[0][1][1] == -4 * r

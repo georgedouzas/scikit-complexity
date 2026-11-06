@@ -31,3 +31,8 @@
 - [x] 4.2 Add a gallery example of every new system and run each
 - [x] 4.3 Run the inventory check, the strict gallery coverage, the catalog tests, and the tests of the subfields
 - [x] 4.4 Run ruff, black, docformatter, mypy, and pydoclint on the changed files
+
+## 5. Review follow-ups
+
+- [x] 5.1 Derive the tensors of a space again only when its metric, coordinates, or curvature flag change by value
+- [x] 5.2 Document the space and the two interactions in the user guide, with blocks checked by `--markdown-docs`
