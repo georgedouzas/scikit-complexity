@@ -41,7 +41,7 @@ TEST_GROUPS: list[list[str]] = [
 ]
 CHANGELOG_ARGS: list[str] = [
     '--convention',
-    'angular',
+    'conventional',
     '--template',
     'keepachangelog',
     '--trailers',
