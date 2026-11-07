@@ -12,23 +12,21 @@ so the temperature cycles inside the band.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.engineering.control import HeatedRoomSystem
 
 SYSTEM = 'heated_room'
 
-system = create_system(SYSTEM)
-observables = describe(SYSTEM).observables_of(system)
+system = HeatedRoomSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=5)
-simulation = Simulation(system, dt=10.0, observers=[observer], observables=observables).prepare().run(until=14400.0)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Temperature inside the band
 # ---------------------------
 # Once warm, the room stays between 19.5 °C and 20.5 °C while the heater switches on and off.
 
-trajectory = simulation.trajectory_
 hours = trajectory.times / 3600
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(hours, trajectory.values('room.T'))

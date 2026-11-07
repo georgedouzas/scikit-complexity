@@ -7,7 +7,7 @@ once the target energy is reached.
 """
 
 # %%
-# The system is created by name from the catalog at the periapsis of the orbit with energy -0.7 and angular momentum
+# The system is built from its class at the periapsis of the orbit with energy -0.7 and angular momentum
 # 0.7, with the thrust 0.1 and the target energy -0.2, and is integrated with RK4 for 20 time units. The blueprint shows
 # the distance from the planet and the effective energy in one time series view.
 
@@ -15,10 +15,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.engineering.control import SatelliteTransferSystem
 
 SYSTEM = 'satellite_transfer'
 
@@ -36,19 +36,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM)
+system = SatelliteTransferSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-simulation = (
-    Simulation(
-        system,
-        dt=0.05,
-        solver=RK4Solver(dt=0.005),
-        observers=[observer],
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=20)
-)
+trajectory = simulate(system, solver=RK4Solver(dt=0.005), observers=[observer])
 
 # %%
 # From one Kepler orbit to another
@@ -57,7 +47,6 @@ simulation = (
 # switches off. In the plane, the satellite should leave the inner ellipse and settle on the outer one, both with the
 # angular momentum 0.7.
 
-trajectory = simulation.trajectory_
 s, theta = trajectory.values('satellite.s'), trajectory.values('satellite.theta')
 energy = trajectory.values('energy')
 fig, (orbit, rise) = plt.subplots(1, 2, figsize=(10, 4.5))

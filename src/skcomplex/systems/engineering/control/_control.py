@@ -14,10 +14,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import ConnectionInteraction, CrossingInteraction
 from ....core.components.laws import BaseLaw, EquationLaw, RateLaw
 from ....core.components.laws.utils import clip, derivative, sign, step, where
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ConnectorSpec, ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.electrical import ELECTRICAL, GroundElement, TwoPinElement, VoltageSourceElement
 
 DISTURBANCE_TIME = 10.0
@@ -28,6 +27,8 @@ CHANGE_TIME = 20.0
 
 class ControlledProcessElement(Element):
     """First-order process under a PID controller whose derivative term is solved into the time constant."""
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -84,6 +85,8 @@ HOURS_PER_DAY = 24.0
 class RoomElement(Element):
     """Room heated by a furnace towards a setting and leaking heat to an outside temperature with a daily swing."""
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -117,6 +120,8 @@ class RoomElement(Element):
 
 class SatelliteElement(Element):
     """Satellite on a planar Kepler orbit whose radial thrust moves it to an orbit of a final energy."""
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -158,6 +163,8 @@ class SatelliteElement(Element):
 
 class SwingingPendulumElement(Element):
     """Pendulum swung up by a bang-bang control of its energy, with `f` integrating the control."""
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -233,6 +240,8 @@ class HeatCapacityElement(Element):
         15.0
     """
 
+    law_classes = (EquationLaw,)
+
     ports: ClassVar[Mapping[str, ConnectorSpec]] = {'a': THERMAL}
 
     def __init__(
@@ -287,6 +296,8 @@ class ThermalConductorElement(Element):
         2.0
     """
 
+    law_classes = (EquationLaw,)
+
     ports: ClassVar[Mapping[str, ConnectorSpec]] = {'a': THERMAL, 'b': THERMAL}
 
     def __init__(
@@ -339,6 +350,8 @@ class ConvectionElement(Element):
         >>> ConvectionElement('outside', fluid=5.0).fluid
         5.0
     """
+
+    law_classes = (EquationLaw,)
 
     ports: ClassVar[Mapping[str, ConnectorSpec]] = {'a': THERMAL}
 
@@ -454,27 +467,14 @@ def _heating_power(s: SimpleNamespace) -> Expression:
     return heat
 
 
-@register_system(
-    field='engineering/control',
-    tags=('control', 'feedback', 'stocks and flows', 'ode'),
-    references=('Meadows 2008',),
-    defaults={'until': 24.0, 'dt': 0.25},
-)
-def thermostat(
-    T: float = 10.0,
-    *,
-    setting: float = 18.0,
-    furnace: float = 5.0,
-    leak: float = 0.1,
-    outside: float = 10.0,
-    swing: float = 0.0,
-) -> System:
-    """Return a room heated by a furnace under a thermostat while heat leaks to the outside.
+class ThermostatSystem(BaseSystem):
+    """A room heated by a furnace under a thermostat while heat leaks to the outside.
 
     The furnace adds the gap between the setting and the room temperature, at most `furnace` degrees per hour, and
-    nothing when the room is warmer than the setting. The room loses `leak` of its difference to the outside
-    temperature per hour, so it settles below the setting, at `(setting + leak * outside) / (1 + leak)` for a
-    constant outside. The outside temperature swings by `swing` around `outside` over a day, warmest at noon.
+    nothing when the room is warmer than the setting. The room loses `leak` of its difference to the outside temperature
+    per hour, so it settles below the setting, at `(setting + leak * outside) / (1 + leak)` for a constant outside. The
+    outside temperature swings by `swing` around `outside` over a day, warmest at noon. The system has the room
+    temperature `room.T` in hours.
 
     Args:
         T:
@@ -495,44 +495,62 @@ def thermostat(
         swing:
             The amplitude of the daily swing of the outside temperature.
 
-    Returns:
-        system:
-            The system, with the room temperature `room.T` in hours.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.control import thermostat
-        >>> thermostat(leak=0.3).elements[0].leak
+        >>> from skcomplex.systems.engineering.control import ThermostatSystem
+        >>> ThermostatSystem(leak=0.3).prepare().system_.elements[0].leak
         0.3
     """
-    room = RoomElement('room', T=T, setting=setting, furnace=furnace, leak=leak, outside=outside, swing=swing)
-    return System(elements=[room])
+
+    field = 'engineering/control'
+    topics = ('control', 'feedback', 'stocks and flows', 'ode')
+    references = ('Meadows 2008',)
+    until = 24.0
+    dt = 0.25
+
+    def __init__(
+        self,
+        T: float = 10.0,
+        *,
+        setting: float = 18.0,
+        furnace: float = 5.0,
+        leak: float = 0.1,
+        outside: float = 10.0,
+        swing: float = 0.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.T = T
+        self.setting = setting
+        self.furnace = furnace
+        self.leak = leak
+        self.outside = outside
+        self.swing = swing
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        room = RoomElement(
+            'room',
+            T=self.T,
+            setting=self.setting,
+            furnace=self.furnace,
+            leak=self.leak,
+            outside=self.outside,
+            swing=self.swing,
+        )
+        return System(self.label, elements=[room])
 
 
-@register_system(
-    field='engineering/control',
-    tags=('control', 'feedback', 'pid', 'governance', 'ode'),
-    references=('Mobus 2022', 'Åström and Murray 2008'),
-    defaults={'until': 40.0, 'dt': 0.1},
-)
-def pid_loop(
-    y: float = 0.0,
-    *,
-    tau: float = 1.0,
-    gain: float = 1.0,
-    Kp: float = 2.0,
-    Ki: float = 1.0,
-    Kd: float = 0.1,
-    setpoint: float = 1.0,
-    change: float = 0.0,
-    disturbance: float = -0.5,
-) -> System:
-    """Return a work process whose output a PID controller keeps at a set point against a disturbance.
+class PidLoopSystem(BaseSystem):
+    """A work process whose output a PID controller keeps at a set point against a disturbance.
 
-    The output follows the first-order process `τ y' = -y + gain u + d(t)`, and the controller sets
-    `u = Kp e + Ki ∫ e dt - Kd y'` from the error `e = r(t) - y`, with the derivative taken on the output, so
-    `(τ + gain Kd) y' = -y + gain (Kp e + Ki ∫ e dt) + d(t)`. The disturbance `d` steps in at time 10, and a
-    coordinator moves the set point `r` by `change` at time 20. The integral action removes the error that the
-    disturbance leaves under proportional control alone.
+    The output follows the first-order process `τ y' = -y + gain u + d(t)`, and the controller sets `u = Kp e + Ki ∫ e
+    dt - Kd y'` from the error `e = r(t) - y`, with the derivative taken on the output, so `(τ + gain Kd) y' = -y + gain
+    (Kp e + Ki ∫ e dt) + d(t)`. The disturbance `d` steps in at time 10, and a coordinator moves the set point `r` by
+    `change` at time 20. The integral action removes the error that the disturbance leaves under proportional control
+    alone. The system has the output `process.y` and the integral of the error `process.integral`.
 
     Args:
         y:
@@ -562,49 +580,71 @@ def pid_loop(
         disturbance:
             The size of the disturbance from time 10.
 
-    Returns:
-        system:
-            The system, with the output `process.y` and the integral of the error `process.integral`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.control import pid_loop
-        >>> pid_loop(Ki=0.0).elements[0].Ki
+        >>> from skcomplex.systems.engineering.control import PidLoopSystem
+        >>> PidLoopSystem(Ki=0.0).prepare().system_.elements[0].Ki
         0.0
     """
-    process = ControlledProcessElement(
-        'process',
-        y=y,
-        integral=0.0,
-        tau=tau,
-        gain=gain,
-        Kp=Kp,
-        Ki=Ki,
-        Kd=Kd,
-        setpoint=setpoint,
-        change=change,
-        disturbance=disturbance,
-    )
-    return System(elements=[process])
+
+    field = 'engineering/control'
+    topics = ('control', 'feedback', 'pid', 'governance', 'ode')
+    references = ('Mobus 2022', 'Åström and Murray 2008')
+    until = 40.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        y: float = 0.0,
+        *,
+        tau: float = 1.0,
+        gain: float = 1.0,
+        Kp: float = 2.0,
+        Ki: float = 1.0,
+        Kd: float = 0.1,
+        setpoint: float = 1.0,
+        change: float = 0.0,
+        disturbance: float = -0.5,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.y = y
+        self.tau = tau
+        self.gain = gain
+        self.Kp = Kp
+        self.Ki = Ki
+        self.Kd = Kd
+        self.setpoint = setpoint
+        self.change = change
+        self.disturbance = disturbance
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        process = ControlledProcessElement(
+            'process',
+            y=self.y,
+            integral=0.0,
+            tau=self.tau,
+            gain=self.gain,
+            Kp=self.Kp,
+            Ki=self.Ki,
+            Kd=self.Kd,
+            setpoint=self.setpoint,
+            change=self.change,
+            disturbance=self.disturbance,
+        )
+        return System(self.label, elements=[process])
 
 
-@register_system(
-    field='engineering/control',
-    tags=('control', 'bang-bang', 'pendulum', 'energy', 'ode'),
-    references=('Åström and Furuta 2000', 'Dilão 2023'),
-    defaults={'until': 100.0, 'dt': 0.1, 'solver': RK4Solver(dt=0.01)},
-)
-def pendulum_swing_up(
-    theta: float = 0.0,
-    omega0: float = 0.5,
-    *,
-    omega: float = 1.5652475842498528,
-    mu: float = 0.1,
-) -> System:
-    """Return a pendulum swung up to its inverted position by a bang-bang acceleration of its pivot.
+class PendulumSwingUpSystem(BaseSystem):
+    """A pendulum swung up to its inverted position by a bang-bang acceleration of its pivot.
 
-    The pivot of an acrobat's pendulum moves horizontally with acceleration `f'' = u`, so the pendulum follows
-    `θ'' + ω^2 sin θ + u cos θ = 0`. The control `u = -μ sign(θ' cos θ) sign(E_s - E)` pumps the energy
-    `E = θ'^2 / 2 - ω^2 cos θ` towards `E_s = ω^2`, the energy of the inverted position, from below or from above.
+    The pivot of an acrobat's pendulum moves horizontally with acceleration `f'' = u`, so the pendulum follows `θ'' +
+    ω^2 sin θ + u cos θ = 0`. The control `u = -μ sign(θ' cos θ) sign(E_s - E)` pumps the energy `E = θ'^2 / 2 - ω^2 cos
+    θ` towards `E_s = ω^2`, the energy of the inverted position, from below or from above. The system has the angle
+    `pendulum.theta`, the position of the pivot `pendulum.f`, and their velocities.
 
     Args:
         theta:
@@ -619,42 +659,62 @@ def pendulum_swing_up(
         mu:
             The size of the acceleration of the pivot.
 
-    Returns:
-        system:
-            The system, with the angle `pendulum.theta`, the position of the pivot `pendulum.f`, and their velocities.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.control import pendulum_swing_up
-        >>> pendulum_swing_up(mu=0.2).elements[0].mu
+        >>> from skcomplex.systems.engineering.control import PendulumSwingUpSystem
+        >>> PendulumSwingUpSystem(mu=0.2).prepare().system_.elements[0].mu
         0.2
     """
-    pendulum = SwingingPendulumElement('pendulum', theta=theta, theta_d1=omega0, f=0.0, f_d1=0.0, omega=omega, mu=mu)
-    return System(elements=[pendulum])
+
+    field = 'engineering/control'
+    topics = ('control', 'bang-bang', 'pendulum', 'energy', 'ode')
+    references = ('Åström and Furuta 2000', 'Dilão 2023')
+    until = 100.0
+    dt = 0.1
+    solver = RK4Solver(dt=0.01)
+
+    def __init__(
+        self,
+        theta: float = 0.0,
+        omega0: float = 0.5,
+        *,
+        omega: float = 1.5652475842498528,
+        mu: float = 0.1,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.theta = theta
+        self.omega0 = omega0
+        self.omega = omega
+        self.mu = mu
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        pendulum = SwingingPendulumElement(
+            'pendulum',
+            theta=self.theta,
+            theta_d1=self.omega0,
+            f=0.0,
+            f_d1=0.0,
+            omega=self.omega,
+            mu=self.mu,
+        )
+        return System(self.label, elements=[pendulum])
 
 
-@register_system(
-    field='engineering/control',
-    tags=('control', 'orbits', 'celestial mechanics', 'ode'),
-    references=('Dilão et al. 2022', 'Dilão 2023'),
-    defaults={'until': 20.0, 'dt': 0.05, 'solver': RK4Solver(dt=0.005)},
-    observables=lambda system: [ObservableSpec('energy', _energy_of_satellite)],
-)
-def satellite_transfer(
-    s: float = 0.314,
-    velocity: float = 0.0,
-    theta: float = 0.0,
-    *,
-    Lz: float = 0.7,
-    epsilon: float = 0.1,
-    H_final: float = -0.2,
-) -> System:
-    """Return a satellite moved between Kepler orbits of equal angular momentum by radial thrust.
+class SatelliteTransferSystem(BaseSystem):
+    """A satellite moved between Kepler orbits of equal angular momentum by radial thrust.
 
     In normalised polar coordinates the satellite follows `s'' = L_z^2 / s^3 - 1 / s^2 - ε sigma` and
     `θ' = L_z / s^2`. Radial thrust keeps the angular momentum and changes the effective energy
     `H = s'^2 / 2 + L_z^2 / (2 s^2) - 1 / s` at the rate `-ε sigma s'`, so the controller pushes inwards, `sigma = 1`,
     while the satellite falls and outwards, `sigma = -1`, while it rises, until `H` reaches the final energy. From the
     periapsis of the orbit with `H = -0.7`, the transfer to `H = -0.2` takes about 9.81.
+
+    The system has the distance `satellite.s`, the radial velocity `satellite.s_d1`, the angle `satellite.theta`, and
+    the observable `energy`.
 
     Args:
         s:
@@ -675,53 +735,63 @@ def satellite_transfer(
         H_final:
             The effective energy of the final orbit.
 
-    Returns:
-        system:
-            The system, with the distance `satellite.s`, the radial velocity `satellite.s_d1`, the angle
-            `satellite.theta`, and the observable `energy`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.control import satellite_transfer
-        >>> satellite_transfer().elements[0].Lz
+        >>> from skcomplex.systems.engineering.control import SatelliteTransferSystem
+        >>> SatelliteTransferSystem().prepare().system_.elements[0].Lz
         0.7
     """
-    satellite = SatelliteElement(
-        'satellite',
-        s=s,
-        s_d1=velocity,
-        theta=theta,
-        Lz=Lz,
-        epsilon=epsilon,
-        H_final=H_final,
-    )
-    return System(elements=[satellite])
+
+    field = 'engineering/control'
+    topics = ('control', 'orbits', 'celestial mechanics', 'ode')
+    references = ('Dilão et al. 2022', 'Dilão 2023')
+    until = 20.0
+    dt = 0.05
+    solver = RK4Solver(dt=0.005)
+    observables = (ObservableSpec('energy', _energy_of_satellite),)
+
+    def __init__(
+        self,
+        s: float = 0.314,
+        velocity: float = 0.0,
+        theta: float = 0.0,
+        *,
+        Lz: float = 0.7,
+        epsilon: float = 0.1,
+        H_final: float = -0.2,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.s = s
+        self.velocity = velocity
+        self.theta = theta
+        self.Lz = Lz
+        self.epsilon = epsilon
+        self.H_final = H_final
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        satellite = SatelliteElement(
+            'satellite',
+            s=self.s,
+            s_d1=self.velocity,
+            theta=self.theta,
+            Lz=self.Lz,
+            epsilon=self.epsilon,
+            H_final=self.H_final,
+        )
+        return System(self.label, elements=[satellite])
 
 
-@register_system(
-    field='engineering/control',
-    tags=('control', 'thermal', 'acausal components', 'hysteresis', 'ode', 'events'),
-    references=('Fritzson 2015',),
-    defaults={'until': 14400.0, 'dt': 10.0},
-    observables=lambda system: [ObservableSpec('power', _heating_power)],
-)
-def heated_room(
-    T: float = 10.0,
-    *,
-    setting: float = 20.0,
-    band: float = 1.0,
-    outside: float = 5.0,
-    V: float = 230.0,
-    R: float = 25.0,
-    C: float = 2e5,
-    wall_capacity: float = 1e6,
-    wall_conductance: float = 100.0,
-    surface_conductance: float = 50.0,
-) -> System:
-    """Return a room assembled from thermal and electrical components, heated under a thermostat with hysteresis.
+class HeatedRoomSystem(BaseSystem):
+    """A room assembled from thermal and electrical components, heated under a thermostat with hysteresis.
 
     A voltage source drives a heating resistor whose heat enters the room, and the room loses heat through a wall of its
     own heat capacity to the outside air. The thermostat opens the switch of the resistor when the room rises through
-    `setting + band / 2` and closes it when the room falls through `setting - band / 2`.
+    `setting + band / 2` and closes it when the room falls through `setting - band / 2`. The system has the room
+    temperature `room.T` and the switch `heater.on`, in seconds.
 
     Args:
         T:
@@ -754,44 +824,81 @@ def heated_room(
         surface_conductance:
             The convective conductance between the wall and the outside air.
 
-    Returns:
-        system:
-            The system, with the room temperature `room.T` and the switch `heater.on`, in seconds.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.control import heated_room
-        >>> heated_room(setting=22.0).interactions[-1].direction
+        >>> from skcomplex.systems.engineering.control import HeatedRoomSystem
+        >>> HeatedRoomSystem(setting=22.0).prepare().system_.interactions[-1].direction
         -1
     """
-    upper, lower = setting + band / 2, setting - band / 2
-    return System(
-        elements=[
-            VoltageSourceElement('source', V=V),
-            HeatingResistorElement('heater', R=R),
-            GroundElement('ground'),
-            HeatCapacityElement('room', T=T, C=C),
-            ThermalConductorElement('inner', G=wall_conductance),
-            HeatCapacityElement('wall', T=outside, C=wall_capacity),
-            ConvectionElement('surface', h=surface_conductance, fluid=outside),
-        ],
-        interactions=[
-            ConnectionInteraction('supply', members=['source', 'heater'], ports=['p', 'p']),
-            ConnectionInteraction('neutral', members=['source', 'heater', 'ground'], ports=['n', 'n', 'p']),
-            ConnectionInteraction('air', members=['heater', 'room', 'inner'], ports=['h', 'a', 'a']),
-            ConnectionInteraction('masonry', members=['inner', 'wall', 'surface'], ports=['b', 'a', 'a']),
-            CrossingInteraction(
-                'open_switch',
-                target='heater',
-                guard=lambda s: s.target.h_T - upper,
-                reset={'on': lambda s: 0.0},
-                direction=1,
-            ),
-            CrossingInteraction(
-                'close_switch',
-                target='heater',
-                guard=lambda s: s.target.h_T - lower,
-                reset={'on': lambda s: 1.0},
-                direction=-1,
-            ),
-        ],
-    )
+
+    field = 'engineering/control'
+    topics = ('control', 'thermal', 'acausal components', 'hysteresis', 'ode', 'events')
+    references = ('Fritzson 2015',)
+    until = 14400.0
+    dt = 10.0
+    observables = (ObservableSpec('power', _heating_power),)
+
+    def __init__(
+        self,
+        T: float = 10.0,
+        *,
+        setting: float = 20.0,
+        band: float = 1.0,
+        outside: float = 5.0,
+        V: float = 230.0,
+        R: float = 25.0,
+        C: float = 2e5,
+        wall_capacity: float = 1e6,
+        wall_conductance: float = 100.0,
+        surface_conductance: float = 50.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.T = T
+        self.setting = setting
+        self.band = band
+        self.outside = outside
+        self.V = V
+        self.R = R
+        self.C = C
+        self.wall_capacity = wall_capacity
+        self.wall_conductance = wall_conductance
+        self.surface_conductance = surface_conductance
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        upper, lower = self.setting + self.band / 2, self.setting - self.band / 2
+        return System(
+            self.label,
+            elements=[
+                VoltageSourceElement('source', V=self.V),
+                HeatingResistorElement('heater', R=self.R),
+                GroundElement('ground'),
+                HeatCapacityElement('room', T=self.T, C=self.C),
+                ThermalConductorElement('inner', G=self.wall_conductance),
+                HeatCapacityElement('wall', T=self.outside, C=self.wall_capacity),
+                ConvectionElement('surface', h=self.surface_conductance, fluid=self.outside),
+            ],
+            interactions=[
+                ConnectionInteraction('supply', members=['source', 'heater'], ports=['p', 'p']),
+                ConnectionInteraction('neutral', members=['source', 'heater', 'ground'], ports=['n', 'n', 'p']),
+                ConnectionInteraction('air', members=['heater', 'room', 'inner'], ports=['h', 'a', 'a']),
+                ConnectionInteraction('masonry', members=['inner', 'wall', 'surface'], ports=['b', 'a', 'a']),
+                CrossingInteraction(
+                    'open_switch',
+                    target='heater',
+                    guard=lambda s: s.target.h_T - upper,
+                    reset={'on': lambda s: 0.0},
+                    direction=1,
+                ),
+                CrossingInteraction(
+                    'close_switch',
+                    target='heater',
+                    guard=lambda s: s.target.h_T - lower,
+                    reset={'on': lambda s: 1.0},
+                    direction=-1,
+                ),
+            ],
+        )

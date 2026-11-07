@@ -7,23 +7,23 @@ pendulum.
 """
 
 # %%
-# The system is created by name from the catalog with the pendulum hanging at rest, the natural frequency
+# The system is built from its class with the pendulum hanging at rest, the natural frequency
 # `omega = 1.565`, and the largest pivot acceleration `mu = 0.1`, and is integrated with RK4 for 100 time units. The
 # default blueprint shows the angle and the pivot position with their rates in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.control import PendulumSwingUpSystem
 
 SYSTEM = 'pendulum_swing_up'
 
-system = create_system(SYSTEM)
+system = PendulumSwingUpSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.1, solver=RK4Solver(dt=0.01), observers=[observer]).prepare().run(until=100)
+trajectory = simulate(system, solver=RK4Solver(dt=0.01), observers=[observer])
 
 # %%
 # Energy pumping
@@ -34,7 +34,6 @@ simulation = Simulation(system, dt=0.1, solver=RK4Solver(dt=0.01), observers=[ob
 # inverted position.
 
 omega = 1.5652475842498528
-trajectory = simulation.trajectory_
 theta, rate = trajectory.values('pendulum.theta'), trajectory.values('pendulum.theta_d1')
 energy = rate**2 / 2 - omega**2 * np.cos(theta)
 fig, (pumping, phase) = plt.subplots(1, 2, figsize=(10, 4))

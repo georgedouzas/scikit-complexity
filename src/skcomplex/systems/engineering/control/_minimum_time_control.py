@@ -13,10 +13,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import ImpulseInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import sign, where
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.errors import ParameterError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 PLANTS = {'free_particle': 0.0, 'harmonic_oscillator': -1.0, 'saddle': 1.0}
 
@@ -59,6 +58,8 @@ class BangBangPlantElement(Element):
         >>> BangBangPlantElement('plant', a=-1.0).a
         -1.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -143,20 +144,8 @@ class BangBangPlantElement(Element):
         return control
 
 
-@register_system(
-    field='engineering/control',
-    tags=('control', 'bang-bang', 'optimal control', 'pontryagin', 'events', 'ode'),
-    references=('Pontryagin et al. 1962', 'Dilão 2023'),
-    defaults={'until': 10.0, 'dt': 0.01},
-)
-def minimum_time_control(
-    x: float = 3.0,
-    v: float = 2.0,
-    *,
-    plant: str = 'free_particle',
-    interval: float = 0.1,
-) -> System:
-    """Return a linear plant steered to the origin of its phase space in minimum time by a sampled bang-bang control.
+class MinimumTimeControlSystem(BaseSystem):
+    """A linear plant steered to the origin of its phase space in minimum time by a sampled bang-bang control.
 
     The plant follows `x'' = a x + u` with `|u| <= 1`: a free particle, `x'' = u`, a harmonic oscillator,
     `x'' + x = u`, or an unstable saddle, `x'' - x = u`. Pontryagin's maximum principle makes the minimum-time
@@ -167,6 +156,9 @@ def minimum_time_control(
     above the curve reaches the origin at the time `v + 2 sqrt(x + v^2 / 2)`, about 6.47 for the defaults. Only the
     states between the lines `y = -(x + 1)` and `y = -(x - 1)` of the saddle are controllable, and from the others the
     plant escapes to infinity.
+
+    The system has the position `plant.x`, the velocity `plant.y`, and the control `plant.u`, which the samples `sample`
+    set.
 
     Args:
         x:
@@ -181,29 +173,54 @@ def minimum_time_control(
         interval:
             The time between two samples of the controller.
 
-    Returns:
-        system:
-            The system, with the position `plant.x`, the velocity `plant.y`, and the control `plant.u`, which the
-            samples `sample` set.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ParameterError:
             The plant is unknown, or the interval is not positive.
 
     Examples:
-        >>> from skcomplex.systems.engineering.control import minimum_time_control
-        >>> minimum_time_control(plant='saddle', x=0.5, v=0.0).elements[0].u
+        >>> from skcomplex.systems.engineering.control import MinimumTimeControlSystem
+        >>> MinimumTimeControlSystem(plant='saddle', x=0.5, v=0.0).prepare().system_.elements[0].u
         -1.0
     """
-    if plant not in PLANTS:
-        error_msg = f'Unknown plant {plant!r}. Use one of {", ".join(PLANTS)}.'
-        raise ParameterError(error_msg)
-    if not interval > 0:
-        error_msg = f'The interval of the samples is {interval!r}. Give a positive number.'
-        raise ParameterError(error_msg)
-    start = float(BangBangPlantElement._control(plant, x, v))
-    sample = {'u': lambda s: BangBangPlantElement._control(plant, s.target.x, s.target.y)}
-    return System(
-        elements=[BangBangPlantElement('plant', x=x, y=v, u=start, a=PLANTS[plant])],
-        interactions=[ImpulseInteraction('sample', target='plant', reset=sample, period=interval, start=interval)],
-    )
+
+    field = 'engineering/control'
+    topics = ('control', 'bang-bang', 'optimal control', 'pontryagin', 'events', 'ode')
+    references = ('Pontryagin et al. 1962', 'Dilão 2023')
+    until = 10.0
+    dt = 0.01
+
+    def __init__(
+        self,
+        x: float = 3.0,
+        v: float = 2.0,
+        *,
+        plant: str = 'free_particle',
+        interval: float = 0.1,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.v = v
+        self.plant = plant
+        self.interval = interval
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        if self.plant not in PLANTS:
+            error_msg = f'Unknown plant {self.plant!r}. Use one of {", ".join(PLANTS)}.'
+            raise ParameterError(error_msg)
+        if not self.interval > 0:
+            error_msg = f'The interval of the samples is {self.interval!r}. Give a positive number.'
+            raise ParameterError(error_msg)
+        start = float(BangBangPlantElement._control(self.plant, self.x, self.v))
+        sample = {'u': lambda s: BangBangPlantElement._control(self.plant, s.target.x, s.target.y)}
+        return System(
+            self.label,
+            elements=[BangBangPlantElement('plant', x=self.x, y=self.v, u=start, a=PLANTS[self.plant])],
+            interactions=[
+                ImpulseInteraction('sample', target='plant', reset=sample, period=self.interval, start=self.interval),
+            ],
+        )

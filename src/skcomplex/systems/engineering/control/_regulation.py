@@ -16,11 +16,10 @@ from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, BoundaryLaw, EquationLaw, RateLaw
 from ....core.components.laws.utils import clip, derivative
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 GRAVITY = 9.81
 
@@ -76,6 +75,8 @@ class CartPendulumElement(Element):
         >>> CartPendulumElement('cart', theta=0.1).theta
         0.1
     """
+
+    law_classes = (EquationLaw,)
 
     def __init__(
         self,
@@ -157,6 +158,8 @@ class DrivenOscillatorElement(Element):
         >>> DrivenOscillatorElement('oscillator', x=1.0).omega
         1.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -267,6 +270,8 @@ class PIDInteraction(Interaction):
         40.0
     """
 
+    law_classes = (RateLaw, BoundaryLaw)
+
     def __init__(
         self,
         label: str,
@@ -348,6 +353,8 @@ class StateFeedbackInteraction(Interaction):
         (1.0, 1.7)
     """
 
+    law_classes = (BoundaryLaw,)
+
     def __init__(
         self,
         label: str,
@@ -396,28 +403,13 @@ def _oscillator_energy(s: SimpleNamespace) -> Expression:
     return energy
 
 
-@register_system(
-    field='engineering/control',
-    tags=('control', 'feedback', 'pid', 'unstable equilibrium', 'ode'),
-    references=('Åström and Murray 2008',),
-    defaults={'until': 5.0, 'dt': 0.05, 'solver': RK4Solver(dt=0.001)},
-    observables=lambda system: [ObservableSpec('tilt', _tilt)],
-)
-def pid_inverted_pendulum(
-    theta: float = 0.1,
-    *,
-    kp: float = 40.0,
-    ki: float = 1.0,
-    kd: float = 8.0,
-    M: float = 1.0,
-    m: float = 0.1,
-    l: float = 0.5,
-) -> System:
-    """Return an inverted pendulum on a cart that a PID controller of its angle keeps upright.
+class PidInvertedPendulumSystem(BaseSystem):
+    """An inverted pendulum on a cart that a PID controller of its angle keeps upright.
 
     The controller sets the force on the cart to `kp e + ki ∫ e dt - kd theta'` from the error `e = -theta` of the
     angle, within the bounds of the force. Near upright the closed loop is stable when `kp > (M + m) g` and `kd > 0`,
-    and the angle returns to upright while the cart drifts.
+    and the angle returns to upright while the cart drifts. The system has the angle `cart.theta`, the position
+    `cart.x`, the force `cart.force`, and the observable `tilt`.
 
     Args:
         theta:
@@ -441,51 +433,68 @@ def pid_inverted_pendulum(
         l:
             The length of the rod.
 
-    Returns:
-        system:
-            The system, with the angle `cart.theta`, the position `cart.x`, the force `cart.force`, and the observable
-            `tilt`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.control import pid_inverted_pendulum
-        >>> pid_inverted_pendulum(kp=50.0).interactions[0].kp
+        >>> from skcomplex.systems.engineering.control import PidInvertedPendulumSystem
+        >>> PidInvertedPendulumSystem(kp=50.0).prepare().system_.interactions[0].kp
         50.0
     """
-    cart = CartPendulumElement('cart', theta=theta, M=M, m=m, l=l)
-    controller = PIDInteraction(
-        'pid',
-        plant='cart',
-        integrator='memory',
-        control='force',
-        measure='theta',
-        kp=kp,
-        ki=ki,
-        kd=kd,
-        limits=(-FORCE_LIMIT, FORCE_LIMIT),
-    )
-    return System(elements=[cart, IntegratorElement('memory')], interactions=[controller])
+
+    field = 'engineering/control'
+    topics = ('control', 'feedback', 'pid', 'unstable equilibrium', 'ode')
+    references = ('Åström and Murray 2008',)
+    until = 5.0
+    dt = 0.05
+    solver = RK4Solver(dt=0.001)
+    observables = (ObservableSpec('tilt', _tilt),)
+
+    def __init__(
+        self,
+        theta: float = 0.1,
+        *,
+        kp: float = 40.0,
+        ki: float = 1.0,
+        kd: float = 8.0,
+        M: float = 1.0,
+        m: float = 0.1,
+        l: float = 0.5,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.theta = theta
+        self.kp = kp
+        self.ki = ki
+        self.kd = kd
+        self.M = M
+        self.m = m
+        self.l = l
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        cart = CartPendulumElement('cart', theta=self.theta, M=self.M, m=self.m, l=self.l)
+        controller = PIDInteraction(
+            'pid',
+            plant='cart',
+            integrator='memory',
+            control='force',
+            measure='theta',
+            kp=self.kp,
+            ki=self.ki,
+            kd=self.kd,
+            limits=(-FORCE_LIMIT, FORCE_LIMIT),
+        )
+        return System(self.label, elements=[cart, IntegratorElement('memory')], interactions=[controller])
 
 
-@register_system(
-    field='engineering/control',
-    tags=('control', 'feedback', 'linear-quadratic regulator', 'oscillator', 'ode'),
-    references=('Åström and Murray 2008',),
-    defaults={'until': 10.0, 'dt': 0.05, 'solver': RK4Solver(dt=0.001)},
-    observables=lambda system: [ObservableSpec('energy', _oscillator_energy)],
-)
-def lqr_oscillator(
-    x: float = 1.0,
-    *,
-    omega: float = 1.0,
-    zeta: float = 0.0,
-    q: float = 1.0,
-    r: float = 0.1,
-) -> System:
-    """Return a harmonic oscillator that a linear-quadratic regulator brings to rest.
+class LqrOscillatorSystem(BaseSystem):
+    """A harmonic oscillator that a linear-quadratic regulator brings to rest.
 
-    The gain `K` of the regulator minimises `∫ (q (x^2 + x'^2) + r force^2) dt` for the linearisation of the
-    oscillator, which `linearization` computes from the Riccati equation, and the state feedback sets
-    `force = -K (x, x')`. A smaller weight `r` of the force gives a larger gain and a faster return to rest.
+    The gain `K` of the regulator minimises `∫ (q (x^2 + x'^2) + r force^2) dt` for the linearisation of the oscillator,
+    which `linearization` computes from the Riccati equation, and the state feedback sets `force = -K (x, x')`. A
+    smaller weight `r` of the force gives a larger gain and a faster return to rest. The system has the displacement
+    `oscillator.x`, the force `oscillator.force`, and the observable `energy`.
 
     Args:
         x:
@@ -503,34 +512,60 @@ def lqr_oscillator(
         r:
             The weight of the force in the cost.
 
-    Returns:
-        system:
-            The system, with the displacement `oscillator.x`, the force `oscillator.force`, and the observable
-            `energy`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.control import lqr_oscillator
-        >>> [round(value, 3) for value in lqr_oscillator().interactions[0].gain]
+        >>> from skcomplex.systems.engineering.control import LqrOscillatorSystem
+        >>> [round(value, 3) for value in LqrOscillatorSystem().prepare().system_.interactions[0].gain]
         [2.317, 3.825]
     """
-    oscillator = DrivenOscillatorElement('oscillator', x=x, omega=omega, zeta=zeta)
-    linear = linearization(
-        System(elements=[oscillator]),
-        controls=['oscillator.force'],
-        state_weights=q * np.eye(2),
-        control_weights=[[r]],
-    )
-    gain = linear.gain
-    if gain is None:
-        error_msg = 'The linearization of the oscillator gives no gain, since it has no cost weights.'
-        raise ValidationError(error_msg)
-    states = tuple(name.removeprefix('oscillator.') for name in linear.states)
-    regulator = StateFeedbackInteraction(
-        'regulator',
-        plant='oscillator',
-        control='force',
-        states=states,
-        gain=tuple(float(value) for value in gain[0]),
-        limits=(-FORCE_LIMIT, FORCE_LIMIT),
-    )
-    return System(elements=[oscillator], interactions=[regulator])
+
+    field = 'engineering/control'
+    topics = ('control', 'feedback', 'linear-quadratic regulator', 'oscillator', 'ode')
+    references = ('Åström and Murray 2008',)
+    until = 10.0
+    dt = 0.05
+    solver = RK4Solver(dt=0.001)
+    observables = (ObservableSpec('energy', _oscillator_energy),)
+
+    def __init__(
+        self,
+        x: float = 1.0,
+        *,
+        omega: float = 1.0,
+        zeta: float = 0.0,
+        q: float = 1.0,
+        r: float = 0.1,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.omega = omega
+        self.zeta = zeta
+        self.q = q
+        self.r = r
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        oscillator = DrivenOscillatorElement('oscillator', x=self.x, omega=self.omega, zeta=self.zeta)
+        linear = linearization(
+            System(elements=[oscillator]),
+            controls=['oscillator.force'],
+            state_weights=self.q * np.eye(2),
+            control_weights=[[self.r]],
+        )
+        gain = linear.gain
+        if gain is None:
+            error_msg = 'The linearization of the oscillator gives no gain, since it has no cost weights.'
+            raise ValidationError(error_msg)
+        states = tuple(name.removeprefix('oscillator.') for name in linear.states)
+        regulator = StateFeedbackInteraction(
+            'regulator',
+            plant='oscillator',
+            control='force',
+            states=states,
+            gain=tuple(float(value) for value in gain[0]),
+            limits=(-FORCE_LIMIT, FORCE_LIMIT),
+        )
+        return System(self.label, elements=[oscillator], interactions=[regulator])

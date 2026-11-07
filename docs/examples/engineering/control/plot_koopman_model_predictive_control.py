@@ -17,9 +17,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation, create_system, describe
+from skcomplex.systems.engineering.control import KoopmanModelPredictiveControlSystem
 
 SYSTEM = 'koopman_model_predictive_control'
 
@@ -30,14 +30,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM)
+system = KoopmanModelPredictiveControlSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-trajectory = (
-    Simulation(system, dt=1.0, observers=[observer], observables=describe(SYSTEM).observables_of(system))
-    .prepare()
-    .run(until=200.0)
-    .trajectory_
-)
+trajectory = simulate(system, until=200.0, observers=[observer])
 time = [rr.TimeColumn('sim_time', duration=trajectory.times)]
 for name, values, color in (
     ('output', trajectory.values('plant/state.y'), (31, 119, 180)),
@@ -59,12 +54,10 @@ observer.recording_.flush()
 def tracked(plant, *, controlled):
     """Return the times, the output, the reference, and the mean squared error of a run of a plant."""
     until = 300.0 if plant == 'motor' else 150.0
-    found = (
-        create_simulation(SYSTEM, plant=plant, controlled=controlled, n_runs=20, duration=200)
-        .prepare()
-        .run(until=until)
+    found = simulate(
+        KoopmanModelPredictiveControlSystem(plant=plant, controlled=controlled, n_runs=20, duration=200),
+        until=until,
     )
-    found = found.trajectory_
     output, reference = found.values('plant/state.y'), found.values('reference')
     return found.times, output, reference, np.mean((output - reference) ** 2)
 

@@ -8,19 +8,20 @@ small neighbourhood of the origin, whose size shrinks with the interval.
 """
 
 # %%
-# The system is created by name from the catalog: a free particle `x'' = u` from `x = 3` with velocity 2, sampled
+# The system is built from its class: a free particle `x'' = u` from `x = 3` with velocity 2, sampled
 # every 0.1. The default blueprint shows the position, the velocity, and the control.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.engineering.control import MinimumTimeControlSystem
 
 SYSTEM = 'minimum_time_control'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=5)
-simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run()
+trajectory = simulate(MinimumTimeControlSystem(), observers=[observer])
 
 # %%
 # Three plants
@@ -46,7 +47,7 @@ curves = {
 }
 fig, axes = plt.subplots(1, 3, figsize=(12, 4))
 for ax, (plant, (x, v)) in zip(axes, starts.items(), strict=True):
-    trajectory = create_simulation(SYSTEM, plant=plant, x=x, v=v, interval=0.01).prepare().run().trajectory_
+    trajectory = simulate(MinimumTimeControlSystem(plant=plant, x=x, v=v, interval=0.01))
     ax.plot(np.ravel(trajectory.values('plant.x')), np.ravel(trajectory.values('plant.y')))
     ax.plot(grid[plant], curves[plant](grid[plant]), linestyle=':', color='black')
     ax.set_title(plant.replace('_', ' '))

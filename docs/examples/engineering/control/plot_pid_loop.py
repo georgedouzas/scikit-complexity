@@ -6,21 +6,21 @@ and the integral action pulls it back to the set point instead of leaving a last
 """
 
 # %%
-# The system is created by name from the catalog with `Kp = 2`, `Ki = 1`, `Kd = 0.1`, and the set point 1. The
+# The system is built from its class with `Kp = 2`, `Ki = 1`, `Kd = 0.1`, and the set point 1. The
 # disturbance -0.5 steps in at time 10. The default blueprint shows the output and the integral of the error in one time
 # series view.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.control import PidLoopSystem
 
 SYSTEM = 'pid_loop'
 
-system = create_system(SYSTEM)
+system = PidLoopSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=40)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Why the integral action matters
@@ -30,9 +30,8 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 # should return to the set point 1 after every step.
 
 fig, ax = plt.subplots(figsize=(7, 4.5))
-trajectory = simulation.trajectory_
 ax.plot(trajectory.times, trajectory.values('process.y'), label='PID, Ki = 1')
-proportional = Simulation(create_system(SYSTEM, Ki=0.0, Kd=0.0), dt=0.1).prepare().run(until=40).trajectory_
+proportional = simulate(PidLoopSystem(Ki=0.0, Kd=0.0))
 ax.plot(proportional.times, proportional.values('process.y'), label='P only, Ki = 0')
 ax.axhline(1.0, color='black', linestyle='--', linewidth=0.8, label='set point')
 ax.axhline(2 / 3, color='gray', linestyle=':', linewidth=0.8, label='P-only level 2/3')

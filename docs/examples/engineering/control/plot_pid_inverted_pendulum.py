@@ -7,33 +7,22 @@ does not watch its position.
 """
 
 # %%
-# The system is created by name from the catalog with a cart of mass 1, a point mass 0.1 on a rod of length 0.5, and
+# The system is built from its class with a cart of mass 1, a point mass 0.1 on a rod of length 0.5, and
 # the gains `kp = 40`, `ki = 1`, and `kd = 8`. RK4 integrates it with steps of 1 ms, and the controller sets the force
 # after every step. The default blueprint shows the angle, the position, and the force in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.engineering.control import PidInvertedPendulumSystem
 
 SYSTEM = 'pid_inverted_pendulum'
 
-system = create_system(SYSTEM)
-entry = describe(SYSTEM)
+system = PidInvertedPendulumSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(
-        system,
-        dt=0.05,
-        solver=entry.defaults['solver'],
-        observers=[observer],
-        observables=entry.observables_of(system),
-    )
-    .prepare()
-    .run(until=5)
-)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # The closed loop near upright
@@ -44,7 +33,6 @@ simulation = (
 
 M, m, l, g, kp, kd = 1.0, 0.1, 0.5, 9.81, 40.0, 8.0
 roots = np.roots([M * l, kd, kp - (M + m) * g])
-trajectory = simulation.trajectory_
 times = trajectory.times
 first, second = roots
 linear = 0.1 * (second * np.exp(first * times) - first * np.exp(second * times)) / (second - first)

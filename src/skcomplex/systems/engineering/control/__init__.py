@@ -4,24 +4,24 @@ from ._control import (
     THERMAL,
     ConvectionElement,
     HeatCapacityElement,
+    HeatedRoomSystem,
     HeatingResistorElement,
+    PendulumSwingUpSystem,
+    PidLoopSystem,
+    SatelliteTransferSystem,
     ThermalConductorElement,
-    heated_room,
-    pendulum_swing_up,
-    pid_loop,
-    satellite_transfer,
-    thermostat,
+    ThermostatSystem,
 )
-from ._koopman import ControlInputElement, PlantStateElement, koopman_model_predictive_control
-from ._minimum_time_control import BangBangPlantElement, minimum_time_control
+from ._koopman import ControlInputElement, KoopmanModelPredictiveControlSystem, PlantStateElement
+from ._minimum_time_control import BangBangPlantElement, MinimumTimeControlSystem
 from ._regulation import (
     CartPendulumElement,
     DrivenOscillatorElement,
     IntegratorElement,
+    LqrOscillatorSystem,
     PIDInteraction,
+    PidInvertedPendulumSystem,
     StateFeedbackInteraction,
-    lqr_oscillator,
-    pid_inverted_pendulum,
 )
 
 __all__: list[str] = [
@@ -32,19 +32,19 @@ __all__: list[str] = [
     'ConvectionElement',
     'DrivenOscillatorElement',
     'HeatCapacityElement',
+    'HeatedRoomSystem',
     'HeatingResistorElement',
     'IntegratorElement',
+    'KoopmanModelPredictiveControlSystem',
+    'LqrOscillatorSystem',
+    'MinimumTimeControlSystem',
     'PIDInteraction',
+    'PendulumSwingUpSystem',
+    'PidInvertedPendulumSystem',
+    'PidLoopSystem',
     'PlantStateElement',
+    'SatelliteTransferSystem',
     'StateFeedbackInteraction',
     'ThermalConductorElement',
-    'heated_room',
-    'koopman_model_predictive_control',
-    'lqr_oscillator',
-    'minimum_time_control',
-    'pendulum_swing_up',
-    'pid_inverted_pendulum',
-    'pid_loop',
-    'satellite_transfer',
-    'thermostat',
+    'ThermostatSystem',
 ]
