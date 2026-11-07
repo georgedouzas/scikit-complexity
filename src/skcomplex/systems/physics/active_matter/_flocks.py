@@ -11,15 +11,26 @@ from sage.all__sagemath_symbolics import Expression, I, exp
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BaseInteraction
-from ....core.components.spaces import ContinuousSpace, DiscreteTime
+from ....core.components.spaces import (
+    BaseNeighborhood,
+    ConeNeighborhood,
+    ContinuousSpace,
+    DiscreteTime,
+    NearestNeighborhood,
+)
 from ....core.components.system import System
+from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, VisualSpec
 from ..._catalog import register_system
 from ._cohesive_particle import CohesiveParticleElement
+from ._delayed_vicsek_particle import MEMORY, DelayedVicsekParticleElement
 from ._heading_alignment import HeadingAlignmentInteraction
 from ._nematic_particle import NematicParticleElement
 from ._propulsion_step import PropulsionStepInteraction
 from ._vicsek_particle import VicsekParticleElement
+
+FIT_POINTS = 2
+"""The fewest past headings a predicted alignment fits a line through."""
 
 HEADINGS = VisualSpec(
     'points',
@@ -105,6 +116,10 @@ def vicsek(
     v0: float = 0.5,
     eta: float = 0.1,
     seed: int = 0,
+    neighbors: int | None = None,
+    vision: float | None = None,
+    delay: int = 0,
+    memory: int = 5,
 ) -> System:
     """Return the Vicsek system: particles that move at a constant speed along the mean heading of their neighbours.
 
@@ -113,6 +128,20 @@ def vicsek(
     At low noise and high density the particles align into a flock, and the polar order parameter
     `|<exp(i theta)>|` grows from about `1 / sqrt(N)` to near 1. Raising the noise or lowering the density destroys
     the order.
+
+    Two variants of Argun et al. (2021, Section 8.3) make the interaction non-metric or non-reciprocal. With
+    `neighbors`, a particle aligns with its `neighbors` nearest particles and itself at any distance, a topological
+    interaction that need not be reciprocal, and the clusters grow with `neighbors`. With `vision`, a particle sees only
+    the particles within the unit distance whose direction from it makes an angle of at most `vision` with its heading,
+    a vision cone that breaks reciprocity. The two variants do not combine, since the nearest neighbourhood of the core
+    has no cone.
+
+    With a positive `delay` `h`, the sensory delay of Section 8.2, a particle aligns with the headings its neighbours
+    had `h` steps ago, `theta_j(n + 1) = <theta_k(n - h)> + noise`. Argun et al. report that a short delay stabilizes
+    the clusters, and a long delay hinders them. A negative delay is a prediction: the headings of the neighbours `|h|`
+    steps ahead are extrapolated by a least-squares line through their last `memory` headings, and it hinders
+    clustering. Every particle then keeps its last 25 headings, so the delay lies in `[-25, 25]`, and before the start
+    they equal the initial heading.
 
     Args:
         n_particles:
@@ -130,18 +159,57 @@ def vicsek(
         seed:
             The seed of the uniform initial positions and headings.
 
+        neighbors:
+            The number of nearest particles a particle aligns with, or `None` for the particles within the unit
+            distance.
+
+        vision:
+            The half-angle of the vision cone in `(0, pi]`, or `None` for the whole disk.
+
+        delay:
+            The delay of the alignment in steps, negative for a prediction.
+
+        memory:
+            The number of past headings a prediction fits, from 2 to 26.
+
     Returns:
         system:
             The system, with the positions `flock.x`, the headings `flock.theta`, and the observables `polarization`
             and `nematic_order`.
 
+    Raises:
+        ParameterError:
+            Both `neighbors` and `vision` are given, or the delay or the memory exceeds the 25 kept headings.
+
     Examples:
         >>> from skcomplex.systems.physics.active_matter import vicsek
         >>> vicsek(10).elements[0].size
         10
+        >>> type(vicsek(10, neighbors=4).interactions[1].neighborhood).__name__
+        'NearestNeighborhood'
     """
-    alignment = HeadingAlignmentInteraction('alignment', target='flock')
-    return _flock(VicsekParticleElement, n_particles, size, seed, v0=v0, alignment=alignment, eta=eta)
+    if neighbors is not None and vision is not None:
+        error_msg = 'A Vicsek flock aligns with its nearest neighbours or within a vision cone, not both.'
+        raise ParameterError(error_msg)
+    if abs(delay) > MEMORY or not FIT_POINTS <= memory <= MEMORY + 1:
+        error_msg = (
+            f'The delay {delay!r} and the memory {memory!r} need |delay| <= {MEMORY} and 2 <= memory <= {MEMORY + 1}.'
+        )
+        raise ParameterError(error_msg)
+    neighborhood: BaseNeighborhood | None = None
+    if neighbors is not None:
+        neighborhood = NearestNeighborhood(neighbors, center=True)
+    if vision is not None:
+        neighborhood = ConeNeighborhood(1.0, vision, direction='theta', center=True)
+    alignment = HeadingAlignmentInteraction(
+        'alignment',
+        target='flock',
+        neighborhood=neighborhood,
+        latency=delay,
+        memory=memory,
+    )
+    element = VicsekParticleElement if delay == 0 else DelayedVicsekParticleElement
+    return _flock(element, n_particles, size, seed, v0=v0, alignment=alignment, eta=eta)
 
 
 @register_system(
