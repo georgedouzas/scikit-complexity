@@ -1,4 +1,4 @@
-"""Kinetic crowd systems: Bellomo's walkers in a venue with walls, who choose a direction and then adjust their speed."""
+"""Kinetic crowd systems: Bellomo's walkers in a venue with walls, who choose a direction and then a speed."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,9 +18,11 @@ from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.system import System
 from ....core.engine.solvers import SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ....core.types import Array
+from ....core.types import Array, IntArray
 from ..._catalog import register_system
 from ._kinetic_walker_view import KineticWalkerView
+
+TINY = 1e-12
 
 
 class KineticWalkerElement(Element):
@@ -198,15 +200,15 @@ class KineticCrowdInteraction(Interaction):
         """
         return [RuleLaw(self.walk)]
 
-    def _get_cells(self, x: Array, y: Array) -> tuple[Array, Array, tuple[int, int]]:
+    def _get_cells(self, x: Array, y: Array) -> tuple[IntArray, IntArray, tuple[int, int]]:
         """Return the cell indices of positions along and across the street, and the numbers of cells."""
-        shape = (max(int(round(self.length / self.cell)), 1), max(int(round(self.width / self.cell)), 1))
+        shape = (max(round(self.length / self.cell), 1), max(round(self.width / self.cell), 1))
         column = np.clip((x / self.length * shape[0]).astype(int), 0, shape[0] - 1)
         row = np.clip((y / self.width * shape[1]).astype(int), 0, shape[1] - 1)
         return column, row, shape
 
     def _get_fields(self, x: Array, y: Array, velocity: Array, target: Array) -> dict[str, Array]:
-        """Return the density of each side and in total, its gradient, and the mean velocity on the cells."""
+        """Return the counts of each side on the cells, and the density, its gradient, and the means at every walker."""
         column, row, shape = self._get_cells(x, y)
         area = (self.length / shape[0]) * (self.width / shape[1])
         counts = [np.zeros(shape) for _ in range(2)]
@@ -226,26 +228,27 @@ class KineticCrowdInteraction(Interaction):
         return {
             'first': counts[0],
             'second': counts[1],
-            'density': density,
-            'gradient': np.stack([gradient_x, gradient_y]),
-            'mean': mean,
-            'speed': speeds / np.maximum(total, 1.0),
-            'column': column,
-            'row': row,
+            'density': density[column, row],
+            'gradient': np.stack([gradient_x[column, row], gradient_y[column, row]], axis=1),
+            'mean': mean[:, column, row].T,
+            'speed': (speeds / np.maximum(total, 1.0))[column, row],
         }
 
     @staticmethod
     def _unit(vectors: Array, fallback: Array) -> Array:
         """Return the unit vectors of the rows, or the fallback rows where a vector vanishes."""
         norms = np.linalg.norm(vectors, axis=1, keepdims=True)
-        return np.where(norms > 1e-12, vectors / np.maximum(norms, 1e-12), fallback)
+        return np.where(norms > TINY, vectors / np.maximum(norms, TINY), fallback)
 
-    def _interact(self, walkers: dict[str, Array], fields: dict[str, Array], stress: float, rng: np.random.Generator) -> None:
+    def _interact(
+        self,
+        walkers: dict[str, Array],
+        fields: dict[str, Array],
+        stress: float,
+        rng: np.random.Generator,
+    ) -> None:
         """Turn the interacting walkers to their preferred direction and adjust their speeds in probability."""
-        column, row = fields['column'], fields['row']
-        rho = fields['density'][column, row]
-        gradient = fields['gradient'][:, column, row].T
-        mean = fields['mean'][:, column, row].T
+        rho, gradient, mean = fields['density'], fields['gradient'], fields['mean']
         goal = np.stack([np.where(walkers['target'] == 0, 1.0, -1.0), np.zeros(rho.size)], axis=1)
         vacuum = self._unit(-gradient, np.zeros_like(gradient))
         stream = self._unit(mean, goal)
@@ -253,7 +256,7 @@ class KineticCrowdInteraction(Interaction):
         preferred = self._unit(rho[:, None] * vacuum + (1 - rho[:, None]) * mixed, goal)
         slope = np.einsum('ij,ij->i', gradient, preferred)
         perceived = rho + slope / np.sqrt(1 + slope**2) * np.where(slope >= 0, 1 - rho, rho)
-        mean_speed = fields['speed'][column, row]
+        mean_speed = fields['speed']
         gamma = self.quality * stress
         accelerate = (walkers['speed'] <= mean_speed) & (rng.random(rho.size) < gamma * (1 - perceived))
         decelerate = (walkers['speed'] > mean_speed) & (
@@ -281,12 +284,10 @@ class KineticCrowdInteraction(Interaction):
     def _get_band_index(self, first: Array, second: Array) -> float:
         """Return the band index of the densities of both sides, smoothed over `band_width`, where walkers are."""
         sigma = self.band_width / self.cell
-        smooth = [
-            scipy.ndimage.gaussian_filter(counts, sigma, mode=('wrap', 'nearest')) for counts in (first, second)
-        ]
+        smooth = [scipy.ndimage.gaussian_filter(counts, sigma, mode=('wrap', 'nearest')) for counts in (first, second)]
         total = smooth[0] + smooth[1]
         occupied = total > 1e-3 * total.max() if total.max() > 0 else total > 0
-        separation = np.abs(smooth[0] - smooth[1]) / np.maximum(total, 1e-12)
+        separation = np.abs(smooth[0] - smooth[1]) / np.maximum(total, TINY)
         return float(separation[occupied].mean()) if occupied.any() else 0.0
 
     def walk(self, system: SystemView) -> None:
@@ -311,7 +312,11 @@ class KineticCrowdInteraction(Interaction):
         self._interact(walkers, fields, stress, system.rng)
         self._avoid_walls(walkers)
         walkers['x'] = np.mod(walkers['x'] + self.dt * walkers['speed'] * np.cos(walkers['direction']), self.length)
-        walkers['y'] = np.clip(walkers['y'] + self.dt * walkers['speed'] * np.sin(walkers['direction']), 0.0, self.width)
+        walkers['y'] = np.clip(
+            walkers['y'] + self.dt * walkers['speed'] * np.sin(walkers['direction']),
+            0.0,
+            self.width,
+        )
         for position, view in enumerate(views):
             for name in ('x', 'y', 'speed', 'direction'):
                 setattr(view, name, float(walkers[name][position]))

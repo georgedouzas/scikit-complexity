@@ -13,8 +13,8 @@ of the core primitives.
 - Add `three_state_opinion`, `undecided_flows`, `willing_majority`, and `echo_chamber_radicalization` to
   `social/opinion_dynamics`.
 - Add `kinetic_crowd` to `social/crowds`, Bellomo's walkers in a room with walls, distinct from `evacuation`.
-- Add `ajanis_choice`, `supply_chain_diffusion`, `hoping_for_arrest`, `watchmakers`, `drift_to_low_performance`,
-  `policy_resistance`, `container_mobility`, and `exploration_preferential_return` to `social/organizations`.
+- Add `ajanis_choice`, `supply_chain_diffusion`, `watchmakers`, `drift_to_low_performance`, `policy_resistance`,
+  `container_mobility`, and `exploration_preferential_return` to `social/organizations`.
 - Add `random_typewriting` to `social/language`.
 - Add the option `choices` of `schelling` for the Big Sort variant of Downey's Exercise 9-1.
 - Record every new system in the inventory with its sources and add its gallery example.

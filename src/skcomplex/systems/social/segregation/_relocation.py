@@ -88,7 +88,10 @@ class RelocationInteraction(MovementInteraction):
                 kinds[column + dx, row + dy]
                 for dx in (-1, 0, 1)
                 for dy in (-1, 0, 1)
-                if (dx or dy) and 0 <= column + dx < width and 0 <= row + dy < height and (column + dx, row + dy) in kinds
+                if (dx or dy)
+                and 0 <= column + dx < width
+                and 0 <= row + dy < height
+                and (column + dx, row + dy) in kinds
             ]
             share = sum(kind == resident.kind for kind in around) / len(around) if around else 0.0
             if share > best_share:

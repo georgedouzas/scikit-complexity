@@ -85,9 +85,11 @@ def schelling(
     return System(
         elements=[residents],
         interactions=[
-            RelocationInteraction('relocation', target='residents')
-            if choices is None
-            else RelocationInteraction('relocation', target='residents', probability=moving, choices=choices),
+            (
+                RelocationInteraction('relocation', target='residents')
+                if choices is None
+                else RelocationInteraction('relocation', target='residents', probability=moving, choices=choices)
+            ),
         ],
         space=LatticeSpace((width, height), boundary='fixed', capacity=1),
     )

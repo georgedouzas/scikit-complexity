@@ -15,11 +15,17 @@ from ....core.types import Array, Pair
 ORIGIN: Pair = (0, 0)
 
 
+REACH = 2
+
+
+HALF = 0.5
+
+
 VON_NEUMANN: tuple[Pair, ...] = ((1, 0), (-1, 0), (0, 1), (0, -1))
 
 
 DIAMOND = LatticeNeighborhood(
-    tuple((dx, dy) for dx in range(-2, 3) for dy in range(-2, 3) if abs(dx) + abs(dy) <= 2),
+    tuple((dx, dy) for dx in range(-REACH, REACH + 1) for dy in range(-REACH, REACH + 1) if abs(dx) + abs(dy) <= REACH),
 )
 
 
@@ -145,7 +151,7 @@ class IteratedDilemmaInteraction(LocalRuleInteraction):
         draw = random / np.maximum(mutation, 1e-12)
         mutant = np.where(
             np.broadcast_to(extremes, random.shape) > 0,
-            np.where(draw < 0.5, 0.0, rounds),
+            np.where(draw < HALF, 0.0, rounds),
             np.minimum(np.floor(draw * (np.asarray(rounds) + 1)), rounds),
         )
         return np.where(random < mutation, mutant, revised)

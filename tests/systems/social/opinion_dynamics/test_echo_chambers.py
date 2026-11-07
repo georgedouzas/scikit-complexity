@@ -9,7 +9,11 @@ from ..conftest import _run, _values
 
 def test_low_controversy_reaches_neutral_consensus():
     """Test that opinions converge to zero for a small controversialness."""
-    opinions = _values(_run(echo_chamber_radicalization(100, controversy=0.05, homophily=2.0), 100), 'agents', 'opinion')
+    opinions = _values(
+        _run(echo_chamber_radicalization(100, controversy=0.05, homophily=2.0), 100),
+        'agents',
+        'opinion',
+    )
     assert np.max(np.abs(opinions)) < 0.01
 
 

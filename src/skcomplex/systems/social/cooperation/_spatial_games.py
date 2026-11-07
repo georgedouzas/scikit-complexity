@@ -232,7 +232,7 @@ def iterated_lattice_dilemma(
     """
     rng = np.random.default_rng(random_state)
     if extremes:
-        strategies = rounds * (rng.random(tuple(shape)) < 0.5).astype(float)
+        strategies = rounds * rng.integers(2, size=tuple(shape)).astype(float)
     else:
         strategies = rng.integers(rounds + 1, size=tuple(shape)).astype(float)
     players = LatticeElement(

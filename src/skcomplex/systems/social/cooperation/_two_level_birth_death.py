@@ -20,6 +20,8 @@ from ....core.types import Array
 from ..._catalog import register_system
 from ._punisher_group_view import PunisherGroupView
 
+PAIR = 2
+
 
 class PunisherGroupElement(Element):
     """Group of defectors and altruistic punishers of a fixed size, held by its number of punishers.
@@ -161,7 +163,7 @@ class TwoLevelBirthDeathInteraction(Interaction):
         """
         groups = system.agents(self.target, PunisherGroupView)
         size = len(groups)
-        if size < 2:
+        if size < PAIR:
             return
         rng = system.rng
         members = float(self.members)

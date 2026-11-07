@@ -70,7 +70,7 @@ def test_two_level_replicator_reaches_the_mean_fraction_of_punishers(strength, e
 
 
 def test_two_level_replicator_loses_the_punishers_below_the_threshold():
-    """Test that below `lambda*` the groups concentrate at the all-defector state, and at all punishers if `p > c + q`."""
+    """Test that groups concentrate at all defectors below `lambda*`, and at all punishers if `p > c + q`."""
     centres = (np.arange(100) + 0.5) / 100
     _, weak = _final_density(two_level_replicator(group_strength=0.3), 20.0, dt=0.01)
     assert np.sum(centres * weak.ravel()) / np.sum(weak) < 0.05

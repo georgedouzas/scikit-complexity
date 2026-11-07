@@ -9,7 +9,10 @@ from ..conftest import _run, _values
 
 
 def _diagram(density, gamma, deceleration=0.95):
-    """Return the mean speed of the fundamental diagram of Eq. 6.30."""
+    """Return the mean speed of the fundamental diagram of Eq.
+
+    6.30.
+    """
     free = gamma**2 * (1 - density) ** 2
     return gamma * free / (free + (1 - deceleration * gamma) * density**2)
 

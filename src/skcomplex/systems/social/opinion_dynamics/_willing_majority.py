@@ -183,7 +183,7 @@ def willing_majority(
         30
     """
     rng = np.random.default_rng(random_state)
-    opinions = (rng.random(n_agents) < 0.5).astype(float)
+    opinions = rng.integers(2, size=n_agents).astype(float)
     stubborn = rng.random(n_agents) < zealots
     if zealot_opinion is not None:
         opinions[stubborn] = zealot_opinion

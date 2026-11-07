@@ -20,6 +20,8 @@ from ....core.types import Array
 from ..._catalog import register_system
 from ._radical_view import RadicalView
 
+PAIR = 2
+
 
 class RadicalElement(Element):
     """Agent with an unbounded opinion, whose sign is its stance and whose size is its conviction, and an activity.
@@ -165,7 +167,7 @@ class RadicalizationInteraction(Interaction):
                 The system.
         """
         agents = system.agents(self.target, RadicalView)
-        if len(agents) < 2:
+        if len(agents) < PAIR:
             return
         opinions = np.array([agent.opinion for agent in agents])
         activities = np.array([agent.activity for agent in agents])

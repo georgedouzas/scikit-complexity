@@ -1,5 +1,4 @@
-"""Organization systems: Meadows' system traps of success to the successful, shifting the burden, escalation, policy
-resistance, and drift to low performance."""
+"""Organization systems: Meadows' system traps, from success to the successful to drift to low performance."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

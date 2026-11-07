@@ -96,7 +96,8 @@ class ExplorationInteraction(Interaction):
         rng = system.rng
         memory = system.storage
         for individual in system.agents(self.target, ExplorerView):
-            places, visits = memory.setdefault(str(individual.id), ([(individual.x, individual.y)], [1.0]))
+            places = memory.setdefault(f'places {individual.id}', [(individual.x, individual.y)])
+            visits = memory.setdefault(f'visits {individual.id}', [1.0])
             if not isinstance(places, list) or not isinstance(visits, list):
                 continue
             if rng.random() < self.rho * len(places) ** -self.gamma:
@@ -236,10 +237,13 @@ class ContainerMobilityInteraction(Interaction):
         children, levels = int(self.side) ** 2, int(self.levels)
         travel = np.asarray(self.travel, dtype=float)
         for individual in system.agents(self.target, ExplorerView):
-            if str(individual.id) not in memory:
-                memory[str(individual.id)] = (self._get_attractiveness(rng), 0, {0})
+            if f'location {individual.id}' not in memory:
+                memory[f'attractiveness {individual.id}'] = self._get_attractiveness(rng)
+                memory[f'location {individual.id}'], memory[f'visited {individual.id}'] = 0, {0}
                 individual.x, individual.y = self._get_position(0)
-            attractiveness, location, visited = memory[str(individual.id)]
+            attractiveness = memory[f'attractiveness {individual.id}']
+            location = memory[f'location {individual.id}']
+            visited = memory[f'visited {individual.id}']
             if not isinstance(attractiveness, list) or not isinstance(location, int) or not isinstance(visited, set):
                 continue
             level = int(rng.choice(levels, p=travel)) + 1
@@ -252,7 +256,7 @@ class ContainerMobilityInteraction(Interaction):
             chosen = int(siblings[rng.choice(children, p=weights / weights.sum())])
             location = self._descend(chosen, level, attractiveness, rng)
             visited.add(location)
-            memory[str(individual.id)] = (attractiveness, location, visited)
+            memory[f'location {individual.id}'] = location
             individual.x, individual.y = self._get_position(location)
             individual.level = float(level)
             individual.distinct = float(len(visited))

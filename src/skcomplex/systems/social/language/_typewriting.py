@@ -133,8 +133,9 @@ class TypingInteraction(Interaction):
         storage = system.storage
         if 'words' not in storage:
             storage['words'] = {int(word.code): word for word in system.agents(self.target, TypedWordView)}
-        words = storage['words']
-        code, length = storage.get('typed', (0, 0))
+        words, code, length = storage['words'], storage.get('code', 0), storage.get('length', 0)
+        if not isinstance(words, dict) or not isinstance(code, int) or not isinstance(length, int):
+            return
         spaces = system.rng.random(int(self.keystrokes)) < self.space_bar
         keys = system.rng.integers(int(self.letters), size=int(self.keystrokes))
         new: dict[tuple[int, int], int] = {}
@@ -145,9 +146,9 @@ class TypingInteraction(Interaction):
             if length:
                 new[code, length] = new.get((code, length), 0) + 1
             code, length = 0, 0
-        storage['typed'] = (code, length)
+        storage['code'], storage['length'] = code, length
         for (word_code, word_length), count in new.items():
-            word = words.get(word_code) if isinstance(words, dict) else None
+            word = words.get(word_code)
             if isinstance(word, TypedWordView):
                 word.count += count
                 continue

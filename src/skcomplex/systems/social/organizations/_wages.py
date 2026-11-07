@@ -265,8 +265,8 @@ def ajanis_choice(
     workforce and raise it otherwise, by `adjustment`, within `[0.1, 2]`, and then average the wages of `chat`
     random employers (Chesney 2021 sections 3.3 and 3.8). A worker paid below the minimum wage is a slave, and a run
     lasts 60 days, two summer months. When workers outnumber the jobs, desperation drags the wages below the
-    minimum, as with the default 10 employers and 1000 workers. The NetLogo listing of section 3.8 accepts a low offer when yesterday's pay was above the minimum,
-    against rule 3 of the text, and the system follows the text.
+    minimum, as with the default 10 employers and 1000 workers. The NetLogo listing of section 3.8 accepts a low offer
+    when yesterday's pay was above the minimum, against rule 3 of the text, and the system follows the text.
 
     Args:
         n_employers:
@@ -304,7 +304,7 @@ def ajanis_choice(
         values={
             'wage': 1.0 + rng.random(n_employers),
             'workforce': rng.integers(50, 100, size=n_employers).astype(float),
-            'area': (rng.random(n_employers) < 0.5).astype(float),
+            'area': rng.integers(2, size=n_employers).astype(float),
         },
     )
     workers = GroupElement(
@@ -313,5 +313,12 @@ def ajanis_choice(
         size=2 * n_workers,
         values={'slum': np.repeat([0.0, 1.0], n_workers)},
     )
-    day = HarvestInteraction('day', employers='employers', workers='workers', asks=asks, chat=chat, adjustment=adjustment)
+    day = HarvestInteraction(
+        'day',
+        employers='employers',
+        workers='workers',
+        asks=asks,
+        chat=chat,
+        adjustment=adjustment,
+    )
     return System(elements=[employers, workers], interactions=[day])

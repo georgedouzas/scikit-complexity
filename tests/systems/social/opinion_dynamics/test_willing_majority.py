@@ -18,7 +18,10 @@ def test_zealots_of_both_opinions_prevent_consensus():
     trajectory = _run(willing_majority(zealots=0.2), 50)
     willingness = _values(trajectory, 'voters', 'willingness')
     opinions = _values(trajectory, 'voters', 'opinion')
-    np.testing.assert_array_equal(opinions[willingness == 0], _values(trajectory, 'voters', 'opinion', 0)[willingness == 0])
+    np.testing.assert_array_equal(
+        opinions[willingness == 0],
+        _values(trajectory, 'voters', 'opinion', 0)[willingness == 0],
+    )
     assert 0 < opinions.mean() < 1
 
 

@@ -25,6 +25,7 @@ from ..._catalog import register_system
 from ._donor_view import DonorView
 
 UPDATES = ('death-birth', 'pairwise')
+MUTUAL_COOPERATION = 2
 
 
 class DonorElement(Element):
@@ -219,11 +220,11 @@ class GameTransitionsInteraction(Interaction):
         players = system.agents(self.target, DonorView)
         storage = system.storage
         if 'first' not in storage:
-            first, second = self._get_edges(players)
-            storage['first'], storage['second'] = first, second
-            storage['games'] = np.ones(first.size)
+            sources, targets = self._get_edges(players)
+            storage['first'], storage['second'] = sources, targets
+            storage['games'] = np.ones(sources.size)
             storage['neighbors'] = [
-                np.concatenate([second[first == node], first[second == node]]) for node in range(len(players))
+                np.concatenate([targets[sources == node], sources[targets == node]]) for node in range(len(players))
             ]
         first, second, games = storage['first'], storage['second'], storage['games']
         neighbors = storage['neighbors']
@@ -239,7 +240,7 @@ class GameTransitionsInteraction(Interaction):
             actions = strategies[first] + strategies[second]
             self._replace(strategies, payoffs, neighbors, rng)
             if self.transitions:
-                second_game = np.where(actions == 2, self.after_cooperation, self.after_defection)
+                second_game = np.where(actions == MUTUAL_COOPERATION, self.after_cooperation, self.after_defection)
                 second_game = np.where(actions == 0, 1.0, second_game)
                 games[:] = np.where(rng.random(games.size) < second_game, 2.0, 1.0)
         for player, strategy, payoff in zip(players, strategies.tolist(), payoffs.tolist(), strict=True):
