@@ -3,20 +3,343 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Mapping
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.components.interactions import RateInteraction
+from ....core.components.elements import DeclaredElement, Element
+from ....core.components.interactions import MapInteraction, RateInteraction
+from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws.utils import lag, mod
 from ....core.components.spaces import DiscreteTime
 from ....core.components.system import System
+from ....core.errors import ValidationError
+from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
 from ...mathematics.common.flows import LorenzElement
-from ._aggregate_averaging import AggregateAveragingInteraction
-from ._delayed_unit import DelayedUnitElement
-from ._diffusive_coupling import DiffusiveCouplingInteraction
-from ._logistic_unit import LogisticUnitElement
-from ._rossler_oscillator import RosslerOscillatorElement
+
+
+class DelayedUnitElement(DeclaredElement):
+    """Value `x` of a map that keeps its last `delay` values, which a delayed coupling reads.
+
+    The state `x` has `delay` lags, `x_lag1` to `x_lag<delay>`, and before the start every lag holds the initial value.
+
+    Args:
+        label:
+            The label of the unit.
+
+        visual:
+            How the unit is drawn, or `None` for `default_visual_`.
+
+        value:
+            The initial value of `x`, also its value before the start.
+
+        delay:
+            The number of past values the unit keeps, at least 1.
+
+        variables:
+            The declared variables that replace the derived ones, or `None` for none.
+
+    Attributes:
+        default_visual_:
+            The visual of the unit when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.synchronization import DelayedUnitElement
+        >>> DelayedUnitElement('unit', delay=2).get_value('x')
+        0.3
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        value: float = 0.3,
+        delay: int = 1,
+        variables: Mapping[str, DeclaredVariableSpec] | None = None,
+    ) -> None:
+        super().__init__(label, visual=visual, variables=variables)
+        self.value = value
+        self.delay = delay
+
+    def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:
+        """Return the value `x` with its `delay` lags, all at the initial value, and the replacing variables."""
+        lagged = StateSpec(lags=self.delay, initial=(self.value,) * self.delay)
+        return {'x': DeclaredVariableSpec(self.value, lagged), **(self.variables or {})}
+
+
+class LogisticUnitElement(Element):
+    """Value `x` in `[0, 1]` of a logistic map, which maps of the coupling iterate.
+
+    Args:
+        label:
+            The label of the unit.
+
+        visual:
+            How the unit is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial value.
+
+    Attributes:
+        default_visual_:
+            The visual of the unit when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.synchronization import LogisticUnitElement
+        >>> LogisticUnitElement('unit').x
+        0.3
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 0.3,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+
+
+class RosslerOscillatorElement(Element):
+    """Rössler oscillator `x1' = -omega x2 - x3`, `x2' = omega x1 + a x2`, `x3' = b + x3 (x1 - c)`.
+
+    It is chaotic for `a = b = 0.2` and `c = 5.7`. The time scale `p` divides every rate, `p x' = f(x)`, so `p < 1`
+    speeds the oscillator up.
+
+    Args:
+        label:
+            The label of the oscillator.
+
+        visual:
+            How the oscillator is drawn, or `None` for `default_visual_`.
+
+        x1:
+            The initial first variable.
+
+        x2:
+            The initial second variable.
+
+        x3:
+            The initial third variable.
+
+        omega:
+            The natural frequency.
+
+        a:
+            The first Rössler parameter.
+
+        b:
+            The second Rössler parameter.
+
+        c:
+            The third Rössler parameter.
+
+        p:
+            The time scale, which divides every rate.
+
+    Attributes:
+        default_visual_:
+            The visual of the oscillator when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.synchronization import RosslerOscillatorElement
+        >>> RosslerOscillatorElement('oscillator').c
+        5.7
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x1: Annotated[float, StateSpec()] = 1.0,
+        x2: Annotated[float, StateSpec()] = 0.0,
+        x3: Annotated[float, StateSpec()] = 0.0,
+        omega: Annotated[float, ParameterSpec()] = 1.0,
+        a: Annotated[float, ParameterSpec()] = 0.2,
+        b: Annotated[float, ParameterSpec()] = 0.2,
+        c: Annotated[float, ParameterSpec()] = 5.7,
+        p: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x1 = x1
+        self.x2 = x2
+        self.x3 = x3
+        self.omega = omega
+        self.a = a
+        self.b = b
+        self.c = c
+        self.p = p
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the Rössler flow.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rates of the three variables.
+        """
+        s = namespace
+        return [
+            RateLaw(s.x1, (-s.omega * s.x2 - s.x3) / s.p),
+            RateLaw(s.x2, (s.omega * s.x1 + s.a * s.x2) / s.p),
+            RateLaw(s.x3, (s.b + s.x3 * (s.x1 - s.c)) / s.p),
+        ]
+
+
+MAPS = ('logistic', 'bernoulli')
+
+
+class AggregateAveragingInteraction(MapInteraction):
+    """Logistic or Bernoulli map of an aggregate of the value of a target and the value of a source, possibly delayed.
+
+    The map sets `x_t(t + 1) = f(a)` with the aggregate `a = (1 - kappa) x_t(t) + kappa x_s(t - delay)`, and with the
+    logistic map `f(a) = r a (1 - a)` or the Bernoulli shift `f(a) = r a mod 1`. A delayed source keeps `delay` lags.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        source:
+            The path of the unit whose value the aggregate reads.
+
+        target:
+            The path of the unit whose value the map sets.
+
+        r:
+            The growth rate of the logistic map.
+
+        kappa:
+            The weight of the source in the aggregate.
+
+        kind:
+            The map, `'logistic'` or `'bernoulli'`.
+
+        delay:
+            The number of steps by which the source is delayed.
+
+    Raises:
+        ValidationError:
+            The map is unknown, or the delay is not a nonnegative integer.
+
+    Examples:
+        >>> from types import SimpleNamespace
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.systems.physics.synchronization import AggregateAveragingInteraction
+        >>> averaging = AggregateAveragingInteraction('averaging', source='a', target='b').prepare()
+        >>> source, target = SimpleNamespace(x=var('u')), SimpleNamespace(x=var('v'))
+        >>> namespace = SimpleNamespace(source=source, target=target, r=4, kappa=var('kappa'))
+        >>> [law.value.factor() for law in averaging.run(namespace).laws_]
+        [-4*(kappa*u - kappa*v + v)*(kappa*u - kappa*v + v - 1)]
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        source: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec()],
+        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 4.0,
+        kappa: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
+        kind: str = 'logistic',
+        delay: int = 0,
+    ) -> None:
+        super().__init__(label, target=target, state='x', function=self._average)
+        self.source = source
+        self.r = r
+        self.kappa = kappa
+        self.kind = kind
+        self.delay = delay
+
+    def _check(self) -> None:
+        """Raise an error for an unknown map or a delay that is not a nonnegative integer.
+
+        Raises:
+            ValidationError:
+                The map is unknown, or the delay is not a nonnegative integer.
+        """
+        super()._check()
+        if self.kind not in MAPS:
+            error_msg = f'Unknown map {self.kind!r}. Use one of {", ".join(MAPS)}.'
+            raise ValidationError(error_msg)
+        if isinstance(self.delay, bool) or not isinstance(self.delay, int) or self.delay < 0:
+            error_msg = f'The delay of {self.label!r} is {self.delay!r}. Give a nonnegative integer.'
+            raise ValidationError(error_msg)
+
+    def _average(self, namespace: SimpleNamespace) -> Expression:
+        """Return the map of the aggregate `a = (1 - kappa) x_t + kappa x_s(t - delay)`."""
+        source = lag(namespace.source.x, self.delay)
+        aggregate = (1 - namespace.kappa) * namespace.target.x + namespace.kappa * source
+        if self.kind == 'bernoulli':
+            return mod(namespace.r * aggregate, 1)
+        return namespace.r * aggregate * (1 - aggregate)
+
+
+class DiffusiveCouplingInteraction(RateInteraction):
+    """Diffusive coupling of a state of one element to the same state of another, `x_t' += k (x_s - x_t)`.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        source:
+            The path of the element whose state the coupling reads.
+
+        target:
+            The path of the element whose state the coupling changes.
+
+        state:
+            The name of the coupled state.
+
+        k:
+            The coupling strength.
+
+    Examples:
+        >>> from types import SimpleNamespace
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.systems.physics.synchronization import DiffusiveCouplingInteraction
+        >>> coupling = DiffusiveCouplingInteraction('coupling', source='a', target='b').prepare()
+        >>> source, target = SimpleNamespace(x2=var('u')), SimpleNamespace(x2=var('v'))
+        >>> [law.value for law in coupling.run(SimpleNamespace(source=source, target=target, k=var('k'))).laws_]
+        [k*(u - v)]
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        source: Annotated[str, RoleSpec()],
+        target: Annotated[str, RoleSpec()],
+        state: str = 'x2',
+        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label, target=target, state=state)
+        self.source = source
+        self.k = k
+
+    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
+        """Return `k (x_s - x_t)`.
+
+        Args:
+            namespace:
+                The namespace of the symbols the rate can use.
+
+        Returns:
+            rate:
+                The rate of the state of the target.
+        """
+        return namespace.k * (getattr(namespace.source, self.state) - getattr(namespace.target, self.state))
+
 
 PAIR = 2
 

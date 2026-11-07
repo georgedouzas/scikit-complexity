@@ -3,18 +3,138 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import Expression, cos, oo, sin
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement
-from ....core.components.interactions import CrossingInteraction
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import CouplingInteraction, CrossingInteraction
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import maximum, where
 from ....core.components.system import System
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
 from ..common.oscillators import PhaseOscillatorElement
-from ._integrate_and_fire_oscillator import IntegrateAndFireOscillatorElement
 from ._utils import _order_parameter
-from ._winfree_mean_field import WinfreeMeanFieldInteraction
+
+
+class IntegrateAndFireOscillatorElement(Element):
+    """Integrate-and-fire oscillator that charges as `x' = S - gamma x`, and sends pulses of strength `epsilon`.
+
+    The oscillator charges towards `S / gamma`. Its firing at 1 is a crossing of the group it belongs to, which resets
+    the most charged oscillators to 0 and lifts every other one by `epsilon`.
+
+    Args:
+        label:
+            The label of the oscillator or the group.
+
+        visual:
+            How the oscillator is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial charge.
+
+        S:
+            The charging input.
+
+        gamma:
+            The leak rate.
+
+        epsilon:
+            The strength of a pulse.
+
+    Attributes:
+        default_visual_:
+            The visual of the oscillator when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.synchronization import IntegrateAndFireOscillatorElement
+        >>> IntegrateAndFireOscillatorElement('oscillator').epsilon
+        0.1
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 0.0,
+        S: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.S = S
+        self.gamma = gamma
+        self.epsilon = epsilon
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the charging of the oscillator.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rate of the charge.
+        """
+        s = namespace
+        return [RateLaw(s.x, s.S - s.gamma * s.x)]
+
+
+class WinfreeMeanFieldInteraction(CouplingInteraction):
+    """Winfree coupling `theta_i' += K mean_j P(theta_j) R(theta_i)` over every member `j` of the group.
+
+    The influence `P(theta) = 1 + cos(theta)` that an oscillator sends and the sensitivity `R(theta) = -sin(theta)` with
+    which it responds make every oscillator respond to the mean influence of the group.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        target:
+            The path of the group of oscillators.
+
+        K:
+            The coupling strength.
+
+    Examples:
+        >>> from types import SimpleNamespace
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.systems.physics.synchronization import WinfreeMeanFieldInteraction
+        >>> coupling = WinfreeMeanFieldInteraction('coupling', target='oscillators')
+        >>> member, other = SimpleNamespace(theta=var('a')), SimpleNamespace(theta=var('b'))
+        >>> coupling.function(SimpleNamespace(K=var('K'), member=member, other=other))
+        -K*(cos(b) + 1)*sin(a)
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        K: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(
+            label,
+            target=target,
+            read='theta',
+            write='theta',
+            function=self._response,
+            reduce='mean',
+            mode='group',
+            include_self=True,
+        )
+        self.K = K
+
+    def _response(self, namespace: SimpleNamespace) -> Expression:
+        """Return the response `K P(theta_j) R(theta_i)` of a member to one other member."""
+        return namespace.K * (1 + cos(namespace.other.theta)) * -sin(namespace.member.theta)
 
 
 @register_system(

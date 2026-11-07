@@ -4,21 +4,178 @@
 # License: MIT
 
 import math
+from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.interactions import CouplingInteraction
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.system import System
-from ....core.specs import ObservableSpec, VisualSpec
+from ....core.components.types import Target
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ..common.oscillators import PhaseOscillatorElement
-from ._edge_coupling import EdgeCouplingInteraction
+from ..common.oscillators import KuramotoCouplingInteraction, PhaseOscillatorElement
 from ._link import LinkElement
-from ._logistic_coupling import LogisticCouplingInteraction
-from ._logistic_node import LogisticNodeElement
 from ._utils import _order_parameter
+
+
+class LogisticNodeElement(Element):
+    """Logistic map on a node of a network, with its value, growth rate, and weight of the neighbours.
+
+    `LogisticCouplingInteraction` iterates `x_i(t + 1) = (1 - epsilon) f(x_i) + epsilon mean_j f(x_j)`, where the map
+    `f(x) = r x (1 - x)` of the node mixes with the mean of the maps of its neighbours `j` on the network.
+
+    Args:
+        label:
+            The label of the node or the group on the nodes.
+
+        visual:
+            How the node is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial value.
+
+        r:
+            The growth rate of the logistic map.
+
+        epsilon:
+            The weight of the neighbours.
+
+    Attributes:
+        default_visual_:
+            The visual of the node when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.synchronization import LogisticNodeElement
+        >>> LogisticNodeElement('node').epsilon
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 0.5,
+        r: Annotated[float, ParameterSpec()] = 4.0,
+        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.r = r
+        self.epsilon = epsilon
+
+
+class EdgeCouplingInteraction(KuramotoCouplingInteraction):
+    """Kuramoto coupling along the weighted edges of a network, `theta_i' += K w_ij sin(theta_j - theta_i)`.
+
+    The coupling runs once per edge of the network of its oscillators and reads the weight `w` of the edge from the
+    group on the edges.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        target:
+            The path of the group of oscillators on the nodes.
+
+        links:
+            The path of the group on the edges, whose parameter `w` weighs every edge.
+
+        K:
+            The coupling strength.
+
+        alpha:
+            The phase lag.
+
+    Examples:
+        >>> from skcomplex.systems.physics.synchronization import EdgeCouplingInteraction
+        >>> EdgeCouplingInteraction('coupling', target='nodes', links='edges', K=0.5).weights
+        'w'
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        links: Annotated[str, RoleSpec()],
+        K: float = 1.0,
+        alpha: float = 0.0,
+    ) -> None:
+        super().__init__(label, target=target, K=K, alpha=alpha, weights='w')
+        self.links = links
+
+
+class LogisticCouplingInteraction(CouplingInteraction):
+    """Coupled logistic maps, `x_i(t + 1) = (1 - epsilon) f(x_i) + epsilon mean_j f(x_j)` with `f(x) = r x (1 - x)`.
+
+    The map of every node mixes with the mean of the maps of its neighbours `j` on its lattice or network, with the
+    parameters `r` and `epsilon` of the node. A node with no neighbours keeps `(1 - epsilon) f(x_i)`. It is the map
+    form of coupling, with the mean of the maps of the neighbours combined with the map of the node.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        target:
+            The path of the group of maps, on the nodes of a lattice or network.
+
+        state:
+            The name of the state that the maps iterate.
+
+    Examples:
+        >>> import networkx as nx
+        >>> from skcomplex.core.components.elements import LatticeElement
+        >>> from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
+        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.systems.physics.synchronization import LogisticCouplingInteraction, LogisticNodeElement
+        >>> maps = LatticeElement(
+        ...     'maps',
+        ...     element=LogisticNodeElement,
+        ...     space=NetworkSpace(nx.path_graph(2)),
+        ...     values={'x': [0.25, 0.5], 'epsilon': 0.5},
+        ... )
+        >>> coupling = LogisticCouplingInteraction('coupling', target='maps')
+        >>> system = System(elements=[maps], interactions=[coupling], time=DiscreteTime())
+        >>> Simulation(system).prepare().run(until=1).trajectory_.values('maps.x')[-1].tolist()
+        [0.875, 0.875]
+    """
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], state: str = 'x') -> None:
+        super().__init__(
+            label,
+            target=target,
+            read=state,
+            write=state,
+            function=self._get_map,
+            reduce='mean',
+            form='map',
+            combine=self._get_mix,
+        )
+        self.state = state
+
+    @staticmethod
+    def _logistic(r: Expression, x: Expression) -> Expression:
+        """Return the logistic map `r x (1 - x)`."""
+        return r * x * (1 - x)
+
+    def _get_map(self, namespace: SimpleNamespace) -> Expression:
+        """Return the map of the neighbour, with the growth rate of the node."""
+        return self._logistic(namespace.member.r, getattr(namespace.other, self.state))
+
+    def _get_mix(self, namespace: SimpleNamespace, reduction: Target) -> Target:
+        """Return the map of the node mixed with the mean map of its neighbours."""
+        member = namespace.member
+        own = self._logistic(member.r, getattr(member, self.state))
+        return (1 - member.epsilon) * own + member.epsilon * reduction
+
 
 NETWORKS = ('watts_strogatz', 'erdos_renyi', 'barabasi_albert')
 
