@@ -23,6 +23,7 @@ type VectorFunction = Callable[[float, Array, Array], Array]
 type ProcessKey = tuple[str, str, str | int]
 type Preference = Callable[[object, object], float]
 type Stoichiometry = Mapping[tuple[str, str] | str, float | Callable[..., object]]
+type ReactionTable = Mapping[str, tuple[Mapping[str, float], Mapping[str, float], float]]
 
 
 class DataKind(StrEnum):

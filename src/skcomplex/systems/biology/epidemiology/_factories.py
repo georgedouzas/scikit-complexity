@@ -9,9 +9,8 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import CompartmentElement
 from ....core.components.interactions import ReactionInteraction
-from ....core.components.system import BaseSystem, System
+from ....core.components.mass_action import MassActionSystem
 from ....core.specs import ParameterSpec, RoleSpec
 from ....core.types import Stoichiometry
 
@@ -241,7 +240,7 @@ class RecoveryInteraction(ReactionInteraction):
         return self._get_mass_action(namespace, namespace.gamma)
 
 
-class SIRSystem(BaseSystem):
+class SIRSystem(MassActionSystem):
     """An epidemic that moves individuals from susceptible to infected to recovered.
 
     The system has the compartments `S`, `I`, and `R`.
@@ -291,7 +290,7 @@ class SIRSystem(BaseSystem):
         stochastic: bool = False,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.susceptible = susceptible
         self.infected = infected
         self.recovered = recovered
@@ -299,35 +298,30 @@ class SIRSystem(BaseSystem):
         self.gamma = gamma
         self.stochastic = stochastic
 
-    def _build_system(self) -> System:
-        """Return the parts of an epidemic that moves individuals from susceptible to infected to recovered."""
-        return System(
-            self.label,
-            elements=[
-                CompartmentElement('S', n=self.susceptible),
-                CompartmentElement('I', n=self.infected),
-                CompartmentElement('R', n=self.recovered),
-            ],
-            interactions=[
-                InfectionInteraction(
-                    'infection',
-                    susceptible='S',
-                    infected='I',
-                    beta=self.beta,
-                    stochastic=self.stochastic,
-                ),
-                RecoveryInteraction(
-                    'recovery',
-                    infected='I',
-                    recovered='R',
-                    gamma=self.gamma,
-                    stochastic=self.stochastic,
-                ),
-            ],
-        )
+    def _get_species(self) -> dict[str, float]:
+        """Return the initial numbers of susceptible, infected, and recovered individuals."""
+        return {'S': self.susceptible, 'I': self.infected, 'R': self.recovered}
+
+    def _get_interactions(self) -> list[ReactionInteraction]:
+        """Return the infection and the recovery of an epidemic.
+
+        Returns:
+            interactions:
+                The infection and the recovery.
+        """
+        return [
+            InfectionInteraction(
+                'infection',
+                susceptible='S',
+                infected='I',
+                beta=self.beta,
+                stochastic=self.stochastic,
+            ),
+            RecoveryInteraction('recovery', infected='I', recovered='R', gamma=self.gamma, stochastic=self.stochastic),
+        ]
 
 
-class SISSystem(BaseSystem):
+class SISSystem(MassActionSystem):
     """An infection without immunity, where the recovered become susceptible again and the disease is endemic.
 
     Above the threshold `beta N > gamma`, the infected settle at `I = N - gamma / beta`, and below it they die out. The
@@ -374,38 +368,37 @@ class SISSystem(BaseSystem):
         stochastic: bool = False,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.susceptible = susceptible
         self.infected = infected
         self.beta = beta
         self.gamma = gamma
         self.stochastic = stochastic
 
-    def _build_system(self) -> System:
-        """Return the parts of an infection without immunity."""
-        return System(
-            self.label,
-            elements=[CompartmentElement('S', n=self.susceptible), CompartmentElement('I', n=self.infected)],
-            interactions=[
-                InfectionInteraction(
-                    'infection',
-                    susceptible='S',
-                    infected='I',
-                    beta=self.beta,
-                    stochastic=self.stochastic,
-                ),
-                RecoveryInteraction(
-                    'recovery',
-                    infected='I',
-                    recovered='S',
-                    gamma=self.gamma,
-                    stochastic=self.stochastic,
-                ),
-            ],
-        )
+    def _get_species(self) -> dict[str, float]:
+        """Return the initial numbers of susceptible and infected individuals."""
+        return {'S': self.susceptible, 'I': self.infected}
+
+    def _get_interactions(self) -> list[ReactionInteraction]:
+        """Return the infection and the recovery to susceptible of an infection without immunity.
+
+        Returns:
+            interactions:
+                The infection and the recovery.
+        """
+        return [
+            InfectionInteraction(
+                'infection',
+                susceptible='S',
+                infected='I',
+                beta=self.beta,
+                stochastic=self.stochastic,
+            ),
+            RecoveryInteraction('recovery', infected='I', recovered='S', gamma=self.gamma, stochastic=self.stochastic),
+        ]
 
 
-class SIRSSystem(BaseSystem):
+class SIRSSystem(MassActionSystem):
     """An epidemic whose immunity wanes, which returns in damped waves to an endemic equilibrium.
 
     The equilibrium has `S = gamma / beta` susceptible and `I = xi (N - S) / (gamma + xi)` infected. The system has the
@@ -460,7 +453,7 @@ class SIRSSystem(BaseSystem):
         stochastic: bool = False,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.susceptible = susceptible
         self.infected = infected
         self.recovered = recovered
@@ -469,42 +462,31 @@ class SIRSSystem(BaseSystem):
         self.xi = xi
         self.stochastic = stochastic
 
-    def _build_system(self) -> System:
-        """Return the parts of an epidemic whose immunity wanes."""
-        return System(
-            self.label,
-            elements=[
-                CompartmentElement('S', n=self.susceptible),
-                CompartmentElement('I', n=self.infected),
-                CompartmentElement('R', n=self.recovered),
-            ],
-            interactions=[
-                InfectionInteraction(
-                    'infection',
-                    susceptible='S',
-                    infected='I',
-                    beta=self.beta,
-                    stochastic=self.stochastic,
-                ),
-                RecoveryInteraction(
-                    'recovery',
-                    infected='I',
-                    recovered='R',
-                    gamma=self.gamma,
-                    stochastic=self.stochastic,
-                ),
-                ImmunityLossInteraction(
-                    'waning',
-                    recovered='R',
-                    susceptible='S',
-                    xi=self.xi,
-                    stochastic=self.stochastic,
-                ),
-            ],
-        )
+    def _get_species(self) -> dict[str, float]:
+        """Return the initial numbers of susceptible, infected, and recovered individuals."""
+        return {'S': self.susceptible, 'I': self.infected, 'R': self.recovered}
+
+    def _get_interactions(self) -> list[ReactionInteraction]:
+        """Return the infection, the recovery, and the loss of immunity of an epidemic whose immunity wanes.
+
+        Returns:
+            interactions:
+                The infection, the recovery, and the loss of immunity.
+        """
+        return [
+            InfectionInteraction(
+                'infection',
+                susceptible='S',
+                infected='I',
+                beta=self.beta,
+                stochastic=self.stochastic,
+            ),
+            RecoveryInteraction('recovery', infected='I', recovered='R', gamma=self.gamma, stochastic=self.stochastic),
+            ImmunityLossInteraction('waning', recovered='R', susceptible='S', xi=self.xi, stochastic=self.stochastic),
+        ]
 
 
-class ZombieOutbreakSystem(BaseSystem):
+class ZombieOutbreakSystem(MassActionSystem):
     """The outbreak of zombies of Munz et al., where the dead rise again and humans are eventually overrun.
 
     Humans `S` are born at the rate `birth` and die naturally at the rate `delta`. A zombie `Z` bites a human at the
@@ -570,7 +552,7 @@ class ZombieOutbreakSystem(BaseSystem):
         stochastic: bool = False,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.susceptible = susceptible
         self.zombies = zombies
         self.removed = removed
@@ -581,46 +563,47 @@ class ZombieOutbreakSystem(BaseSystem):
         self.zeta = zeta
         self.stochastic = stochastic
 
-    def _build_system(self) -> System:
-        """Return the parts of the outbreak of zombies of Munz et al."""
-        mode = 'jump' if self.stochastic else 'rate'
-        return System(
-            self.label,
-            elements=[
-                CompartmentElement('S', n=self.susceptible),
-                CompartmentElement('Z', n=self.zombies),
-                CompartmentElement('R', n=self.removed),
-            ],
-            interactions=[
-                InfectionInteraction(
-                    'bites',
-                    susceptible='S',
-                    infected='Z',
-                    beta=self.beta,
-                    stochastic=self.stochastic,
-                ),
-                ReactionInteraction(
-                    'destruction',
-                    reactants={('Z', 'n'): 1},
-                    products={('R', 'n'): 1},
-                    modifiers={('S', 'n'): 1},
-                    k=self.alpha,
-                    mode=mode,
-                ),
-                ReactionInteraction(
-                    'death',
-                    reactants={('S', 'n'): 1},
-                    products={('R', 'n'): 1},
-                    k=self.delta,
-                    mode=mode,
-                ),
-                ReactionInteraction(
-                    'resurrection',
-                    reactants={('R', 'n'): 1},
-                    products={('Z', 'n'): 1},
-                    k=self.zeta,
-                    mode=mode,
-                ),
-                ReactionInteraction('birth', products={('S', 'n'): 1}, k=self.birth, mode=mode),
-            ],
-        )
+    def _get_species(self) -> dict[str, float]:
+        """Return the initial numbers of humans, zombies, and removed."""
+        return {'S': self.susceptible, 'Z': self.zombies, 'R': self.removed}
+
+    def _get_interactions(self) -> list[ReactionInteraction]:
+        """Return the bites, the destruction, the deaths, the resurrections, and the births of the outbreak.
+
+        Returns:
+            interactions:
+                The reactions of the outbreak.
+        """
+        mode = MODES[self.stochastic]
+        return [
+            InfectionInteraction(
+                'bites',
+                susceptible='S',
+                infected='Z',
+                beta=self.beta,
+                stochastic=self.stochastic,
+            ),
+            ReactionInteraction(
+                'destruction',
+                reactants={('Z', 'n'): 1},
+                products={('R', 'n'): 1},
+                modifiers={('S', 'n'): 1},
+                k=self.alpha,
+                mode=mode,
+            ),
+            ReactionInteraction(
+                'death',
+                reactants={('S', 'n'): 1},
+                products={('R', 'n'): 1},
+                k=self.delta,
+                mode=mode,
+            ),
+            ReactionInteraction(
+                'resurrection',
+                reactants={('R', 'n'): 1},
+                products={('Z', 'n'): 1},
+                k=self.zeta,
+                mode=mode,
+            ),
+            ReactionInteraction('birth', products={('S', 'n'): 1}, k=self.birth, mode=mode),
+        ]

@@ -277,3 +277,35 @@ Field realizations, which call the core functions with fixed settings or replace
   for a later change.
 - **Tags describe the default parameters.** A system whose stochastic or noisy mode is off by default, such as
   `SIRSystem`, has the tags of its deterministic form, where the hand-written laws listed every mode.
+
+## General systems of the core
+
+- **`MassActionSystem` in `skcomplex.core.components.mass_action`.** Species in compartments and reactions between
+  them at mass-action rates: every species is a `CompartmentElement` named after it, every reaction a
+  `ReactionInteraction` between the states `n` of the compartments it names. Its parameters are `species`, the initial
+  amounts by name, `reactions`, a `ReactionTable` of `core.types` that maps the label of every reaction to its
+  reactants and products, as coefficients by species name, and its rate constant, and `mode`, `'rate'`, `'jump'`, or
+  `'langevin'`. It builds on the core's `CompartmentElement` and `ReactionInteraction`, so it adds no element or
+  interaction. The new module sits above `system` in the layers of `skcomplex.core.components`.
+- **Hooks for field realizations.** A subclass takes the parameters of its model under its own names, as
+  `ReactionInteraction` subclasses do, calls `super().__init__(label=label)`, and gives its parts from `_get_species`,
+  `_get_reactions`, and `_get_mode`, or gives its reactions as interactions from `_get_interactions` when they are
+  `ReactionInteraction` subclasses with roles of their own names. The chemistry realizations give a reaction table, and
+  the epidemic ones keep their named reactions, such as `InfectionInteraction`, which tests and doctests read.
+- **Realizations.** `SIRSystem`, `SISSystem`, `SIRSSystem`, and `ZombieOutbreakSystem` of `biology.epidemiology`, and
+  `MichaelisMentenSystem` and `ChemicalLangevinNetworkSystem` of `chemistry.kinetics`, subclass it. Their parts, tags,
+  and run settings are those they built before, element by element and reaction by reaction.
+- **Candidates left out.** Recorded here for a later change:
+  - The predator-prey and growth systems of `biology.ecology`, such as `LotkaVolterraSystem`, use
+    `PopulationElement` with rate interactions whose conversion efficiency `b` differs from the predation rate `a`, so
+    they are not mass action with integer stoichiometry. Rewriting them as reactions would change their compiled laws.
+  - Chemistry systems whose species are states of one reactor element, such as `BrusselatorODESystem`,
+    `OregonatorSystem`, `CubicAutocatalysisSystem`, and the reaction-diffusion fields of `chemistry.pattern_formation`,
+    share reactions but not compartments. A reaction-diffusion general system shared with `physics.pattern_formation`
+    is a candidate once both build their fields the same way.
+  - `NanoparticleCoronaSystem` of `chemistry.kinetics` builds compartments and reactions in a loop over proteins, and
+    the reaction systems of `biology.oncology`, `biology.physiology`, and `biology.systems_biology` mix mass-action
+    reactions with propensities of their own. They could become realizations once `MassActionSystem` accepts given
+    propensities, which no second field needs today.
+  - The duplicate scan of `consolidate-system-modules` found no other shared system structure: its cross-field
+    duplicates are helpers (`_random_cells`, `_noise`, evenly spaced grids) and the `LorenzElement`, not systems.

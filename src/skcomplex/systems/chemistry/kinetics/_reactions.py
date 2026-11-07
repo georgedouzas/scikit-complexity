@@ -9,46 +9,24 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import CompartmentElement, Element
+from ....core.components.elements import Element
 from ....core.components.interactions import ReactionInteraction
+from ....core.components.mass_action import MassActionSystem
 from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.types import ReactionTable
 
 X = ('reactor', 'x')
 
 
-def _get_enzyme_reactions(
-    k_binding: float,
-    k_unbinding: float,
-    k_catalysis: float,
-    mode: str,
-) -> list[ReactionInteraction]:
-    """Return the binding, unbinding, and catalysis of the enzyme reaction `E + S <-> C -> E + P` in a mode."""
-    enzyme, substrate, complex_, product = ('E', 'n'), ('S', 'n'), ('C', 'n'), ('P', 'n')
-    return [
-        ReactionInteraction(
-            'binding',
-            reactants={enzyme: 1, substrate: 1},
-            products={complex_: 1},
-            k=k_binding,
-            mode=mode,
-        ),
-        ReactionInteraction(
-            'unbinding',
-            reactants={complex_: 1},
-            products={enzyme: 1, substrate: 1},
-            k=k_unbinding,
-            mode=mode,
-        ),
-        ReactionInteraction(
-            'catalysis',
-            reactants={complex_: 1},
-            products={enzyme: 1, product: 1},
-            k=k_catalysis,
-            mode=mode,
-        ),
-    ]
+def _get_enzyme_reactions(k_binding: float, k_unbinding: float, k_catalysis: float) -> ReactionTable:
+    """Return the binding, unbinding, and catalysis of the enzyme reaction `E + S <-> C -> E + P`."""
+    return {
+        'binding': ({'E': 1, 'S': 1}, {'C': 1}, k_binding),
+        'unbinding': ({'C': 1}, {'E': 1, 'S': 1}, k_unbinding),
+        'catalysis': ({'C': 1}, {'E': 1, 'P': 1}, k_catalysis),
+    }
 
 
 class SchloglElement(Element):
@@ -114,7 +92,7 @@ class SchloglElement(Element):
         self.B = B
 
 
-class MichaelisMentenSystem(BaseSystem):
+class MichaelisMentenSystem(MassActionSystem):
     """The enzyme reaction `E + S <-> C -> E + P` of Michaelis and Menten, as rate equations or as jumps.
 
     The total enzyme `E + C` and the total substrate `S + C + P` are conserved. In stochastic mode the amounts are
@@ -168,7 +146,7 @@ class MichaelisMentenSystem(BaseSystem):
         stochastic: bool = False,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.enzyme = enzyme
         self.substrate = substrate
         self.k_binding = k_binding
@@ -176,19 +154,17 @@ class MichaelisMentenSystem(BaseSystem):
         self.k_catalysis = k_catalysis
         self.stochastic = stochastic
 
-    def _build_system(self) -> System:
-        """Return the enzyme, the substrate, the complex, the product, and the reactions between them."""
-        mode = 'jump' if self.stochastic else 'rate'
-        return System(
-            self.label,
-            elements=[
-                CompartmentElement('E', n=self.enzyme),
-                CompartmentElement('S', n=self.substrate),
-                CompartmentElement('C'),
-                CompartmentElement('P'),
-            ],
-            interactions=_get_enzyme_reactions(self.k_binding, self.k_unbinding, self.k_catalysis, mode),
-        )
+    def _get_species(self) -> dict[str, float]:
+        """Return the initial amounts of the enzyme, the substrate, the complex, and the product."""
+        return {'E': self.enzyme, 'S': self.substrate, 'C': 0.0, 'P': 0.0}
+
+    def _get_reactions(self) -> ReactionTable:
+        """Return the binding, unbinding, and catalysis of the enzyme reaction."""
+        return _get_enzyme_reactions(self.k_binding, self.k_unbinding, self.k_catalysis)
+
+    def _get_mode(self) -> str:
+        """Return the mode of the reactions, random events when stochastic and rate equations otherwise."""
+        return 'jump' if self.stochastic else 'rate'
 
 
 class ChemicalLangevinEquationSystem(BaseSystem):
@@ -319,7 +295,7 @@ class ChemicalLangevinEquationSystem(BaseSystem):
         )
 
 
-class ChemicalLangevinNetworkSystem(BaseSystem):
+class ChemicalLangevinNetworkSystem(MassActionSystem):
     """The chemical Langevin equation of the enzyme reaction `E + S <-> C -> E + P`.
 
     Every reaction adds its rate times its change of every species to the drift, and one Wiener process with the
@@ -369,22 +345,21 @@ class ChemicalLangevinNetworkSystem(BaseSystem):
         k_catalysis: float = 0.1,
         label: str = 'system',
     ) -> None:
-        super().__init__(label)
+        super().__init__(label=label)
         self.enzyme = enzyme
         self.substrate = substrate
         self.k_binding = k_binding
         self.k_unbinding = k_unbinding
         self.k_catalysis = k_catalysis
 
-    def _build_system(self) -> System:
-        """Return the enzyme, the substrate, the complex, the product, and the reactions between them."""
-        return System(
-            self.label,
-            elements=[
-                CompartmentElement('E', n=self.enzyme),
-                CompartmentElement('S', n=self.substrate),
-                CompartmentElement('C'),
-                CompartmentElement('P'),
-            ],
-            interactions=_get_enzyme_reactions(self.k_binding, self.k_unbinding, self.k_catalysis, 'langevin'),
-        )
+    def _get_species(self) -> dict[str, float]:
+        """Return the initial amounts of the enzyme, the substrate, the complex, and the product."""
+        return {'E': self.enzyme, 'S': self.substrate, 'C': 0.0, 'P': 0.0}
+
+    def _get_reactions(self) -> ReactionTable:
+        """Return the binding, unbinding, and catalysis of the enzyme reaction."""
+        return _get_enzyme_reactions(self.k_binding, self.k_unbinding, self.k_catalysis)
+
+    def _get_mode(self) -> str:
+        """Return the mode of the reactions, the chemical Langevin equation."""
+        return 'langevin'
