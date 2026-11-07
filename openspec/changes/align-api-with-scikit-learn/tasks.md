@@ -41,13 +41,13 @@
 
 ## 8. Follow-ups found while converting systems
 
-- [ ] 8.1 Cache the parts `BaseSystem` builds while its parameters are unchanged, so `get_tags`, `_check`, and `prepare` do not rebuild systems that fit or generate data when built
-- [ ] 8.2 Add `invariants` and `schedule` to `RunSettings` and `simulate`, and restore the tuned invariants of the order book, guru order book, and goods traders systems
-- [ ] 8.3 Read `get_run_settings()` in the registry bridge, until the registry is removed
-- [ ] 8.4 Rename the classes whose catalog names end in `_system`, such as `IntelligentDriverSystemSystem` and `VoterSystemSystem`, with their gallery and inventory keys
-- [ ] 8.5 Fix the failures that predate the conversion: the period of `memristive_mixed_mode_oscillator` and the frozen-spec test that analysis results break
-- [ ] 8.6 Add `compiler` to `RunSettings` and `simulate`, the one hook through which a system brings its own form, and convert `koch_curve`, `cantor_set`, `sierpinski_substitution`, and `morse_subshift` (rewriting) to classes
-- [ ] 8.7 Make `simulate` defer the solver to the compiled form when a system nests subsystems, and stop `MonteCarloSolver` claiming tags its compiler rejects
+- [x] 8.1 Cache the parts `BaseSystem` builds while its parameters are unchanged, so `get_tags`, `_check`, and `prepare` do not rebuild systems that fit or generate data when built
+- [x] 8.2 Add `invariants` and `schedule` to `RunSettings` and `simulate`, and restore the tuned invariants of the order book, guru order book, and goods traders systems
+- [x] 8.3 Read `get_run_settings()` in the registry bridge, until the registry is removed
+- [x] 8.4 Rename the classes whose catalog names end in `_system`, such as `IntelligentDriverSystemSystem` and `VoterSystemSystem`, with their gallery and inventory keys
+- [x] 8.5 Fix the failures that predate the conversion: the period of `memristive_mixed_mode_oscillator` and the frozen-spec test that analysis results break
+- [x] 8.6 Add `compiler` to `RunSettings` and `simulate`, the one hook through which a system brings its own form, and convert `koch_curve`, `cantor_set`, `sierpinski_substitution`, and `morse_subshift` (rewriting) to classes
+- [x] 8.7 Make `simulate` defer the solver to the compiled form when a system nests subsystems, and stop `MonteCarloSolver` claiming tags its compiler rejects
 
 ## 7. Verification
 
