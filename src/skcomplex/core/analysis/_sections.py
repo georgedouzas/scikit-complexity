@@ -16,7 +16,7 @@ from ..engine.solvers import Solver
 from ..errors import AnalysisError
 from ..specs import EventRecordSpec
 from ..types import Array, FormKind
-from ._base import _check_choice, _check_settings, _compiled_problem, _read_system
+from ._base import _check_choice, _check_settings, _compiled_problem, _composite, _read_system
 from .types import Source
 
 KINDS = ('poincare', 'stroboscopic')
@@ -130,6 +130,7 @@ def section(
         >>> len(section(harmonic_oscillator(), state='mass.x', until=20.0).times) > 2
         True
     """
+    source = _composite(source)
     _check_choice('section', 'kind', kind, KINDS)
     _check_settings(
         section,

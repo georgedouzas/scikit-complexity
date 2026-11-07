@@ -19,7 +19,7 @@ from ..types import DataKind
 from ._alignment import alignment
 from ._autocatalytic import autocatalytic_sets
 from ._automata import automaton
-from ._base import SERIES_DIMENSIONS, _get_data_kinds, bind_analysis
+from ._base import SERIES_DIMENSIONS, _composite, _get_data_kinds, bind_analysis
 from ._cell_complex import cell_complex
 from ._clusters import clusters
 from ._coarse_grain import coarse_grain
@@ -191,6 +191,7 @@ def applicable_analyses(source: Source) -> ApplicableAnalysesResult:
         >>> any(item.func.__name__ == 'entropy' for item in found.analyses['series'])
         True
     """
+    source = _composite(source)
     kinds = [str(kind) for kind in _get_data_kinds(source)]
     if isinstance(source, Trajectory | System | nx.Graph | NetworkSnapshotSpec):
         readings = {kind: DataKind(kind).reading for kind in kinds}

@@ -24,7 +24,7 @@ from ..engine.problems import ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..errors import AnalysisError
 from ..types import Array, FormKind, VariableKind
-from ._base import _check_choice, _check_settings, _compiled_problem, _read_system
+from ._base import _check_choice, _check_settings, _compiled_problem, _composite, _read_system
 from ._groups import _Expansion
 from ._symbolic import _declare_domains
 from .types import Point, Source
@@ -178,6 +178,7 @@ def stability(
         >>> bool(relation.growth_rates.max() > 0), bool(relation.growth_rates[0] < 0)
         (True, True)
     """
+    source = _composite(source)
     _check_choice('stability', 'kind', kind, KINDS)
     _check_settings(stability, 'kind', SETTINGS[kind], kind=kind, parameters=parameters, points=points, at=at)
     if kind == 'dispersion':

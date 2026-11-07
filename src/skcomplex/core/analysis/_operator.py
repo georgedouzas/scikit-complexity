@@ -20,7 +20,7 @@ from ..engine.runtime import Trajectory
 from ..errors import AnalysisError, ParameterError
 from ..specs import RunStateSpec, SectorSpec
 from ..types import Array
-from ._base import _check_choice, _check_settings, _read_system
+from ._base import _check_choice, _check_settings, _composite, _read_system
 from .types import Source
 
 KINDS = ('spectrum', 'ground-state', 'purity', 'entanglement')
@@ -166,6 +166,7 @@ def operator_measures(
         >>> bool(np.allclose(result.entropy, np.log(2)))
         True
     """
+    source = _composite(source)
     _check_choice('operator_measures', 'kind', kind, KINDS)
     _check_settings(
         operator_measures,

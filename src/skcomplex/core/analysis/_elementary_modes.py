@@ -21,6 +21,7 @@ from ..errors import AnalysisError, EnumerationLimitError
 from ..specs import RunStateSpec
 from ..specs._base_spec import BaseSpec
 from ..types import Array
+from ._base import _composite
 from .types import Source
 
 KINDS = ('modes', 'pathways')
@@ -131,6 +132,7 @@ def elementary_modes(
         >>> elementary_modes(matrix, normalize='v0').modes.tolist()
         [[Fraction(1, 1), Fraction(1, 1), Fraction(1, 1)]]
     """
+    source = _composite(source)
     if kind not in KINDS:
         error_msg = f'Unknown kind {kind!r}. Use one of {", ".join(KINDS)}.'
         raise AnalysisError(error_msg)

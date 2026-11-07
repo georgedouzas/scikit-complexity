@@ -11,14 +11,14 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ..components.system import System
+from ..components.system import BaseSystem
 from ..engine.runtime import Trajectory
 from ..specs import NetworkSnapshotSpec
 from ..types import AnyArray, Array
 
 type Point = Mapping[str, Expression | float]
 type Partition = npt.ArrayLike | Callable[[AnyArray], npt.ArrayLike]
-type Source = Trajectory | System | nx.Graph | NetworkSnapshotSpec | npt.ArrayLike
+type Source = Trajectory | BaseSystem | nx.Graph | NetworkSnapshotSpec | npt.ArrayLike
 type Run = Trajectory | npt.ArrayLike
 type Runs = Source | list[Run]
 type Item = str | tuple[int, ...]

@@ -15,7 +15,7 @@ import numpy.typing as npt
 
 from ..components.spaces import ContinuousSpace, LatticeSpace, NetworkSpace
 from ..components.specs import CompiledElementSpec
-from ..components.system import System
+from ..components.system import BaseSystem, System
 from ..engine.compile import PassCompiler
 from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.runtime import Trajectory
@@ -119,6 +119,22 @@ def _is_changed(value: object, default: object) -> bool:
         return not np.array_equal(np.asarray(value, dtype=object), np.asarray(default, dtype=object))
     except (TypeError, ValueError):
         return value is not default
+
+
+def _composite(source: Source) -> Source:
+    """Return the composite of the parts of a system class, such as a ready-made system, or any other source as it is.
+
+    Args:
+        source:
+            The source of an analysis.
+
+    Returns:
+        source:
+            The prepared composite `System` of a system that builds its parts, or the source itself.
+    """
+    if isinstance(source, BaseSystem) and not isinstance(source, System):
+        return source.prepare().system_
+    return source
 
 
 def _get_problem(source: Trajectory | System | BaseProblemSpec) -> BaseProblemSpec:
@@ -266,6 +282,7 @@ def _get_data_kinds(source: Source | BaseProblemSpec) -> list[DataKind]:
         kinds:
             The data kinds present, in the order agents, field, network, path, series.
     """
+    source = _composite(source) if not isinstance(source, BaseProblemSpec) else source
     if isinstance(source, nx.Graph | NetworkSnapshotSpec):
         return [DataKind.NETWORK]
     if not isinstance(source, Trajectory | System | BaseProblemSpec):
@@ -684,6 +701,8 @@ def _read_system(source: object) -> System | BaseProblemSpec:
     """
     if isinstance(source, Trajectory):
         return source.problem
+    if isinstance(source, BaseSystem) and not isinstance(source, System):
+        return source.prepare().system_
     if isinstance(source, System | BaseProblemSpec):
         return source
     error_msg = (

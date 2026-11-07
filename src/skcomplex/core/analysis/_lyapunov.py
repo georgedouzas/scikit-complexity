@@ -17,7 +17,7 @@ from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
 from ..types import Array, VectorFunction
-from ._base import _check_choice, _check_settings, _read_series, _read_system
+from ._base import _check_choice, _check_settings, _composite, _read_series, _read_system
 from ._stability import _dynamics_of
 from .types import Source
 
@@ -211,6 +211,7 @@ def lyapunov(
         >>> round(lyapunov([0.906, 0.0, -14.572]).kaplan_yorke_dimension, 2)
         2.06
     """
+    source = _composite(source)
     _check_choice('lyapunov', 'kind', kind, KINDS)
     _check_settings(
         lyapunov,

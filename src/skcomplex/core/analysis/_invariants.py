@@ -22,7 +22,7 @@ from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..errors import AnalysisError
 from ..specs import ObservableSpec, SymmetrySpec
 from ..types import VariableKind
-from ._base import _check_choice, _check_settings, _read_system
+from ._base import _check_choice, _check_settings, _composite, _read_system
 from ._stability import _dynamics_of
 from .types import Source
 
@@ -174,6 +174,7 @@ def invariants(
         >>> result.rates['position']
         p_mass
     """
+    source = _composite(source)
     _check_choice('invariants', 'kind', kind, KINDS)
     _check_settings(
         invariants,

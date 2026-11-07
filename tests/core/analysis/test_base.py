@@ -11,7 +11,14 @@ from sage.all__sagemath_symbolics import NN
 
 import skcomplex.core.analysis
 from skcomplex.core.analysis import bind_analysis, rolling
-from skcomplex.core.analysis._base import _read_fields, _read_networks, _read_path, _read_series, _read_snapshots
+from skcomplex.core.analysis._base import (
+    _composite,
+    _read_fields,
+    _read_networks,
+    _read_path,
+    _read_series,
+    _read_snapshots,
+)
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import JumpLaw
 from skcomplex.core.components.system import System
@@ -19,6 +26,7 @@ from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.systems import create_simulation
+from skcomplex.systems.chemistry.pattern_formation import BrusselatorSystem
 
 
 class BirthDeathElement(Element):
@@ -260,3 +268,11 @@ def test_binding_rejects_unknown_settings_and_objects():
         bind_analysis(rolling, bins=3)
     with pytest.raises(AnalysisError, match='function of a source'):
         bind_analysis(3)
+
+
+def test_a_system_class_is_read_as_the_composite_of_its_parts():
+    """Test that a system class that builds its parts is read as its prepared composite, other sources as they are."""
+    composite = _composite(BrusselatorSystem((8,)))
+    assert isinstance(composite, System)
+    values = np.zeros(3)
+    assert _composite(values) is values

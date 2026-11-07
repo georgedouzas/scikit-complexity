@@ -16,7 +16,7 @@ from ..engine.problems import ProblemSpec
 from ..engine.runtime import Simulation, Trajectory
 from ..errors import AnalysisError
 from ..types import Array
-from ._base import _check_choice, _check_settings, _read_series
+from ._base import _check_choice, _check_settings, _composite, _read_series
 from .types import Source
 
 MIN_SIZES = 2
@@ -212,6 +212,7 @@ def large_deviations(
         >>> large_deviations([-1.0, 1.0], kind='reweight', log_weights=[0.0, 0.0]).mean
         0.0
     """
+    source = _composite(source)
     _check_choice('large_deviations', 'kind', kind, KINDS)
     _check_settings(
         large_deviations,

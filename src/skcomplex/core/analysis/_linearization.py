@@ -14,7 +14,7 @@ from scipy.linalg import solve_continuous_are
 from ..engine.problems import ProblemSpec
 from ..errors import AnalysisError, ValidationError
 from ..types import Array, FormKind
-from ._base import _compiled_problem, _read_system
+from ._base import _compiled_problem, _composite, _read_system
 from ._stability import _dynamics_of
 from .types import Source
 
@@ -147,6 +147,7 @@ def linearization(
         >>> result.B.tolist(), result.controllability
         ([[0.0], [1.0]], 2)
     """
+    source = _composite(source)
     if (state_weights is None) != (control_weights is None):
         error_msg = (
             'linearization computes the regulator from both state_weights and control_weights. Give both, or neither.'

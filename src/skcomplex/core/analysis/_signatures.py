@@ -13,7 +13,7 @@ from ..errors import AnalysisError
 from ..specs import JumpPathSpec, SeriesSpec, SignatureSpec, SnapshotsSpec
 from ..types import Array, DataKind, FormKind
 from ._alignment import _mean_rotation, _mean_vector_length
-from ._base import _get_data_kinds, _read_fields, _read_networks, _read_path, _read_series, _read_snapshots
+from ._base import _composite, _get_data_kinds, _read_fields, _read_networks, _read_path, _read_series, _read_snapshots
 from ._correlation import _autocorrelation_time, _correlation_length
 from ._distribution import _ccdf, _dispersion_index
 from ._neighbors import _nearest_neighbor_distances
@@ -98,6 +98,7 @@ def signatures(source: Source) -> SignaturesResult:
         >>> [signature.title for signature in signatures(trajectory).signatures]
         ['Power spectrum']
     """
+    source = _composite(source)
     if not isinstance(source, Trajectory):
         error_msg = f'signatures reads a trajectory, not {type(source).__name__}.'
         raise AnalysisError(error_msg)

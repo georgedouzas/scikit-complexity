@@ -39,7 +39,7 @@ from ..engine.problems import BaseProblemSpec, OperatorProblemSpec, ProblemSpec,
 from ..errors import AnalysisError, ConservationError
 from ..specs._unknown_spec import _UnknownSpec
 from ..types import Array, ComplexArray, FormKind
-from ._base import _check_choice, _check_settings, _compiled_problem, _read_system
+from ._base import _check_choice, _check_settings, _compiled_problem, _composite, _read_system
 from ._operator import _operator_problem
 from .types import Source
 
@@ -181,6 +181,7 @@ def symbolic(source: Source, *, kind: str = 'equations', use_initial_state: bool
         >>> symbolic(system, kind='solve', use_initial_state=True).solutions['a.n']
         n_a(t) == 2*e^(r_g*t)
     """
+    source = _composite(source)
     _check_choice('symbolic', 'kind', kind, KINDS)
     _check_settings(symbolic, 'kind', SETTINGS[kind], kind=kind, use_initial_state=use_initial_state)
     system = _read_system(source)

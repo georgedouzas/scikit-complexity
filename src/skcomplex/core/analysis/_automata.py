@@ -26,7 +26,7 @@ from ..errors import AnalysisError
 from ..specs import BaseSpec, LinearRuleSpec, OuterTotalisticSpec, SubshiftSpec, TableSpec, TotalisticSpec
 from ..specs._composed_rule_spec import _ComposedRuleSpec
 from ..types import Indices, IntArray
-from ._base import _check_choice, _check_settings, _import
+from ._base import _check_choice, _check_settings, _composite, _import
 from .types import Item, Source
 
 MAX_CONFIGURATIONS = 2**16
@@ -361,6 +361,7 @@ def automaton(
         >>> automaton(golden, kind='entropy', windows=windows).entropy.round(3).tolist()
         [0.706]
     """
+    source = _composite(source)
     _check_choice('automaton', 'kind', kind, KINDS)
     _check_settings(
         automaton,

@@ -19,7 +19,7 @@ from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
 from ..specs._loop_spec import _LoopSpec
 from ..types import Array
-from ._base import _check_choice, _check_settings, _compiled_problem, _read_system
+from ._base import _check_choice, _check_settings, _compiled_problem, _composite, _read_system
 from ._stability import _dynamics_of
 from ._symbolic import _transfer_network
 from .types import Source
@@ -306,6 +306,7 @@ def loops(
         >>> loops(trajectory, kind='dominance').gains.shape
         (3, 2)
     """
+    source = _composite(source)
     _check_choice('loops', 'kind', kind, KINDS)
     _check_settings(loops, 'kind', SETTINGS[kind], kind=kind, at=at, frame=frame, quantity=quantity)
     if kind != 'loops' and not isinstance(source, Trajectory):
