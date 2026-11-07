@@ -814,6 +814,7 @@ wheel_rail_contact = { title = "Wheel and rail contact", sources = ["Tr 6.6"], p
 [engineering.robotics]
 light_seeking_robots = { title = "Light-sensitive robots with sensory delay", sources = ["Ar 10"], primitives = ["rates", "noise", "delays", "switches", "boundaries", "groups"], system = { time = ["continuous"], space = ["none"], components = ["group"], bindings = [], laws = ["boundary", "noise", "rate"], domains = ["real"] }, priority = "core", status = "implemented" }
 swarmtaxis = { title = "Swarmtaxis", sources = ["Cm 10"], primitives = ["continuous-spaces", "agents", "agent-spaces"], system = { time = ["discrete"], space = ["continuous"], components = ["group", "variable-group"], bindings = [], laws = ["rule"], domains = ["boolean", "integer", "real"] }, priority = "example", status = "implemented" }
+light_emitting_robots = { title = "Light-emitting robots with sensory delay", sources = ["Ar 10.3", "Ar Ex. 10.4"], primitives = ["continuous-spaces", "agents", "agent-spaces", "delays", "noise"], system = { time = ["discrete"], space = ["continuous"], components = ["group"], bindings = ["members"], laws = ["rule"], domains = ["real"] }, priority = "core", status = "implemented" }
 
 [engineering.processes]
 bathtub = { title = "Bathtub", sources = ["TS 1"], primitives = ["rates", "time-inputs", "switches", "stocks-and-flows"], system = { time = ["continuous"], space = ["none"], components = ["element"], bindings = [], laws = ["transfer"], domains = ["real"] }, priority = "example", status = "implemented" }
