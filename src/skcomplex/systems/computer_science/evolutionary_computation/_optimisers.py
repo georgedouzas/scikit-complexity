@@ -17,7 +17,8 @@ from ....core.components.interactions import Interaction, OptimizationInteractio
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.engine.solvers import CoSimulationSolver
 from ....core.errors import ValidationError
 from ....core.specs import (
     CovarianceAdaptationSpec,
@@ -29,7 +30,6 @@ from ....core.specs import (
     StateSpec,
 )
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class AnnealedCandidateElement(Element):
@@ -123,6 +123,8 @@ class RunningBestInteraction(Interaction):
         'search/lowest'
     """
 
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -203,80 +205,17 @@ LANDSCAPES: dict[str, tuple[Callable[[SimpleNamespace], Expression], Callable[[A
     'rastrigin': (_rastrigin_energy, _rastrigin_values, 5.12),
     'rosenbrock': (_rosenbrock_energy, _rosenbrock_values, 2.048),
 }
-MEMBER_ENERGIES = {_rastrigin_energy: _rastrigin_member, _rosenbrock_energy: _rosenbrock_member}
+MEMBER_ENERGIES = {'rastrigin': _rastrigin_member, 'rosenbrock': _rosenbrock_member}
 
 
-def _search_observables(system: System) -> list[ObservableSpec]:
-    """Return the lowest energy of the candidates of simulated annealing, which a population optimiser does not need."""
-    if not system.systems:
-        return []
-    energy = MEMBER_ENERGIES[system.systems[0].interactions[0].objective]
-    return [ObservableSpec('search/lowest', energy, group='candidates', reduce='min')]
-
-
-def _annealing(
-    start: Array,
-    energy: Callable[[SimpleNamespace], Expression],
-    temperature: float,
-    width: float,
-    generations: float,
-) -> System:
-    """Return candidates that anneal one state at a time, and the element that keeps the lowest energy they reach."""
-    candidates = LatticeElement(
-        'candidates',
-        element=AnnealedCandidateElement,
-        space=LatticeSpace((len(start),)),
-        values={'x': start[:, 0], 'y': start[:, 1]},
-    )
-    samplers = [
-        SamplingInteraction(
-            f'anneal_{state}',
-            target='candidates',
-            state=state,
-            objective=energy,
-            move='gaussian',
-            width=width,
-            intensity=1 / temperature,
-            schedule='colored',
-            neighborhood=VonNeumannNeighborhood(n_dim=1),
-            cooling=lambda t: COOLED ** (t / generations),
-        )
-        for state in ('x', 'y')
-    ]
-    return System(
-        systems=[
-            System('search', elements=[candidates], interactions=samplers, time=DiscreteTime()),
-            System('tracker', elements=[RunningBestElement('record')], time=DiscreteTime()),
-        ],
-        interactions=[RunningBestInteraction('update', target='tracker/record', source='search/lowest')],
-        time=DiscreteTime(),
-    )
-
-
-@register_system(
-    field='computer_science/evolutionary_computation',
-    tags=('optimisation', 'evolutionary algorithm', 'annealing', 'fitness landscape'),
-    references=('Raman 2021', 'Storn and Price 1997', 'Kirkpatrick, Gelatt, and Vecchi 1983'),
-    defaults={'until': 100},
-    observables=_search_observables,
-)
-def evolutionary_optimisers(
-    n_candidates: int = 40,
-    *,
-    algorithm: str = 'differential-evolution',
-    landscape: str = 'rastrigin',
-    temperature: float = 5.0,
-    width: float = 0.5,
-    generations: float = 100.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return a population of candidates that searches a two-dimensional landscape, one generation per step.
+class EvolutionaryOptimisersSystem(BaseSystem):
+    """A population of candidates that searches a two-dimensional landscape, one generation per step.
 
     A population optimiser moves the candidates through `OptimizationInteraction`, and reports `search.best`. Simulated
     annealing samples every coordinate through `SamplingInteraction` at a temperature that falls geometrically to 1e-3
     of its start over `generations` steps, and `tracker/record.best` holds the lowest energy it has reached, from the
     observable `search/lowest` that the catalog lists, so a run passes it in `observables` (Raman 2021 §6.3.3.3,
-    §6.3.4).
+    §6.3.4). The system has the group `candidates`.
 
     Args:
         n_candidates:
@@ -301,37 +240,136 @@ def evolutionary_optimisers(
         random_state:
             The seed or generator of the initial candidates.
 
-    Returns:
-        system:
-            The system, with the group `candidates`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The algorithm or the landscape is unknown.
 
     Examples:
-        >>> from skcomplex.systems.computer_science.evolutionary_computation import evolutionary_optimisers
-        >>> evolutionary_optimisers(10).interactions[0].label
+        >>> from skcomplex.systems.computer_science.evolutionary_computation import EvolutionaryOptimisersSystem
+        >>> EvolutionaryOptimisersSystem(10).prepare().system_.interactions[0].label
         'search'
     """
-    if (algorithm not in ALGORITHMS and algorithm != ANNEALING) or landscape not in LANDSCAPES:
-        names = ', '.join((*ALGORITHMS, ANNEALING))
-        error_msg = (
-            f'evolutionary_optimisers has algorithm={algorithm!r} and landscape={landscape!r}. Use one of {names}, '
-            f'and one of {", ".join(LANDSCAPES)}.'
+
+    field = 'computer_science/evolutionary_computation'
+    topics = ('optimisation', 'evolutionary algorithm', 'annealing', 'fitness landscape')
+    references = ('Raman 2021', 'Storn and Price 1997', 'Kirkpatrick, Gelatt, and Vecchi 1983')
+    until = 100
+
+    def __init__(
+        self,
+        n_candidates: int = 40,
+        *,
+        algorithm: str = 'differential-evolution',
+        landscape: str = 'rastrigin',
+        temperature: float = 5.0,
+        width: float = 0.5,
+        generations: float = 100.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_candidates = n_candidates
+        self.algorithm = algorithm
+        self.landscape = landscape
+        self.temperature = temperature
+        self.width = width
+        self.generations = generations
+        self.random_state = random_state
+
+    @staticmethod
+    def _annealing(
+        start: Array,
+        energy: Callable[[SimpleNamespace], Expression],
+        temperature: float,
+        width: float,
+        generations: float,
+        *,
+        label: str,
+    ) -> System:
+        """Return candidates that anneal one state at a time, and the element keeping the lowest energy they reach."""
+        candidates = LatticeElement(
+            'candidates',
+            element=AnnealedCandidateElement,
+            space=LatticeSpace((len(start),)),
+            values={'x': start[:, 0], 'y': start[:, 1]},
         )
-        raise ValidationError(error_msg)
-    energy, objective, bound = LANDSCAPES[landscape]
-    start = np.random.default_rng(random_state).uniform(-bound, bound, (n_candidates, N_DIM))
-    if algorithm == ANNEALING:
-        return _annealing(start, energy, temperature, width, generations)
-    candidates = GroupElement('candidates', element=SearchCandidateElement, size=n_candidates, values={'x': start})
-    search = OptimizationInteraction(
-        'search',
-        target='candidates',
-        state='x',
-        objective=objective,
-        bounds=(-bound, bound),
-        algorithm=ALGORITHMS[algorithm],
-    )
-    return System(elements=[candidates], interactions=[search], time=DiscreteTime())
+        samplers = [
+            SamplingInteraction(
+                f'anneal_{state}',
+                target='candidates',
+                state=state,
+                objective=energy,
+                move='gaussian',
+                width=width,
+                intensity=1 / temperature,
+                schedule='colored',
+                neighborhood=VonNeumannNeighborhood(n_dim=1),
+                cooling=lambda t: COOLED ** (t / generations),
+            )
+            for state in ('x', 'y')
+        ]
+        return System(
+            label,
+            systems=[
+                System('search', elements=[candidates], interactions=samplers, time=DiscreteTime()),
+                System('tracker', elements=[RunningBestElement('record')], time=DiscreteTime()),
+            ],
+            interactions=[RunningBestInteraction('update', target='tracker/record', source='search/lowest')],
+            time=DiscreteTime(),
+        )
+
+    def _build_system(self) -> System:
+        """Return a population of candidates that searches a two-dimensional landscape, one generation per step."""
+        if (self.algorithm not in ALGORITHMS and self.algorithm != ANNEALING) or self.landscape not in LANDSCAPES:
+            names = ', '.join((*ALGORITHMS, ANNEALING))
+            error_msg = (
+                f'EvolutionaryOptimisersSystem has algorithm={self.algorithm!r} and landscape={self.landscape!r}. '
+                f'Use one of {names}, and one of {", ".join(LANDSCAPES)}.'
+            )
+            raise ValidationError(error_msg)
+        energy, objective, bound = LANDSCAPES[self.landscape]
+        start = np.random.default_rng(self.random_state).uniform(-bound, bound, (self.n_candidates, N_DIM))
+        if self.algorithm == ANNEALING:
+            return self._annealing(start, energy, self.temperature, self.width, self.generations, label=self.label)
+        candidates = GroupElement(
+            'candidates',
+            element=SearchCandidateElement,
+            size=self.n_candidates,
+            values={'x': start},
+        )
+        search = OptimizationInteraction(
+            'search',
+            target='candidates',
+            state='x',
+            objective=objective,
+            bounds=(-bound, bound),
+            algorithm=ALGORITHMS[self.algorithm],
+        )
+        return System(self.label, elements=[candidates], interactions=[search], time=DiscreteTime())
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings, with the solver and the lowest candidate energy of simulated annealing.
+
+        A population optimiser keeps the default settings. Simulated annealing nests the search and the tracker of the
+        best energy, which the co-simulation solver runs side by side, and records the lowest energy its candidates
+        reach, as `search/lowest`, which the tracker reads.
+
+        Returns:
+            settings:
+                The tuned run settings by name.
+
+        Examples:
+            >>> from skcomplex.systems.computer_science.evolutionary_computation import EvolutionaryOptimisersSystem
+            >>> settings = EvolutionaryOptimisersSystem(algorithm='annealing').get_run_settings()
+            >>> [spec.label for spec in settings['observables']]
+            ['search/lowest']
+        """
+        settings = super().get_run_settings()
+        if self.algorithm == ANNEALING and self.landscape in MEMBER_ENERGIES:
+            member = MEMBER_ENERGIES[self.landscape]
+            settings['observables'] = (ObservableSpec('search/lowest', member, group='candidates', reduce='min'),)
+            settings['solver'] = CoSimulationSolver()
+        return settings

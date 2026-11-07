@@ -3,10 +3,9 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.systems import describe
-from skcomplex.systems.computer_science.evolutionary_computation import evolutionary_optimisers
+from skcomplex.systems.computer_science.evolutionary_computation import EvolutionaryOptimisersSystem
 
 PATHS = {
     'differential-evolution': 'search.best',
@@ -17,10 +16,8 @@ PATHS = {
 
 def _best(algorithm: str, landscape: str = 'rastrigin') -> np.ndarray:
     """Return the best value of a run of 100 generations after the initial frame."""
-    system = evolutionary_optimisers(algorithm=algorithm, landscape=landscape, random_state=1)
-    observables = describe('evolutionary_optimisers').observables_of(system)
-    simulation = Simulation(system, random_state=1, observables=observables).prepare()
-    return simulation.run(until=100).trajectory_.values(PATHS.get(algorithm, 'search.best'))[1:]
+    system = EvolutionaryOptimisersSystem(algorithm=algorithm, landscape=landscape, random_state=1)
+    return simulate(system, until=100, random_state=1).values(PATHS.get(algorithm, 'search.best'))[1:]
 
 
 @pytest.mark.parametrize('algorithm', PATHS)
@@ -45,6 +42,6 @@ def test_evolutionary_optimisers_rosenbrock(algorithm: str) -> None:
 def test_evolutionary_optimisers_unknown_names() -> None:
     """Test that an unknown algorithm or landscape is refused."""
     with pytest.raises(ValidationError, match='algorithm'):
-        evolutionary_optimisers(algorithm='ga')
+        EvolutionaryOptimisersSystem(algorithm='ga').prepare()
     with pytest.raises(ValidationError, match='landscape'):
-        evolutionary_optimisers(landscape='sphere')
+        EvolutionaryOptimisersSystem(landscape='sphere').prepare()
