@@ -17,9 +17,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.opinion_dynamics import ThresholdAdoptionSystem
 
 SYSTEM = 'threshold_adoption'
 N_AGENTS, SIZE, STEPS = 300, 175.0, 30
@@ -31,10 +31,11 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = (
-    Simulation(create_system(SYSTEM, reach=9.0, random_state=0), observers=[observer], random_state=0)
-    .prepare()
-    .run(until=STEPS)
+trajectory = simulate(
+    ThresholdAdoptionSystem(reach=9.0, random_state=0),
+    until=STEPS,
+    observers=[observer],
+    random_state=0,
 )
 
 # %%
@@ -48,7 +49,6 @@ simulation = (
 reaches = np.linspace(4.0, 30.0, 14)
 degrees = N_AGENTS * np.pi * reaches**2 / SIZE**2
 fig, (series, sweep) = plt.subplots(1, 2, figsize=(10, 4))
-trajectory = simulation.trajectory_
 series.plot(
     trajectory.times,
     [trajectory.agents('people', frame).values['adopted'].mean() for frame in range(STEPS + 1)],
@@ -62,10 +62,12 @@ for mode, color in (('infection', 'C0'), ('influence', 'C1')):
         finals.append(
             np.mean(
                 [
-                    Simulation(create_system(SYSTEM, reach=reach, mode=mode, random_state=seed), random_state=seed)
-                    .prepare()
-                    .run(until=STEPS)
-                    .trajectory_.agents('people', STEPS)
+                    simulate(
+                        ThresholdAdoptionSystem(reach=reach, mode=mode, random_state=seed),
+                        until=STEPS,
+                        random_state=seed,
+                    )
+                    .agents('people', STEPS)
                     .values['adopted']
                     .mean()
                     for seed in range(3)

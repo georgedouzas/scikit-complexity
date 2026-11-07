@@ -9,12 +9,11 @@ import numpy as np
 import numpy.typing as npt
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 from ._random_pairs import RandomPairsInteraction
 
 
@@ -121,32 +120,44 @@ class NamingGamesInteraction(RandomPairsInteraction):
         speaker.words, hearer.words = spoken, heard
 
 
-@register_system(
-    field='social/opinion_dynamics',
-    tags=('opinion', 'agents', 'language', 'consensus'),
-    references=('Baronchelli et al. 2006', 'Castellano, Fortunato, and Loreto 2009'),
-    defaults={'until': 50},
-)
-def naming_game(n_agents: int = 50) -> System:
-    """Return the minimal naming game, where agents with empty inventories agree on one word.
+class NamingGameSystem(BaseSystem):
+    """The minimal naming game, where agents with empty inventories agree on one word.
+
+    The system has the group `namers`.
 
     Args:
         n_agents:
             The number of agents.
 
-    Returns:
-        system:
-            The system, with the group `namers`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.opinion_dynamics import naming_game
-        >>> naming_game(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.opinion_dynamics import NamingGameSystem
+        >>> NamingGameSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    namers = GroupElement(
-        'namers',
-        element=NamerElement,
-        size=n_agents,
-        values={'words': np.zeros((n_agents, n_agents))},
-    )
-    return System(elements=[namers], interactions=[NamingGamesInteraction('games', target='namers')])
+
+    field = 'social/opinion_dynamics'
+    topics = ('opinion', 'agents', 'language', 'consensus')
+    references = ('Baronchelli et al. 2006', 'Castellano, Fortunato, and Loreto 2009')
+    until = 50
+
+    def __init__(
+        self,
+        n_agents: int = 50,
+        *,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        namers = GroupElement(
+            'namers',
+            element=NamerElement,
+            size=self.n_agents,
+            values={'words': np.zeros((self.n_agents, self.n_agents))},
+        )
+        return System(self.label, elements=[namers], interactions=[NamingGamesInteraction('games', target='namers')])

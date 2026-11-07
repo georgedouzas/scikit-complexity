@@ -13,16 +13,16 @@ makes the mean opinion drift towards the pairs that agree.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.social.opinion_dynamics import HypergraphConsensusSystem
 
 SYSTEM = 'hypergraph_consensus'
 
-system = create_system(SYSTEM)
-observables = describe(SYSTEM).observables_of(system)
+system = HypergraphConsensusSystem()
+observables = system.get_run_settings()['observables']
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer], observables=observables).prepare().run(until=10.0)
+trajectory = simulate(system, observables=observables, observers=[observer])
 
 # %%
 # The mean opinion
@@ -33,8 +33,8 @@ simulation = Simulation(system, dt=0.1, observers=[observer], observables=observ
 
 fig, axes = plt.subplots(1, 2, figsize=(9, 4))
 for reinforcement in (0.0, -1.0):
-    run = Simulation(create_system(SYSTEM, reinforcement=reinforcement), dt=0.1).prepare().run(until=10.0)
-    opinions = np.asarray(run.trajectory_.values('nodes.x'))
+    run = simulate(HypergraphConsensusSystem(reinforcement=reinforcement))
+    opinions = np.asarray(run.values('nodes.x'))
     opinions = opinions.reshape(len(opinions), -1)
     label = f'reinforcement {reinforcement}'
     axes[0].plot(opinions.mean(axis=1), label=label)

@@ -19,9 +19,9 @@ import networkx as nx
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.opinion_dynamics import CognitiveConsistencySystem
 
 SYSTEM = 'cognitive_consistency'
 N_THINKERS, STEPS = 40, 100
@@ -44,8 +44,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-system = create_system(SYSTEM, graph=ring, positive=0.7, random_state=0)
-simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=STEPS)
+system = CognitiveConsistencySystem(graph=ring, positive=0.7, random_state=0)
+trajectory = simulate(system, until=STEPS, observers=[observer], random_state=0)
 
 # %%
 # Convergence on the majority
@@ -58,11 +58,8 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 
 def attitudes(graph, positive, seed=0):
     """Return the attitudes of the thinkers at every step."""
-    run = Simulation(
-        create_system(SYSTEM, graph=graph, positive=positive, random_state=seed),
-        random_state=seed,
-    ).prepare()
-    trajectory = run.run(until=STEPS).trajectory_
+    system = CognitiveConsistencySystem(graph=graph, positive=positive, random_state=seed)
+    trajectory = simulate(system, until=STEPS, random_state=seed)
     return np.array([trajectory.agents('thinkers', frame).values['attitude'] for frame in range(STEPS + 1)])
 
 

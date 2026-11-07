@@ -14,14 +14,14 @@ opposite echo chambers with it.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.opinion_dynamics import EchoChamberRadicalizationSystem
 
 SYSTEM = 'echo_chamber_radicalization'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(create_system(SYSTEM), observers=[observer], random_state=0).prepare().run(until=100)
+trajectory = simulate(EchoChamberRadicalizationSystem(), observers=[observer], random_state=0)
 
 # %%
 # Consensus, radicalization, and polarization
@@ -30,13 +30,13 @@ simulation = Simulation(create_system(SYSTEM), observers=[observer], random_stat
 # without homophily, and split into two radical groups with homophily.
 
 cases = {
-    'consensus, alpha = 0.05': create_system(SYSTEM, controversy=0.05, homophily=2.0),
-    'radicalization, beta = 0': create_system(SYSTEM, homophily=0.0),
-    'polarization, beta = 3': create_system(SYSTEM),
+    'consensus, alpha = 0.05': EchoChamberRadicalizationSystem(controversy=0.05, homophily=2.0),
+    'radicalization, beta = 0': EchoChamberRadicalizationSystem(homophily=0.0),
+    'polarization, beta = 3': EchoChamberRadicalizationSystem(),
 }
 fig, axes = plt.subplots(1, 3, figsize=(12, 4))
 for axis, (name, system) in zip(axes, cases.items(), strict=True):
-    trajectory = Simulation(system, random_state=0).prepare().run(until=100).trajectory_
+    trajectory = simulate(system, until=100, random_state=0)
     opinions = np.array([trajectory.agents('agents', frame).values['opinion'] for frame in range(101)])
     axis.plot(np.asarray(trajectory.times) / 10, opinions[:, ::5], linewidth=0.6)
     axis.set_xlabel('time')

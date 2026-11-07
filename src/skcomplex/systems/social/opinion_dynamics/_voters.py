@@ -15,18 +15,17 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement, LatticeElement
 from ....core.components.interactions import LocalRuleInteraction, MapInteraction
 from ....core.components.spaces import LatticeSpace, MooreNeighborhood, NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, TotalisticSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class MajorityVoterElement(Element):
     """Cell that takes the majority opinion of its Moore neighbourhood, itself included.
 
-    The majority rule is a `LocalRuleInteraction` of the lattice, which `majority_rule` adds.
+    The majority rule is a `LocalRuleInteraction` of the lattice, which `MajorityRuleSystem` adds.
 
     Args:
         label:
@@ -251,32 +250,11 @@ class VoterImitationInteraction(MapInteraction):
 MAJORITY = 5
 
 
-def _is_majority(total: float) -> bool:
-    """Return whether the opinions 1 of the nine cells of a Moore neighbourhood are a majority."""
-    return total >= MAJORITY
-
-
-def _random_cells(shape: Sequence[int], density: float, random_state: int | np.random.Generator | None) -> Array:
-    """Return cells that are 1 with a probability and 0 otherwise."""
-    return (np.random.default_rng(random_state).random(tuple(shape)) < density).astype(float)
-
-
-@register_system(
-    field='social/opinion_dynamics',
-    tags=('lattice', 'opinion', 'voting'),
-    references=('Argun et al. 2021', 'Gärtner and Zehmakan 2017'),
-    defaults={'until': 50, 'dt': 1},
-)
-def majority_rule(
-    shape: Sequence[int] = (100, 100),
-    *,
-    density: float = 0.5,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return voters that take the majority opinion of their neighbourhood, which coarsens into domains.
+class MajorityRuleSystem(BaseSystem):
+    """Voters that take the majority opinion of their neighbourhood, which coarsens into domains.
 
     Every step every voter takes the opinion of the majority of its eight Moore neighbours and keeps its own when they
-    tie, the majority rule of Argun et al. (2021, section 4.3).
+    tie, the majority rule of Argun et al. (2021, section 4.3). The system has the opinions `voters.opinion`.
 
     Args:
         shape:
@@ -288,50 +266,73 @@ def majority_rule(
         random_state:
             The seed or generator of the initial opinions.
 
-    Returns:
-        system:
-            The system, with the opinions `voters.opinion`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.opinion_dynamics import majority_rule
-        >>> majority_rule((10, 10)).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.opinion_dynamics import MajorityRuleSystem
+        >>> MajorityRuleSystem((10, 10)).prepare().system_.elements[0].prepare().size_
         100
     """
-    values = _random_cells(shape, density, random_state)
-    return System(
-        elements=[
-            LatticeElement(
-                'voters',
-                element=MajorityVoterElement,
-                space=LatticeSpace(tuple(shape)),
-                values={'opinion': values},
-            ),
-        ],
-        interactions=[
-            LocalRuleInteraction(
-                'majority',
-                target='voters',
-                state='opinion',
-                rule=TotalisticSpec(_is_majority),
-                neighborhood=MooreNeighborhood(center=True),
-            ),
-        ],
-    )
+
+    field = 'social/opinion_dynamics'
+    topics = ('lattice', 'opinion', 'voting')
+    references = ('Argun et al. 2021', 'Gärtner and Zehmakan 2017')
+    until = 50
+    dt = 1
+
+    def __init__(
+        self,
+        shape: Sequence[int] = (100, 100),
+        *,
+        density: float = 0.5,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.density = density
+        self.random_state = random_state
+
+    @staticmethod
+    def _is_majority(total: float) -> bool:
+        """Return whether the opinions 1 of the nine cells of a Moore neighbourhood are a majority."""
+        return total >= MAJORITY
+
+    @staticmethod
+    def _random_cells(shape: Sequence[int], density: float, random_state: int | np.random.Generator | None) -> Array:
+        """Return cells that are 1 with a probability and 0 otherwise."""
+        return (np.random.default_rng(random_state).random(tuple(shape)) < density).astype(float)
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        values = self._random_cells(self.shape, self.density, self.random_state)
+        return System(
+            self.label,
+            elements=[
+                LatticeElement(
+                    'voters',
+                    element=MajorityVoterElement,
+                    space=LatticeSpace(tuple(self.shape)),
+                    values={'opinion': values},
+                ),
+            ],
+            interactions=[
+                LocalRuleInteraction(
+                    'majority',
+                    target='voters',
+                    state='opinion',
+                    rule=TotalisticSpec(self._is_majority),
+                    neighborhood=MooreNeighborhood(center=True),
+                ),
+            ],
+        )
 
 
-@register_system(
-    field='social/opinion_dynamics',
-    tags=('opinion', 'agents', 'network'),
-    references=('Holley and Liggett 1975',),
-    defaults={'until': 100},
-)
-def voter_system(
-    graph: object = None,
-    *,
-    share: float = 0.5,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return a voter system with one voter per node of a network.
+class VoterSystemSystem(BaseSystem):
+    """A voter system with one voter per node of a network.
+
+    The system has the group `voters`.
 
     Args:
         graph:
@@ -343,42 +344,53 @@ def voter_system(
         random_state:
             The seed or generator of the opinions.
 
-    Returns:
-        system:
-            The system, with the group `voters`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.systems.social.opinion_dynamics import voter_system
-        >>> voter_system(nx.cycle_graph(8), random_state=0).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.opinion_dynamics import VoterSystemSystem
+        >>> VoterSystemSystem(nx.cycle_graph(8), random_state=0).prepare().system_.elements[0].prepare().size_
         8
     """
-    rng = np.random.default_rng(random_state)
-    graph = nx.watts_strogatz_graph(50, 4, 0.0) if graph is None else graph
-    size = nx.number_of_nodes(graph)
-    opinions = (rng.random(size) < share).astype(float)
-    return System(
-        elements=[GroupElement('voters', element=VoterElement, size=size, values={'opinion': opinions})],
-        interactions=[VoterImitationInteraction('imitation', target='voters')],
-        space=NetworkSpace(graph),
-    )
+
+    field = 'social/opinion_dynamics'
+    topics = ('opinion', 'agents', 'network')
+    references = ('Holley and Liggett 1975',)
+    until = 100
+
+    def __init__(
+        self,
+        graph: object = None,
+        *,
+        share: float = 0.5,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.graph = graph
+        self.share = share
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        graph = self.graph
+        rng = np.random.default_rng(self.random_state)
+        graph = nx.watts_strogatz_graph(50, 4, 0.0) if graph is None else graph
+        size = nx.number_of_nodes(graph)
+        opinions = (rng.random(size) < self.share).astype(float)
+        return System(
+            self.label,
+            elements=[GroupElement('voters', element=VoterElement, size=size, values={'opinion': opinions})],
+            interactions=[VoterImitationInteraction('imitation', target='voters')],
+            space=NetworkSpace(graph),
+        )
 
 
-@register_system(
-    field='social/opinion_dynamics',
-    tags=('opinion', 'agents', 'network', 'voting', 'contrarians'),
-    references=('Thurner, Hanel, and Klimek 2018', 'Galam 2004'),
-    defaults={'until': 100},
-)
-def voter_variants(
-    graph: object = None,
-    *,
-    threshold: float = 0.5,
-    contrarians: float = 0.1,
-    share: float = 0.5,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return voter system variants on a network, with threshold voters and a share of contrarians.
+class VoterVariantsSystem(BaseSystem):
+    """Voter system variants on a network, with threshold voters and a share of contrarians.
+
+    The system has the group `voters`.
 
     Args:
         graph:
@@ -397,31 +409,57 @@ def voter_variants(
         random_state:
             The seed or generator of the opinions and of the contrarians.
 
-    Returns:
-        system:
-            The system, with the group `voters`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.systems.social.opinion_dynamics import voter_variants
-        >>> voter_variants(nx.cycle_graph(8), random_state=0).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.opinion_dynamics import VoterVariantsSystem
+        >>> VoterVariantsSystem(nx.cycle_graph(8), random_state=0).prepare().system_.elements[0].prepare().size_
         8
     """
-    rng = np.random.default_rng(random_state)
-    graph = nx.watts_strogatz_graph(50, 4, 0.0) if graph is None else graph
-    size = nx.number_of_nodes(graph)
-    voters = GroupElement(
-        'voters',
-        element=VariantVoterElement,
-        size=size,
-        values={
-            'opinion': (rng.random(size) < share).astype(float),
-            'contrarian': (rng.random(size) < contrarians).astype(float),
-            'threshold': threshold,
-        },
-    )
-    return System(
-        elements=[voters],
-        interactions=[VariantVotingInteraction('voting', target='voters')],
-        space=NetworkSpace(graph),
-    )
+
+    field = 'social/opinion_dynamics'
+    topics = ('opinion', 'agents', 'network', 'voting', 'contrarians')
+    references = ('Thurner, Hanel, and Klimek 2018', 'Galam 2004')
+    until = 100
+
+    def __init__(
+        self,
+        graph: object = None,
+        *,
+        threshold: float = 0.5,
+        contrarians: float = 0.1,
+        share: float = 0.5,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.graph = graph
+        self.threshold = threshold
+        self.contrarians = contrarians
+        self.share = share
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        graph = self.graph
+        rng = np.random.default_rng(self.random_state)
+        graph = nx.watts_strogatz_graph(50, 4, 0.0) if graph is None else graph
+        size = nx.number_of_nodes(graph)
+        voters = GroupElement(
+            'voters',
+            element=VariantVoterElement,
+            size=size,
+            values={
+                'opinion': (rng.random(size) < self.share).astype(float),
+                'contrarian': (rng.random(size) < self.contrarians).astype(float),
+                'threshold': self.threshold,
+            },
+        )
+        return System(
+            self.label,
+            elements=[voters],
+            interactions=[VariantVotingInteraction('voting', target='voters')],
+            space=NetworkSpace(graph),
+        )

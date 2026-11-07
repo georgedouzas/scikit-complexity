@@ -15,14 +15,14 @@ import networkx as nx
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.opinion_dynamics import VoterSystemSystem
 
 SYSTEM = 'voter_system'
 
 lattice = nx.convert_node_labels_to_integers(nx.grid_2d_graph(20, 20), label_attribute='pos')
-system = create_system(SYSTEM, graph=lattice, random_state=0)
+system = VoterSystemSystem(graph=lattice, random_state=0)
 blueprint = rrb.Blueprint(
     rrb.GraphView(origin='/voters', name='voters', background=rrb.archetypes.GraphBackground(color=[110, 110, 110])),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),
@@ -30,7 +30,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=60)
+trajectory = simulate(system, until=60, observers=[observer], random_state=0)
 
 # %%
 # Magnetization and interface density
@@ -41,19 +41,19 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 
 edges = np.array(lattice.edges)
 fractions, interfaces = [], []
-for frame in range(len(simulation.trajectory_.times)):
-    voters = simulation.trajectory_.agents('voters', frame)
+for frame in range(len(trajectory.times)):
+    voters = trajectory.agents('voters', frame)
     opinion = np.empty(len(voters.ids))
     opinion[np.ravel(voters.locations).astype(int)] = voters.values['opinion']
     fractions.append(opinion.mean())
     interfaces.append(np.mean(opinion[edges[:, 0]] != opinion[edges[:, 1]]))
 fig, (share, interface) = plt.subplots(1, 2, figsize=(10, 4))
-share.plot(simulation.trajectory_.times, fractions)
+share.plot(trajectory.times, fractions)
 share.set_ylim(0, 1)
 share.set_xlabel('step')
 share.set_ylabel('fraction with opinion 1')
 share.set_title('The mean opinion is conserved on average')
-interface.loglog(simulation.trajectory_.times[1:], interfaces[1:])
+interface.loglog(trajectory.times[1:], interfaces[1:])
 interface.set_xlabel('step')
 interface.set_ylabel('interface density')
 interface.set_title('Domains coarsen')

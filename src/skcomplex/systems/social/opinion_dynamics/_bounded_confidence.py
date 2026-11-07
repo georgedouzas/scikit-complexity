@@ -15,11 +15,10 @@ from ....core.components.elements import Element, GroupElement, LatticeElement
 from ....core.components.interactions import CouplingInteraction
 from ....core.components.laws.utils import where
 from ....core.components.spaces import AdjacencyNeighborhood, DiscreteTime, NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ._random_pairs import RandomPairsInteraction
 
 
@@ -220,20 +219,10 @@ class EncountersInteraction(RandomPairsInteraction):
 PAIR = 2
 
 
-@register_system(
-    field='social/opinion_dynamics',
-    tags=('opinion', 'agents', 'bounded confidence', 'clusters'),
-    references=('Deffuant et al. 2000', 'Castellano, Fortunato, and Loreto 2009', 'Gros 2015'),
-    defaults={'until': 50},
-)
-def deffuant(
-    n_agents: int = 200,
-    *,
-    confidence: float = 0.2,
-    convergence: float = 0.5,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Deffuant bounded confidence system, whose opinions settle into about `1 / (2 * confidence)` clusters.
+class DeffuantSystem(BaseSystem):
+    """The Deffuant bounded confidence system, whose opinions settle into about `1 / (2 * confidence)` clusters.
+
+    The system has the group `people`.
 
     Args:
         n_agents:
@@ -248,44 +237,55 @@ def deffuant(
         random_state:
             The seed or generator of the uniform initial opinions.
 
-    Returns:
-        system:
-            The system, with the group `people`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.opinion_dynamics import deffuant
-        >>> deffuant(20, random_state=0).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.opinion_dynamics import DeffuantSystem
+        >>> DeffuantSystem(20, random_state=0).prepare().system_.elements[0].prepare().size_
         20
     """
-    opinions = np.random.default_rng(random_state).random(n_agents)
-    visual = VisualSpec('histograms', {'color_by': 'opinion', 'color_range': (0.0, 1.0), 'histogram_first': True})
-    people = GroupElement(
-        'people',
-        element=DiscussantElement,
-        size=n_agents,
-        values={'opinion': opinions, 'confidence': confidence, 'convergence': convergence},
-        visual=visual,
-    )
-    return System(elements=[people], interactions=[EncountersInteraction('meetings', target='people')])
+
+    field = 'social/opinion_dynamics'
+    topics = ('opinion', 'agents', 'bounded confidence', 'clusters')
+    references = ('Deffuant et al. 2000', 'Castellano, Fortunato, and Loreto 2009', 'Gros 2015')
+    until = 50
+
+    def __init__(
+        self,
+        n_agents: int = 200,
+        *,
+        confidence: float = 0.2,
+        convergence: float = 0.5,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+        self.confidence = confidence
+        self.convergence = convergence
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        opinions = np.random.default_rng(self.random_state).random(self.n_agents)
+        visual = VisualSpec('histograms', {'color_by': 'opinion', 'color_range': (0.0, 1.0), 'histogram_first': True})
+        people = GroupElement(
+            'people',
+            element=DiscussantElement,
+            size=self.n_agents,
+            values={'opinion': opinions, 'confidence': self.confidence, 'convergence': self.convergence},
+            visual=visual,
+        )
+        return System(self.label, elements=[people], interactions=[EncountersInteraction('meetings', target='people')])
 
 
-@register_system(
-    field='social/opinion_dynamics',
-    tags=('opinion', 'bounded confidence', 'clusters', 'network', 'synchronous'),
-    references=('Hegselmann and Krause 2002', 'Castellano, Fortunato, and Loreto 2009'),
-    defaults={'until': 30},
-)
-def hegselmann_krause(
-    n_agents: int = 200,
-    *,
-    confidence: float = 0.15,
-    graph: nx.Graph | None = None,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Hegselmann-Krause system, whose opinions freeze within a few steps into clusters about `2 ε` apart.
+class HegselmannKrauseSystem(BaseSystem):
+    """The Hegselmann-Krause system, whose opinions freeze within a few steps into clusters about `2 ε` apart.
 
     Every step every agent moves at once to the mean opinion of its neighbours, itself included, whose opinions lie
-    within the confidence `ε` of its own. On the complete graph the opinions settle into about `1 / (2 ε)` clusters.
+    within the confidence `ε` of its own. On the complete graph the opinions settle into about `1 / (2 ε)` clusters. The
+    system has the group `people` on the nodes of the network.
 
     Args:
         n_agents:
@@ -300,27 +300,47 @@ def hegselmann_krause(
         random_state:
             The seed or generator of the uniform initial opinions.
 
-    Returns:
-        system:
-            The system, with the group `people` on the nodes of the network.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.engine.runtime import Simulation
-        >>> from skcomplex.systems.social.opinion_dynamics import hegselmann_krause
-        >>> trajectory = Simulation(
-        ...     hegselmann_krause(50, confidence=0.3), random_state=0,
-        ... ).prepare().run(until=20).trajectory_
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.social.opinion_dynamics import HegselmannKrauseSystem
+        >>> trajectory = simulate(HegselmannKrauseSystem(50, confidence=0.3), until=20, random_state=0)
         >>> len(np.unique(np.round(trajectory.values('people.opinion')[-1], 6))) <= 3
         True
     """
-    space = NetworkSpace(graph if graph is not None else nx.complete_graph(n_agents)).prepare()
-    opinions = np.random.default_rng(random_state).random(space.size_)
-    people = LatticeElement(
-        'people',
-        element=ConfidentElement,
-        space=space,
-        values={'opinion': opinions, 'confidence': confidence},
-    )
-    coupling = ConfidenceCouplingInteraction('compromise', target='people')
-    return System(elements=[people], interactions=[coupling], time=DiscreteTime())
+
+    field = 'social/opinion_dynamics'
+    topics = ('opinion', 'bounded confidence', 'clusters', 'network', 'synchronous')
+    references = ('Hegselmann and Krause 2002', 'Castellano, Fortunato, and Loreto 2009')
+    until = 30
+
+    def __init__(
+        self,
+        n_agents: int = 200,
+        *,
+        confidence: float = 0.15,
+        graph: nx.Graph | None = None,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+        self.confidence = confidence
+        self.graph = graph
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        space = NetworkSpace(self.graph if self.graph is not None else nx.complete_graph(self.n_agents)).prepare()
+        opinions = np.random.default_rng(self.random_state).random(space.size_)
+        people = LatticeElement(
+            'people',
+            element=ConfidentElement,
+            space=space,
+            values={'opinion': opinions, 'confidence': self.confidence},
+        )
+        coupling = ConfidenceCouplingInteraction('compromise', target='people')
+        return System(self.label, elements=[people], interactions=[coupling], time=DiscreteTime())

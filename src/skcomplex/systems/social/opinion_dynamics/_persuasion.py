@@ -15,12 +15,11 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import GroupingInteraction, MapInteraction
 from ....core.components.laws.utils import mean, where
 from ....core.components.spaces import LatticeSpace, NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class PersuaderView(AgentView):
@@ -322,19 +321,10 @@ class PersuasionInteraction(GroupingInteraction):
                 other.opinion = agent.opinion
 
 
-@register_system(
-    field='social/opinion_dynamics',
-    tags=('opinion', 'agents', 'network', 'consensus'),
-    references=('Sznajd-Weron and Sznajd 2000', 'Castellano, Fortunato, and Loreto 2009'),
-    defaults={'until': 100},
-)
-def sznajd(
-    graph: object = None,
-    *,
-    share: float = 0.5,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Sznajd system, where agreeing pairs of agents convince their neighbours.
+class SznajdSystem(BaseSystem):
+    """The Sznajd system, where agreeing pairs of agents convince their neighbours.
+
+    The system has the group `people` and the persuasion `persuasion`.
 
     Args:
         graph:
@@ -346,45 +336,57 @@ def sznajd(
         random_state:
             The seed or generator of the opinions.
 
-    Returns:
-        system:
-            The system, with the group `people` and the persuasion `persuasion`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.systems.social.opinion_dynamics import sznajd
-        >>> sznajd(nx.cycle_graph(8), random_state=0).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.opinion_dynamics import SznajdSystem
+        >>> SznajdSystem(nx.cycle_graph(8), random_state=0).prepare().system_.elements[0].prepare().size_
         8
     """
-    graph = nx.cycle_graph(50) if graph is None else graph
-    size = nx.number_of_nodes(graph)
-    people = GroupElement(
-        'people',
-        element=PersuaderElement,
-        size=size,
-        values={'opinion': _shares(size, share, random_state)},
-    )
-    return System(
-        elements=[people],
-        interactions=[PersuasionInteraction('persuasion', target='people')],
-        space=NetworkSpace(graph),
-    )
+
+    field = 'social/opinion_dynamics'
+    topics = ('opinion', 'agents', 'network', 'consensus')
+    references = ('Sznajd-Weron and Sznajd 2000', 'Castellano, Fortunato, and Loreto 2009')
+    until = 100
+
+    def __init__(
+        self,
+        graph: object = None,
+        *,
+        share: float = 0.5,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.graph = graph
+        self.share = share
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        graph = self.graph
+        graph = nx.cycle_graph(50) if graph is None else graph
+        size = nx.number_of_nodes(graph)
+        people = GroupElement(
+            'people',
+            element=PersuaderElement,
+            size=size,
+            values={'opinion': _shares(size, self.share, self.random_state)},
+        )
+        return System(
+            self.label,
+            elements=[people],
+            interactions=[PersuasionInteraction('persuasion', target='people')],
+            space=NetworkSpace(graph),
+        )
 
 
-@register_system(
-    field='social/opinion_dynamics',
-    tags=('opinion', 'agents', 'majority', 'consensus'),
-    references=('Galam 2002', 'Castellano, Fortunato, and Loreto 2009'),
-    defaults={'until': 20},
-)
-def galam_majority(
-    n_agents: int = 300,
-    *,
-    group_size: int = 3,
-    share: float = 0.4,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Galam majority system, where random groups adopt their majority until one opinion wins.
+class GalamMajoritySystem(BaseSystem):
+    """The Galam majority system, where random groups adopt their majority until one opinion wins.
+
+    The system has the group `citizens`.
 
     Args:
         n_agents:
@@ -399,43 +401,54 @@ def galam_majority(
         random_state:
             The seed or generator of the opinions.
 
-    Returns:
-        system:
-            The system, with the group `citizens`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.opinion_dynamics import galam_majority
-        >>> galam_majority(30, random_state=0).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.opinion_dynamics import GalamMajoritySystem
+        >>> GalamMajoritySystem(30, random_state=0).prepare().system_.elements[0].prepare().size_
         30
     """
-    citizens = GroupElement(
-        'citizens',
-        element=CitizenElement,
-        size=n_agents,
-        values={'opinion': _shares(n_agents, share, random_state)},
-    )
-    return System(
-        elements=[citizens],
-        interactions=[DiscussionsInteraction('talks', target='citizens', size=group_size)],
-    )
+
+    field = 'social/opinion_dynamics'
+    topics = ('opinion', 'agents', 'majority', 'consensus')
+    references = ('Galam 2002', 'Castellano, Fortunato, and Loreto 2009')
+    until = 20
+
+    def __init__(
+        self,
+        n_agents: int = 300,
+        *,
+        group_size: int = 3,
+        share: float = 0.4,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+        self.group_size = group_size
+        self.share = share
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        citizens = GroupElement(
+            'citizens',
+            element=CitizenElement,
+            size=self.n_agents,
+            values={'opinion': _shares(self.n_agents, self.share, self.random_state)},
+        )
+        return System(
+            self.label,
+            elements=[citizens],
+            interactions=[DiscussionsInteraction('talks', target='citizens', size=self.group_size)],
+        )
 
 
-@register_system(
-    field='social/opinion_dynamics',
-    tags=('opinion', 'agents', 'grid', 'clusters'),
-    references=('Nowak, Szamrej, and Latané 1990', 'Castellano, Fortunato, and Loreto 2009'),
-    defaults={'until': 20},
-)
-def social_impact(
-    width: int = 15,
-    height: int = 15,
-    *,
-    share: float = 0.5,
-    exponent: float = 2.0,
-    noise: float = 0.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the social impact system on a full grid, with random persuasiveness and supportiveness.
+class SocialImpactSystem(BaseSystem):
+    """The social impact system on a full grid, with random persuasiveness and supportiveness.
+
+    The system has the group `people`.
 
     Args:
         width:
@@ -456,32 +469,59 @@ def social_impact(
         random_state:
             The seed or generator of the opinions and strengths.
 
-    Returns:
-        system:
-            The system, with the group `people`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.opinion_dynamics import social_impact
-        >>> social_impact(4, 5, random_state=0).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.opinion_dynamics import SocialImpactSystem
+        >>> SocialImpactSystem(4, 5, random_state=0).prepare().system_.elements[0].prepare().size_
         20
     """
-    rng = np.random.default_rng(random_state)
-    size = width * height
-    people = GroupElement(
-        'people',
-        element=InfluenceeElement,
-        size=size,
-        values={
-            'opinion': 2 * _shares(size, share, rng) - 1,
-            'persuasiveness': rng.random(size),
-            'supportiveness': rng.random(size),
-            'exponent': exponent,
-            'noise': noise,
-        },
-        location=[(column, row) for column in range(width) for row in range(height)],
-    )
-    return System(
-        elements=[people],
-        interactions=[SocialImpactInteraction('impact', target='people')],
-        space=LatticeSpace((width, height), boundary='fixed', capacity=1),
-    )
+
+    field = 'social/opinion_dynamics'
+    topics = ('opinion', 'agents', 'grid', 'clusters')
+    references = ('Nowak, Szamrej, and Latané 1990', 'Castellano, Fortunato, and Loreto 2009')
+    until = 20
+
+    def __init__(
+        self,
+        width: int = 15,
+        height: int = 15,
+        *,
+        share: float = 0.5,
+        exponent: float = 2.0,
+        noise: float = 0.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.width = width
+        self.height = height
+        self.share = share
+        self.exponent = exponent
+        self.noise = noise
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        size = self.width * self.height
+        people = GroupElement(
+            'people',
+            element=InfluenceeElement,
+            size=size,
+            values={
+                'opinion': 2 * _shares(size, self.share, rng) - 1,
+                'persuasiveness': rng.random(size),
+                'supportiveness': rng.random(size),
+                'exponent': self.exponent,
+                'noise': self.noise,
+            },
+            location=[(column, row) for column in range(self.width) for row in range(self.height)],
+        )
+        return System(
+            self.label,
+            elements=[people],
+            interactions=[SocialImpactInteraction('impact', target='people')],
+            space=LatticeSpace((self.width, self.height), boundary='fixed', capacity=1),
+        )

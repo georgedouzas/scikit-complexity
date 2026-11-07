@@ -15,17 +15,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import domains
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.opinion_dynamics import MajorityRuleSystem
 
 SYSTEM = 'majority_rule'
 STEPS = 20
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(create_system(SYSTEM, density=0.5, random_state=0), observers=[observer]).prepare().run(until=STEPS)
-)
+trajectory = simulate(MajorityRuleSystem(density=0.5, random_state=0), until=STEPS, observers=[observer])
 
 # %%
 # Coarsening, freezing, and amplification
@@ -35,18 +33,14 @@ simulation = (
 # should follow an S-shaped curve steeper than the diagonal: a majority of 55 percent grows to a larger one, and a
 # minority shrinks.
 
-grids = simulation.trajectory_.lattice('voters.opinion')
+grids = trajectory.lattice('voters.opinion')
 densities = np.linspace(0.3, 0.7, 17)
 finals = [
-    Simulation(create_system(SYSTEM, density=density, random_state=0))
-    .prepare()
-    .run(until=STEPS)
-    .trajectory_.values('voters.opinion')[-1]
-    .mean()
+    simulate(MajorityRuleSystem(density=density, random_state=0), until=STEPS).values('voters.opinion')[-1].mean()
     for density in densities
 ]
 fig, (interfaces, amplification) = plt.subplots(1, 2, figsize=(10, 4))
-interface = domains(grids, kind='interface-density', times=simulation.trajectory_.times)
+interface = domains(grids, kind='interface-density', times=trajectory.times)
 interfaces.plot(interface.times, interface.density, 'o-', ms=3)
 interfaces.set_xlabel('step')
 interfaces.set_ylabel('interface density')

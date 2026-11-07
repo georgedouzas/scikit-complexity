@@ -16,9 +16,8 @@ from ....core.components.elements import DensityElement, GroupElement
 from ....core.components.interactions import EncounterInteraction
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, RunSettings, System
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
-from ..._catalog import register_system
 
 OPINION_REFERENCES = ('Bellomo et al. 2017', 'Toscani 2006', 'Deffuant et al. 2000')
 
@@ -210,28 +209,17 @@ def opinion_observables(levels: int) -> list[ObservableSpec]:
     ]
 
 
-@register_system(
-    field='social/opinion_dynamics',
-    tags=('opinion', 'kinetic', 'distribution', 'polarization'),
-    references=OPINION_REFERENCES,
-    defaults={'until': 60, 'dt': 0.5},
-    observables=lambda system: opinion_observables(_levels_of(system)),
-)
-def kinetic_opinion(
-    levels: int = 7,
-    *,
-    confidence: int = 2,
-    persuasion: float = 0.3,
-    repulsion: float = 0.1,
-    eta: float = 1.0,
-) -> System:
-    """Return the kinetic system of opinion formation over a discrete grid of opinions.
+class KineticOpinionSystem(BaseSystem):
+    """The kinetic system of opinion formation over a discrete grid of opinions.
 
     The population is a distribution over opinion levels from -1 to 1, a site group on a lattice of the levels, which
     starts almost uniform with a slight lean toward positive opinions. Encounters between levels move an opinion one
     level toward a close opinion and one level away from a distant one, and keep the total density. With a wide
     confidence the opinions reach a consensus around the mean, and with a narrow confidence and repulsion they
     polarise into the two extremes.
+
+    The system has the distribution `opinions` and the encounters `encounters`. Its standard observables are the mean
+    opinion and the variance of the opinions.
 
     Args:
         levels:
@@ -249,39 +237,71 @@ def kinetic_opinion(
         eta:
             The encounter rate.
 
-    Returns:
-        system:
-            The system, with the distribution `opinions` and the encounters `encounters`. Its standard observables are
-            the mean opinion and the variance of the opinions.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.opinion_dynamics import kinetic_opinion
-        >>> kinetic_opinion(levels=5).elements[0].size
+        >>> from skcomplex.systems.social.opinion_dynamics import KineticOpinionSystem
+        >>> KineticOpinionSystem(levels=5).prepare().system_.elements[0].size
         5
     """
-    initial = 1.0 + 0.1 * opinion_grid(levels)
-    return System(
-        elements=[
-            GroupElement(
-                'opinions',
-                element=DensityElement,
-                size=levels,
-                on='sites',
-                values={'f': initial / initial.sum()},
-            ),
-        ],
-        interactions=[
-            OpinionEncountersInteraction(
-                'encounters',
-                candidate='opinions',
-                field='opinions',
-                levels=levels,
-                confidence=confidence,
-                eta=eta,
-                persuasion=persuasion,
-                repulsion=repulsion,
-            ),
-        ],
-        space=LatticeSpace(levels, boundary='fixed'),
-        time=ContinuousTime(),
-    )
+
+    field = 'social/opinion_dynamics'
+    topics = ('opinion', 'kinetic', 'distribution', 'polarization')
+    references = OPINION_REFERENCES
+    until = 60
+    dt = 0.5
+
+    def __init__(
+        self,
+        levels: int = 7,
+        *,
+        confidence: int = 2,
+        persuasion: float = 0.3,
+        repulsion: float = 0.1,
+        eta: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.levels = levels
+        self.confidence = confidence
+        self.persuasion = persuasion
+        self.repulsion = repulsion
+        self.eta = eta
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        initial = 1.0 + 0.1 * opinion_grid(self.levels)
+        return System(
+            self.label,
+            elements=[
+                GroupElement(
+                    'opinions',
+                    element=DensityElement,
+                    size=self.levels,
+                    on='sites',
+                    values={'f': initial / initial.sum()},
+                ),
+            ],
+            interactions=[
+                OpinionEncountersInteraction(
+                    'encounters',
+                    candidate='opinions',
+                    field='opinions',
+                    levels=self.levels,
+                    confidence=self.confidence,
+                    eta=self.eta,
+                    persuasion=self.persuasion,
+                    repulsion=self.repulsion,
+                ),
+            ],
+            space=LatticeSpace(self.levels, boundary='fixed'),
+            time=ContinuousTime(),
+        )
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings, with the observables of the parts built from the model parameters."""
+        settings = super().get_run_settings()
+        system = self._build_system()
+        settings['observables'] = opinion_observables(_levels_of(system))
+        return settings

@@ -13,11 +13,10 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class RadicalView(AgentView):
@@ -113,6 +112,8 @@ class RadicalizationInteraction(Interaction):
         10
     """
 
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -185,25 +186,8 @@ class RadicalizationInteraction(Interaction):
             agent.opinion = opinion
 
 
-@register_system(
-    field='social/opinion_dynamics',
-    tags=('opinion', 'agents', 'temporal network', 'polarization', 'echo chambers'),
-    references=('Baumann, Lorenz-Spreen, Sokolov, and Starnini 2020',),
-    defaults={'until': 100},
-)
-def echo_chamber_radicalization(
-    n_agents: int = 200,
-    *,
-    strength: float = 3.0,
-    controversy: float = 3.0,
-    homophily: float = 3.0,
-    contacts: int = 10,
-    reciprocity: float = 0.5,
-    exponent: float = 2.1,
-    least_activity: float = 0.01,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the radicalization model of echo chambers of Baumann and coauthors on an activity-driven network.
+class EchoChamberRadicalizationSystem(BaseSystem):
+    """The radicalization model of echo chambers of Baumann and coauthors on an activity-driven network.
 
     Opinions follow `dx_i/dt = -x_i + K sum_j A_ij(t) tanh(alpha x_j)`, where the controversialness `alpha` shapes
     the influence and `A_ij(t)` is an activity-driven temporal network redrawn at every integration step `dt = 0.01`:
@@ -215,6 +199,8 @@ def echo_chamber_radicalization(
     defaults are the polarized case of Fig. 1(c), `K = 3`, `alpha = 3`, `beta = 3`, `r = 0.5`, `m = 10`, and
     `gamma = 2.1`, with fewer agents than the 1000 of the paper so a step is fast. Every step of the system is ten
     integration steps.
+
+    The system has the group `agents`.
 
     Args:
         n_agents:
@@ -244,31 +230,63 @@ def echo_chamber_radicalization(
         random_state:
             The seed or generator of the activities.
 
-    Returns:
-        system:
-            The system, with the group `agents`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.opinion_dynamics import echo_chamber_radicalization
-        >>> echo_chamber_radicalization(50).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.opinion_dynamics import EchoChamberRadicalizationSystem
+        >>> EchoChamberRadicalizationSystem(50).prepare().system_.elements[0].prepare().size_
         50
     """
-    rng = np.random.default_rng(random_state)
-    low, power = least_activity ** (1 - exponent), 1 - exponent
-    activities = (low + rng.random(n_agents) * (1 - low)) ** (1 / power)
-    agents = GroupElement(
-        'agents',
-        element=RadicalElement,
-        size=n_agents,
-        values={'opinion': np.linspace(-1.0, 1.0, n_agents), 'activity': activities},
-    )
-    influence = RadicalizationInteraction(
-        'influence',
-        target='agents',
-        strength=strength,
-        controversy=controversy,
-        homophily=homophily,
-        contacts=contacts,
-        reciprocity=reciprocity,
-    )
-    return System(elements=[agents], interactions=[influence])
+
+    field = 'social/opinion_dynamics'
+    topics = ('opinion', 'agents', 'temporal network', 'polarization', 'echo chambers')
+    references = ('Baumann, Lorenz-Spreen, Sokolov, and Starnini 2020',)
+    until = 100
+
+    def __init__(
+        self,
+        n_agents: int = 200,
+        *,
+        strength: float = 3.0,
+        controversy: float = 3.0,
+        homophily: float = 3.0,
+        contacts: int = 10,
+        reciprocity: float = 0.5,
+        exponent: float = 2.1,
+        least_activity: float = 0.01,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+        self.strength = strength
+        self.controversy = controversy
+        self.homophily = homophily
+        self.contacts = contacts
+        self.reciprocity = reciprocity
+        self.exponent = exponent
+        self.least_activity = least_activity
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        low, power = self.least_activity ** (1 - self.exponent), 1 - self.exponent
+        activities = (low + rng.random(self.n_agents) * (1 - low)) ** (1 / power)
+        agents = GroupElement(
+            'agents',
+            element=RadicalElement,
+            size=self.n_agents,
+            values={'opinion': np.linspace(-1.0, 1.0, self.n_agents), 'activity': activities},
+        )
+        influence = RadicalizationInteraction(
+            'influence',
+            target='agents',
+            strength=self.strength,
+            controversy=self.controversy,
+            homophily=self.homophily,
+            contacts=self.contacts,
+            reciprocity=self.reciprocity,
+        )
+        return System(self.label, elements=[agents], interactions=[influence])

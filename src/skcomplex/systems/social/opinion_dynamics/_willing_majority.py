@@ -13,10 +13,9 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class WillingVoterView(AgentView):
@@ -89,6 +88,8 @@ class WillingMajorityInteraction(Interaction):
         3
     """
 
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -137,28 +138,15 @@ class WillingMajorityInteraction(Interaction):
             voter.opinion = opinion
 
 
-@register_system(
-    field='social/opinion_dynamics',
-    tags=('opinion', 'agents', 'majority', 'zealots', 'consensus'),
-    references=('Jensen 2023',),
-    defaults={'until': 50},
-)
-def willing_majority(
-    n_agents: int = 200,
-    *,
-    group_size: int = 3,
-    zealots: float = 0.0,
-    zealot_opinion: float | None = None,
-    willingness: float = 1.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the majority rule with willingness, where zealots of willingness 0 never change their opinion.
+class WillingMajoritySystem(BaseSystem):
+    """The majority rule with willingness, where zealots of willingness 0 never change their opinion.
 
     Every agent holds opinion `A` or `B`, drawn with probability 1/2, and a willingness `w_i`. An update chooses an
     agent and an odd number `n` of other agents at random, and the agent adopts the majority opinion of the group with
-    the probability `w_i` (Jensen 2023 section 11.5, Exercise 4). Every agent has `w_i = willingness`, except a
-    fraction `zealots` of them with `w_i = 0`. With every agent willing, the population reaches consensus. Zealots of
-    both opinions prevent it, while a small group of zealots of one opinion, `zealot_opinion`, wins over everyone.
+    the probability `w_i` (Jensen 2023 section 11.5, Exercise 4). Every agent has `w_i = willingness`, except a fraction
+    `zealots` of them with `w_i = 0`. With every agent willing, the population reaches consensus. Zealots of both
+    opinions prevent it, while a small group of zealots of one opinion, `zealot_opinion`, wins over everyone. The system
+    has the group `voters`.
 
     Args:
         n_agents:
@@ -179,25 +167,51 @@ def willing_majority(
         random_state:
             The seed or generator of the opinions and of the zealots.
 
-    Returns:
-        system:
-            The system, with the group `voters`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.opinion_dynamics import willing_majority
-        >>> willing_majority(30).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.opinion_dynamics import WillingMajoritySystem
+        >>> WillingMajoritySystem(30).prepare().system_.elements[0].prepare().size_
         30
     """
-    rng = np.random.default_rng(random_state)
-    opinions = rng.integers(2, size=n_agents).astype(float)
-    stubborn = rng.random(n_agents) < zealots
-    if zealot_opinion is not None:
-        opinions[stubborn] = zealot_opinion
-    voters = GroupElement(
-        'voters',
-        element=WillingVoterElement,
-        size=n_agents,
-        values={'opinion': opinions, 'willingness': np.where(stubborn, 0.0, willingness)},
-    )
-    majority = WillingMajorityInteraction('majority', target='voters', group_size=group_size)
-    return System(elements=[voters], interactions=[majority])
+
+    field = 'social/opinion_dynamics'
+    topics = ('opinion', 'agents', 'majority', 'zealots', 'consensus')
+    references = ('Jensen 2023',)
+    until = 50
+
+    def __init__(
+        self,
+        n_agents: int = 200,
+        *,
+        group_size: int = 3,
+        zealots: float = 0.0,
+        zealot_opinion: float | None = None,
+        willingness: float = 1.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+        self.group_size = group_size
+        self.zealots = zealots
+        self.zealot_opinion = zealot_opinion
+        self.willingness = willingness
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        opinions = rng.integers(2, size=self.n_agents).astype(float)
+        stubborn = rng.random(self.n_agents) < self.zealots
+        if self.zealot_opinion is not None:
+            opinions[stubborn] = self.zealot_opinion
+        voters = GroupElement(
+            'voters',
+            element=WillingVoterElement,
+            size=self.n_agents,
+            values={'opinion': opinions, 'willingness': np.where(stubborn, 0.0, self.willingness)},
+        )
+        majority = WillingMajorityInteraction('majority', target='voters', group_size=self.group_size)
+        return System(self.label, elements=[voters], interactions=[majority])

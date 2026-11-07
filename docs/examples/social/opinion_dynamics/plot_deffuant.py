@@ -13,15 +13,15 @@ within a confidence bound. Opinions that start spread uniformly settle into a fe
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.opinion_dynamics import DeffuantSystem
 
 SYSTEM = 'deffuant'
 
-system = create_system(SYSTEM, confidence=0.2, random_state=0)
+system = DeffuantSystem(confidence=0.2, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=50)
+trajectory = simulate(system, observers=[observer], random_state=0)
 
 # %%
 # Number of clusters against the bound
@@ -33,12 +33,8 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 
 def clusters(confidence, seed):
     """Return the number of clusters of at least five people at the end of a run."""
-    run = (
-        Simulation(create_system(SYSTEM, confidence=confidence, random_state=seed), random_state=seed)
-        .prepare()
-        .run(until=50)
-    )
-    opinions = np.sort(run.trajectory_.agents('people', len(run.trajectory_.times) - 1).values['opinion'])
+    run = simulate(DeffuantSystem(confidence=confidence, random_state=seed), random_state=seed)
+    opinions = np.sort(run.agents('people', len(run.times) - 1).values['opinion'])
     groups = np.split(opinions, np.flatnonzero(np.diff(opinions) > 0.01) + 1)
     return sum(len(group) >= 5 for group in groups)
 

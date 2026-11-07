@@ -18,9 +18,8 @@ from ....core.components.interactions import HyperedgeInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class OpinionElement(Element):
@@ -116,6 +115,8 @@ class ThreeBodyConsensusInteraction(HyperedgeInteraction):
         3
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -145,25 +146,8 @@ def _spread(s: SimpleNamespace) -> object:
     return s.x**2
 
 
-@register_system(
-    field='social/opinion_dynamics',
-    tags=('opinion', 'consensus', 'hypergraph', 'temporal network'),
-    references=('Neuhäuser, Mellor, and Lambiotte 2020', 'Majhi et al. 2022'),
-    defaults={'until': 10.0, 'dt': 0.1},
-    observables=lambda system: [
-        ObservableSpec('mean_opinion', group='nodes', variable='x'),
-        ObservableSpec('spread', _spread, group='nodes'),
-    ],
-)
-def hypergraph_consensus(
-    n_nodes: int = 30,
-    *,
-    triangles: float = 0.05,
-    reinforcement: float = -1.0,
-    period: float = 2.0,
-    seed: int = 0,
-) -> System:
-    """Return the nonlinear three-body consensus system on a random hypergraph of triangles that switch on and off.
+class HypergraphConsensusSystem(BaseSystem):
+    """The nonlinear three-body consensus system on a random hypergraph of triangles that switch on and off.
 
     Every triple of nodes is a triangle with probability `triangles`, and every triangle is active in alternate half
     periods from a random phase. On an active triangle `ijk`, node `i` follows `x_i' = s(|x_j - x_k|) (x_j + x_k - 2
@@ -171,6 +155,8 @@ def hypergraph_consensus(
     to zero, so the mean opinion stays fixed whatever the schedules. With reinforcement the pull depends on the member
     it acts on, and the mean opinion drifts towards the pairs that agree, for a negative reinforcement, while the
     opinions still reach a consensus on a connected hypergraph.
+
+    The system has the opinions `nodes.x`, the mean opinion `mean_opinion`, and the mean squared opinion `spread`.
 
     Args:
         n_nodes:
@@ -188,39 +174,69 @@ def hypergraph_consensus(
         seed:
             The seed of the hypergraph, the phases, and the opinions.
 
-    Returns:
-        system:
-            The system, with the opinions `nodes.x`, the mean opinion `mean_opinion`, and the mean squared opinion
-            `spread`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.opinion_dynamics import hypergraph_consensus
-        >>> system = hypergraph_consensus(8, triangles=0.5)
+        >>> from skcomplex.systems.social.opinion_dynamics import HypergraphConsensusSystem
+        >>> system = HypergraphConsensusSystem(8, triangles=0.5).prepare().system_
         >>> system.elements[0].prepare().size_
         8
     """
-    rng = np.random.default_rng(seed)
-    triads = [triad for triad in itertools.combinations(range(n_nodes), TRIANGLE) if rng.random() < triangles]
-    space = NetworkSpace(nx.complete_graph(n_nodes), hyperedges=triads)
-    nodes = LatticeElement(
-        'nodes',
-        element=OpinionElement,
-        space=space,
-        values={'x': rng.uniform(-1.0, 1.0, n_nodes)},
-        visual=VisualSpec('sites', {'states': ['x'], 'low': -1.0, 'high': 1.0}),
+
+    field = 'social/opinion_dynamics'
+    topics = ('opinion', 'consensus', 'hypergraph', 'temporal network')
+    references = ('Neuhäuser, Mellor, and Lambiotte 2020', 'Majhi et al. 2022')
+    until = 10.0
+    dt = 0.1
+    observables = (
+        ObservableSpec('mean_opinion', group='nodes', variable='x'),
+        ObservableSpec('spread', _spread, group='nodes'),
     )
-    schedules = GroupElement(
-        'triangles',
-        element=ScheduleElement,
-        space=space,
-        on='hyperedges',
-        values={'phase': rng.uniform(0.0, 2 * math.pi, len(triads))},
-    )
-    consensus = ThreeBodyConsensusInteraction(
-        'consensus',
-        target='nodes',
-        triangles='triangles',
-        reinforcement=reinforcement,
-        period=period,
-    )
-    return System(elements=[nodes, schedules], interactions=[consensus])
+
+    def __init__(
+        self,
+        n_nodes: int = 30,
+        *,
+        triangles: float = 0.05,
+        reinforcement: float = -1.0,
+        period: float = 2.0,
+        seed: int = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_nodes = n_nodes
+        self.triangles = triangles
+        self.reinforcement = reinforcement
+        self.period = period
+        self.seed = seed
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.seed)
+        triads = [
+            triad for triad in itertools.combinations(range(self.n_nodes), TRIANGLE) if rng.random() < self.triangles
+        ]
+        space = NetworkSpace(nx.complete_graph(self.n_nodes), hyperedges=triads)
+        nodes = LatticeElement(
+            'nodes',
+            element=OpinionElement,
+            space=space,
+            values={'x': rng.uniform(-1.0, 1.0, self.n_nodes)},
+            visual=VisualSpec('sites', {'states': ['x'], 'low': -1.0, 'high': 1.0}),
+        )
+        schedules = GroupElement(
+            'triangles',
+            element=ScheduleElement,
+            space=space,
+            on='hyperedges',
+            values={'phase': rng.uniform(0.0, 2 * math.pi, len(triads))},
+        )
+        consensus = ThreeBodyConsensusInteraction(
+            'consensus',
+            target='nodes',
+            triangles='triangles',
+            reinforcement=self.reinforcement,
+            period=self.period,
+        )
+        return System(self.label, elements=[nodes, schedules], interactions=[consensus])

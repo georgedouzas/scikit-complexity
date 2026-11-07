@@ -15,9 +15,8 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import neighbors, uniform, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 OPINION_VISUAL = VisualSpec('sites', {'states': ['opinion'], 'low': 0.0, 'high': 1.0})
 
@@ -206,24 +205,8 @@ def _count_neighbors(namespace: SimpleNamespace) -> object:
     return neighbors(1)
 
 
-def _copy_discordant(namespace: SimpleNamespace) -> object:
-    """Return the opinion of a voter after it copies a random discordant neighbour, with its probability."""
-    voter = namespace.target
-    discordant = neighbors(abs(voter.other.opinion - voter.opinion))
-    copying = voter.activity * (1 - voter.rewiring) * discordant / (neighbors(1) + SMALLEST_DEGREE)
-    return where(uniform('u') < copying, 1 - voter.opinion, voter.opinion)
-
-
-def _choose_club(namespace: SimpleNamespace) -> object:
-    """Return the choice of an agent that reconsiders, joining by a heat bath in the field of its acquaintances."""
-    agent = namespace.target
-    field = neighbors(2 * agent.other.opinion - 1) + agent.appeal
-    joining = 1 / (1 + exp(-2 * agent.beta * field))
-    choice = where(uniform('u') < joining, 1, 0)
-    return where(uniform('d') < agent.deciding, choice, agent.opinion)
-
-
 def _coevolving(
+    label: str,
     element: type[Element],
     space: NetworkSpace,
     opinions: np.ndarray,
@@ -250,28 +233,16 @@ def _coevolving(
             for opinion in (1.0, 0.0)
         ),
     ]
-    return System(elements=[agents, ties], interactions=interactions, space=space, time=DiscreteTime())
+    return System(label, elements=[agents, ties], interactions=interactions, space=space, time=DiscreteTime())
 
 
-@register_system(
-    field='social/opinion_dynamics',
-    tags=('opinion', 'voter', 'adaptive network', 'rewiring', 'fragmentation'),
-    references=('Holme and Newman 2006', 'Vazquez, Eguíluz, and San Miguel 2008', 'Thurner et al. 2018'),
-    defaults={'until': 200},
-)
-def coevolving_voter(
-    n_voters: int = 200,
-    *,
-    mean_degree: float = 4.0,
-    rewiring: float = 0.3,
-    activity: float = 0.5,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the coevolving voter system, which fragments into consensual components when rewiring is fast.
+class CoevolvingVoterSystem(BaseSystem):
+    """The coevolving voter system, which fragments into consensual components when rewiring is fast.
 
     Voters on an Erdős-Rényi graph copy discordant neighbours or rewire the discordant edges to like-minded voters.
-    Below a critical rewiring probability, near 0.38 for mean degree 4, the network stays connected and discordant
-    edges survive for long times, and above it the network splits into components of one opinion.
+    Below a critical rewiring probability, near 0.38 for mean degree 4, the network stays connected and discordant edges
+    survive for long times, and above it the network splits into components of one opinion. The system has the groups
+    `voters` and `ties` and the interaction `separation`.
 
     Args:
         n_voters:
@@ -289,46 +260,72 @@ def coevolving_voter(
         random_state:
             The seed or generator of the graph and of the uniform random opinions.
 
-    Returns:
-        system:
-            The system, with the groups `voters` and `ties` and the interaction `separation`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import Simulation
-        >>> from skcomplex.systems.social.opinion_dynamics import coevolving_voter
-        >>> trajectory = Simulation(coevolving_voter(30), random_state=0).prepare().run(until=5).trajectory_
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.social.opinion_dynamics import CoevolvingVoterSystem
+        >>> trajectory = simulate(CoevolvingVoterSystem(30), until=5, random_state=0)
         >>> int(trajectory.network(-1).sources.size) == int(trajectory.network(0).sources.size)
         True
     """
-    rng = np.random.default_rng(random_state)
-    space = NetworkSpace(nx.gnp_random_graph(n_voters, mean_degree / (n_voters - 1), seed=rng))
-    opinions = (rng.random(n_voters) < FIRST_OPINION_SHARE).astype(float)
-    copying = MapInteraction('copying', target='voters', state='opinion', function=_copy_discordant)
-    return _coevolving(CoevolvingVoterElement, space, opinions, copying, rewiring=rewiring, activity=activity)
+
+    field = 'social/opinion_dynamics'
+    topics = ('opinion', 'voter', 'adaptive network', 'rewiring', 'fragmentation')
+    references = ('Holme and Newman 2006', 'Vazquez, Eguíluz, and San Miguel 2008', 'Thurner et al. 2018')
+    until = 200
+
+    def __init__(
+        self,
+        n_voters: int = 200,
+        *,
+        mean_degree: float = 4.0,
+        rewiring: float = 0.3,
+        activity: float = 0.5,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_voters = n_voters
+        self.mean_degree = mean_degree
+        self.rewiring = rewiring
+        self.activity = activity
+        self.random_state = random_state
+
+    @staticmethod
+    def _copy_discordant(namespace: SimpleNamespace) -> object:
+        """Return the opinion of a voter after it copies a random discordant neighbour, with its probability."""
+        voter = namespace.target
+        discordant = neighbors(abs(voter.other.opinion - voter.opinion))
+        copying = voter.activity * (1 - voter.rewiring) * discordant / (neighbors(1) + SMALLEST_DEGREE)
+        return where(uniform('u') < copying, 1 - voter.opinion, voter.opinion)
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        space = NetworkSpace(nx.gnp_random_graph(self.n_voters, self.mean_degree / (self.n_voters - 1), seed=rng))
+        opinions = (rng.random(self.n_voters) < FIRST_OPINION_SHARE).astype(float)
+        copying = MapInteraction('copying', target='voters', state='opinion', function=self._copy_discordant)
+        return _coevolving(
+            self.label,
+            CoevolvingVoterElement,
+            space,
+            opinions,
+            copying,
+            rewiring=self.rewiring,
+            activity=self.activity,
+        )
 
 
-@register_system(
-    field='social/opinion_dynamics',
-    tags=('opinion', 'spins', 'clubs', 'adaptive network', 'heat bath'),
-    references=('Thurner et al. 2018', 'Biely, Hanel, and Thurner 2009'),
-    defaults={'until': 150},
-)
-def join_a_club(
-    n_agents: int = 200,
-    *,
-    mean_degree: float = 6.0,
-    beta: float = 0.5,
-    appeal: float = 0.0,
-    rewiring: float = 0.5,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return join-a-club spins, agents who join a club with their acquaintances while acquaintances follow the club.
+class JoinAClubSystem(BaseSystem):
+    """Join-a-club spins, agents who join a club with their acquaintances while acquaintances follow the club.
 
     Agents of an Erdős-Rényi graph are in or out of a club, a spin, and choose by a heat bath with the inverse
-    temperature `beta` in the field of their acquaintances and of the appeal of the club. Acquaintances across the
-    club boundary dissolve and reform among agents on the same side. Without coupling the choices stay random and
-    many acquaintances cross the boundary, and with strong coupling the members and the outsiders separate into
-    communities with few acquaintances between them.
+    temperature `beta` in the field of their acquaintances and of the appeal of the club. Acquaintances across the club
+    boundary dissolve and reform among agents on the same side. Without coupling the choices stay random and many
+    acquaintances cross the boundary, and with strong coupling the members and the outsiders separate into communities
+    with few acquaintances between them. The system has the groups `voters` and `ties` and the interaction `separation`.
 
     Args:
         n_agents:
@@ -349,17 +346,61 @@ def join_a_club(
         random_state:
             The seed or generator of the graph and of the uniform random choices.
 
-    Returns:
-        system:
-            The system, with the groups `voters` and `ties` and the interaction `separation`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.opinion_dynamics import join_a_club
-        >>> join_a_club(30).elements[0].element.__name__
+        >>> from skcomplex.systems.social.opinion_dynamics import JoinAClubSystem
+        >>> JoinAClubSystem(30).prepare().system_.elements[0].element.__name__
         'ClubMemberElement'
     """
-    rng = np.random.default_rng(random_state)
-    space = NetworkSpace(nx.gnp_random_graph(n_agents, mean_degree / (n_agents - 1), seed=rng))
-    opinions = (rng.random(n_agents) < FIRST_OPINION_SHARE).astype(float)
-    choice = MapInteraction('choice', target='voters', state='opinion', function=_choose_club)
-    return _coevolving(ClubMemberElement, space, opinions, choice, beta=beta, appeal=appeal, rewiring=rewiring)
+
+    field = 'social/opinion_dynamics'
+    topics = ('opinion', 'spins', 'clubs', 'adaptive network', 'heat bath')
+    references = ('Thurner et al. 2018', 'Biely, Hanel, and Thurner 2009')
+    until = 150
+
+    def __init__(
+        self,
+        n_agents: int = 200,
+        *,
+        mean_degree: float = 6.0,
+        beta: float = 0.5,
+        appeal: float = 0.0,
+        rewiring: float = 0.5,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+        self.mean_degree = mean_degree
+        self.beta = beta
+        self.appeal = appeal
+        self.rewiring = rewiring
+        self.random_state = random_state
+
+    @staticmethod
+    def _choose_club(namespace: SimpleNamespace) -> object:
+        """Return the choice of an agent that reconsiders, joining by a heat bath in the field of its acquaintances."""
+        agent = namespace.target
+        field = neighbors(2 * agent.other.opinion - 1) + agent.appeal
+        joining = 1 / (1 + exp(-2 * agent.beta * field))
+        choice = where(uniform('u') < joining, 1, 0)
+        return where(uniform('d') < agent.deciding, choice, agent.opinion)
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        space = NetworkSpace(nx.gnp_random_graph(self.n_agents, self.mean_degree / (self.n_agents - 1), seed=rng))
+        opinions = (rng.random(self.n_agents) < FIRST_OPINION_SHARE).astype(float)
+        choice = MapInteraction('choice', target='voters', state='opinion', function=self._choose_club)
+        return _coevolving(
+            self.label,
+            ClubMemberElement,
+            space,
+            opinions,
+            choice,
+            beta=self.beta,
+            appeal=self.appeal,
+            rewiring=self.rewiring,
+        )
