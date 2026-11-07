@@ -7,7 +7,7 @@ sizes separated by long quiet loading.
 """
 
 # %%
-# The system is created by name from the catalog with 20 blocks, the coupling `k_c = 2.5`, and the plate speed 0.01,
+# The system is built from its class with 20 blocks, the coupling `k_c = 2.5`, and the plate speed 0.01,
 # and runs for 2000 time units, about twenty loading cycles, with the system's registered fixed-step
 # `RK4Solver(dt=0.05)`, since the adaptive integrators stall where blocks stick and slip. The blueprint puts the history
 # of the block speeds first, where blocks caught slipping light up against the stuck ones.
@@ -15,21 +15,20 @@ sizes separated by long quiet loading.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.seismology import BurridgeKnopoffSystem
 
 SYSTEM = 'burridge_knopoff'
 
-system = create_system(SYSTEM)
+system = BurridgeKnopoffSystem()
 observer = RerunObserver(
     SYSTEM,
     save_path=f'{SYSTEM}.rrd',
     blueprint='default',
     primary='fault/space_time/v',
 )
-simulation = Simulation(system, dt=10.0, solver=RK4Solver(dt=0.05), observers=[observer]).prepare().run(until=2000)
+trajectory = simulate(system, until=2000, dt=10.0, observers=[observer])
 
 # %%
 # Stick and slip
@@ -39,17 +38,17 @@ simulation = Simulation(system, dt=10.0, solver=RK4Solver(dt=0.05), observers=[o
 # the size of the earthquakes in it: most frames should be quiet, and the others should spread over a wide range of
 # sizes.
 
-x = simulation.trajectory_.values('fault.x')
+x = trajectory.values('fault.x')
 steps = np.diff(x, axis=0)
 slips = np.where(steps > 0.3, steps, 0.0)
 sizes = slips.sum(axis=1)
 fig, (blocks, events) = plt.subplots(1, 2, figsize=(10, 4))
-blocks.plot(simulation.trajectory_.times, x[:, [0, 5, 10, 15]], linewidth=1)
-blocks.plot(simulation.trajectory_.times, 0.01 * simulation.trajectory_.times, color='black', linestyle='--')
+blocks.plot(trajectory.times, x[:, [0, 5, 10, 15]], linewidth=1)
+blocks.plot(trajectory.times, 0.01 * trajectory.times, color='black', linestyle='--')
 blocks.set_xlabel('time')
 blocks.set_ylabel('block position')
 blocks.set_title('Blocks advance in jumps behind the plate (dashed)')
-events.stem(simulation.trajectory_.times[1:], sizes)
+events.stem(trajectory.times[1:], sizes)
 events.set_xlabel('time')
 events.set_ylabel('total slip in the frame')
 events.set_title(f'{np.count_nonzero(sizes)} of {len(sizes)} frames hold earthquakes')
