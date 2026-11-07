@@ -14,6 +14,7 @@ import ordpy
 from scipy import stats
 
 from ..errors import AnalysisError
+from ..specs import BaseSpec
 from ..types import Array
 from ._base import SNAPSHOT_DIMENSIONS, _check_choice, _check_settings, _import, _read_fields, _read_series
 from .types import Source
@@ -241,7 +242,7 @@ def entropy(
         series = _read_series(source, variables)
         values, labels = series.values, series.labels
         items = list(values.T)
-    settings = _EntropySettings(
+    settings = _EntropySpec(
         kind,
         order,
         base,
@@ -261,7 +262,7 @@ def entropy(
 
 
 @dataclass(frozen=True)
-class _EntropySettings:
+class _EntropySpec(BaseSpec):
     """Settings of one call of `entropy` that the computation of one series or frame reads."""
 
     kind: str
@@ -295,7 +296,7 @@ def _ensemble_entropy(source: Source, law: Array) -> EntropyResult:
     )
 
 
-def _compute(values: npt.NDArray[np.generic], settings: _EntropySettings) -> float | Array:
+def _compute(values: npt.NDArray[np.generic], settings: _EntropySpec) -> float | Array:
     """Return the entropy of one series or one frame."""
     kind = settings.kind
     if kind in MEASURES:
@@ -310,7 +311,7 @@ def _compute(values: npt.NDArray[np.generic], settings: _EntropySettings) -> flo
     return _compute_regularity(np.ascontiguousarray(values, dtype=float), settings)
 
 
-def _compute_distribution(values: npt.NDArray[np.generic], settings: _EntropySettings) -> float:
+def _compute_distribution(values: npt.NDArray[np.generic], settings: _EntropySpec) -> float:
     """Return the Shannon, Rényi, or Tsallis entropy of symbols or of a probability vector."""
     if settings.kind == 'renyi':
         return _renyi(values, settings.order, base=settings.base, probabilities=settings.probabilities)
@@ -319,7 +320,7 @@ def _compute_distribution(values: npt.NDArray[np.generic], settings: _EntropySet
     return _shannon(values, base=settings.base, probabilities=settings.probabilities)
 
 
-def _get_length(settings: _EntropySettings) -> int:
+def _get_length(settings: _EntropySpec) -> int:
     """Return the length of patterns or the largest block length, raising an error for the window of a field."""
     if not isinstance(settings.dimension, int):
         error_msg = f'entropy of kind {settings.kind!r} takes one length as dimension, not a window.'
@@ -327,7 +328,7 @@ def _get_length(settings: _EntropySettings) -> int:
     return settings.dimension
 
 
-def _compute_blocks(symbols: npt.NDArray[np.generic], settings: _EntropySettings) -> float | Array:
+def _compute_blocks(symbols: npt.NDArray[np.generic], settings: _EntropySpec) -> float | Array:
     """Return the block entropies, the entropy rate, or the excess entropy of symbols."""
     max_m = _get_length(settings)
     if settings.kind == 'block':
@@ -337,7 +338,7 @@ def _compute_blocks(symbols: npt.NDArray[np.generic], settings: _EntropySettings
     return _excess_entropy(symbols, max_m, base=settings.base)
 
 
-def _compute_permutation(values: npt.NDArray[np.generic], settings: _EntropySettings) -> float:
+def _compute_permutation(values: npt.NDArray[np.generic], settings: _EntropySpec) -> float:
     """Return the entropy of the ordinal patterns of a series or of the windows of a field."""
     dx, dy = (settings.dimension, 1) if isinstance(settings.dimension, int) else settings.dimension
     array = _break_ties(values, settings.ties, settings.random_state)
@@ -348,7 +349,7 @@ def _compute_permutation(values: npt.NDArray[np.generic], settings: _EntropySett
     return float(abs(value))
 
 
-def _compute_regularity(array: Array, settings: _EntropySettings) -> float | Array:
+def _compute_regularity(array: Array, settings: _EntropySpec) -> float | Array:
     """Return the sample, approximate, multiscale, or spectral entropy of a real series."""
     antropy = _import('antropy')
     dimension = _get_length(settings)
