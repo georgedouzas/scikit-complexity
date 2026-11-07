@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import ergodicity
+from skcomplex.core.analysis import ErgodicityResult, ergodicity
 from skcomplex.core.errors import AnalysisError
 
 RUNS = 200
@@ -11,7 +11,7 @@ STEPS = 20_000
 RELAXATION = 10.0
 
 
-def _ergodicity(kind: str, source: object, **settings: object) -> ergodicity:
+def _ergodicity(kind: str, source: object, **settings: object) -> ErgodicityResult:
     """Return the ergodicity analysis of a source for one kind, run."""
     return ergodicity(source, kind=kind, **settings)
 

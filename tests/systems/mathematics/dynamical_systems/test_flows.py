@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import LyapunovAnalysis
+from skcomplex.core.analysis import lyapunov
 from skcomplex.systems import create_simulation
 from skcomplex.systems.mathematics.dynamical_systems import (
     finite_time_blow_up,
@@ -62,7 +62,7 @@ def test_sprott_mixed_flow_conserves_volume_on_the_torus_and_contracts_on_the_at
 def test_langford_and_thomas_attractors_are_chaotic():
     """Test that the Langford and Thomas flows have a positive and a zero exponent at Dilão's parameters."""
     for system in (langford(), thomas()):
-        exponents = LyapunovAnalysis(until=1000).prepare(system).run().exponents_
+        exponents = lyapunov(system, until=1000).exponents
         assert exponents[0] > 0.01
         assert abs(exponents[1]) < 0.01
         assert exponents[2] < 0
@@ -70,7 +70,7 @@ def test_langford_and_thomas_attractors_are_chaotic():
 
 def test_hyperchaotic_rossler_has_two_positive_exponents():
     """Test that the four-dimensional Rössler flow is hyperchaotic, with exponents near 0.11 and 0.02."""
-    exponents = LyapunovAnalysis(until=2000).prepare(hyperchaotic_rossler()).run().exponents_
+    exponents = lyapunov(hyperchaotic_rossler(), until=2000).exponents
     assert exponents[0] == pytest.approx(0.11, abs=0.02)
     assert exponents[1] == pytest.approx(0.02, abs=0.01)
     assert exponents[3] < 0

@@ -16,7 +16,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import LyapunovAnalysis
+from skcomplex.core.analysis import lyapunov
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import OrbitDiagramExperiment
@@ -72,18 +72,18 @@ observer.recording_.flush()
 
 sample = np.linspace(2.8, 4.0, 41)
 exponents = [
-    LyapunovAnalysis(until=1000, parameters={'map.r': r}).prepare(simulation.system).run().exponents_[0] for r in sample
+    lyapunov(simulation.system, until=1000, parameters={'map.r': r}).exponents[0] for r in sample
 ]
-fig, (orbits, lyapunov) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
+fig, (orbits, exponent_axes) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
 orbits.plot(points[:, 0] / 100, -points[:, 1] / 100, ',', color='C0')
 orbits.set_ylabel('long-run x')
 orbits.set_title('Orbit diagram and Lyapunov exponent of the logistic map')
-lyapunov.plot(sample, exponents, '.-', color='C3')
-lyapunov.axhline(0, color='black', linewidth=0.8)
-lyapunov.axhline(np.log(2), color='black', linestyle=':', label='ln 2')
-lyapunov.set_ylim(-1.5, 1)
-lyapunov.set_xlabel('growth rate r')
-lyapunov.set_ylabel('Lyapunov exponent')
-lyapunov.legend(loc='lower left')
+exponent_axes.plot(sample, exponents, '.-', color='C3')
+exponent_axes.axhline(0, color='black', linewidth=0.8)
+exponent_axes.axhline(np.log(2), color='black', linestyle=':', label='ln 2')
+exponent_axes.set_ylim(-1.5, 1)
+exponent_axes.set_xlabel('growth rate r')
+exponent_axes.set_ylabel('Lyapunov exponent')
+exponent_axes.legend(loc='lower left')
 fig.tight_layout()
 plt.show()

@@ -5,11 +5,11 @@ import pytest
 from scipy.integrate import solve_ivp
 from scipy.signal import find_peaks
 
-from skcomplex.core.analysis import embedding, recurrence
+from skcomplex.core.analysis import RecurrenceResult, embedding, recurrence
 from skcomplex.core.errors import AnalysisError
 
 
-def _recurrence(source: object, **settings: object) -> recurrence:
+def _recurrence(source: object, **settings: object) -> RecurrenceResult:
     """Return the recurrence analysis of a source, run."""
     return recurrence(source, **settings)
 

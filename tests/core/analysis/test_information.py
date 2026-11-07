@@ -9,13 +9,13 @@ import numpy.typing as npt
 import pytest
 from scipy.integrate import solve_ivp
 
-from skcomplex.core.analysis import information
+from skcomplex.core.analysis import InformationResult, information
 from skcomplex.core.errors import AnalysisError
 
 SAMPLES = 20_000
 
 
-def _analysis(kind: str, source: object, **settings: object) -> information:
+def _analysis(kind: str, source: object, **settings: object) -> InformationResult:
     """Return the run information analysis of a source for one kind."""
     return information(source, kind=kind, **settings)
 

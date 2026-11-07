@@ -16,7 +16,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import LyapunovAnalysis
+from skcomplex.core.analysis import lyapunov
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import OrbitDiagramExperiment
@@ -72,17 +72,17 @@ observer.recording_.flush()
 
 sample = np.linspace(1.05, 1.99, 20)
 exponents = [
-    LyapunovAnalysis(until=2000, parameters={'map.mu': mu}).prepare(simulation.system).run().exponents_[0]
+    lyapunov(simulation.system, until=2000, parameters={'map.mu': mu}).exponents[0]
     for mu in sample
 ]
-fig, (orbits, lyapunov) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
+fig, (orbits, exponent_axes) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
 orbits.plot(points[:, 0] / 100, -points[:, 1] / 100, ',', color='C0')
 orbits.set_ylabel('long-run x')
 orbits.set_title('Orbit diagram and Lyapunov exponent of the tent map')
-lyapunov.plot(slopes, np.log(slopes), color='black', label='ln mu')
-lyapunov.plot(sample, exponents, 'o', color='C3', label='Benettin estimate')
-lyapunov.set_xlabel('slope mu')
-lyapunov.set_ylabel('Lyapunov exponent')
-lyapunov.legend()
+exponent_axes.plot(slopes, np.log(slopes), color='black', label='ln mu')
+exponent_axes.plot(sample, exponents, 'o', color='C3', label='Benettin estimate')
+exponent_axes.set_xlabel('slope mu')
+exponent_axes.set_ylabel('Lyapunov exponent')
+exponent_axes.legend()
 fig.tight_layout()
 plt.show()

@@ -12,7 +12,7 @@ other at irregular times: the double-scroll chaotic attractor.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.analysis import LyapunovAnalysis
+from skcomplex.core.analysis import lyapunov
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -31,7 +31,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(unt
 
 trajectory = simulation.trajectory_
 settled = trajectory.times > 10
-exponents = LyapunovAnalysis(n_exponents=1, until=300.0, dt=0.01).prepare(system).run().exponents_
+exponents = lyapunov(system, n_exponents=1, until=300.0, dt=0.01).exponents
 fig, ax = plt.subplots(figsize=(6, 5))
 ax.plot(trajectory.values('circuit.x')[settled], trajectory.values('circuit.z')[settled], linewidth=0.5)
 ax.set_xlabel('voltage x')

@@ -3,23 +3,85 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from dataclasses import dataclass
 
 import numpy as np
 from SALib.analyze import morris as morris_analysis
 from SALib.analyze import sobol as sobol_analysis
 
-from ..analysis._base import BaseAnalysis
 from ..errors import AnalysisError
-from ..types import DataKind
+from ..types import Array
 from ._results import ExperimentResult
 
 METHODS = ('oat', 'morris', 'sobol')
 
 
-class SensitivityAnalysis(BaseAnalysis):
-    """Sensitivity of a scalar output of an experiment to the values of its design, with SALib.
+@dataclass(frozen=True)
+class SensitivityResult:
+    """Sensitivity of a scalar output of an experiment to the values of its design.
 
-    The analysis prepares on the result of an experiment whose design matches the method, with one run per row:
+    Args:
+        names:
+            The inputs, the names of the design values.
+
+        inputs:
+            The design values of every run, one column per input.
+
+        outputs:
+            The output of every run.
+
+        ranking:
+            The inputs from the most to the least influential, by `effects`, `mu_star`, or `total_order`.
+
+        effects:
+            The one-at-a-time effect of every input, for `'oat'`.
+
+        mu_star:
+            The mean absolute elementary effect of every input, for `'morris'`.
+
+        mu_star_conf:
+            The confidence interval of `mu_star`, for `'morris'`.
+
+        sigma:
+            The standard deviation of the elementary effects of every input, for `'morris'`.
+
+        first_order:
+            The first-order Sobol index of every input, for `'sobol'`.
+
+        first_order_conf:
+            The confidence interval of `first_order`, for `'sobol'`.
+
+        total_order:
+            The total Sobol index of every input, for `'sobol'`.
+
+        total_order_conf:
+            The confidence interval of `total_order`, for `'sobol'`.
+    """
+
+    names: list[str]
+    inputs: Array
+    outputs: Array
+    ranking: list[str]
+    effects: dict[str, float] | None = None
+    mu_star: dict[str, float] | None = None
+    mu_star_conf: dict[str, float] | None = None
+    sigma: dict[str, float] | None = None
+    first_order: dict[str, float] | None = None
+    first_order_conf: dict[str, float] | None = None
+    total_order: dict[str, float] | None = None
+    total_order_conf: dict[str, float] | None = None
+
+
+def sensitivity(
+    source: ExperimentResult,
+    *,
+    method: str = 'sobol',
+    output: str | None = None,
+    random_state: int | None = None,
+) -> SensitivityResult:
+    """Return the sensitivity of a scalar output of an experiment to the values of its design, with SALib.
+
+    The source is the result of an experiment whose design matches the method, with one run per row:
 
     - `'oat'` reads a `OneAtATimeDesign` and gives the change of the output from the lower to the upper bound of every
       input, with the others at their midpoints.
@@ -27,6 +89,9 @@ class SensitivityAnalysis(BaseAnalysis):
     - `'sobol'` reads a `SaltelliDesign` and gives the first-order and total Sobol indices.
 
     Args:
+        source:
+            The result of the experiment.
+
         method:
             `'oat'`, `'morris'`, or `'sobol'`.
 
@@ -36,87 +101,74 @@ class SensitivityAnalysis(BaseAnalysis):
         random_state:
             The seed of the bootstrap confidence intervals.
 
-    Attributes:
-        names_:
-            The inputs, the names of the design values.
+    Returns:
+        result:
+            The design values, the outputs, the indices of the method, and the ranking of the inputs.
 
-        inputs_:
-            The design values of every run, one column per input.
-
-        outputs_:
-            The output of every run.
-
-        effects_:
-            The one-at-a-time effect of every input, for `'oat'`.
-
-        mu_star_, mu_star_conf_, sigma_:
-            The mean absolute elementary effect, its confidence interval, and the standard deviation of the elementary
-            effects of every input, for `'morris'`.
-
-        first_order_, first_order_conf_, total_order_, total_order_conf_:
-            The first-order and total Sobol indices of every input and their confidence intervals, for `'sobol'`.
-
-        ranking_:
-            The inputs from the most to the least influential, by `effects_`, `mu_star_`, or `total_order_`.
+    Raises:
+        AnalysisError:
+            The method is unknown, the output is missing, or the source is not the result of an experiment with one
+            run per design row.
 
     Examples:
-        >>> from skcomplex.core.experiments import Experiment, OneAtATimeDesign, SensitivityAnalysis
+        >>> from skcomplex.core.experiments import Experiment, OneAtATimeDesign, sensitivity
         >>> from skcomplex.systems.biology.ecology import logistic_growth
         >>> bounds = {'growth.r': (0.1, 1.0), 'growth.K': (50, 150)}
         >>> experiment = Experiment(logistic_growth, OneAtATimeDesign(), bounds, until=20, outputs=['population.n'])
         >>> result = experiment.prepare().run().result_
-        >>> SensitivityAnalysis('oat', 'population.n').prepare(result).run().ranking_[0]
+        >>> sensitivity(result, method='oat', output='population.n').ranking[0]
         'growth.K'
     """
+    if method not in METHODS:
+        error_msg = f'Unknown sensitivity method {method!r}. Use one of {", ".join(METHODS)}.'
+        raise AnalysisError(error_msg)
+    if not isinstance(output, str):
+        error_msg = f'output = {output!r} must be the name of a scalar output of the experiment.'
+        raise AnalysisError(error_msg)
+    if not isinstance(source, ExperimentResult) or not source.runs:
+        error_msg = f'A sensitivity analysis reads the result of an experiment with runs, not {source!r}.'
+        raise AnalysisError(error_msg)
+    if any(run.replicate or run.scenario != source.runs[0].scenario for run in source.runs):
+        error_msg = 'A sensitivity analysis reads one run per design row, with one scenario and one replicate.'
+        raise AnalysisError(error_msg)
+    names = list(source.runs[0].row)
+    inputs = np.asarray([[run.row[name] for name in names] for run in source.runs], dtype=float)
+    outputs = np.asarray(source.column(output), dtype=float)
+    problem = {'num_vars': len(names), 'names': names}
+    if method == 'oat':
+        effects = dict(zip(names, map(float, outputs[1::2] - outputs[0::2]), strict=True))
+        return SensitivityResult(names, inputs, outputs, _rank(names, effects), effects=effects)
+    if method == 'morris':
+        indices = morris_analysis.analyze(problem, inputs, outputs, seed=random_state)
+        mu_star = _by_name(names, indices['mu_star'])
+        return SensitivityResult(
+            names,
+            inputs,
+            outputs,
+            _rank(names, mu_star),
+            mu_star=mu_star,
+            mu_star_conf=_by_name(names, indices['mu_star_conf']),
+            sigma=_by_name(names, indices['sigma']),
+        )
+    indices = sobol_analysis.analyze(problem, outputs, calc_second_order=False, seed=random_state)
+    total_order = _by_name(names, indices['ST'])
+    return SensitivityResult(
+        names,
+        inputs,
+        outputs,
+        _rank(names, total_order),
+        first_order=_by_name(names, indices['S1']),
+        first_order_conf=_by_name(names, indices['S1_conf']),
+        total_order=total_order,
+        total_order_conf=_by_name(names, indices['ST_conf']),
+    )
 
-    def __init__(self, method: str = 'sobol', output: str | None = None, random_state: int | None = None) -> None:
-        self.method = method
-        self.output = output
-        self.random_state = random_state
 
-    def _check(self) -> None:
-        """Raise an error for an unknown method or a missing output."""
-        if self.method not in METHODS:
-            error_msg = f'Unknown sensitivity method {self.method!r}. Use one of {", ".join(METHODS)}.'
-            raise AnalysisError(error_msg)
-        if not isinstance(self.output, str):
-            error_msg = f'output = {self.output!r} must be the name of a scalar output of the experiment.'
-            raise AnalysisError(error_msg)
+def _by_name(names: list[str], values: Array) -> dict[str, float]:
+    """Return the values of the inputs by name."""
+    return dict(zip(names, map(float, values), strict=True))
 
-    def _get_data_kind(self) -> DataKind:
-        """Return the ensemble kind, since the analysis reads the runs of an experiment."""
-        return DataKind.ENSEMBLE
 
-    def _prepare(self, source: object = None) -> None:
-        """Read the design values and the output of every run of an experiment."""
-        if not isinstance(source, ExperimentResult) or not source.runs or not isinstance(self.output, str):
-            error_msg = f'A sensitivity analysis reads the result of an experiment with runs, not {source!r}.'
-            raise AnalysisError(error_msg)
-        if any(run.replicate or run.scenario != source.runs[0].scenario for run in source.runs):
-            error_msg = 'A sensitivity analysis reads one run per design row, with one scenario and one replicate.'
-            raise AnalysisError(error_msg)
-        self.names_ = list(source.runs[0].row)
-        self.inputs_ = np.asarray([[run.row[name] for name in self.names_] for run in source.runs], dtype=float)
-        self.outputs_ = np.asarray(source.column(self.output), dtype=float)
-
-    def _run(self, inputs: object = None) -> None:
-        """Compute the indices of the method and rank the inputs."""
-        problem = {'num_vars': len(self.names_), 'names': self.names_}
-        if self.method == 'oat':
-            effects = self.outputs_[1::2] - self.outputs_[0::2]
-            self.effects_ = dict(zip(self.names_, map(float, effects), strict=True))
-            ranked = self.effects_
-        elif self.method == 'morris':
-            indices = morris_analysis.analyze(problem, self.inputs_, self.outputs_, seed=self.random_state)
-            self.mu_star_ = dict(zip(self.names_, map(float, indices['mu_star']), strict=True))
-            self.mu_star_conf_ = dict(zip(self.names_, map(float, indices['mu_star_conf']), strict=True))
-            self.sigma_ = dict(zip(self.names_, map(float, indices['sigma']), strict=True))
-            ranked = self.mu_star_
-        else:
-            indices = sobol_analysis.analyze(problem, self.outputs_, calc_second_order=False, seed=self.random_state)
-            self.first_order_ = dict(zip(self.names_, map(float, indices['S1']), strict=True))
-            self.first_order_conf_ = dict(zip(self.names_, map(float, indices['S1_conf']), strict=True))
-            self.total_order_ = dict(zip(self.names_, map(float, indices['ST']), strict=True))
-            self.total_order_conf_ = dict(zip(self.names_, map(float, indices['ST_conf']), strict=True))
-            ranked = self.total_order_
-        self.ranking_ = sorted(self.names_, key=lambda name: -abs(ranked[name]))
+def _rank(names: list[str], values: dict[str, float]) -> list[str]:
+    """Return the inputs from the largest to the smallest absolute value."""
+    return sorted(names, key=lambda name: -abs(values[name]))

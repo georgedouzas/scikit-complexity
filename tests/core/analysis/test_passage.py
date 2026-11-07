@@ -3,13 +3,13 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import fit_law, passage
+from skcomplex.core.analysis import PassageResult, fit_law, passage
 from skcomplex.core.errors import AnalysisError
 
 RUNS = 2000
 
 
-def _passage(kind: str, source: object, **settings: object) -> passage:
+def _passage(kind: str, source: object, **settings: object) -> PassageResult:
     """Return the passage analysis of a source for one kind, run."""
     return passage(source, kind=kind, **settings)
 

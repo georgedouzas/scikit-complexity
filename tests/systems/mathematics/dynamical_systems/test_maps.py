@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import LyapunovAnalysis
+from skcomplex.core.analysis import lyapunov
 from skcomplex.systems import create_simulation
 from skcomplex.systems.mathematics.dynamical_systems import (
     baker_map,
@@ -67,7 +67,7 @@ def test_baker_map_leaves_a_gap_when_it_contracts():
 
 def test_towel_map_is_hyperchaotic():
     """Test that Rössler's towel map has two positive Lyapunov exponents."""
-    exponents = LyapunovAnalysis(until=5000).prepare(towel_map()).run().exponents_
+    exponents = lyapunov(towel_map(), until=5000).exponents
     assert exponents[1] > 0.1
     assert exponents[2] < 0
 
@@ -106,7 +106,7 @@ def test_henon_map_stays_on_attractor():
 
 def test_lozi_map_is_chaotic():
     """Test that the Lozi map has the exponents near 0.47 and -1.16 of its attractor for `a = 1.7`, `b = 0.5`."""
-    exponents = LyapunovAnalysis(until=10000).prepare(lozi_map()).run().exponents_
+    exponents = lyapunov(lozi_map(), until=10000).exponents
     np.testing.assert_allclose(exponents, [0.47, -1.16], atol=0.03)
 
 
@@ -123,7 +123,7 @@ def test_conservative_henon_map_keeps_its_saddle_and_its_centre():
 
 def test_conservative_henon_map_preserves_area():
     """Test that the map has two exponents of opposite sign that sum to zero."""
-    exponents = LyapunovAnalysis(until=5000).prepare(conservative_henon_map(0.5, 0.0)).run().exponents_
+    exponents = lyapunov(conservative_henon_map(0.5, 0.0), until=5000).exponents
     assert exponents.sum() == pytest.approx(0.0, abs=1e-9)
 
 
@@ -137,7 +137,7 @@ def test_fermi_ulam_map_rests_at_its_fixed_points():
 
 def test_cdn_map_is_chaotic_inside_the_window_of_dilao_and_periodic_outside():
     """Test that the Gaussian map at `alpha = 2.8` has a positive exponent at `β = -0.5` and a negative one at -0.1."""
-    chaotic = LyapunovAnalysis(until=10000).prepare(cdn_map(beta=-0.5)).run().exponents_[0]
-    periodic = LyapunovAnalysis(until=10000).prepare(cdn_map(beta=-0.1)).run().exponents_[0]
+    chaotic = lyapunov(cdn_map(beta=-0.5), until=10000).exponents[0]
+    periodic = lyapunov(cdn_map(beta=-0.1), until=10000).exponents[0]
     assert chaotic > 0.3
     assert periodic < -0.5

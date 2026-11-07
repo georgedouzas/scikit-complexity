@@ -13,7 +13,7 @@ from ._random import RandomDesign
 from ._results import ExperimentResult
 from ._rows import RowsDesign
 from ._saltelli import SaltelliDesign
-from ._sensitivity import SensitivityAnalysis
+from ._sensitivity import SensitivityResult, sensitivity
 from ._sobol import SobolDesign
 
 __all__: list[str] = [
@@ -31,6 +31,7 @@ __all__: list[str] = [
     'RandomDesign',
     'RowsDesign',
     'SaltelliDesign',
-    'SensitivityAnalysis',
+    'SensitivityResult',
     'SobolDesign',
+    'sensitivity',
 ]

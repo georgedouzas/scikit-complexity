@@ -15,7 +15,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import LyapunovAnalysis
+from skcomplex.core.analysis import lyapunov
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -54,18 +54,18 @@ observer.recording_.flush()
 
 slopes = np.linspace(1.2, 1.8, 13)
 spectra = np.array(
-    [LyapunovAnalysis(until=5000, parameters={'map.a': a}).prepare(simulation.system).run().exponents_ for a in slopes],
+    [lyapunov(simulation.system, until=5000, parameters={'map.a': a}).exponents for a in slopes],
 )
-fig, (attractor, lyapunov) = plt.subplots(1, 2, figsize=(10, 4))
+fig, (attractor, exponent_axes) = plt.subplots(1, 2, figsize=(10, 4))
 attractor.plot(points[:, 0], -points[:, 1], ',', color='C0')
 attractor.set_xlabel('x')
 attractor.set_ylabel('y')
 attractor.set_title('Attractor at a = 1.7, b = 0.5')
-lyapunov.plot(slopes, spectra[:, 0], 'o-', label='largest')
-lyapunov.plot(slopes, spectra.sum(axis=1), 's-', label='sum')
-lyapunov.axhline(np.log(0.5), color='black', linestyle=':', label='ln b')
-lyapunov.set_xlabel('slope a')
-lyapunov.set_ylabel('Lyapunov exponent')
-lyapunov.legend()
+exponent_axes.plot(slopes, spectra[:, 0], 'o-', label='largest')
+exponent_axes.plot(slopes, spectra.sum(axis=1), 's-', label='sum')
+exponent_axes.axhline(np.log(0.5), color='black', linestyle=':', label='ln b')
+exponent_axes.set_xlabel('slope a')
+exponent_axes.set_ylabel('Lyapunov exponent')
+exponent_axes.legend()
 fig.tight_layout()
 plt.show()

@@ -15,7 +15,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import LyapunovAnalysis
+from skcomplex.core.analysis import lyapunov
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -51,8 +51,8 @@ observer.recording_.flush()
 # The Lyapunov spectrum should have two positive exponents and one strongly negative one, about 0.4, 0.4, and
 # -3.3, and the Kaplan-Yorke dimension they give should lie between 2 and 3, a sheet folded on itself.
 
-lyapunov = LyapunovAnalysis(until=20000).prepare(simulation.system).run()
-exponents = lyapunov.exponents_
+found = lyapunov(simulation.system, until=20000)
+exponents = found.exponents
 fig, (sheet, spectrum) = plt.subplots(1, 2, figsize=(10, 4))
 sheet.scatter(points[:, 0], points[:, 2], s=0.3, c=colors)
 sheet.set_xlabel('x')
@@ -64,7 +64,7 @@ spectrum.set_xticks(range(1, 4))
 spectrum.set_xlabel('exponent index')
 spectrum.set_ylabel('Lyapunov exponent per step')
 spectrum.set_title(
-    f'{exponents[0]:.2f}, {exponents[1]:.2f}, {exponents[2]:.2f}; dimension {lyapunov.kaplan_yorke_dimension_:.2f}',
+    f'{exponents[0]:.2f}, {exponents[1]:.2f}, {exponents[2]:.2f}; dimension {found.kaplan_yorke_dimension:.2f}',
 )
 fig.tight_layout()
 plt.show()

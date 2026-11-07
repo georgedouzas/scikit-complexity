@@ -3,14 +3,14 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import FitLawResult, distribution, events, fit_law
+from skcomplex.core.analysis import EventsResult, FitLawResult, distribution, events, fit_law
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems import create_simulation
 
 MAX_GENERATIONS = 5000
 
 
-def _events(kind: str, source: object, **settings: object) -> events:
+def _events(kind: str, source: object, **settings: object) -> EventsResult:
     """Return the event analysis of a source for one kind, run."""
     return events(source, kind=kind, **settings)
 

@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import partial_information
+from skcomplex.core.analysis import PartialInformationResult, partial_information
 from skcomplex.core.errors import AnalysisError
 
 SAMPLES = 20_000
@@ -14,7 +14,7 @@ def _bits(seed: int, columns: int) -> np.ndarray:
     return np.random.default_rng(seed).integers(0, 2, (SAMPLES, columns))
 
 
-def _parts(first: np.ndarray, second: np.ndarray, target: np.ndarray, **settings: object) -> partial_information:
+def _parts(first: np.ndarray, second: np.ndarray, target: np.ndarray, **settings: object) -> PartialInformationResult:
     """Return the run decomposition of what two sources tell about a target."""
     source = np.column_stack([first, second, target])
     return partial_information(source, **settings)

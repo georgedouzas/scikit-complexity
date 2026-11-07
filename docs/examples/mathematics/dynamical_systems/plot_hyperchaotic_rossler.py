@@ -14,7 +14,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import LyapunovAnalysis
+from skcomplex.core.analysis import lyapunov
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -49,7 +49,7 @@ observer.recording_.flush()
 
 times = np.array([250, 500, 1000, 2000, 4000])
 spectra = np.array(
-    [LyapunovAnalysis(until=until).prepare(simulation.system).run().exponents_[:3] for until in times],
+    [lyapunov(simulation.system, until=until).exponents[:3] for until in times],
 )
 fig, (orbit, spectrum) = plt.subplots(1, 2, figsize=(10, 4))
 orbit.plot(points[:, 0], points[:, 2], linewidth=0.3)

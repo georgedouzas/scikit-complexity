@@ -14,7 +14,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import LyapunovAnalysis
+from skcomplex.core.analysis import lyapunov
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import OrbitDiagramExperiment
@@ -62,16 +62,16 @@ observer.recording_.flush()
 
 sample = np.linspace(-1.0, 0.0, 101)
 exponents = [
-    LyapunovAnalysis(until=3000, parameters={'map.beta': beta}).prepare(simulation.system).run().exponents_[0]
+    lyapunov(simulation.system, until=3000, parameters={'map.beta': beta}).exponents[0]
     for beta in sample
 ]
-fig, (orbits, lyapunov) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
+fig, (orbits, exponent_axes) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
 orbits.plot(points[:, 0] / 100, -points[:, 1] / 100, ',', color='C0')
 orbits.set_ylabel('long-run x')
 orbits.set_title('Orbit diagram and Lyapunov exponent at alpha = 2.8')
-lyapunov.plot(sample, exponents, color='C3')
-lyapunov.axhline(0, color='black', linestyle=':')
-lyapunov.set_xlabel('shift β')
-lyapunov.set_ylabel('Lyapunov exponent')
+exponent_axes.plot(sample, exponents, color='C3')
+exponent_axes.axhline(0, color='black', linestyle=':')
+exponent_axes.set_xlabel('shift β')
+exponent_axes.set_ylabel('Lyapunov exponent')
 fig.tight_layout()
 plt.show()

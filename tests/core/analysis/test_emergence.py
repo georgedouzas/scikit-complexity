@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import emergence, markov
+from skcomplex.core.analysis import EmergenceResult, emergence, markov
 from skcomplex.core.errors import AnalysisError, UnobservedStatesWarning
 
 BLOCKS = np.asarray([[0.3, 0.7], [0.6, 0.4]])
@@ -26,7 +26,7 @@ NOT_LUMPABLE = np.array(
 )
 
 
-def _emergence(kind: str, source: object, **settings: object) -> emergence:
+def _emergence(kind: str, source: object, **settings: object) -> EmergenceResult:
     """Return the run emergence analysis of a source for one kind."""
     return emergence(source, kind=kind, **settings)
 

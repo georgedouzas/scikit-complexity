@@ -16,7 +16,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import LyapunovAnalysis
+from skcomplex.core.analysis import lyapunov
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -61,8 +61,8 @@ observer.recording_.flush()
 # and `alpha ln lambda_a + (1 - alpha) ln lambda_b`, and the Kaplan-Yorke dimension they give should match the
 # information dimension `1 + λ1 / |λ2|` of Farmer, Ott, and Yorke.
 
-lyapunov = LyapunovAnalysis(until=20000).prepare(system).run()
-exponents = lyapunov.exponents_
+found = lyapunov(system, until=20000)
+exponents = found.exponents
 expected = [
     -ALPHA * np.log(ALPHA) - (1 - ALPHA) * np.log(1 - ALPHA),
     ALPHA * np.log(LAMBDA_A) + (1 - ALPHA) * np.log(LAMBDA_B),
@@ -77,7 +77,7 @@ cantor.set_ylim(0.6, 0.76)
 cantor.set_xlabel('x')
 cantor.set_ylabel('y')
 cantor.set_title(
-    f'Zoom: Kaplan-Yorke dimension {lyapunov.kaplan_yorke_dimension_:.3f}, '
+    f'Zoom: Kaplan-Yorke dimension {found.kaplan_yorke_dimension:.3f}, '
     f'expected {1 + expected[0] / abs(expected[1]):.3f}',
 )
 fig.tight_layout()

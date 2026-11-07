@@ -16,10 +16,11 @@ from skcomplex.systems.mathematics.dynamical_systems import logistic_map
 from skcomplex.systems.mathematics.stochastic_processes import weakening_ornstein_uhlenbeck
 
 
-def test_surface_holds_only_classes():
-    """Test that every public name of the package is a class and that the old functions are gone."""
-    assert all(inspect.isclass(getattr(experiments, name)) for name in experiments.__all__)
-    for name in ('calibrate', 'sensitivity', 'run_task', 'resolve_source', 'Task', 'RunResult', 'Source'):
+def test_surface_holds_classes_and_the_sensitivity_function():
+    """Test that every public name of the package is a class or the sensitivity function, and the old names are gone."""
+    assert all(inspect.isclass(getattr(experiments, name)) for name in experiments.__all__ if name != 'sensitivity')
+    assert inspect.isfunction(experiments.sensitivity)
+    for name in ('calibrate', 'SensitivityAnalysis', 'run_task', 'resolve_source', 'Task', 'RunResult', 'Source'):
         assert not hasattr(experiments, name), name
 
 

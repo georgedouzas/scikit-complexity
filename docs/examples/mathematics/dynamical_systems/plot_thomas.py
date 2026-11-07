@@ -14,7 +14,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import LyapunovAnalysis
+from skcomplex.core.analysis import lyapunov
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -49,18 +49,18 @@ observer.recording_.flush()
 
 dampings = np.linspace(0.12, 0.32, 11)
 largest = [
-    LyapunovAnalysis(until=1000, parameters={'thomas.a': a}).prepare(simulation.system).run().exponents_[0]
+    lyapunov(simulation.system, until=1000, parameters={'thomas.a': a}).exponents[0]
     for a in dampings
 ]
-fig, (orbit, lyapunov) = plt.subplots(1, 2, figsize=(10, 4))
+fig, (orbit, exponent_axes) = plt.subplots(1, 2, figsize=(10, 4))
 orbit.plot(points[:, 0], points[:, 1], linewidth=0.3)
 orbit.set_xlabel('x')
 orbit.set_ylabel('y')
 orbit.set_title('Projection of the attractor at a = 0.18')
-lyapunov.plot(dampings, largest, 'o-')
-lyapunov.axhline(0, color='black', linestyle=':')
-lyapunov.set_xlabel('damping a')
-lyapunov.set_ylabel('largest Lyapunov exponent')
-lyapunov.set_title('Chaos below a ≈ 0.2')
+exponent_axes.plot(dampings, largest, 'o-')
+exponent_axes.axhline(0, color='black', linestyle=':')
+exponent_axes.set_xlabel('damping a')
+exponent_axes.set_ylabel('largest Lyapunov exponent')
+exponent_axes.set_title('Chaos below a ≈ 0.2')
 fig.tight_layout()
 plt.show()

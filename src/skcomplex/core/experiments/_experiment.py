@@ -7,14 +7,14 @@ from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Executor, ProcessPoolExecutor, ThreadPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
+from dataclasses import fields, is_dataclass
 
 import numpy as np
 import numpy.typing as npt
-from sklearn.base import BaseEstimator, clone
 
 from ..components.specs import ScenarioSpec
 from ..engine.problems import BaseProblemSpec
-from ..engine.runtime import Simulation
+from ..engine.runtime import Simulation, Trajectory
 from ..engine.solvers import BaseSolver
 from ..errors import ExperimentError, ValidationError
 from ..specs import ObservableSpec
@@ -33,10 +33,10 @@ class Experiment(BaseExperiment):
     The streams are spawned from `random_state` in a fixed order, so the results do not depend on the executor, and
     every scenario of a design row and replicate shares its stream.
 
-    Every run clones every analysis, prepares the clone on the run's trajectory, runs it, and keeps the attributes that
-    its `run` sets as scalar outputs named `<prefix>.<attribute>`, without the trailing underscore. The prefix is the
-    lowercase class name of the analysis, such as `entropyanalysis`, numbered `-1`, `-2`, ... when several analyses
-    share a class, as scikit-learn names the steps of `make_pipeline`.
+    Every run applies every analysis to the run's trajectory and keeps the fields of its result that are set as
+    outputs named `<prefix>.<field>`. An analysis is a function of a trajectory, such as one that `bind_analysis`
+    returns. The prefix is the name of the analysis function, such as `entropy`, numbered `-1`, `-2`, ... when several
+    analyses share a function, as scikit-learn names the steps of `make_pipeline`.
 
     Args:
         source:
@@ -56,7 +56,7 @@ class Experiment(BaseExperiment):
             The number of runs per design row and scenario.
 
         analyses:
-            The unprepared analyses of every run, or `None`.
+            The analyses of every run, functions of a trajectory that return a frozen result, or `None`.
 
         until:
             The simulated time of every run, or `None` for 10.
@@ -107,7 +107,7 @@ class Experiment(BaseExperiment):
         scenarios: Sequence[ScenarioSpec] | None = None,
         replicates: int = 1,
         *,
-        analyses: Sequence[BaseEstimator] | None = None,
+        analyses: Sequence[Callable[[Trajectory], object]] | None = None,
         until: float | None = None,
         dt: float | None = None,
         solver: BaseSolver | None = None,
@@ -147,11 +147,14 @@ class Experiment(BaseExperiment):
         if self.design is not None:
             self.design._validated()
         for analysis in self.analyses or ():
-            clone(analysis)._validated()
+            if not callable(analysis):
+                error_msg = f'An analysis of an experiment is a function of a trajectory, not {analysis!r}.'
+                raise ValidationError(error_msg)
 
-    def _name_analyses(self) -> tuple[tuple[str, BaseEstimator], ...]:
-        """Return every analysis with its column prefix, its lowercase class name numbered when the class repeats."""
-        names = [type(analysis).__name__.lower() for analysis in self.analyses or ()]
+    def _name_analyses(self) -> tuple[tuple[str, Callable[[Trajectory], object]], ...]:
+        """Return every analysis with its column prefix, the name of its function numbered when the function repeats."""
+        functions = [getattr(analysis, 'func', analysis) for analysis in self.analyses or ()]
+        names = [getattr(function, '__name__', 'analysis') for function in functions]
         counts, seen = Counter(names), Counter[str]()
         prefixes = []
         for name in names:
@@ -277,12 +280,14 @@ class Experiment(BaseExperiment):
             if values.ndim == 1 and values.size:
                 scalars[output] = values[-1]
         for prefix, analysis in task.analyses:
-            fitted = clone(analysis).prepare(trajectory)
-            prepared = set(vars(fitted))
-            fitted.run()
-            for attribute, value in vars(fitted).items():
-                if attribute not in prepared and attribute.endswith('_') and not attribute.startswith('_'):
-                    scalars[f'{prefix}.{attribute[:-1]}'] = value
+            result = analysis(trajectory)
+            if not is_dataclass(result):
+                error_msg = f'The analysis {prefix} returned {type(result).__name__}, not the result of an analysis.'
+                raise ExperimentError(error_msg)
+            for field in fields(result):
+                value = getattr(result, field.name)
+                if value is not None:
+                    scalars[f'{prefix}.{field.name}'] = value
         return _RunResultSpec(
             index=task.index,
             row=dict(task.row),

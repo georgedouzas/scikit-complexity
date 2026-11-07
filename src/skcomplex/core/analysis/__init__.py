@@ -3,7 +3,7 @@
 from ._alignment import AlignmentResult, alignment
 from ._autocatalytic import AutocatalyticSetsResult, autocatalytic_sets
 from ._automata import AutomatonResult, automaton
-from ._base import BaseAnalysis, bind_analysis
+from ._base import bind_analysis
 from ._cell_complex import CellComplexResult, cell_complex
 from ._clusters import ClustersResult, clusters
 from ._coarse_grain import CoarseGrainResult, coarse_grain
@@ -12,7 +12,7 @@ from ._complexity import ComplexityResult, complexity
 from ._computational_mechanics import EpsilonMachineResult, epsilon_machine
 from ._correlation import CorrelationResult, correlation
 from ._defects import DefectsResult, defects
-from ._discovery import DiscoveryAnalysis
+from ._discovery import ApplicableAnalysesResult, applicable_analyses
 from ._displacement import DisplacementResult, displacement
 from ._distribution import DistributionResult, distribution
 from ._domains import DomainsResult, domains
@@ -56,9 +56,9 @@ from ._symbolic import SymbolicResult, symbolic
 
 __all__: list[str] = [
     'AlignmentResult',
+    'ApplicableAnalysesResult',
     'AutocatalyticSetsResult',
     'AutomatonResult',
-    'BaseAnalysis',
     'CellComplexResult',
     'ChainShapeResult',
     'ClustersResult',
@@ -67,7 +67,6 @@ __all__: list[str] = [
     'CorrelationResult',
     'DataCollapseResult',
     'DefectsResult',
-    'DiscoveryAnalysis',
     'DisplacementResult',
     'DistributionResult',
     'DomainsResult',
@@ -109,6 +108,7 @@ __all__: list[str] = [
     'SurrogateTestResult',
     'SymbolicResult',
     'alignment',
+    'applicable_analyses',
     'autocatalytic_sets',
     'automaton',
     'bind_analysis',

@@ -4,11 +4,11 @@ import numpy as np
 import pytest
 from scipy.integrate import solve_ivp
 
-from skcomplex.core.analysis import embedding
+from skcomplex.core.analysis import EmbeddingResult, embedding
 from skcomplex.core.errors import AnalysisError
 
 
-def _embedding(kind: str, source: object, **settings: object) -> embedding:
+def _embedding(kind: str, source: object, **settings: object) -> EmbeddingResult:
     """Return the embedding analysis of a source for one kind, run."""
     return embedding(source, kind=kind, **settings)
 

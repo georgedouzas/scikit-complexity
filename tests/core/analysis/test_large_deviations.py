@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from scipy import special
 
-from skcomplex.core.analysis import large_deviations
+from skcomplex.core.analysis import LargeDeviationsResult, large_deviations
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import JumpLaw
 from skcomplex.core.components.system import System
@@ -15,7 +15,7 @@ from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import StateSpec, VisualSpec
 
 
-def _deviations(kind: str, source: object, **settings: object) -> large_deviations:
+def _deviations(kind: str, source: object, **settings: object) -> LargeDeviationsResult:
     """Return the large deviation analysis of a source for one kind, run."""
     return large_deviations(source, kind=kind, **settings)
 

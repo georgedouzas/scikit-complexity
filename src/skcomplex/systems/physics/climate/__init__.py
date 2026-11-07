@@ -1,6 +1,6 @@
 """Climate: energy balance, variability, glacial cycles, low-order atmospheres, net energy, forests, and tipping."""
 
-from ._early_warning import EarlyWarningAnalysis
+from ._early_warning import EarlyWarningResult, early_warning
 from ._energy_balance import (
     DaisyworldElement,
     IceAlbedoClimateElement,
@@ -39,7 +39,7 @@ __all__: list[str] = [
     'ClimateAnomalyElement',
     'DaisyworldElement',
     'DelayedOscillatorElement',
-    'EarlyWarningAnalysis',
+    'EarlyWarningResult',
     'EnergySectorElement',
     'FoldFollowerElement',
     'ForestCoverElement',
@@ -60,6 +60,7 @@ __all__: list[str] = [
     'budyko_sellers',
     'carbon_cycle',
     'daisyworld',
+    'early_warning',
     'energy_balance',
     'energy_return',
     'enso',

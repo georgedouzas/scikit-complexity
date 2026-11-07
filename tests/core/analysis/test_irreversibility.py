@@ -6,7 +6,7 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import correlation, irreversibility
+from skcomplex.core.analysis import IrreversibilityResult, correlation, irreversibility
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import JumpLaw
 from skcomplex.core.components.system import System
@@ -19,7 +19,7 @@ RUNS = 20_000
 STEP = 0.1
 
 
-def _irreversibility(kind: str, source: object, **settings: object) -> irreversibility:
+def _irreversibility(kind: str, source: object, **settings: object) -> IrreversibilityResult:
     """Return the irreversibility analysis of a source for one kind, run."""
     return irreversibility(source, kind=kind, **settings)
 

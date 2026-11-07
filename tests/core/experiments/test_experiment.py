@@ -1,11 +1,12 @@
 """Test the `_experiment` module of `skcomplex.core.experiments`."""
 
+from dataclasses import dataclass
 from typing import Annotated
 
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import BaseAnalysis
+from skcomplex.core.analysis import bind_analysis
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.system import System
@@ -48,22 +49,18 @@ class OrnsteinUhlenbeckElement(Element):
         return [RateLaw(s.x, -s.x), NoiseLaw(s.x, 0.5)]
 
 
-class PeakAnalysis(BaseAnalysis):
+@dataclass(frozen=True)
+class PeakResult:
     """Height and time of the peak of one series."""
 
-    def __init__(self, variable='I.n'):
-        self.variable = variable
+    peak: float
+    peak_time: float
 
-    def _get_data_kind(self):
-        return 'series'
 
-    def _prepare(self, source):
-        self.series_ = self._read_series(source, [self.variable])
-
-    def _run(self, inputs=None):
-        values = self.series_.values[:, 0]
-        self.peak_ = float(values.max())
-        self.peak_time_ = float(self.series_.times[values.argmax()])
+def peak(trajectory, *, variable='I.n'):
+    """Return the height and time of the peak of one series of a trajectory."""
+    values = np.asarray(trajectory.values(variable), dtype=float)
+    return PeakResult(float(values.max()), float(trajectory.times[values.argmax()]))
 
 
 def last_value(trajectory):
@@ -86,7 +83,7 @@ def test_analyses_of_stochastic_sir_replicates():
             sir,
             RowsDesign([{'stochastic': True}]),
             replicates=20,
-            analyses=[PeakAnalysis()],
+            analyses=[peak],
             until=50,
             outputs=['I.n'],
             random_state=7,
@@ -97,18 +94,22 @@ def test_analyses_of_stochastic_sir_replicates():
     rows = experiment.result_.rows
     assert len(rows) == 20
     for row, series in zip(rows, experiment.result_.series('I.n'), strict=True):
-        assert row['peakanalysis.peak'] == series.max()
-        assert 0 <= row['peakanalysis.peak_time'] <= 50
-    assert len({row['peakanalysis.peak'] for row in rows}) > 1
-    assert experiment.analyses[0].__dict__ == {'variable': 'I.n'}
+        assert row['peak.peak'] == series.max()
+        assert 0 <= row['peak.peak_time'] <= 50
+    assert len({row['peak.peak'] for row in rows}) > 1
+    assert experiment.analyses == [peak]
 
 
 def test_analyses_of_one_class_are_numbered():
-    """Test that two analyses of one class get numbered column prefixes."""
-    experiment = Experiment(sir, analyses=[PeakAnalysis('I.n'), PeakAnalysis('S.n')], until=10).prepare().run()
+    """Test that two analyses of one function get numbered column prefixes."""
+    experiment = (
+        Experiment(sir, analyses=[bind_analysis(peak, variable='I.n'), bind_analysis(peak, variable='S.n')], until=10)
+        .prepare()
+        .run()
+    )
     row = experiment.result_.rows[0]
-    assert row['peakanalysis-1.peak'] > 0
-    assert row['peakanalysis-2.peak'] == experiment.result_.series('S.n')[0].max()
+    assert row['peak-1.peak'] > 0
+    assert row['peak-2.peak'] == experiment.result_.series('S.n')[0].max()
 
 
 @pytest.mark.slow
@@ -119,7 +120,7 @@ def test_serial_and_process_runs_are_identical():
             sir,
             RowsDesign([{'stochastic': True}]),
             replicates=20,
-            analyses=[PeakAnalysis()],
+            analyses=[peak],
             until=50,
             outputs=['I.n'],
             random_state=7,

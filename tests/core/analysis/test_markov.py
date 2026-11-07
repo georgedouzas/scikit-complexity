@@ -7,12 +7,12 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import markov
+from skcomplex.core.analysis import MarkovResult, markov
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems import create_simulation
 
 
-def _markov(kind: str, source: object, **settings: object) -> markov:
+def _markov(kind: str, source: object, **settings: object) -> MarkovResult:
     """Return the Markov analysis of a source for one kind, run."""
     return markov(source, kind=kind, **settings)
 
