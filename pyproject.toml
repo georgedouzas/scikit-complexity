@@ -573,8 +573,6 @@ forbidden_modules = [
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.mathematics.common",
 ]
-# The physics consolidation copies the Lorenz element into physics and removes this exception.
-ignore_imports = ["skcomplex.systems.physics.synchronization._chaos -> skcomplex.systems.mathematics.common.flows"]
 
 [[tool.importlinter.contracts]]
 name = "Systems of social use only the shared code of their own field"
