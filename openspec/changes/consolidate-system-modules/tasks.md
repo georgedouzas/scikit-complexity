@@ -11,7 +11,7 @@
 - [ ] 2.2 Physics
 - [x] 2.3 Economics
 - [x] 2.4 Social
-- [ ] 2.5 Mathematics
+- [x] 2.5 Mathematics
 - [ ] 2.6 Engineering
 - [ ] 2.7 Computer science
 - [ ] 2.8 Chemistry

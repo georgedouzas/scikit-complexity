@@ -69,3 +69,20 @@ or nothing. Six fields have a `common` package with 59 modules.
 - **Cross-field duplicates:** `_random_cells` of `social.opinion_dynamics._voters` has the same source as the
   `_random_cells` helpers of `computer_science.automata._automata` and `computer_science.automata._variants`, a random
   binary grid with a given density. It is a candidate for the core.
+
+## Mathematics
+
+- **Moved to `mathematics.common`:** `NetworkNodeElement`, which `network_structure_analysis` and the ensembles of
+  networks use in the same way, `RegulatedNodeElement` of `triadic_percolation`, whose activity visual the
+  dependent nodes of `interdependent_network_cascade` reuse, `VertexElement` with its visual, which the growing networks, the ensembles,
+  and the hypergraphs share, and `LinkElement`, which the same systems and `motter_lai_overload` share. Each keeps its
+  own module directly in `common`. `RosslerElement`, which `rossler` uses and `DrivenRosslerElement` of
+  `ou_driven_rossler` subclasses, moved beside `LorenzElement` in `common.flows`, the existing package of shared flows.
+  Networks and dynamical systems still export these names.
+- **Kept in `common`:** `common.flows` with `LorenzElement`, which `lorenz` and `fractional_lorenz` use.
+- **Kept as a shared helper in a system module:** `_get_bookkeeping` of `networks._growth`, the ageing and degree maps
+  that the growing simplicial complex of `networks._hypergraphs` reuses, as before.
+- **Copies:** none.
+- **Cross-field imports:** `physics.synchronization._chaos` imports `LorenzElement` from `mathematics.common.flows`.
+  It is left for the folding of physics, which copies it into physics.
+- **Cross-field duplicates:** none in mathematics.
