@@ -568,7 +568,7 @@ them around a uniform state, and turns every Laplacian into its eigenvalue on ea
 returns the growth rate and frequency of every mode, exact for the discretization of the system. A band of growing
 modes is a Turing instability, and a growing mode with a nonzero frequency travels.
 
-### Agents
+### Agent populations
 
 Measure how agents align, how they spread in space, and how groups segregate.
 
