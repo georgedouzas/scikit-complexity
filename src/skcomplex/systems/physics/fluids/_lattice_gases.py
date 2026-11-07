@@ -1,4 +1,4 @@
-"""Lattice gases: the FHP gas of particles that move along the six directions of a triangular lattice and collide."""
+"""Lattice gases: the HPP and FHP gases of particles that move along the directions of a lattice and collide."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,6 +18,7 @@ from ....core.components.system import System
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
 from ..._catalog import register_system
+from ._hpp_site import HPPSiteElement
 
 DIRECTIONS = 6
 CHANNELS = tuple(f'n{direction}' for direction in range(DIRECTIONS))
@@ -30,6 +31,11 @@ HEAD_ON = (0b001001, 0b010010, 0b100100)
 TRIPLES = (0b010101, 0b101010)
 TURN_PROBABILITY = 0.5
 DENSITY_VISUAL = VisualSpec('sites', {'states': ('density',), 'low': 0.0, 'high': 3.0})
+SQUARE_DIRECTIONS = 4
+SQUARE_CHANNELS = tuple(f'n{direction}' for direction in range(SQUARE_DIRECTIONS))
+SQUARE_STEPS = ((0, 1), (1, 0), (0, -1), (-1, 0))
+ARRIVALS = LatticeNeighborhood(tuple((-row, -column) for row, column in SQUARE_STEPS))
+SQUARE_HEAD_ON = {0b0101: 0b1010, 0b1010: 0b0101}
 
 
 def _rotated(code: int, turns: int) -> int:
@@ -57,6 +63,23 @@ def _collide(*channels: Array, random: Array) -> tuple[Array, ...]:
     codes = sum(np.asarray(channel, dtype=np.intp) << direction for direction, channel in enumerate(channels))
     following = COLLISIONS[codes, (random < TURN_PROBABILITY).astype(np.intp)]
     return tuple(((following >> direction) & 1).astype(float) for direction in range(DIRECTIONS))
+
+
+def _collide_square(*channels: Array) -> tuple[Array, ...]:
+    """Return the channels after every head-on pair of the HPP gas turns by a quarter turn, the only collision."""
+    codes = np.sum(
+        [np.asarray(channel, dtype=np.intp) << direction for direction, channel in enumerate(channels)],
+        axis=0,
+    )
+    following = codes.copy()
+    for before, after in SQUARE_HEAD_ON.items():
+        following = np.where(codes == before, after, following)
+    return tuple(((following >> direction) & 1).astype(float) for direction in range(SQUARE_DIRECTIONS))
+
+
+def _propagate_square(*columns: Array) -> tuple[Array, ...]:
+    """Return the channels of the HPP gas after every particle moves one site along its direction."""
+    return tuple(columns[SQUARE_DIRECTIONS * direction + direction] for direction in range(SQUARE_DIRECTIONS))
 
 
 def _propagate(*columns: Array) -> tuple[Array, ...]:
@@ -212,6 +235,107 @@ def fhp_lattice_gas(
                 rule=_count,
                 neighborhood=SITE,
                 reads=CHANNELS,
+            ),
+        ],
+    )
+
+
+@register_system(
+    field='physics/fluids',
+    tags=('lattice', 'lattice gas', 'deterministic', 'conservation', 'reversible'),
+    references=('Hardy, de Pazzis, and Pomeau 1976', 'Lindgren 2024'),
+    defaults={'until': 200, 'dt': 1},
+)
+def hpp_lattice_gas(
+    shape: Sequence[int] = (64, 64),
+    *,
+    density: float = 0.2,
+    bump: float = 0.6,
+    radius: float | None = None,
+    full: bool = False,
+    random_state: int | np.random.Generator | None = 0,
+) -> System:
+    """Return the HPP lattice gas on a periodic square lattice, whose particles move along four directions and collide.
+
+    Every site holds up to four particles, one per direction. Every step the particles first collide, where a site with
+    exactly two particles of opposite directions turns them by a quarter turn and every other site keeps its particles,
+    and then every particle moves one site along its direction. The rules are deterministic and reversible, and they
+    conserve the number of particles and the momentum, and also the momentum along every row and every column, a
+    spurious invariant that keeps the HPP gas from isotropic hydrodynamics. Every channel is occupied at random with
+    probability `density`, or `bump` inside a disc at the centre. With `full`, as in Problem 4.3 of Lindgren, the
+    particles start only in full cells, which hold all four directions, placed at random with probability `density`.
+
+    Args:
+        shape:
+            The number of rows and columns.
+
+        density:
+            The occupation probability of a channel outside the disc, or of a full cell with `full`.
+
+        bump:
+            The occupation probability of a channel inside the disc, unused with `full`.
+
+        radius:
+            The radius of the disc in lattice spacings, or `None` for a sixth of the smaller side.
+
+        full:
+            Whether the particles start in full cells only.
+
+        random_state:
+            The seed or generator of the initial occupations.
+
+    Returns:
+        system:
+            The system, with the channels `gas.n0` to `gas.n3` and the particle numbers `gas.density`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.fluids import hpp_lattice_gas
+        >>> hpp_lattice_gas((8, 8)).elements[0].prepare().size_
+        64
+    """
+    space = LatticeSpace(tuple(shape), boundary='periodic').prepare()
+    rng = np.random.default_rng(random_state)
+    if full:
+        occupied = np.repeat((rng.random((space.size_, 1)) < density).astype(float), SQUARE_DIRECTIONS, axis=1)
+    else:
+        rows, columns = np.indices(tuple(shape))
+        positions = np.column_stack([rows.ravel(), columns.ravel()]).astype(float)
+        size = min(shape) / 6 if radius is None else radius
+        inside = np.linalg.norm(positions - positions.mean(axis=0), axis=1) < size
+        probability = np.where(inside, bump, density)[:, None]
+        occupied = (rng.random((space.size_, SQUARE_DIRECTIONS)) < probability).astype(float)
+    channels = {name: occupied[:, direction] for direction, name in enumerate(SQUARE_CHANNELS)}
+    gas = LatticeElement(
+        'gas',
+        element=HPPSiteElement,
+        space=space,
+        values={'density': occupied.sum(axis=1), **channels},
+        visual=DENSITY_VISUAL,
+    )
+    return System(
+        elements=[gas],
+        interactions=[
+            LocalRuleInteraction(
+                'collision',
+                target='gas',
+                state=SQUARE_CHANNELS,
+                rule=_collide_square,
+                neighborhood=SITE,
+            ),
+            LocalRuleInteraction(
+                'propagation',
+                target='gas',
+                state=SQUARE_CHANNELS,
+                rule=_propagate_square,
+                neighborhood=ARRIVALS,
+            ),
+            LocalRuleInteraction(
+                'count',
+                target='gas',
+                state='density',
+                rule=_count,
+                neighborhood=SITE,
+                reads=SQUARE_CHANNELS,
             ),
         ],
     )

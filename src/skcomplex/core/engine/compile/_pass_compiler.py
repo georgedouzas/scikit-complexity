@@ -1170,10 +1170,14 @@ class PassCompiler(BaseCompiler):
 
     @staticmethod
     def _degree_of(value: object, degrees: Mapping[str, int], top: int) -> tuple[set[int], tuple[str, str] | None]:
-        """Return the degrees of the values an expression adds up, and the first exterior operation it misapplies."""
+        """Return the degrees of the values an expression adds up, and the first exterior operation it misapplies.
+
+        A reduction over a whole group is the same number for every member, so it adds no degree, but the exterior
+        operations of its argument must still act on states of degrees they act on.
+        """
         expression = SR(value)
         reached: set[int] = set()
-        for reduction in neighborhoods_in(expression):
+        for reduction in [*neighborhoods_in(expression), *reductions_in(expression)]:
             problem = PassCompiler._degree_of(reduction.argument, degrees, top)[1]
             if problem is not None:
                 return reached, problem

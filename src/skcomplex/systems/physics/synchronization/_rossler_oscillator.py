@@ -6,6 +6,9 @@
 from types import SimpleNamespace
 from typing import Annotated
 
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
@@ -14,7 +17,8 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 class RosslerOscillatorElement(Element):
     """Rössler oscillator `x1' = -omega x2 - x3`, `x2' = omega x1 + a x2`, `x3' = b + x3 (x1 - c)`.
 
-    It is chaotic for `a = b = 0.2` and `c = 5.7`.
+    It is chaotic for `a = b = 0.2` and `c = 5.7`. The time scale `p` divides every rate, `p x' = f(x)`, so `p < 1`
+    speeds the oscillator up.
 
     Args:
         label:
@@ -44,6 +48,9 @@ class RosslerOscillatorElement(Element):
         c:
             The third Rössler parameter.
 
+        p:
+            The time scale, which divides every rate.
+
     Attributes:
         default_visual_:
             The visual of the oscillator when it sets none.
@@ -66,6 +73,7 @@ class RosslerOscillatorElement(Element):
         a: Annotated[float, ParameterSpec()] = 0.2,
         b: Annotated[float, ParameterSpec()] = 0.2,
         c: Annotated[float, ParameterSpec()] = 5.7,
+        p: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
     ) -> None:
         super().__init__(label, visual=visual)
         self.x1 = x1
@@ -75,6 +83,7 @@ class RosslerOscillatorElement(Element):
         self.a = a
         self.b = b
         self.c = c
+        self.p = p
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
         """Return the Rössler flow.
@@ -89,7 +98,7 @@ class RosslerOscillatorElement(Element):
         """
         s = namespace
         return [
-            RateLaw(s.x1, -s.omega * s.x2 - s.x3),
-            RateLaw(s.x2, s.omega * s.x1 + s.a * s.x2),
-            RateLaw(s.x3, s.b + s.x3 * (s.x1 - s.c)),
+            RateLaw(s.x1, (-s.omega * s.x2 - s.x3) / s.p),
+            RateLaw(s.x2, (s.omega * s.x1 + s.a * s.x2) / s.p),
+            RateLaw(s.x3, (s.b + s.x3 * (s.x1 - s.c)) / s.p),
         ]

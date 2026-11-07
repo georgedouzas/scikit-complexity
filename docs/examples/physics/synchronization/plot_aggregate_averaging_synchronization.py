@@ -44,3 +44,26 @@ ax.set_ylabel('mean |x1 - x2| over the last 50 steps')
 ax.set_title('Synchronization of two chaotic logistic maps')
 ax.legend()
 plt.show()
+
+# %%
+# Delay-coupled Bernoulli maps
+# ----------------------------
+# Two Bernoulli shift maps `f(a) = 1.5 a mod 1` coupled through the value of the other map `T` steps ago synchronize
+# only for couplings inside a window that the delay shrinks, where every root of `z^(T+1) - 1.5 (1 - κ) z^T + 1.5 κ`
+# lies in the unit disk. The difference should vanish inside the window of each delay and stay of order one outside.
+
+fig, ax = plt.subplots(figsize=(6, 4))
+couplings = np.linspace(0.05, 0.95, 19)
+for delay in (0, 1, 2):
+    gaps = []
+    for coupling in couplings:
+        system = create_system(SYSTEM, kind='bernoulli', r=1.5, kappa=coupling, delay=delay)
+        run = Simulation(system, dt=1).prepare().run(until=300)
+        gap = np.abs(np.ravel(run.trajectory_.values('first.x')) - np.ravel(run.trajectory_.values('second.x')))
+        gaps.append(np.minimum(gap, 1 - gap)[-50:].max())
+    ax.semilogy(couplings, np.maximum(gaps, 1e-17), 'o-', markersize=3, label=f'delay T = {delay}')
+ax.set_xlabel('coupling κ')
+ax.set_ylabel('largest |x1 - x2| over the last 50 steps')
+ax.set_title('Delay-coupled Bernoulli maps')
+ax.legend()
+plt.show()
