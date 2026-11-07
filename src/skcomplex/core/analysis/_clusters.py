@@ -16,7 +16,8 @@ from scipy.spatial import cKDTree
 from ..components.spaces import ContinuousSpace
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..types import IntArray
+from ..specs import AnalysisTags
+from ..types import DataKind, IntArray
 from ._base import _check_choice, _check_settings, _get_missing_error, _read_fields
 from .types import Source
 
@@ -28,6 +29,8 @@ SETTINGS = {
     'percolation': {'diagonal', 'axis', 'radius'},
     'spanning': {'diagonal', 'axis', 'radius'},
 }
+
+TAGS = AnalysisTags(DataKind.FIELD)
 
 
 @dataclass(frozen=True)

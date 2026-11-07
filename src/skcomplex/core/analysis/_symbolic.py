@@ -37,8 +37,9 @@ from ..engine._utils import components_of, domain_of
 from ..engine.compile import PassCompiler
 from ..engine.problems import BaseProblemSpec, OperatorProblemSpec, ProblemSpec, TransferNetworkSpec
 from ..errors import AnalysisError, ConservationError
+from ..specs import AnalysisTags
 from ..specs._unknown_spec import _UnknownSpec
-from ..types import Array, ComplexArray, FormKind
+from ..types import Array, ComplexArray, DataKind, FormKind
 from ._base import _check_choice, _check_settings, _compiled_problem, _composite, _read_system
 from ._operator import _operator_problem
 from .types import Source
@@ -67,6 +68,8 @@ LARGEST_SCALE = 2000.0
 GUARD_BITS = 64
 DECLARED: set[str] = set()
 SIGNS: dict[str, Expression] = {}
+
+TAGS = AnalysisTags(DataKind.SYSTEM)
 
 
 def _evaluate_mittag_leffler(

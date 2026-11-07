@@ -12,7 +12,8 @@ from scipy import optimize
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..types import Array
+from ..specs import AnalysisTags
+from ..types import Array, DataKind
 from ._base import _check_choice, _check_settings, _read_fields, _read_real, _read_series
 from .types import Source
 
@@ -32,6 +33,12 @@ SETTINGS = {
 
 MOMENT_ITERATIONS = 8
 REPLICAS = 2
+
+TAGS = AnalysisTags(DataKind.FIELD)
+KIND_TAGS = {
+    'auto': AnalysisTags(DataKind.SERIES),
+    'two-time': AnalysisTags(DataKind.ENSEMBLE),
+}
 
 
 @dataclass(frozen=True)

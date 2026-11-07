@@ -15,7 +15,8 @@ import ordpy
 from scipy import stats
 
 from ..errors import AnalysisError
-from ..types import AnyArray, Array
+from ..specs import AnalysisTags
+from ..types import AnyArray, Array, DataKind
 from ._base import _check_choice, _check_settings, _import, _read_real, _read_series
 from ._entropy import _block_entropies, _shannon
 from .types import Source
@@ -55,6 +56,8 @@ SYMBOL_SETTINGS = {None: set(), 'bins': {'bins'}, 'quantiles': {'bins'}, 'ordina
 """Settings every symbolization reads."""
 
 MIN_DIMENSION = 2
+
+TAGS = AnalysisTags(DataKind.SERIES)
 
 
 @dataclass(frozen=True)

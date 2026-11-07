@@ -15,7 +15,8 @@ from ..components.system import System
 from ..engine.problems import ProblemSpec
 from ..engine.runtime import Simulation, Trajectory
 from ..errors import AnalysisError
-from ..types import Array
+from ..specs import AnalysisTags
+from ..types import Array, DataKind
 from ._base import _check_choice, _check_settings, _composite, _read_series
 from .types import Source
 
@@ -32,6 +33,13 @@ SETTINGS = {
 """Settings every kind reads, besides `kind` and `variables`."""
 
 KINDS = ('tilted', 'block', 'cloning', 'histogram', 'reweight')
+
+TAGS = AnalysisTags(DataKind.PATH)
+KIND_TAGS = {
+    'block': AnalysisTags(DataKind.SERIES),
+    'histogram': AnalysisTags(DataKind.ENSEMBLE),
+    'reweight': AnalysisTags(DataKind.ENSEMBLE),
+}
 
 
 @dataclass(frozen=True)

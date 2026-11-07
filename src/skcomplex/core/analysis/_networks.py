@@ -11,8 +11,9 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.metrics import normalized_mutual_info_score
 
-from ..types import Array
-from ._base import _check_choice, _check_settings, _read_networks
+from ..specs import AnalysisTags
+from ..types import Array, DataKind
+from ._base import _check_choice, _check_settings, _check_tags, _read_networks
 from ._fit import fit_law
 from .types import Source
 
@@ -32,6 +33,8 @@ SETTINGS = {
 MIN_FIT_NODES = 50
 HEAVY_TAIL = 5
 FIT_CANDIDATES = 20
+
+TAGS = AnalysisTags(DataKind.NETWORK, space=frozenset({'network'}))
 
 
 @dataclass(frozen=True)
@@ -179,6 +182,9 @@ def network_measures(
         AnalysisError:
             The kind, centrality, or method is unknown, or a setting the kind does not read is changed.
 
+        TagError:
+            The system of a trajectory has no network space.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.core.analysis import network_measures
@@ -191,6 +197,7 @@ def network_measures(
         1.0
     """
     _check_choice('network_measures', 'kind', kind, KINDS)
+    _check_tags(network_measures, source, kind)
     _check_choice('network_measures', 'measure', measure, CENTRALITIES)
     _check_choice('network_measures', 'method', method, METHODS)
     _check_settings(

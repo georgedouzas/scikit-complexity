@@ -14,8 +14,8 @@ import ordpy
 from scipy import stats
 
 from ..errors import AnalysisError
-from ..specs import BaseSpec
-from ..types import Array
+from ..specs import AnalysisTags, BaseSpec
+from ..types import Array, DataKind
 from ._base import SNAPSHOT_DIMENSIONS, _check_choice, _check_settings, _import, _read_fields, _read_series
 from .types import Source
 
@@ -53,6 +53,11 @@ SETTINGS = {
 """Settings every kind reads, besides `kind` and `variables`."""
 
 TIES = ('order', 'random')
+
+TAGS = AnalysisTags(DataKind.SERIES)
+KIND_TAGS = {
+    'ensemble': AnalysisTags(DataKind.ENSEMBLE),
+}
 
 
 @dataclass(frozen=True)

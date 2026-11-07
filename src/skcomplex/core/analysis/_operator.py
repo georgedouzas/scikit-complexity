@@ -18,8 +18,8 @@ from ..engine.compile.passes._operator_compiler import DENSE_LIMIT
 from ..engine.problems import BaseProblemSpec, OperatorProblemSpec
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError, ParameterError
-from ..specs import RunStateSpec, SectorSpec
-from ..types import Array
+from ..specs import AnalysisTags, RunStateSpec, SectorSpec
+from ..types import Array, DataKind
 from ._base import _check_choice, _check_settings, _composite, _read_system
 from .types import Source
 
@@ -34,6 +34,8 @@ SETTINGS = {
 
 DIAGONAL_TOLERANCE = 1e-12
 SECTOR_TOLERANCE = 1e-9
+
+TAGS = AnalysisTags(DataKind.SYSTEM)
 
 
 @dataclass(frozen=True)

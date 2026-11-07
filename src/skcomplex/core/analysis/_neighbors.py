@@ -14,7 +14,8 @@ from scipy.spatial import cKDTree
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..types import Array
+from ..specs import AnalysisTags
+from ..types import Array, DataKind
 from ._base import SNAPSHOT_DIMENSIONS, _check_settings, _read_fields, _read_networks, _read_snapshots
 from .types import Source
 
@@ -25,6 +26,11 @@ SETTINGS = {
     'clark-evans': {'group', 'box'},
     'radial-distribution': {'group', 'box', 'bins', 'r_max'},
     'like-share': {'variables', 'attribute', 'empty', 'diagonal'},
+}
+
+TAGS = AnalysisTags(DataKind.AGENTS)
+KIND_TAGS = {
+    'like-share': AnalysisTags(DataKind.FIELD),
 }
 
 

@@ -12,11 +12,14 @@ from scipy import sparse, stats
 from scipy.spatial import cKDTree
 
 from ..errors import AnalysisError
-from ..types import Array
+from ..specs import AnalysisTags
+from ..types import Array, DataKind
 from ._base import _read_series
 from .types import Source
 
 PAIR_SAMPLE = 200_000
+
+TAGS = AnalysisTags(DataKind.SERIES)
 
 
 @dataclass(frozen=True)

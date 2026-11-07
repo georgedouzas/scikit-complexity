@@ -12,7 +12,8 @@ from scipy import stats
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..types import Array
+from ..specs import AnalysisTags
+from ..types import Array, DataKind
 from ._base import _check_choice, _check_settings, _read_path, _read_series
 from ._markov import _stationary_distribution, _transition_counts
 from .types import Source
@@ -52,6 +53,15 @@ ENSEMBLE_KINDS = (
     'response',
     'fluctuation-dissipation',
 )
+
+TAGS = AnalysisTags(DataKind.PATH)
+KIND_TAGS = {
+    'langevin-entropy-production': AnalysisTags(DataKind.ENSEMBLE),
+    'fluctuation-theorem': AnalysisTags(DataKind.ENSEMBLE),
+    'uncertainty-relation': AnalysisTags(DataKind.ENSEMBLE),
+    'response': AnalysisTags(DataKind.ENSEMBLE),
+    'fluctuation-dissipation': AnalysisTags(DataKind.ENSEMBLE),
+}
 
 
 @dataclass(frozen=True)

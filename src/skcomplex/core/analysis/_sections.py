@@ -14,9 +14,9 @@ from ..engine.problems._event_kernel import EventKernel
 from ..engine.runtime import Simulation
 from ..engine.solvers import Solver
 from ..errors import AnalysisError
-from ..specs import EventRecordSpec
-from ..types import Array, FormKind
-from ._base import _check_choice, _check_settings, _compiled_problem, _composite, _read_system
+from ..specs import AnalysisTags, EventRecordSpec
+from ..types import Array, DataKind, FormKind
+from ._base import _check_choice, _check_settings, _check_tags, _compiled_problem, _composite, _read_system
 from .types import Source
 
 KINDS = ('poincare', 'stroboscopic')
@@ -28,6 +28,8 @@ SETTINGS = {
 
 DIRECTIONS = (-1, 0, 1)
 SECTION = '__section'
+
+TAGS = AnalysisTags(DataKind.SYSTEM, time=frozenset({'continuous'}))
 
 
 @dataclass(frozen=True)
@@ -124,6 +126,9 @@ def section(
             The kind is unknown, a setting the kind does not read is changed, a needed setting is missing, the system
             is not a flow in continuous time, or the state is not a scalar state.
 
+        TagError:
+            The system does not run in continuous time.
+
     Examples:
         >>> from skcomplex.core.analysis import section
         >>> from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
@@ -132,6 +137,7 @@ def section(
     """
     source = _composite(source)
     _check_choice('section', 'kind', kind, KINDS)
+    _check_tags(section, source, kind)
     _check_settings(
         section,
         'kind',

@@ -10,7 +10,8 @@ from dataclasses import dataclass
 import numpy as np
 
 from ..errors import AnalysisError
-from ..types import Array
+from ..specs import AnalysisTags
+from ..types import Array, DataKind
 from ._base import _import, _read_series
 from ._information import _dit_distribution
 from .types import Source
@@ -24,6 +25,8 @@ REDUNDANCIES = {
     'dep': 'PID_dep',
 }
 SERIES = 3
+
+TAGS = AnalysisTags(DataKind.SERIES)
 
 
 @dataclass(frozen=True)

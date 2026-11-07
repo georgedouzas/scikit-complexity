@@ -9,13 +9,16 @@ from dataclasses import dataclass
 import numpy as np
 
 from ..errors import AnalysisError
-from ..types import Array
+from ..specs import AnalysisTags
+from ..types import Array, DataKind
 from ._base import _read_fields
 from .types import Source
 
 FIELD_RANK = 2
 
 CHARGE_TOLERANCE = 1e-6
+
+TAGS = AnalysisTags(DataKind.FIELD)
 
 
 @dataclass(frozen=True)

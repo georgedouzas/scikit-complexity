@@ -20,13 +20,15 @@ from ..components.spaces import BaseTime, ContinuousTime
 from ..components.system import System
 from ..engine.runtime import Simulation
 from ..errors import AnalysisError
-from ..specs import DeclaredVariableSpec, ParameterSpec, SamplesSpec, StateSpec, VisualSpec
-from ..types import Array
+from ..specs import AnalysisTags, DeclaredVariableSpec, ParameterSpec, SamplesSpec, StateSpec, VisualSpec
+from ..types import Array, DataKind
 from ._base import _import, _read_samples
 from .types import Runs
 
 DIFFERENCE_POINTS = 3
 RESERVED_NAMES = frozenset({'label', 'laws', 'visual', 'variables', 'group', 'define'})
+
+TAGS = AnalysisTags(DataKind.SERIES)
 
 
 class _SurrogateElement(DeclaredElement):

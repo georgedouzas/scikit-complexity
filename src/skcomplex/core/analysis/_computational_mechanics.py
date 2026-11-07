@@ -11,9 +11,12 @@ import numpy as np
 from scipy import stats
 
 from ..errors import AnalysisError
-from ..types import Array, IntArray, IntTuple
+from ..specs import AnalysisTags
+from ..types import Array, DataKind, IntArray, IntTuple
 from ._base import _read_series
 from .types import Source
+
+TAGS = AnalysisTags(DataKind.SERIES)
 
 
 @dataclass(frozen=True)

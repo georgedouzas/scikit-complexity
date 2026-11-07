@@ -16,8 +16,9 @@ from ..engine.problems import BaseProblemSpec, ExpressionPrinter, ProblemSpec, S
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..types import Array, VectorFunction
-from ._base import _check_choice, _check_settings, _composite, _read_series, _read_system
+from ..specs import AnalysisTags
+from ..types import Array, DataKind, VectorFunction
+from ._base import _check_choice, _check_settings, _check_tags, _composite, _read_series, _read_system
 from ._stability import _dynamics_of
 from .types import Source
 
@@ -29,6 +30,11 @@ SETTINGS = {
 """Settings every kind reads, besides `kind`."""
 
 FUNCTIONS: dict[str, VectorFunction] = {}
+
+TAGS = AnalysisTags(DataKind.SYSTEM, randomness='deterministic')
+KIND_TAGS = {
+    'largest': AnalysisTags(DataKind.SERIES, randomness='deterministic'),
+}
 
 
 @numba.njit
@@ -203,6 +209,9 @@ def lyapunov(
         AnalysisError:
             The kind is unknown, a setting the kind does not read is changed, or a setting is not positive.
 
+        TagError:
+            The system of the source is stochastic, since the exponents need a deterministic system.
+
     Examples:
         >>> from skcomplex.core.analysis import lyapunov
         >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
@@ -213,6 +222,7 @@ def lyapunov(
     """
     source = _composite(source)
     _check_choice('lyapunov', 'kind', kind, KINDS)
+    _check_tags(lyapunov, source, kind)
     _check_settings(
         lyapunov,
         'kind',

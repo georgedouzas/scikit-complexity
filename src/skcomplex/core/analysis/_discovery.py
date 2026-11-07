@@ -1,11 +1,10 @@
-"""List the analyses that apply to a trajectory, a system, or an array, by the kinds of data it holds."""
+"""List the analyses that apply to a trajectory, a system, or an array, by the tags each analysis needs."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 import inspect
 import sys
-from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
 
@@ -19,7 +18,14 @@ from ..types import DataKind
 from ._alignment import alignment
 from ._autocatalytic import autocatalytic_sets
 from ._automata import automaton
-from ._base import SERIES_DIMENSIONS, _composite, _get_data_kinds, bind_analysis
+from ._base import (
+    SERIES_DIMENSIONS,
+    _composite,
+    _get_analysis_tags,
+    _get_data_kinds,
+    _get_source_tags,
+    bind_analysis,
+)
 from ._cell_complex import cell_complex
 from ._clusters import clusters
 from ._coarse_grain import coarse_grain
@@ -70,78 +76,60 @@ from ._surrogates import surrogate_test
 from ._symbolic import symbolic
 from .types import Source
 
-# The data kind every analysis reads with its default settings, and the kinds of a family that read another.
-DATA_KINDS: dict[Callable[..., object], tuple[DataKind, dict[str, DataKind]]] = {
-    alignment: (DataKind.AGENTS, {}),
-    autocatalytic_sets: (DataKind.NETWORK, {}),
-    automaton: (DataKind.SYSTEM, {}),
-    cell_complex: (DataKind.FIELD, {}),
-    chain_shape: (DataKind.AGENTS, {}),
-    clusters: (DataKind.FIELD, {}),
-    coarse_grain: (DataKind.AGENTS, {}),
-    complexity: (DataKind.SERIES, {}),
-    correlation: (DataKind.FIELD, {'auto': DataKind.SERIES, 'two-time': DataKind.ENSEMBLE}),
-    data_collapse: (DataKind.ENSEMBLE, {}),
-    defects: (DataKind.FIELD, {}),
-    displacement: (DataKind.AGENTS, {}),
-    distribution: (DataKind.SERIES, {'records': DataKind.ENSEMBLE}),
-    domains: (DataKind.FIELD, {}),
-    elementary_modes: (DataKind.SERIES, {}),
-    embedding: (DataKind.SERIES, {}),
-    emergence: (DataKind.SERIES, {'effective-information': DataKind.PATH, 'causal': DataKind.PATH}),
-    entropy: (DataKind.SERIES, {'ensemble': DataKind.ENSEMBLE}),
-    epsilon_machine: (DataKind.SERIES, {}),
-    ergodicity: (
-        DataKind.SERIES,
-        {'breaking': DataKind.ENSEMBLE, 'metric': DataKind.ENSEMBLE, 'distance': DataKind.ENSEMBLE},
-    ),
-    events: (DataKind.SERIES, {'counts': DataKind.PATH}),
-    fit_law: (DataKind.SERIES, {}),
-    information: (DataKind.SERIES, {}),
-    invariants: (DataKind.SYSTEM, {}),
-    irreversibility: (
-        DataKind.PATH,
-        {
-            'langevin-entropy-production': DataKind.ENSEMBLE,
-            'fluctuation-theorem': DataKind.ENSEMBLE,
-            'uncertainty-relation': DataKind.ENSEMBLE,
-            'response': DataKind.ENSEMBLE,
-            'fluctuation-dissipation': DataKind.ENSEMBLE,
-        },
-    ),
-    kramers_moyal: (DataKind.SERIES, {}),
-    large_deviations: (
-        DataKind.PATH,
-        {'block': DataKind.SERIES, 'histogram': DataKind.ENSEMBLE, 'reweight': DataKind.ENSEMBLE},
-    ),
-    linearization: (DataKind.SYSTEM, {}),
-    local_information: (DataKind.SERIES, {}),
-    loops: (DataKind.SYSTEM, {}),
-    lyapunov: (DataKind.SYSTEM, {'largest': DataKind.SERIES}),
-    markov: (DataKind.PATH, {}),
-    mode_decomposition: (DataKind.SERIES, {}),
-    motifs: (DataKind.NETWORK, {}),
-    neighbors: (DataKind.AGENTS, {'like-share': DataKind.FIELD}),
-    network_measures: (DataKind.NETWORK, {}),
-    operator_measures: (DataKind.SYSTEM, {}),
-    partial_information: (DataKind.SERIES, {}),
-    passage: (DataKind.PATH, {'return-times': DataKind.SERIES}),
-    recurrence: (DataKind.SERIES, {}),
-    renormalization: (DataKind.NETWORK, {}),
-    reservoir: (DataKind.SERIES, {}),
-    rolling: (DataKind.SERIES, {}),
-    scaling: (
-        DataKind.SERIES,
-        {'box-counting': DataKind.FIELD, 'variance-mean': DataKind.FIELD, 'power': DataKind.ENSEMBLE},
-    ),
-    section: (DataKind.SYSTEM, {}),
-    signatures: (DataKind.SYSTEM, {}),
-    sparse_identification: (DataKind.SERIES, {}),
-    spectrum: (DataKind.FIELD, {'power': DataKind.SERIES}),
-    stability: (DataKind.SYSTEM, {}),
-    surrogate_test: (DataKind.SERIES, {}),
-    symbolic: (DataKind.SYSTEM, {}),
-}
+ANALYSES = (
+    alignment,
+    autocatalytic_sets,
+    automaton,
+    cell_complex,
+    chain_shape,
+    clusters,
+    coarse_grain,
+    complexity,
+    correlation,
+    data_collapse,
+    defects,
+    displacement,
+    distribution,
+    domains,
+    elementary_modes,
+    embedding,
+    emergence,
+    entropy,
+    epsilon_machine,
+    ergodicity,
+    events,
+    fit_law,
+    information,
+    invariants,
+    irreversibility,
+    kramers_moyal,
+    large_deviations,
+    linearization,
+    local_information,
+    loops,
+    lyapunov,
+    markov,
+    mode_decomposition,
+    motifs,
+    neighbors,
+    network_measures,
+    operator_measures,
+    partial_information,
+    passage,
+    recurrence,
+    renormalization,
+    reservoir,
+    rolling,
+    scaling,
+    section,
+    signatures,
+    sparse_identification,
+    spectrum,
+    stability,
+    surrogate_test,
+    symbolic,
+)
+"""Every analysis of the library, whose module declares the tags it needs."""
 
 
 @dataclass(frozen=True)
@@ -169,7 +157,9 @@ def applicable_analyses(source: Source) -> ApplicableAnalysesResult:
     """Return the analyses that apply to a trajectory, a system, or an array, listed under the kind of data they read.
 
     The kinds of data the source holds are read first. Every analysis of the library that takes no required setting is
-    bound once per kind of a family, and those whose data kind the source holds are kept. A one-dimensional array is one
+    bound once per kind of a family, and those whose data kind the source holds are kept, as the tags the module of
+    every analysis declares give it. When the source is a system, or a trajectory of one, an analysis whose capability
+    tags the system lacks, such as `lyapunov` of a stochastic system, is left out. A one-dimensional array is one
     series, and an array of more dimensions is one field and a set of series, one per column.
 
     Args:
@@ -197,19 +187,20 @@ def applicable_analyses(source: Source) -> ApplicableAnalysesResult:
         readings = {kind: DataKind(kind).reading for kind in kinds}
     else:
         readings = {kind: _get_array_reading(DataKind(kind), np.ndim(source)) for kind in kinds}
+    tags = _get_source_tags(source)
     analyses: dict[str, list[partial[object]]] = {kind: [] for kind in kinds}
-    for function, (default, by_kind) in sorted(DATA_KINDS.items(), key=lambda item: item[0].__name__):
+    for function in ANALYSES:
         parameters = list(inspect.signature(function).parameters.values())[1:]
         if any(parameter.default is inspect.Parameter.empty for parameter in parameters):
             continue
         family = getattr(sys.modules[function.__module__], 'KINDS', None)
         if family is not None and any(parameter.name == 'kind' for parameter in parameters):
-            bound = [(bind_analysis(function, kind=kind), by_kind.get(kind, default)) for kind in family]
+            bound = [(bind_analysis(function, kind=kind), _get_analysis_tags(function, kind)) for kind in family]
         else:
-            bound = [(bind_analysis(function), default)]
-        for analysis, kind in bound:
-            if kind in analyses:
-                analyses[kind].append(analysis)
+            bound = [(bind_analysis(function), _get_analysis_tags(function))]
+        for analysis, needed in bound:
+            if needed.data in analyses and (tags is None or not needed.missing(tags)):
+                analyses[needed.data].append(analysis)
     return ApplicableAnalysesResult(kinds, readings, analyses)
 
 

@@ -11,7 +11,8 @@ import numpy as np
 from scipy import optimize
 
 from ..errors import AnalysisError
-from ..types import Array
+from ..specs import AnalysisTags
+from ..types import Array, DataKind
 from ._base import _check_choice, _check_settings
 from .types import Source
 
@@ -27,6 +28,8 @@ SETTINGS = {
 
 MIN_SIZES = 2
 GRID = 50
+
+TAGS = AnalysisTags(DataKind.ENSEMBLE)
 
 
 @dataclass(frozen=True)

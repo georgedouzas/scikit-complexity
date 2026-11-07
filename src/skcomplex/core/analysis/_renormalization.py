@@ -15,8 +15,9 @@ from scipy.sparse.linalg import expm_multiply
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..types import Array
-from ._base import _check_choice, _check_settings, _read_networks
+from ..specs import AnalysisTags
+from ..types import Array, DataKind
+from ._base import _check_choice, _check_settings, _check_tags, _read_networks
 from ._networks import network_measures
 from .types import Source
 
@@ -34,6 +35,8 @@ TIMES = 200
 SMALLEST_TIME_SCALE = 0.1
 LARGEST_TIME_SCALE = 10.0
 SMALLEST_PEAK = 1e-3
+
+TAGS = AnalysisTags(DataKind.NETWORK, space=frozenset({'network'}))
 
 
 @dataclass(frozen=True)
@@ -122,6 +125,9 @@ def renormalization(
             The kind is unknown, the kind does not read a changed setting, `steps` is below 1, `block` is below 2,
             `time` or `beta` is not positive, or a node has no angle.
 
+        TagError:
+            The system of a trajectory has no network space.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.core.analysis import renormalization
@@ -135,6 +141,7 @@ def renormalization(
         [8, 4, 2]
     """
     _check_choice('renormalization', 'kind', kind, KINDS)
+    _check_tags(renormalization, source, kind)
     _check_settings(
         renormalization,
         'kind',

@@ -20,8 +20,8 @@ from ..engine.compile import ObservableEvaluator
 from ..engine.problems import ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..errors import AnalysisError
-from ..specs import ObservableSpec, SymmetrySpec
-from ..types import VariableKind
+from ..specs import AnalysisTags, ObservableSpec, SymmetrySpec
+from ..types import DataKind, VariableKind
 from ._base import _check_choice, _check_settings, _composite, _read_system
 from ._stability import _dynamics_of
 from .types import Source
@@ -35,6 +35,8 @@ SETTINGS = {
 """Settings every kind reads, besides `kind`."""
 
 TOLERANCE = 1e-9
+
+TAGS = AnalysisTags(DataKind.SYSTEM)
 
 
 @dataclass(frozen=True)

@@ -12,7 +12,8 @@ import scipy.sparse.linalg
 from ..components.spaces import CellComplexSpace
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..types import Array
+from ..specs import AnalysisTags
+from ..types import Array, DataKind
 from ._base import _check_choice
 from .types import Source
 
@@ -20,6 +21,8 @@ KINDS = ('hodge', 'betti', 'curvature')
 DEFAULT_PERIOD = 2 * np.pi
 SOLVER_TOLERANCE = 1e-14
 FLAT_TOLERANCE = 1e-9
+
+TAGS = AnalysisTags(DataKind.FIELD)
 
 
 @dataclass(frozen=True)
