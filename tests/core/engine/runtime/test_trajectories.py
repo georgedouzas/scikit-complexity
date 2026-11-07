@@ -6,7 +6,7 @@ from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.experiments import BaseExperiment
 from skcomplex.systems import create_system
-from skcomplex.systems.biology.ecology import lotka_volterra
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
 
 def test_trajectory_reads_values_by_name():
@@ -20,8 +20,8 @@ def test_trajectory_reads_values_by_name():
 
 def test_member_keeps_the_parameters_of_interactions():
     """Test that a member of a replicated system reads its own states and the shared parameters of interactions."""
-    ensemble = BaseExperiment._replicate(lotka_volterra(), 2, {'prey.n': [20.0, 40.0]})
+    ensemble = BaseExperiment._replicate(LotkaVolterraSystem().prepare().system_, 2, {'prey.n': [20.0, 40.0]})
     trajectory = Simulation(ensemble, dt=0.1).prepare().run(until=1.0).trajectory_
-    member = trajectory.member(1, PassCompiler().prepare(lotka_volterra()).run().problem_)
+    member = trajectory.member(1, PassCompiler().prepare(LotkaVolterraSystem().prepare().system_).run().problem_)
     assert float(member.values('prey.n')[0]) == 40.0
     assert float(member.values('growth.r')[0]) == 1.1

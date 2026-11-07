@@ -18,7 +18,7 @@ from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import MesaSolver
 from skcomplex.core.errors import BackendError, SimulationError, SpaceError
 from skcomplex.core.specs import StateSpec
-from skcomplex.systems.biology.collective_behaviour import boids
+from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 
 RECORDED_BOIDS = 'recorded_boids_two_dimensions.json'
 
@@ -75,7 +75,9 @@ def test_two_dimensional_space_keeps_recorded_trajectories():
     """Test that a system on a two-dimensional continuous space repeats the trajectories recorded before the change."""
     recorded = json.loads((files(__package__) / RECORDED_BOIDS).read_text())
     for _ in range(2):
-        trajectory = Simulation(boids(10), dt=1, random_state=0).prepare().run(until=20).trajectory_
+        trajectory = (
+            Simulation(BoidsSystem(10).prepare().system_, dt=1, random_state=0).prepare().run(until=20).trajectory_
+        )
         for frame, values in recorded.items():
             snapshot = trajectory.agents('flock', int(frame))
             assert snapshot.ids.tolist() == values['ids']

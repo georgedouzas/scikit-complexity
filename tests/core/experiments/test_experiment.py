@@ -13,8 +13,8 @@ from skcomplex.core.components.system import System
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import Experiment, GridDesign, RowsDesign
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
-from skcomplex.systems.biology.ecology import logistic_growth
-from skcomplex.systems.biology.epidemiology import sir
+from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+from skcomplex.systems.biology.epidemiology import SIRSystem
 
 
 class LogisticMapElement(Element):
@@ -70,8 +70,14 @@ def last_value(trajectory):
 
 def test_factory_and_system_give_same_run():
     """Test that factory arguments and dotted paths of a built system give the same run."""
-    by_argument = Experiment(logistic_growth, GridDesign(), {'r': [0.7]}, until=10, outputs=['population.n'])
-    by_path = Experiment(logistic_growth(), GridDesign(), {'growth.r': [0.7]}, until=10, outputs=['population.n'])
+    by_argument = Experiment(LogisticGrowthSystem, GridDesign(), {'r': [0.7]}, until=10, outputs=['population.n'])
+    by_path = Experiment(
+        LogisticGrowthSystem().prepare().system_,
+        GridDesign(),
+        {'growth.r': [0.7]},
+        until=10,
+        outputs=['population.n'],
+    )
     first, second = by_argument.prepare().run().result_, by_path.prepare().run().result_
     assert np.array_equal(first.series('population.n'), second.series('population.n'))
 
@@ -80,7 +86,7 @@ def test_analyses_of_stochastic_sir_replicates():
     """Test that 20 stochastic SIR replicates with a peak analysis give one row per run with the peak of that run."""
     experiment = (
         Experiment(
-            sir,
+            SIRSystem,
             RowsDesign([{'stochastic': True}]),
             replicates=20,
             analyses=[peak],
@@ -103,7 +109,11 @@ def test_analyses_of_stochastic_sir_replicates():
 def test_analyses_of_one_class_are_numbered():
     """Test that two analyses of one function get numbered column prefixes."""
     experiment = (
-        Experiment(sir, analyses=[bind_analysis(peak, variable='I.n'), bind_analysis(peak, variable='S.n')], until=10)
+        Experiment(
+            SIRSystem,
+            analyses=[bind_analysis(peak, variable='I.n'), bind_analysis(peak, variable='S.n')],
+            until=10,
+        )
         .prepare()
         .run()
     )
@@ -117,7 +127,7 @@ def test_serial_and_process_runs_are_identical():
     """Test that 20 stochastic runs with seed 7 and a peak analysis give identical results serially and on processes."""
     results = [
         Experiment(
-            sir,
+            SIRSystem,
             RowsDesign([{'stochastic': True}]),
             replicates=20,
             analyses=[peak],
@@ -149,7 +159,7 @@ def test_ensemble_of_ornstein_uhlenbeck_replicates():
 def test_replicates_are_independent():
     """Test that no two of 20 stochastic replicates have identical trajectories."""
     experiment = Experiment(
-        sir,
+        SIRSystem,
         RowsDesign([{'stochastic': True}]),
         replicates=20,
         until=50,
@@ -173,7 +183,7 @@ def test_orbit_diagram_sweep():
 def test_summary_across_replicates():
     """Test that the summary gives the mean, standard deviation, and quantiles per design row and scenario."""
     experiment = Experiment(
-        sir,
+        SIRSystem,
         GridDesign(),
         {'stochastic': [True], 'gamma': [0.1, 0.2]},
         replicates=5,
@@ -195,17 +205,17 @@ def test_summary_across_replicates():
 def test_zero_replicates_are_rejected():
     """Test that an experiment of zero replicates builds and fails its check with an error naming the replicates."""
     with pytest.raises(ValidationError, match='replicates = 0'):
-        Experiment(sir, replicates=0).prepare()
+        Experiment(SIRSystem, replicates=0).prepare()
 
 
 def test_bounds_without_design_are_rejected():
     """Test that bounds without a design fail the check."""
     with pytest.raises(ValidationError, match='need a design'):
-        Experiment(sir, bounds={'gamma': [0.1]}).prepare()
+        Experiment(SIRSystem, bounds={'gamma': [0.1]}).prepare()
 
 
 def test_unknown_path_is_rejected():
     """Test that an override of a path that is neither a state nor a parameter names the available paths."""
-    experiment = Experiment(logistic_growth, GridDesign(), {'growth.rate': [1.0]}, until=1).prepare()
+    experiment = Experiment(LogisticGrowthSystem, GridDesign(), {'growth.rate': [1.0]}, until=1).prepare()
     with pytest.raises(ValidationError, match=r'growth\.rate is neither a state nor a parameter'):
         experiment.run()

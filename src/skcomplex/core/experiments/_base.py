@@ -6,7 +6,7 @@
 import copy
 import dataclasses
 from abc import ABC, abstractmethod
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 
 import numpy as np
 import numpy.typing as npt
@@ -25,7 +25,7 @@ from ..components.laws import (
     TransitionLaw,
     UpdateLaw,
 )
-from ..components.system import System
+from ..components.system import BaseSystem, System
 from ..engine._utils import declared_variables
 from ..engine.compile import PassCompiler
 from ..engine.compile._probe import probe_laws
@@ -139,12 +139,12 @@ class BaseExperiment(BaseConfig[None, None], ABC):
     An experiment stores its source and settings in `__init__`, validates them and resolves the source and
     what it runs in `prepare`, and runs in `run`, which keeps its results in the attributes that
     end in `_`. A child implements `_prepare` and `_run`, and reads the system with the private methods of the base. A
-    system of the library is passed as its factory, or as a system that `skcomplex.systems.create_system` returns, since
-    experiments do not import the catalog.
+    system of the library is passed as its class, which builds its prepared composite from the factory arguments, or as
+    a system that `skcomplex.systems.create_system` returns, since experiments do not import the catalog.
 
     Examples:
         >>> from skcomplex.core.experiments import BaseExperiment
-        >>> from skcomplex.systems.biology.ecology import logistic_growth
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
         >>> class SystemExperiment(BaseExperiment):
         ...     def __init__(self, source):
         ...         self.source = source
@@ -156,8 +156,8 @@ class BaseExperiment(BaseConfig[None, None], ABC):
         ...         self.factory_ = self._check_source(self.source)
         ...
         ...     def _run(self, inputs):
-        ...         self.system_ = self.factory_()
-        >>> len(SystemExperiment(logistic_growth).prepare().run().system_.elements)
+        ...         self.system_ = self._build(self.factory_, {})
+        >>> len(SystemExperiment(LogisticGrowthSystem).prepare().run().system_.elements)
         1
     """
 
@@ -197,6 +197,24 @@ class BaseExperiment(BaseConfig[None, None], ABC):
         raise ExperimentError(error_msg)
 
     @staticmethod
+    def _build(factory: Callable[..., BaseSystem], arguments: Mapping[str, object]) -> System:
+        """Return the system a factory builds from arguments, the prepared composite of the parts of a system class.
+
+        Args:
+            factory:
+                The factory of systems, such as a system class.
+
+            arguments:
+                The factory arguments.
+
+        Returns:
+            system:
+                The system.
+        """
+        built = factory(**arguments)
+        return built if isinstance(built, System) else built.prepare().system_
+
+    @staticmethod
     def _run_replicated(
         source: Source,
         values: Mapping[str, npt.ArrayLike],
@@ -206,7 +224,7 @@ class BaseExperiment(BaseConfig[None, None], ABC):
     ) -> tuple[Trajectory, System]:
         """Return one run of a source's system replicated once per value of every path, and the original system."""
         factory = BaseExperiment._check_source(source)
-        system = factory if isinstance(factory, System) else factory()
+        system = factory if isinstance(factory, System) else BaseExperiment._build(factory, {})
         size = len(np.asarray(next(iter(values.values()))))
         step = dt if dt is not None else 1.0
         end = until if until is not None else 10.0
@@ -238,7 +256,7 @@ class BaseExperiment(BaseConfig[None, None], ABC):
             built = None
         key = (*key, tuple(map(id, observables or ())))
         if key not in _PROBLEMS:
-            built = built if built is not None else source(**arguments)
+            built = built if built is not None else BaseExperiment._build(source, arguments)
             _PROBLEMS[key] = PassCompiler(observables=list(observables or ())).prepare(built).run().problem_
         return _PROBLEMS[key]
 

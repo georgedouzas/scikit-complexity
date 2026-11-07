@@ -11,7 +11,7 @@ from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import ExperimentError, ValidationError
 from skcomplex.core.experiments import BaseDesign, BaseExperiment, RandomDesign
 from skcomplex.systems import create_system
-from skcomplex.systems.biology.ecology import lotka_volterra
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 from skcomplex.systems.mathematics.dynamical_systems import logistic_map
 from skcomplex.systems.mathematics.stochastic_processes import weakening_ornstein_uhlenbeck
 
@@ -64,10 +64,10 @@ def test_replicate_runs_many_initial_conditions_at_once():
 def test_replicate_runs_systems_with_interactions():
     """Test that member i of replicated predators and prey follows the single system from the i-th initial prey."""
     starts = np.asarray([20.0, 40.0, 60.0])
-    ensemble = BaseExperiment._replicate(lotka_volterra(), 3, {'prey.n': starts})
+    ensemble = BaseExperiment._replicate(LotkaVolterraSystem().prepare().system_, 3, {'prey.n': starts})
     values = np.asarray(Simulation(ensemble, dt=0.1).prepare().run(until=5).trajectory_.values('predators.n'))
     for index, start in enumerate(starts):
-        single = Simulation(lotka_volterra(prey=float(start)), dt=0.1).prepare().run(until=5)
+        single = Simulation(LotkaVolterraSystem(prey=float(start)).prepare().system_, dt=0.1).prepare().run(until=5)
         np.testing.assert_allclose(values[:, index], np.ravel(single.trajectory_.values('predators.n')), rtol=1e-5)
 
 

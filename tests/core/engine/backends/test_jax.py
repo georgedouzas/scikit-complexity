@@ -8,7 +8,7 @@ from skcomplex.core.engine.backends import JaxBackend, NumpyBackend
 from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import BackendError, SolverError
-from skcomplex.systems.biology.ecology import lotka_volterra
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 from skcomplex.systems.mathematics.dynamical_systems import logistic_map
 
 from ....conftest import CallableGrowthInteraction, HoldingElement, _correlated, _weighted
@@ -16,13 +16,14 @@ from ....conftest import CallableGrowthInteraction, HoldingElement, _correlated,
 
 def _final(system, backend, until):
     """Return the last recorded state of a run of a system on a backend."""
-    trajectory = Simulation(system, backend=backend, random_state=0).prepare().run(until=until).trajectory_
+    composite = system if isinstance(system, System) else system.prepare().system_
+    trajectory = Simulation(composite, backend=backend, random_state=0).prepare().run(until=until).trajectory_
     return np.array([trajectory.values(name)[-1] for name in trajectory.names])
 
 
-@pytest.mark.parametrize(('factory', 'until'), [(logistic_map, 50), (lotka_volterra, 20.0)])
+@pytest.mark.parametrize(('factory', 'until'), [(logistic_map, 50), (LotkaVolterraSystem, 20.0)])
 def test_jax_agrees_with_numpy(factory, until):
-    """Test that the JAX backend runs `logistic_map` and `lotka_volterra` as NumPy does, within 1e-10."""
+    """Test that the JAX backend runs `logistic_map` and `LotkaVolterraSystem` as NumPy does, within 1e-10."""
     expected = _final(factory(), NumpyBackend(), until)
     np.testing.assert_allclose(_final(factory(), JaxBackend(), until), expected, atol=1e-10)
 

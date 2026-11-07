@@ -25,8 +25,8 @@ from skcomplex.core.engine.solvers import (
 )
 from skcomplex.core.errors import SolverError, ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
-from skcomplex.systems.biology.ecology import hutchinson
-from skcomplex.systems.biology.physiology import mackey_glass
+from skcomplex.systems.biology.ecology import HutchinsonSystem
+from skcomplex.systems.biology.physiology import MackeyGlassSystem
 from skcomplex.systems.engineering.processes import bathtub
 from skcomplex.systems.physics.mechanics import bouncing_ball, huygens_clocks
 
@@ -127,9 +127,14 @@ def _divergence_rate(tau, until=1500.0, window=100.0):
     Lyapunov exponent while the distance stays small.
     """
     solver = ScipyODESolver(rtol=1e-9, atol=1e-12)
-    first = Simulation(mackey_glass(tau=tau), dt=0.5, solver=solver).prepare().run(until=until).trajectory_
+    first = (
+        Simulation(MackeyGlassSystem(tau=tau).prepare().system_, dt=0.5, solver=solver)
+        .prepare()
+        .run(until=until)
+        .trajectory_
+    )
     second = (
-        Simulation(mackey_glass(x=0.5 + 1e-8, tau=tau), dt=0.5, solver=clone(solver))
+        Simulation(MackeyGlassSystem(x=0.5 + 1e-8, tau=tau).prepare().system_, dt=0.5, solver=clone(solver))
         .prepare()
         .run(until=until)
         .trajectory_
@@ -147,7 +152,12 @@ def test_mackey_glass_is_chaotic_at_seventeen():
 
 def test_mackey_glass_is_periodic_at_six():
     """Test that Mackey-Glass at tau = 6 settles on a periodic orbit whose maxima repeat."""
-    values = Simulation(mackey_glass(tau=6.0), dt=0.1).prepare().run(until=600).trajectory_.values('cells.x')[3000:]
+    values = (
+        Simulation(MackeyGlassSystem(tau=6.0).prepare().system_, dt=0.1)
+        .prepare()
+        .run(until=600)
+        .trajectory_.values('cells.x')[3000:]
+    )
     peaks = values[1:-1][(values[1:-1] > values[:-2]) & (values[1:-1] > values[2:])]
     assert peaks.size > 10
     assert np.ptp(peaks) < 1e-3
@@ -156,7 +166,12 @@ def test_mackey_glass_is_periodic_at_six():
 
 def test_hutchinson_oscillates_above_threshold():
     """Test that the delayed logistic oscillates around K with a stable amplitude when r tau is above pi/2."""
-    values = Simulation(hutchinson(r=1.0, tau=2.0), dt=0.1).prepare().run(until=200).trajectory_.values('population.n')
+    values = (
+        Simulation(HutchinsonSystem(r=1.0, tau=2.0).prepare().system_, dt=0.1)
+        .prepare()
+        .run(until=200)
+        .trajectory_.values('population.n')
+    )
     middle, late = values[1000:1500], values[1500:]
     assert np.ptp(late) > 50
     assert np.ptp(late) == pytest.approx(np.ptp(middle), rel=0.01)
@@ -165,7 +180,12 @@ def test_hutchinson_oscillates_above_threshold():
 
 def test_hutchinson_settles_below_threshold():
     """Test that the delayed logistic settles at K when r tau is below pi/2."""
-    values = Simulation(hutchinson(r=1.0, tau=1.0), dt=0.1).prepare().run(until=200).trajectory_.values('population.n')
+    values = (
+        Simulation(HutchinsonSystem(r=1.0, tau=1.0).prepare().system_, dt=0.1)
+        .prepare()
+        .run(until=200)
+        .trajectory_.values('population.n')
+    )
     assert values[-1] == pytest.approx(100, abs=1e-3)
 
 

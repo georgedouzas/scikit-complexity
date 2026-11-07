@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.analysis import section
 from skcomplex.core.errors import AnalysisError
-from skcomplex.systems.biology.ecology import logistic_growth
+from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.mathematics.dynamical_systems import logistic_map
 from skcomplex.systems.physics.mechanics import harmonic_oscillator
 from skcomplex.systems.physics.nonlinear_oscillators import duffing
@@ -60,7 +60,7 @@ def test_section_rejects_maps_and_unknown_states():
     with pytest.raises(AnalysisError, match='continuous time'):
         _section('stroboscopic', logistic_map(), period=1.0)
     with pytest.raises(AnalysisError, match='not a scalar state'):
-        _section('poincare', logistic_growth(), state='population.r')
+        _section('poincare', LogisticGrowthSystem().prepare().system_, state='population.r')
 
 
 def test_section_needs_its_settings():

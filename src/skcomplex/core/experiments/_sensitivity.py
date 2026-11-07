@@ -112,9 +112,10 @@ def sensitivity(
 
     Examples:
         >>> from skcomplex.core.experiments import Experiment, OneAtATimeDesign, sensitivity
-        >>> from skcomplex.systems.biology.ecology import logistic_growth
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
         >>> bounds = {'growth.r': (0.1, 1.0), 'growth.K': (50, 150)}
-        >>> experiment = Experiment(logistic_growth, OneAtATimeDesign(), bounds, until=20, outputs=['population.n'])
+        >>> design = OneAtATimeDesign()
+        >>> experiment = Experiment(LogisticGrowthSystem, design, bounds, until=20, outputs=['population.n'])
         >>> result = experiment.prepare().run().result_
         >>> sensitivity(result, method='oat', output='population.n').ranking[0]
         'growth.K'
