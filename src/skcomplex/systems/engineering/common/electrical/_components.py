@@ -45,6 +45,8 @@ class TwoPinElement(Element):
             The current into the negative pin.
     """
 
+    law_classes = (EquationLaw,)
+
     ports: ClassVar[Mapping[str, ConnectorSpec]] = {'p': ELECTRICAL, 'n': ELECTRICAL}
 
     def __init__(
@@ -408,6 +410,8 @@ class GroundElement(Element):
         >>> sorted(GroundElement.ports)
         ['p']
     """
+
+    law_classes = (EquationLaw,)
 
     ports: ClassVar[Mapping[str, ConnectorSpec]] = {'p': ELECTRICAL}
 

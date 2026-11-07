@@ -7,19 +7,20 @@ amplitudes stay irregular.
 """
 
 # %%
-# The system is created by name from the catalog with the coupling `k = 0.4`. The default blueprint shows the three
+# The system is built from its class with the coupling `k = 0.4`. The default blueprint shows the three
 # variables of both oscillators.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.engineering.circuits import CoupledColpittsSystem
 
 SYSTEM = 'coupled_colpitts'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
-simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run()
+trajectory = simulate(CoupledColpittsSystem(), observers=[observer])
 
 # %%
 # Phase difference
@@ -30,7 +31,7 @@ simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare(
 
 fig, ax = plt.subplots(figsize=(6, 4))
 for coupling in [0.0, 0.4]:
-    trajectory = create_simulation(SYSTEM, k=coupling).prepare().run(until=400).trajectory_
+    trajectory = simulate(CoupledColpittsSystem(k=coupling), until=400)
     settled = trajectory.times > 100
     phases = []
     for index in range(2):

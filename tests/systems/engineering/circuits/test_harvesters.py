@@ -6,7 +6,7 @@ import pytest
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.systems import describe
 from skcomplex.systems.engineering.circuits import (
-    vibration_energy_harvester,
+    VibrationEnergyHarvesterSystem,
 )
 
 
@@ -14,7 +14,7 @@ def test_vibration_energy_harvester_steady_response():
     """Test that the sprung mass settles on the amplitude of the linear response, and the voltage follows the stroke."""
     trajectory = (
         Simulation(
-            built := vibration_energy_harvester(),
+            built := VibrationEnergyHarvesterSystem().prepare().system_,
             dt=0.01,
             observables=describe('vibration_energy_harvester').observables_of(built),
         )

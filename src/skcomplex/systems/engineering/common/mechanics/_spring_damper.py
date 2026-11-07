@@ -55,6 +55,8 @@ class SpringDamperInteraction(GradientInteraction):
         'k'
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,

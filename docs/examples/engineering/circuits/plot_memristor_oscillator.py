@@ -6,22 +6,22 @@ that has flowed through it, and the voltage oscillates with irregular, never-rep
 """
 
 # %%
-# The system is created by name from the catalog with `C = 1`, `L = 3`, `alpha = 0.6`, and `beta = 1.5`, and runs for
+# The system is built from its class with `C = 1`, `L = 3`, `alpha = 0.6`, and `beta = 1.5`, and runs for
 # 200 time units. The default blueprint shows the voltage, the current, and the memristor state in one time series
 # view.
 
 import matplotlib.pyplot as plt
 
 from skcomplex.core.analysis import lyapunov
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.circuits import MemristorOscillatorSystem
 
 SYSTEM = 'memristor_oscillator'
 
-system = create_system(SYSTEM)
+system = MemristorOscillatorSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=8)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=200)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # A chaotic attractor
@@ -29,7 +29,6 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 # The trajectory should fill a band in the voltage-current plane instead of closing on a cycle, and the largest
 # Lyapunov exponent of the flow should be positive.
 
-trajectory = simulation.trajectory_
 settled = trajectory.times > 20
 exponent = lyapunov(system, n_exponents=1, until=500.0, dt=0.01).exponents[0]
 fig, ax = plt.subplots(figsize=(6, 5))

@@ -6,22 +6,22 @@ other at irregular times: the double-scroll chaotic attractor.
 """
 
 # %%
-# The system is created by name from the catalog with the piecewise-linear diode and its default parameters, and runs
+# The system is built from its class with the piecewise-linear diode and its default parameters, and runs
 # for 100 time units. The default blueprint shows the two capacitor voltages `x` and `y` and the inductor current `z` in
 # one time series view.
 
 import matplotlib.pyplot as plt
 
 from skcomplex.core.analysis import lyapunov
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.circuits import ChuaSystem
 
 SYSTEM = 'chua'
 
-system = create_system(SYSTEM)
+system = ChuaSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=8)
-simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=100)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # The double scroll
@@ -29,7 +29,6 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(unt
 # Projected on the two capacitor voltages, the trajectory should wind around both outer equilibria in two scrolls, and
 # the largest Lyapunov exponent of the flow should be positive.
 
-trajectory = simulation.trajectory_
 settled = trajectory.times > 10
 exponents = lyapunov(system, n_exponents=1, until=300.0, dt=0.01).exponents
 fig, ax = plt.subplots(figsize=(6, 5))

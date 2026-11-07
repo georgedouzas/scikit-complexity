@@ -11,9 +11,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.mechanics import SpringDamperInteraction
 
 
@@ -29,6 +28,8 @@ class PiezoHarvesterElement(Element):
     The element holds the tyre between the unsprung mass and the road, and the system joins the two masses by a
     `SpringDamperInteraction` of the stiffness `k2` and the damping `b`.
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -71,32 +72,14 @@ class PiezoHarvesterElement(Element):
         return [RateLaw(s.y1, -s.k1 * (s.y1 - s.A * sin(s.omega * s.t)) / s.m1)]
 
 
-@register_system(
-    field='engineering/circuits',
-    tags=('energy harvesting', 'piezoelectric', 'vibration', 'vehicles', 'ode'),
-    references=('Trzaska 2023',),
-    defaults={'until': 10.0, 'dt': 0.01},
-    observables=lambda system: [ObservableSpec('voltage', _piezo_voltage)],
-)
-def vibration_energy_harvester(
-    *,
-    m1: float = 40.0,
-    m2: float = 400.0,
-    k1: float = 2.0e5,
-    k2: float = 2.0e4,
-    b: float = 1500.0,
-    A: float = 0.01,
-    omega: float = 9.42,
-    n: float = 10.0,
-    d: float = 4.0e-10,
-    C: float = 1.0e-8,
-) -> System:
-    """Return a dual-mass piezoelectric harvester in a car suspension, driven by the roughness of the road.
+class VibrationEnergyHarvesterSystem(BaseSystem):
+    """A dual-mass piezoelectric harvester in a car suspension, driven by the roughness of the road.
 
-    The unsprung and sprung masses follow `m1 y1'' + b (y1' - y2') + k2 (y1 - y2) + k1 (y1 - z(t)) = 0` and
-    `m2 y2'' + b (y2' - y1') + k2 (y2 - y1) = 0`, with the road profile `z(t) = A sin(ω t)`. A lever with arm ratio
-    `n` presses a piezoelectric bar of constant `d` and capacitance `C`, whose charge is `n d k2 (y2 - y1)` and whose
-    voltage is the observable `voltage`. The damper `b` stands for the energy the bar absorbs.
+    The unsprung and sprung masses follow `m1 y1'' + b (y1' - y2') + k2 (y1 - y2) + k1 (y1 - z(t)) = 0` and `m2 y2'' + b
+    (y2' - y1') + k2 (y2 - y1) = 0`, with the road profile `z(t) = A sin(ω t)`. A lever with arm ratio `n` presses a
+    piezoelectric bar of constant `d` and capacitance `C`, whose charge is `n d k2 (y2 - y1)` and whose voltage is the
+    observable `voltage`. The damper `b` stands for the energy the bar absorbs. The system has the displacements
+    `harvester.y1` and `harvester.y2`, and the observable `voltage`.
 
     Args:
         m1:
@@ -129,22 +112,70 @@ def vibration_energy_harvester(
         C:
             The capacitance of the bar.
 
-    Returns:
-        system:
-            The system, with the displacements `harvester.y1` and `harvester.y2`, and the observable `voltage`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.circuits import vibration_energy_harvester
-        >>> vibration_energy_harvester(b=1000.0).elements[0].b
+        >>> from skcomplex.systems.engineering.circuits import VibrationEnergyHarvesterSystem
+        >>> VibrationEnergyHarvesterSystem(b=1000.0).prepare().system_.elements[0].b
         1000.0
     """
-    harvester = PiezoHarvesterElement('harvester', m1=m1, m2=m2, k1=k1, k2=k2, b=b, A=A, omega=omega, n=n, d=d, C=C)
-    suspension = SpringDamperInteraction(
-        'suspension',
-        target='harvester',
-        states=('y1', 'y2'),
-        stiffness='k2',
-        damping='b',
-        divisor={'y1': 'm1', 'y2': 'm2'},
-    )
-    return System(elements=[harvester], interactions=[suspension])
+
+    field = 'engineering/circuits'
+    topics = ('energy harvesting', 'piezoelectric', 'vibration', 'vehicles', 'ode')
+    references = ('Trzaska 2023',)
+    until = 10.0
+    dt = 0.01
+    observables = (ObservableSpec('voltage', _piezo_voltage),)
+
+    def __init__(
+        self,
+        *,
+        m1: float = 40.0,
+        m2: float = 400.0,
+        k1: float = 2.0e5,
+        k2: float = 2.0e4,
+        b: float = 1500.0,
+        A: float = 0.01,
+        omega: float = 9.42,
+        n: float = 10.0,
+        d: float = 4.0e-10,
+        C: float = 1.0e-8,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.m1 = m1
+        self.m2 = m2
+        self.k1 = k1
+        self.k2 = k2
+        self.b = b
+        self.A = A
+        self.omega = omega
+        self.n = n
+        self.d = d
+        self.C = C
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        harvester = PiezoHarvesterElement(
+            'harvester',
+            m1=self.m1,
+            m2=self.m2,
+            k1=self.k1,
+            k2=self.k2,
+            b=self.b,
+            A=self.A,
+            omega=self.omega,
+            n=self.n,
+            d=self.d,
+            C=self.C,
+        )
+        suspension = SpringDamperInteraction(
+            'suspension',
+            target='harvester',
+            states=('y1', 'y2'),
+            stiffness='k2',
+            damping='b',
+            divisor={'y1': 'm1', 'y2': 'm2'},
+        )
+        return System(self.label, elements=[harvester], interactions=[suspension])

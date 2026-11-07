@@ -13,9 +13,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import where
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class ColpittsOscillatorElement(Element):
@@ -64,6 +63,8 @@ class ColpittsOscillatorElement(Element):
         >>> ColpittsOscillatorElement('oscillator').a
         30.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -159,29 +160,17 @@ class ColpittsCouplingInteraction(RateInteraction):
         return rate
 
 
-@register_system(
-    field='engineering/circuits',
-    tags=('circuit', 'synchronization', 'chaos', 'ode'),
-    references=('Kennedy 1994', 'Datseris and Parlitz 2022'),
-    defaults={'until': 500.0, 'dt': 0.05},
-)
-def coupled_colpitts(
-    k: float = 0.4,
-    *,
-    omegas: tuple[float, float] = (1.02, 0.98),
-    a: float = 30.0,
-    b: float = 1.0,
-    c: float = 20.0,
-    d: float = 1.0,
-    epsilon: float = 1.0,
-) -> System:
-    """Return two detuned chaotic Colpitts oscillators coupled through the difference of their second variables.
+class CoupledColpittsSystem(BaseSystem):
+    """Two detuned chaotic Colpitts oscillators coupled through the difference of their second variables.
 
     Oscillator `i` follows `x' = omega_i y - a F(z)`, `y' = c - omega_i x - z - b y + k (y_j - y_i)`, and
     `z' = epsilon (y - d)`, with the transistor characteristic `F(z) = max(0, -1 - z)`. The phase of an oscillator
     is the angle of its orbit in the plane of `y` and `z`, around the means of both. Without coupling the two
     oscillators run at different mean frequencies and their phases drift apart, while for `k` near 0.3 to 0.5 their
     phases lock although their amplitudes stay irregular.
+
+    The system has the states `oscillator_0.x`, `oscillator_0.y`, `oscillator_0.z`, and the same states of
+    `oscillator_1`.
 
     Args:
         k:
@@ -205,34 +194,62 @@ def coupled_colpitts(
         epsilon:
             The time scale of the third variable.
 
-    Returns:
-        system:
-            The system, with the states `oscillator_0.x`, `oscillator_0.y`, `oscillator_0.z`, and the same states of
-            `oscillator_1`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.circuits import coupled_colpitts
-        >>> [element.omega for element in coupled_colpitts().elements]
+        >>> from skcomplex.systems.engineering.circuits import CoupledColpittsSystem
+        >>> [element.omega for element in CoupledColpittsSystem().prepare().system_.elements]
         [1.02, 0.98]
     """
-    starts = ((0.1, 0.0, 0.0), (0.0, 0.1, 0.2))
-    oscillators = [
-        ColpittsOscillatorElement(
-            f'oscillator_{index}',
-            x=start[0],
-            y=start[1],
-            z=start[2],
-            omega=omega,
-            a=a,
-            b=b,
-            c=c,
-            d=d,
-            epsilon=epsilon,
-        )
-        for index, (omega, start) in enumerate(zip(omegas, starts, strict=True))
-    ]
-    couplings = [
-        ColpittsCouplingInteraction(f'coupling_{target}', source=source, target=target, k=k)
-        for source, target in (('oscillator_1', 'oscillator_0'), ('oscillator_0', 'oscillator_1'))
-    ]
-    return System(elements=oscillators, interactions=couplings)
+
+    field = 'engineering/circuits'
+    topics = ('circuit', 'synchronization', 'chaos', 'ode')
+    references = ('Kennedy 1994', 'Datseris and Parlitz 2022')
+    until = 500.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        k: float = 0.4,
+        *,
+        omegas: tuple[float, float] = (1.02, 0.98),
+        a: float = 30.0,
+        b: float = 1.0,
+        c: float = 20.0,
+        d: float = 1.0,
+        epsilon: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.k = k
+        self.omegas = omegas
+        self.a = a
+        self.b = b
+        self.c = c
+        self.d = d
+        self.epsilon = epsilon
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        starts = ((0.1, 0.0, 0.0), (0.0, 0.1, 0.2))
+        oscillators = [
+            ColpittsOscillatorElement(
+                f'oscillator_{index}',
+                x=start[0],
+                y=start[1],
+                z=start[2],
+                omega=omega,
+                a=self.a,
+                b=self.b,
+                c=self.c,
+                d=self.d,
+                epsilon=self.epsilon,
+            )
+            for index, (omega, start) in enumerate(zip(self.omegas, starts, strict=True))
+        ]
+        couplings = [
+            ColpittsCouplingInteraction(f'coupling_{target}', source=source, target=target, k=self.k)
+            for source, target in (('oscillator_1', 'oscillator_0'), ('oscillator_0', 'oscillator_1'))
+        ]
+        return System(self.label, elements=oscillators, interactions=couplings)
