@@ -4,14 +4,267 @@
 # License: MIT
 
 
+from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import Expression, exp, oo
+from sage.sets.real_set import RealSet
+
+from ....core.components.interactions import Interaction, JumpInteraction, RateInteraction
+from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
+from ....core.components.laws.utils import clip
 from ....core.components.system import System
 from ....core.engine.solvers import ScipyODESolver
+from ....core.specs import ParameterSpec, RoleSpec
 from ..._catalog import register_system
 from ..common.populations import ExponentialGrowthInteraction, MortalityInteraction, PopulationElement
-from ._parasitism import ParasitismInteraction
 from ._predation_interaction import PredationInteraction
-from ._predator_prey_events import PredatorPreyEventsInteraction
-from ._rosenzweig_macarthur import RosenzweigMacArthurInteraction
+
+
+class ParasitismInteraction(Interaction):
+    """Nicholson-Bailey parasitism of hosts by parasitoids in discrete generations.
+
+    Parasitoids search at random, so a host escapes with probability `exp(-a P)`, giving `H' = k H exp(-a P)` and
+    `P' = c H (1 - exp(-a P))`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        host:
+            The path of the host population `H`.
+
+        parasitoid:
+            The path of the parasitoid population `P`.
+
+        k:
+            The reproductive rate of the hosts.
+
+        a:
+            The searching efficiency of the parasitoids.
+
+        c:
+            The number of viable eggs a parasitoid lays in a host.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import ParasitismInteraction
+        >>> ParasitismInteraction('parasitism', host='moths', parasitoid='wasps', k=2.0).k
+        2.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        host: Annotated[str, RoleSpec()],
+        parasitoid: Annotated[str, RoleSpec()],
+        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        a: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05,
+        c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.host = host
+        self.parasitoid = parasitoid
+        self.k = k
+        self.a = a
+        self.c = c
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the next generations `k H exp(-a P)` and `c H (1 - exp(-a P))`.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        hosts, parasitoids = s.host.n, s.parasitoid.n
+        escape = exp(-s.a * parasitoids)
+        return [UpdateLaw(hosts, s.k * hosts * escape), UpdateLaw(parasitoids, s.c * hosts * (1 - escape))]
+
+
+class PredatorPreyEventsInteraction(Interaction):
+    """Births, crowding, saturating predation, and deaths of prey and predators as events of single individuals.
+
+    Prey are born at the rate `r x` and die of crowding at the rate `r x^2 / K`. Predators kill prey at the Holling
+    type II rate `a x y / (1 + a h x)`, are born at `e` times that rate, and die at the rate `m y`. In deterministic
+    mode the rates drive the populations as differential equations.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        prey:
+            The path of the prey population `x`.
+
+        predators:
+            The path of the predator population `y`.
+
+        r:
+            The birth rate of the prey.
+
+        K:
+            The carrying capacity of the prey.
+
+        a:
+            The attack rate.
+
+        h:
+            The handling time.
+
+        e:
+            The number of predators born per prey eaten.
+
+        m:
+            The death rate of the predators.
+
+        stochastic:
+            Whether births, deaths, and kills are random events.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import PredatorPreyEventsInteraction
+        >>> PredatorPreyEventsInteraction('events', prey='voles', predators='weasels', K=200.0).K
+        200.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        prey: Annotated[str, RoleSpec()],
+        predators: Annotated[str, RoleSpec()],
+        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 200.0,
+        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
+        h: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        e: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        m: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        stochastic: bool = True,
+    ) -> None:
+        super().__init__(label)
+        self.prey = prey
+        self.predators = predators
+        self.r = r
+        self.K = K
+        self.a = a
+        self.h = h
+        self.e = e
+        self.m = m
+        self.stochastic = stochastic
+
+    def _get_change(self, member: SimpleNamespace, step: int, propensity: Expression) -> Sequence[BaseLaw]:
+        """Return the laws that change the population of a member by a step at a propensity.
+
+        In stochastic mode the change is a jump of one individual, and otherwise a rate of the step times the
+        propensity.
+        """
+        change: Interaction = (
+            JumpInteraction(self.label, target='member', changes={'n': step}, rate=lambda _: propensity)
+            if self.stochastic
+            else RateInteraction(self.label, target='member', state='n', rate=lambda _: step * propensity)
+        )
+        return change.prepare().run(SimpleNamespace(target=member)).laws_
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the five channels of births and deaths.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        prey, predators = s.prey, s.predators
+        x, y = prey.n, predators.n
+        kills = s.a * x * y / (1 + s.a * s.h * x)
+        return [
+            *self._get_change(prey, 1, s.r * x),
+            *self._get_change(prey, -1, s.r * x**2 / s.K),
+            *self._get_change(prey, -1, kills),
+            *self._get_change(predators, 1, s.e * kills),
+            *self._get_change(predators, -1, s.m * y),
+        ]
+
+
+class RosenzweigMacArthurInteraction(Interaction):
+    """Rosenzweig-MacArthur predation of fast prey by slow predators, whose prey crowding grows at a constant rate.
+
+    In units of the predators' time scale, `kappa dx/dt = x (1 - phi x) - x y / (1 + eta x)` and
+    `dy/dt = x y / (1 + eta x) - y`. The crowding `phi`, the inverse of the prey's carrying capacity, rises at the rate
+    `rate` from `phi` to `phi_end` and stays there.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        prey:
+            The path of the prey population `x`.
+
+        predators:
+            The path of the predator population `y`.
+
+        kappa:
+            The ratio of the time scales of the prey and the predators.
+
+        eta:
+            The handling time of the predators.
+
+        phi:
+            The initial crowding of the prey.
+
+        phi_end:
+            The final crowding of the prey.
+
+        rate:
+            The rate at which the crowding rises.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import RosenzweigMacArthurInteraction
+        >>> RosenzweigMacArthurInteraction('predation', prey='prey', predators='predators', rate=0.01).rate
+        0.01
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        prey: Annotated[str, RoleSpec()],
+        predators: Annotated[str, RoleSpec()],
+        kappa: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
+        eta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+        phi: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        phi_end: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.prey = prey
+        self.predators = predators
+        self.kappa = kappa
+        self.eta = eta
+        self.phi = phi
+        self.phi_end = phi_end
+        self.rate = rate
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rates of the prey and the predators under the ramp of the crowding.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        x, y = s.prey.n, s.predators.n
+        crowding = clip(s.phi + s.rate * s.t, high=s.phi_end)
+        feeding = x * y / (1 + s.eta * x)
+        return [RateLaw(x, (x * (1 - crowding * x) - feeding) / s.kappa), RateLaw(y, feeding - y)]
 
 
 @register_system(

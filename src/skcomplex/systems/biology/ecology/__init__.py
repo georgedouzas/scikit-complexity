@@ -1,22 +1,25 @@
 """Ecology: population growth, predation, competition, food webs, succession, grazing, and neutral communities."""
 
-from ._abundance import AbundanceElement
-from ._agent_predation import agent_based_lotka_volterra
+from ._agent_predation import PredatorElement, PreyElement, agent_based_lotka_volterra
 from ._cell_quota import QuotaPhytoplanktonElement, droop_cell_quota
-from ._clustering import neutral_clustering
+from ._clustering import HabitatPatchElement, HoppingInteraction, neutral_clustering
 from ._comets import comets
-from ._communities import competition, food_webs, mutualism
+from ._communities import CompetitionInteraction, MutualismInteraction, competition, food_webs, mutualism
 from ._community_fba import community_fba
-from ._competition import CompetitionInteraction
-from ._consumer import ConsumerElement
-from ._consumer_growth import ConsumerGrowthInteraction
-from ._consumer_resources import consumer_resource
-from ._consumption import ConsumptionInteraction
-from ._cow import CowElement
+from ._consumer_resources import (
+    ConsumerElement,
+    ConsumerGrowthInteraction,
+    ConsumptionInteraction,
+    ResourceElement,
+    ResourceTurnoverInteraction,
+    consumer_resource,
+)
 from ._dynamic_multispecies_fba import dynamic_multispecies_fba
-from ._emotion_marks import EmotionMarksElement
 from ._factories import (
     RabbitsElement,
+    RickerGrowthInteraction,
+    SeasonalLogisticGrowthInteraction,
+    ShrimpElement,
     exponential_growth,
     fibonacci_rabbits,
     hutchinson,
@@ -26,52 +29,35 @@ from ._factories import (
     ricker,
     varying_capacity_logistic,
 )
-from ._forager import ForagerElement
 from ._forest_size_structure import forest_size_structure
 from ._fronts import FisherKPPElement, fisher_kpp
-from ._generalized_lotka_volterra import GeneralizedLotkaVolterraInteraction
-from ._grass import GrassElement
-from ._grazing import GrazingInteraction
-from ._habitat_patch import HabitatPatchElement
-from ._herding import HerdingInteraction
-from ._higher_order import higher_order_random_lotka_volterra
-from ._hopping import HoppingInteraction
+from ._higher_order import TripletInteraction, higher_order_random_lotka_volterra
 from ._instability import UnstablePopulationsElement, intrinsic_instability
-from ._linear_growth import LinearGrowthInteraction
-from ._meadow import meadow_capacity
-from ._microbe import MicrobeElement
-from ._microbial_communities import generalized_lotka_volterra
-from ._mutualism import MutualismInteraction
+from ._meadow import CowElement, GrazingInteraction, HerdingInteraction, PastureElement, meadow_capacity
+from ._microbial_communities import GeneralizedLotkaVolterraInteraction, MicrobeElement, generalized_lotka_volterra
 from ._neutral import NeutralSpeciesElement, neutral_macroecology
-from ._neutral_replacement import NeutralReplacementInteraction
-from ._organism import OrganismElement
-from ._parasitism import ParasitismInteraction
-from ._pasture import PastureElement
-from ._pioneer_growth import PioneerGrowthInteraction
-from ._plant import PlantElement
-from ._predation import lotka_volterra_with_harvesting, nicholson_bailey, rosenzweig_macarthur, stochastic_predator_prey
+from ._predation import (
+    ParasitismInteraction,
+    PredatorPreyEventsInteraction,
+    RosenzweigMacArthurInteraction,
+    lotka_volterra_with_harvesting,
+    nicholson_bailey,
+    rosenzweig_macarthur,
+    stochastic_predator_prey,
+)
 from ._predation_interaction import PredationInteraction
-from ._predator import PredatorElement
-from ._predator_prey_events import PredatorPreyEventsInteraction
-from ._prey import PreyElement
-from ._resource import ResourceElement
-from ._resource_turnover import ResourceTurnoverInteraction
-from ._ricker_growth import RickerGrowthInteraction
-from ._rosenzweig_macarthur import RosenzweigMacArthurInteraction
-from ._seasonal_logistic_growth import SeasonalLogisticGrowthInteraction
-from ._sequential import sequentially_linear_ecosystem
-from ._sheep import SheepElement
-from ._shrimp import ShrimpElement
-from ._speciation import neutral_biodiversity
-from ._stand import StandElement
-from ._stigmergic_predator import StigmergicPredatorElement
-from ._stigmergic_prey import StigmergicPreyElement
-from ._stigmergy import stigmergic_predator_prey
-from ._succession import mangrove_succession
-from ._successional_growth import SuccessionalGrowthInteraction
-from ._triplet import TripletInteraction
-from ._wolf import WolfElement
-from ._wolf_sheep import wolf_sheep
+from ._sequential import AbundanceElement, LinearGrowthInteraction, sequentially_linear_ecosystem
+from ._speciation import NeutralReplacementInteraction, OrganismElement, neutral_biodiversity
+from ._stigmergy import (
+    EmotionMarksElement,
+    ForagerElement,
+    PlantElement,
+    StigmergicPredatorElement,
+    StigmergicPreyElement,
+    stigmergic_predator_prey,
+)
+from ._succession import PioneerGrowthInteraction, StandElement, SuccessionalGrowthInteraction, mangrove_succession
+from ._wolf_sheep import GrassElement, SheepElement, WolfElement, wolf_sheep
 
 __all__: list[str] = [
     'AbundanceElement',

@@ -4,16 +4,266 @@
 # License: MIT
 
 
-import numpy as np
+from types import SimpleNamespace
+from typing import Annotated, cast
 
-from ....core.components.elements import GroupElement
+import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import MovementInteraction, TransferInteraction
+from ....core.components.laws import BaseLaw, RuleLaw, Sink
 from ....core.components.spaces import LatticeSpace
 from ....core.components.system import System
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.engine.solvers import AgentView, SystemView
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._cow import CowElement
-from ._grazing import GrazingInteraction
-from ._herding import HerdingInteraction
-from ._pasture import PastureElement
+
+
+class CowView(AgentView):
+    """View of a cow, with its parameters as attributes.
+
+    `CowElement` names this class with `_get_view`, so its rules read them with checked types.
+    """
+
+    bite: float
+
+
+class CowElement(Element):
+    """Cow of the meadow, which the grazing and herding interactions feed and move every week.
+
+    Args:
+        label:
+            The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        bite:
+            The grass a cow eats in a week.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.systems.biology.ecology import CowElement
+        >>> GroupElement('cows', element=CowElement, size=10).size
+        10
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'radius': 0.4}),
+        *,
+        bite: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.75,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.bite = bite
+
+    @classmethod
+    def _get_view(cls) -> type[CowView]:
+        """Return the view of a cow, `CowView`."""
+        return CowView
+
+
+class PastureView(AgentView):
+    """View of a patch of pasture, with its states and parameters as attributes.
+
+    `PastureElement` names this class with `_get_view`, so its rules read them with checked types.
+    """
+
+    grass: float
+    growth: float
+
+
+class PastureElement(Element):
+    """Patch of grass that regrows logistically every week, `G' = G + g G (1 - G)`.
+
+    Args:
+        label:
+            The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        grass:
+            The amount of grass, between 0 and 1.
+
+        growth:
+            The weekly growth rate `g` of the grass.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.systems.biology.ecology import PastureElement
+        >>> GroupElement('pasture', element=PastureElement, size=4, values={'growth': 0.1}).size
+        4
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'grass', 'color_range': (0.0, 1.0)}),
+        *,
+        grass: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        growth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.grass = grass
+        self.growth = growth
+
+    @classmethod
+    def _get_view(cls) -> type[PastureView]:
+        """Return the view of a patch of pasture, `PastureView`."""
+        return PastureView
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the regrowth rule.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return [RuleLaw(self.regrow)]
+
+    def regrow(self, agent: PastureView, system: SystemView) -> None:
+        """Grow the grass by one week of logistic growth.
+
+        Args:
+            agent:
+                The patch.
+
+            system:
+                The system.
+        """
+        del system
+        agent.grass += agent.growth * agent.grass * (1 - agent.grass)
+
+
+class GrazingInteraction(TransferInteraction):
+    """Weekly meal of every cow, which eats its bite of the grass of the patch in its cell.
+
+    It is a transfer of the grass of every patch, the bite of the cow in its cell or what grass is left, to the
+    environment.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        cows:
+            The path of the group of cows.
+
+        pasture:
+            The path of the group of patches.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import GrazingInteraction
+        >>> GrazingInteraction('grazing', cows='cows', pasture='pasture').pasture
+        'pasture'
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        cows: Annotated[str, RoleSpec()],
+        pasture: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(
+            label,
+            source=pasture,
+            target=cows,
+            state='grass',
+            into=Sink(),
+            amount=self._get_bite,
+            pairing='cell',
+            form='agent',
+        )
+        self.cows = cows
+        self.pasture = pasture
+
+    def _get_role(self, role: str) -> str:
+        """Return the patches as the source of the grass and the cows as its target."""
+        return {'source': 'pasture', 'target': 'cows'}.get(role, role)
+
+    @staticmethod
+    def _get_bite(patch: AgentViewProtocol, cow: AgentViewProtocol, system: SystemViewProtocol) -> float:
+        """Return the grass a cow eats from the patch of its cell, its bite or what grass is left."""
+        del system
+        return min(cast(PastureView, patch).grass, cast(CowView, cow).bite)
+
+
+class HerdingInteraction(MovementInteraction):
+    """Weekly move of every cow, in random order, to the nearest free patch with enough grass, or death.
+
+    It is a movement of the cows whose step leads every cow to the patch nearest to it that no other cow occupies and
+    whose grass reaches `threshold`, and removes a cow that finds none. Every cow moves every week, the probability
+    of movement fixed to 1 without a parameter.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        cows:
+            The path of the group of cows.
+
+        pasture:
+            The path of the group of patches.
+
+        threshold:
+            The least grass a patch needs for a cow to move there.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import HerdingInteraction
+        >>> HerdingInteraction('herding', cows='cows', pasture='pasture').threshold
+        0.9
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        cows: Annotated[str, RoleSpec()],
+        pasture: Annotated[str, RoleSpec()],
+        threshold: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
+    ) -> None:
+        super().__init__(label, target=cows, step=self._herd)
+        self.cows = cows
+        self.pasture = pasture
+        self.threshold = threshold
+
+    def _get_role(self, role: str) -> str:
+        """Return the cows as the target of the movement."""
+        return 'cows' if role == 'target' else role
+
+    @staticmethod
+    def _cell(agent: AgentViewProtocol) -> tuple[int, ...]:
+        """Return the cell of an agent as a tuple of integers."""
+        location = agent.location
+        if not isinstance(location, tuple):
+            error_msg = (
+                f'The agent is located at a {type(location).__name__}, not at the coordinates of a lattice cell.'
+            )
+            raise TypeError(error_msg)
+        return tuple(int(item) for item in location)
+
+    def _herd(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> tuple[int, ...] | None:
+        """Return the cell of the nearest free patch with enough grass, or remove the cow that finds none."""
+        patches = [cast(PastureView, patch) for patch in system.agents('pasture')]
+        cells = [self._cell(patch) for patch in patches]
+        index = {cell: number for number, cell in enumerate(cells)}
+        occupied = np.zeros(len(cells), dtype=bool)
+        occupied[[index[self._cell(cow)] for cow in system.agents('cows') if cow.alive and cow.id != agent.id]] = True
+        free = (np.asarray([patch.grass for patch in patches]) >= system.parameter('threshold')) & ~occupied
+        if not free.any():
+            agent.remove()
+            return None
+        distances = np.hypot(*(np.asarray(cells, dtype=float) - np.asarray(self._cell(agent), dtype=float)).T)
+        return cells[int(np.argmin(np.where(free, distances, np.inf)))]
 
 
 @register_system(
