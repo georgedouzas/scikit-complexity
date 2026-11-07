@@ -56,9 +56,14 @@ nav:
       - Analyse: overview/user_guide/analyse.md
       - Run experiments: overview/user_guide/run_experiments.md
       - Extend the library: overview/user_guide/extend_the_library.md
-    - Compatibility: overview/compatibility.md
     - Changelog: overview/changelog.md
     - License: overview/license.md
+  - Parts:
+    - Elements: parts/elements.md
+    - Interactions: parts/interactions.md
+    - Laws: parts/laws.md
+    - Solvers: parts/solvers.md
+    - Backends: parts/backends.md
   - Systems: systems/
   - API: api/
   - Examples:
@@ -135,7 +140,7 @@ plugins:
       scripts:
       - docs/generate_api.py
       - docs/generate_systems.py
-      - docs/generate_compatibility.py
+      - docs/generate_parts.py
   - literate-nav:
       nav_file: SUMMARY.md
   - section-index

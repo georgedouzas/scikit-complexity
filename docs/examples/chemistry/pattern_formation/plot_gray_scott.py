@@ -12,16 +12,14 @@ domain with a pattern of separate spots, while the substrate `u` is used up wher
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
 
 SYSTEM = 'gray_scott'
 
-system = create_system(SYSTEM, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='cells/v', interval=2)
-simulation = Simulation(system, dt=20.0, solver=RK4Solver(dt=1.0), observers=[observer]).prepare().run(until=10000)
+trajectory = simulate(GrayScottSystem(random_state=0), until=10000, observers=[observer])
 
 # %%
 # Final pattern and its radial power spectrum
@@ -30,7 +28,7 @@ simulation = Simulation(system, dt=20.0, solver=RK4Solver(dt=1.0), observers=[ob
 # average should show a peak at the wavenumber of the spot spacing, beyond the low wavenumbers of the round outline
 # of the patterned region.
 
-v = simulation.trajectory_.lattice('cells.v')[-1]
+v = trajectory.lattice('cells.v')[-1]
 power = np.abs(np.fft.fftshift(np.fft.fft2(v - v.mean()))) ** 2
 size = v.shape[0]
 radius = np.hypot(*np.indices(v.shape) - size // 2).astype(int)

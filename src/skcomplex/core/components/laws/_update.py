@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import ClassVar
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec, TopologyRequestSpec
@@ -68,6 +69,8 @@ class UpdateLaw(BaseLaw):
         >>> UpdateLaw(x, x + 1, phase='imitate').phase
         'imitate'
     """
+
+    law_tag: ClassVar[str] = 'update'
 
     def __init__(
         self,

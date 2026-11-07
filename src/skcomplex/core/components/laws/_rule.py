@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
+from typing import ClassVar
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec
@@ -40,6 +41,8 @@ class RuleLaw(BaseLaw):
         >>> moved
         ['walker']
     """
+
+    law_tag: ClassVar[str] = 'update'
 
     def __init__(
         self,

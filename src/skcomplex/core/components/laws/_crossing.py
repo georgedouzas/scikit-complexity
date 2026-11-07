@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping
+from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -47,6 +48,8 @@ class CrossingLaw(BaseLaw):
         >>> law.run({'z': -2.0}).value_
         {z: 1.6}
     """
+
+    law_tag: ClassVar[str] = 'update'
 
     def __init__(
         self,

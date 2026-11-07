@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression
 
@@ -51,6 +52,8 @@ class EquationLaw(BaseLaw):
         >>> EquationLaw(l * theta.diff(t, 2) == -g * sin(theta)).prepare().rhs_
         -g*sin(theta(t))
     """
+
+    law_tag: ClassVar[str] = 'equation'
 
     def __init__(self, lhs: object, rhs: object = None, *, target: object = None, label: str = '') -> None:
         super().__init__(label)

@@ -7,11 +7,13 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from types import SimpleNamespace
+from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
 
 from ...errors import SpaceError
+from ...specs import Tags
 from ..base import BasePart
 
 
@@ -75,6 +77,12 @@ class BaseSpace(BasePart[None, SimpleNamespace]):
         default_visual_:
             The name of the visual of groups on the space when neither the group nor its element sets one, or `None`.
     """
+
+    space_tags: ClassVar[tuple[str, ...]] = ()
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the space: the first space tag of its class, and no laws."""
+        return Tags(space=frozenset(self.space_tags[:1]))
 
     def _run(self, inputs: SimpleNamespace | None) -> None:
         """Run nothing, since a space contributes no laws to a system."""
@@ -208,6 +216,12 @@ class BaseTime(BasePart[None, SimpleNamespace]):
         schedule_:
             The schedule of a discrete time, or `None`.
     """
+
+    time_tag: ClassVar[str] = ''
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the time: the time tag of its class, and no laws."""
+        return Tags(time=frozenset({self.time_tag} - {''}))
 
     def _run(self, inputs: SimpleNamespace | None) -> None:
         """Run nothing, since a time contributes no laws to a system."""

@@ -5,6 +5,7 @@
 
 import re
 from pathlib import Path
+from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -87,6 +88,8 @@ class CayleySpace(BaseSpace):
         >>> space.size_, space.words_[:4], space.ball_sizes_
         (6, ['1', 'a', 'b', 'b^-1'], [1, 4, 6, 6])
     """
+
+    space_tags: ClassVar[tuple[str, ...]] = ('lattice',)
 
     def __init__(
         self,

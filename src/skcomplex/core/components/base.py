@@ -14,7 +14,8 @@ from typing import Self
 
 from ..base import BaseConfig
 from ..errors import ValidationError
-from ..specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, Spec, StateSpec
+from ..specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, Spec, StateSpec, Tags
+from ..specs._tags import STOCHASTIC_LAWS
 
 
 class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
@@ -33,6 +34,11 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
 
     A part declares which arguments of its constructor are states, parameters, or roles by annotating them with
     `Annotated` and a `StateSpec`, a `ParameterSpec`, or a `RoleSpec`, and `prepare` validates every declared spec.
+
+    A part returns its capability tags from `get_tags()`, which reads only its declarations and its arguments, so the
+    tags are known before `prepare`. Each family derives them in the private hook `_get_tags()`: an element from its
+    state specs, a space and a time from their class, a law from its class, an interaction from the laws it returns
+    for its arguments, and a system from its parts.
 
     Examples:
         >>> from skcomplex.core.components.base import BasePart
@@ -99,6 +105,76 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
                     if isinstance(item, StateSpec | ParameterSpec | RoleSpec):
                         specs[name] = item
         return {name: specs[name] for name in inspect.signature(cls).parameters if name in specs}
+
+    @classmethod
+    def _get_declared_laws(cls) -> tuple[type, ...] | None:
+        """Return the law classes the class lists in `law_classes`, or `None` when it writes laws it does not list.
+
+        The nearest class of the method resolution order that lists `law_classes` or writes `_get_laws` decides: a list
+        gives the classes, and a method without a list leaves them unknown.
+
+        Returns:
+            classes:
+                The law classes, or `None` when the declarations do not show them.
+        """
+        for klass in cls.__mro__:
+            declared = vars(klass)
+            if 'law_classes' in declared:
+                classes: tuple[type, ...] = declared['law_classes']
+                return classes
+            if '_get_laws' in declared:
+                return None
+        return None
+
+    @staticmethod
+    def _get_law_tags(classes: Sequence[type] | None) -> Tags:
+        """Return the tags of laws of some classes: their kinds, the times they all run in, and their randomness.
+
+        Args:
+            classes:
+                The law classes, or `None` when they are unknown.
+
+        Returns:
+            tags:
+                The kinds and the randomness of the laws, `None` for unknown classes, and the times they share.
+        """
+        if classes is None:
+            return Tags(laws=None, randomness=None)
+        laws = frozenset(getattr(law, 'law_tag', '') for law in classes) - {''}
+        times = [
+            frozenset(getattr(time, 'time_tag', '') for time in law.get_requirements().time) - {''}
+            for law in classes
+            if hasattr(law, 'get_requirements')
+        ]
+        known = [time for time in times if time]
+        common = functools.reduce(frozenset.intersection, known) if known else frozenset()
+        randomness = 'stochastic' if laws & STOCHASTIC_LAWS else 'deterministic'
+        return Tags(time=common, laws=laws, randomness=randomness)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags the declarations of the part show, none by default."""
+        return Tags(laws=None, randomness=None)
+
+    def get_tags(self) -> Tags:
+        """Return the capability tags of the part, from its declarations and its arguments alone.
+
+        Returns:
+            tags:
+                The tags of the part, known before it is prepared.
+
+        Examples:
+            >>> from typing import Annotated
+            >>> from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+            >>> from skcomplex.core.components.elements import Element
+            >>> from skcomplex.core.specs import StateSpec
+            >>> class CellElement(Element):
+            ...     def __init__(self, label, alive: Annotated[int, StateSpec(FiniteEnumeratedSet([0, 1]))] = 0):
+            ...         super().__init__(label)
+            ...         self.alive = alive
+            >>> sorted(CellElement('cell').get_tags().domains)
+            ['boolean']
+        """
+        return self._get_tags()
 
     def _get_declared(self) -> Mapping[str, DeclaredVariableSpec]:
         """Return the variables the part declares from data, by name, none by default."""

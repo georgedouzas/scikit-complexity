@@ -10,11 +10,12 @@ from typing import Annotated, ClassVar
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...errors import ValidationError
-from ...specs import RoleSpec
+from ...specs import RoleSpec, Tags
 from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, FluxLaw, RateLaw
 from ..laws.utils import divergence
+from ._base import RATE_DOMAINS
 from ._interaction import Interaction
 
 LIMITERS = ('minmod', 'van-leer', None)
@@ -90,11 +91,17 @@ class ConservationInteraction(Interaction):
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (FluxLaw, RateLaw)
 
+    def _get_tags(self) -> Tags:
+        """Return the tags of a flux with a Riemann solver or of a rate, with a rate for a source."""
+        transport = (FluxLaw,) if self._get_argument('riemann') is not None else (RateLaw,)
+        source = () if self._get_argument('source') is None else (RateLaw,)
+        return self._get_variant_tags((*transport, *source))
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',), domains=RATE_DOMAINS)],
         state: str = 'u',
         flux: Callable[[SimpleNamespace], object] | None = None,
         source: Callable[[SimpleNamespace], object] | None = None,

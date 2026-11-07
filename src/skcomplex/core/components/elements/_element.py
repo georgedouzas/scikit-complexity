@@ -32,6 +32,9 @@ class Element(BaseElement):
     of a port to its `ConnectorSpec`, and takes one algebraic state per variable of a port, named `<port>_<variable>`.
     A flow is positive into the element.
 
+    A subclass that writes its laws in `_get_laws` lists their classes in the class variable `law_classes`, from which
+    its capability tags take the law kinds. Without the list, `get_tags()` leaves the law kinds unknown.
+
     Args:
         label:
             The label of the element, unique among the parts of its system.
@@ -64,6 +67,7 @@ class Element(BaseElement):
     """
 
     ports: ClassVar[Mapping[str, ConnectorSpec]] = {}
+    law_classes: ClassVar[tuple[type, ...]] = ()
 
     @classmethod
     def _get_view(cls) -> type | None:

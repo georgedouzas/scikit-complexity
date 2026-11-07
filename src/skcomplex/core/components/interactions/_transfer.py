@@ -11,7 +11,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
 from ...errors import SimulationError, ValidationError
-from ...specs import PartnerSpec, RoleSpec
+from ...specs import PartnerSpec, RoleSpec, Tags
 from ...types import ElementKind
 from ..laws import BaseLaw, MatchLaw, RuleLaw, Sink, Source, TransferLaw
 from ..laws.utils import shift_member, where
@@ -203,6 +203,12 @@ class TransferInteraction(Interaction):
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (MatchLaw, RuleLaw, TransferLaw)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the rules of the agent form or of the transfers, which jump when they have a rate."""
+        if self._get_argument('form') == 'agent':
+            return self._get_variant_tags((RuleLaw,))
+        return self._get_variant_tags((TransferLaw,), stochastic=self._get_argument('rate') is not None)
 
     def __init__(
         self,

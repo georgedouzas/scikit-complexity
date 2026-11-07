@@ -6,21 +6,20 @@ product at a nearly steady rate until the substrate runs out and the enzyme is r
 """
 
 # %%
-# The system is created by name from the catalog with 100 enzymes and 300 substrate molecules as rate equations. The
+# The system is built from its class with 100 enzymes and 300 substrate molecules as rate equations. The
 # default blueprint shows the free enzyme `E`, the substrate `S`, the complex `C`, and the product `P` in one time
 # series view.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.chemistry.kinetics import MichaelisMentenSystem
 
 SYSTEM = 'michaelis_menten'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=50)
+trajectory = simulate(MichaelisMentenSystem(), observers=[observer])
 
 # %%
 # Rate equations against single molecules
@@ -29,15 +28,9 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 # hundreds of molecules, the stochastic runs should scatter closely around the rate equations, while the totals
 # `E + C` of enzyme and `S + C + P` of substrate stay exactly conserved in both.
 
-trajectory = simulation.trajectory_
 fig, (curves, totals) = plt.subplots(1, 2, figsize=(10, 4))
 for seed in range(5):
-    jumps = (
-        Simulation(create_system(SYSTEM, stochastic=True), dt=0.5, random_state=seed)
-        .prepare()
-        .run(until=50)
-        .trajectory_
-    )
+    jumps = simulate(MichaelisMentenSystem(stochastic=True), random_state=seed)
     for species, color in [('S', 'C0'), ('C', 'C1'), ('P', 'C2')]:
         curves.step(jumps.times, jumps.values(f'{species}.n'), where='post', color=color, alpha=0.3, linewidth=0.8)
 for species, color in [('S', 'C0'), ('C', 'C1'), ('P', 'C2')]:

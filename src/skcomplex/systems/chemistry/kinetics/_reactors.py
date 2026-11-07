@@ -13,16 +13,15 @@ from ....core.components.elements import Element
 from ....core.components.interactions import ReactionInteraction, RelaxationInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import pulse_train
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class CatalystPelletElement(Element):
     """Catalyst pellet, the concentration `c` of the reactant at its surface relative to the bulk.
 
-    The mass transfer and the surface reaction of `catalyst_pellet` change the concentration and read their constants
-    from the pellet.
+    The mass transfer and the surface reaction of `CatalystPelletSystem` change the concentration and read their
+    constants from the pellet.
 
     Args:
         label:
@@ -113,6 +112,8 @@ class PulsedElectrodeElement(Element):
         10.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -158,29 +159,13 @@ class PulsedElectrodeElement(Element):
         ]
 
 
-def _get_surface_reaction(s: SimpleNamespace) -> Expression:
-    """Return the Langmuir-Hinshelwood propensity `k c / (1 + K c)^2` of the reaction at the surface of a pellet."""
-    pellet = s.reactants[0]
-    return pellet.k * pellet.c / (1 + pellet.K * pellet.c) ** 2
-
-
-def _get_transfer_time(s: SimpleNamespace) -> Expression:
-    """Return the time `1 / h` of the mass transfer from the bulk to the surface of a pellet."""
-    return 1 / s.target.h
-
-
-@register_system(
-    field='chemistry/kinetics',
-    tags=('ode', 'catalysis', 'bistability', 'Langmuir-Hinshelwood'),
-    references=('Trzaska 2023', 'Aris 1975'),
-    defaults={'until': 100.0, 'dt': 1.0},
-)
-def catalyst_pellet(c: float = 1.0, *, h: float = 0.1, k: float = 10.0, K: float = 20.0) -> System:
-    """Return the surface concentration of a catalyst pellet, bistable through Langmuir-Hinshelwood kinetics.
+class CatalystPelletSystem(BaseSystem):
+    """The surface concentration of a catalyst pellet, bistable through Langmuir-Hinshelwood kinetics.
 
     The concentration at the surface, relative to the bulk, follows `dc/dt = h (1 - c) - k c / (1 + K c)^2`, where
     mass transfer from the bulk balances a reaction that the adsorbed reactant inhibits. For the default parameters a
-    reacting state of low concentration and an inhibited state of high concentration are both stable.
+    reacting state of low concentration and an inhibited state of high concentration are both stable. The
+    concentration is `pellet.c`.
 
     Args:
         c:
@@ -195,46 +180,65 @@ def catalyst_pellet(c: float = 1.0, *, h: float = 0.1, k: float = 10.0, K: float
         K:
             The adsorption constant, which sets the inhibition.
 
-    Returns:
-        system:
-            The system, with the concentration `pellet.c`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.chemistry.kinetics import catalyst_pellet
-        >>> catalyst_pellet(k=5.0).elements[0].k
+        >>> from skcomplex.systems.chemistry.kinetics import CatalystPelletSystem
+        >>> CatalystPelletSystem(k=5.0).prepare().system_.elements[0].k
         5.0
     """
-    return System(
-        elements=[CatalystPelletElement('pellet', c=c, h=h, k=k, K=K)],
-        interactions=[
-            RelaxationInteraction('transfer', target='pellet', state='c', goal=1.0, time=_get_transfer_time),
-            ReactionInteraction('reaction', reactants={('pellet', 'c'): 1}, propensity=_get_surface_reaction),
-        ],
-    )
+
+    field = 'chemistry/kinetics'
+    topics = ('ode', 'catalysis', 'bistability', 'Langmuir-Hinshelwood')
+    references = ('Trzaska 2023', 'Aris 1975')
+    until = 100.0
+    dt = 1.0
+
+    def __init__(
+        self,
+        c: float = 1.0,
+        *,
+        h: float = 0.1,
+        k: float = 10.0,
+        K: float = 20.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.c = c
+        self.h = h
+        self.k = k
+        self.K = K
+
+    @staticmethod
+    def _get_surface_reaction(s: SimpleNamespace) -> Expression:
+        """Return the Langmuir-Hinshelwood propensity `k c / (1 + K c)^2` of the reaction at the surface of a pellet."""
+        pellet = s.reactants[0]
+        return pellet.k * pellet.c / (1 + pellet.K * pellet.c) ** 2
+
+    @staticmethod
+    def _get_transfer_time(s: SimpleNamespace) -> Expression:
+        """Return the time `1 / h` of the mass transfer from the bulk to the surface of a pellet."""
+        return 1 / s.target.h
+
+    def _build_system(self) -> System:
+        """Return the pellet, the mass transfer from the bulk, and the reaction at the surface."""
+        return System(
+            self.label,
+            elements=[CatalystPelletElement('pellet', c=self.c, h=self.h, k=self.k, K=self.K)],
+            interactions=[
+                RelaxationInteraction('transfer', target='pellet', state='c', goal=1.0, time=self._get_transfer_time),
+                ReactionInteraction('reaction', reactants={('pellet', 'c'): 1}, propensity=self._get_surface_reaction),
+            ],
+        )
 
 
-@register_system(
-    field='chemistry/kinetics',
-    tags=('ode', 'electrochemistry', 'pulses', 'driven'),
-    references=('Trzaska 2023', 'Bard and Faulkner 2001'),
-    defaults={'until': 60.0, 'dt': 0.1},
-)
-def pulsed_electrochemical_reactor(
-    eta: float = 0.0,
-    c: float = 1.0,
-    *,
-    C: float = 1.0,
-    alpha: float = 0.5,
-    tau: float = 10.0,
-    kappa: float = 0.05,
-    current: float = 5.0,
-    period: float = 10.0,
-    width: float = 2.0,
-) -> System:
-    """Return a stirred electrochemical reactor whose electrode is driven by a train of current pulses.
+class PulsedElectrochemicalReactorSystem(BaseSystem):
+    """A stirred electrochemical reactor whose electrode is driven by a train of current pulses.
 
     Every pulse charges the double layer, the overpotential drives a Butler-Volmer current that consumes the reactant,
-    and the feed restores it between pulses.
+    and the feed restores it between pulses. The overpotential is `electrode.eta` and the concentration
+    `electrode.c`.
 
     Args:
         eta:
@@ -264,25 +268,60 @@ def pulsed_electrochemical_reactor(
         width:
             The duration of a pulse.
 
-    Returns:
-        system:
-            The system, with the overpotential `electrode.eta` and the concentration `electrode.c`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.chemistry.kinetics import pulsed_electrochemical_reactor
-        >>> pulsed_electrochemical_reactor(width=1.0).elements[0].width
+        >>> from skcomplex.systems.chemistry.kinetics import PulsedElectrochemicalReactorSystem
+        >>> PulsedElectrochemicalReactorSystem(width=1.0).prepare().system_.elements[0].width
         1.0
+        >>> sorted(PulsedElectrochemicalReactorSystem().get_tags().laws)
+        ['rate']
     """
-    electrode = PulsedElectrodeElement(
-        'electrode',
-        eta=eta,
-        c=c,
-        C=C,
-        alpha=alpha,
-        tau=tau,
-        kappa=kappa,
-        current=current,
-        period=period,
-        width=width,
-    )
-    return System(elements=[electrode])
+
+    field = 'chemistry/kinetics'
+    topics = ('ode', 'electrochemistry', 'pulses', 'driven')
+    references = ('Trzaska 2023', 'Bard and Faulkner 2001')
+    until = 60.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        eta: float = 0.0,
+        c: float = 1.0,
+        *,
+        C: float = 1.0,
+        alpha: float = 0.5,
+        tau: float = 10.0,
+        kappa: float = 0.05,
+        current: float = 5.0,
+        period: float = 10.0,
+        width: float = 2.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.eta = eta
+        self.c = c
+        self.C = C
+        self.alpha = alpha
+        self.tau = tau
+        self.kappa = kappa
+        self.current = current
+        self.period = period
+        self.width = width
+
+    def _build_system(self) -> System:
+        """Return the electrode, whose own laws charge the double layer and balance the reactant."""
+        electrode = PulsedElectrodeElement(
+            'electrode',
+            eta=self.eta,
+            c=self.c,
+            C=self.C,
+            alpha=self.alpha,
+            tau=self.tau,
+            kappa=self.kappa,
+            current=self.current,
+            period=self.period,
+            width=self.width,
+        )
+        return System(self.label, elements=[electrode])

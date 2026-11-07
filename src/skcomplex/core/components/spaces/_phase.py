@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import ClassVar
 
 import numpy as np
 
@@ -65,6 +66,8 @@ class PhaseSpace(LatticeSpace):
         >>> space.coordinates_['v'][:2].round(4).tolist()
         [-5.9531, -5.8594]
     """
+
+    space_tags: ClassVar[tuple[str, ...]] = ('phase space',)
 
     def __init__(
         self,

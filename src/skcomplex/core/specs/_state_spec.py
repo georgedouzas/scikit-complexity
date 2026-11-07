@@ -11,7 +11,9 @@ from sage.all__sagemath_symbolics import RR
 
 from ..errors import ValidationError
 from ._base_spec import BaseSpec
+from ._entry_spec import EntrySpec
 from ._matrix_group_spec import MatrixGroupSpec
+from ._power_series_spec import PowerSeriesSpec
 from ._tensor_spec import TENSOR_SYMMETRIES
 
 ROLES = ('position', 'site', 'direction', 'phase', 'velocity', None)
@@ -171,3 +173,15 @@ class StateSpec(BaseSpec):
         if len(self.initial) > companions:
             error_msg = f'{len(self.initial)} initial values were given for {companions} derivatives or lags.'
             raise ValidationError(error_msg)
+
+    def _get_domain_tag(self) -> str | None:
+        """Return the domain tag of the state, or `None` for a structure rewritten as a whole, such as a word."""
+        if self.group is not None:
+            return 'matrix group'
+        if self.vector or self.tensor is not None:
+            return 'vector'
+        if isinstance(self.domain, PowerSeriesSpec):
+            return 'power series'
+        if self.domain is None or self.domain is object:
+            return None
+        return str(EntrySpec._domain_kind(self.domain))

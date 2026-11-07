@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
@@ -60,6 +61,8 @@ class NoiseLaw(BaseLaw):
         >>> NoiseLaw(x, 0.2 * x, process='shared').prepare().run({'x': 10.0}).value_
         2.0
     """
+
+    law_tag: ClassVar[str] = 'noise'
 
     def __init__(
         self,

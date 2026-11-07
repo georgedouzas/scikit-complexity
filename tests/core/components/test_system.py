@@ -7,10 +7,12 @@ import networkx as nx
 import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import CC, oo, var
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
+from sklearn.base import clone
 
 from skcomplex.core.components.elements import Element, GroupElement, PointElement
-from skcomplex.core.components.interactions import Interaction
+from skcomplex.core.components.interactions import Interaction, MapInteraction, RateInteraction
 from skcomplex.core.components.laws import GeneratorLaw, RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import local_operator
 from skcomplex.core.components.spaces import (
@@ -21,11 +23,11 @@ from skcomplex.core.components.spaces import (
     NetworkSpace,
     StaticTime,
 )
-from skcomplex.core.components.system import System
+from skcomplex.core.components.system import BaseSystem, System
 from skcomplex.core.engine.compile import OperatorCompiler, PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import UnitarySolver
-from skcomplex.core.errors import ValidationError
+from skcomplex.core.errors import RoleElementError, TagError, ValidationError
 from skcomplex.core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 PAULI = HilbertSpec(
@@ -292,3 +294,103 @@ def test_element_with_hilbert_state_runs_unitary_dynamics():
     simulation = Simulation(system, compiler=OperatorCompiler(), solver=UnitarySolver(), dt=np.pi).prepare()
     simulation.run(until=np.pi)
     assert simulation.problem_.form.name == 'OPERATOR'
+
+
+class SwitchElement(Element):
+    """Element with one boolean state."""
+
+    def __init__(self, label: str, on: Annotated[int, StateSpec(FiniteEnumeratedSet([0, 1]))] = 0) -> None:
+        super().__init__(label)
+        self.on = on
+
+
+class GrowthSystem(BaseSystem):
+    """System of exponential growth whose model parameter is the rate."""
+
+    until = 5.0
+
+    def __init__(self, label: str = 'growth', r: float = 1.0) -> None:
+        super().__init__(label)
+        self.r = r
+
+    def _build_system(self) -> System:
+        growth = RateInteraction('growth', target='stock', state='n', rate=self.r)
+        return System(self.label, elements=[StockElement('stock')], interactions=[growth])
+
+
+def test_system_is_a_base_system_with_tags_derived_from_its_parts():
+    """Test that a system of a rate and a noise interaction is stochastic, with both law kinds."""
+    noisy = RateInteraction('growth', target='stock', state='n', rate=1.0, noise=0.1)
+    system = System(elements=[StockElement('stock')], interactions=[noisy])
+    tags = system.get_tags()
+    assert isinstance(system, BaseSystem)
+    assert (tags.laws, tags.randomness, tags.time, tags.space) == (
+        {'rate', 'noise'},
+        'stochastic',
+        {'continuous'},
+        {'none'},
+    )
+    assert tags.domains == {'real'}
+
+
+def test_system_tags_reject_parts_on_spaces_that_nothing_joins():
+    """Test that elements on a lattice and on a network, in a system without a space, disagree on the space."""
+    on_lattice = GroupElement('cells', element=StockElement, space=LatticeSpace((3,)))
+    on_network = GroupElement('nodes', element=StockElement, space=NetworkSpace(nx.cycle_graph(3)))
+    with pytest.raises(TagError, match=r"The parts 'cells' and 'nodes' disagree on the tag 'space'"):
+        System(elements=[on_lattice, on_network]).get_tags()
+    joined = System(elements=[on_lattice, on_network], space=ContinuousSpace(n_dim=2)).get_tags()
+    assert joined.space == {'continuous', 'lattice', 'network'}
+
+
+def test_system_tags_reject_parts_of_times_that_nothing_joins():
+    """Test that a rate and a map in one system disagree on the time, unless nested systems of each time join them."""
+    rate = RateInteraction('growth', target='stock', state='n', rate=1.0)
+    step = MapInteraction('step', target='counter/stock', state='n', function=lambda s: s.target.n)
+    with pytest.raises(TagError, match=r"disagree on the tag 'time'"):
+        System(elements=[StockElement('stock')], interactions=[rate, step]).get_tags()
+    nested = System(
+        systems=[
+            System('plant', elements=[StockElement('stock')], time=ContinuousTime()),
+            System('counter', elements=[StockElement('stock')], time=DiscreteTime()),
+        ],
+        interactions=[rate.set_params(target='plant/stock'), step],
+    )
+    assert nested.get_tags().time == {'continuous', 'discrete'}
+
+
+def test_system_rejects_a_role_bound_to_a_domain_it_does_not_accept():
+    """Test that a rate interaction on a boolean state fails to prepare, naming role, element, and domain."""
+    rate = RateInteraction('growth', target='switch', state='on', rate=1.0)
+    system = System(elements=[SwitchElement('switch')], interactions=[rate])
+    with pytest.raises(
+        RoleElementError,
+        match=r"The role 'target' of 'growth' .* 'switch' .* 'on' of the domain 'boolean'",
+    ):
+        system.prepare()
+
+
+def test_base_system_passes_model_parameters_down_to_its_parts():
+    """Test that setting a model parameter of a system subclass changes the parts of the next `prepare`."""
+    system = GrowthSystem(r=0.3).prepare()
+    before = system.system_
+    assert system.get_params() == {'label': 'growth', 'r': 0.3}
+    assert before.interactions[0].rate == 0.3
+    system.set_params(r=0.5).prepare()
+    assert system.system_ is not before
+    assert system.system_.interactions[0].rate == 0.5
+    assert clone(system).get_params()['r'] == 0.5
+    assert system.get_tags().laws == {'rate'}
+
+
+def test_base_system_rejects_parts_that_are_no_system():
+    """Test that a system subclass whose hook returns no `System` fails to prepare."""
+
+    class BrokenSystem(BaseSystem):
+        """System whose hook returns an element."""
+
+        def _build_system(self):
+            return StockElement('stock')
+
+    with pytest.raises(ValidationError, match='builds its parts as a System, not as StockElement'):
+        BrokenSystem().prepare()

@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping
+from typing import ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression
 
@@ -53,6 +54,8 @@ class JumpLaw(BaseLaw):
         >>> JumpLaw(waiting=draw('wait', 'expon'), reset={n: 0}).prepare().targets_
         (n,)
     """
+
+    law_tag: ClassVar[str] = 'jump'
 
     def __init__(
         self,

@@ -38,6 +38,10 @@ class RoleSpec(BaseSpec):
         states:
             The names of the states the role reads, or of the arguments of the constructor that hold these names.
 
+        domains:
+            The domain tags the role accepts for the states it reads, or for every state of the element when it names
+            none, such as `('real', 'integer')`. Empty accepts any domain.
+
     Examples:
         >>> from skcomplex.core.specs import RoleSpec
         >>> from skcomplex.core.types import ElementKind
@@ -46,6 +50,8 @@ class RoleSpec(BaseSpec):
         >>> role = RoleSpec(elements=(ElementKind.GROUP,), states=('state',))
         >>> role.accepts(ElementKind.ELEMENT), role.accepts(ElementKind.GROUP), role.states
         (False, True, ('state',))
+        >>> RoleSpec(domains=('boolean',)).domains
+        ('boolean',)
     """
 
     variadic: bool = False
@@ -53,6 +59,7 @@ class RoleSpec(BaseSpec):
     optional: bool = False
     elements: tuple[ElementKind, ...] = ()
     states: tuple[str, ...] = ()
+    domains: tuple[str, ...] = ()
 
     def _check(self) -> None:
         """Raise an error for a role that is both variadic and a noise role.

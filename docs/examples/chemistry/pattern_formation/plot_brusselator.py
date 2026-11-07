@@ -6,23 +6,21 @@ Small noise around the uniform steady state grows into a pattern of spots of the
 """
 
 # %%
-# The system is created by name from the catalog on a 64 by 64 grid with `a = 1`, `b = 3`, `Du = 1`, and `Dv = 8`, and
+# The system is built from its class on a 64 by 64 grid with `a = 1`, `b = 3`, `Du = 1`, and `Dv = 8`, and
 # integrated with RK4. Naming the `u` field as primary puts its view first, so it becomes the thumbnail.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import spectrum
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.chemistry.pattern_formation import BrusselatorSystem
 
 SYSTEM = 'brusselator'
 
-system = create_system(SYSTEM, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='cells/u')
-simulation = Simulation(system, dt=1.0, solver=RK4Solver(dt=0.01), observers=[observer]).prepare().run(until=100)
+trajectory = simulate(BrusselatorSystem(random_state=0), observers=[observer])
 
 # %%
 # Pattern wavelength against the linear instability
@@ -33,7 +31,7 @@ simulation = Simulation(system, dt=1.0, solver=RK4Solver(dt=0.01), observers=[ob
 # the nonlinear spots settling at a slightly shorter wavelength.
 
 a, b, Du, Dv = 1.0, 3.0, 1.0, 8.0
-u = simulation.trajectory_.lattice('cells.u')[-1]
+u = trajectory.lattice('cells.u')[-1]
 factor = spectrum(u, kind='structure-factor')
 q = np.linspace(0.01, 2.0, 300)
 growth = [np.linalg.eigvals([[b - 1 - Du * k**2, a**2], [-b, -(a**2) - Dv * k**2]]).real.max() for k in q]

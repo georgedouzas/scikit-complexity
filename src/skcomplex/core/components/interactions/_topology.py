@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 from ...errors import ValidationError
-from ...specs import BaseSpec, RoleSpec, TopologyRequestSpec
+from ...specs import BaseSpec, RoleSpec, Tags, TopologyRequestSpec
 from ...types import ElementKind
 from ..laws import BaseLaw, JumpLaw, UpdateLaw
 from ..laws.utils import where
@@ -171,6 +171,14 @@ class TopologyInteraction(NeighborInteraction):
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (JumpLaw, UpdateLaw)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of jumps at a rate or of updates with a chance, which change the topology."""
+        changing = frozenset({'changing topology'})
+        if self._get_argument('rate') is not None:
+            return self._get_variant_tags((JumpLaw,), structure=changing)
+        drawn = self._get_argument('probability') is not None
+        return self._get_variant_tags((UpdateLaw,), stochastic=drawn, structure=changing)
 
     def __init__(
         self,

@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Iterator, Sequence
+from typing import ClassVar
 
 import numpy as np
 from einsteinpy.symbolic import ChristoffelSymbols, MetricTensor, RicciScalar, RicciTensor, RiemannCurvatureTensor
@@ -94,6 +95,8 @@ class PseudoRiemannianSpace(ContinuousSpace):
         >>> sphere.ricci_scalar_
         2
     """
+
+    space_tags: ClassVar[tuple[str, ...]] = ('curved spacetime',)
 
     def __init__(
         self,

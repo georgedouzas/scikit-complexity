@@ -8,7 +8,7 @@ import numpy as np
 
 from ...base import BaseConfig
 from ...errors import ValidationError
-from ...specs import LoweredFunctionsSpec, RunStateSpec, SupportSpec
+from ...specs import LoweredFunctionsSpec, RunStateSpec, SupportSpec, Tags
 from ...types import Array, Indices, VectorFunction
 from ..problems import LoweredKernelsSpec, OutputSpec, ReferenceSpec
 from ..problems._law_kernel import LawKernel
@@ -79,6 +79,21 @@ class BaseBackend(BaseConfig[None, LoweredKernelsSpec]):
                 The subclass does not implement the hook.
         """
         raise NotImplementedError
+
+    @classmethod
+    def get_supported_tags(cls) -> Tags:
+        """Return the capability tags the backend supports, from the classes of time, space, and laws it supports.
+
+        Returns:
+            tags:
+                The supported times, spaces, and law kinds, where an empty field supports any value.
+
+        Examples:
+            >>> from skcomplex.core.engine.backends import JaxBackend
+            >>> sorted(JaxBackend.get_supported_tags().space)
+            ['none']
+        """
+        return cls._get_support().get_tags()
 
     @staticmethod
     def _outputs_of(kernel: LawKernel, state: RunStateSpec) -> tuple[OptionalPairs, list[Array]]:

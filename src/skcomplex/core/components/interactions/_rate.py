@@ -12,10 +12,11 @@ from sage.all__sagemath_symbolics import SR, vector
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...errors import ValidationError
-from ...specs import RoleSpec, WienerProcessSpec
+from ...specs import RoleSpec, Tags, WienerProcessSpec
 from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, FractionalNoiseLaw, NoiseLaw, RateLaw
+from ._base import RATE_DOMAINS
 from ._interaction import Interaction
 
 CONVENTIONS = ('ito', 'stratonovich', 'anti-ito')
@@ -94,11 +95,21 @@ class RateInteraction(Interaction):
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw, NoiseLaw, FractionalNoiseLaw)
 
+    def _get_tags(self) -> Tags:
+        """Return the tags of the rate law, with a noise law of a Hurst index or not when the noise is given."""
+        noise: tuple[type[BaseLaw], ...] = () if self._get_argument('noise') is None else (NoiseLaw,)
+        if noise and self._get_argument('hurst') is not None:
+            noise = (FractionalNoiseLaw,)
+        return self._get_variant_tags((RateLaw, *noise))
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state', 'divisor'))],
+        target: Annotated[
+            str,
+            RoleSpec(elements=(ElementKind.ANY,), states=('state', 'divisor'), domains=RATE_DOMAINS),
+        ],
         state: str = 'x',
         rate: Callable[[SimpleNamespace], object] | float = 0.0,
         sources: Annotated[Sequence[str], RoleSpec(variadic=True, elements=(ElementKind.ANY,))] = (),

@@ -101,6 +101,7 @@ from ._support_spec import SupportSpec
 from ._symmetry_spec import SymmetrySpec
 from ._table_spec import TableSpec
 from ._table_values_spec import TableValuesSpec
+from ._tags import Tags
 from ._tensor_spec import TensorSpec
 from ._topology_request_spec import EDGE_KINDS, ENDS, HYPEREDGE_KINDS, TOPOLOGY_KINDS, TopologyRequestSpec
 from ._totalistic_spec import TotalisticSpec
@@ -225,6 +226,7 @@ __all__ = [
     'SymmetrySpec',
     'TableSpec',
     'TableValuesSpec',
+    'Tags',
     'TensorSpec',
     'TopologyRequestSpec',
     'TotalisticSpec',

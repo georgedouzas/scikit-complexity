@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
@@ -53,6 +54,8 @@ class EncounterLaw(BaseLaw):
         >>> rate, np.shape(transition)
         (1.0, (2, 2, 2))
     """
+
+    law_tag: ClassVar[str] = 'rate'
 
     def __init__(
         self,

@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression
 
@@ -88,6 +89,8 @@ class TransferLaw(BaseLaw):
         >>> TransferLaw(Source(), level, 5, label='faucet').prepare().targets_
         (level,)
     """
+
+    law_tag: ClassVar[str] = 'update'
 
     def __init__(
         self,

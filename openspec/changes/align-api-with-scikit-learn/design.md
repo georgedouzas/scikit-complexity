@@ -65,6 +65,9 @@ estimator can do through tags.
   generator are replaced by one generated page per kind of part, under a "Parts" section of the navigation, with
   executed examples of a compatible and an incompatible combination per page. A migration page maps removed names to
   their replacements.
+  `docs/generate_parts.py` writes the pages of elements, interactions, laws, solvers, and backends, one private
+  function per page. The analyses, experiments, and systems pages come in later waves, once their functions and
+  classes declare tags, and the generator should add a function for each of them then.
 - **Release.** One breaking release, 0.7.0. No aliases for removed names, as in earlier breaking releases.
 
 - **System classes.** `BaseSystem` holds the verbs, the derived tags, nesting, and a private method that passes model
@@ -79,6 +82,69 @@ estimator can do through tags.
 - **General systems.** The cross-field duplicate scan of the consolidation lists shared structures. A general system
   enters the core in a later task only when two fields share the structure, starting with mass-action compartments.
 
+## System class template
+
+Chemistry is the first field converted, and every later field follows it. The rules below are what its modules do.
+
+**Discovery during the transition.** `all_systems(field=None, topics=(), tags=None)` of `skcomplex.systems` returns
+`(class name, class)` pairs of the converted system classes, sorted by name. The catalog reads every module of
+`skcomplex.systems` with `ast`: a module-level class whose body assigns `field` is a system class, and its `field`,
+`topics`, and `references` are read as literals or module-level literal constants, as the registration reader does.
+Selecting by field and topics is static, so only the modules of the selected classes are imported, to return their
+classes. Filtering by tags builds every selected class with its default parameters and compares `get_tags()`. Until
+the removal wave, the old catalog serves converted classes too, so nothing that still uses names breaks:
+
+- `catalog()` lists a class under its name without `System` in snake case, with acronyms kept as one word
+  (`GrayScottSystem` is `gray_scott`, `BrusselatorODESystem` is `brusselator_ode`), its topics as tags, and its class
+  name in `SystemListing.class_name`. The inventory, the gallery, and their checks keep their keys.
+- `describe(name)` imports the module and returns a `SystemEntry` whose `factory` takes the model parameters and
+  returns the prepared composite `SystemClass(**parameters).prepare().system_`, whose signature is that of the class,
+  whose `defaults` are the tuned settings `until`, `dt`, `solver`, and `initial_state` the class gives, and whose
+  observables are the class's `observables`.
+- `create_system(name)` and `create_simulation(name)` therefore return and run the same composite the factory returned,
+  so the catalog conformance tests, the gallery hooks, and the documentation generator need no change.
+
+**One class per factory.** In the module of the factory, `register_system` and the factory are replaced by:
+
+1. `class <CamelName>System(BaseSystem)`, named so that the snake-case rule gives back the registered name. When no
+   CamelCase name does, rename the gallery example, its `SYSTEM` constant, and the inventory key, and say so.
+2. The class docstring: its first line is the catalog description, without `Return`. The body is the factory's,
+   ending with the sentence that names the states from its `Returns`. `Args` lists every constructor argument and
+   `label`. `Examples` imports the class from its subfield and checks a parameter on `.prepare().system_` or a tag.
+3. Class attributes, in this order: `field`, `topics` (the old `tags`), `references`, then the tuned run settings of
+   `defaults`: `until`, `dt`, `solver`, `observables`, and `initial_state`. `field`, `topics`, and `references` are
+   literals or module-level literal constants, and every listed class assigns its own, since the reader does not
+   follow inheritance. A base class that should not be listed assigns no `field`.
+4. `__init__` takes the factory's arguments in the same order and kind, with the same defaults, then
+   `label: str = 'system'` as the last keyword-only argument. It calls `super().__init__(label)` and stores every
+   argument under its own name, nothing else.
+5. `_build_system(self) -> System` holds the factory's body, reading `self.<argument>`, and returns
+   `System(self.label, elements=..., interactions=..., ...)`. It validates and caches nothing, since `get_tags`,
+   `_check`, and `prepare` call it.
+6. Helpers that only this class uses become its private methods, static when they do not read `self`, and are passed
+   as `self._helper`. Helpers that several classes of the module use stay private functions of the module. A part that
+   several modules of the field use stays in the field's `common`.
+7. Every element or interaction of the field that writes `_get_laws` lists its law classes in `law_classes`, such as
+   `law_classes = (RateLaw,)`, so that `SystemClass().get_tags().laws` is never `None`. Check it for every class.
+8. The subfield `__init__` exports the class in place of the factory, in a sorted `__all__`, and docstrings that named
+   the factory name the class.
+
+**Tests and gallery.** Tests build the class and call `simulate(SystemClass(...), until=..., dt=..., random_state=0)`,
+omitting the solver to use the tuned one, and read parts on `.prepare().system_`. `describe(name).defaults[...]`
+becomes the class attribute or is omitted. A gallery example keeps `SYSTEM = '<snake name>'`, which coverage and the
+recording use, keeps `observer = RerunObserver(...)` as a module variable, which the gallery runner finds, and calls
+`trajectory = simulate(SystemClass(...), observers=[observer], ...)` with only the settings that differ from the tuned
+ones, replacing `simulation.trajectory_` by `trajectory`. Analysis calls are left to the analyses wave. For this,
+`simulate` takes `dt` and `observers` besides the arguments of the simulation spec.
+
+**Checks per field.** The field's tests, `tests/systems/test_catalog.py`, doctests of the changed modules,
+`PYTHONPATH=docs python docs/inventory_checks.py`, `PYTHONPATH=docs python -m gallery_tools coverage --strict`, running
+every changed gallery example, and ruff, black, docformatter `--check`, mypy, and pydoclint on the changed files.
+
+**Open in the template.** Run settings that depend on the model parameters (`register_system(settings=...)`,
+`initial_state=...`) and observables built from the system (`observables=lambda system: ...`) have no class attribute
+form while `simulate` reads class attributes. Static observables become an `observables` tuple of `ObservableSpec`.
+
 ## Risks / Trade-offs
 
 - **Size:** about fifty analyses, the experiments, the catalog, every gallery example, and most tests change. The work
@@ -86,3 +152,18 @@ estimator can do through tags.
 - **Tags too fine or too coarse:** tags must stay few and orthogonal. A new tag needs a function that reads it.
 - **Functions with many arguments:** `simulate` takes several keyword arguments. That is the scikit-learn trade, and
   the tuned settings of a catalog entry keep the common case short.
+
+## Decisions after the chemistry pilot
+
+- **Listing imports only what it returns.** `all_systems` selects by field and topics statically and imports only the
+  modules of the systems it returns, as `all_estimators` imports what it lists. The zero-import listing of `catalog()`
+  goes with the registry in the removal wave.
+- **Run settings through one hook.** `simulate` reads the tuned run settings through `BaseSystem._get_run_settings()`,
+  which returns the class attributes `until`, `dt`, `solver`, `observables`, and `initial_state` by default. A system
+  whose settings depend on its parameters or its built system, such as `active_gels`, `gauge_fields`, or
+  `dynamic_fba`, overrides the hook. Class attributes stay the plain case.
+- **`simulate` takes `dt` and `observers`**, added by the pilot, so tests choose the time between frames and gallery
+  examples record runs.
+- **Names.** A class name round-trips to its catalog name by the snake-case rule. Where it cannot, such as names with
+  digits, the gallery example and the inventory key are renamed and reported. `label` is the last keyword-only
+  argument with the default `'system'`.

@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
+from typing import ClassVar
 
 import networkx as nx
 import numpy as np
@@ -12,7 +13,7 @@ import scipy.sparse
 import xgi
 
 from ...errors import SpaceError, ValidationError
-from ...specs import LayerSpec
+from ...specs import LayerSpec, Tags
 from ...types import Indices
 from ._adjacency import AdjacencyNeighborhood
 from ._base import BaseNeighborhood, BaseSpace
@@ -92,6 +93,13 @@ class NetworkSpace(BaseSpace):
         >>> len(space.hyperedges_), space.hyperedges_[0], space.memberships_[0]
         (10, (0, 1, 2), (0, 1, 2, 3, 4, 5))
     """
+
+    space_tags: ClassVar[tuple[str, ...]] = ('network', 'hypergraph')
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the network: a hypergraph when it has hyperedges, and no laws."""
+        hypergraph = isinstance(self.hyperedges, xgi.Hypergraph) or len(self.hyperedges) > 0
+        return Tags(space=frozenset({'hypergraph' if hypergraph else 'network'}))
 
     def __init__(
         self,

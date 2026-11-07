@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Callable
+from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -52,6 +53,8 @@ class ExtremalLaw(BaseLaw):
         >>> law.extremum, law.repeat
         ('min', 1)
     """
+
+    law_tag: ClassVar[str] = 'update'
 
     def __init__(
         self,

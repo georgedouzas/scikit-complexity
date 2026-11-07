@@ -173,8 +173,8 @@ def stability(
         ['0', 'K_growth']
         >>> stability(logistic_growth(), points=[{'population.n': 100.0}]).classifications
         ['stable node']
-        >>> from skcomplex.systems.chemistry.pattern_formation import brusselator
-        >>> relation = stability(brusselator((64,), b=1.9, Dv=8.0), kind='dispersion')
+        >>> from skcomplex.systems.chemistry.pattern_formation import BrusselatorSystem
+        >>> relation = stability(BrusselatorSystem((64,), b=1.9, Dv=8.0), kind='dispersion')
         >>> bool(relation.growth_rates.max() > 0), bool(relation.growth_rates[0] < 0)
         (True, True)
     """

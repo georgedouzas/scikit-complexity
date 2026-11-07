@@ -5,6 +5,7 @@
 
 import operator
 from collections.abc import Sequence
+from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -63,6 +64,8 @@ class LinearProgramLaw(BaseLaw):
         >>> law.targets_
         (v, w)
     """
+
+    law_tag: ClassVar[str] = 'equation'
 
     def __init__(
         self,

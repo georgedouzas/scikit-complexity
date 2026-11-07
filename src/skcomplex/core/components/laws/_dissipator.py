@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import ClassVar
 
 from sage.all__sagemath_symbolics import SR, Expression
 
@@ -36,6 +37,8 @@ class DissipatorLaw(BaseLaw):
         >>> DissipatorLaw(minus, 2 * var('gamma')).prepare().run({'gamma': 0.05}).value_
         (local_operator(q, minus), 0.1)
     """
+
+    law_tag: ClassVar[str] = 'rate'
 
     def __init__(self, operator: object, rate: object = 1.0, *, label: str = '') -> None:
         super().__init__(label)

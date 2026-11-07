@@ -1,9 +1,10 @@
 ## ADDED Requirements
 
 ### Requirement: Simulating is a function
-`simulate(system, *, until, initial_state=None, solver=None, backend=None, observables=(), random_state=None)` SHALL
-prepare the system if needed, compile it, run it until `until`, and return a `Trajectory`. A solver SHALL take the role
-of a splitter, a backend the role of `n_jobs`, and observables the role of `scoring`. The defaults SHALL come from the
+`simulate(system, *, until, dt=None, initial_state=None, solver=None, backend=None, observables=(), observers=(),
+random_state=None)` SHALL prepare the system if needed, compile it, run it until `until` with frames every `dt`, and
+return a `Trajectory`. A solver SHALL take the role of a splitter, a backend the role of `n_jobs`, observables the role
+of `scoring`, and observers, such as a Rerun recording, the role of callbacks. The defaults SHALL come from the
 tags of the system.
 
 #### Scenario: Simulating a ready-made system

@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Callable
+from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
 from sage.modules.free_module_element import FreeModuleElement
@@ -43,6 +44,8 @@ class DriveLaw(BaseLaw):
         >>> DriveLaw(var('height'), lambda values, *, random: values + 1).prepare().targets_
         (height,)
     """
+
+    law_tag: ClassVar[str] = 'update'
 
     def __init__(
         self,

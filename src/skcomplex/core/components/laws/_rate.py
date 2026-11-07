@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Callable
+from typing import ClassVar
 
 from sage.structure.element import Matrix
 
@@ -44,6 +45,8 @@ class RateLaw(BaseLaw):
         >>> RateLaw(n, 2 * n).prepare().run({'n': 3.0}).value_
         6.0
     """
+
+    law_tag: ClassVar[str] = 'rate'
 
     def __init__(
         self,

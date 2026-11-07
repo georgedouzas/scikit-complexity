@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import SR, Expression
 from sage.modules.free_module_element import FreeModuleElement
 
 from ...errors import ValidationError
-from ...specs import RoleSpec
+from ...specs import RoleSpec, Tags
 from ...types import ElementKind
 from ..laws import BaseLaw, JumpLaw, UpdateLaw
 from ..laws.utils import uniform, where
@@ -73,6 +73,12 @@ class JumpInteraction(Interaction):
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (JumpLaw, UpdateLaw)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of a jump law, or of updates that draw with a probability when the probability is given."""
+        if self._get_argument('waiting') is None and self._get_argument('probability') is not None:
+            return self._get_variant_tags((UpdateLaw,), stochastic=True)
+        return self._get_variant_tags((JumpLaw,))
 
     def __init__(
         self,

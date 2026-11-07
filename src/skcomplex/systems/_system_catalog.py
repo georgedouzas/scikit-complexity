@@ -6,23 +6,34 @@
 import ast
 import dataclasses
 import difflib
+import functools
 import importlib
 import inspect
+import re
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
-from ..core.errors import RegistryError
+from ..core.components.system import BaseSystem, System
+from ..core.errors import RegistryError, ValidationError
+from ..core.specs import ObservableSpec, Tags
 from ._system_entry import SystemEntry
 from ._system_listing import SystemListing
+from .types import Factory
 
 LISTED = ('name', 'field', 'description', 'tags', 'references')
+CLASS_LISTED = ('field', 'topics', 'references')
+TUNED = ('until', 'dt', 'solver', 'initial_state')
 
 
 class SystemCatalog:
     """Catalog of the systems of a package: their listings read from source, and their entries once registered.
 
-    The catalog lists every factory that a module of the package decorates with `register_system`, reading the
-    registrations from the sources without importing them. Asking for the entry of a listed system imports its module,
-    whose registration adds the entry. Systems registered at run time outside the package are listed too.
+    The catalog lists every factory that a module of the package decorates with `register_system`, and every system
+    class of a module, a class whose body gives the class variable `field`, reading both from the sources without
+    importing them. Asking for the entry of a listed factory imports its module, whose registration adds the entry.
+    Asking for the entry of a listed class imports its module and adds an entry whose factory builds the composite of
+    the class for its model parameters, so code that creates systems by name runs system classes unchanged. Systems
+    registered at run time outside the package are listed too.
 
     Args:
         root:
@@ -76,7 +87,9 @@ class SystemCatalog:
         """
         if name not in self._entries:
             listing = self._listed().get(name)
-            if listing is not None:
+            if listing is not None and listing.class_name is not None:
+                self.register(self._class_entry(listing, self._import_class(listing)))
+            elif listing is not None:
                 importlib.import_module(listing.module)
         if name not in self._entries:
             known = sorted({*self._listed(), *self._entries})
@@ -128,6 +141,121 @@ class SystemCatalog:
             key=lambda listing: (listing.field, listing.name),
         )
 
+    def classes(
+        self,
+        field: str | None = None,
+        topics: str | Sequence[str] = (),
+        tags: Mapping[str, str | Sequence[str]] | None = None,
+    ) -> list[tuple[str, type[BaseSystem]]]:
+        """Return the name and the class of every system class, optionally of a field, with topics, or with tags.
+
+        The field and the topics are read from the sources, so only the modules of the selected classes are imported.
+        Filtering by capability tags builds every selected class with its default model parameters and reads its tags.
+
+        Args:
+            field:
+                The field, such as `chemistry`, or the field path, such as `chemistry/kinetics`, to keep, or `None` for
+                every field.
+
+            topics:
+                The topic, or the topics, that every kept class lists.
+
+            tags:
+                The capability tags to keep, by field of `Tags`, each a value or a sequence of values that the tags of a
+                kept class hold, or `None` for any tags.
+
+        Returns:
+            classes:
+                The name and the class of every kept system class, sorted by name.
+
+        Raises:
+            ValidationError:
+                A tag names no field of `Tags`.
+        """
+        wanted = {topics} if isinstance(topics, str) else set(topics)
+        found = []
+        for listing in self.listings(field):
+            if listing.class_name is None or not wanted <= set(listing.tags):
+                continue
+            system_class = self._import_class(listing)
+            if tags is None or self._has_tags(system_class().get_tags(), tags):
+                found.append((listing.class_name, system_class))
+        return sorted(found, key=lambda pair: pair[0])
+
+    @staticmethod
+    def _has_tags(tags: Tags, wanted: Mapping[str, str | Sequence[str]]) -> bool:
+        """Return whether capability tags hold every wanted value of every field.
+
+        Args:
+            tags:
+                The tags of a system.
+
+            wanted:
+                The wanted values, by field of `Tags`, each a value or a sequence of values.
+
+        Returns:
+            held:
+                Whether the tags hold every wanted value.
+
+        Raises:
+            ValidationError:
+                A wanted field is no field of `Tags`.
+        """
+        names = [item.name for item in dataclasses.fields(Tags)]
+        for name, value in wanted.items():
+            if name not in names:
+                error_msg = f'The tag {name!r} is unknown. Use one of {", ".join(map(repr, names))}.'
+                raise ValidationError(error_msg)
+            actual = getattr(tags, name)
+            held = {actual} if isinstance(actual, str) or actual is None else set(actual)
+            if not ({value} if isinstance(value, str) else set(value)) <= held:
+                return False
+        return True
+
+    @staticmethod
+    def _import_class(listing: SystemListing) -> type[BaseSystem]:
+        """Return the system class of a listing, importing its module."""
+        system_class: type[BaseSystem] = getattr(importlib.import_module(listing.module), str(listing.class_name))
+        return system_class
+
+    @staticmethod
+    def _class_entry(listing: SystemListing, system_class: type[BaseSystem]) -> SystemEntry:
+        """Return the entry of a system class: a factory of its composite, its metadata, and its tuned run settings.
+
+        Args:
+            listing:
+                The listing of the class.
+
+            system_class:
+                The class.
+
+        Returns:
+            entry:
+                The entry, whose factory takes the model parameters of the class and returns the prepared composite of
+                its parts, and whose default run settings are the tuned run settings of the class.
+        """
+        build: Callable[..., BaseSystem] = system_class
+
+        @functools.wraps(system_class, updated=())
+        def factory(**parameters: object) -> System:
+            return build(**parameters).prepare().system_
+
+        def observables(system: System) -> Sequence[ObservableSpec]:
+            return tuple(system_class.observables)
+
+        defaults = {name: getattr(system_class, name) for name in TUNED if getattr(system_class, name) is not None}
+        created: Factory = factory
+        return SystemEntry(
+            listing.name,
+            created,
+            listing.field,
+            listing.description,
+            listing.tags,
+            listing.references,
+            defaults,
+            observables,
+        )
+
     def _listed(self) -> dict[str, SystemListing]:
         """Return the listing of every system of the package, by name, read once from its sources."""
         if self._scanned is None:
@@ -138,13 +266,100 @@ class SystemCatalog:
                 module = '.'.join((self.package, *path.relative_to(self.root).with_suffix('').parts))
                 tree = ast.parse(path.read_text())
                 calls = [(node, self._registration(node)) for node in tree.body if isinstance(node, ast.FunctionDef)]
-                constants = self._constants(path) if any(call is not None for _, call in calls) else {}
+                classes = [
+                    node
+                    for node in tree.body
+                    if isinstance(node, ast.ClassDef) and self._class_value(node, 'field') is not None
+                ]
+                constants = self._constants(path) if classes or any(call is not None for _, call in calls) else {}
                 for node, call in calls:
                     if call is not None:
                         listing = self._listing(node, call, module, constants)
                         found[listing.name] = listing
+                for definition in classes:
+                    listing = self._class_listing(definition, module, constants)
+                    found[listing.name] = listing
             self._scanned = found
         return self._scanned
+
+    def _class_listing(self, node: ast.ClassDef, module: str, constants: dict[str, object]) -> SystemListing:
+        """Return the listing of a system class from its class variables and its docstring.
+
+        Args:
+            node:
+                The definition of the class.
+
+            module:
+                The dotted name of the module.
+
+            constants:
+                The module-level literal constants of the module.
+
+        Returns:
+            listing:
+                The listing, under the name of the class in snake case, with the topics as its tags.
+
+        Raises:
+            RegistryError:
+                The class is not named with the suffix `System`, or gives its field path as no string.
+        """
+        values = {
+            name: self._literal(
+                self._class_value(node, name),
+                f'defines the class variable {name!r}',
+                module,
+                constants,
+            )
+            for name in CLASS_LISTED
+        }
+        field = values['field']
+        if not node.name.endswith('System') or not isinstance(field, str):
+            error_msg = (
+                f'The class {node.name} of {module} gives the class variable `field`, so it is a system class. Name it '
+                'with the suffix `System`, and give `field` as a string.'
+            )
+            raise RegistryError(error_msg)
+        return SystemListing(
+            name=self._snake_case(node.name),
+            field=field,
+            description=self._summarize(ast.get_docstring(node) or ''),
+            tags=self._strings(values['topics'], 'topics', module),
+            references=self._strings(values['references'], 'references', module),
+            module=module,
+            class_name=node.name,
+        )
+
+    @staticmethod
+    def _class_value(node: ast.ClassDef, name: str) -> ast.expr | None:
+        """Return the value a class body assigns to a class variable, or `None` when it assigns none."""
+        for item in node.body:
+            if isinstance(item, ast.Assign) and any(
+                isinstance(target, ast.Name) and target.id == name for target in item.targets
+            ):
+                return item.value
+            if isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name) and item.target.id == name:
+                return item.value
+        return None
+
+    @staticmethod
+    def _snake_case(class_name: str) -> str:
+        """Return the catalog name of a system class: its name without the suffix `System`, in snake case.
+
+        Args:
+            class_name:
+                The name of the class.
+
+        Returns:
+            name:
+                The name in snake case, with an acronym kept as one word.
+
+        Examples:
+            >>> from skcomplex.systems import SystemCatalog
+            >>> SystemCatalog._snake_case('GrayScottSystem'), SystemCatalog._snake_case('BrusselatorODESystem')
+            ('gray_scott', 'brusselator_ode')
+        """
+        stem = class_name.removesuffix('System')
+        return re.sub(r'(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])', '_', stem).lower()
 
     def _listing(
         self,
@@ -154,7 +369,15 @@ class SystemCatalog:
         constants: dict[str, object],
     ) -> SystemListing:
         """Return the listing of a factory from its registration and its docstring."""
-        values = {keyword: self._literal(call, keyword, module, constants) for keyword in LISTED}
+        values = {
+            keyword: self._literal(
+                self._keyword_value(call, keyword),
+                f'registers the argument {keyword!r}',
+                module,
+                constants,
+            )
+            for keyword in LISTED
+        }
         field = values['field']
         if not isinstance(field, str):
             error_msg = f'The system {node.name} of {module} registers no field path. Give `field` as a string.'
@@ -174,26 +397,50 @@ class SystemCatalog:
         if value is None:
             return ()
         if not isinstance(value, tuple | list):
-            error_msg = (
-                f'A system of {module} registers the argument {keyword!r} as {value!r}. Give a tuple of strings.'
-            )
+            error_msg = f'A system of {module} gives {keyword!r} as {value!r}. Give a tuple of strings.'
             raise RegistryError(error_msg)
         return tuple(str(item) for item in value)
 
-    def _literal(self, call: ast.Call, keyword: str, module: str, constants: dict[str, object]) -> object:
-        """Return the static value of a keyword argument of a registration, or `None` when it is not given."""
+    @staticmethod
+    def _keyword_value(call: ast.Call, keyword: str) -> ast.expr | None:
+        """Return the value of a keyword argument of a registration, or `None` when it is not given."""
         node = next((item.value for item in call.keywords if item.arg == keyword), None)
         if node is None and keyword == 'name' and call.args:
             node = call.args[0]
+        return node
+
+    def _literal(self, node: ast.expr | None, given: str, module: str, constants: dict[str, object]) -> object:
+        """Return the static value of a registered argument or a class variable, or `None` when it is not given.
+
+        Args:
+            node:
+                The expression of the value, or `None` when it is not given.
+
+            given:
+                What gives the value, such as `registers the argument 'field'`, for the message of the error.
+
+            module:
+                The dotted name of the module.
+
+            constants:
+                The module-level literal constants of the module.
+
+        Returns:
+            value:
+                The value, or `None`.
+
+        Raises:
+            RegistryError:
+                The value is computed at run time.
+        """
         if node is None:
             return None
         try:
             return self._evaluate(node, constants)
         except (TypeError, ValueError) as error:
             error_msg = (
-                f'A system of {module} registers the argument {keyword!r} with a value computed at run time. Write it '
-                'as a literal or a module-level literal constant, so the catalog lists the system without importing '
-                'its module.'
+                f'A system of {module} {given} with a value computed at run time. Write it as a literal or a '
+                'module-level literal constant, so the catalog lists the system without importing its module.'
             )
             raise RegistryError(error_msg) from error
 

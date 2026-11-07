@@ -1,4 +1,4 @@
-"""Register the systems of the library, and list, describe, and create the system or the simulation of them by name."""
+"""Find the system classes of the library, and register, list, describe, and create the systems of factories by name."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -7,7 +7,7 @@ from collections.abc import Callable, Mapping, Sequence
 from importlib.resources import files
 from pathlib import Path
 
-from ..core.components.system import System
+from ..core.components.system import BaseSystem, System
 from ..core.engine.runtime import Simulation
 from ..core.errors import ArgumentError, ValidationError
 from ..core.specs import ObservableSpec
@@ -17,6 +17,51 @@ from ._system_listing import SystemListing
 
 SYSTEMS = SystemCatalog(Path(str(files('skcomplex.systems'))))
 """The catalog of the systems of the library and of the systems registered at run time."""
+
+
+def all_systems(
+    field: str | None = None,
+    topics: str | Sequence[str] = (),
+    tags: Mapping[str, str | Sequence[str]] | None = None,
+) -> list[tuple[str, type[BaseSystem]]]:
+    """Return the name and the class of every ready-made system, optionally of a field, with topics, or with tags.
+
+    It takes the role of `sklearn.utils.all_estimators`. The field and the topics of every class are read from the
+    sources, so selecting by them imports the modules of the selected classes alone. Filtering by capability tags
+    builds every selected class with its default model parameters and reads its tags. Systems still registered as
+    factories are not listed: `catalog` lists them.
+
+    Args:
+        field:
+            The field, such as `chemistry`, or the field path, such as `chemistry/kinetics`, to keep, or `None` for
+            every field.
+
+        topics:
+            The topic, or the topics, that every kept system lists, such as `'oscillation'`.
+
+        tags:
+            The capability tags to keep, by field of `Tags`, each a value or a sequence of values that the tags of a
+            kept system hold, such as `{'randomness': 'stochastic'}`, or `None` for any tags.
+
+    Returns:
+        systems:
+            The name and the class of every kept system, sorted by name.
+
+    Raises:
+        RegistryError:
+            A system class gives its field, topics, or references with a value computed at run time.
+
+        ValidationError:
+            A tag names no field of `Tags`.
+
+    Examples:
+        >>> from skcomplex.systems import all_systems
+        >>> [name for name, _ in all_systems(field='chemistry/pattern_formation')]
+        ['BrusselatorSystem', 'GrayScottSystem', 'SchnakenbergSystem']
+        >>> [name for name, _ in all_systems(field='chemistry', tags={'randomness': 'stochastic'})]
+        ['ChemicalLangevinEquationSystem', 'ChemicalLangevinNetworkSystem']
+    """
+    return SYSTEMS.classes(field, topics, tags)
 
 
 def register_system(

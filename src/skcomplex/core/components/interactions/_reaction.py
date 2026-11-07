@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import SR, Expression, oo, sqrt
 from sage.sets.real_set import RealSet
 
 from ...errors import ValidationError
-from ...specs import ParameterSpec, RoleSpec
+from ...specs import ParameterSpec, RoleSpec, Tags
 from ...types import ElementKind, Stoichiometry
 from ..base import BasePart
 from ..laws import BaseLaw, JumpLaw, NoiseLaw, RateLaw, RuleLaw, UpdateLaw
@@ -178,6 +178,13 @@ class ReactionInteraction(JumpInteraction):
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw, NoiseLaw, JumpLaw, RuleLaw, UpdateLaw)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the rules of the agent form, or the rate, jump, or Langevin laws of the symbolic one."""
+        if self._get_argument('form') == 'agent':
+            return self._get_variant_tags((RuleLaw,), stochastic=self._get_argument('mode') == 'jump')
+        modes: dict[object, tuple[type[BaseLaw], ...]] = {'jump': (JumpLaw,), 'langevin': (RateLaw, NoiseLaw)}
+        return self._get_variant_tags(modes.get(self._get_argument('mode'), (RateLaw,)))
 
     def __init__(
         self,

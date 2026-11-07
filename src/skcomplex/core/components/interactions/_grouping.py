@@ -10,7 +10,7 @@ from typing import Annotated, ClassVar, cast
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
-from ...specs import BaseSpec, PartnerSpec, ReductionSpec, RoleSpec
+from ...specs import BaseSpec, PartnerSpec, ReductionSpec, RoleSpec, Tags
 from ...types import ElementKind
 from ..laws import BaseLaw, MatchLaw, RuleLaw, UpdateLaw
 from ..laws.utils import both, count, maximum, mean, minimum, reductions_in, total, variance
@@ -145,6 +145,10 @@ class GroupingInteraction(Interaction):
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (MatchLaw, RuleLaw, UpdateLaw)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the rules of the agent form or of the updates of the symbolic grouping."""
+        return self._get_variant_tags((RuleLaw,) if self._get_argument('form') == 'agent' else (UpdateLaw,))
 
     def __init__(
         self,

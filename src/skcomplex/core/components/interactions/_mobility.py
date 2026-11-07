@@ -15,7 +15,7 @@ from sage.all__sagemath_symbolics import SR, Expression, fast_callable, oo
 from sage.sets.real_set import RealSet
 
 from ...errors import ValidationError
-from ...specs import CallSpec, ParameterSpec, RoleSpec
+from ...specs import CallSpec, ParameterSpec, RoleSpec, Tags
 from ...types import Array, ElementKind
 from ..laws import BaseLaw, RateLaw, UpdateLaw
 from ..types import NamespaceFunction, PairPotential, Target
@@ -302,6 +302,12 @@ class MobilityInteraction(Interaction):
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw, UpdateLaw)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the rates of the rate form, or of the random updates of the map form."""
+        if self._get_argument('form') == 'map':
+            return self._get_variant_tags((UpdateLaw,), stochastic=True)
+        return self._get_variant_tags((RateLaw,))
 
     def __init__(
         self,

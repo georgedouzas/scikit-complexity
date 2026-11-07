@@ -69,7 +69,10 @@ class SatisfiabilityInteraction(Interaction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP), states=('state',))],
+        target: Annotated[
+            str,
+            RoleSpec(elements=(ElementKind.GROUP, ElementKind.VARIABLE_GROUP), states=('state',), domains=('boolean',)),
+        ],
         state: str,
         constraints: Sequence[ClauseSpec | CardinalitySpec],
         reveal: int = 1,

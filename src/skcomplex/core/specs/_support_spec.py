@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from ..types import NoiseKind, OrderKind
 from ._base_spec import BaseSpec
+from ._tags import Tags
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,8 @@ class SupportSpec(BaseSpec):
         >>> from skcomplex.core.specs import SupportSpec
         >>> SupportSpec(laws={RateLaw}).missing('laws', [RateLaw, NoiseLaw])
         ['NoiseLaw']
+        >>> sorted(SupportSpec(laws={RateLaw, NoiseLaw}).get_tags().laws)
+        ['noise', 'rate']
     """
 
     time: AbstractSet[type] = frozenset()
@@ -74,3 +77,44 @@ class SupportSpec(BaseSpec):
         """
         found = {getattr(term, '__name__', str(term)) for term in terms if not self._supports(category, term)}
         return sorted(found)
+
+    @staticmethod
+    def _get_class_tags(classes: AbstractSet[type | None], attribute: str) -> frozenset[str]:
+        """Return the tags that supported classes and their subclasses name in a class variable, `'none'` for `None`.
+
+        Args:
+            classes:
+                The supported classes, with `None` for a system without a space.
+
+            attribute:
+                The class variable that names the tag or the tags of a class, such as `'law_tag'`.
+
+        Returns:
+            tags:
+                The tags of the classes, of the subclasses they support, and `'none'` when `None` is supported.
+        """
+        found = {'none'} if None in classes else set()
+        stack = [item for item in classes if item is not None]
+        while stack:
+            klass = stack.pop()
+            value = getattr(klass, attribute, ())
+            found |= {value} if isinstance(value, str) else set(value)
+            stack += klass.__subclasses__()
+        return frozenset(found - {''})
+
+    def get_tags(self) -> Tags:
+        """Return the capability tags supported: those of the supported classes of time, space, and laws.
+
+        A supported class supports its subclasses, so the tags of the subclasses count too, and an empty field of
+        the support gives an empty field of the tags, which supports any value.
+
+        Returns:
+            tags:
+                The supported times, spaces, and law kinds.
+        """
+        return Tags(
+            time=self._get_class_tags(self.time, 'time_tag'),
+            space=self._get_class_tags(self.space, 'space_tags'),
+            laws=self._get_class_tags(self.laws, 'law_tag'),
+            randomness=None,
+        )

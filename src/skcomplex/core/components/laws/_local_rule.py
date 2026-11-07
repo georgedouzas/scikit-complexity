@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping
+from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -91,6 +92,8 @@ class LocalRuleLaw(BaseLaw):
         >>> rule90.run({'space': LatticeSpace(6), 'cell': [0, 0, 1, 0, 0, 0]}).value_.tolist()
         [0, 1, 0, 1, 0, 0]
     """
+
+    law_tag: ClassVar[str] = 'update'
 
     def __init__(
         self,
