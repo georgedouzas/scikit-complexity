@@ -14,8 +14,7 @@ from skcomplex.core.components.laws import BaseLaw
 from skcomplex.core.engine import backends, solvers
 from skcomplex.core.engine.backends import BaseBackend
 from skcomplex.core.engine.solvers import BaseSolver
-from skcomplex.core.specs import RoleSpec, StateSpec
-from skcomplex.core.specs._tags import LAWS, SPACES, TIMES
+from skcomplex.core.specs import LAWS, SPACES, TIMES, RoleSpec, StateSpec
 
 PARTS = 'parts'
 

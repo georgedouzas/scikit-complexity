@@ -3,7 +3,7 @@
 import pytest
 
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import Tags
+from skcomplex.core.specs import DOMAINS, LAWS, RANDOMNESS, SPACES, STRUCTURES, TIMES, Tags
 
 
 def test_tags_reject_an_unknown_value():
@@ -40,3 +40,16 @@ def test_empty_fields_support_anything_and_unknown_laws_are_not_checked():
     """Test that empty supported fields support any value, and that unknown law kinds of a system pass."""
     assert Tags().missing(Tags(space=frozenset({'network'}), laws=frozenset({'noise'}))) == {}
     assert Tags(laws=frozenset({'rate'})).missing(Tags(laws=None)) == {}
+
+
+def test_tags_accept_every_value_of_the_public_vocabularies():
+    """Test that the vocabularies of the tags, public names of the specs, hold the values `Tags` accepts."""
+    tags = Tags(
+        time=frozenset(TIMES),
+        domains=frozenset(DOMAINS),
+        space=frozenset(SPACES),
+        laws=frozenset(LAWS),
+        randomness=RANDOMNESS[-1],
+        structure=frozenset(STRUCTURES),
+    ).prepare()
+    assert tags.time == frozenset(TIMES)

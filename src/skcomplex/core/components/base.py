@@ -14,8 +14,7 @@ from typing import Self
 
 from ..base import BaseConfig
 from ..errors import ValidationError
-from ..specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, Spec, StateSpec, Tags
-from ..specs._tags import STOCHASTIC_LAWS
+from ..specs import STOCHASTIC_LAWS, DeclaredVariableSpec, ParameterSpec, RoleSpec, Spec, StateSpec, Tags
 
 
 class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):

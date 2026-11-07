@@ -256,3 +256,24 @@ Field realizations, which call the core functions with fixed settings or replace
 - **Names.** A class name round-trips to its catalog name by the snake-case rule. Where it cannot, such as names with
   digits, the gallery example and the inventory key are renamed and reported. `label` is the last keyword-only
   argument with the default `'system'`.
+
+## Inventory vocabulary from the tags
+
+- **Computed at check time, never written back.** The time, the space, the laws, and the domains of an implemented
+  entry of `docs/overview/inventory.toml` are no longer written by hand. `docs/inventory_checks.py` finds the class of
+  every entry with `all_systems()`, by the snake-case name of the class without `System`, builds it with its default
+  parameters, and derives its tags. It reports an implemented entry that writes one of these categories, and a class
+  whose tags cannot be derived or whose law kinds are unknown. No maintenance script writes the generated values to
+  the file, so there is nothing to keep in step.
+- **One vocabulary.** The `vocabulary.time`, `vocabulary.space`, `vocabulary.laws`, and `vocabulary.domains` tables are
+  removed. Pending and blocked entries, which have no class yet, write these categories with the values of the public
+  `TIMES`, `SPACES`, `LAWS`, and `DOMAINS` of `skcomplex.core.specs`, and the check validates them against those. The
+  finer hand-written terms, such as the laws `local-rule`, `transfer`, `event`, and `boundary`, or the domains `angle`,
+  `tensor`, and `hilbert`, are dropped: the primitives of every entry, such as `local-rules`, `stocks-and-flows`,
+  `events`, `boundaries`, `angles`, and `tensor-fields`, already record them.
+- **Hand-written where tags say nothing.** `components` and `bindings` stay hand-written, with their vocabulary tables.
+  Deriving them from the element and interaction classes of the built system is possible, but the kinds of group
+  (variable, per site, per edge, per hyperedge) and of binding are not declared anywhere the tags read, so it is left
+  for a later change.
+- **Tags describe the default parameters.** A system whose stochastic or noisy mode is off by default, such as
+  `SIRSystem`, has the tags of its deterministic form, where the hand-written laws listed every mode.

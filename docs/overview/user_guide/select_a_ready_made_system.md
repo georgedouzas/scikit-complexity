@@ -102,7 +102,9 @@ The system inventory, `docs/overview/inventory.toml`, records every system surve
 articles, with its sources and its status: implemented, pending a planned change, or blocked by a missing feature of the
 core. A system the core cannot express is recorded as blocked on the OpenSpec change that specifies the missing general
 feature. It is never worked around inside the system package. A test checks the inventory against the catalog and the
-changes. Every registered system has its own page under Systems in the documentation, by field and subfield.
+changes. An entry writes the components and the bindings of its system by hand, while the time, the space, the laws,
+and the domains of an implemented system are read from `get_tags()` of its class, so they cannot drift from the code.
+Every registered system has its own page under Systems in the documentation, by field and subfield.
 
 Systems exist first to exercise the core, and ready-made systems are a by-product. Every entry lists the core primitives
 it exercises, such as `rates`, `jumps`, `groups`, `reductions`, `member-offsets`, `lattices`, `fields`, `agents`, or

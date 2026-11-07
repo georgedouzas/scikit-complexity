@@ -4,7 +4,7 @@
 - [x] 1.2 Derive the tags of `System` from its parts, with the error for parts that disagree
 - [x] 1.3 Declare accepted tags per role of every interaction, and check them in `prepare`
 - [x] 1.4 Declare the supported tags of every solver and backend from their current supports
-- [ ] 1.5 Generate the inventory's system vocabulary from the tags of each system, and compare them in the inventory check
+- [x] 1.5 Generate the inventory's system vocabulary from the tags of each system, and compare them in the inventory check
 
 ## 2. Systems
 
