@@ -1,4 +1,4 @@
-"""Test that the public names of the runtime package are classes, and that it resolves no system name."""
+"""Test that the public names of the runtime package are classes or `simulate`, and that it resolves no system name."""
 
 import inspect
 
@@ -19,10 +19,11 @@ CATALOG_NAMES = {
 }
 
 
-def test_public_names_are_classes():
-    """Every public name is a class."""
-    for name in package.__all__:
+def test_public_names_are_classes_or_simulate():
+    """Every public name is a class, apart from `simulate`, the function that runs a system."""
+    for name in set(package.__all__) - {'simulate'}:
         assert inspect.isclass(getattr(package, name)), name
+    assert inspect.isfunction(package.simulate)
 
 
 def test_no_catalog_in_the_engine():
