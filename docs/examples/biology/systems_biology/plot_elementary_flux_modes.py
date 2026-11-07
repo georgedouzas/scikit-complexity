@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import nnls
 
-from skcomplex.core.analysis import ElementaryModeAnalysis
+from skcomplex.core.analysis import elementary_modes
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -31,9 +31,9 @@ trajectory = Simulation(system, observers=[observer]).prepare().run(until=0.0).t
 # Normalised to the uptake `b1`, both modes should have the growth yield 1/12. The FBA optimum should be their
 # non-negative combination, with no residual, so its growth of 50 is the bound 1000 on `v6` over the ratio 20.
 
-analysis = ElementaryModeAnalysis(normalize='cell.v_b1', sort='cell.v_vbio').prepare(system).run()
-modes = np.asarray(analysis.modes_, dtype=float)
-names = [label.rpartition('v_')[2] for label in analysis.labels_]
+analysis = elementary_modes(system, normalize='cell.v_b1', sort='cell.v_vbio')
+modes = np.asarray(analysis.modes, dtype=float)
+names = [label.rpartition('v_')[2] for label in analysis.labels]
 optimum = np.array([float(trajectory.values(f'cell.v_{name}')[0]) for name in names])
 weights, residual = nnls(modes.T, optimum)
 fig, axes = plt.subplots(1, 2, figsize=(10, 4))

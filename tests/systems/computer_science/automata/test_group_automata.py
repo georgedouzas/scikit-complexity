@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import AutomatonAnalysis
+from skcomplex.core.analysis import automaton
 from skcomplex.core.components.spaces import GeneratorNeighborhood, MemoryNeighborhood
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.runtime import Simulation
@@ -118,8 +118,6 @@ def test_subshifts_stay_admissible():
     """Test that the Markov chain on the golden mean shift never puts two ones side by side and fills about a fifth."""
     simulation = _run(subshifts(100), 30)
     alive = simulation.trajectory_.values('cells.alive')
-    analyses = (
-        AutomatonAnalysis('admissible', configuration=row.astype(int)).prepare(simulation.system).run() for row in alive
-    )
-    assert all(analysis.admissible_ for analysis in analyses)
+    analyses = (automaton(simulation.system, kind='admissible', configuration=row.astype(int)) for row in alive)
+    assert all(analysis.admissible for analysis in analyses)
     assert 0.1 < alive[-10:].mean() < 0.4

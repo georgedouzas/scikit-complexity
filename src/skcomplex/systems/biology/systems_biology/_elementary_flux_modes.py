@@ -18,7 +18,7 @@ from ..common.metabolism import ToyNetworkElement
     defaults={'until': 0.0},
 )
 def elementary_flux_modes(knockouts: Sequence[str] = ()) -> System:
-    """Return the toy network of Raman whose steady-state cone `ElementaryModeAnalysis` enumerates.
+    """Return the toy network of Raman whose steady-state cone `elementary_modes` enumerates.
 
     Every steady-state flux of the network is a non-negative combination of the elementary modes of its cone (Raman
     2021, Section 9.8). The toy network has two modes, through `v1` and through `v2` and `v3`, both with growth yield
@@ -33,10 +33,10 @@ def elementary_flux_modes(knockouts: Sequence[str] = ()) -> System:
             The system.
 
     Examples:
-        >>> from skcomplex.core.analysis import ElementaryModeAnalysis
+        >>> from skcomplex.core.analysis import elementary_modes
         >>> from skcomplex.systems.biology.systems_biology import elementary_flux_modes
-        >>> analysis = ElementaryModeAnalysis(normalize='cell.v_b1').prepare(elementary_flux_modes()).run()
-        >>> analysis.modes_.shape[0]
+        >>> analysis = elementary_modes(elementary_flux_modes(), normalize='cell.v_b1')
+        >>> analysis.modes.shape[0]
         2
     """
     closed = {f'{bound}_{name}': 0.0 for name in knockouts for bound in ('lower', 'upper')}

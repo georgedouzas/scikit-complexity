@@ -17,7 +17,7 @@ bright spots, and new bands leave every meeting point in the opposite directions
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import StabilityAnalysis
+from skcomplex.core.analysis import stability
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
@@ -50,12 +50,12 @@ simulation = (
 trajectory = simulation.trajectory_
 mind_total = sum(trajectory.values(f'cell.{name}') for name in ('md', 'mde', 'cdt', 'cdd')).sum(axis=1)
 mine_total = sum(trajectory.values(f'cell.{name}') for name in ('mde', 'ce')).sum(axis=1)
-relation = StabilityAnalysis('dispersion').prepare(create_system(SYSTEM, n_sites=512, length=400.0)).run()
-order = np.argsort(relation.magnitudes_)
+relation = stability(create_system(SYSTEM, n_sites=512, length=400.0), kind='dispersion')
+order = np.argsort(relation.magnitudes)
 
 fig, (rates, totals) = plt.subplots(1, 2, figsize=(10, 4))
-rates.plot(relation.magnitudes_[order], relation.growth_rates_[order], label='growth rate')
-rates.plot(relation.magnitudes_[order], np.abs(relation.frequencies_[order]), '--', label='|frequency|')
+rates.plot(relation.magnitudes[order], relation.growth_rates[order], label='growth rate')
+rates.plot(relation.magnitudes[order], np.abs(relation.frequencies[order]), '--', label='|frequency|')
 rates.axhline(0.0, color='gray', linewidth=0.8)
 rates.set_xlim(0, 1.0)
 rates.set_ylim(-0.2, 0.2)

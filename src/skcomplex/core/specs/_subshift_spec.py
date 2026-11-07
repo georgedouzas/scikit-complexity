@@ -19,7 +19,7 @@ class SubshiftSpec(BaseSpec):
     A pattern is a tuple of values in the order of a neighbourhood. It appears at a site when the cells of the
     neighbourhood of the site hold its values, and patterns that reach outside a space are not checked, so a lattice
     with fixed edges holds the words of a window. A run checks that every cell holds a value of `alphabet`, and
-    `AutomatonAnalysis` decides whether a whole configuration is admissible.
+    `automaton` decides whether a whole configuration is admissible.
 
     Args:
         neighborhood:

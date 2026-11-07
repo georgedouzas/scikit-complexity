@@ -6,7 +6,7 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import SymbolicAnalysis
+from skcomplex.core.analysis._symbolic import _mittag_leffler
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.system import System
@@ -132,7 +132,7 @@ def test_compiler_order_one_gives_ode_form():
 def test_scheme_converges_to_mittag_leffler_relaxation(scheme, backend):
     """Test that a scheme matches E_0.6(-t^0.6) at time 5, with a smaller error for the smaller step."""
     problem = PassCompiler(backend=backend()).prepare(System(elements=[RelaxingElement('a')])).run().problem_
-    exact = float(SymbolicAnalysis._mittag_leffler(0.6, 1.0, -(5.0**0.6)))
+    exact = float(_mittag_leffler(0.6, 1.0, -(5.0**0.6)))
     errors = [abs(_advance(scheme(dt=dt), problem, 5.0)[0] - exact) for dt in (0.01, 0.005)]
     assert errors[0] < 1e-3
     assert errors[1] < errors[0]
@@ -205,7 +205,7 @@ def test_simulation_runs_fractional_system_with_default_solver():
     """Test that a simulation runs a fractional system with the fractional predictor-corrector by default."""
     simulation = Simulation(System(elements=[RelaxingElement('a')]), dt=0.5).prepare().run(until=5.0)
     assert isinstance(simulation.stepper_, FractionalABMSolver)
-    exact = float(SymbolicAnalysis._mittag_leffler(0.6, 1.0, -(5.0**0.6)))
+    exact = float(_mittag_leffler(0.6, 1.0, -(5.0**0.6)))
     assert simulation.trajectory_.values('a.x')[-1] == pytest.approx(exact, abs=1e-4)
 
 
@@ -217,6 +217,6 @@ def test_cosimulation_runs_fractional_partition():
     simulation = Simulation(system, solver=CoSimulationSolver(), dt=1.0).prepare().run(until=5.0)
     forms = {partition.name: partition.problem.form for partition in simulation.problem_.partitions}
     assert forms == {'memory': FormKind.FRACTIONAL, 'steps': FormKind.DISCRETE}
-    exact = float(SymbolicAnalysis._mittag_leffler(0.6, 1.0, -(5.0**0.6)))
+    exact = float(_mittag_leffler(0.6, 1.0, -(5.0**0.6)))
     assert simulation.trajectory_.values('memory/a.x')[-1] == pytest.approx(exact, abs=1e-4)
     assert simulation.trajectory_.values('steps/c.k')[-1] == 5

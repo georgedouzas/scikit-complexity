@@ -12,7 +12,7 @@ cell per step on each side, as the coefficients of `(x + 1/x - 2)^t` reduced mod
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import AutomatonAnalysis
+from skcomplex.core.analysis import automaton
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import BoxNeighborhood
 from skcomplex.core.components.system import System
@@ -49,8 +49,8 @@ laplacian = System(
         ),
     ],
 )
-invertible = AutomatonAnalysis('injective').prepare(laplacian).run().injective_
-surjective = AutomatonAnalysis('surjective', infinite=True).prepare(laplacian).run().surjective_
+invertible = automaton(laplacian, kind='injective').injective
+surjective = automaton(laplacian, kind='surjective', infinite=True).surjective
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(steps, (values != 0).sum(axis=1), 'o-', label='nonzero cells')
 ax.plot(steps, 2 * steps + 1, '--', label='light cone $2t + 1$')

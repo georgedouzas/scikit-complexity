@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import LoopAnalysis
+from skcomplex.core.analysis import loops
 from skcomplex.systems.engineering.processes import food_relief, irrigation, rice_milling, solid_waste
 
 from ...conftest import _run_monitored
@@ -30,7 +30,7 @@ def test_solid_waste_fills_the_landfill_then_dumps():
     assert landfill[-1] == pytest.approx(2e6, rel=1e-3)
     assert dumped[landfill < 0.8 * 2e6].max() == pytest.approx(0.0, abs=1e-6)
     assert dumped[-1] > 0
-    assert LoopAnalysis().prepare(solid_waste()).run().polarities_.count('reinforcing') == 1
+    assert loops(solid_waste()).polarities.count('reinforcing') == 1
 
 
 def test_food_relief_delays_then_meets_the_need():

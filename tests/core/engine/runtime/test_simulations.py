@@ -7,7 +7,7 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import LoopAnalysis
+from skcomplex.core.analysis import loops
 from skcomplex.core.components.elements import CompartmentElement, Element, GroupElement
 from skcomplex.core.components.laws import RateLaw, RuleLaw
 from skcomplex.core.components.spaces import ContinuousSpace
@@ -172,7 +172,7 @@ def test_closed_economy_changes_money_only_by_lending_and_repayment():
     created = trajectory.values('circuit.lending') - trajectory.values('circuit.repayments')
     assert np.diff(money) == pytest.approx(created[:-1], abs=1e-9)
     for frame in (0, 50, 100):
-        matrix = LoopAnalysis('flow-matrix', frame=frame).prepare(trajectory).run().matrix_
+        matrix = loops(trajectory, kind='flow-matrix', frame=frame).matrix
         assert matrix.sum(axis=1) == pytest.approx(0.0, abs=1e-12)
 
 

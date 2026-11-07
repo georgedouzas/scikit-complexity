@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import jv
 
-from skcomplex.core.analysis import OperatorAnalysis
+from skcomplex.core.analysis import operator_measures
 from skcomplex.core.engine.compile import OperatorCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
@@ -54,8 +54,10 @@ magnon = create_simulation(SYSTEM, delta=0.0).set_params(dt=0.05).prepare().run(
 
 
 sizes = np.arange(4, 15, 2)
-ground = OperatorAnalysis(n_states=1, sector=SectorSpec(total_magnetization, 0.0))
-energies = [ground.prepare(create_system(SYSTEM, n_sites=int(n))).run().energies_[0] / n for n in sizes]
+sector = SectorSpec(total_magnetization, 0.0)
+energies = [
+    operator_measures(create_system(SYSTEM, n_sites=int(n)), n_states=1, sector=sector).energies[0] / n for n in sizes
+]
 fig, (spread, ground) = plt.subplots(1, 2, figsize=(10, 4))
 for distance in (0, 1, 3):
     spread.plot(magnon.times, 0.5 - magnon.values('sz')[:, 6 + distance], label=f'd = {distance}')

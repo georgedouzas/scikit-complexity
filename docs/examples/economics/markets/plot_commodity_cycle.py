@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import LoopAnalysis
+from skcomplex.core.analysis import loops
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_simulation, create_system
 
@@ -40,7 +40,7 @@ simulation = create_simulation(SYSTEM).set_params(dt=0.25, observers=[observer])
 # completions to the capacity, and its delay drives the cycle. The price peaks first, the capacity orders follow, and
 # the capacity peaks years later.
 
-polarities = LoopAnalysis().prepare(create_system(SYSTEM)).run().polarities_
+polarities = loops(create_system(SYSTEM)).polarities
 summary = ', '.join(f'{polarities.count(kind)} {kind}' for kind in ('reinforcing', 'balancing'))
 
 trajectory = simulation.trajectory_

@@ -11,7 +11,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, cos, oo, sin
 from sage.sets.real_set import RealSet
 
-from ....core.analysis import LinearizationAnalysis
+from ....core.analysis import linearization
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, BoundaryLaw, EquationLaw, RateLaw
@@ -318,7 +318,7 @@ class StateFeedbackInteraction(Interaction):
     """Linear state feedback `u = -K x` that sets a control input of a plant from its states.
 
     The control input is an adaptive parameter of the plant, which the controller sets after every solver step, so it
-    holds within a step like a sampled controller. A gain from `LinearizationAnalysis` of the plant makes the
+    holds within a step like a sampled controller. A gain from `linearization` of the plant makes the
     controller a linear-quadratic regulator.
 
     Args:
@@ -484,7 +484,7 @@ def lqr_oscillator(
     """Return a harmonic oscillator that a linear-quadratic regulator brings to rest.
 
     The gain `K` of the regulator minimises `∫ (q (x^2 + x'^2) + r force^2) dt` for the linearisation of the
-    oscillator, which `LinearizationAnalysis` computes from the Riccati equation, and the state feedback sets
+    oscillator, which `linearization` computes from the Riccati equation, and the state feedback sets
     `force = -K (x, x')`. A smaller weight `r` of the force gives a larger gain and a faster return to rest.
 
     Args:
@@ -514,13 +514,17 @@ def lqr_oscillator(
         [2.317, 3.825]
     """
     oscillator = DrivenOscillatorElement('oscillator', x=x, omega=omega, zeta=zeta)
-    system = LinearizationAnalysis(['oscillator.force'], state_weights=q * np.eye(2), control_weights=[[r]])
-    system.prepare(System(elements=[oscillator])).run()
-    gain = system.gain_
+    linear = linearization(
+        System(elements=[oscillator]),
+        controls=['oscillator.force'],
+        state_weights=q * np.eye(2),
+        control_weights=[[r]],
+    )
+    gain = linear.gain
     if gain is None:
         error_msg = 'The linearization of the oscillator gives no gain, since it has no cost weights.'
         raise ValidationError(error_msg)
-    states = tuple(name.removeprefix('oscillator.') for name in system.states_)
+    states = tuple(name.removeprefix('oscillator.') for name in linear.states)
     regulator = StateFeedbackInteraction(
         'regulator',
         plant='oscillator',

@@ -17,7 +17,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import SymbolicAnalysis
+from skcomplex.core.analysis import symbolic
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -64,8 +64,8 @@ observer.recording_.flush()
 fig, ax = plt.subplots(figsize=(6, 4.5))
 for (order, run), color in zip(runs.items(), COLORS, strict=True):
     times = run.times[1:]
-    solve = SymbolicAnalysis('solve', use_initial_state=True).prepare(create_system(SYSTEM, order=order)).run()
-    solution = solve.solutions_['relaxation.x'].rhs()
+    solve = symbolic(create_system(SYSTEM, order=order), kind='solve', use_initial_state=True)
+    solution = solve.solutions['relaxation.x'].rhs()
     symbols = {str(symbol): symbol for symbol in solution.variables()}
     exact = [float(solution.subs({symbols['t']: time, symbols['lam_relaxation']: 1.0})) for time in times]
     ax.loglog(

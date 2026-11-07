@@ -14,7 +14,7 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import SectionAnalysis
+from skcomplex.core.analysis import section
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -36,10 +36,10 @@ fig, ax = plt.subplots(figsize=(6, 4))
 x, v = 0.0, 0.0
 for period in np.linspace(2.0, 6.0, 41):
     omega = 2 * math.pi / period
-    section = SectionAnalysis('stroboscopic', period=period, n_points=30, transient=60)
-    section.prepare(create_system(SYSTEM, x=x, v=v, a=2.0, omega=omega)).run()
-    values = np.asarray(section.values_['toda.x'])
-    x, v = float(values[-1]), float(np.asarray(section.values_['toda.x_d1'])[-1])
+    system = create_system(SYSTEM, x=x, v=v, a=2.0, omega=omega)
+    points = section(system, kind='stroboscopic', period=period, n_points=30, transient=60)
+    values = np.asarray(points.values['toda.x'])
+    x, v = float(values[-1]), float(np.asarray(points.values['toda.x_d1'])[-1])
     ax.plot(np.full(values.size, period), values, ',', color='black')
 ax.set_xlabel('driving period T')
 ax.set_ylabel('x at multiples of T')

@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.analysis import StabilityAnalysis
+from skcomplex.core.analysis import stability
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.systems.biology.systems_biology import (
     min_protein_skeleton,
@@ -14,10 +14,10 @@ from ..conftest import _run_with_solver
 def test_min_protein_skeleton_conserves_both_proteins_and_forms_oscillating_bands():
     """Test that the Min skeleton system conserves MinD and MinE while an oscillatory instability forms bands."""
     system = min_protein_skeleton(64)
-    relation = StabilityAnalysis('dispersion').prepare(system).run()
-    unstable = relation.growth_rates_ > 0
+    relation = stability(system, kind='dispersion')
+    unstable = relation.growth_rates > 0
     assert unstable.any()
-    assert np.abs(relation.frequencies_[unstable]).max() > 0.01
+    assert np.abs(relation.frequencies[unstable]).max() > 0.01
     trajectory = _run_with_solver(system, 200, 10.0, ScipyODESolver(method='BDF', jacobian='exact'))
     states = {name: trajectory.values(f'cell.{name}') for name in ('md', 'mde', 'cdt', 'cdd', 'ce')}
     total_D = (states['md'] + states['mde'] + states['cdt'] + states['cdd']).sum(axis=1)

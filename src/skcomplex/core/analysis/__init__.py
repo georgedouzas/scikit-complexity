@@ -2,7 +2,7 @@
 
 from ._alignment import AlignmentAnalysis
 from ._autocatalytic import AutocatalyticSetAnalysis
-from ._automata import AutomatonAnalysis
+from ._automata import AutomatonResult, automaton
 from ._base import BaseAnalysis, bind_analysis
 from ._cell_complex import CellComplexAnalysis
 from ._clusters import ClusterAnalysis
@@ -16,7 +16,7 @@ from ._discovery import DiscoveryAnalysis
 from ._displacement import DisplacementAnalysis
 from ._distribution import DistributionAnalysis
 from ._domains import DomainAnalysis
-from ._elementary_modes import ElementaryModeAnalysis
+from ._elementary_modes import ElementaryModesResult, elementary_modes
 from ._embedding import EmbeddingAnalysis
 from ._emergence import EmergenceAnalysis
 from ._entropy import EntropyAnalysis
@@ -24,20 +24,20 @@ from ._ergodicity import ErgodicityAnalysis
 from ._events import EventAnalysis
 from ._fit import FitAnalysis
 from ._information import InformationAnalysis
-from ._invariants import InvariantAnalysis
+from ._invariants import InvariantsResult, invariants
 from ._irreversibility import IrreversibilityAnalysis
 from ._kramers_moyal import KramersMoyalAnalysis
 from ._large_deviations import LargeDeviationAnalysis
-from ._linearization import LinearizationAnalysis
+from ._linearization import LinearizationResult, linearization
 from ._local_information import LocalInformationAnalysis
-from ._loops import LoopAnalysis
+from ._loops import LoopsResult, loops
 from ._lyapunov import LyapunovResult, lyapunov
 from ._markov import MarkovAnalysis
 from ._mode_decomposition import ModeDecompositionAnalysis
 from ._motifs import MotifAnalysis
 from ._neighbors import NeighborAnalysis
 from ._networks import NetworkAnalysis
-from ._operator import OperatorAnalysis
+from ._operator import OperatorMeasuresResult, operator_measures
 from ._partial_information import PartialInformationAnalysis
 from ._passage import PassageAnalysis
 from ._recurrence import RecurrenceAnalysis
@@ -45,19 +45,19 @@ from ._renormalization import RenormalizationAnalysis
 from ._reservoirs import ReservoirAnalysis
 from ._rolling import RollingResult, rolling
 from ._scaling import ScalingAnalysis
-from ._sections import SectionAnalysis
+from ._sections import SectionResult, section
 from ._shape import ShapeAnalysis
 from ._signatures import SignatureAnalysis
 from ._sparse_identification import SparseIdentificationAnalysis
 from ._spectrum import SpectrumAnalysis
-from ._stability import StabilityAnalysis
+from ._stability import StabilityResult, stability
 from ._surrogates import SurrogateTestAnalysis
-from ._symbolic import SymbolicAnalysis
+from ._symbolic import SymbolicResult, symbolic
 
 __all__: list[str] = [
     'AlignmentAnalysis',
     'AutocatalyticSetAnalysis',
-    'AutomatonAnalysis',
+    'AutomatonResult',
     'BaseAnalysis',
     'CellComplexAnalysis',
     'ClusterAnalysis',
@@ -70,7 +70,7 @@ __all__: list[str] = [
     'DisplacementAnalysis',
     'DistributionAnalysis',
     'DomainAnalysis',
-    'ElementaryModeAnalysis',
+    'ElementaryModesResult',
     'EmbeddingAnalysis',
     'EmergenceAnalysis',
     'EntropyAnalysis',
@@ -79,20 +79,20 @@ __all__: list[str] = [
     'EventAnalysis',
     'FitAnalysis',
     'InformationAnalysis',
-    'InvariantAnalysis',
+    'InvariantsResult',
     'IrreversibilityAnalysis',
     'KramersMoyalAnalysis',
     'LargeDeviationAnalysis',
-    'LinearizationAnalysis',
+    'LinearizationResult',
     'LocalInformationAnalysis',
-    'LoopAnalysis',
+    'LoopsResult',
     'LyapunovResult',
     'MarkovAnalysis',
     'ModeDecompositionAnalysis',
     'MotifAnalysis',
     'NeighborAnalysis',
     'NetworkAnalysis',
-    'OperatorAnalysis',
+    'OperatorMeasuresResult',
     'PartialInformationAnalysis',
     'PassageAnalysis',
     'RecurrenceAnalysis',
@@ -100,15 +100,24 @@ __all__: list[str] = [
     'ReservoirAnalysis',
     'RollingResult',
     'ScalingAnalysis',
-    'SectionAnalysis',
+    'SectionResult',
     'ShapeAnalysis',
     'SignatureAnalysis',
     'SparseIdentificationAnalysis',
     'SpectrumAnalysis',
-    'StabilityAnalysis',
+    'StabilityResult',
     'SurrogateTestAnalysis',
-    'SymbolicAnalysis',
+    'SymbolicResult',
+    'automaton',
     'bind_analysis',
+    'elementary_modes',
+    'invariants',
+    'linearization',
+    'loops',
     'lyapunov',
+    'operator_measures',
     'rolling',
+    'section',
+    'stability',
+    'symbolic',
 ]

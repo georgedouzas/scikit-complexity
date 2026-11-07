@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import var
 
-from skcomplex.core.analysis import LoopAnalysis, SymbolicAnalysis
+from skcomplex.core.analysis import loops, symbolic
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import BoundaryLaw, Sink, Source, TransferLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import shift_member, where
@@ -338,18 +338,18 @@ def test_jump_flows_move_their_size_at_random_times():
 def test_population_has_one_reinforcing_and_one_balancing_loop():
     """Test that births close a reinforcing loop and deaths a balancing loop, and births dominate."""
     system = System(elements=[PopulationElement('pop')])
-    analysis = LoopAnalysis().prepare(system).run()
-    found = dict(zip(analysis.loops_, analysis.polarities_, strict=True))
+    analysis = loops(system)
+    found = dict(zip(analysis.loops, analysis.polarities, strict=True))
     assert found == {('pop.n', 'pop.deaths'): 'balancing', ('pop.n', 'pop.births'): 'reinforcing'}
     trajectory = Simulation(system, dt=1).prepare().run(5).trajectory_
-    dominance = LoopAnalysis('dominance').prepare(trajectory).run()
-    assert dominance.gains_[-1] == pytest.approx([0.03, -0.01])
-    assert dominance.polarities_[int(dominance.dominant_[-1])] == 'reinforcing'
+    dominance = loops(trajectory, kind='dominance')
+    assert dominance.gains[-1] == pytest.approx([0.03, -0.01])
+    assert dominance.polarities[int(dominance.dominant[-1])] == 'reinforcing'
 
 
 def test_conservation_returns_the_boundary_flows():
     """Test that the net inflow of people is births minus deaths."""
-    boundary = SymbolicAnalysis('conservation').prepare(System(elements=[PopulationElement('pop')])).run().inflows_
+    boundary = symbolic(System(elements=[PopulationElement('pop')]), kind='conservation').inflows
     assert str(boundary['people']) == 'b_pop*n_pop - d_pop*n_pop'
 
 

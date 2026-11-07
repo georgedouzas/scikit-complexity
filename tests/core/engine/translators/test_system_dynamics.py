@@ -8,7 +8,7 @@ import pandas as pd
 import pysd
 import pytest
 
-from skcomplex.core.analysis import LoopAnalysis
+from skcomplex.core.analysis import loops
 from skcomplex.core.components.interactions import RelaxationInteraction, TransferInteraction
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import EulerSolver
@@ -199,9 +199,9 @@ def test_run_invariant_catches_a_total_that_changes(translate):
 
 def test_run_loops_of_a_translated_system(translate):
     """Test that a population holds one reinforcing loop through births and one balancing loop through deaths."""
-    analysis = LoopAnalysis().prepare(translate('population.mdl').create_system()).run()
-    loops = dict(zip(analysis.loops_, analysis.polarities_, strict=True))
-    assert loops == {
+    analysis = loops(translate('population.mdl').create_system())
+    found = dict(zip(analysis.loops, analysis.polarities, strict=True))
+    assert found == {
         ('population.population', 'population.births'): 'reinforcing',
         ('population.population', 'population.deaths'): 'balancing',
     }

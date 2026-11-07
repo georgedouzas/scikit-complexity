@@ -11,7 +11,7 @@ of two elements, so a few ones spread into a growing, flickering pattern over th
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.analysis import AutomatonAnalysis
+from skcomplex.core.analysis import automaton
 from skcomplex.core.components.elements import LatticeElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import CayleySpace, MemoryNeighborhood
@@ -50,7 +50,7 @@ parity = System(
         ),
     ],
 )
-invertible = AutomatonAnalysis('injective').prepare(parity).run().injective_
+invertible = automaton(parity, kind='injective').injective
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(simulation.trajectory_.times, alive.sum(axis=1), 'o-')
 ax.set_xlabel('step')

@@ -18,7 +18,7 @@ from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
 from ..types import Array, VectorFunction
 from ._base import _check_choice, _check_settings, _read_series, _read_system
-from ._stability import StabilityAnalysis
+from ._stability import _dynamics_of
 from .types import Source
 
 KINDS = ('spectrum', 'largest')
@@ -253,7 +253,7 @@ def lyapunov(
         return LyapunovResult(values=series.values, labels=series.labels, largest_exponent=largest)
     problem = None
     if isinstance(source, System | BaseProblemSpec | Trajectory):
-        dynamics = StabilityAnalysis._dynamics_of(_read_system(source), parameters)
+        dynamics = _dynamics_of(_read_system(source), parameters)
         problem = dynamics.problem
         exponents = _compute_spectrum(dynamics, n_exponents, until, dt, transient)
     else:
@@ -278,7 +278,9 @@ def _compute_spectrum(
     count = size if n_exponents is None else n_exponents
     problem = dynamics.problem
     indices = {
-        name: entry.start + column for entry in problem.states.entries for column, name in enumerate(entry.generic_names)
+        name: entry.start + column
+        for entry in problem.states.entries
+        for column, name in enumerate(entry.generic_names)
     }
     start = np.asarray([problem.initial_state[indices[name]] for name in dynamics.names], dtype=float)
     f = _function('field', dynamics, dynamics.rates, (size,))

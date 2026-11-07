@@ -12,7 +12,7 @@ import mkdocs_gen_files
 from gallery_tools import Example, build_from_environment
 from inventory_checks import InventoryError, inventory_problems
 
-from skcomplex.core.analysis import SymbolicAnalysis
+from skcomplex.core.analysis import symbolic
 from skcomplex.core.components.elements import BaseElement
 from skcomplex.core.components.interactions import BaseInteraction
 from skcomplex.core.components.system import System
@@ -140,7 +140,7 @@ def _equations(name: str) -> str | None:
     if describe(name).formalism not in EQUATION_FORMS:
         return None
     try:
-        equations = SymbolicAnalysis().prepare(create_system(name)).run().equations_
+        equations = symbolic(create_system(name)).equations
     except AnalysisError:
         return None
     return '\n'.join(f'{target}: {equation}' for target, equation in equations.items())
@@ -187,7 +187,7 @@ def field_page(field: str, titles: dict[str, str]) -> str:
         '',
         f'The registered systems of `skcomplex.systems.{field}`. The page of each shows its factory, its component',
         'types with their states, parameters, and laws as written, and, for the forms that have them, its equations as',
-        '`SymbolicAnalysis` returns them, so it serves as the pattern for a system of your own.',
+        '`symbolic` returns them, so it serves as the pattern for a system of your own.',
     ]
     for subfield in sorted({entry.field for entry in entries}):
         lines += ['', f'## {_title(subfield.partition("/")[2])}', '']

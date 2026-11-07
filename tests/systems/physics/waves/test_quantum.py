@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import OperatorAnalysis
+from skcomplex.core.analysis import operator_measures
 from skcomplex.core.components.spaces import NetworkSpace
 from skcomplex.core.engine.compile import OperatorCompiler
 from skcomplex.core.engine.runtime import Simulation
@@ -52,7 +52,7 @@ def test_schrodinger_dephased_packet_keeps_its_trace(tmp_path):
     trajectory = simulation.prepare().run(until=2.0).trajectory_
     traces = np.trace(trajectory.values('schrodinger.state'), axis1=1, axis2=2)
     assert np.allclose(traces, 1, atol=1e-10)
-    assert np.all(np.diff(OperatorAnalysis('purity').prepare(trajectory).run().purity_) <= 1e-10)
+    assert np.all(np.diff(operator_measures(trajectory, kind='purity').purity) <= 1e-10)
     with pytest.raises(ValidationError, match='formulation'):
         create_system('schrodinger', gamma=0.5)
 

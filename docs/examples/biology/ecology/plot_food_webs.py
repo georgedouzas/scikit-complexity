@@ -13,7 +13,7 @@ its predators.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import StabilityAnalysis
+from skcomplex.core.analysis import stability
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -34,8 +34,8 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 trajectory = simulation.trajectory_
 species = ['frogs', 'mice', 'snakes', 'hawks']
 final = {f'{name}.n': trajectory.values(f'{name}.n')[-1] for name in species}
-result = StabilityAnalysis(points=[final]).prepare(system).run()
-eigenvalues = np.asarray(result.eigenvalues_[0], dtype=complex)
+result = stability(system, points=[final])
+eigenvalues = np.asarray(result.eigenvalues[0], dtype=complex)
 fig, (series, spectrum) = plt.subplots(1, 2, figsize=(11, 4))
 for name in species:
     series.plot(trajectory.times, trajectory.values(f'{name}.n'), label=name)
@@ -47,6 +47,6 @@ spectrum.plot(eigenvalues.real, eigenvalues.imag, 'o', markersize=8)
 spectrum.axvline(0, color='black', linestyle='--')
 spectrum.set_xlabel('real part')
 spectrum.set_ylabel('imaginary part')
-spectrum.set_title(f'Largest real part {eigenvalues.real.max():.3f}: {result.classifications_[0]}')
+spectrum.set_title(f'Largest real part {eigenvalues.real.max():.3f}: {result.classifications[0]}')
 fig.tight_layout()
 plt.show()

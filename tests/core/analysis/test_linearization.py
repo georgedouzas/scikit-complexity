@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import sin
 
-from skcomplex.core.analysis import LinearizationAnalysis
+from skcomplex.core.analysis import linearization
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw, UpdateLaw
 from skcomplex.core.components.spaces import DiscreteTime
@@ -123,58 +123,53 @@ class CartElement(Element):
         return [RateLaw(s.x, s.force)]
 
 
-def _linearization(system, **settings):
-    """Return the linearization analysis of a system, run."""
-    return LinearizationAnalysis(**settings).prepare(system).run()
-
-
 def test_linearize_uncontrollable_mode():
     """Test that two oscillators of which only one receives the control have controllability rank 2 of 4."""
-    system = _linearization(System(elements=[DrivenElement('a'), FreeElement('b')]))
-    assert system.states_ == ('a.x', 'a.x_d1', 'b.x', 'b.x_d1')
-    assert system.controls_ == ('a.force',)
-    assert system.A_.shape == (4, 4)
-    assert system.controllability_ == 2
-    assert system.observability_ == 4
-    assert system.gain_ is None
+    system = linearization(System(elements=[DrivenElement('a'), FreeElement('b')]))
+    assert system.states == ('a.x', 'a.x_d1', 'b.x', 'b.x_d1')
+    assert system.controls == ('a.force',)
+    assert system.A.shape == (4, 4)
+    assert system.controllability == 2
+    assert system.observability == 4
+    assert system.gain is None
 
 
 def test_linearize_at_an_operating_point():
     """Test that the pendulum linearised upright has the unstable entry `cos(pi) = -1` negated in its state matrix."""
-    system = _linearization(
+    system = linearization(
         System(elements=[PendulumElement('p')]),
         outputs=['p.theta', 'p.torque'],
         at={'p.theta': np.pi},
     )
-    np.testing.assert_allclose(system.A_, [[0, 1], [1, 0]], atol=1e-12)
-    np.testing.assert_allclose(system.B_, [[0], [1]])
-    np.testing.assert_allclose(system.C_, [[1, 0], [0, 0]])
-    np.testing.assert_allclose(system.D_, [[0], [1]])
-    observed = _linearization(System(elements=[PendulumElement('p')]), outputs=['p.theta'], at={'p.theta': np.pi})
-    assert observed.observability_ == 2
+    np.testing.assert_allclose(system.A, [[0, 1], [1, 0]], atol=1e-12)
+    np.testing.assert_allclose(system.B, [[0], [1]])
+    np.testing.assert_allclose(system.C, [[1, 0], [0, 0]])
+    np.testing.assert_allclose(system.D, [[0], [1]])
+    observed = linearization(System(elements=[PendulumElement('p')]), outputs=['p.theta'], at={'p.theta': np.pi})
+    assert observed.observability == 2
 
 
 def test_linearize_rejects_unknown_controls():
     """Test that a control that is not an adaptive parameter is rejected."""
     with pytest.raises(AnalysisError, match='not adaptive parameters'):
-        _linearization(System(elements=[PendulumElement('p')]), controls=['p.theta'])
+        linearization(System(elements=[PendulumElement('p')]), controls=['p.theta'])
 
 
 def test_linearize_rejects_discrete_time():
     """Test that a system that is not under continuous time is rejected as invalid."""
     with pytest.raises(ValidationError, match='continuous time'):
-        _linearization(System(elements=[CounterElement('c')], time=DiscreteTime()))
+        linearization(System(elements=[CounterElement('c')], time=DiscreteTime()))
 
 
 def test_lqr_stabilises_a_double_integrator():
     """Test that the regulator gain of a double integrator is `[1, sqrt(3)]` and makes the closed loop stable."""
-    system = _linearization(System(elements=[CartElement('cart')]), state_weights=np.eye(2), control_weights=[[1.0]])
-    np.testing.assert_allclose(system.A_, [[0.0, 1.0], [0.0, 0.0]])
-    np.testing.assert_allclose(system.gain_, [[1.0, np.sqrt(3.0)]])
-    assert np.all(np.linalg.eigvals(system.A_ - system.B_ @ system.gain_).real < 0)
+    system = linearization(System(elements=[CartElement('cart')]), state_weights=np.eye(2), control_weights=[[1.0]])
+    np.testing.assert_allclose(system.A, [[0.0, 1.0], [0.0, 0.0]])
+    np.testing.assert_allclose(system.gain, [[1.0, np.sqrt(3.0)]])
+    assert np.all(np.linalg.eigvals(system.A - system.B @ system.gain).real < 0)
 
 
 def test_regulator_needs_both_weights():
-    """Test that state weights without control weights are rejected at check."""
+    """Test that state weights without control weights are rejected."""
     with pytest.raises(AnalysisError, match='both state_weights and control_weights'):
-        LinearizationAnalysis(state_weights=np.eye(2)).prepare()
+        linearization(System(elements=[CartElement('cart')]), state_weights=np.eye(2))

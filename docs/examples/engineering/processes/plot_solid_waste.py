@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import LoopAnalysis
+from skcomplex.core.analysis import loops
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -39,7 +39,7 @@ simulation = Simulation(create_system(SYSTEM), dt=0.1, observers=[observer]).pre
 # and compost, and the capacity adjustment are balancing loops. The growth makes the landfilling rise until the
 # acceptance table closes the landfill, and the residual waste then turns to dumping.
 
-polarities = LoopAnalysis().prepare(create_system(SYSTEM)).run().polarities_
+polarities = loops(create_system(SYSTEM)).polarities
 reinforcing, balancing = polarities.count('reinforcing'), polarities.count('balancing')
 trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)

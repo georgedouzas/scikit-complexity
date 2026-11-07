@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 import skcomplex.core.components
-from skcomplex.core.analysis import LinearizationAnalysis
+from skcomplex.core.analysis import linearization
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.systems import create_simulation
@@ -41,7 +41,7 @@ def test_lqr_oscillator_is_controllable():
     """Test that the oscillator with its force as control is controllable."""
     plant = create_simulation('lqr_oscillator').prepare().run(until=0.1).system
     plant = System(elements=list(plant.elements))
-    assert LinearizationAnalysis().prepare(plant).run().controllability_ == 2
+    assert linearization(plant).controllability == 2
 
 
 def test_pendulum_without_control_falls():

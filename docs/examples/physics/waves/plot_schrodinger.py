@@ -12,7 +12,7 @@ velocity and spreads on a periodic lattice.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import OperatorAnalysis
+from skcomplex.core.analysis import operator_measures
 from skcomplex.core.engine.compile import OperatorCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import ETDRK4Solver
@@ -55,7 +55,7 @@ agreement.legend()
 for gamma in (0.1, 0.5, 2.0):
     dephased = create_system(SYSTEM, n_sites=48, length=20.0, formulation='operators', gamma=gamma)
     trajectory = Simulation(dephased, compiler=OperatorCompiler(), dt=0.1).prepare().run(until=4.0).trajectory_
-    purity = OperatorAnalysis('purity').prepare(trajectory).run().purity_
+    purity = operator_measures(trajectory, kind='purity').purity
     coherence.plot(trajectory.times, purity, label=f'gamma = {gamma}')
 coherence.set_xlabel('time')
 coherence.set_ylabel('purity')

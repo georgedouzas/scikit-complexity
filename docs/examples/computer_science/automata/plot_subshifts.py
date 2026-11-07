@@ -12,7 +12,7 @@ shift, the configurations without two adjacent ones, whose number grows as the p
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import AutomatonAnalysis
+from skcomplex.core.analysis import automaton
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
@@ -33,12 +33,10 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 # words of length `n` approaches the logarithm of the golden ratio.
 
 alive = simulation.trajectory_.values('cells.alive')
-admissible = all(
-    AutomatonAnalysis('admissible', configuration=row.astype(int)).prepare(system).run().admissible_ for row in alive
-)
+admissible = all(automaton(system, kind='admissible', configuration=row.astype(int)).admissible for row in alive)
 lengths = np.arange(2, 31, 4)
 windows = [LatticeSpace(int(length), boundary='fixed') for length in lengths]
-entropies = AutomatonAnalysis('entropy', windows=windows).prepare(system).run().entropy_
+entropies = automaton(system, kind='entropy', windows=windows).entropy
 fig, (left, right) = plt.subplots(1, 2, figsize=(9, 4))
 left.plot(simulation.trajectory_.times, alive.mean(axis=1), label='density of ones')
 left.axhline((5 - np.sqrt(5)) / 10, linestyle='--', color='gray', label='maximal entropy')

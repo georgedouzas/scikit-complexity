@@ -5,7 +5,7 @@ from typing import Annotated
 import pytest
 from sage.all__sagemath_symbolics import SR, sqrt
 
-from skcomplex.core.analysis import InvariantAnalysis
+from skcomplex.core.analysis import invariants
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import EulerLagrangeInteraction
 from skcomplex.core.components.laws.utils import derivative
@@ -83,20 +83,19 @@ def _kepler_expressions() -> list[ObservableSpec]:
 
 def test_run_reports_the_energy_and_angular_momentum_of_kepler_conserved():
     """Test that the energy and angular momentum of the Kepler problem are conserved and a momentum is not."""
-    analysis = InvariantAnalysis(expressions=_kepler_expressions()).prepare(two_body_orbit()).run()
-    assert analysis.conserved_ == {'energy': True, 'angular_momentum': True, 'px': False}
-    assert analysis.methods_['energy'] == 'symbolic'
-    namespace = analysis.namespace_.planet
+    analysis = invariants(two_body_orbit(), expressions=_kepler_expressions())
+    assert analysis.conserved == {'energy': True, 'angular_momentum': True, 'px': False}
+    assert analysis.methods['energy'] == 'symbolic'
+    namespace = analysis.namespace.planet
     expected = -namespace.G * namespace.mass * namespace.x / (namespace.x**2 + namespace.y**2) ** SR(3 / 2)
-    assert bool((analysis.rates_['px'] - expected).simplify_full() == 0)
+    assert bool((analysis.rates['px'] - expected).simplify_full() == 0)
 
 
 def test_run_reports_the_jacobi_integral_of_a_lagrangian_system_conserved():
     """Test that the Jacobi integral of the Euler-Lagrange restricted three-body problem has a zero Lie derivative."""
     expressions = [ObservableSpec('jacobi', _jacobi), ObservableSpec('x', lambda s: s.body.x)]
-    analysis = InvariantAnalysis(expressions=expressions, random_state=0).prepare(_lagrangian_three_body())
-    analysis.run()
-    assert analysis.conserved_ == {'jacobi': True, 'x': False}
+    analysis = invariants(_lagrangian_three_body(), expressions=expressions, random_state=0)
+    assert analysis.conserved == {'jacobi': True, 'x': False}
 
 
 def test_run_brackets_the_components_of_the_angular_momentum():
@@ -106,50 +105,49 @@ def test_run_brackets_the_components_of_the_angular_momentum():
         ObservableSpec('px', lambda s: s.planet.px),
         ObservableSpec('angular_momentum', lambda s: s.planet.x * s.planet.py - s.planet.y * s.planet.px),
     ]
-    analysis = InvariantAnalysis('brackets', expressions=expressions).prepare(two_body_orbit()).run()
-    namespace = analysis.namespace_.planet
-    assert analysis.brackets_[('x', 'px')] == 1
-    assert bool(analysis.brackets_[('x', 'angular_momentum')] == -namespace.y)
+    analysis = invariants(two_body_orbit(), kind='brackets', expressions=expressions)
+    namespace = analysis.namespace.planet
+    assert analysis.brackets[('x', 'px')] == 1
+    assert bool(analysis.brackets[('x', 'angular_momentum')] == -namespace.y)
 
 
 def test_run_rejects_brackets_without_canonical_pairs():
     """Test that brackets of a system without a Hamiltonian interaction raise an error naming it."""
-    analysis = InvariantAnalysis('brackets', expressions=[ObservableSpec('z', lambda s: s.body.z)])
     with pytest.raises(AnalysisError, match='HamiltonianInteraction'):
-        analysis.prepare(sitnikov()).run()
+        invariants(sitnikov(), kind='brackets', expressions=[ObservableSpec('z', lambda s: s.body.z)])
 
 
 def test_run_confirms_the_rotation_invariance_of_kepler_with_its_charge():
     """Test that the rotation of the plane keeps the Kepler Hamiltonian, with the angular momentum as charge."""
     rotation = SymmetrySpec('rotation', lambda s: {'planet.x': -s.planet.y, 'planet.y': s.planet.x})
-    analysis = InvariantAnalysis('symmetry', symmetry=rotation).prepare(two_body_orbit()).run()
-    namespace = analysis.namespace_.planet
-    assert analysis.invariant_
-    assert analysis.remainder_ == 0
-    assert bool((analysis.charge_ - (namespace.x * namespace.py - namespace.y * namespace.px)).simplify_full() == 0)
+    analysis = invariants(two_body_orbit(), kind='symmetry', symmetry=rotation)
+    namespace = analysis.namespace.planet
+    assert analysis.invariant
+    assert analysis.remainder == 0
+    assert bool((analysis.charge - (namespace.x * namespace.py - namespace.y * namespace.px)).simplify_full() == 0)
 
 
 def test_run_reports_the_rotation_charge_of_a_lagrangian():
     """Test that the rotating-frame Lagrangian is not invariant under rotation, since the primaries break it."""
     rotation = SymmetrySpec('rotation', lambda s: {'body.x': -s.body.y, 'body.y': s.body.x})
-    analysis = InvariantAnalysis('symmetry', symmetry=rotation).prepare(_lagrangian_three_body()).run()
-    namespace = analysis.namespace_.body
-    assert not analysis.invariant_
+    analysis = invariants(_lagrangian_three_body(), kind='symmetry', symmetry=rotation)
+    namespace = analysis.namespace.body
+    assert not analysis.invariant
     expected = namespace.x * namespace.y_d1 - namespace.y * namespace.x_d1 + namespace.x**2 + namespace.y**2
-    assert bool((analysis.charge_ - expected).simplify_full() == 0)
+    assert bool((analysis.charge - expected).simplify_full() == 0)
 
 
 def test_run_reports_a_broken_translation_of_henon_heiles():
     """Test that a translation of the first coordinate changes the Hénon-Heiles Hamiltonian by `x + 2 x y`."""
     translation = SymmetrySpec('translation', lambda s: {'star.x': 1})
-    analysis = InvariantAnalysis('symmetry', symmetry=translation).prepare(henon_heiles()).run()
-    namespace = analysis.namespace_.star
-    assert not analysis.invariant_
-    assert bool((analysis.remainder_ - (namespace.x + 2 * namespace.x * namespace.y)).simplify_full() == 0)
-    assert bool(analysis.charge_ == namespace.px)
+    analysis = invariants(henon_heiles(), kind='symmetry', symmetry=translation)
+    namespace = analysis.namespace.star
+    assert not analysis.invariant
+    assert bool((analysis.remainder - (namespace.x + 2 * namespace.x * namespace.y)).simplify_full() == 0)
+    assert bool(analysis.charge == namespace.px)
 
 
 def test_check_rejects_a_symmetry_kind_without_a_symmetry():
     """Test that the symmetry kind needs a `SymmetrySpec`."""
     with pytest.raises(AnalysisError, match='SymmetrySpec'):
-        InvariantAnalysis('symmetry').prepare()
+        invariants(henon_heiles(), kind='symmetry')

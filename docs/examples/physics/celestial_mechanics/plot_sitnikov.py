@@ -13,7 +13,7 @@ coexist with a chaotic sea.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import SectionAnalysis
+from skcomplex.core.analysis import section
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -33,9 +33,9 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(unt
 
 fig, ax = plt.subplots(figsize=(6, 5))
 for height in np.linspace(0.1, 1.5, 12):
-    section = SectionAnalysis('stroboscopic', period=2 * np.pi, n_points=300, transient=0)
-    section.prepare(create_system(SYSTEM, z=height, vz=0.0, e=0.2)).run()
-    z, velocity = section.values_['body.z'], section.values_['body.z_d1']
+    system = create_system(SYSTEM, z=height, vz=0.0, e=0.2)
+    points = section(system, kind='stroboscopic', period=2 * np.pi, n_points=300, transient=0)
+    z, velocity = points.values['body.z'], points.values['body.z_d1']
     near = np.abs(z) < 3
     ax.plot(z[near], velocity[near], '.', markersize=1.5)
 ax.set_xlabel('z')

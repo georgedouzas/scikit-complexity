@@ -5,7 +5,7 @@ import pytest
 import rerun.blueprint as rrb
 from scipy.special import jv
 
-from skcomplex.core.analysis import OperatorAnalysis
+from skcomplex.core.analysis import operator_measures
 from skcomplex.core.engine.compile import OperatorCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import LindbladSolver
@@ -17,7 +17,7 @@ from skcomplex.systems import create_simulation, create_system
 def test_quantum_heisenberg_ground_state_of_the_ring():
     """Test that the ring of four spins has the ground energy -2."""
     system = create_system('quantum_heisenberg', n_sites=4, J=1.0, delta=1.0, h=0.0)
-    energies = OperatorAnalysis(n_states=1).prepare(system).run().energies_
+    energies = operator_measures(system, n_states=1).energies
     assert energies[0] == pytest.approx(-2.0, abs=1e-12)
 
 
@@ -51,7 +51,7 @@ def test_quantum_heisenberg_dephasing_destroys_coherence():
         .run(until=4.0)
     )
     assert isinstance(simulation.stepper_, LindbladSolver)
-    values = OperatorAnalysis('purity').prepare(simulation.trajectory_).run().purity_
+    values = operator_measures(simulation.trajectory_, kind='purity').purity
     assert np.all(np.diff(values) <= 1e-10)
     assert values[-1] < 1
     assert np.ptp(simulation.trajectory_.values('magnetization')) < 1e-8

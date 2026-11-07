@@ -12,7 +12,7 @@ At intermediate energies almost every orbit is chaotic, and its Poincaré sectio
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import SectionAnalysis
+from skcomplex.core.analysis import section
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -39,8 +39,8 @@ simulation = Simulation(start(1.0, 0.0), dt=0.05, observers=[observer]).prepare(
 
 fig, ax = plt.subplots(figsize=(6, 5))
 for q2 in np.linspace(-1.0, 1.0, 9):
-    section = SectionAnalysis(state='nucleus.q1', value=0.0, until=800).prepare(start(q2, 0.0)).run()
-    ax.plot(section.values_['nucleus.q2'], section.values_['nucleus.p2'], '.', markersize=1.5)
+    points = section(start(q2, 0.0), state='nucleus.q1', value=0.0, until=800)
+    ax.plot(points.values['nucleus.q2'], points.values['nucleus.p2'], '.', markersize=1.5)
 ax.set_xlabel('q2')
 ax.set_ylabel('p2')
 ax.set_title('Poincaré section at q1 = 0, E = 0.75')

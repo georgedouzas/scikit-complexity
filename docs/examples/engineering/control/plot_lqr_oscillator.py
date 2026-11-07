@@ -15,7 +15,7 @@ comes to rest in a few seconds.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import LinearizationAnalysis
+from skcomplex.core.analysis import linearization
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
@@ -44,9 +44,9 @@ simulation = (
 # The closed loop `x' = (A - B K) x` decays at the rate of its slowest eigenvalue, so the energy, a quadratic form of
 # the state, should fall as `exp(2 Re(lambda) t)` once the faster mode has died out.
 
-linearization = LinearizationAnalysis().prepare(System(elements=list(system.elements))).run()
+linear = linearization(System(elements=list(system.elements)))
 gain = np.array([system.interactions[0].gain])
-slowest = max(np.linalg.eigvals(linearization.A_ - linearization.B_ @ gain).real)
+slowest = max(np.linalg.eigvals(linear.A - linear.B @ gain).real)
 trajectory = simulation.trajectory_
 times, energy = trajectory.times, trajectory.values('energy')
 decay = energy[40] * np.exp(2 * slowest * (times - times[40]))

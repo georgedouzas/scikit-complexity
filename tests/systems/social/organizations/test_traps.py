@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import LoopAnalysis
+from skcomplex.core.analysis import loops
 from skcomplex.systems.social.organizations import (
     drift_to_low_performance,
     escalation,
@@ -17,7 +17,7 @@ from ...conftest import _run_seeded
 
 def _polarities(system):
     """Return the polarities of the feedback loops of a system at its initial state."""
-    return sorted(LoopAnalysis().prepare(system).run().polarities_)
+    return sorted(loops(system).polarities)
 
 
 def test_success_to_the_successful_gives_everything_to_the_initially_larger():
