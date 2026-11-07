@@ -15,10 +15,25 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import ChoiceInteraction
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.system import System
-from ....core.engine.solvers import SystemView
+from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._consumer_view import ConsumerView
+
+
+class ConsumerView(AgentView):
+    """Consumer as the shopping rule sees it: its choice `fair`, `ethics`, and `budget`, and its parameters.
+
+    The parameters are the `premium` of fair food and the weights `ethics_weight`, `price_weight`, and `social_weight`
+    of the utility.
+    """
+
+    fair: float
+    ethics: float
+    budget: float
+    premium: float
+    ethics_weight: float
+    price_weight: float
+    social_weight: float
 
 
 def _get_utility(agent: ConsumerView, system: SystemView, option: float) -> float:
