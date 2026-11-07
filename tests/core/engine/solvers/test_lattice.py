@@ -32,7 +32,7 @@ from skcomplex.core.specs import (
     TotalisticSpec,
     VisualSpec,
 )
-from skcomplex.systems.computer_science.automata import elementary_automaton, game_of_life
+from skcomplex.systems.computer_science.automata import ElementaryAutomatonSystem, GameOfLifeSystem
 from skcomplex.systems.physics.criticality import forest_fire
 from skcomplex.systems.physics.statistical_mechanics import ising, xy
 
@@ -159,7 +159,9 @@ def test_neighborhoods_are_ordered():
 
 def test_rule_30_matches_published_pattern():
     """Test that rule 30 from a single live cell reproduces its space-time diagram for 15 steps."""
-    trajectory = Simulation(elementary_automaton(30, size=41), dt=1).prepare().run(until=15).trajectory_
+    trajectory = (
+        Simulation(ElementaryAutomatonSystem(30, size=41).prepare().system_, dt=1).prepare().run(until=15).trajectory_
+    )
     assert np.array_equal(trajectory.lattice('cells.alive').astype(int), _rule_30(15, 41))
 
 
@@ -167,7 +169,12 @@ def test_glider_moves_diagonally():
     """Test that a glider on a periodic 20 x 20 lattice has the same shape one cell further after 4 steps."""
     glider = np.zeros((20, 20))
     glider[1, 2] = glider[2, 3] = glider[3, 1] = glider[3, 2] = glider[3, 3] = 1
-    trajectory = Simulation(game_of_life((20, 20), initial=glider), dt=1).prepare().run(until=4).trajectory_
+    trajectory = (
+        Simulation(GameOfLifeSystem((20, 20), initial=glider).prepare().system_, dt=1)
+        .prepare()
+        .run(until=4)
+        .trajectory_
+    )
     cells = trajectory.lattice('cells.alive')
     assert np.array_equal(cells[-1], np.roll(glider, (1, 1), axis=(0, 1)))
     assert not np.array_equal(cells[2], cells[0])
@@ -176,8 +183,18 @@ def test_glider_moves_diagonally():
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_lookup_rules_agree_across_backends(backend):
     """Test that the fused and the NumPy lookup rules give the same Game of Life."""
-    trajectory = Simulation(game_of_life((30, 30)), dt=1, backend=backend()).prepare().run(until=20).trajectory_
-    reference = Simulation(game_of_life((30, 30)), dt=1, backend=NumpyBackend()).prepare().run(until=20).trajectory_
+    trajectory = (
+        Simulation(GameOfLifeSystem((30, 30)).prepare().system_, dt=1, backend=backend())
+        .prepare()
+        .run(until=20)
+        .trajectory_
+    )
+    reference = (
+        Simulation(GameOfLifeSystem((30, 30)).prepare().system_, dt=1, backend=NumpyBackend())
+        .prepare()
+        .run(until=20)
+        .trajectory_
+    )
     assert np.array_equal(trajectory.states, reference.states)
 
 

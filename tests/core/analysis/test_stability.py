@@ -19,7 +19,7 @@ from skcomplex.systems.biology.ecology import lotka_volterra
 from skcomplex.systems.biology.epidemiology import sir
 from skcomplex.systems.chemistry.common.kinetics import CubicAutocatalysisInteraction
 from skcomplex.systems.chemistry.pattern_formation import BrusselatorElement
-from skcomplex.systems.mathematics.dynamical_systems import logistic_map, lorenz
+from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem, LorenzSystem
 from skcomplex.systems.physics.mechanics import harmonic_oscillator
 
 
@@ -62,7 +62,7 @@ def test_lotka_volterra_centre():
 
 def test_logistic_map_fixed_point_is_stable():
     """Test that the logistic map's fixed point `1 - 1 / r` is stable at r = 2.5 and 0 is unstable."""
-    analysis = _stability(logistic_map(r=2.5))
+    analysis = _stability(LogisticMapSystem(r=2.5))
     classes = {
         round(float(point['map.x'].subs({SR.var('r_map'): 2.5})), 9): classification
         for point, classification in zip(analysis.fixed_points, analysis.classifications, strict=True)
@@ -72,7 +72,7 @@ def test_logistic_map_fixed_point_is_stable():
 
 def test_parameters_substitute_before_solving():
     """Test that parameter values given by path give numeric fixed points."""
-    points = _stability(lorenz(), parameters={'lorenz.rho': 28.0, 'lorenz.beta': 8 / 3}).fixed_points
+    points = _stability(LorenzSystem(), parameters={'lorenz.rho': 28.0, 'lorenz.beta': 8 / 3}).fixed_points
     assert sorted(round(float(point['lorenz.z']), 6) for point in points) == [0.0, 27.0, 27.0]
 
 
@@ -80,7 +80,7 @@ def test_volume_preservation():
     """Test that the frictionless harmonic oscillator has divergence 0 and Lorenz contracts volumes."""
     assert _stability(harmonic_oscillator()).divergence == 0
     sigma, beta = SR.var('sigma_lorenz'), SR.var('beta_lorenz')
-    assert bool(_stability(lorenz()).divergence == -sigma - beta - 1)
+    assert bool(_stability(LorenzSystem()).divergence == -sigma - beta - 1)
 
 
 def test_jacobian_and_nullclines():

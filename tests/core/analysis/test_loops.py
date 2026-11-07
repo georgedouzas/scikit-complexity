@@ -10,7 +10,7 @@ from skcomplex.systems.biology.ecology import generalized_lotka_volterra, lotka_
 from skcomplex.systems.biology.epidemiology import sir
 from skcomplex.systems.biology.systems_biology import repressilator
 from skcomplex.systems.economics.innovation import bass_diffusion
-from skcomplex.systems.mathematics.dynamical_systems import logistic_map
+from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
 from skcomplex.systems.physics.mechanics import harmonic_oscillator
 
 
@@ -73,7 +73,7 @@ def test_states_of_second_order_link_through_their_velocity():
 
 def test_map_loops_follow_the_change_in_one_step():
     """Test that the self-loop of the logistic map has the gain of its change in one step, `r (1 - 2 x) - 1`."""
-    analysis = _loops(logistic_map(), at=[0.1])
+    analysis = _loops(LogisticMapSystem(), at=[0.1])
     assert analysis.loops == [('map.x',)]
     assert analysis.gains == pytest.approx([3.7 * 0.8 - 1])
     assert analysis.polarities == ['reinforcing']

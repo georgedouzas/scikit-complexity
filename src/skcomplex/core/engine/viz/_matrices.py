@@ -50,8 +50,8 @@ class MatrixVisual(BaseVisual):
     Examples:
         >>> from skcomplex.core.engine.compile import PassCompiler
         >>> from skcomplex.core.engine.viz import MatrixVisual
-        >>> from skcomplex.systems.computer_science.neural_networks import elman_network
-        >>> problem = PassCompiler().prepare(elman_network(n_bits=30)).run().problem_
+        >>> from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
+        >>> problem = PassCompiler().prepare(ElmanNetworkSystem(n_bits=30).prepare().system_).run().problem_
         >>> MatrixVisual('A', path='net/recurrence').prepare(problem).name_
         'net/recurrence.A'
     """

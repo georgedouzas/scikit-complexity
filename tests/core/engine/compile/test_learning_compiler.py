@@ -12,14 +12,14 @@ from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.problems import LearningProblemSpec
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.specs import DatasetSpec, ObservableSpec
-from skcomplex.systems.computer_science.neural_networks import elman_network
+from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
 
 from ....conftest import CallableGrowthInteraction, HoldingElement
 
 
 def _elman(**changes):
     """Return a small Elman network whose training interaction takes some changed arguments."""
-    system = elman_network(n_bits=60)
+    system = ElmanNetworkSystem(n_bits=60).prepare().system_
     system.interactions[0].set_params(**changes)
     return system
 
