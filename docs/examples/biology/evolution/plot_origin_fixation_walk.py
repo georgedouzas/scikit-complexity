@@ -7,34 +7,23 @@ switch to their fitter allele, while loci with weak fields keep flipping between
 """
 
 # %%
-# The system is created by name from the catalog with 96 loci, random fields of standard deviation 0.01, no couplings,
-# and the per-locus mutation rate 0.01, so mutants of a locus arise at the rate 1. The observer saves every frame with
-# the default blueprint, whose primary view is the space-time image of the alleles.
+# The system is built from its class with 96 loci, random fields of standard deviation 0.01, no couplings, and the
+# per-locus mutation rate 0.01, so mutants of a locus arise at the rate 1. The observer saves every frame with the
+# default blueprint, whose primary view is the space-time image of the alleles.
 
 import itertools
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.biology.evolution import OriginFixationWalkSystem
 
 SYSTEM = 'origin_fixation_walk'
 
-system = create_system(SYSTEM, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(
-        system,
-        dt=10.0,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=640)
-)
+trajectory = simulate(OriginFixationWalkSystem(random_state=0), observers=[observer], random_state=0)
 
 # %%
 # Climbing and the stationary law
@@ -47,24 +36,27 @@ simulation = (
 # population of 100 keeps loci with weak fields mixed. A long run of four loci with couplings, a rugged landscape,
 # should spend on each of its 16 genomes the share of time that this law predicts.
 
-fields = system.elements[0].values['h']
+fields = OriginFixationWalkSystem(random_state=0).prepare().system_.elements[0].values['h']
 stationary = 1.0
 for _ in range(100):
     stationary = 1 + np.sum(fields * np.tanh(99 * fields / stationary))
-small = create_system(SYSTEM, loci=4, N=10.0, mu=1.0, field=0.1, coupling=0.3, random_state=1)
-alleles = (
-    Simulation(small, dt=1.0, random_state=0, observables=describe(SYSTEM).observables_of(small))
-    .prepare()
-    .run(until=5000)
-    .trajectory_.values('genome.s')[100:]
-)
+small = OriginFixationWalkSystem(loci=4, N=10.0, mu=1.0, field=0.1, coupling=0.3, random_state=1)
+alleles = simulate(
+    small,
+    until=5000,
+    dt=1.0,
+    random_state=0,
+).values(
+    'genome.s',
+)[100:]
 visited = np.bincount(((alleles > 0) * 2 ** np.arange(4)).sum(axis=1).astype(int), minlength=16)
 genomes = np.array([[2 * bit - 1 for bit in reversed(bits)] for bits in itertools.product((0, 1), repeat=4)])
-couplings = small.interactions[0].couplings
-fitness = 1.0 + genomes @ small.elements[0].values['h'] + np.einsum('gi,ij,gj->g', genomes, couplings, genomes) / 2
+built = small.prepare().system_
+couplings = built.interactions[0].couplings
+fitness = 1.0 + genomes @ built.elements[0].values['h'] + np.einsum('gi,ij,gj->g', genomes, couplings, genomes) / 2
 
 fig, (climb, law) = plt.subplots(1, 2, figsize=(10, 4))
-climb.plot(simulation.trajectory_.times, simulation.trajectory_.values('fitness'), label='simulated')
+climb.plot(trajectory.times, trajectory.values('fitness'), label='simulated')
 climb.axhline(1 + np.abs(fields).sum(), color='black', linestyle='--', label='peak of the landscape')
 climb.axhline(stationary, color='black', linestyle=':', label='stationary f*')
 climb.set_xlabel('time')

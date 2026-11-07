@@ -7,22 +7,21 @@ avalanches. New species fill the empty niches, so the number of species stays co
 """
 
 # %%
-# The system is created by name from the catalog with 100 species of 5 dependencies each. The observer saves every
-# step with the default blueprint, whose primary view is the network of the species, colored by their age, so recent
-# replacements are dark.
+# The system is built from its class with 100 species of 5 dependencies each. The observer saves every step with the
+# default blueprint, whose primary view is the network of the species, colored by their age, so recent replacements
+# are dark.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.evolution import SoleManrubiaSystem
 
 SYSTEM = 'sole_manrubia'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer], random_state=1).prepare().run(until=299)
+trajectory = simulate(SoleManrubiaSystem(), observers=[observer], random_state=1, until=299)
 
 # %%
 # Sizes of the extinction avalanches
@@ -31,7 +30,6 @@ simulation = Simulation(system, dt=1.0, observers=[observer], random_state=1).pr
 # collapse of the random initial ecosystem, quiet steps should alternate with avalanches of several species, with a
 # broad distribution of sizes.
 
-trajectory = simulation.trajectory_
 sizes = np.nansum(trajectory.values('species.age')[1:] == 0, axis=1)
 fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))
 left.bar(trajectory.times[1:], sizes, width=1.0)

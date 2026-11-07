@@ -13,10 +13,9 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from ....core.components.elements import Element, LatticeElement
 from ....core.components.interactions import SamplingInteraction
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import RowScoreSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..._extras import import_extra
 
 SYSTEM = 'rna_neutral_networks'
@@ -183,34 +182,14 @@ def mutate_point(row: np.ndarray, random: np.random.Generator) -> np.ndarray:
     return row
 
 
-def _score_row(target: str, regime: str, row: np.ndarray) -> float:
-    """Return the score of a sequence: off the target in the neutral regime, the distance in the adaptive one."""
-    fold = fold_sequence(read_sequence(row))[0]
-    return float(fold != target) if regime == 'neutral' else float(read_base_pair_distance(fold, target))
-
-
-@register_system(
-    field='biology/evolution',
-    tags=('rna', 'genotype networks', 'neutral networks', 'robustness', 'evolvability', 'monte carlo'),
-    references=('Raman 2021', 'Wagner 2008', 'Lorenz et al. 2011'),
-    defaults={'until': 300},
-)
-def rna_neutral_networks(
-    walkers: int = 8,
-    length: int = 30,
-    *,
-    start: str | None = START,
-    target: str = TARGET,
-    regime: str = 'neutral',
-    seed: int = 0,
-) -> System:
-    """Return walkers of RNA sequences that take one proposed point mutation per unit of time at temperature zero.
+class RNANeutralNetworksSystem(BaseSystem):
+    """Walkers of RNA sequences that take one proposed point mutation per unit of time at temperature zero.
 
     In the `'neutral'` regime a mutation is accepted when the minimum free energy fold of the sequence stays on the
     target. In the `'adaptive'` regime a mutation is accepted when the base-pair distance between the fold and the
-    target does not grow. The neighbours of the visited sequences give the robustness and evolvability of
-    Raman (2021 §13.3) through `neutral_network`. The folds come from ViennaRNA at 37 °C with its default energy
-    parameters. Every walker records its score as `walk.score`.
+    target does not grow. The neighbours of the visited sequences give the robustness and evolvability of Raman (2021
+    §13.3) through `neutral_network`. The folds come from ViennaRNA at 37 °C with its default energy parameters. Every
+    walker records its score as `walk.score`. The system has the lattice `walkers` of the state `base`.
 
     Args:
         walkers:
@@ -231,9 +210,8 @@ def rna_neutral_networks(
         seed:
             The seed of the random starting sequences.
 
-    Returns:
-        system:
-            The system, with the lattice `walkers` of the state `base`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         MissingExtraError:
@@ -243,40 +221,77 @@ def rna_neutral_networks(
             The regime is unknown, or the start or the target does not have the length of the sequences.
 
     Examples:
-        >>> from skcomplex.systems.biology.evolution import rna_neutral_networks
-        >>> rna_neutral_networks(walkers=2).elements[0].space.shape
+        >>> from skcomplex.systems.biology.evolution import RNANeutralNetworksSystem
+        >>> RNANeutralNetworksSystem(walkers=2).prepare().system_.elements[0].space.shape
         (2, 30)
     """
-    import_extra('RNA', 'rna_neutral_networks', 'rna')
-    if regime not in REGIMES:
-        error_msg = f'Unknown regime {regime!r}. Use one of {", ".join(REGIMES)}.'
-        raise ValidationError(error_msg)
-    if len(target) != length or (start is not None and len(start) != length):
-        error_msg = f'The start {start!r} and the target {target!r} must have the length {length} of the sequences.'
-        raise ValidationError(error_msg)
-    if start is None:
-        bases = np.random.default_rng(seed).integers(0, len(BASES), size=(walkers, length))
-    else:
-        bases = np.tile([BASES.index(letter) for letter in start], (walkers, 1))
-    return System(
-        elements=[
-            LatticeElement(
-                'walkers',
-                element=NucleotideElement,
-                space=LatticeSpace((walkers, length), boundary='fixed'),
-                values={'base': bases},
-                visual=VisualSpec('image', {'low': 0.0, 'high': float(LAST_BASE)}),
-            ),
-        ],
-        interactions=[
-            SamplingInteraction(
-                'walk',
-                target='walkers',
-                state='base',
-                objective=RowScoreSpec(partial(_score_row, target, regime)),
-                move=mutate_point,
-                intensity=float('inf'),
-            ),
-        ],
-        time=DiscreteTime(),
-    )
+
+    field = 'biology/evolution'
+    topics = ('rna', 'genotype networks', 'neutral networks', 'robustness', 'evolvability', 'monte carlo')
+    references = ('Raman 2021', 'Wagner 2008', 'Lorenz et al. 2011')
+    until = 300
+
+    def __init__(
+        self,
+        walkers: int = 8,
+        length: int = 30,
+        *,
+        start: str | None = START,
+        target: str = TARGET,
+        regime: str = 'neutral',
+        seed: int = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.walkers = walkers
+        self.length = length
+        self.start = start
+        self.target = target
+        self.regime = regime
+        self.seed = seed
+
+    @staticmethod
+    def _score_row(target: str, regime: str, row: np.ndarray) -> float:
+        """Return the score of a sequence: off the target in the neutral regime, the distance in the adaptive one."""
+        fold = fold_sequence(read_sequence(row))[0]
+        return float(fold != target) if regime == 'neutral' else float(read_base_pair_distance(fold, target))
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        import_extra('RNA', 'rna_neutral_networks', 'rna')
+        if self.regime not in REGIMES:
+            error_msg = f'Unknown regime {self.regime!r}. Use one of {", ".join(REGIMES)}.'
+            raise ValidationError(error_msg)
+        if len(self.target) != self.length or (self.start is not None and len(self.start) != self.length):
+            error_msg = (
+                f'The start {self.start!r} and the target {self.target!r} must have the length {self.length} of the '
+                'sequences.'
+            )
+            raise ValidationError(error_msg)
+        if self.start is None:
+            bases = np.random.default_rng(self.seed).integers(0, len(BASES), size=(self.walkers, self.length))
+        else:
+            bases = np.tile([BASES.index(letter) for letter in self.start], (self.walkers, 1))
+        return System(
+            self.label,
+            elements=[
+                LatticeElement(
+                    'walkers',
+                    element=NucleotideElement,
+                    space=LatticeSpace((self.walkers, self.length), boundary='fixed'),
+                    values={'base': bases},
+                    visual=VisualSpec('image', {'low': 0.0, 'high': float(LAST_BASE)}),
+                ),
+            ],
+            interactions=[
+                SamplingInteraction(
+                    'walk',
+                    target='walkers',
+                    state='base',
+                    objective=RowScoreSpec(partial(self._score_row, self.target, self.regime)),
+                    move=mutate_point,
+                    intensity=float('inf'),
+                ),
+            ],
+            time=DiscreteTime(),
+        )

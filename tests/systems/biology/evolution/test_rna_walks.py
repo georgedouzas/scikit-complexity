@@ -8,10 +8,10 @@ import numpy as np
 import pytest
 from scipy.stats import spearmanr
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError, ValidationError
-from skcomplex.systems import create_system
 from skcomplex.systems.biology.evolution import (
+    RNANeutralNetworksSystem,
     fold_sequence,
     mutate_point,
     neutral_network,
@@ -41,9 +41,7 @@ def _sequences(trajectory):
 
 def _run(until=300, **arguments):
     """Return a trajectory of the system."""
-    return (
-        Simulation(create_system('rna_neutral_networks', **arguments), random_state=0).prepare().run(until).trajectory_
-    )
+    return simulate(RNANeutralNetworksSystem(**arguments), random_state=0, until=until)
 
 
 def test_fold_sequence_gives_the_hairpin():
@@ -183,18 +181,18 @@ def test_neutral_network_analysis_rejects_bad_settings():
 def test_system_rejects_bad_settings():
     """Test that an unknown regime and sequences of another length raise errors."""
     with pytest.raises(ValidationError, match='regime'):
-        create_system('rna_neutral_networks', regime='random')
+        RNANeutralNetworksSystem(regime='random').prepare()
     with pytest.raises(ValidationError, match='length'):
-        create_system('rna_neutral_networks', start='GGG')
+        RNANeutralNetworksSystem(start='GGG').prepare()
 
 
 def test_system_without_the_extra_names_it():
     """Test that creating the system without the extra raises an error that names the system and the extra."""
     code = HIDE + """
 from skcomplex.core.errors import MissingExtraError
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.evolution import RNANeutralNetworksSystem
 try:
-    create_system('rna_neutral_networks')
+    RNANeutralNetworksSystem().prepare()
 except MissingExtraError as error:
     assert 'rna_neutral_networks' in str(error) and "pip install 'scikit-complexity[rna]'" in str(error)
 else:

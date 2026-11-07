@@ -7,21 +7,20 @@ ecosystem turn from half positive to mostly positive, the emergence of cooperati
 """
 
 # %%
-# The system is created by name from the catalog with fifty species, and the observer saves every other step with the
-# default blueprint, whose primary view is the count of species.
+# The system is built from its class with fifty species, and the observer saves every other step with the default
+# blueprint, whose primary view is the count of species.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.evolution import CompetitiveJainKrishnaSystem
 
 SYSTEM = 'competitive_jain_krishna'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=400)
+trajectory = simulate(CompetitiveJainKrishnaSystem(), observers=[observer], random_state=0)
 
 # %%
 # Emergence of cooperation
@@ -36,7 +35,6 @@ def positive_share(links):
 
 
 frames = range(0, 401, 5)
-trajectory = simulation.trajectory_
 shares = [positive_share(trajectory.agents('species', frame).values['links']) for frame in frames]
 fig, ax = plt.subplots(figsize=(8, 4.5))
 ax.plot(list(frames), shares)

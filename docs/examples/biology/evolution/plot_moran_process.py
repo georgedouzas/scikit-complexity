@@ -13,15 +13,20 @@ population and fixes, with the probability Moran computed.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.evolution import MoranProcessSystem
 
 SYSTEM = 'moran_process'
 
-system = create_system(SYSTEM, size=50, mutants=10, selection=0.2)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=40)
+trajectory = simulate(
+    MoranProcessSystem(size=50, mutants=10, selection=0.2),
+    dt=1,
+    observers=[observer],
+    random_state=0,
+    until=40,
+)
 
 # %%
 # Fixation probability
@@ -41,15 +46,11 @@ rng = np.random.default_rng(1)
 size, selection, runs = 20, 0.5, 60
 fixed = 0
 for _ in range(runs):
-    trajectory = (
-        Simulation(create_system(SYSTEM, size=size, selection=selection), dt=1, random_state=rng)
-        .prepare()
-        .run(until=150)
-    )
-    fixed += mutants_of(trajectory.trajectory_)[-1] == size
+    trajectory = simulate(MoranProcessSystem(size=size, selection=selection), until=150, dt=1, random_state=rng)
+    fixed += mutants_of(trajectory)[-1] == size
 r = 1 + selection
 fig, (sweep, probability) = plt.subplots(1, 2, figsize=(11, 4))
-sweep.plot(simulation.trajectory_.times, mutants_of(simulation.trajectory_))
+sweep.plot(trajectory.times, mutants_of(trajectory))
 sweep.set_xlabel('step')
 sweep.set_ylabel('mutants')
 sweep.set_title('Ten mutants with a 20% advantage sweep')

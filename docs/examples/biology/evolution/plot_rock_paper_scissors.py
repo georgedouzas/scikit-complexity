@@ -7,21 +7,20 @@ that chase each other, and each keeps about a third of the lattice.
 """
 
 # %%
-# The system is created by name from the catalog on a periodic lattice of 60 by 60 sites with random strategies. The
-# observer saves every step with the default blueprint, whose primary view is the image of the strategies.
+# The system is built from its class on a periodic lattice of 60 by 60 sites with random strategies. The observer
+# saves every step with the default blueprint, whose primary view is the image of the strategies.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.evolution import RockPaperScissorsSystem
 
 SYSTEM = 'rock_paper_scissors'
 
-system = create_system(SYSTEM, shape=(60, 60), random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=100)
+trajectory = simulate(RockPaperScissorsSystem(shape=(60, 60), random_state=0), observers=[observer], random_state=0)
 
 # %%
 # Coexistence of the three strategies
@@ -29,7 +28,6 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 # The share of each strategy should fluctuate around one third without any of them dying out, while the domains of
 # the last snapshot show the cyclic fronts.
 
-trajectory = simulation.trajectory_
 strategies = trajectory.lattice('lattice.strategy')
 values = np.unique(strategies[0])
 shares = np.array([[np.mean(frame == value) for value in values] for frame in strategies])

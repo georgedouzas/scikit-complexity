@@ -7,22 +7,26 @@ dominates the soup, boosts the next one, and gives way to it.
 """
 
 # %%
-# The system is created by name from the catalog as a ring of six molecules whose own growth rates differ only
-# slightly, `alpha = 0.01`, so that catalysis dominates. The observer saves every frame with the default blueprint,
-# whose primary view is the time series of the concentrations.
+# The system is built from its class as a ring of six molecules whose own growth rates differ only slightly, `alpha =
+# 0.01`, so that catalysis dominates. The observer saves every frame with the default blueprint, whose primary view is
+# the time series of the concentrations.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.evolution import HypercyclesSystem
 
 SYSTEM = 'hypercycles'
 
-system = create_system(SYSTEM, molecules=6, alpha=0.01, topology='cycle')
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=290)
+trajectory = simulate(
+    HypercyclesSystem(molecules=6, alpha=0.01, topology='cycle'),
+    dt=1.0,
+    observers=[observer],
+    until=290,
+)
 
 # %%
 # Cycle against complete network
@@ -31,13 +35,8 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(unti
 # fall periodically without dying out. When every molecule catalyses every other, the fastest replicators should take
 # over instead: about `sqrt(2 omega / alpha) ≈ 4.5` of them survive for `alpha = 0.1` and the slowest die out.
 
-ring = simulation.trajectory_
-complete = (
-    Simulation(create_system(SYSTEM, molecules=10, topology='complete'), dt=0.5)
-    .prepare()
-    .run(until=200)
-    .trajectory_.values('soup.x')
-)
+ring = trajectory
+complete = simulate(HypercyclesSystem(molecules=10, topology='complete'), until=200).values('soup.x')
 fig, (left, right) = plt.subplots(1, 2, figsize=(11, 4))
 left.semilogy(ring.times, ring.values('soup.x'))
 left.set_ylim(1e-5, 1)

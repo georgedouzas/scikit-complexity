@@ -15,10 +15,9 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, LatticeElement
 from ....core.components.laws import BaseLaw, ExtremalLaw
 from ....core.components.spaces import AdjacencyNeighborhood, LatticeNeighborhood, LatticeSpace, NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 SPECIES_NEIGHBORHOODS: dict[str, LatticeNeighborhood | AdjacencyNeighborhood] = {
     'ring': LatticeNeighborhood(((-1,), (1,))),
@@ -61,6 +60,8 @@ class SpeciesElement(Element):
         200
     """
 
+    law_classes = (ExtremalLaw,)
+
     def __init__(
         self,
         label: str,
@@ -90,23 +91,12 @@ class SpeciesElement(Element):
         return [ExtremalLaw(s.fitness, neighborhood, _renew, repeat=self.updates, label='extinction')]
 
 
-@register_system(
-    field='biology/evolution',
-    tags=('lattice', 'network', 'self-organized criticality', 'extremal dynamics', 'stochastic'),
-    references=('Bak and Sneppen 1993', 'Gros 2015', 'Jensen 2023'),
-    defaults={'until': 2000, 'dt': 10},
-)
-def bak_sneppen(
-    size: int = 200,
-    *,
-    graph: nx.Graph | None = None,
-    updates: int | None = None,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Bak-Sneppen system, whose fitnesses self-organise above a critical value in avalanches of extinction.
+class BakSneppenSystem(BaseSystem):
+    """The Bak-Sneppen system, whose fitnesses self-organise above a critical value in avalanches of extinction.
 
     On a ring the fitnesses gather above the critical value 0.667, and the minimum fitness rises towards it through
-    avalanches of every size.
+    avalanches of every size. The system has the fitnesses `species.fitness`, and `extinction` events with the site and
+    the minimum fitness of every update.
 
     Args:
         size:
@@ -121,28 +111,50 @@ def bak_sneppen(
         random_state:
             The seed or generator of the initial fitnesses.
 
-    Returns:
-        system:
-            The system, with the fitnesses `species.fitness`, and `extinction` events with the site and the minimum
-            fitness of every update.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.evolution import bak_sneppen
-        >>> bak_sneppen(50).elements[0].values['updates']
+        >>> from skcomplex.systems.biology.evolution import BakSneppenSystem
+        >>> BakSneppenSystem(50).prepare().system_.elements[0].values['updates']
         50
     """
-    space = (LatticeSpace(size) if graph is None else NetworkSpace(graph)).prepare()
-    count = int(space.size_ or 0)
-    fitness = np.random.default_rng(random_state).random(count)
-    species = LatticeElement(
-        'species',
-        element=SpeciesElement,
-        space=space,
-        values={
-            'fitness': fitness,
-            'updates': count if updates is None else updates,
-            'neighbors': 'ring' if graph is None else 'graph',
-        },
-        visual=FITNESS_VISUAL if graph is None else FITNESS_SITES,
-    )
-    return System(elements=[species])
+
+    field = 'biology/evolution'
+    topics = ('lattice', 'network', 'self-organized criticality', 'extremal dynamics', 'stochastic')
+    references = ('Bak and Sneppen 1993', 'Gros 2015', 'Jensen 2023')
+    until = 2000
+    dt = 10
+
+    def __init__(
+        self,
+        size: int = 200,
+        *,
+        graph: nx.Graph | None = None,
+        updates: int | None = None,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.size = size
+        self.graph = graph
+        self.updates = updates
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        space = (LatticeSpace(self.size) if self.graph is None else NetworkSpace(self.graph)).prepare()
+        count = int(space.size_ or 0)
+        fitness = np.random.default_rng(self.random_state).random(count)
+        species = LatticeElement(
+            'species',
+            element=SpeciesElement,
+            space=space,
+            values={
+                'fitness': fitness,
+                'updates': count if self.updates is None else self.updates,
+                'neighbors': 'ring' if self.graph is None else 'graph',
+            },
+            visual=FITNESS_VISUAL if self.graph is None else FITNESS_SITES,
+        )
+        return System(self.label, elements=[species])

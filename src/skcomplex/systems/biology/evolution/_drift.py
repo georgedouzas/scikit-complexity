@@ -12,10 +12,9 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import clip
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class AlleleFrequencyElement(Element):
@@ -43,6 +42,12 @@ class AlleleFrequencyElement(Element):
         >>> AlleleFrequencyElement('allele', Ns=2.0).Ns
         2.0
     """
+
+    law_classes = (
+        BoundaryLaw,
+        NoiseLaw,
+        RateLaw,
+    )
 
     def __init__(
         self,
@@ -75,19 +80,13 @@ class AlleleFrequencyElement(Element):
         ]
 
 
-@register_system(
-    field='biology/evolution',
-    tags=('population genetics', 'genetic drift', 'fixation', 'sde', 'diffusion'),
-    references=('Kimura 1955', 'Bertin 2021'),
-    defaults={'until': 10.0, 'dt': 0.05, 'solver': EulerMaruyamaSolver(dt=0.001)},
-)
-def kimura_diffusion(x: float = 0.1, *, Ns: float = 2.0, replicates: int = 500) -> System:
-    """Return replicate populations whose allele frequencies diffuse by drift until the allele is lost or fixed.
+class KimuraDiffusionSystem(BaseSystem):
+    """Replicate populations whose allele frequencies diffuse by drift until the allele is lost or fixed.
 
     Each replicate follows `dx = N s x (1 - x) dt + sqrt(2 x (1 - x)) dW`, whose density obeys Kimura's diffusion
     equation `dp/dt = -N s d/dx [x (1 - x) p] + d^2/dx^2 [x (1 - x) p]`. Every replicate ends at loss or fixation, and
     an allele that starts at the frequency `x` fixes with the probability `(1 - exp(-N s x)) / (1 - exp(-N s))`, or `x`
-    for a neutral allele.
+    for a neutral allele. The system has the frequencies `alleles.x` of the replicates.
 
     Args:
         x:
@@ -99,14 +98,41 @@ def kimura_diffusion(x: float = 0.1, *, Ns: float = 2.0, replicates: int = 500) 
         replicates:
             The number of independent replicate populations.
 
-    Returns:
-        system:
-            The system, with the frequencies `alleles.x` of the replicates.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.evolution import kimura_diffusion
-        >>> kimura_diffusion(replicates=10).elements[0].prepare().size_
+        >>> from skcomplex.systems.biology.evolution import KimuraDiffusionSystem
+        >>> KimuraDiffusionSystem(replicates=10).prepare().system_.elements[0].prepare().size_
         10
     """
-    alleles = GroupElement('alleles', element=AlleleFrequencyElement, size=replicates, values={'x': x, 'Ns': Ns})
-    return System(elements=[alleles])
+
+    field = 'biology/evolution'
+    topics = ('population genetics', 'genetic drift', 'fixation', 'sde', 'diffusion')
+    references = ('Kimura 1955', 'Bertin 2021')
+    until = 10.0
+    dt = 0.05
+    solver = EulerMaruyamaSolver(dt=0.001)
+
+    def __init__(
+        self,
+        x: float = 0.1,
+        *,
+        Ns: float = 2.0,
+        replicates: int = 500,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.Ns = Ns
+        self.replicates = replicates
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        alleles = GroupElement(
+            'alleles',
+            element=AlleleFrequencyElement,
+            size=self.replicates,
+            values={'x': self.x, 'Ns': self.Ns},
+        )
+        return System(self.label, elements=[alleles])
