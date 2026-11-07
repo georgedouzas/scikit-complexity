@@ -15,11 +15,10 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, IntArray
-from ..._catalog import register_system
 
 
 class KineticWalkerView(AgentView):
@@ -159,6 +158,8 @@ class KineticCrowdInteraction(Interaction):
         >>> KineticCrowdInteraction('decisions', target='walkers').stress
         0.5
     """
+
+    law_classes = (RuleLaw,)
 
     reports: ClassVar[tuple[str, ...]] = ('band_index', 'mean_speed')
 
@@ -334,43 +335,24 @@ class KineticCrowdInteraction(Interaction):
         system.report('mean_speed', float(walkers['speed'].mean()))
 
 
-@register_system(
-    field='social/crowds',
-    tags=('pedestrians', 'kinetic theory', 'agents', 'lanes', 'panic', 'monte carlo'),
-    references=('Bellomo, Knopoff, and Soler 2017', 'Bellomo, Bellouquid, and Knopoff 2013'),
-    defaults={'until': 300},
-)
-def kinetic_crowd(
-    n_walkers: int = 50,
-    *,
-    length: float = 20.0,
-    width: float = 5.0,
-    cell: float = 2.5,
-    packing: float = 4.0,
-    quality: float = 1.0,
-    stress: float = 0.5,
-    deceleration: float = 0.95,
-    rate: float = 1.0,
-    wall_distance: float = 0.5,
-    panic_time: float | None = None,
-    panic_stress: float = 0.9,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Bellomo's kinetic crowd of two groups walking in opposite directions along a street with walls.
+class KineticCrowdSystem(BaseSystem):
+    """Bellomo's kinetic crowd of two groups walking in opposite directions along a street with walls.
 
-    Walkers in a continuous venue choose first a direction and then a speed (Bellomo et al. 2017 sections 6.4 and
-    6.5). The preferred direction weighs the search of less crowded areas, the attraction of the mean stream, and the
-    target, by the density `rho` and the stress `beta` (Eq. 6.19). The speed then adjusts to the density perceived
-    along that direction, with the venue quality `alpha` and the stress (Eqs. 6.22 to 6.24), and walkers near a wall
-    turn parallel to it at constant speed (Eq. 6.25). Panic raises the stress from `beta_1` to `beta_2` at a critical
-    time (Eqs. 6.27 and 6.28). The kinetic equation is solved, as in the book, by a particle method close to direct
-    simulation Monte Carlo, here with one particle per walker. In space-homogeneous conditions the mean speed follows
-    the fundamental diagram `alpha^3 beta^3 (1 - rho)^2 / (alpha^2 beta^2 (1 - rho)^2 + (1 - c alpha beta) rho^2)`
-    (Eq. 6.30), which a single cell spanning the street reproduces. The default is the counterflow of section 6.5.2, 50
-    walkers uniformly distributed in a street periodic along its length, for which the book reports segregation into
-    lanes, measured by the band index of Eq. 6.31, most pronounced at `beta = 0.5`. The densities are counted on cells
-    of side `cell`, an assumption of this particle method. The venue is a distinct system from `evacuation`, a network
-    of rooms. One step is a tenth of a time unit.
+    Walkers in a continuous venue choose first a direction and then a speed (Bellomo et al. 2017 sections 6.4 and 6.5).
+    The preferred direction weighs the search of less crowded areas, the attraction of the mean stream, and the target,
+    by the density `rho` and the stress `beta` (Eq. 6.19). The speed then adjusts to the density perceived along that
+    direction, with the venue quality `alpha` and the stress (Eqs. 6.22 to 6.24), and walkers near a wall turn parallel
+    to it at constant speed (Eq. 6.25). Panic raises the stress from `beta_1` to `beta_2` at a critical time (Eqs. 6.27
+    and 6.28). The kinetic equation is solved, as in the book, by a particle method close to direct simulation Monte
+    Carlo, here with one particle per walker. In space-homogeneous conditions the mean speed follows the fundamental
+    diagram `alpha^3 beta^3 (1 - rho)^2 / (alpha^2 beta^2 (1 - rho)^2 + (1 - c alpha beta) rho^2)` (Eq. 6.30), which a
+    single cell spanning the street reproduces. The default is the counterflow of section 6.5.2, 50 walkers uniformly
+    distributed in a street periodic along its length, for which the book reports segregation into lanes, measured by
+    the band index of Eq. 6.31, most pronounced at `beta = 0.5`. The densities are counted on cells of side `cell`, an
+    assumption of this particle method. The venue is a distinct system from `EvacuationSystem`, a network of rooms. One
+    step is a tenth of a time unit.
+
+    The system has the group `walkers` and the reporters `decisions.band_index` and `decisions.mean_speed`.
 
     Args:
         n_walkers:
@@ -412,42 +394,82 @@ def kinetic_crowd(
         random_state:
             The seed or generator of the initial positions and speeds.
 
-    Returns:
-        system:
-            The system, with the group `walkers` and the reporters `decisions.band_index` and `decisions.mean_speed`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.crowds import kinetic_crowd
-        >>> kinetic_crowd(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.crowds import KineticCrowdSystem
+        >>> KineticCrowdSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    rng = np.random.default_rng(random_state)
-    target = (np.arange(n_walkers) % 2).astype(float)
-    walkers = GroupElement(
-        'walkers',
-        element=KineticWalkerElement,
-        size=n_walkers,
-        values={
-            'x': rng.random(n_walkers) * length,
-            'y': rng.random(n_walkers) * width,
-            'speed': 0.5 * rng.random(n_walkers),
-            'direction': np.pi * target,
-            'target': target,
-        },
-    )
-    decisions = KineticCrowdInteraction(
-        'decisions',
-        target='walkers',
-        length=length,
-        width=width,
-        cell=cell,
-        packing=packing,
-        quality=quality,
-        stress=stress,
-        deceleration=deceleration,
-        rate=rate,
-        wall_distance=wall_distance,
-        panic_time=panic_time,
-        panic_stress=panic_stress,
-    )
-    return System(elements=[walkers], interactions=[decisions])
+
+    field = 'social/crowds'
+    topics = ('pedestrians', 'kinetic theory', 'agents', 'lanes', 'panic', 'monte carlo')
+    references = ('Bellomo, Knopoff, and Soler 2017', 'Bellomo, Bellouquid, and Knopoff 2013')
+    until = 300
+
+    def __init__(
+        self,
+        n_walkers: int = 50,
+        *,
+        length: float = 20.0,
+        width: float = 5.0,
+        cell: float = 2.5,
+        packing: float = 4.0,
+        quality: float = 1.0,
+        stress: float = 0.5,
+        deceleration: float = 0.95,
+        rate: float = 1.0,
+        wall_distance: float = 0.5,
+        panic_time: float | None = None,
+        panic_stress: float = 0.9,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_walkers = n_walkers
+        self.length = length
+        self.width = width
+        self.cell = cell
+        self.packing = packing
+        self.quality = quality
+        self.stress = stress
+        self.deceleration = deceleration
+        self.rate = rate
+        self.wall_distance = wall_distance
+        self.panic_time = panic_time
+        self.panic_stress = panic_stress
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        target = (np.arange(self.n_walkers) % 2).astype(float)
+        walkers = GroupElement(
+            'walkers',
+            element=KineticWalkerElement,
+            size=self.n_walkers,
+            values={
+                'x': rng.random(self.n_walkers) * self.length,
+                'y': rng.random(self.n_walkers) * self.width,
+                'speed': 0.5 * rng.random(self.n_walkers),
+                'direction': np.pi * target,
+                'target': target,
+            },
+        )
+        decisions = KineticCrowdInteraction(
+            'decisions',
+            target='walkers',
+            length=self.length,
+            width=self.width,
+            cell=self.cell,
+            packing=self.packing,
+            quality=self.quality,
+            stress=self.stress,
+            deceleration=self.deceleration,
+            rate=self.rate,
+            wall_distance=self.wall_distance,
+            panic_time=self.panic_time,
+            panic_stress=self.panic_stress,
+        )
+        return System(self.label, elements=[walkers], interactions=[decisions])

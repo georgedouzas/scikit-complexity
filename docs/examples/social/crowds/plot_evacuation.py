@@ -14,10 +14,10 @@ an S-shaped curve to the whole crowd.
 import matplotlib.pyplot as plt
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import KineticSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.social.crowds import EvacuationSystem
 
 SYSTEM = 'evacuation'
 
@@ -30,9 +30,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-system = create_system(SYSTEM)
-observables = describe(SYSTEM).observables_of(system)
-simulation = Simulation(system, observers=[observer], dt=0.2, observables=observables).prepare().run(until=20)
+system = EvacuationSystem()
+trajectory = simulate(system, until=20, dt=0.2, observers=[observer])
 
 # %%
 # Particles against the gain and loss equations
@@ -41,19 +40,13 @@ simulation = Simulation(system, observers=[observer], dt=0.2, observables=observ
 # curve of the gain and loss equations within the sampling error of a few thousand pedestrians, and a crowd that slows
 # down more in encounters should take longer to leave.
 
-times = simulation.trajectory_.times
-sampled = Simulation(system, dt=0.2, observables=observables, solver=KineticSolver(n=5000), random_state=0).prepare()
-particles = sampled.run(until=20).trajectory_.values('evacuated')
-crowded_system = create_system(SYSTEM, crowding=8.0)
-crowded = (
-    Simulation(crowded_system, dt=0.2, observables=describe(SYSTEM).observables_of(crowded_system))
-    .prepare()
-    .run(until=20)
-)
+times = trajectory.times
+particles = simulate(system, until=20, dt=0.2, solver=KineticSolver(n=5000), random_state=0).values('evacuated')
+crowded = simulate(EvacuationSystem(crowding=8.0), until=20, dt=0.2)
 fig, ax = plt.subplots(figsize=(6, 4))
-ax.plot(times, simulation.trajectory_.values('evacuated'), label='gain and loss equations')
+ax.plot(times, trajectory.values('evacuated'), label='gain and loss equations')
 ax.plot(times, particles, linestyle='--', label='5000 particles')
-ax.plot(times, crowded.trajectory_.values('evacuated'), label='equations, four times the crowding')
+ax.plot(times, crowded.values('evacuated'), label='equations, four times the crowding')
 ax.set_xlabel('time')
 ax.set_ylabel('evacuated fraction')
 ax.set_title('Evacuation of a building of seven rooms')

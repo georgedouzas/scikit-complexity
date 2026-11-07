@@ -2,12 +2,12 @@
 
 from ._criminality import (
     CriminalContagionInteraction,
+    CriminalitySystem,
     DeterrenceInteraction,
     RecruitmentInteraction,
     SecurityAgentsElement,
     contagion_table,
     criminal_fraction,
-    criminality,
     criminality_grid,
     criminality_observables,
     deterrence_table,
@@ -16,52 +16,52 @@ from ._criminality import (
 )
 from ._evacuation import (
     CrowdingInteraction,
+    EvacuationSystem,
     GuidanceInteraction,
     WalkingInteraction,
     building_of,
     crowding_table,
     evacuated_fraction,
-    evacuation,
     evacuation_observables,
     mean_speed,
     next_rooms,
     walking_speeds,
     walking_table,
 )
-from ._kinetic_crowd import KineticCrowdInteraction, KineticWalkerElement, KineticWalkerView, kinetic_crowd
-from ._pedestrians import MotivationInteraction, SocialRepulsionInteraction, WallsInteraction, social_force
+from ._kinetic_crowd import KineticCrowdInteraction, KineticCrowdSystem, KineticWalkerElement, KineticWalkerView
+from ._pedestrians import MotivationInteraction, SocialForceSystem, SocialRepulsionInteraction, WallsInteraction
 
 __all__: list[str] = [
     'CriminalContagionInteraction',
+    'CriminalitySystem',
     'CrowdingInteraction',
     'DeterrenceInteraction',
+    'EvacuationSystem',
     'GuidanceInteraction',
     'KineticCrowdInteraction',
+    'KineticCrowdSystem',
     'KineticWalkerElement',
     'KineticWalkerView',
     'MotivationInteraction',
     'RecruitmentInteraction',
     'SecurityAgentsElement',
+    'SocialForceSystem',
     'SocialRepulsionInteraction',
     'WalkingInteraction',
     'WallsInteraction',
     'building_of',
     'contagion_table',
     'criminal_fraction',
-    'criminality',
     'criminality_grid',
     'criminality_observables',
     'crowding_table',
     'deterrence_table',
     'evacuated_fraction',
-    'evacuation',
     'evacuation_observables',
-    'kinetic_crowd',
     'mean_criminality',
     'mean_speed',
     'next_rooms',
     'security_density',
-    'social_force',
     'walking_speeds',
     'walking_table',
 ]

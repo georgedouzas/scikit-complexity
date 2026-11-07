@@ -19,10 +19,9 @@ from ....core.components.interactions import (
     RelaxationInteraction,
 )
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ParameterSpec, RoleSpec
-from ..._catalog import register_system
 
 
 class MotivationInteraction(RelaxationInteraction):
@@ -201,20 +200,10 @@ class WallsInteraction(GradientInteraction):
         return s.strength * s.falloff * (exp((s.radius - y) / s.falloff) + exp((s.radius - s.width + y) / s.falloff))
 
 
-@register_system(
-    field='social/crowds',
-    tags=('pedestrians', 'particles', 'lanes', 'self-organization'),
-    references=('Helbing and Molnár 1995', 'Helbing 2001'),
-    defaults={'until': 20.0, 'dt': 0.2, 'solver': RK4Solver(dt=0.05)},
-)
-def social_force(
-    n_walkers: int = 20,
-    *,
-    length: float = 10.0,
-    speed: float = 1.34,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return two crowds walking in opposite directions along a periodic corridor, which form lanes.
+class SocialForceSystem(BaseSystem):
+    """Two crowds walking in opposite directions along a periodic corridor, which form lanes.
+
+    The system has the groups `rightward` and `leftward`.
 
     Args:
         n_walkers:
@@ -229,39 +218,70 @@ def social_force(
         random_state:
             The seed or generator of the initial positions.
 
-    Returns:
-        system:
-            The system, with the groups `rightward` and `leftward`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.crowds import social_force
-        >>> [group.size for group in social_force(5).elements]
+        >>> from skcomplex.systems.social.crowds import SocialForceSystem
+        >>> [group.size for group in SocialForceSystem(5).prepare().system_.elements]
         [5, 5]
     """
-    rng = np.random.default_rng(random_state)
-    cutoff = 2.0
-    walkers = [
-        GroupElement(
-            label,
-            element=PointElement,
-            size=n_walkers,
-            values={'x': rng.uniform([0.0, 0.5], [length, length - 0.5], (n_walkers, 2))},
-        )
-        for label in ('rightward', 'leftward')
-    ]
-    interactions: list[BaseInteraction] = []
-    for label, sign in (('rightward', 1.0), ('leftward', -1.0)):
-        interactions += [
-            MotivationInteraction(f'{label}_drive', target=label, speed=speed, direction=[sign, 0.0]),
-            WallsInteraction(f'{label}_walls', target=label, width=length),
+
+    field = 'social/crowds'
+    topics = ('pedestrians', 'particles', 'lanes', 'self-organization')
+    references = ('Helbing and Molnár 1995', 'Helbing 2001')
+    until = 20.0
+    dt = 0.2
+    solver = RK4Solver(dt=0.05)
+
+    def __init__(
+        self,
+        n_walkers: int = 20,
+        *,
+        length: float = 10.0,
+        speed: float = 1.34,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_walkers = n_walkers
+        self.length = length
+        self.speed = speed
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        cutoff = 2.0
+        walkers = [
+            GroupElement(
+                label,
+                element=PointElement,
+                size=self.n_walkers,
+                values={'x': rng.uniform([0.0, 0.5], [self.length, self.length - 0.5], (self.n_walkers, 2))},
+            )
+            for label in ('rightward', 'leftward')
         ]
-    pairs = (('rightward', 'rightward'), ('leftward', 'leftward'), ('rightward', 'leftward'))
-    interactions += [
-        SocialRepulsionInteraction(f'{first}_{second}', first=first, second=second, cutoff=cutoff, period=length)
-        for first, second in pairs
-    ]
-    return System(
-        elements=walkers,
-        interactions=interactions,
-        space=ContinuousSpace(extent=(length, length), boundary='periodic'),
-    )
+        interactions: list[BaseInteraction] = []
+        for label, sign in (('rightward', 1.0), ('leftward', -1.0)):
+            interactions += [
+                MotivationInteraction(f'{label}_drive', target=label, speed=self.speed, direction=[sign, 0.0]),
+                WallsInteraction(f'{label}_walls', target=label, width=self.length),
+            ]
+        pairs = (('rightward', 'rightward'), ('leftward', 'leftward'), ('rightward', 'leftward'))
+        interactions += [
+            SocialRepulsionInteraction(
+                f'{first}_{second}',
+                first=first,
+                second=second,
+                cutoff=cutoff,
+                period=self.length,
+            )
+            for first, second in pairs
+        ]
+        return System(
+            self.label,
+            elements=walkers,
+            interactions=interactions,
+            space=ContinuousSpace(extent=(self.length, self.length), boundary='periodic'),
+        )

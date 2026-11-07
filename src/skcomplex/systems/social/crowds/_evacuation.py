@@ -17,9 +17,8 @@ from ....core.components.elements import DensityElement, GroupElement
 from ....core.components.interactions import EncounterInteraction
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, RunSettings, System
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
-from ..._catalog import register_system
 
 
 def crowding_table(rooms: int, speeds: int, step: int) -> tuple[npt.NDArray[np.float64], ...]:
@@ -422,23 +421,8 @@ def evacuation_observables(rooms: int, speeds: int) -> list[ObservableSpec]:
     ]
 
 
-@register_system(
-    field='social/crowds',
-    tags=('crowds', 'evacuation', 'kinetic', 'network', 'distribution'),
-    references=EVACUATION_REFERENCES,
-    defaults={'until': 40, 'dt': 0.5},
-    observables=lambda system: evacuation_observables(*_sizes_of(system)),
-)
-def evacuation(
-    branching: int = 2,
-    depth: int = 2,
-    speeds: int = 3,
-    *,
-    mobility: float = 0.5,
-    crowding: float = 2.0,
-    recovery: float = 0.5,
-) -> System:
-    """Return the kinetic system of the evacuation of a building whose rooms form a network.
+class EvacuationSystem(BaseSystem):
+    """The kinetic system of the evacuation of a building whose rooms form a network.
 
     The crowd is a distribution over pairs of a room and a speed class, held by a site group on a two-dimensional
     lattice indexed by room and speed, with one last row of sites for the outside. The rooms form a balanced tree with
@@ -450,7 +434,9 @@ def evacuation(
     The rooms are the nodes and the speed classes the discrete activity of the kinetic structure for a network of
     Bellomo et al. (2017, sections 3.4 and 3.4.1), and the slowing and guiding encounters follow the behavioural crowd
     of Bellomo and Gibelli (2015). The crowd of chapter 6 of Bellomo et al. (2017), which moves in continuous space
-    around walls and obstacles, is a different model.
+    around walls and obstacles, is a different model. The system has the crowd `crowd`, the exit signs `signs`, and the
+    interactions `walking`, `crowding`, and `guidance`. Its standard observables are the evacuated fraction and the mean
+    walking speed.
 
     Args:
         branching:
@@ -471,59 +457,92 @@ def evacuation(
         recovery:
             The rate at which pedestrians speed up again.
 
-    Returns:
-        system:
-            The system, with the crowd `crowd`, the exit signs `signs`, and the interactions `walking`, `crowding`, and
-            `guidance`.
-            Its standard observables are the evacuated fraction and the mean walking speed.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.crowds import evacuation
-        >>> evacuation().elements[0].prepare().size_
+        >>> from skcomplex.systems.social.crowds import EvacuationSystem
+        >>> EvacuationSystem().prepare().system_.elements[0].prepare().size_
         24
     """
-    rooms = building_of(branching, depth).number_of_nodes()
-    initial = np.zeros((rooms + 1, speeds))
-    initial[:rooms, speeds // 2] = 1.0 / rooms
-    crowd_space = LatticeSpace((rooms + 1, speeds), boundary='fixed')
-    return System(
-        elements=[
-            GroupElement(
-                'crowd',
-                element=DensityElement,
-                on='sites',
-                space=crowd_space,
-                values={'f': initial.ravel()},
-            ),
-            GroupElement('signs', element=DensityElement, size=1, values={'f': 1.0}),
-        ],
-        interactions=[
-            WalkingInteraction(
-                'walking',
-                candidate='crowd',
-                field='signs',
-                branching=branching,
-                depth=depth,
-                speeds=speeds,
-                mobility=mobility,
-            ),
-            CrowdingInteraction(
-                'crowding',
-                candidate='crowd',
-                field='crowd',
-                rooms=rooms,
-                speeds=speeds,
-                crowding=crowding,
-            ),
-            GuidanceInteraction(
-                'guidance',
-                candidate='crowd',
-                field='signs',
-                rooms=rooms,
-                speeds=speeds,
-                recovery=recovery,
-            ),
-        ],
-        space=crowd_space,
-        time=ContinuousTime(),
-    )
+
+    field = 'social/crowds'
+    topics = ('crowds', 'evacuation', 'kinetic', 'network', 'distribution')
+    references = EVACUATION_REFERENCES
+    until = 40
+    dt = 0.5
+
+    def __init__(
+        self,
+        branching: int = 2,
+        depth: int = 2,
+        speeds: int = 3,
+        *,
+        mobility: float = 0.5,
+        crowding: float = 2.0,
+        recovery: float = 0.5,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.branching = branching
+        self.depth = depth
+        self.speeds = speeds
+        self.mobility = mobility
+        self.crowding = crowding
+        self.recovery = recovery
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rooms = building_of(self.branching, self.depth).number_of_nodes()
+        initial = np.zeros((rooms + 1, self.speeds))
+        initial[:rooms, self.speeds // 2] = 1.0 / rooms
+        crowd_space = LatticeSpace((rooms + 1, self.speeds), boundary='fixed')
+        return System(
+            self.label,
+            elements=[
+                GroupElement(
+                    'crowd',
+                    element=DensityElement,
+                    on='sites',
+                    space=crowd_space,
+                    values={'f': initial.ravel()},
+                ),
+                GroupElement('signs', element=DensityElement, size=1, values={'f': 1.0}),
+            ],
+            interactions=[
+                WalkingInteraction(
+                    'walking',
+                    candidate='crowd',
+                    field='signs',
+                    branching=self.branching,
+                    depth=self.depth,
+                    speeds=self.speeds,
+                    mobility=self.mobility,
+                ),
+                CrowdingInteraction(
+                    'crowding',
+                    candidate='crowd',
+                    field='crowd',
+                    rooms=rooms,
+                    speeds=self.speeds,
+                    crowding=self.crowding,
+                ),
+                GuidanceInteraction(
+                    'guidance',
+                    candidate='crowd',
+                    field='signs',
+                    rooms=rooms,
+                    speeds=self.speeds,
+                    recovery=self.recovery,
+                ),
+            ],
+            space=crowd_space,
+            time=ContinuousTime(),
+        )
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings, with the observables of the parts built from the model parameters."""
+        settings = super().get_run_settings()
+        system = self._build_system()
+        settings['observables'] = evacuation_observables(*_sizes_of(system))
+        return settings
