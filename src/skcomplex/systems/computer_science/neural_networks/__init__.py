@@ -1,19 +1,19 @@
 """Neural networks: Hopfield's memory, its diluted version, reservoir computers, and Elman's recurrent network."""
 
-from ._binary_weight import BinaryWeightElement
 from ._diluted import DilutedNeuronElement, diluted_hopfield
 from ._echo_state import ReservoirUnitElement, echo_state_network
-from ._elman import elman_network
-from ._hidden_unit import HiddenUnitElement
-from ._hopfield import NeuronElement, hopfield
-from ._hopfield_update import HopfieldUpdateInteraction
-from ._input_coupling import InputCouplingInteraction
-from ._input_unit import InputUnitElement
+from ._elman import (
+    HiddenUnitElement,
+    InputCouplingInteraction,
+    InputUnitElement,
+    OutputUnitElement,
+    ReadoutCouplingInteraction,
+    RecurrenceCouplingInteraction,
+    elman_network,
+)
+from ._hopfield import HopfieldUpdateInteraction, NeuronElement, hopfield
 from ._next_generation import LorenzFlowElement, next_generation_reservoir
-from ._output_unit import OutputUnitElement
-from ._perceptron import perceptron_satisfiability
-from ._readout_coupling import ReadoutCouplingInteraction
-from ._recurrence_coupling import RecurrenceCouplingInteraction
+from ._perceptron import BinaryWeightElement, perceptron_satisfiability
 
 __all__: list[str] = [
     'BinaryWeightElement',

@@ -5,21 +5,190 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
 
-from ....core.components.elements import FieldElement
+from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import DiffusionInteraction, ReactionInteraction
 from ....core.components.spaces import LatticeSpace
 from ....core.components.system import System
 from ....core.engine.solvers import RK4Solver
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._catalog import register_system
-from ..common.kinetics import CubicAutocatalysisInteraction
-from ._brusselator import BrusselatorElement
-from ._gray_scott import GrayScottElement
-from ._schnakenberg import SchnakenbergElement
+from ..common.kinetics import BrusselatorReactionElement, CubicAutocatalysisInteraction
+
+
+class BrusselatorElement(BrusselatorReactionElement):
+    """Site of the Brusselator, the reactor of the Brusselator with the diffusion coefficients of its intermediates.
+
+    The four reactions of `brusselator` run at every site, and its diffusions read `Du` and `Dv`.
+
+    Args:
+        label:
+            The label of the site or the field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        u:
+            The initial concentration of `u`.
+
+        v:
+            The initial concentration of `v`.
+
+        a:
+            The feed of `u`.
+
+        b:
+            The conversion of `u` into `v`.
+
+        Du:
+            The diffusion of `u`.
+
+        Dv:
+            The diffusion of `v`.
+
+    Examples:
+        >>> from skcomplex.systems.chemistry.pattern_formation import BrusselatorElement
+        >>> BrusselatorElement('cell').Dv
+        8.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: float = 1.0,
+        v: float = 3.0,
+        a: float = 1.0,
+        b: float = 3.0,
+        Du: Annotated[object, ParameterSpec()] = 1.0,
+        Dv: Annotated[object, ParameterSpec()] = 8.0,
+    ) -> None:
+        super().__init__(label, visual=visual, u=u, v=v, a=a, b=b)
+        self.Du = Du
+        self.Dv = Dv
+
+
+class GrayScottElement(Element):
+    """Site of the Gray-Scott system, the substrate `u` and the activator `v`.
+
+    The reactions of `gray_scott` at every site, the cubic autocatalysis of the activator on the substrate, the feed
+    `F` of the substrate, and the removal `F + k` of the activator, read `F` and `k`, and its diffusions read `Du` and
+    `Dv`.
+
+    Args:
+        label:
+            The label of the site or the field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        u:
+            The initial substrate.
+
+        v:
+            The initial activator.
+
+        Du:
+            The diffusion of the substrate.
+
+        Dv:
+            The diffusion of the activator.
+
+        F:
+            The feed rate.
+
+        k:
+            The kill rate.
+
+    Examples:
+        >>> from skcomplex.systems.chemistry.pattern_formation import GrayScottElement
+        >>> GrayScottElement('cell').k
+        0.065
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec()] = 1.0,
+        v: Annotated[object, StateSpec()] = 0.0,
+        Du: Annotated[object, ParameterSpec()] = 0.16,
+        Dv: Annotated[object, ParameterSpec()] = 0.08,
+        F: Annotated[object, ParameterSpec()] = 0.035,
+        k: Annotated[object, ParameterSpec()] = 0.065,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.v = v
+        self.Du = Du
+        self.Dv = Dv
+        self.F = F
+        self.k = k
+
+
+class SchnakenbergElement(Element):
+    """Site of the Schnakenberg system, the activator `u` and the inhibitor `v`.
+
+    The reactions of `schnakenberg` at every site, the productions `a` of `u` and `b` of `v`, the decay of `u`, and
+    the autocatalysis `2U + V -> 3U`, read `a` and `b`, and its diffusions read `Du` and `Dv`.
+
+    Args:
+        label:
+            The label of the site or the field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        u:
+            The initial activator.
+
+        v:
+            The initial inhibitor.
+
+        a:
+            The production of `u`.
+
+        b:
+            The production of `v`.
+
+        Du:
+            The diffusion of the activator.
+
+        Dv:
+            The diffusion of the inhibitor.
+
+    Examples:
+        >>> from skcomplex.systems.chemistry.pattern_formation import SchnakenbergElement
+        >>> SchnakenbergElement('cell').Dv
+        40.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec()] = 1.0,
+        v: Annotated[object, StateSpec()] = 0.9,
+        a: Annotated[object, ParameterSpec()] = 0.1,
+        b: Annotated[object, ParameterSpec()] = 0.9,
+        Du: Annotated[object, ParameterSpec()] = 1.0,
+        Dv: Annotated[object, ParameterSpec()] = 40.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.v = v
+        self.a = a
+        self.b = b
+        self.Du = Du
+        self.Dv = Dv
 
 
 def _get_u_diffusion(s: SimpleNamespace) -> Expression:

@@ -11,20 +11,21 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import ZZ
 
 from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import NetworkSpace
 from ....core.components.system import System
-from ....core.specs import StateSpec, VisualSpec
+from ....core.components.types import SystemViewProtocol
+from ....core.engine.solvers import AgentView
+from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._catalog import register_system
-from ._hopfield_update import HopfieldUpdateInteraction
-from ._neuron_view import NeuronView
 
 
-def _hebbian_weights(patterns: Array) -> Array:
-    """Return the Hebbian weights `w_ij = Σ_μ ξ_i ξ_j / n` that store patterns, with no self-coupling."""
-    weights = patterns.T @ patterns / patterns.shape[1]
-    np.fill_diagonal(weights, 0.0)
-    return weights
+class NeuronView(AgentView):
+    """View of a neuron of a Hopfield network, with its states as attributes."""
+
+    spin: float
+    weights: Array
 
 
 class NeuronElement(Element):
@@ -68,6 +69,51 @@ class NeuronElement(Element):
     def _get_view(cls) -> type[NeuronView]:
         """Return the view of the neurons, which types their states."""
         return NeuronView
+
+
+class HopfieldUpdateInteraction(MapInteraction):
+    """Asynchronous update of a Hopfield network, where every neuron in turn takes the sign of its weighted input.
+
+    The neurons update one after the other in a new random order every step, each reading the states the neurons before
+    it set, so the energy `-sum w_ij s_i s_j / 2` never increases. A neuron whose input is zero keeps its state.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of neurons.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.neural_networks import HopfieldUpdateInteraction
+        >>> HopfieldUpdateInteraction('update', target='neurons').schedule
+        'random-sequential'
+    """
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
+        super().__init__(
+            label,
+            target=target,
+            state='spin',
+            function=self._get_spin,
+            schedule='random-sequential',
+            form='agent',
+        )
+
+    def _get_spin(self, agent: NeuronView, system: SystemViewProtocol) -> float:
+        """Return the sign of the weighted input of a neuron from the other neurons, or its state for a zero input."""
+        del system
+        weights = np.asarray(agent.weights)
+        neighbors = [other for other in agent.neighbors() if isinstance(other, NeuronView)]
+        field = sum(weights[int(np.asarray(other.location))] * other.spin for other in neighbors)
+        return float(np.sign(field)) if field != 0 else float(agent.spin)
+
+
+def _hebbian_weights(patterns: Array) -> Array:
+    """Return the Hebbian weights `w_ij = Σ_μ ξ_i ξ_j / n` that store patterns, with no self-coupling."""
+    weights = patterns.T @ patterns / patterns.shape[1]
+    np.fill_diagonal(weights, 0.0)
+    return weights
 
 
 @register_system(

@@ -1,7 +1,7 @@
 """Electric circuits."""
 
-from ._circuit import CircuitElement
 from ._circuits import (
+    CircuitElement,
     chua,
     impulsive_circuits,
     memristor_oscillator,

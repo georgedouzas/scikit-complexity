@@ -3,14 +3,365 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import math
+from types import SimpleNamespace
+from typing import Annotated
 
+from sage.all__sagemath_symbolics import Expression, oo, sin
+from sage.sets.real_set import RealSet
+
+from ....core.components.elements import Element
+from ....core.components.laws import BaseLaw, RateLaw, Sink, Source, TransferLaw
+from ....core.components.laws.utils import clip, delay3, lookup, minimum, smooth, step
 from ....core.components.system import System
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._irrigation_scheme import IrrigationSchemeElement
-from ._relief_pipeline import ReliefPipelineElement
-from ._rice_mill import BRAN_SHARE, HUSK_SHARE, RiceMillElement
-from ._waste_system import WasteSystemElement
+
+
+class ReliefPipelineElement(Element):
+    """Relief supply line that ships food through a delayed pipeline to a warehouse and distributes it."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        in_transit: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='food')] = 0.0,
+        warehouse: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='food')] = 0.0,
+        affected: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 100000.0,
+        ration: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0005,
+        onset: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        shipping_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 14.0,
+        cover: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 7.0,
+        stock_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 7.0,
+        pipeline_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 14.0,
+        distribution_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.in_transit = in_transit
+        self.warehouse = warehouse
+        self.affected = affected
+        self.ration = ration
+        self.onset = onset
+        self.shipping_delay = shipping_delay
+        self.cover = cover
+        self.stock_time = stock_time
+        self.pipeline_time = pipeline_time
+        self.distribution_time = distribution_time
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the flows of food through the supply line."""
+        return ReliefPipelineElement._relief_laws(s)
+
+    @staticmethod
+    def _need(s: SimpleNamespace) -> Expression:
+        """Return the need of relief food, which starts at the onset of the disaster."""
+        return s.ration * s.affected * step(s.t, s.onset)
+
+    @staticmethod
+    def _shipments(s: SimpleNamespace) -> Expression:
+        """Return the shipments that meet the need and close the gaps of the stock and of the pipeline."""
+        need = ReliefPipelineElement._need(s)
+        stock_gap = (s.cover * need - s.warehouse) / s.stock_time
+        pipeline_gap = (s.shipping_delay * need - s.in_transit) / s.pipeline_time
+        return clip(need + stock_gap + pipeline_gap, 0)
+
+    @staticmethod
+    def _relief_laws(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the shipments, arrivals, and distribution of relief food after a disaster."""
+        shipments = ReliefPipelineElement._shipments(s)
+        return [
+            TransferLaw(Source('donors'), s.in_transit, shipments, label='shipping'),
+            TransferLaw(s.in_transit, s.warehouse, delay3(shipments, s.shipping_delay), label='arrivals'),
+            TransferLaw(
+                s.warehouse,
+                Sink('beneficiaries'),
+                minimum(ReliefPipelineElement._need(s), s.warehouse / s.distribution_time),
+                label='distribution',
+            ),
+        ]
+
+
+MONTHS_PER_YEAR = 12.0
+
+
+HUSK_SHARE = 0.2
+
+
+BRAN_SHARE = 0.08
+
+
+class RiceMillElement(Element):
+    """Rice mill that buys seasonal paddy, mills it into rice, husk, and bran, and adjusts its capacity."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        paddy: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='grain')] = 2000.0,
+        rice: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='grain')] = 1300.0,
+        husk: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='grain')] = 400.0,
+        bran: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='grain')] = 160.0,
+        capacity: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 2000.0,
+        harvest: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2000.0,
+        seasonality: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+        procurement_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        milling_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        outturn: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.65,
+        husk_share: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = HUSK_SHARE,
+        bran_share: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = BRAN_SHARE,
+        dispatch_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        by_product_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        perception_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 6.0,
+        expansion_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 12.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.paddy = paddy
+        self.rice = rice
+        self.husk = husk
+        self.bran = bran
+        self.capacity = capacity
+        self.harvest = harvest
+        self.seasonality = seasonality
+        self.procurement_delay = procurement_delay
+        self.milling_time = milling_time
+        self.outturn = outturn
+        self.husk_share = husk_share
+        self.bran_share = bran_share
+        self.dispatch_time = dispatch_time
+        self.by_product_time = by_product_time
+        self.perception_time = perception_time
+        self.expansion_time = expansion_time
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the flows of grain through the mill and the adjustment of its capacity."""
+        return RiceMillElement._rice_mill_laws(s)
+
+    @staticmethod
+    def _season(mean: Expression, amplitude: Expression, t: Expression, period: float) -> Expression:
+        """Return a seasonal value that oscillates about its mean with a relative amplitude and a period."""
+        return mean * (1 + amplitude * sin(2 * math.pi * t / period))
+
+    @staticmethod
+    def _procurement(s: SimpleNamespace) -> Expression:
+        """Return the procurement of paddy, the seasonal harvest after the procurement delay."""
+        return delay3(RiceMillElement._season(s.harvest, s.seasonality, s.t, MONTHS_PER_YEAR), s.procurement_delay)
+
+    @staticmethod
+    def _indicated_milling(s: SimpleNamespace) -> Expression:
+        """Return the indicated milling, the paddy milled over the milling time."""
+        return s.paddy / s.milling_time
+
+    @staticmethod
+    def _milling(s: SimpleNamespace) -> Expression:
+        """Return the milling, the indicated milling limited by the capacity."""
+        return minimum(RiceMillElement._indicated_milling(s), s.capacity)
+
+    @staticmethod
+    def _rice_mill_laws(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the procurement, milling, and sales of a rice mill, and the adjustment of its milling capacity."""
+        milling = RiceMillElement._milling(s)
+        losses = 1 - s.outturn - s.husk_share - s.bran_share
+        return [
+            TransferLaw(Source('farms'), s.paddy, RiceMillElement._procurement(s), label='paddy_purchases'),
+            TransferLaw(s.paddy, s.rice, s.outturn * milling, label='milled_rice'),
+            TransferLaw(s.paddy, s.husk, s.husk_share * milling, label='husk_output'),
+            TransferLaw(s.paddy, s.bran, s.bran_share * milling, label='bran_output'),
+            TransferLaw(s.paddy, Sink('losses'), losses * milling, label='milling_losses'),
+            TransferLaw(s.rice, Sink('market'), s.rice / s.dispatch_time, label='rice_sales'),
+            TransferLaw(s.husk, Sink('fuel'), s.husk / s.by_product_time, label='husk_sales'),
+            TransferLaw(s.bran, Sink('feed'), s.bran / s.by_product_time, label='bran_sales'),
+            RateLaw(
+                s.capacity,
+                (smooth(RiceMillElement._indicated_milling(s), s.perception_time) - s.capacity) / s.expansion_time,
+            ),
+        ]
+
+
+DAYS_PER_YEAR = 365.0
+
+
+WATER_STRESS = ((0.0, 0.0), (0.3, 0.5), (0.6, 1.0), (1.0, 1.0))
+
+
+class IrrigationSchemeElement(Element):
+    """Irrigation scheme that moves water between a reservoir, the root zone of crops, and an aquifer."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        reservoir: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='water')] = 50.0,
+        soil: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='water')] = 12.0,
+        groundwater: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='water')] = 100.0,
+        river_inflow: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        seasonality: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
+        reservoir_capacity: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 80.0,
+        evaporation: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
+        spill_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        release_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        canal_loss: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        potential_et: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
+        field_capacity: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
+        target: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.7,
+        refill_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+        percolation: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
+        pump_capacity: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        pump_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        baseflow_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 500.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.reservoir = reservoir
+        self.soil = soil
+        self.groundwater = groundwater
+        self.river_inflow = river_inflow
+        self.seasonality = seasonality
+        self.reservoir_capacity = reservoir_capacity
+        self.evaporation = evaporation
+        self.spill_time = spill_time
+        self.release_time = release_time
+        self.canal_loss = canal_loss
+        self.potential_et = potential_et
+        self.field_capacity = field_capacity
+        self.target = target
+        self.refill_time = refill_time
+        self.percolation = percolation
+        self.pump_capacity = pump_capacity
+        self.pump_time = pump_time
+        self.baseflow_time = baseflow_time
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the flows of water through the scheme."""
+        return IrrigationSchemeElement._irrigation_laws(s)
+
+    @staticmethod
+    def _demand(s: SimpleNamespace) -> Expression:
+        """Return the water demand of the crops, their evapotranspiration and the refill of the root zone."""
+        return clip(s.potential_et + (s.target * s.field_capacity - s.soil) / s.refill_time, 0)
+
+    @staticmethod
+    def _reservoir_release(s: SimpleNamespace) -> Expression:
+        """Return the release of the reservoir, the demand before the canal losses, limited by the reservoir."""
+        return minimum(IrrigationSchemeElement._demand(s) / (1 - s.canal_loss), s.reservoir / s.release_time)
+
+    @staticmethod
+    def _pumping(s: SimpleNamespace) -> Expression:
+        """Return the pumping of groundwater, the demand the release leaves, limited by the pumps and the aquifer."""
+        unmet = IrrigationSchemeElement._demand(s) - (1 - s.canal_loss) * IrrigationSchemeElement._reservoir_release(s)
+        return minimum(clip(unmet, 0), minimum(s.pump_capacity, s.groundwater / s.pump_time))
+
+    @staticmethod
+    def _irrigation_laws(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the water balance of a reservoir, the root zone of the irrigated crops, and the aquifer below them."""
+        release = IrrigationSchemeElement._reservoir_release(s)
+        crop_water = s.potential_et * lookup(s.soil / s.field_capacity, WATER_STRESS)
+        spill = clip(s.reservoir - s.reservoir_capacity, 0) / s.spill_time
+        return [
+            TransferLaw(
+                Source('river'),
+                s.reservoir,
+                RiceMillElement._season(s.river_inflow, s.seasonality, s.t, DAYS_PER_YEAR),
+                label='inflow',
+            ),
+            TransferLaw(s.reservoir, Sink('atmosphere'), s.evaporation * s.reservoir, label='evaporation'),
+            TransferLaw(s.reservoir, Sink('downstream'), spill, label='spill'),
+            TransferLaw(s.reservoir, s.soil, (1 - s.canal_loss) * release, label='irrigation'),
+            TransferLaw(s.reservoir, s.groundwater, s.canal_loss * release, label='seepage'),
+            TransferLaw(s.groundwater, s.soil, IrrigationSchemeElement._pumping(s), label='groundwater_pumping'),
+            TransferLaw(s.soil, Sink('atmosphere'), crop_water, label='crop_water'),
+            TransferLaw(s.soil, s.groundwater, s.percolation * s.soil, label='percolation'),
+            TransferLaw(s.groundwater, Sink('downstream'), s.groundwater / s.baseflow_time, label='baseflow'),
+        ]
+
+
+LANDFILL_ACCEPTANCE = ((0.0, 1.0), (0.9, 1.0), (1.0, 0.0))
+
+
+class WasteSystemElement(Element):
+    """Solid waste system of a growing city that collects, recycles, composts, and landfills its waste."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        population: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='people')] = 1000000.0,
+        uncollected: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='waste')] = 0.0,
+        recycled: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='waste')] = 0.0,
+        composted: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='waste')] = 0.0,
+        landfill: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='waste')] = 0.0,
+        dumped: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='waste')] = 0.0,
+        collection_capacity: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 150000.0,
+        growth_rate: Annotated[object, ParameterSpec()] = 0.02,
+        per_capita: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        collection_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05,
+        recycling_share: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        composting_share: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        landfill_capacity: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2000000.0,
+        recycling_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.25,
+        composting_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        capacity_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.population = population
+        self.uncollected = uncollected
+        self.recycled = recycled
+        self.composted = composted
+        self.landfill = landfill
+        self.dumped = dumped
+        self.collection_capacity = collection_capacity
+        self.growth_rate = growth_rate
+        self.per_capita = per_capita
+        self.collection_time = collection_time
+        self.recycling_share = recycling_share
+        self.composting_share = composting_share
+        self.landfill_capacity = landfill_capacity
+        self.recycling_time = recycling_time
+        self.composting_time = composting_time
+        self.capacity_time = capacity_time
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the flows of waste through the city and the adjustment of its collection capacity."""
+        return WasteSystemElement._waste_laws(s)
+
+    @staticmethod
+    def _generation(s: SimpleNamespace) -> Expression:
+        """Return the generation of waste by the population."""
+        return s.per_capita * s.population
+
+    @staticmethod
+    def _collection(s: SimpleNamespace) -> Expression:
+        """Return the collection of waste, limited by the collection capacity."""
+        return minimum(s.uncollected / s.collection_time, s.collection_capacity)
+
+    @staticmethod
+    def _acceptance(s: SimpleNamespace) -> Expression:
+        """Return the share of the residual waste that the landfill accepts as it fills."""
+        return lookup(s.landfill / s.landfill_capacity, LANDFILL_ACCEPTANCE)
+
+    @staticmethod
+    def _waste_laws(s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the generation, collection, treatment, and disposal of the solid waste of a growing city."""
+        generation, collection, acceptance = (
+            WasteSystemElement._generation(s),
+            WasteSystemElement._collection(s),
+            WasteSystemElement._acceptance(s),
+        )
+        residual = (1 - s.recycling_share - s.composting_share) * collection
+        return [
+            TransferLaw(Source('births'), s.population, s.growth_rate * s.population, label='population_growth'),
+            TransferLaw(Source('households'), s.uncollected, generation, label='waste_generation'),
+            TransferLaw(s.uncollected, s.recycled, s.recycling_share * collection, label='recycling'),
+            TransferLaw(s.uncollected, s.composted, s.composting_share * collection, label='composting'),
+            TransferLaw(s.uncollected, s.landfill, acceptance * residual, label='landfilling'),
+            TransferLaw(s.uncollected, s.dumped, (1 - acceptance) * residual, label='dumping'),
+            TransferLaw(s.recycled, Sink('industry'), s.recycled / s.recycling_time, label='recycled_sales'),
+            TransferLaw(s.composted, Sink('farms'), s.composted / s.composting_time, label='compost_sales'),
+            RateLaw(s.collection_capacity, (generation - s.collection_capacity) / s.capacity_time),
+        ]
+
 
 INITIAL_COLLECTION_SHARE = 0.75
 

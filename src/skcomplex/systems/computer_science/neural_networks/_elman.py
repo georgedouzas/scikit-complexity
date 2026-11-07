@@ -4,22 +4,306 @@
 # License: MIT
 
 from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import exp
 
-from ....core.components.elements import GroupElement
-from ....core.components.interactions import TrainingInteraction
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import CouplingInteraction, TrainingInteraction
 from ....core.components.spaces import DiscreteTime
 from ....core.components.system import System
-from ....core.specs import DatasetSpec, ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.specs import (
+    DatasetSpec,
+    ObservableSpec,
+    ParameterSpec,
+    PhaseSpec,
+    PhasesScheduleSpec,
+    RoleSpec,
+    StateSpec,
+    VisualSpec,
+)
 from ....core.types import Array
 from ..._catalog import register_system
-from ._hidden_unit import HiddenUnitElement
-from ._input_coupling import InputCouplingInteraction
-from ._input_unit import InputUnitElement
-from ._output_unit import OutputUnitElement
-from ._readout_coupling import ReadoutCouplingInteraction
-from ._recurrence_coupling import RecurrenceCouplingInteraction
+
+
+class HiddenUnitElement(Element):
+    """Hidden unit of a simple recurrent network, whose activity is a sigmoid of its recurrent input and its drive.
+
+    The drive `u` holds the weighted input of the previous step, and the bias `b` is adaptive, so training changes it.
+
+    Args:
+        label:
+            The label of the element or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        s:
+            The activity in `(0, 1)`.
+
+        u:
+            The weighted input of the previous step.
+
+        b:
+            The bias, an adaptive parameter.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.neural_networks import HiddenUnitElement
+        >>> HiddenUnitElement('unit').s
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        s: Annotated[float, StateSpec()] = 0.5,
+        u: Annotated[float, StateSpec()] = 0.0,
+        b: Annotated[float, ParameterSpec(adaptive=True)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.s = s
+        self.u = u
+        self.b = b
+
+
+class InputUnitElement(Element):
+    """Input unit of a simple recurrent network, whose value a dataset or a schedule sets at every step.
+
+    Args:
+        label:
+            The label of the element or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The input.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.neural_networks import InputUnitElement
+        >>> InputUnitElement('bit').x
+        0.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+
+
+class OutputUnitElement(Element):
+    """Output unit of a simple recurrent network, whose activity predicts a target.
+
+    The bias `c` is adaptive, so training changes it, and the target is a parameter a dataset or a schedule sets.
+
+    Args:
+        label:
+            The label of the element or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        y:
+            The prediction in `(0, 1)`.
+
+        c:
+            The bias, an adaptive parameter.
+
+        target:
+            The value the prediction is compared with.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.neural_networks import OutputUnitElement
+        >>> OutputUnitElement('prediction').target
+        0.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        y: Annotated[float, StateSpec()] = 0.5,
+        c: Annotated[float, ParameterSpec(adaptive=True)] = 0.0,
+        target: Annotated[float, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.y = y
+        self.c = c
+        self.target = target
+
+
+class InputCouplingInteraction(CouplingInteraction):
+    """Weighted input of a simple recurrent network, which sets the drive `u = D x` of every hidden unit each step.
+
+    The weights `D` are an adaptive matrix with one row per hidden unit and one column per input unit, so training
+    changes them. The coupling runs in the phase `drive` of the step, which the system declares before the phases
+    `hidden` of the recurrence and `readout` of the readout, so the hidden units read the drive of the same step.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        target:
+            The path of the group of hidden units.
+
+        source:
+            The path of the group of input units.
+
+        D:
+            The input weights, a matrix of shape `(hidden units, input units)` or a number for every entry.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.neural_networks import InputCouplingInteraction
+        >>> InputCouplingInteraction('input', target='hidden', source='inputs').write
+        'u'
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        source: Annotated[str, RoleSpec()],
+        D: Annotated[object, ParameterSpec(shape=('target', 'source'), adaptive=True)] = 0.0,
+    ) -> None:
+        super().__init__(
+            label,
+            target=target,
+            source=source,
+            read='x',
+            write='u',
+            function=self._input,
+            mode='group',
+            weights='D',
+            form='map',
+            phase='drive',
+        )
+        self.D = D
+
+    def _input(self, namespace: SimpleNamespace) -> object:
+        """Return the input of the other unit."""
+        return namespace.other.x
+
+
+class ReadoutCouplingInteraction(CouplingInteraction):
+    """Readout of a simple recurrent network, `y_i <- sigmoid(sum_j W_ij s_j + c_i)` with the logistic sigmoid.
+
+    Every output unit reads the activities of the hidden units through the adaptive matrix `W`, adds its bias `c`, and
+    takes the sigmoid of the sum as its next prediction.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        target:
+            The path of the group of output units.
+
+        source:
+            The path of the group of hidden units.
+
+        W:
+            The readout weights, a matrix of shape `(output units, hidden units)` or a number for every entry.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.neural_networks import ReadoutCouplingInteraction
+        >>> ReadoutCouplingInteraction('readout', target='outputs', source='hidden').write
+        'y'
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        source: Annotated[str, RoleSpec()],
+        W: Annotated[object, ParameterSpec(shape=('target', 'source'), adaptive=True)] = 0.0,
+    ) -> None:
+        super().__init__(
+            label,
+            target=target,
+            source=source,
+            read='s',
+            write='y',
+            function=self._activity,
+            mode='group',
+            weights='W',
+            form='map',
+            phase='readout',
+            combine=self._activate,
+        )
+        self.W = W
+
+    def _activity(self, namespace: SimpleNamespace) -> object:
+        """Return the activity of the hidden unit."""
+        return namespace.other.s
+
+    def _activate(self, namespace: SimpleNamespace, reduction: object) -> object:
+        """Return the sigmoid of the weighted activities and the bias of the output unit."""
+        return 1 / (1 + exp(-(reduction + namespace.member.c)))
+
+
+class RecurrenceCouplingInteraction(CouplingInteraction):
+    """Recurrence of a simple recurrent network, `s_i <- sigmoid(sum_j A_ij s_j + u_i + b_i)` with the logistic sigmoid.
+
+    Every hidden unit reads the activities of every hidden unit, itself included, through the adaptive matrix `A`, adds
+    its drive `u` and its bias `b`, and takes the sigmoid of the sum as its next activity (Gros 2015 Eq. 10.18).
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        target:
+            The path of the group of hidden units.
+
+        A:
+            The recurrent weights, a square matrix with one row and one column per hidden unit, or a number for every
+            entry.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.neural_networks import RecurrenceCouplingInteraction
+        >>> RecurrenceCouplingInteraction('recurrence', target='hidden').include_self
+        True
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        A: Annotated[object, ParameterSpec(shape=('target', 'target'), adaptive=True)] = 0.0,
+    ) -> None:
+        super().__init__(
+            label,
+            target=target,
+            read='s',
+            write='s',
+            function=self._activity,
+            mode='group',
+            weights='A',
+            include_self=True,
+            form='map',
+            phase='hidden',
+            combine=self._activate,
+        )
+        self.A = A
+
+    def _activity(self, namespace: SimpleNamespace) -> object:
+        """Return the activity of the other unit."""
+        return namespace.other.s
+
+    def _activate(self, namespace: SimpleNamespace, reduction: object) -> object:
+        """Return the sigmoid of the recurrent input, the drive, and the bias of the unit."""
+        return 1 / (1 + exp(-(reduction + namespace.member.u + namespace.member.b)))
+
 
 TRAINED = ('input.D', 'recurrence.A', 'readout.W', 'hidden.b', 'outputs.c')
 WEIGHT_SCALE = 0.5

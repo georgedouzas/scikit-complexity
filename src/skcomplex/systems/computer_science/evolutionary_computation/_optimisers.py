@@ -3,14 +3,19 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression, cos, pi
 
-from ....core.components.elements import GroupElement, LatticeElement
-from ....core.components.interactions import OptimizationInteraction, SamplingInteraction
+from ....core.components.base import BasePart
+from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.interactions import Interaction, OptimizationInteraction, SamplingInteraction
+from ....core.components.laws import UpdateLaw
+from ....core.components.laws.utils import where
 from ....core.components.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
 from ....core.components.system import System
 from ....core.errors import ValidationError
@@ -20,13 +25,128 @@ from ....core.specs import (
     EvolutionStrategySpec,
     ObservableSpec,
     ParticleSwarmSpec,
+    RoleSpec,
+    StateSpec,
 )
 from ....core.types import Array
 from ..._catalog import register_system
-from ._annealed_candidate import AnnealedCandidateElement
-from ._running_best import RunningBestElement
-from ._running_best_update import RunningBestInteraction
-from ._search_candidate import SearchCandidateElement
+
+
+class AnnealedCandidateElement(Element):
+    """Candidate solution of the plane, whose coordinates are sampled one state at a time.
+
+    Args:
+        label:
+            The label of the candidate or the group.
+
+        x:
+            The first coordinate.
+
+        y:
+            The second coordinate.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.evolutionary_computation import AnnealedCandidateElement
+        >>> AnnealedCandidateElement('candidate', x=1.0).x
+        1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        x: Annotated[float, StateSpec()] = 0.0,
+        y: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.y = y
+
+
+class RunningBestElement(Element):
+    """Lowest objective value of a search so far.
+
+    Args:
+        label:
+            The label of the element.
+
+        best:
+            The value before the search starts.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.evolutionary_computation import RunningBestElement
+        >>> RunningBestElement('record', best=5.0).best
+        5.0
+    """
+
+    def __init__(self, label: str, best: Annotated[float, StateSpec()] = 1e300) -> None:
+        super().__init__(label)
+        self.best = best
+
+
+class SearchCandidateElement(Element):
+    """Candidate solution that holds a vector.
+
+    Args:
+        label:
+            The label of the candidate or the group.
+
+        x:
+            The vector of the candidate.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.evolutionary_computation import SearchCandidateElement
+        >>> SearchCandidateElement('candidate', x=(0.0, 1.0)).x
+        (0.0, 1.0)
+    """
+
+    def __init__(self, label: str, x: Annotated[npt.ArrayLike, StateSpec(vector=True)] = (0.0, 0.0)) -> None:
+        super().__init__(label)
+        self.x = x
+
+
+class RunningBestInteraction(Interaction):
+    """Keep the lowest value of an observable, `best <- value if value < best else best`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the element that holds `best`.
+
+        source:
+            The path of the observable.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.evolutionary_computation import RunningBestInteraction
+        >>> RunningBestInteraction('update', target='record', source='search/lowest').source
+        'search/lowest'
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        source: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.source = source
+
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+        """Return the update of the lowest value.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The update of `best`.
+        """
+        return [UpdateLaw(s.target.best, where(s.source.value < s.target.best, s.source.value, s.target.best))]
+
 
 ALGORITHMS = {
     'differential-evolution': DifferentialEvolutionSpec(),

@@ -86,3 +86,34 @@ or nothing. Six fields have a `common` package with 59 modules.
 - **Cross-field imports:** `physics.synchronization._chaos` imports `LorenzElement` from `mathematics.common.flows`.
   It is left for the folding of physics, which copies it into physics.
 - **Cross-field duplicates:** none in mathematics.
+
+## Engineering
+
+- **Moved to `engineering.common`:** `CarElement` and `OptimalVelocityInteraction`, which `optimal_velocity` of
+  `traffic._car_following` and `langevin_traffic` of `traffic._langevin` use in the same way, the second also reading
+  the headway helper of the interaction. Each keeps its own module directly in `common`, which now exports both.
+- **Kept in `common`:** the `electrical` and `mechanics` packages, since several subfields use them. The capacitor,
+  Chua diode, current source, diode, and operational amplifier of `electrical._components` serve no system, but they
+  share one module with components that several systems use, so they stay with their tests.
+- **Copies:** none.
+- **Cross-field duplicates:** none in engineering.
+
+## Computer science
+
+- **Shared modules kept in their subfield**, since computer science has no `common` package: in `automata`,
+  `_binary_cell`, the cell of most automata, `_codes`, the `Wolfram` and `life` rule codes, `_groups`, the Cayley balls
+  of the group automata, and `_pascal_cell`, which `unbounded_alphabet_automaton` of `_variants` and
+  `subtraction_automaton` of `_alphabets` use in the same way. Each is a public name of the package, so a copy would be
+  two identical public classes or functions under one name.
+- **Copies:** none.
+- **Cross-field duplicates:** `_random_cells` of `computer_science.automata._automata` and `._variants` has the same
+  source as the one of `social.opinion_dynamics._voters`, a random binary grid with a given density, and
+  `_group_automata` and `_line_automata` hold a one-dimensional variant of it. It is a candidate for the core.
+
+## Chemistry
+
+- **Kept in `common`:** the `kinetics` package, whose `BrusselatorReactionElement` and `CubicAutocatalysisInteraction`
+  serve both `kinetics` and `pattern_formation`.
+- **Copies:** none.
+- **Cross-field duplicates:** `_noise` of `chemistry.pattern_formation._reaction_diffusion` has the same source as the
+  one of `physics.pattern_formation._patterns`, small uniform noise of a given shape. It is a candidate for the core.

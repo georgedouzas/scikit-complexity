@@ -5,9 +5,7 @@ from ._light_emitting_robots import (
     SensoryDelayInteraction,
     light_emitting_robots,
 )
-from ._light_sensitive_robot import LightSensitiveRobotElement
-from ._robots import light_seeking_robots, swarmtaxis
-from ._swarm_robot import SwarmRobotElement
+from ._robots import LightSensitiveRobotElement, SwarmRobotElement, light_seeking_robots, swarmtaxis
 
 __all__: list[str] = [
     'LightEmittingRobotElement',
