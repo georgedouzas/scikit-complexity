@@ -162,7 +162,7 @@ def test_operational_amplifier_inverts_with_the_ratio_of_its_resistors():
 
 
 def test_component_chua_follows_chua():
-    """Test that the capacitor voltages of the component circuit follow `ChuaSystem` until chaos separates the two runs."""
+    """Test that the capacitor voltages of the component circuit follow `ChuaSystem` until chaos parts the runs."""
     settings = {'dt': 0.05, 'solver': ScipyODESolver(method='RK45', rtol=1e-10, atol=1e-10)}
     circuit = Simulation(_component_chua(), **settings).prepare().run(until=20.0).trajectory_
     written = Simulation(ChuaSystem().prepare().system_, **settings).prepare().run(until=20.0).trajectory_
