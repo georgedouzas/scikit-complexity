@@ -13,10 +13,9 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class TypedWordView(AgentView):
@@ -102,6 +101,8 @@ class TypingInteraction(Interaction):
         5
     """
 
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -163,26 +164,15 @@ class TypingInteraction(Interaction):
             words[word_code] = created
 
 
-@register_system(
-    field='social/language',
-    tags=('agents', 'power law', 'zipf', 'language'),
-    references=('Miller 1957', 'Thurner, Hanel, and Klimek 2018'),
-    defaults={'until': 50},
-)
-def random_typewriting(
-    letters: int = 5,
-    *,
-    space: float = 0.2,
-    keystrokes: int = 1000,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Miller's random typewriting, monkeys whose random keystrokes give Zipf's law of word frequencies.
+class RandomTypewritingSystem(BaseSystem):
+    """Miller's random typewriting, monkeys whose random keystrokes give Zipf's law of word frequencies.
 
     A typewriter has `letters` letters and a space bar hit with the probability `q = space`, and every space ends a
-    word. A word of `L` letters has the probability `q ((1 - q) / letters)^L`, so its frequency falls exponentially
-    with its length, while the number of distinct words of length `L` grows exponentially as `letters^L`. The two
-    exponentials give a power law of the frequency of the word of rank `r`, `r^(-alpha)` with
-    `alpha = 1 - log(1 - q) / log(letters)` (Thurner et al. 2018 section 3.3.6.2).
+    word. A word of `L` letters has the probability `q ((1 - q) / letters)^L`, so its frequency falls exponentially with
+    its length, while the number of distinct words of length `L` grows exponentially as `letters^L`. The two
+    exponentials give a power law of the frequency of the word of rank `r`, `r^(-alpha)` with `alpha = 1 - log(1 - q) /
+    log(letters)` (Thurner et al. 2018 section 3.3.6.2). The system has the variable group `words`, which starts with
+    the first word of the text.
 
     Args:
         letters:
@@ -197,25 +187,53 @@ def random_typewriting(
         random_state:
             The seed or generator of the first word of the text.
 
-    Returns:
-        system:
-            The system, with the variable group `words`, which starts with the first word of the text.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.language import random_typewriting
-        >>> random_typewriting().elements[0].prepare().size_
+        >>> from skcomplex.systems.social.language import RandomTypewritingSystem
+        >>> RandomTypewritingSystem().prepare().system_.elements[0].prepare().size_
         1
     """
-    rng = np.random.default_rng(random_state)
-    code, length = 0, 0
-    while length == 0 or rng.random() >= space:
-        code, length = code * letters + int(rng.integers(letters)) + 1, length + 1
-    words = GroupElement(
-        'words',
-        element=TypedWordElement,
-        size=1,
-        values={'count': 1.0, 'length': float(length), 'code': float(code)},
-        variable=True,
-    )
-    typing = TypingInteraction('typing', target='words', letters=letters, space_bar=space, keystrokes=keystrokes)
-    return System(elements=[words], interactions=[typing])
+
+    field = 'social/language'
+    topics = ('agents', 'power law', 'zipf', 'language')
+    references = ('Miller 1957', 'Thurner, Hanel, and Klimek 2018')
+    until = 50
+
+    def __init__(
+        self,
+        letters: int = 5,
+        *,
+        space: float = 0.2,
+        keystrokes: int = 1000,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.letters = letters
+        self.space = space
+        self.keystrokes = keystrokes
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        code, length = 0, 0
+        while length == 0 or rng.random() >= self.space:
+            code, length = code * self.letters + int(rng.integers(self.letters)) + 1, length + 1
+        words = GroupElement(
+            'words',
+            element=TypedWordElement,
+            size=1,
+            values={'count': 1.0, 'length': float(length), 'code': float(code)},
+            variable=True,
+        )
+        typing = TypingInteraction(
+            'typing',
+            target='words',
+            letters=self.letters,
+            space_bar=self.space,
+            keystrokes=self.keystrokes,
+        )
+        return System(self.label, elements=[words], interactions=[typing])
