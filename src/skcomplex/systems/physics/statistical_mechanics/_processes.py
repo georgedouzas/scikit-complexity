@@ -17,11 +17,10 @@ from ....core.components.interactions import LocalRuleInteraction, TransferInter
 from ....core.components.laws import BaseLaw, LocalRuleLaw, RuleLaw, Sink, Source
 from ....core.components.laws.utils import bernoulli
 from ....core.components.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class ContactSiteElement(Element):
@@ -52,6 +51,8 @@ class ContactSiteElement(Element):
         >>> ContactSiteElement('site').rate
         3.0
     """
+
+    law_classes = (LocalRuleLaw,)
 
     def __init__(
         self,
@@ -167,6 +168,8 @@ class PercolationSiteElement(Element):
         0.0
     """
 
+    law_classes = (LocalRuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -269,6 +272,8 @@ class WalkerElement(Element):
         0.0
     """
 
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -316,49 +321,11 @@ class WalkerElement(Element):
         agent.move_to(cells[int(system.rng.integers(len(cells)))])
 
 
-def _flip_without_cost(*columns: Array) -> tuple[Array, Array]:
-    """Return the spins and phases after one Q2R step, from the spins and the phases of a centred neighbourhood."""
-    half = len(columns) // 2
-    spin, around, phase = columns[0], columns[1:half], columns[half]
-    flips = (phase == 1) & (sum(around) == 0)
-    return np.where(flips, -spin, spin), 1 - phase
-
-
-def _hop(s: SimpleNamespace) -> Expression:
-    """Return 1 where a particle hops to the empty next site with probability `p`, one draw per edge, or 0."""
-    return s.source.occupied * (1 - s.target.occupied) * bernoulli('hop', s.source.p)
-
-
-def _enter(s: SimpleNamespace) -> Expression:
-    """Return 1 where a particle enters the empty first site with probability `alpha`, and 0 otherwise."""
-    return (1 - s.target.occupied) * bernoulli('entry', s.target.alpha)
-
-
-def _leave(s: SimpleNamespace) -> Expression:
-    """Return 1 where the particle on the last site leaves with probability `beta`, and 0 otherwise."""
-    return s.source.occupied * bernoulli('exit', s.source.beta)
-
-
-def _checkerboard(shape: tuple[int, ...]) -> Array:
-    """Return 1 on the sites of even coordinate sum and 0 on the others."""
-    return (np.indices(shape).sum(axis=0) % 2 == 0).astype(float)
-
-
-@register_system(
-    field='physics/statistical_mechanics',
-    tags=('lattice', 'cellular automaton', 'reversible', 'spins'),
-    references=('Vichniac 1984', 'Pomeau 1984', 'Lindgren 2024'),
-    defaults={'until': 100, 'dt': 1},
-)
-def q2r(
-    shape: Sequence[int] = (64, 64),
-    *,
-    up: float = 0.3,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Q2R automaton, a reversible, energy-conserving Ising dynamics on a periodic lattice of even sides.
+class Q2rSystem(BaseSystem):
+    """The Q2R automaton, a reversible, energy-conserving Ising dynamics on a periodic lattice of even sides.
 
     The spins start uncorrelated with a fraction `up` of spins up, and the sites of even coordinate sum update first.
+    The system has the spins `spins.spin` and phases `spins.phase`.
 
     Args:
         shape:
@@ -370,50 +337,73 @@ def q2r(
         random_state:
             The seed or generator of the initial spins.
 
-    Returns:
-        system:
-            The system, with the spins `spins.spin` and phases `spins.phase`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics import q2r
-        >>> q2r((8,)).elements[0].prepare().size_
+        >>> from skcomplex.systems.physics.statistical_mechanics import Q2rSystem
+        >>> Q2rSystem((8,)).prepare().system_.elements[0].prepare().size_
         8
     """
-    shape = tuple(shape)
-    spins = np.where(np.random.default_rng(random_state).random(shape) < up, 1.0, -1.0)
-    space = LatticeSpace(shape)
-    group = LatticeElement(
-        'spins',
-        element=Q2RSpinElement,
-        space=space,
-        values={'spin': spins, 'phase': _checkerboard(shape)},
-    )
-    flip = LocalRuleInteraction(
-        'flip',
-        target='spins',
-        state=('spin', 'phase'),
-        rule=_flip_without_cost,
-        neighborhood=VonNeumannNeighborhood(n_dim=len(shape), center=True),
-    )
-    return System(elements=[group], interactions=[flip])
+
+    field = 'physics/statistical_mechanics'
+    topics = ('lattice', 'cellular automaton', 'reversible', 'spins')
+    references = ('Vichniac 1984', 'Pomeau 1984', 'Lindgren 2024')
+    until = 100
+    dt = 1
+
+    def __init__(
+        self,
+        shape: Sequence[int] = (64, 64),
+        *,
+        up: float = 0.3,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.up = up
+        self.random_state = random_state
+
+    @staticmethod
+    def _flip_without_cost(*columns: Array) -> tuple[Array, Array]:
+        """Return the spins and phases after one Q2R step, from the spins and the phases of a centred neighbourhood."""
+        half = len(columns) // 2
+        spin, around, phase = columns[0], columns[1:half], columns[half]
+        flips = (phase == 1) & (sum(around) == 0)
+        return np.where(flips, -spin, spin), 1 - phase
+
+    @staticmethod
+    def _checkerboard(shape: tuple[int, ...]) -> Array:
+        """Return 1 on the sites of even coordinate sum and 0 on the others."""
+        return (np.indices(shape).sum(axis=0) % 2 == 0).astype(float)
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        shape = tuple(self.shape)
+        spins = np.where(np.random.default_rng(self.random_state).random(shape) < self.up, 1.0, -1.0)
+        space = LatticeSpace(shape)
+        group = LatticeElement(
+            'spins',
+            element=Q2RSpinElement,
+            space=space,
+            values={'spin': spins, 'phase': self._checkerboard(shape)},
+        )
+        flip = LocalRuleInteraction(
+            'flip',
+            target='spins',
+            state=('spin', 'phase'),
+            rule=self._flip_without_cost,
+            neighborhood=VonNeumannNeighborhood(n_dim=len(shape), center=True),
+        )
+        return System(self.label, elements=[group], interactions=[flip])
 
 
-@register_system(
-    field='physics/statistical_mechanics',
-    tags=('lattice', 'percolation', 'phase transition', 'fire'),
-    references=('Broadbent and Hammersley 1957', 'Stauffer and Aharony 1994', 'Charbonneau 2017'),
-    defaults={'until': 200, 'dt': 1},
-)
-def site_percolation(
-    shape: Sequence[int] = (64, 64),
-    *,
-    p: float = 0.6,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return site percolation probed by a fire lit along the top row, which spans the lattice above `p_c = 0.5927`.
+class SitePercolationSystem(BaseSystem):
+    """Site percolation probed by a fire lit along the top row, which spans the lattice above `p_c = 0.5927`.
 
     Sites are occupied with probability `p`, and the fire burns the clusters connected to the top row, one layer of
-    sites per step.
+    sites per step. The system has the covers `lattice.cover`.
 
     Args:
         shape:
@@ -425,41 +415,51 @@ def site_percolation(
         random_state:
             The seed or generator of the occupations.
 
-    Returns:
-        system:
-            The system, with the covers `lattice.cover`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics import site_percolation
-        >>> site_percolation((10, 10)).elements[0].prepare().size_
+        >>> from skcomplex.systems.physics.statistical_mechanics import SitePercolationSystem
+        >>> SitePercolationSystem((10, 10)).prepare().system_.elements[0].prepare().size_
         100
     """
-    shape = tuple(shape)
-    cover = (np.random.default_rng(random_state).random(shape) < p).astype(float)
-    cover[0] *= BURNING
-    space = LatticeSpace(shape, boundary='fixed')
-    return System(
-        elements=[LatticeElement('lattice', element=PercolationSiteElement, space=space, values={'cover': cover})],
-    )
+
+    field = 'physics/statistical_mechanics'
+    topics = ('lattice', 'percolation', 'phase transition', 'fire')
+    references = ('Broadbent and Hammersley 1957', 'Stauffer and Aharony 1994', 'Charbonneau 2017')
+    until = 200
+    dt = 1
+
+    def __init__(
+        self,
+        shape: Sequence[int] = (64, 64),
+        *,
+        p: float = 0.6,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.p = p
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        shape = tuple(self.shape)
+        cover = (np.random.default_rng(self.random_state).random(shape) < self.p).astype(float)
+        cover[0] *= BURNING
+        space = LatticeSpace(shape, boundary='fixed')
+        return System(
+            self.label,
+            elements=[LatticeElement('lattice', element=PercolationSiteElement, space=space, values={'cover': cover})],
+        )
 
 
-@register_system(
-    field='physics/statistical_mechanics',
-    tags=('lattice', 'stochastic', 'absorbing state', 'phase transition', 'epidemics'),
-    references=('Harris 1974', 'Marro and Dickman 1999', 'Pastor-Satorras et al. 2015'),
-    defaults={'until': 200, 'dt': 1},
-)
-def contact_process(
-    shape: Sequence[int] = (64, 64),
-    *,
-    rate: float = 3.0,
-    tau: float = 0.1,
-    infected: float = 0.5,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the contact process on a periodic lattice, which survives above a critical infection rate near 1.65.
+class ContactProcessSystem(BaseSystem):
+    """The contact process on a periodic lattice, which survives above a critical infection rate near 1.65.
 
-    Below the critical rate the infection dies out and the lattice falls into the absorbing healthy state.
+    Below the critical rate the infection dies out and the lattice falls into the absorbing healthy state. The system
+    has the infections `lattice.infected`.
 
     Args:
         shape:
@@ -477,53 +477,65 @@ def contact_process(
         random_state:
             The seed or generator of the initial infections.
 
-    Returns:
-        system:
-            The system, with the infections `lattice.infected`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics import contact_process
-        >>> contact_process((10, 10), rate=1.0).elements[0].values['rate']
+        >>> from skcomplex.systems.physics.statistical_mechanics import ContactProcessSystem
+        >>> ContactProcessSystem((10, 10), rate=1.0).prepare().system_.elements[0].values['rate']
         1.0
     """
-    shape = tuple(shape)
-    states = (np.random.default_rng(random_state).random(shape) < infected).astype(float)
-    space = LatticeSpace(shape)
-    return System(
-        elements=[
-            LatticeElement(
-                'lattice',
-                element=ContactSiteElement,
-                space=space,
-                values={'infected': states, 'rate': rate, 'tau': tau},
-            ),
-        ],
-    )
+
+    field = 'physics/statistical_mechanics'
+    topics = ('lattice', 'stochastic', 'absorbing state', 'phase transition', 'epidemics')
+    references = ('Harris 1974', 'Marro and Dickman 1999', 'Pastor-Satorras et al. 2015')
+    until = 200
+    dt = 1
+
+    def __init__(
+        self,
+        shape: Sequence[int] = (64, 64),
+        *,
+        rate: float = 3.0,
+        tau: float = 0.1,
+        infected: float = 0.5,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.rate = rate
+        self.tau = tau
+        self.infected = infected
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        shape = tuple(self.shape)
+        states = (np.random.default_rng(self.random_state).random(shape) < self.infected).astype(float)
+        space = LatticeSpace(shape)
+        return System(
+            self.label,
+            elements=[
+                LatticeElement(
+                    'lattice',
+                    element=ContactSiteElement,
+                    space=space,
+                    values={'infected': states, 'rate': self.rate, 'tau': self.tau},
+                ),
+            ],
+        )
 
 
-@register_system(
-    field='physics/statistical_mechanics',
-    tags=('lattice', 'stochastic', 'exclusion', 'traffic', 'nonequilibrium'),
-    references=('Derrida, Domany, and Mukamel 1992', 'Schütz 2001', 'Helbing 2001'),
-    defaults={'until': 500, 'dt': 1},
-)
-def tasep(
-    n_sites: int = 200,
-    *,
-    p: float = 0.5,
-    alpha: float = 0.3,
-    beta: float = 0.7,
-    ring: bool = False,
-    density: float = 0.5,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the totally asymmetric simple exclusion process with parallel update, on an open line or a ring.
+class TASEPSystem(BaseSystem):
+    """The totally asymmetric simple exclusion process with parallel update, on an open line or a ring.
 
     Every step all particles whose right neighbour is empty hop to it with probability `p` at once, a transfer along
     every edge of the lane with one draw per edge. On an open line particles enter the first site with probability
-    `alpha` and leave the last site with probability `beta`. On a ring at density `rho` the current is
-    `(1 - sqrt(1 - 4 p rho (1 - rho))) / 2`. On an open line the entry and exit probabilities select the low-density,
-    high-density, or maximal-current phase.
+    `alpha` and leave the last site with probability `beta`. On a ring at density `rho` the current is `(1 - sqrt(1 - 4
+    p rho (1 - rho))) / 2`. On an open line the entry and exit probabilities select the low-density, high-density, or
+    maximal-current phase. The system has the occupations `lane.occupied` and the hops `lane.hops`, and on an open line
+    the entries `entry.flow_0` and the exits `exit.flow_0`.
 
     Args:
         n_sites:
@@ -547,67 +559,106 @@ def tasep(
         random_state:
             The seed or generator of the initial occupations.
 
-    Returns:
-        system:
-            The system, with the occupations `lane.occupied` and the hops `lane.hops`, and on an open line the
-            entries `entry.flow_0` and the exits `exit.flow_0`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics import tasep
-        >>> [interaction.label for interaction in tasep(20).interactions]
+        >>> from skcomplex.systems.physics.statistical_mechanics import TASEPSystem
+        >>> [interaction.label for interaction in TASEPSystem(20).prepare().system_.interactions]
         ['hops', 'entry', 'exit']
     """
-    rng = np.random.default_rng(random_state)
-    occupied = np.zeros(n_sites)
-    occupied[rng.choice(n_sites, round(density * n_sites), replace=False)] = 1.0
-    boundary = 'periodic' if ring else 'fixed'
-    lane = LatticeElement(
-        'lane',
-        element=ExclusionSiteElement,
-        space=LatticeSpace(n_sites, boundary=boundary),
-        values={'occupied': occupied, 'p': p, 'alpha': alpha, 'beta': beta},
-    )
-    hops = TransferInteraction(
-        'hops',
-        source='lane',
-        target='lane',
-        state='occupied',
-        amount=_hop,
-        flow='hops',
-        offset=1,
-        boundary=boundary,
-    )
-    if ring:
-        return System(elements=[lane], interactions=[hops], time=DiscreteTime())
-    first, last = 'lane[0]', f'lane[{n_sites - 1}]'
-    entry = TransferInteraction(
-        'entry',
-        source=first,
-        target=first,
-        state=Source(),
-        into='occupied',
-        amount=_enter,
-    )
-    leaving = TransferInteraction('exit', source=last, target=last, state='occupied', into=Sink(), amount=_leave)
-    return System(elements=[lane], interactions=[hops, entry, leaving], time=DiscreteTime())
+
+    field = 'physics/statistical_mechanics'
+    topics = ('lattice', 'stochastic', 'exclusion', 'traffic', 'nonequilibrium')
+    references = ('Derrida, Domany, and Mukamel 1992', 'Schütz 2001', 'Helbing 2001')
+    until = 500
+    dt = 1
+
+    def __init__(
+        self,
+        n_sites: int = 200,
+        *,
+        p: float = 0.5,
+        alpha: float = 0.3,
+        beta: float = 0.7,
+        ring: bool = False,
+        density: float = 0.5,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_sites = n_sites
+        self.p = p
+        self.alpha = alpha
+        self.beta = beta
+        self.ring = ring
+        self.density = density
+        self.random_state = random_state
+
+    @staticmethod
+    def _hop(s: SimpleNamespace) -> Expression:
+        """Return 1 where a particle hops to the empty next site with probability `p`, one draw per edge, or 0."""
+        return s.source.occupied * (1 - s.target.occupied) * bernoulli('hop', s.source.p)
+
+    @staticmethod
+    def _enter(s: SimpleNamespace) -> Expression:
+        """Return 1 where a particle enters the empty first site with probability `alpha`, and 0 otherwise."""
+        return (1 - s.target.occupied) * bernoulli('entry', s.target.alpha)
+
+    @staticmethod
+    def _leave(s: SimpleNamespace) -> Expression:
+        """Return 1 where the particle on the last site leaves with probability `beta`, and 0 otherwise."""
+        return s.source.occupied * bernoulli('exit', s.source.beta)
+
+    def _build_system(self) -> System:
+        """Return the totally asymmetric simple exclusion process with parallel update, on an open line or a ring."""
+        rng = np.random.default_rng(self.random_state)
+        occupied = np.zeros(self.n_sites)
+        occupied[rng.choice(self.n_sites, round(self.density * self.n_sites), replace=False)] = 1.0
+        boundary = 'periodic' if self.ring else 'fixed'
+        lane = LatticeElement(
+            'lane',
+            element=ExclusionSiteElement,
+            space=LatticeSpace(self.n_sites, boundary=boundary),
+            values={'occupied': occupied, 'p': self.p, 'alpha': self.alpha, 'beta': self.beta},
+        )
+        hops = TransferInteraction(
+            'hops',
+            source='lane',
+            target='lane',
+            state='occupied',
+            amount=self._hop,
+            flow='hops',
+            offset=1,
+            boundary=boundary,
+        )
+        if self.ring:
+            return System(self.label, elements=[lane], interactions=[hops], time=DiscreteTime())
+        first, last = 'lane[0]', f'lane[{self.n_sites - 1}]'
+        entry = TransferInteraction(
+            'entry',
+            source=first,
+            target=first,
+            state=Source(),
+            into='occupied',
+            amount=self._enter,
+        )
+        leaving = TransferInteraction(
+            'exit',
+            source=last,
+            target=last,
+            state='occupied',
+            into=Sink(),
+            amount=self._leave,
+        )
+        return System(self.label, elements=[lane], interactions=[hops, entry, leaving], time=DiscreteTime())
 
 
-@register_system(
-    field='physics/statistical_mechanics',
-    tags=('agents', 'aggregation', 'fractal', 'random walk'),
-    references=('Witten and Sander 1981', 'Charbonneau 2017'),
-    defaults={'until': 200, 'dt': 1},
-)
-def diffusion_limited_aggregation(
-    n_walkers: int = 400,
-    *,
-    size: int = 41,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return diffusion-limited aggregation on a periodic grid, where random walkers stick to a seed at the center.
+class DiffusionLimitedAggregationSystem(BaseSystem):
+    """Diffusion-limited aggregation on a periodic grid, where random walkers stick to a seed at the center.
 
     Walkers that touch the aggregate join it, so the tips of the aggregate catch most walkers and it grows into a
-    branched fractal of dimension about 1.7.
+    branched fractal of dimension about 1.7. The system has the agent group `walkers`.
 
     Args:
         n_walkers:
@@ -619,29 +670,51 @@ def diffusion_limited_aggregation(
         random_state:
             The seed or generator of the initial cells of the walkers.
 
-    Returns:
-        system:
-            The system, with the agent group `walkers`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics import diffusion_limited_aggregation
-        >>> diffusion_limited_aggregation(10, size=11).elements[0].prepare().size_
+        >>> from skcomplex.systems.physics.statistical_mechanics import DiffusionLimitedAggregationSystem
+        >>> DiffusionLimitedAggregationSystem(10, size=11).prepare().system_.elements[0].prepare().size_
         10
     """
-    rng = np.random.default_rng(random_state)
-    middle = size // 2
-    cells = rng.integers(0, size, (n_walkers, 2))
-    cells[0] = middle
-    stuck = np.zeros(n_walkers)
-    stuck[0] = 1.0
-    walkers = GroupElement(
-        'walkers',
-        element=WalkerElement,
-        size=n_walkers,
-        values={'stuck': stuck},
-        location=[tuple(map(int, cell)) for cell in cells],
-    )
-    return System(
-        elements=[walkers],
-        space=LatticeSpace((size, size), boundary='periodic', neighborhood='von_neumann'),
-    )
+
+    field = 'physics/statistical_mechanics'
+    topics = ('agents', 'aggregation', 'fractal', 'random walk')
+    references = ('Witten and Sander 1981', 'Charbonneau 2017')
+    until = 200
+    dt = 1
+
+    def __init__(
+        self,
+        n_walkers: int = 400,
+        *,
+        size: int = 41,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_walkers = n_walkers
+        self.size = size
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        middle = self.size // 2
+        cells = rng.integers(0, self.size, (self.n_walkers, 2))
+        cells[0] = middle
+        stuck = np.zeros(self.n_walkers)
+        stuck[0] = 1.0
+        walkers = GroupElement(
+            'walkers',
+            element=WalkerElement,
+            size=self.n_walkers,
+            values={'stuck': stuck},
+            location=[tuple(map(int, cell)) for cell in cells],
+        )
+        return System(
+            self.label,
+            elements=[walkers],
+            space=LatticeSpace((self.size, self.size), boundary='periodic', neighborhood='von_neumann'),
+        )

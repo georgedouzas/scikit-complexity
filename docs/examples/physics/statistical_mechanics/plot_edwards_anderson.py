@@ -7,32 +7,22 @@ of the 48 x 48 lattice at the end of the run.
 """
 
 # %%
-# The system is created by name from the catalog on a 48 x 48 lattice at `T = 0.5 J`, starting from random spins. One
+# The system is built from its class on a 48 x 48 lattice at `T = 0.5 J`, starting from random spins. One
 # unit of time is one sweep of Metropolis updates. The observer saves every second frame with the default blueprint,
 # whose primary view is the image of the spins.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.physics.statistical_mechanics import EdwardsAndersonSystem
 
 SYSTEM = 'edwards_anderson'
 
-system = create_system(SYSTEM, size=48, temperature=0.5)
+system = EdwardsAndersonSystem(size=48, temperature=0.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = (
-    Simulation(
-        system,
-        dt=5,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=1000)
-)
+simulation = simulate(system, until=1000, observers=[observer], random_state=0)
 
 # %%
 # Energy, magnetization, and freezing against temperature
@@ -46,15 +36,10 @@ simulation = (
 temperatures = np.linspace(0.3, 3.5, 9)
 energies, magnetizations, frozen = [], [], []
 for temperature in temperatures:
-    sample = create_system(SYSTEM, size=32, temperature=temperature)
-    values = sample.elements[0].values
+    sample = EdwardsAndersonSystem(size=32, temperature=temperature)
+    values = sample.prepare().system_.elements[0].values
     right, down = (values[name].reshape(32, 32) for name in ('J_right', 'J_down'))
-    trajectory = (
-        Simulation(sample, dt=10, random_state=0, observables=describe(SYSTEM).observables_of(sample))
-        .prepare()
-        .run(until=2000)
-        .trajectory_
-    )
+    trajectory = simulate(sample, until=2000, dt=10, random_state=0)
     spins = trajectory.lattice('spins.spin')[-50:]
     bonds = spins * right * np.roll(spins, -1, axis=-1) + spins * down * np.roll(spins, -1, axis=-2)
     energies.append(-bonds.sum(axis=(1, 2)).mean() / 32**2)

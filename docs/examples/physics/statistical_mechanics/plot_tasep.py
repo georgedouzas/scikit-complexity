@@ -8,22 +8,22 @@ sites over the last frames, one row per step with the earliest at the top.
 """
 
 # %%
-# The system is created by name from the catalog on a ring at density `0.5` with hop probability `p = 0.5`. The
+# The system is built from its class on a ring at density `0.5` with hop probability `p = 0.5`. The
 # observer saves every frame with the default blueprint, whose primary view is the space-time image of the
 # occupations.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.statistical_mechanics import TASEPSystem
 
 SYSTEM = 'tasep'
 
-system = create_system(SYSTEM, n_sites=200, p=0.5, ring=True, density=0.5, random_state=0)
+system = TASEPSystem(n_sites=200, p=0.5, ring=True, density=0.5, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=250)
+trajectory = simulate(system, until=250, observers=[observer], random_state=0)
 
 # %%
 # Fundamental diagram of the ring
@@ -47,9 +47,9 @@ fig, ax = plt.subplots(figsize=(7, 4))
 for p, color in ((0.5, 'tab:blue'), (0.9, 'tab:orange')):
     measured = []
     for density in densities:
-        system_p = create_system(SYSTEM, n_sites=400, p=p, ring=True, density=density, random_state=1)
-        run = Simulation(system_p, dt=1, random_state=1).prepare().run(until=1000)
-        measured.append(current(run.trajectory_.values('lane.occupied')[200:]))
+        system_p = TASEPSystem(n_sites=400, p=p, ring=True, density=density, random_state=1)
+        run = simulate(system_p, until=1000, random_state=1)
+        measured.append(current(run.values('lane.occupied')[200:]))
     ax.plot(densities, measured, 'o', color=color, label=f'simulation, p = {p}')
     ax.plot(grid, (1 - np.sqrt(1 - 4 * p * grid * (1 - grid))) / 2, color=color, label=f'exact, p = {p}')
 ax.set_xlabel('density rho')

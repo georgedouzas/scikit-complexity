@@ -8,23 +8,22 @@ potential minimum. The view shows 400 particles in a periodic box at density 0.5
 """
 
 # %%
-# The system is created by name from the catalog at constant energy. The velocity Verlet stepper takes steps of 0.005
+# The system is built from its class at constant energy. The velocity Verlet stepper takes steps of 0.005
 # and the observer saves every second step with the default blueprint, whose primary view shows the particles.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import neighbors
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import VelocityVerletSolver
+from skcomplex.core.engine.runtime import Simulation, simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.statistical_mechanics import LennardJonesFluidSystem
 
 SYSTEM = 'lennard_jones_fluid'
 
-system = create_system(SYSTEM, random_state=0)
+system = LennardJonesFluidSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, solver=VelocityVerletSolver(), dt=0.005, observers=[observer]).prepare().run(until=2.5)
+trajectory = simulate(system, until=2.5, observers=[observer])
 
 # %%
 # Structure of a gas and a liquid
@@ -39,7 +38,7 @@ fig, ax = plt.subplots(figsize=(7, 4))
 for density in (0.2, 0.8):
     side = np.sqrt(400 / density)
     run = Simulation(
-        create_system(SYSTEM, density=density, temperature=1.0, random_state=1),
+        LennardJonesFluidSystem(density=density, temperature=1.0, random_state=1).prepare().system_,
         dt=0.05,
         random_state=1,
     ).prepare()

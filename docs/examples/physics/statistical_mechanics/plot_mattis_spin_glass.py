@@ -7,32 +7,22 @@ time series show both observables during the run.
 """
 
 # %%
-# The system is created by name from the catalog on a 48 x 48 lattice at `T = 1.5 J`, starting from random spins. One
+# The system is built from its class on a 48 x 48 lattice at `T = 1.5 J`, starting from random spins. One
 # unit of time is one sweep of Metropolis updates. The observer saves every frame with the default blueprint, whose
 # primary view is the time series of the overlap and the magnetization.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.physics.statistical_mechanics import MattisSpinGlassSystem
 
 SYSTEM = 'mattis_spin_glass'
 
-system = create_system(SYSTEM, size=48, temperature=1.5)
+system = MattisSpinGlassSystem(size=48, temperature=1.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(
-        system,
-        dt=2,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=400)
-)
+simulation = simulate(system, until=400, observers=[observer], random_state=0)
 
 # %%
 # Hidden order and the gauge transformation
@@ -42,24 +32,15 @@ simulation = (
 # near zero at every temperature. The left panel shows the spins and the gauge variables at the end of the run above:
 # the spins look disordered and the gauge variables form one domain.
 
-lattice = simulation.trajectory_.lattice('spins.spin')[-1]
-pattern = system.elements[0].values['pattern'].reshape(lattice.shape)
+lattice = simulation.lattice('spins.spin')[-1]
+pattern = system.prepare().system_.elements[0].values['pattern'].reshape(lattice.shape)
 temperatures = np.linspace(1.0, 3.5, 11)
 overlaps, magnetizations = [], []
 for temperature in temperatures:
-    system_system = create_system(SYSTEM, size=32, temperature=temperature)
-    trajectory = (
-        Simulation(
-            system_system,
-            dt=10,
-            random_state=0,
-            observables=describe(SYSTEM).observables_of(system_system),
-        )
-        .prepare()
-        .run(until=1000)
-    )
-    overlaps.append(np.abs(trajectory.trajectory_.values('overlap')[-30:]).mean())
-    magnetizations.append(np.abs(trajectory.trajectory_.values('magnetization')[-30:]).mean())
+    system_system = MattisSpinGlassSystem(size=32, temperature=temperature)
+    trajectory = simulate(system_system, until=1000, dt=10, random_state=0)
+    overlaps.append(np.abs(trajectory.values('overlap')[-30:]).mean())
+    magnetizations.append(np.abs(trajectory.values('magnetization')[-30:]).mean())
 critical = 2 / np.log(1 + np.sqrt(2))
 grid = np.linspace(1.0, critical - 1e-6, 100)
 fig, (spins, gauge, curve) = plt.subplots(1, 3, figsize=(13, 4))
