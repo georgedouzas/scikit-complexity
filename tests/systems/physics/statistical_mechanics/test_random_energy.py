@@ -5,12 +5,12 @@ import pytest
 
 from skcomplex.core.components.system import System
 from skcomplex.core.experiments import Experiment, GridDesign
-from skcomplex.systems.physics.statistical_mechanics import RandomEnergySystemSystem
+from skcomplex.systems.physics.statistical_mechanics import RandomEnergySystem
 
 
 def _ensemble(**parameters: object) -> System:
     """Return the parts of a random energy system for its model parameters, as an experiment runs them."""
-    return RandomEnergySystemSystem(**parameters).prepare().system_
+    return RandomEnergySystem(**parameters).prepare().system_
 
 
 @pytest.mark.slow

@@ -52,7 +52,7 @@ from ._random_energy import (
     BoltzmannAverageElement,
     BoltzmannSumInteraction,
     EnergyLevelElement,
-    RandomEnergySystemSystem,
+    RandomEnergySystem,
 )
 from ._spin_glasses import (
     BondSamplingInteraction,
@@ -63,7 +63,7 @@ from ._spin_glasses import (
 )
 from ._spins import IsingSystem, PottsSpinElement, PottsSystem, XYSpinElement, XYSystem
 from ._susceptibility import SusceptibilityResult, susceptibility
-from ._traps import TrapSystemSystem, TrapWalkerElement
+from ._traps import TrapSystem, TrapWalkerElement
 from ._urns import EhrenfestUrnElement, EhrenfestUrnSystem
 
 __all__: list[str] = [
@@ -108,14 +108,14 @@ __all__: list[str] = [
     'Q2RSpinElement',
     'Q2rSystem',
     'QuantumHeisenbergSystem',
-    'RandomEnergySystemSystem',
+    'RandomEnergySystem',
     'ReactingParticlesElement',
     'ReservoirInteraction',
     'SherringtonKirkpatrickSystem',
     'SitePercolationSystem',
     'SusceptibilityResult',
     'TASEPSystem',
-    'TrapSystemSystem',
+    'TrapSystem',
     'TrapWalkerElement',
     'TreeNodeElement',
     'TwoPhaseZoneExchangeSystem',

@@ -1,5 +1,5 @@
 """
-# Bouchaud trap system
+# Bouchaud trap
 
 Each point is a walker in a trap, placed at random in the plane and colored by its depth. Below the glass temperature
 the walkers find ever deeper traps, so the points darken less and less often and the escapes slow down as the system
@@ -17,11 +17,11 @@ import numpy as np
 
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems.physics.statistical_mechanics import TrapSystemSystem
+from skcomplex.systems.physics.statistical_mechanics import TrapSystem
 
-SYSTEM = 'trap_system'
+SYSTEM = 'trap'
 
-system = TrapSystemSystem(n_walkers=500, T=0.5, random_state=0)
+system = TrapSystem(n_walkers=500, T=0.5, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 trajectory = simulate(system, observers=[observer], random_state=0)
 

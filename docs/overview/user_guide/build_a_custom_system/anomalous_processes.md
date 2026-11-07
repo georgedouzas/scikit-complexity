@@ -144,7 +144,7 @@ round(float(rough.trajectory_.values('walkers.x')[-1].var()), 1)
 - `fractional_gaussian_noise` returns the noise paths themselves.
 
 The catalog has these systems ready: `continuous_time_random_walk`, `levy_walk`, `annealed_transient_time_motion`,
-`fractional_brownian_motion`, and `levy_flight` in soft matter, and `trap_system` in statistical mechanics.
+`fractional_brownian_motion`, and `levy_flight` in soft matter, and `trap` in statistical mechanics.
 
 ## Fractional derivatives
 

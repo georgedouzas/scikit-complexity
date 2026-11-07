@@ -145,7 +145,7 @@ class BoltzmannSumInteraction(Interaction):
         ]
 
 
-class RandomEnergySystemSystem(BaseSystem):
+class RandomEnergySystem(BaseSystem):
     """The random energy system, `2^N` quenched Gaussian energies of variance `N / 2` at a temperature.
 
     The entropy per spin follows `ln 2 - 1 / (4 T^2)` above the glass temperature `T_g = 1 / (2 sqrt(ln 2))` and freezes
@@ -168,8 +168,8 @@ class RandomEnergySystemSystem(BaseSystem):
 
     Examples:
         >>> from skcomplex.core.engine.runtime import Simulation
-        >>> from skcomplex.systems.physics.statistical_mechanics import RandomEnergySystemSystem
-        >>> system = RandomEnergySystemSystem(12, temperature=2.0).prepare().system_
+        >>> from skcomplex.systems.physics.statistical_mechanics import RandomEnergySystem
+        >>> system = RandomEnergySystem(12, temperature=2.0).prepare().system_
         >>> trajectory = Simulation(system).prepare().run(1.0).trajectory_
         >>> bool(abs(trajectory.values('ensemble.entropy')[0] - (np.log(2) - 1 / 16)) < 0.05)
         True

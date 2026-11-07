@@ -63,7 +63,7 @@ Reduce over a group without overflow, and measure the clusters that points form 
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.systems import create_system
 
-system = create_system('random_energy_system', n_spins=12, temperature=2.0)
+system = create_system('random_energy', n_spins=12, temperature=2.0)
 trajectory = Simulation(system).prepare().run(1.0).trajectory_
 trajectory.values('ensemble.entropy')[0]
 ```
@@ -71,7 +71,7 @@ trajectory.values('ensemble.entropy')[0]
 `log_sum_exp(expression, over=None)` reduces over the members of a group like `total`, as `log sum_j exp(a_j)`, without
 overflow for values of any size. A system-level observable cannot reach a group from another element. So a quantity
 built on it is an `EquationLaw` on a scalar element, read by an interaction that binds the group. The system
-`random_energy_system` above, Derrida's random energy system, computes its entropy this way.
+`random_energy` above, Derrida's random energy system, computes its entropy this way.
 
 Quenched disorder is drawn by the factory, so a disorder average sweeps its `random_state` as an axis of `GridDesign`.
 The `replicates` of an `Experiment` share one draw of the factory and vary only the dynamics.

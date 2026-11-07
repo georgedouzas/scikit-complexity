@@ -1,5 +1,5 @@
 """
-# Random energy system
+# Random energy
 
 The `2^N` energies of the random energy system are independent Gaussians of variance `N / 2`. Its Boltzmann sum is
 exact: the entropy per spin follows `ln 2 - 1 / (4 T^2)` above the glass temperature `T_g = 1 / (2 sqrt(ln 2))`, and
@@ -15,11 +15,11 @@ import numpy as np
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import Experiment, GridDesign
-from skcomplex.systems.physics.statistical_mechanics import RandomEnergySystemSystem
+from skcomplex.systems.physics.statistical_mechanics import RandomEnergySystem
 
-SYSTEM = 'random_energy_system'
+SYSTEM = 'random_energy'
 
-system = RandomEnergySystemSystem(n_spins=12, temperature=1.0)
+system = RandomEnergySystem(n_spins=12, temperature=1.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 trajectory = simulate(system, until=1.0, observers=[observer])
 
@@ -33,7 +33,7 @@ temperatures = np.array([0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0, 1.5, 2.0])
 seeds = list(range(5))
 bounds = {'n_spins': [16], 'temperature': temperatures.tolist(), 'random_state': seeds}
 experiment = Experiment(
-    lambda **parameters: RandomEnergySystemSystem(**parameters).prepare().system_,
+    lambda **parameters: RandomEnergySystem(**parameters).prepare().system_,
     GridDesign(),
     bounds,
     until=1.0,

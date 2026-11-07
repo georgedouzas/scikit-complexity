@@ -85,7 +85,7 @@ class TrapWalkerElement(Element):
         return [JumpLaw(waiting=waiting, reset={**reset, s.E: draw('depth', 'expon')}, label='escapes')]
 
 
-class TrapSystemSystem(BaseSystem):
+class TrapSystem(BaseSystem):
     """The Bouchaud trap system, walkers that escape from traps of exponentially distributed depths.
 
     The escape times `tau0 exp(E / T)` of depths with the density `exp(-E)` have the tail `tau^(-1 - T)`. Below the
@@ -110,8 +110,8 @@ class TrapSystemSystem(BaseSystem):
             The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics import TrapSystemSystem
-        >>> TrapSystemSystem(10, T=0.8).prepare().system_.elements[0].values['T']
+        >>> from skcomplex.systems.physics.statistical_mechanics import TrapSystem
+        >>> TrapSystem(10, T=0.8).prepare().system_.elements[0].values['T']
         0.8
     """
 
