@@ -3,13 +3,243 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
+
 from ....core.components.elements import CompartmentElement
 from ....core.components.interactions import ReactionInteraction
 from ....core.components.system import System
+from ....core.specs import ParameterSpec, RoleSpec
+from ....core.types import Stoichiometry
 from ..._catalog import register_system
-from ._immunity_loss import ImmunityLossInteraction
-from ._infection import InfectionInteraction
-from ._recovery import RecoveryInteraction
+
+MODES = {False: 'rate', True: 'jump'}
+
+
+class InfectionInteraction(ReactionInteraction):
+    """Mass-action infection, the reaction `S + I -> 2 I` at the rate `beta S I` from susceptible to infected.
+
+    It is a `ReactionInteraction` between the states `n` of the two compartments its roles bind, a rate equation, or
+    in stochastic mode a random event that moves one individual.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        susceptible:
+            The path of the susceptible compartment.
+
+        infected:
+            The path of the infected compartment.
+
+        beta:
+            The transmission rate.
+
+        stochastic:
+            Whether infections are random events.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import CompartmentElement
+        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.systems.biology.epidemiology import InfectionInteraction
+        >>> system = System(
+        ...     elements=[CompartmentElement('S', n=99.0), CompartmentElement('I', n=1.0)],
+        ...     interactions=[InfectionInteraction('infection', susceptible='S', infected='I', beta=0.01)],
+        ... )
+        >>> trajectory = Simulation(system, dt=0.1).prepare().run(until=5.0).trajectory_
+        >>> round(float(trajectory.values('S.n')[-1] + trajectory.values('I.n')[-1]), 6)
+        100.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        susceptible: Annotated[str, RoleSpec()],
+        infected: Annotated[str, RoleSpec()],
+        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
+        stochastic: bool = False,
+    ) -> None:
+        super().__init__(label)
+        self.susceptible = susceptible
+        self.infected = infected
+        self.beta = beta
+        self.stochastic = stochastic
+
+    def _get_reactants(self) -> Stoichiometry:
+        """Return the states `n` of the compartments the reaction consumes."""
+        return {(self.susceptible, 'n'): 1, (self.infected, 'n'): 1}
+
+    def _get_products(self) -> Stoichiometry:
+        """Return the states `n` of the compartments the reaction produces."""
+        return {(self.infected, 'n'): 2}
+
+    def _get_mode(self) -> str:
+        """Return the mode of the reaction, random events when stochastic and a rate equation otherwise."""
+        return MODES[self.stochastic]
+
+    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
+        """Return the mass action of the reaction at the rate constant `beta`.
+
+        Args:
+            namespace:
+                The namespace of the symbols the rate can use, with the compartments.
+
+        Returns:
+            rate:
+                The propensity of the reaction.
+        """
+        return self._get_mass_action(namespace, namespace.beta)
+
+
+class ImmunityLossInteraction(ReactionInteraction):
+    """Loss of immunity, the reaction `R -> S` at the rate `xi R` from recovered back to susceptible.
+
+    It is a `ReactionInteraction` between the states `n` of the two compartments its roles bind, a rate equation, or
+    in stochastic mode a random event that moves one individual.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        recovered:
+            The path of the recovered compartment.
+
+        susceptible:
+            The path of the susceptible compartment.
+
+        xi:
+            The rate at which immunity wanes.
+
+        stochastic:
+            Whether losses of immunity are random events.
+
+    Examples:
+        >>> from skcomplex.systems.biology.epidemiology import ImmunityLossInteraction
+        >>> ImmunityLossInteraction('waning', recovered='R', susceptible='S', xi=0.05).xi
+        0.05
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        recovered: Annotated[str, RoleSpec()],
+        susceptible: Annotated[str, RoleSpec()],
+        xi: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        stochastic: bool = False,
+    ) -> None:
+        super().__init__(label)
+        self.recovered = recovered
+        self.susceptible = susceptible
+        self.xi = xi
+        self.stochastic = stochastic
+
+    def _get_reactants(self) -> Stoichiometry:
+        """Return the states `n` of the compartments the reaction consumes."""
+        return {(self.recovered, 'n'): 1}
+
+    def _get_products(self) -> Stoichiometry:
+        """Return the states `n` of the compartments the reaction produces."""
+        return {(self.susceptible, 'n'): 1}
+
+    def _get_mode(self) -> str:
+        """Return the mode of the reaction, random events when stochastic and a rate equation otherwise."""
+        return MODES[self.stochastic]
+
+    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
+        """Return the mass action of the reaction at the rate constant `xi`.
+
+        Args:
+            namespace:
+                The namespace of the symbols the rate can use, with the compartments.
+
+        Returns:
+            rate:
+                The propensity of the reaction.
+        """
+        return self._get_mass_action(namespace, namespace.xi)
+
+
+class RecoveryInteraction(ReactionInteraction):
+    """Recovery, the reaction `I -> R` at the rate `gamma I` from infected to recovered.
+
+    It is a `ReactionInteraction` between the states `n` of the two compartments its roles bind, a rate equation, or
+    in stochastic mode a random event that moves one individual.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        infected:
+            The path of the infected compartment.
+
+        recovered:
+            The path of the recovered compartment.
+
+        gamma:
+            The recovery rate.
+
+        stochastic:
+            Whether recoveries are random events.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import CompartmentElement
+        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.systems.biology.epidemiology import RecoveryInteraction
+        >>> system = System(
+        ...     elements=[CompartmentElement('I', n=10.0), CompartmentElement('R')],
+        ...     interactions=[RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.5)],
+        ... )
+        >>> trajectory = Simulation(system, dt=0.01).prepare().run(until=2.0).trajectory_
+        >>> round(float(trajectory.values('I.n')[-1]), 3)
+        3.679
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        infected: Annotated[str, RoleSpec()],
+        recovered: Annotated[str, RoleSpec()],
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        stochastic: bool = False,
+    ) -> None:
+        super().__init__(label)
+        self.infected = infected
+        self.recovered = recovered
+        self.gamma = gamma
+        self.stochastic = stochastic
+
+    def _get_reactants(self) -> Stoichiometry:
+        """Return the states `n` of the compartments the reaction consumes."""
+        return {(self.infected, 'n'): 1}
+
+    def _get_products(self) -> Stoichiometry:
+        """Return the states `n` of the compartments the reaction produces."""
+        return {(self.recovered, 'n'): 1}
+
+    def _get_mode(self) -> str:
+        """Return the mode of the reaction, random events when stochastic and a rate equation otherwise."""
+        return MODES[self.stochastic]
+
+    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
+        """Return the mass action of the reaction at the rate constant `gamma`.
+
+        Args:
+            namespace:
+                The namespace of the symbols the rate can use, with the compartments.
+
+        Returns:
+            rate:
+                The propensity of the reaction.
+        """
+        return self._get_mass_action(namespace, namespace.gamma)
 
 
 @register_system(

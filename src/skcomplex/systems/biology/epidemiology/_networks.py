@@ -4,18 +4,151 @@
 # License: MIT
 
 from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import Expression
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import FieldElement, GroupElement
+from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.interactions import CouplingInteraction, RateInteraction
+from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import NetworkSpace
 from ....core.components.system import System
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._degree_class import DegreeClassElement
-from ._subpopulation import SubpopulationElement
+
+
+class DegreeClassElement(Element):
+    """Infected density of the nodes of one degree of a network, in heterogeneous mean field.
+
+    A node of degree `k` recovers at rate 1 and is infected at rate `lam k Theta`, where
+    `Theta = sum_k k P(k) rho_k / <k>` is the probability that an edge points to an infected node, a total over the
+    degree classes, so `d rho_k / dt = -rho_k + lam k (1 - rho_k) Theta`. The classes are the members of a group, and
+    the recovery and the infection are interactions of the group, which `heterogeneous_mean_field_sis` adds.
+
+    Args:
+        label:
+            The label of the class or the group of classes.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        rho:
+            The initial infected density.
+
+        lam:
+            The spreading rate, the ratio of the infection and recovery rates.
+
+        k:
+            The degree of the class.
+
+        P:
+            The probability `P(k)` of the degree.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.systems.biology.epidemiology import DegreeClassElement
+        >>> GroupElement(
+        ...     'network', element=DegreeClassElement, size=2, values={'k': [1.0, 2.0], 'P': [0.5, 0.5]}
+        ... ).prepare().size_
+        2
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        rho: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        lam: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        P: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.rho = rho
+        self.lam = lam
+        self.k = k
+        self.P = P
+
+
+class SubpopulationElement(Element):
+    """Well-mixed SIR population at a node of a network, whose individuals hop along each edge at the rate `D`.
+
+    Inside the node, `beta S I / N` individuals are infected and `gamma I` recover per unit time, with
+    `N = S + I + R`. Hopping along every edge adds `D` times the graph Laplacian to every compartment.
+
+    Args:
+        label:
+            The label of the subpopulation or the field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        S:
+            The initial number of susceptible individuals.
+
+        I:
+            The initial number of infected individuals.
+
+        R:
+            The initial number of recovered individuals.
+
+        beta:
+            The infection rate.
+
+        gamma:
+            The recovery rate.
+
+        D:
+            The rate at which an individual hops along one edge.
+
+    Examples:
+        >>> from skcomplex.systems.biology.epidemiology import SubpopulationElement
+        >>> SubpopulationElement('city', S=1000.0).beta
+        0.3
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        S: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
+        I: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        R: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.S = S
+        self.I = I
+        self.R = R
+        self.beta = beta
+        self.gamma = gamma
+        self.D = D
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the infections, recoveries, and hops of the node.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        infections = s.beta * s.S * s.I / (s.S + s.I + s.R)
+        recoveries = s.gamma * s.I
+        return [
+            RateLaw(s.S, -infections + s.D * laplacian(s.S)),
+            RateLaw(s.I, infections - recoveries + s.D * laplacian(s.I)),
+            RateLaw(s.R, recoveries + s.D * laplacian(s.R)),
+        ]
 
 
 def _recovery(namespace: SimpleNamespace) -> Expression:
