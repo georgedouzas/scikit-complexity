@@ -45,3 +45,27 @@ or nothing. Six fields have a `common` package with 59 modules.
   per file.
 - **Lost history of moved code:** `git log --follow` does not follow a class into another file. The commit messages
   name the folded modules.
+
+## Economics
+
+- **Moved to `economics.common`:** `AssetElement` and `GeometricBrownianMotionInteraction`, which
+  `geometric_brownian_motion` and `correlated_geometric_brownian_motion` of finance use in the same way,
+  `BalanceSheetElement` with its view and status constants, which `default_cascade`, `eisenberg_noe_clearing`, and
+  `overlapping_portfolio_fire_sales` of finance share, and `ExchangeInteraction` with `cobb_douglas`, `marginal_rate`,
+  and `trade_goods`, which `barter` and `goods_traders` of markets share. Each keeps its own module directly in
+  `common`, and finance and markets still export these names.
+- **Kept in `common`:** the `forecasting` and `resources` packages, since several subfields use them.
+- **Copies:** none.
+- **Cross-field duplicates:** none in economics.
+
+## Social
+
+- **Shared modules kept in their subfield**, since social has no `common` package: `cooperation._contributor`, the
+  player of the public goods game that `public_goods_game` and `hypergraph_public_goods` use in the same way, and
+  whose docstring already names both, and `opinion_dynamics._random_pairs`, the base grouping that the encounters of
+  `deffuant` and the naming games of `naming_game` subclass, with its own test module. A copy of either would be two
+  identical classes, and for the base grouping two base classes.
+- **Copies:** none.
+- **Cross-field duplicates:** `_random_cells` of `social.opinion_dynamics._voters` has the same source as the
+  `_random_cells` helpers of `computer_science.automata._automata` and `computer_science.automata._variants`, a random
+  binary grid with a given density. It is a candidate for the core.

@@ -9,8 +9,8 @@
 
 - [ ] 2.1 Biology
 - [ ] 2.2 Physics
-- [ ] 2.3 Economics
-- [ ] 2.4 Social
+- [x] 2.3 Economics
+- [x] 2.4 Social
 - [ ] 2.5 Mathematics
 - [ ] 2.6 Engineering
 - [ ] 2.7 Computer science
