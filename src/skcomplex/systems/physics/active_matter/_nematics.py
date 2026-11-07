@@ -3,27 +3,390 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression
+import numpy.typing as npt
+from sage.all__sagemath_symbolics import SR, Expression, identity_matrix, oo
 from sage.modules.free_module_element import FreeModuleElement
+from sage.sets.real_set import RealSet
+from sage.structure.element import Matrix
 
-from ....core.components.elements import FieldElement
-from ....core.components.interactions import ConservationInteraction
-from ....core.components.laws.utils import gradient, tensor_divergence
+from ....core.components.elements import Element, FieldElement
+from ....core.components.interactions import ConservationInteraction, GradientInteraction
+from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws.utils import (
+    gradient,
+    inverse_laplacian,
+    laplacian,
+    leray_projection,
+    symmetric_part,
+    tensor_divergence,
+    vector_gradient,
+)
 from ....core.components.spaces import LatticeSpace
 from ....core.components.system import System
 from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._landau_de_gennes_energy import LandauDeGennesEnergyInteraction
-from ._nematic_density_site import NematicDensitySiteElement
-from ._nematic_gel_site import NematicGelSiteElement
-from ._polar_gel_site import PolarGelSiteElement
+from ..common.fields import corotational
+
+
+class NematicDensitySiteElement(Element):
+    """Site of a dry active nematic, whose alignment tensor grows with the traceless curvature of the density.
+
+    The rate of the tensor from the density is `beta (partial_i partial_j rho - delta_ij laplacian(rho) / 2)`. The
+    Landau-de Gennes energy and the current of the density are interactions of the system.
+
+    Args:
+        label:
+            The label of the site or the field.
+
+        visual:
+            How the site is drawn, or `None` for `default_visual_`.
+
+        rho:
+            The initial density.
+
+        Q:
+            The initial alignment tensor, its independent components `Q_xx` and `Q_xy`.
+
+        beta:
+            The coupling of the tensor to the curvature of the density.
+
+    Attributes:
+        default_visual_:
+            The visual of the element when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import NematicDensitySiteElement
+        >>> NematicDensitySiteElement('site').beta
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        rho: Annotated[npt.ArrayLike, StateSpec()] = 1.0,
+        Q: Annotated[npt.ArrayLike, StateSpec(tensor='traceless')] = 0.0,
+        beta: Annotated[float, ParameterSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.rho = rho
+        self.Q = Q
+        self.beta = beta
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rate of the tensor from the curvature of the density.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rate of `Q`.
+        """
+        s = namespace
+        curvature = symmetric_part(vector_gradient(gradient(s.rho)))
+        traceless = curvature - curvature.trace() / 2 * identity_matrix(SR, 2)
+        return [RateLaw(s.Q, s.beta * traceless)]
+
+
+class PolarGelSiteElement(Element):
+    """Site of an active polar gel, a polarisation `p` carried by an overdamped Stokes flow.
+
+    The polarisation follows `p_t = -corotational(p, u, xi) + h / gamma`, with the molecular field
+    `h = -a p - c |p|^2 p + K laplacian(p)`. The velocity solves `eta laplacian(u) - grad(P) + div(sigma) = 0`,
+    `div(u) = 0`, with the stress `sigma = -xi (p h + h p) / 2 + (p h - h p) / 2 - zeta p p`, as in Kruse et al.
+
+    Args:
+        label:
+            The label of the site or the field.
+
+        visual:
+            How the site is drawn, or `None` for `default_visual_`.
+
+        p:
+            The initial polarisation.
+
+        a:
+            The coefficient of `|p|^2 / 2` of the energy, negative in the polar phase.
+
+        c:
+            The coefficient of `|p|^4 / 4` of the energy.
+
+        K:
+            The elastic constant.
+
+        xi:
+            The flow-alignment parameter.
+
+        gamma:
+            The rotational viscosity.
+
+        eta:
+            The viscosity of the flow.
+
+        zeta:
+            The activity.
+
+    Attributes:
+        default_visual_:
+            The visual of the element when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import PolarGelSiteElement
+        >>> PolarGelSiteElement('site').xi
+        0.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        p: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        a: Annotated[float, ParameterSpec()] = -1.0,
+        c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        xi: Annotated[float, ParameterSpec()] = 0.0,
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        eta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        zeta: Annotated[float, ParameterSpec()] = -0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.p = p
+        self.a = a
+        self.c = c
+        self.K = K
+        self.xi = xi
+        self.gamma = gamma
+        self.eta = eta
+        self.zeta = zeta
+
+    @staticmethod
+    def _molecular_field(s: SimpleNamespace) -> FreeModuleElement:
+        """Return the molecular field of the polarisation at a site."""
+        return -s.a * s.p - s.c * s.p.dot_product(s.p) * s.p + s.K * s.p.apply_map(laplacian)
+
+    @staticmethod
+    def _velocity(s: SimpleNamespace) -> FreeModuleElement:
+        """Return the velocity of the Stokes flow of the elastic and active stresses at a site."""
+        field = PolarGelSiteElement._molecular_field(s)
+        outer = s.p.outer_product(field)
+        stress = -s.xi * (outer + outer.transpose()) / 2 + (outer - outer.transpose()) / 2
+        stress -= s.zeta * s.p.outer_product(s.p)
+        force = tensor_divergence(stress)
+        return leray_projection(force.apply_map(lambda item: inverse_laplacian(-item / s.eta)))
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rate of the polarisation, its transport in the flow and its relaxation.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rate of `p`.
+        """
+        s = namespace
+        return [RateLaw(s.p, -corotational(s.p, self._velocity(s), s.xi) + self._molecular_field(s) / s.gamma)]
+
+
+class LandauDeGennesEnergyInteraction(GradientInteraction):
+    """Gradient flow of a symmetric traceless tensor `Q` in the Landau-de Gennes free energy.
+
+    The free energy is `F = integral a tr(Q^2) / 2 + c tr(Q^2)^2 / 4 + K |grad Q|^2 / 2`. Its negative functional
+    derivative among symmetric traceless tensors is the molecular field `H = -a Q - c tr(Q^2) Q + K laplacian(Q)`, and
+    the tensor relaxes as `Q_t = H / gamma`. A uniform tensor `S (n n - I / 2)` in two dimensions with `a < 0` relaxes
+    to the scalar order `S = sqrt(-2 a / c)`.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        target:
+            The path of the field.
+
+        state:
+            The name of the state of the field that holds the tensor.
+
+        a:
+            The coefficient of `tr(Q^2) / 2`, negative in the ordered phase.
+
+        c:
+            The coefficient of `tr(Q^2)^2 / 4`.
+
+        K:
+            The elastic constant.
+
+        gamma:
+            The rotational viscosity, which divides the molecular field.
+
+        quadratic:
+            A function of the namespace that returns the coefficient of `tr(Q^2) / 2` instead of `a`, such as an
+            expression of a density, or `None` for `a`.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import SR, matrix, var
+        >>> from skcomplex.systems.physics.active_matter import LandauDeGennesEnergyInteraction
+        >>> q, a, c = var('q, a, c')
+        >>> tensor = matrix(SR, [[q, 0], [0, -q]])
+        >>> LandauDeGennesEnergyInteraction._molecular_field(tensor, a, c, 0)[0, 0].factor()
+        -(2*c*q^2 + a)*q
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        state: str = 'Q',
+        a: Annotated[float, ParameterSpec()] = -1.0,
+        c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        quadratic: Callable[[SimpleNamespace], object] | None = None,
+    ) -> None:
+        super().__init__(label, target=target, states=state, variational=True)
+        self.state = state
+        self.a = a
+        self.c = c
+        self.K = K
+        self.gamma = gamma
+        self.quadratic = quadratic
+
+    @staticmethod
+    def _density(tensor: Matrix, a: object, c: object, K: object) -> Expression:
+        """Return the density of the free energy, with the gradient term by parts."""
+        square = (tensor * tensor).trace()
+        return a * square / 2 + c * square**2 / 4 - K * (tensor * tensor.apply_map(laplacian)).trace() / 2
+
+    @classmethod
+    def _molecular_field(cls, tensor: Matrix, a: object, c: object, K: object) -> Matrix:
+        """Return the molecular field of a tensor, the negative functional derivative of the free energy."""
+        energy = cls('energy', target='field')
+        return -energy._get_matrix_derivative(cls._density(tensor, a, c, K), tensor)
+
+    def _get_potential(self, namespace: SimpleNamespace) -> Expression:
+        """Return the density of the free energy over the rotational viscosity, whose gradient is `H / gamma`.
+
+        Args:
+            namespace:
+                The namespace of the symbols the density can use.
+
+        Returns:
+            density:
+                The density that the tensor moves down.
+        """
+        quadratic = namespace.a if self.quadratic is None else self.quadratic(namespace)
+        tensor = getattr(namespace.target, self.state)
+        return self._density(tensor, quadratic, namespace.c, namespace.K) / namespace.gamma
+
+
+class NematicGelSiteElement(Element):
+    """Site of an active nematic gel, a symmetric traceless tensor `Q` carried by an overdamped Stokes flow.
+
+    The tensor follows `Q_t = -corotational(Q, u, xi) + H / gamma`, with the molecular field `H` of the Landau-de Gennes
+    energy. The velocity solves `eta laplacian(u) - grad(P) + div(sigma) = 0`, `div(u) = 0`, with the stress
+    `sigma = -xi H + Q H - H Q - zeta Q`. An activity `zeta > 0` is extensile and an activity `zeta < 0` contractile.
+
+    Args:
+        label:
+            The label of the site or the field.
+
+        visual:
+            How the site is drawn, or `None` for `default_visual_`.
+
+        Q:
+            The initial tensor, its independent components `Q_xx` and `Q_xy`.
+
+        a:
+            The coefficient of `tr(Q^2) / 2` of the energy, negative in the ordered phase.
+
+        c:
+            The coefficient of `tr(Q^2)^2 / 4` of the energy.
+
+        K:
+            The elastic constant.
+
+        xi:
+            The flow-alignment parameter.
+
+        gamma:
+            The rotational viscosity.
+
+        eta:
+            The viscosity of the flow.
+
+        zeta:
+            The activity.
+
+    Attributes:
+        default_visual_:
+            The visual of the element when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import NematicGelSiteElement
+        >>> NematicGelSiteElement('site').zeta
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        Q: Annotated[npt.ArrayLike, StateSpec(tensor='traceless')] = 0.0,
+        a: Annotated[float, ParameterSpec()] = -1.0,
+        c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        xi: Annotated[float, ParameterSpec()] = 0.0,
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        eta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        zeta: Annotated[float, ParameterSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.Q = Q
+        self.a = a
+        self.c = c
+        self.K = K
+        self.xi = xi
+        self.gamma = gamma
+        self.eta = eta
+        self.zeta = zeta
+
+    @staticmethod
+    def _velocity(s: SimpleNamespace) -> FreeModuleElement:
+        """Return the velocity of the Stokes flow of the elastic and active stresses at a site."""
+        field = LandauDeGennesEnergyInteraction._molecular_field(s.Q, s.a, s.c, s.K)
+        stress = -s.xi * field + s.Q * field - field * s.Q - s.zeta * s.Q
+        force = tensor_divergence(stress)
+        return leray_projection(force.apply_map(lambda item: inverse_laplacian(-item / s.eta)))
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rate of the tensor, its transport in the flow and its relaxation.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rate of `Q`.
+        """
+        s = namespace
+        field = LandauDeGennesEnergyInteraction._molecular_field(s.Q, s.a, s.c, s.K)
+        return [RateLaw(s.Q, -corotational(s.Q, self._velocity(s), s.xi) + field / s.gamma)]
+
 
 GEL_ORDERS = ('nematic', 'polar')
 NEMATIC_BOX = 10.0

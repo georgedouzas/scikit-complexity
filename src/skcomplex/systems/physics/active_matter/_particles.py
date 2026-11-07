@@ -4,21 +4,375 @@
 # License: MIT
 
 import math
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+import numpy.typing as npt
+from sage.all__sagemath_symbolics import SR, cos, oo, sin, sqrt, vector
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement
+from ....core.components.elements import Element, GroupElement
+from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw, RuleLaw
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.system import System
-from ....core.engine.solvers import EulerMaruyamaSolver
+from ....core.engine.solvers import AgentView, EulerMaruyamaSolver, SystemView
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._catalog import register_system
-from ._active_particle import ActiveParticleElement
-from ._depot_particle import DepotParticleElement
-from ._inertial_particle import InertialActiveParticleElement
-from ._ornstein_uhlenbeck_particle import OrnsteinUhlenbeckParticleElement
+from ._active_particle import POINTS, ActiveParticleElement
 from ._self_propulsion import SelfPropulsionInteraction
-from ._tumbler import TumblerElement
+
+
+class DepotParticleElement(Element):
+    """Brownian particle pumped by an internal energy depot, as in the system of Schweitzer, Ebeling, and Tilch.
+
+    The depot takes energy at the rate `q`, loses it at the rate `c e`, and converts it into motion at the rate
+    `d e |v|^2`, so `de/dt = q - c e - d e |v|^2` and `dv = (-gamma v + d e v) dt + sqrt(2 D) dW`. Above
+    `q d = c gamma` the particle moves at the speed `sqrt(q / gamma - c / d)`.
+
+    Args:
+        label:
+            The label of the particle or the group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial position.
+
+        v:
+            The initial velocity.
+
+        e:
+            The initial energy of the depot.
+
+        gamma:
+            The friction coefficient.
+
+        q:
+            The rate of energy intake.
+
+        c:
+            The rate of internal energy loss.
+
+        d:
+            The rate of conversion of depot energy into motion.
+
+        D:
+            The intensity of the velocity noise.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import DepotParticleElement
+        >>> DepotParticleElement('walker').q
+        10.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = POINTS,
+        *,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
+        v: Annotated[npt.ArrayLike, StateSpec(vector=True, role='velocity')] = 0.0,
+        e: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
+        q: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.v = v
+        self.e = e
+        self.gamma = gamma
+        self.q = q
+        self.c = c
+        self.d = d
+        self.D = D
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the motion, the friction and pumping of the velocity, its noise, and the depot balance.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return [
+            RateLaw(s.x, s.v),
+            RateLaw(s.v, (-s.gamma + s.d * s.e) * s.v),
+            NoiseLaw(s.v, sqrt(2 * s.D)),
+            RateLaw(s.e, s.q - s.c * s.e - s.d * s.e * s.v.dot_product(s.v)),
+        ]
+
+
+class InertialActiveParticleElement(Element):
+    """Active Brownian particle with mass and moment of inertia, whose velocity and spin relax with friction.
+
+    With unit friction, the position follows `m x'' = -x' + v0 n + sqrt(2 D_t) xi` along the orientation
+    `n = (cos theta, sin theta)`, and the orientation follows `J theta'' = -theta' + sqrt(2 D_r) xi_r`. The velocity
+    relaxes over the time `m` and the angular velocity over the time `J`, and both vanish to give the overdamped
+    active Brownian particle.
+
+    Args:
+        label:
+            The label of the particle or the group.
+
+        visual:
+            How the particle is drawn.
+
+        x:
+            The initial position.
+
+        x_d1:
+            The initial velocity.
+
+        theta:
+            The initial orientation.
+
+        theta_d1:
+            The initial angular velocity.
+
+        speed:
+            The self-propulsion speed `v0`.
+
+        mass:
+            The mass `m`, in units of the friction.
+
+        moment:
+            The moment of inertia `J`, in units of the rotational friction.
+
+        D_t:
+            The translational diffusion coefficient.
+
+        D_r:
+            The rotational diffusion coefficient.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import InertialActiveParticleElement
+        >>> InertialActiveParticleElement('swimmer').mass
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = POINTS,
+        *,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2, role='position')] = 0.0,
+        x_d1: npt.ArrayLike = 0.0,
+        theta: Annotated[float, StateSpec(order=2, role='direction')] = 0.0,
+        theta_d1: float = 0.0,
+        speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        mass: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        moment: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+        D_t: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        D_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+        self.theta = theta
+        self.theta_d1 = theta_d1
+        self.speed = speed
+        self.mass = mass
+        self.moment = moment
+        self.D_t = D_t
+        self.D_r = D_r
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the accelerations of the position and the orientation, and their noises.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        heading = vector(SR, [cos(s.theta), sin(s.theta)])
+        return [
+            RateLaw(s.x, (s.speed * heading - s.x_d1) / s.mass),
+            NoiseLaw(s.x, sqrt(2 * s.D_t) / s.mass),
+            RateLaw(s.theta, -s.theta_d1 / s.moment),
+            NoiseLaw(s.theta, sqrt(2 * s.D_r) / s.moment),
+        ]
+
+
+class OrnsteinUhlenbeckParticleElement(Element):
+    """Active Ornstein-Uhlenbeck particle, whose propulsion velocity `u` is an Ornstein-Uhlenbeck process.
+
+    The laws are `dx = u dt + sqrt(2 D_t) dW` and `tau du = -u dt + sqrt(2 D) dW`, so the propulsion keeps its
+    direction for the persistence time `tau` and the particle diffuses with `D + D_t` at long times.
+
+    Args:
+        label:
+            The label of the particle or the group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial position.
+
+        u:
+            The initial propulsion velocity.
+
+        tau:
+            The persistence time.
+
+        D:
+            The active diffusion coefficient.
+
+        D_t:
+            The translational diffusion coefficient.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import OrnsteinUhlenbeckParticleElement
+        >>> OrnsteinUhlenbeckParticleElement('swimmer').tau
+        1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = POINTS,
+        *,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
+        u: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        D_t: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.u = u
+        self.tau = tau
+        self.D = D
+        self.D_t = D_t
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the propulsion, its relaxation and noise, and the translational noise.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return [
+            RateLaw(s.x, s.u),
+            NoiseLaw(s.x, sqrt(2 * s.D_t)),
+            RateLaw(s.u, -s.u / s.tau),
+            NoiseLaw(s.u, sqrt(2 * s.D) / s.tau),
+        ]
+
+
+class TumblerView(AgentView):
+    """Run-and-tumble agent as rules see it, with its direction and the parameters of its group.
+
+    Args:
+        agent:
+            The Mesa agent.
+
+        stepper:
+            The stepper that runs the system.
+    """
+
+    theta: float
+    speed: float
+    tumble_rate: float
+    width: float
+
+
+class TumblerElement(Element):
+    """Run-and-tumble agent in a periodic square, which runs straight and tumbles to a random direction.
+
+    Every step the agent moves `speed` along its direction, then tumbles with probability `1 - exp(-tumble_rate)`
+    to a direction drawn uniformly, as bacteria such as E. coli do.
+
+    Args:
+        label:
+            The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        theta:
+            The initial direction.
+
+        speed:
+            The distance run per step.
+
+        tumble_rate:
+            The rate of tumbles per step.
+
+        width:
+            The side of the periodic square.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import TumblerElement
+        >>> TumblerElement('bacterium').speed
+        0.1
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'theta'}),
+        *,
+        theta: Annotated[float, StateSpec(role='direction')] = 0.0,
+        speed: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        tumble_rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.speed = speed
+        self.tumble_rate = tumble_rate
+        self.width = width
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the run-and-tumble rule.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return [RuleLaw(self.run_and_tumble)]
+
+    @classmethod
+    def _get_view(cls) -> type:
+        """Return the class of the views of the element's agents."""
+        return TumblerView
+
+    def run_and_tumble(self, agent: TumblerView, system: SystemView) -> None:
+        """Run one step along the direction, then tumble at random.
+
+        Args:
+            agent:
+                The agent.
+
+            system:
+                The system.
+        """
+        position = np.asarray(agent.location, dtype=float)
+        heading = np.array([math.cos(agent.theta), math.sin(agent.theta)])
+        agent.move_to(np.mod(position + agent.speed * heading, agent.width))
+        if system.rng.random() < -math.expm1(-agent.tumble_rate):
+            agent.theta = float(system.rng.uniform(0.0, 2 * math.pi))
 
 
 def _swimmers(
