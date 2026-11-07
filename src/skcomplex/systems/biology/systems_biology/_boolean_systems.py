@@ -1,24 +1,38 @@
-"""Systems biology systems: Boolean networks of gene circuits and of the mammalian cell cycle."""
+"""Systems biology systems: Boolean networks of gene circuits, the mammalian cell cycle, and noisy majorities."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 import itertools
 from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
+import numpy as np
+import scipy.sparse
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
+
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.laws.utils import total, uniform, where
+from ....core.components.spaces import DiscreteTime
 from ....core.components.system import System
 from ....core.errors import ValidationError
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._boolean_function import BooleanFunctionInteraction
-from ._boolean_node import BooleanNodeElement
+from ..common.networks import BooleanFunctionInteraction, BooleanNodeElement
 from .types import Rule
 
 RAMAN = 'Raman 2021'
+
 THREE_GENE_RULES: dict[str, tuple[tuple[str, ...], Rule]] = {
     'g1': (('g2', 'g3'), lambda g2, g3: g2 and not g3),
     'g2': (('g1',), lambda g1: not g1),
     'g3': (('g2', 'g3'), lambda g2, g3: not g3 or g2),
 }
+
 CELL_CYCLE_RULES: dict[str, tuple[tuple[str, ...], Rule]] = {
     'CycD': (('CycD',), lambda cycd: cycd),
     'Rb': (
@@ -51,8 +65,95 @@ CELL_CYCLE_RULES: dict[str, tuple[tuple[str, ...], Rule]] = {
     ),
     'CycB': (('Cdc20', 'Cdh1'), lambda cdc20, cdh1: not cdc20 and not cdh1),
 }
+
 CELL_CYCLE_START = ('CycD', 'Rb', 'p27', 'Cdh1')
+
 REPRESSILATOR_GENES = ('LacI', 'TetR', 'cI')
+
+
+class MajorityNodeElement(Element):
+    """Node of a noisy Boolean network, a state of plus or minus one that follows the majority of its inputs.
+
+    Args:
+        label:
+            The label of the node or of the group of nodes.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        sigma:
+            The state, -1 or 1.
+
+        eta:
+            The probability that the node takes the state opposite to the majority.
+
+    Examples:
+        >>> from skcomplex.systems.biology.systems_biology import MajorityNodeElement
+        >>> MajorityNodeElement('node', eta=0.1).eta
+        0.1
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        sigma: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([-1, 1]))] = 1.0,
+        eta: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.sigma = sigma
+        self.eta = eta
+
+
+class NoisyMajorityInteraction(Interaction):
+    """Update of every node of a Boolean network to the sign of the sum of its inputs, flipped with a probability.
+
+    Node `i` takes `sign(sum_j sigma_ij)` over its inputs with the probability `1 - eta` and the opposite sign with
+    the probability `eta`, all nodes at once, the network of Huepe and Aldana-González (2002).
+
+    Args:
+        label:
+            The label of the interaction.
+
+        nodes:
+            The path of the group of nodes.
+
+        inputs:
+            The input matrix, dense or sparse, one row per node with 1 for every input, an odd number per row.
+
+    Examples:
+        >>> from skcomplex.systems.biology.systems_biology import NoisyMajorityInteraction
+        >>> NoisyMajorityInteraction('majority', nodes='nodes', inputs=((0.0, 1.0), (1.0, 0.0))).nodes
+        'nodes'
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        nodes: Annotated[str, RoleSpec()],
+        inputs: Sequence[Sequence[float]] | scipy.sparse.sparray = ((0.0,),),
+    ) -> None:
+        super().__init__(label)
+        self.nodes = nodes
+        self.inputs = inputs
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the noisy majority update.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        node = s.nodes
+        weights = self.inputs if scipy.sparse.issparse(self.inputs) else np.asarray(self.inputs, dtype=float)
+        majority = where(total(node.sigma, weights=weights) > 0, 1, -1)
+        return [UpdateLaw(node.sigma, where(uniform('flip') < node.eta, -majority, majority))]
 
 
 def _truth_table(rule: Rule, arity: int) -> tuple[int, ...]:
@@ -204,3 +305,61 @@ def boolean_repressilator(x: Sequence[int] = (1, 0, 0), *, delay: int = 0) -> Sy
             BooleanFunctionInteraction(f'repression_{target}', target=target, inputs=[chain[-1]], table=(1, 0)),
         )
     return System(elements=[*genes, *relays], interactions=functions)
+
+
+@register_system(
+    field='biology/systems_biology',
+    tags=('boolean network', 'noise', 'phase transition', 'mean field', 'stochastic map'),
+    references=('Huepe and Aldana-González 2002', 'Gros 2015'),
+    defaults={'until': 200, 'dt': 1},
+)
+def noisy_boolean_network(n: int = 1000, *, k: int = 3, eta: float = 0.1, seed: int | None = 0) -> System:
+    """Return the Boolean network of Huepe and Aldana-González, nodes that follow the noisy majority of `k` inputs.
+
+    Every node takes the sign of the sum of its `k` random inputs, flipped with the probability `eta`. The order
+    parameter `Psi`, the time average of the absolute mean state, undergoes a continuous phase transition at the noise
+    `eta_c = (1 - 1 / Phi'(0)) / 2` of mean-field theory, with `Phi'(0) = k C(k - 1, (k - 1) / 2) / 2^(k - 1)`, which is
+    1/6 for `k = 3`. Below it the network orders, above it the mean state falls to fluctuations of order `1 /
+    sqrt(n)`.
+
+    Args:
+        n:
+            The number of nodes.
+
+        k:
+            The number of inputs of every node, odd.
+
+        eta:
+            The noise, the probability of a flip.
+
+        seed:
+            The seed of the inputs.
+
+    Returns:
+        system:
+            The system, with the states `nodes.sigma`.
+
+    Raises:
+        ValidationError:
+            The number of inputs is even.
+
+    Examples:
+        >>> from skcomplex.systems.biology.systems_biology import noisy_boolean_network
+        >>> noisy_boolean_network(10).elements[0].prepare().size_
+        10
+    """
+    if k % 2 == 0:
+        error_msg = f'The number of inputs must be odd so that the majority is defined, not {k}.'
+        raise ValidationError(error_msg)
+    rng = np.random.default_rng(seed)
+    inputs = np.zeros((n, n))
+    for node in range(n):
+        inputs[node, rng.choice(np.delete(np.arange(n), node), size=k, replace=False)] = 1.0
+    nodes = GroupElement(
+        'nodes',
+        element=MajorityNodeElement,
+        size=n,
+        values={'sigma': np.ones(n), 'eta': eta},
+    )
+    majority = NoisyMajorityInteraction('majority', nodes='nodes', inputs=scipy.sparse.csr_array(inputs))
+    return System(elements=[nodes], interactions=[majority], time=DiscreteTime())

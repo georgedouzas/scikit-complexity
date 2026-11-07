@@ -4,9 +4,13 @@
 # License: MIT
 
 
-import numpy as np
+from typing import Annotated
 
-from ....core.components.elements import GroupElement
+import numpy as np
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
+
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import (
     LifeCycleInteraction,
     MapInteraction,
@@ -17,11 +21,118 @@ from ....core.components.laws import Source
 from ....core.components.spaces import LatticeSpace
 from ....core.components.system import System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.engine.solvers import AgentView
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._predator import PredatorElement
-from ._predator_view import PredatorView
-from ._prey import PreyElement
-from ._prey_view import PreyView
+
+
+class PredatorView(AgentView):
+    """View of a predator, with its state and parameters as attributes.
+
+    `PredatorElement` names this class with `_get_view`, so its rules read them with checked types.
+    """
+
+    meals: float
+    conversion: float
+    death: float
+
+
+class PredatorElement(Element):
+    """Predator that walks at random, eats a prey of its cell, breeds after a meal, and dies.
+
+    In its own activation a predator walks to a random neighbouring cell, eats and removes one random prey of the new
+    cell, counted in `meals`, breeds with the probability `conversion` after a meal, dies with the probability
+    `death`, and digests its meals, by member interactions.
+
+    Args:
+        label:
+            The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        meals:
+            The prey the predator ate in the current step.
+
+        conversion:
+            The probability of breeding after eating a prey.
+
+        death:
+            The probability of dying at every step.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.systems.biology.ecology import PredatorElement
+        >>> GroupElement('foxes', element=PredatorElement, size=50).size
+        50
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'radius': 0.4}),
+        *,
+        meals: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        conversion: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        death: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.meals = meals
+        self.conversion = conversion
+        self.death = death
+
+    @classmethod
+    def _get_view(cls) -> type[PredatorView]:
+        """Return the view of a predator, `PredatorView`."""
+        return PredatorView
+
+
+class PreyView(AgentView):
+    """View of a prey, with its parameters as attributes.
+
+    `PreyElement` names this class with `_get_view`, so its rules read them with checked types.
+    """
+
+    birth: float
+
+
+class PreyElement(Element):
+    """Prey that walks at random and gives birth in cells it does not share with other prey.
+
+    In its own activation a prey walks to a random neighbouring cell and then gives birth with the probability
+    `birth` when no other prey shares the new cell, by member interactions.
+
+    Args:
+        label:
+            The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        birth:
+            The probability of giving birth at every step.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.systems.biology.ecology import PreyElement
+        >>> GroupElement('rabbits', element=PreyElement, size=200).size
+        200
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'radius': 0.3}),
+        *,
+        birth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.birth = birth
+
+    @classmethod
+    def _get_view(cls) -> type[PreyView]:
+        """Return the view of a prey, `PreyView`."""
+        return PreyView
 
 
 def _get_birth(prey: AgentViewProtocol, system: SystemViewProtocol) -> float:

@@ -3,19 +3,150 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.interactions import HyperedgeInteraction, Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.laws.utils import bernoulli, components, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.system import System
-from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._giant_component import GiantComponentInteraction
-from ._regulated_link import RegulatedLinkElement
-from ._regulated_node import RegulatedNodeElement
-from ._triadic_regulation import TriadicRegulationInteraction
+from ..common._regulated_node import RegulatedNodeElement
+
+
+class RegulatedLinkElement(Element):
+    """Link of a network with triadic regulation, with its activity and the sign of its regulating node.
+
+    Args:
+        label:
+            The label of the link group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        active:
+            1 when the link is active, and 0 otherwise.
+
+        sign:
+            1 when the regulating node lets the link be active while the node is active, and -1 when it lets it be
+            active while the node is inactive.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.networks import RegulatedLinkElement
+        >>> RegulatedLinkElement('links', sign=-1).sign
+        -1
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
+        sign: Annotated[float, ParameterSpec(domain=FiniteEnumeratedSet([-1, 1]))] = 1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.active = active
+        self.sign = sign
+
+
+class GiantComponentInteraction(Interaction):
+    """Activity of every node in its phase, 1 in the giant component of the active links and 0 outside it.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        nodes:
+            The path of the group on the nodes, whose activity the interaction sets.
+
+        links:
+            The path of the group on the edges, whose activity selects the links of the components.
+
+        phase:
+            The phase of the step the interaction runs in, or `None` for the default phase.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.networks import GiantComponentInteraction
+        >>> GiantComponentInteraction('percolation', nodes='nodes', links='links').links
+        'links'
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        nodes: Annotated[str, RoleSpec()],
+        links: Annotated[str, RoleSpec()],
+        phase: str | None = None,
+    ) -> None:
+        super().__init__(label)
+        self.nodes = nodes
+        self.links = links
+        self.phase = phase
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the membership of the giant component of the active links."""
+        return [UpdateLaw(s.nodes.active, components(s.links.active, reduce='giant'), phase=self.phase)]
+
+
+class TriadicRegulationInteraction(HyperedgeInteraction):
+    """Regulation of every link by a third node, which lets the link be active with probability `p` in its phase.
+
+    Every hyperedge `(i, j, r)` holds the two ends of the link `(i, j)` and its regulating node `r`. In every step the
+    link becomes active with probability `p` when a positive regulator is active or a negative regulator is inactive,
+    and inactive otherwise.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        nodes:
+            The path of the group on the nodes, whose activity the regulators read.
+
+        links:
+            The path of the group on the edges, whose activity the regulation sets.
+
+        p:
+            The probability that a link the regulation allows is active.
+
+        phase:
+            The phase of the step the regulation runs in, or `None` for the default phase.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.networks import TriadicRegulationInteraction
+        >>> TriadicRegulationInteraction('regulation', nodes='nodes', links='links').size
+        3
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        nodes: Annotated[str, RoleSpec()],
+        links: Annotated[str, RoleSpec()],
+        p: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.5,
+        phase: str | None = None,
+    ) -> None:
+        super().__init__(label, size=3)
+        self.nodes = nodes
+        self.links = links
+        self.p = p
+        self.phase = phase
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the activity of the link from its regulating node, the third member of the hyperedge."""
+        regulator = s.others[1].active
+        allowed = where(s.edge.sign > 0, regulator, 1 - regulator)
+        return [UpdateLaw(s.edge.active, bernoulli('retained', s.p) * allowed, phase=self.phase)]
 
 
 def _giant_observables(system: System) -> list[ObservableSpec]:

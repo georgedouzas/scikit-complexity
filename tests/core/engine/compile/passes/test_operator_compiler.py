@@ -19,12 +19,9 @@ from skcomplex.core.engine.compile import BaseCompiler, BasePass, ObservableEval
 from skcomplex.core.errors import IncompatibleLawsError, ValidationError
 from skcomplex.core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.common.populations import PopulationElement
-from skcomplex.systems.physics.common.quantum import (
-    QUBIT,
-    QubitElement,
-    SpinElement,
-    spin_space,
-)
+from skcomplex.systems.physics.common.quantum import QUBIT, QubitElement
+
+from .....conftest import SpinElement, _spin_space
 
 
 class HeisenbergInteraction(NeighborInteraction):
@@ -117,7 +114,7 @@ def test_compiler_counts_one_exchange_term_per_bond():
     """Test that an exchange on a periodic lattice of 8 spins equals the sum of the 8 bond terms."""
     system = System(
         elements=[
-            LatticeElement('chain', element=SpinElement, space=LatticeSpace(8), values={'hilbert': spin_space()}),
+            LatticeElement('chain', element=SpinElement, space=LatticeSpace(8), values={'hilbert': _spin_space()}),
         ],
         interactions=[HeisenbergInteraction('h', target='chain')],
     )
@@ -207,7 +204,7 @@ def test_compiler_starts_from_the_ground_state():
     """Test that the initial state 'ground' is the lowest eigenstate."""
     system = System(
         elements=[
-            LatticeElement('chain', element=SpinElement, space=LatticeSpace(4), values={'hilbert': spin_space()}),
+            LatticeElement('chain', element=SpinElement, space=LatticeSpace(4), values={'hilbert': _spin_space()}),
         ],
         interactions=[HeisenbergInteraction('h', target='chain')],
     )
@@ -229,7 +226,7 @@ def test_observable_evaluator_reads_local_magnetization():
                 'chain',
                 element=SpinElement,
                 space=LatticeSpace(8),
-                values={'psi': labels, 'hilbert': spin_space()},
+                values={'psi': labels, 'hilbert': _spin_space()},
             ),
         ],
     )

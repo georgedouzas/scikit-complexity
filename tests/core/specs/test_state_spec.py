@@ -2,15 +2,18 @@
 
 from typing import Annotated, ClassVar
 
+import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import SR
 
-from skcomplex.core.components.elements import Element, FieldElement
-from skcomplex.core.components.spaces import LatticeSpace
+from skcomplex.core.components.elements import Element, FieldElement, GroupElement
+from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import StateSpec
+from skcomplex.core.specs import MatrixGroupSpec, StateSpec
+
+COLOR = MatrixGroupSpec('SU', 3)
 
 
 class _NematicElement(Element):
@@ -71,3 +74,29 @@ def test_algebraic_state_has_order_one_and_no_lags():
         StateSpec(algebraic=True, order=2).prepare()
     with pytest.raises(ValidationError, match='An algebraic state has order 1 and no lags'):
         StateSpec(algebraic=True, lags=1).prepare()
+
+
+class _ColorLinkElement(Element):
+    """Link with a matrix of SU(3)."""
+
+    def __init__(self, label, visual=None, *, U: Annotated[object, StateSpec(group=COLOR)] = tuple(COLOR.identity)):
+        super().__init__(label, visual=visual)
+        self.U = U
+
+
+def test_matrix_group_state_stores_the_real_components_of_every_matrix():
+    """Test that an SU(3) state on the 32 links of a 4 by 4 lattice stores 18 components per link, the identity."""
+    space = CellComplexSpace(LatticeSpace((4, 4)))
+    links = GroupElement('links', element=_ColorLinkElement, space=space, on='edges')
+    problem = PassCompiler().prepare(System(elements=[links])).run().problem_
+    entry = problem.states.entries[0]
+    assert (entry.rows, entry.columns) == (32, 18)
+    matrices = COLOR.matrices_of(np.reshape(problem.initial_state, (32, 18)))
+    assert np.array_equal(matrices, np.broadcast_to(np.eye(3), (32, 3, 3)))
+
+
+@pytest.mark.parametrize('arguments', [{'vector': True}, {'tensor': 'full'}, {'order': 2}, {'lags': 1}])
+def test_matrix_group_state_holds_its_matrices_alone(arguments):
+    """Test that a matrix group state that is also a vector, a tensor, or of another order or with lags is refused."""
+    with pytest.raises(ValidationError, match='holds its matrices alone'):
+        StateSpec(group=COLOR, **arguments).prepare()

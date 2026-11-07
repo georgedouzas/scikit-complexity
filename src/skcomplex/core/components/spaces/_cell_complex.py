@@ -67,6 +67,14 @@ class CellComplexSpace(NetworkSpace):
         orientations_:
             The sign of every coface of `cofaces_` relative to its cell, padded with 0.
 
+        boundaries_:
+            The edges around every face in the cyclic order of its nodes, from the edge that leaves its first node, with
+            one row per face, padded with -1.
+
+        boundary_signs_:
+            The sign of the traversal of every edge of `boundaries_`, 1 along its orientation and -1 against it, padded
+            with 0, so the path-ordered product of link matrices along a row is the holonomy of the face.
+
         stars_:
             The diagonal of the Hodge star of every degree, the ratio of dual to primal cell volumes on a lattice and 1
             on a network.
@@ -94,6 +102,8 @@ class CellComplexSpace(NetworkSpace):
         >>> chorded.add_edge(0, 2)
         >>> CellComplexSpace(NetworkSpace(chorded)).prepare().hyperedges_
         ((0, 1, 2), (0, 2, 3))
+        >>> square.boundaries_[0].tolist(), square.boundary_signs_[0].tolist()
+        ([0, 72, 1, 64], [1.0, 1.0, -1.0, -1.0])
     """
 
     def __init__(
@@ -149,10 +159,10 @@ class CellComplexSpace(NetworkSpace):
         self,
         place: LatticeSpace,
         links: Indices,
-    ) -> tuple[Indices, scipy.sparse.csr_array, Indices]:
-        """Return the node cycle of every plaquette, its incidence with the links, and the plaquette of every plane."""
+    ) -> tuple[Indices, scipy.sparse.csr_array, Indices, Indices]:
+        """Return the node cycle, the incidence, the plaquette of every plane, and the links around every plaquette."""
         steps = self._lattice_steps(place)
-        cycles, rows, columns, signs = [], [], [], []
+        cycles, rows, columns, signs, boundaries = [], [], [], [], []
         planes = list(itertools.combinations(range(place.n_dim_), 2))
         table = np.full((len(planes), place.size_), -1, dtype=np.intp)
         count = 0
@@ -167,6 +177,7 @@ class CellComplexSpace(NetworkSpace):
             kept = sites[np.all(np.stack(edges) >= 0, axis=0)]
             cycle = (kept, steps[first, kept], steps[second, steps[first, kept]], steps[second, kept])
             cycles.append(np.stack(cycle, axis=1))
+            boundaries.append(np.stack([edge[kept] for edge in edges], axis=1))
             table[number, kept] = count + np.arange(kept.size)
             for edge, sign in zip(edges, (1.0, 1.0, -1.0, -1.0), strict=True):
                 rows.append(table[number, kept])
@@ -175,7 +186,8 @@ class CellComplexSpace(NetworkSpace):
             count += kept.size
         shape = (count, int((links >= 0).sum()))
         matrix = self._sparse(np.concatenate(rows), np.concatenate(columns), np.concatenate(signs), shape)
-        return np.concatenate(cycles).reshape(-1, PLAQUETTE_ROWS), matrix, table
+        found = np.concatenate(boundaries).reshape(-1, PLAQUETTE_ROWS)
+        return np.concatenate(cycles).reshape(-1, PLAQUETTE_ROWS), matrix, table, found
 
     def _lattice_cubes(self, place: LatticeSpace, plaquettes: Indices) -> scipy.sparse.csr_array:
         """Return the incidence of the plaquettes and the cubes of a lattice of at least three dimensions."""
@@ -215,8 +227,10 @@ class CellComplexSpace(NetworkSpace):
         graph.add_edges_from(zip(sources.tolist(), targets.tolist(), strict=True))
         nx.set_node_attributes(graph, dict(enumerate(place.positions_)), 'pos')
         self.graph = graph
-        cycles, faces, plaquettes = self._lattice_plaquettes(place, links)
+        cycles, faces, plaquettes, boundaries = self._lattice_plaquettes(place, links)
         self.hyperedges = [tuple(cycle) for cycle in cycles.tolist()]
+        self.boundaries_ = boundaries
+        self.boundary_signs_ = np.tile(np.asarray([1.0, 1.0, -1.0, -1.0]), (boundaries.shape[0], 1))
         self.incidences_: tuple[scipy.sparse.csr_array, ...] = (self._edge_incidence(sources, targets), faces)
         if self.dimension >= CUBE_DIMENSION and place.n_dim_ >= CUBE_DIMENSION:
             self.incidences_ = (*self.incidences_, self._lattice_cubes(place, plaquettes))
@@ -405,8 +419,30 @@ class CellComplexSpace(NetworkSpace):
         else:
             self.incidences_ = (self._edge_incidence(sources, targets), self._cycle_incidence(faces, sources, targets))
         self.stars_ = (np.ones(self.incidences_[0].shape[1]), np.ones(sources.size), np.ones(len(faces)))
+        self.boundaries_, self.boundary_signs_ = self._boundary_tables(faces, sources, targets)
         self.link_axes_ = np.empty(0, dtype=np.intp)
         self.face_planes_ = np.empty((0, 2), dtype=np.intp)
+
+    def _boundary_tables(
+        self,
+        faces: list[tuple[object, ...]],
+        sources: Indices,
+        targets: Indices,
+    ) -> tuple[Indices, Array]:
+        """Return the edges around every face of a network in the cyclic order of its nodes and their signs, padded."""
+        index = {node: number for number, node in enumerate(self.graph.nodes)}
+        ends = zip(sources.tolist(), targets.tolist(), strict=True)
+        edges = {(first, second): edge for edge, (first, second) in enumerate(ends)}
+        cycles = [[index[node] for node in face] for face in faces]
+        width = max((len(cycle) for cycle in cycles), default=0)
+        table = np.full((len(cycles), width), -1, dtype=np.intp)
+        signs = np.zeros((len(cycles), width))
+        for row, nodes in enumerate(cycles):
+            for column, (first, second) in enumerate(zip(nodes, (*nodes[1:], nodes[0]), strict=True)):
+                forward = (first, second) in edges
+                table[row, column] = edges[(first, second)] if forward else edges[(second, first)]
+                signs[row, column] = 1.0 if forward else -1.0
+        return table, signs
 
     def _coface_tables(self, matrix: scipy.sparse.csr_array) -> tuple[npt.NDArray[np.intp], Array]:
         """Return the cofaces of every cell of an incidence, padded with their number, and their signs."""

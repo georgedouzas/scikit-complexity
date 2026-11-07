@@ -33,6 +33,9 @@ class LatticeStateSpec(BaseSpec):
 
         rows:
             The number of members on a part other than the sites, or `None` for one member per site.
+
+        components:
+            The number of components of the state of one member, such as the real components of a matrix.
     """
 
     name: str
@@ -40,11 +43,12 @@ class LatticeStateSpec(BaseSpec):
     space: BaseSpace
     part: str = 'sites'
     rows: int | None = None
+    components: int = 1
 
     @functools.cached_property
     def shape(self) -> tuple[int, ...]:
-        """Shape of the sites of the group."""
-        return self.space.shape_
+        """Shape of the sites of the group, or the number of its members on a part other than the sites."""
+        return self.space.shape_ if self.rows is None else (self.rows,)
 
     @functools.cached_property
     def size(self) -> int:
@@ -53,5 +57,5 @@ class LatticeStateSpec(BaseSpec):
 
     @functools.cached_property
     def sites(self) -> slice:
-        """Slice of the group's components in the state vector."""
-        return slice(self.start, self.start + self.size)
+        """Slice of the group's components in the state vector, member after member."""
+        return slice(self.start, self.start + self.size * self.components)

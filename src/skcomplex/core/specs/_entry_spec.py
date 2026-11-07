@@ -16,6 +16,7 @@ from sage.sets.real_set import RealSet
 
 from ..types import Array, ComplexArray, DomainKind
 from ._base_spec import BaseSpec
+from ._power_series_spec import PowerSeriesSpec
 from ._subshift_spec import SubshiftSpec
 from ._tensor_spec import TensorSpec
 
@@ -276,8 +277,8 @@ class EntrySpec(BaseSpec):
 
     @staticmethod
     def _cell_domain(domain: object) -> object:
-        """Return the Sage set of the values of one cell: the alphabet of a subshift, or any other domain as it is."""
-        return domain.alphabet if isinstance(domain, SubshiftSpec) else domain
+        """Return the Sage set of one component: the alphabet of a subshift or a power series, or the domain itself."""
+        return domain.alphabet if isinstance(domain, SubshiftSpec | PowerSeriesSpec) else domain
 
     @staticmethod
     def _domain_kind(domain: object, period: object = None) -> DomainKind:

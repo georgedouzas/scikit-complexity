@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 from typing import Annotated
 
 from sage.all__sagemath_symbolics import NN, oo
@@ -12,9 +11,16 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LifeCycleInteraction
 from ....core.components.system import System
+from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._individual_view import IndividualView
+
+
+class IndividualView(AgentView):
+    """View of an individual of a branching process, with its states and parameters as attributes."""
+
+    generation: float
+    m: float
 
 
 class IndividualElement(Element):

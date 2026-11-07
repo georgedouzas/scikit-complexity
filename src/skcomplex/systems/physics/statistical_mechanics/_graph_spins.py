@@ -11,8 +11,7 @@ from ....core.components.elements import LatticeElement
 from ....core.components.spaces import AdjacencyNeighborhood, NetworkSpace
 from ....core.components.system import System
 from ..._catalog import register_system
-from ..common.spins import IsingSamplingInteraction
-from ._ising_spin import IsingSpinElement
+from ..common.spins import IsingSamplingInteraction, IsingSpinElement
 
 NODES = 400
 DEGREE = 4

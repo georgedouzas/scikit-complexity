@@ -52,10 +52,10 @@ simulation = (
 # %%
 # Chartists make the market volatile
 # ----------------------------------
-# Fundamentalists pull the price back toward the fundamental value, while chartists extrapolate its moves (Caiani et
-# al. 2016 ch. 3, Lux and Marchesi 1999). Without imitation, the standard deviation of the log returns should grow
-# with the share of chartists, and the price should wander further from 100. Since fundamentalists buy low and sell
-# high, they earn more, and imitation should drive the share of chartists down over the run.
+# Fundamentalists pull the price back toward the fundamental value, while chartists extrapolate its moves (Lux and
+# Marchesi 1999). Without imitation, the standard deviation of the log returns should grow with the share of
+# chartists, and the price should wander further from 100. Since fundamentalists buy low and sell high, they earn more,
+# and imitation should drive the share of chartists down over the run.
 
 shares = (0.0, 0.25, 0.5, 0.75)
 volatility, deviation = [], []

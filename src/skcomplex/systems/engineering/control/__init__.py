@@ -1,23 +1,32 @@
 """Control: feedback loops that keep or drive a system towards a goal, and the controllers that close them."""
 
-from ._cart_pendulum import CartPendulumElement
-from ._control import heated_room, pendulum_swing_up, pid_loop, satellite_transfer, thermostat
-from ._driven_oscillator import DrivenOscillatorElement
-from ._integrator import IntegratorElement
-from ._koopman import ControlInputElement, PlantStateElement, koopman_model_predictive_control
-from ._pid import PIDInteraction
-from ._regulation import lqr_oscillator, pid_inverted_pendulum
-from ._state_feedback import StateFeedbackInteraction
-from ._thermal import (
+from ._control import (
     THERMAL,
     ConvectionElement,
     HeatCapacityElement,
     HeatingResistorElement,
     ThermalConductorElement,
+    heated_room,
+    pendulum_swing_up,
+    pid_loop,
+    satellite_transfer,
+    thermostat,
+)
+from ._koopman import ControlInputElement, PlantStateElement, koopman_model_predictive_control
+from ._minimum_time_control import BangBangPlantElement, minimum_time_control
+from ._regulation import (
+    CartPendulumElement,
+    DrivenOscillatorElement,
+    IntegratorElement,
+    PIDInteraction,
+    StateFeedbackInteraction,
+    lqr_oscillator,
+    pid_inverted_pendulum,
 )
 
 __all__: list[str] = [
     'THERMAL',
+    'BangBangPlantElement',
     'CartPendulumElement',
     'ControlInputElement',
     'ConvectionElement',
@@ -32,6 +41,7 @@ __all__: list[str] = [
     'heated_room',
     'koopman_model_predictive_control',
     'lqr_oscillator',
+    'minimum_time_control',
     'pendulum_swing_up',
     'pid_inverted_pendulum',
     'pid_loop',

@@ -6,6 +6,7 @@
 import functools
 from collections.abc import Callable, Mapping
 
+import networkx as nx
 import numpy as np
 import scipy.sparse
 from sage.all__sagemath_symbolics import Expression
@@ -58,12 +59,13 @@ class NeighborhoodKernel(BaseKernel):
             The placeholder symbol that kernels read instead of the reduction.
 
         kind:
-            One of `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, `'normalized-mean'`, `'argmax'`, and the components
-            reductions `'component-label'`, `'component-size'`, `'component-largest'`, and `'component-giant'`.
+            One of `'sum'`, `'mean'`, `'count'`, `'max'`, `'min'`, `'normalized-mean'`, `'argmax'`, the components
+            reductions `'component-label'`, `'component-size'`, `'component-largest'`, and `'component-giant'`, and
+            the shortest paths reductions `'path-betweenness'` and `'path-closeness'`.
 
         argument:
-            The value of one neighbour, or the activity of one link for a components reduction, with nested reductions
-            replaced by their placeholders.
+            The value of one neighbour, or the activity of one link for a components or a shortest paths reduction,
+            with nested reductions replaced by their placeholders.
 
         weight:
             The weight of one neighbour, 1 without one.
@@ -85,9 +87,15 @@ class NeighborhoodKernel(BaseKernel):
 
         coefficients:
             The factor of every pair of the search, such as the oriented entries of an incidence, or `None` for 1.
+
+    Attributes:
+        paths_:
+            The active links of the last shortest paths reduction with its values, which a run reuses while the links
+            stay the same, or `None` before the first one.
     """
 
     values_: None
+    paths_: tuple[Indices, Indices, Array] | None = None
 
     def __init__(
         self,
@@ -181,9 +189,77 @@ class NeighborhoodKernel(BaseKernel):
             active = argument != 0
             q[self.entry.indices] = self._components_of(self.kind, readers[active], others[active], size)
             return
+        if self.kind.startswith('path-'):
+            q[self.entry.indices] = self._cached_paths(readers[argument != 0], others[argument != 0])
+            return
         if self.coefficients is not None:
             weight = weight * self.coefficients
         q[self.entry.indices] = self._reduce_pairs(self.kind, readers, weight, argument, counts)
+
+    def _cached_paths(self, readers: Indices, others: Indices) -> Array:
+        """Return the shortest paths reduction of the active links, computed again only when the links changed.
+
+        Args:
+            readers:
+                The first member of every active link.
+
+            others:
+                The second member of every active link.
+
+        Returns:
+            values:
+                One value per member.
+        """
+        cached = self.paths_
+        if cached is not None and np.array_equal(cached[0], readers) and np.array_equal(cached[1], others):
+            return cached[2]
+        values = self._paths_of(self.kind, readers, others, self.size)
+        self.paths_ = (readers.copy(), others.copy(), values)
+        return values
+
+    @staticmethod
+    def _paths_of(kind: str, readers: Indices, others: Indices, size: int) -> Array:
+        """Return the betweenness or the closeness of every member on the undirected graph of the active links.
+
+        Args:
+            kind:
+                `'path-betweenness'` or `'path-closeness'`.
+
+            readers:
+                The first member of every active link.
+
+            others:
+                The second member of every active link.
+
+            size:
+                The number of members.
+
+        Returns:
+            values:
+                One value per member, by NetworkX.
+
+        Raises:
+            ValidationError:
+                The kind is unknown.
+
+        Examples:
+            >>> import numpy as np
+            >>> from skcomplex.core.engine.problems._neighborhood_kernel import NeighborhoodKernel
+            >>> readers, others = np.array([0, 1, 2]), np.array([1, 2, 3])
+            >>> NeighborhoodKernel._paths_of('path-betweenness', readers, others, 5).tolist()
+            [0.0, 2.0, 2.0, 0.0, 0.0]
+        """
+        graph = nx.Graph()
+        graph.add_nodes_from(range(size))
+        graph.add_edges_from(zip(readers.tolist(), others.tolist(), strict=True))
+        if kind == 'path-betweenness':
+            found = nx.betweenness_centrality(graph, normalized=False)
+        elif kind == 'path-closeness':
+            found = nx.closeness_centrality(graph)
+        else:
+            error_msg = f'Unknown shortest paths reduction {kind!r}.'
+            raise ValidationError(error_msg)
+        return np.asarray([found[member] for member in range(size)], dtype=float)
 
     @staticmethod
     def _components_of(kind: str, readers: Indices, others: Indices, size: int) -> Array:

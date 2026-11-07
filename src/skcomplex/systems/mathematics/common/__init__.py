@@ -1,3 +1,11 @@
-"""Realizations shared by several mathematics packages, by family: flows, maps, and walks."""
+"""Realizations shared by several mathematics systems: flows and the nodes of networks."""
 
-__all__: list[str] = []
+from ._network_node import NetworkNodeElement
+from ._regulated_node import RegulatedNodeElement
+from ._vertex import VertexElement
+
+__all__: list[str] = [
+    'NetworkNodeElement',
+    'RegulatedNodeElement',
+    'VertexElement',
+]

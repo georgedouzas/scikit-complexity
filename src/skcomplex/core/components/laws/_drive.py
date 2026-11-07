@@ -6,6 +6,7 @@
 from collections.abc import Callable
 
 from sage.all__sagemath_symbolics import Expression
+from sage.modules.free_module_element import FreeModuleElement
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec
@@ -16,16 +17,18 @@ from ._base import BaseLaw
 class DriveLaw(BaseLaw):
     """Change of a whole lattice state at once by a function of its array, such as adding 1 at a random site.
 
-    The function receives the state as an array of the lattice shape, keyword arguments for the parameters of the
-    element that it names, and, when it names them, `random`, the random generator of the simulation, and `time`, the
-    time of the step, and returns the new array.
+    The function receives the state as an array of the lattice shape, or of one row per member of a group on the edges
+    or hyperedges of a network, with the components of a state of several components per member, such as a matrix
+    group state, on a last axis. It also receives keyword arguments for the parameters of the element that it names,
+    and, when it names them, `random`, the random generator of the simulation, `time`, the time of the step, and
+    `space`, the space of the group, and returns the new array.
 
     Args:
         target:
-            The symbol of a lattice state.
+            The symbol of a lattice state, or the vector of the symbols of its components.
 
         function:
-            The function `f(values, *, random, **parameters)`, which may also name `time`.
+            The function `f(values, *, random, **parameters)`, which may also name `time` and `space`.
 
         label:
             The name of the law, or the empty string for a law without one.
@@ -43,7 +46,7 @@ class DriveLaw(BaseLaw):
 
     def __init__(
         self,
-        target: Expression,
+        target: Expression | FreeModuleElement,
         function: Callable[..., object],
         *,
         label: str = '',
@@ -55,8 +58,8 @@ class DriveLaw(BaseLaw):
         self.score = score
 
     def _get_targets(self) -> tuple[object, ...]:
-        """Return the lattice state the drive changes."""
-        return (self.target,)
+        """Return the lattice state the drive changes, or the symbols of its components."""
+        return tuple(self.target) if isinstance(self.target, FreeModuleElement) else (self.target,)
 
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:

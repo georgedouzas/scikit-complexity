@@ -3,15 +3,105 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import numpy as np
+from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.components.elements import GroupElement
-from ....core.components.spaces import ContinuousSpace, StaticTime
+import numpy as np
+import numpy.typing as npt
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.components.base import BasePart
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import Interaction
+from ....core.components.laws import EquationLaw
+from ....core.components.laws.utils import neighbors
+from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood, StaticTime
 from ....core.components.system import System
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec
 from ..._catalog import register_system
-from ._city_resident import CityResidentElement
-from ._gravity_contact import GravityContactInteraction
+
+
+class CityResidentElement(Element):
+    """Resident of a city, who stays at a position.
+
+    Args:
+        label:
+            The label of the resident or the group.
+
+        x:
+            The position.
+
+        contacts:
+            The initial guess of the sum of the interactions with the others, which the equation replaces.
+
+    Examples:
+        >>> from skcomplex.systems.social.organizations import CityResidentElement
+        >>> CityResidentElement('resident', x=(1.0, 2.0)).x
+        (1.0, 2.0)
+    """
+
+    def __init__(
+        self,
+        label: str,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
+        contacts: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.contacts = contacts
+
+
+class GravityContactInteraction(Interaction):
+    """Contacts of every resident, the sum of `r^-gamma` over the others within a reach.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of residents.
+
+        reach:
+            The largest distance of a contact, which the diameter of a city covers.
+
+        gamma:
+            The decay exponent of an interaction with the distance.
+
+    Examples:
+        >>> from skcomplex.systems.social.organizations import GravityContactInteraction
+        >>> GravityContactInteraction('contact', target='residents', reach=30.0, gamma=1.5).gamma
+        1.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        reach: float,
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.reach = reach
+        self.gamma = gamma
+
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+        """Return the equation of the contacts of a resident.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The equation of the contacts.
+        """
+        dx, dy = s.target.other.x[0] - s.target.x[0], s.target.other.x[1] - s.target.x[1]
+        contacts = neighbors((dx**2 + dy**2) ** (-s.gamma / 2), over=RadiusNeighborhood(self.reach))
+        return [EquationLaw(s.target.contacts == contacts, target=s.target.contacts)]
 
 
 def _total_contacts(system: System) -> list[ObservableSpec]:

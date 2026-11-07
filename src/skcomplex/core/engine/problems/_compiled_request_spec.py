@@ -28,14 +28,17 @@ class CompiledRequestSpec(BaseSpec):
             The variable groups of the network it changes.
 
         rows:
-            `'node'` for a law of the nodes, `'edge'` for a law of the edges of a layer, or `'single'` for a law that
-            runs once.
+            `'node'` for a law of the nodes, `'edge'` for a law of the edges of a layer, `'hyperedge'` for a law of
+            the hyperedges, or `'single'` for a law that runs once.
 
         condition:
             The kernel of the probability that an update law fires the request for every row, or `None` for a jump.
 
         toward:
             The kernel of the weight of every node row as a new end, or `None` for equal weights.
+
+        score:
+            The kernel of the score of every node row as the end of a candidate edge, or `None` for none.
     """
 
     request: TopologyRequestSpec
@@ -44,3 +47,4 @@ class CompiledRequestSpec(BaseSpec):
     rows: str
     condition: LawKernel | None = None
     toward: LawKernel | None = None
+    score: LawKernel | None = None

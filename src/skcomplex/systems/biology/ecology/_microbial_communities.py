@@ -5,19 +5,112 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.components.elements import GroupElement
-from ....core.components.interactions import RateInteraction
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import CouplingInteraction, RateInteraction
 from ....core.components.system import System
 from ....core.errors import ValidationError
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._generalized_lotka_volterra import GeneralizedLotkaVolterraInteraction
-from ._microbe import MicrobeElement
 
 COMMUNITY_GROWTH = (1.0, 0.8, 0.6)
 
-
 COMMUNITY_INTERACTIONS = ((-1.0, -0.3, 0.2), (-0.2, -1.0, -0.3), (0.1, -0.2, -1.0))
+
+
+class MicrobeElement(Element):
+    """Species of a microbial community, with an abundance and an intrinsic growth rate.
+
+    Args:
+        label:
+            The label of the species or of the group of species.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial abundance.
+
+        b:
+            The intrinsic growth rate.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import MicrobeElement
+        >>> MicrobeElement('species', x=0.1, b=0.8).b
+        0.8
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        b: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.b = b
+
+
+class GeneralizedLotkaVolterraInteraction(CouplingInteraction):
+    """Interactions of the species of a group, `dx_i/dt += x_i sum_j a_ij x_j`, through an interaction matrix `a`.
+
+    Every species `i` couples to every species `j` of the group, itself included, through the term `x_i x_j` weighted
+    by the entry `a_ij` of the interaction matrix, a parameter with one row and one column per species, so a schedule or
+    an experiment changes it. The diagonal entries are the interactions of a species with itself, negative for
+    self-limitation. With the growth `b_i x_i` as a rate, it gives the generalized Lotka-Volterra equations
+    `dx_i/dt = x_i (b_i + sum_j a_ij x_j)`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of species.
+
+        a:
+            The interaction matrix, where `a_ij` is the effect of species `j` on the growth of species `i`, or a number
+            for every entry.
+
+        state:
+            The name of the state that holds the abundance of a species.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import GeneralizedLotkaVolterraInteraction
+        >>> matrix = ((-1.0, 0.5), (0.5, -1.0))
+        >>> GeneralizedLotkaVolterraInteraction('glv', target='species', a=matrix).a
+        ((-1.0, 0.5), (0.5, -1.0))
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        a: Annotated[object, ParameterSpec(shape=('target', 'target'))] = -1.0,
+        state: str = 'x',
+    ) -> None:
+        super().__init__(
+            label,
+            target=target,
+            read=state,
+            write=state,
+            function=self._product,
+            mode='group',
+            weights='a',
+            include_self=True,
+        )
+        self.a = a
+        self.state = state
+
+    def _product(self, namespace: SimpleNamespace) -> object:
+        """Return the product `x_i x_j` of the abundances of the species and the other species."""
+        return getattr(namespace.member, self.state) * getattr(namespace.other, self.state)
 
 
 def _growth(namespace: SimpleNamespace) -> object:

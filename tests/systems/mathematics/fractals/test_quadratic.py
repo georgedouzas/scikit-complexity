@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.systems.mathematics.fractals import julia, mandelbrot
+from skcomplex.systems.mathematics.fractals import inverse_julia, julia, mandelbrot
 
 from ..conftest import _run
 
@@ -27,3 +27,20 @@ def test_mandelbrot_is_symmetric_about_real_axis():
     escapes = _run(mandelbrot((61, 80), window=(-2.2, 0.8, -1.2, 1.2)), 60).lattice('plane.n')[-1]
     assert np.array_equal(escapes, escapes[::-1])
     assert escapes.min() < escapes.max()
+
+
+def test_inverse_julia_points_settle_on_the_unit_circle_for_zero_constant():
+    """Test that the random square roots of `z` carry every point onto the Julia set `|z| = 1` of `z²`."""
+    z = _run(inverse_julia(0.0, n_points=200), 30).values('points.z')[-1]
+    np.testing.assert_allclose(np.abs(z), 1.0, atol=1e-6)
+
+
+def test_inverse_julia_points_stay_on_the_invariant_set_of_the_rabbit():
+    """Test that the points of Douady's rabbit stay bounded under the forward map and spread over the whole set."""
+    omega = -0.123 + 0.745j
+    z = _run(inverse_julia(omega, n_points=500), 30).values('points.z')[-1]
+    forward = z.copy()
+    for _ in range(20):
+        forward = forward**2 + omega
+    assert np.abs(forward).max() < 2
+    assert np.ptp(z.real) > 1.5

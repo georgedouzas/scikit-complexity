@@ -1,7 +1,9 @@
 """Test the catalog of the catalog: listing, describing, creating, and running systems by name."""
 
+import ast
 import importlib
 import multiprocessing
+from importlib.resources import files
 from pathlib import Path
 
 import numpy as np
@@ -268,3 +270,102 @@ def test_default_runs_of_a_stochastic_system_repeat():
         .trajectory_.values('counters.count')
     )
     assert not np.array_equal(counts, fresh)
+
+
+# Fields whose component modules are not yet folded into their systems. The change that folds a field removes it here.
+UNFOLDED: tuple[str, ...] = ()
+
+
+def _imported_modules(path: Path, field: Path) -> set[Path]:
+    """Return the modules of a field that a module imports relatively, through a package's re-exports too."""
+    found = set()
+    for node in ast.parse(path.read_text()).body:
+        if not isinstance(node, ast.ImportFrom) or node.level == 0:
+            continue
+        target = path.parents[node.level - 1].joinpath(*(node.module or '').split('.'))
+        if target.with_suffix('.py').is_file():
+            found.add(target.with_suffix('.py'))
+        elif (target / '__init__.py').is_file():
+            names = {alias.name for alias in node.names}
+            for item in ast.parse((target / '__init__.py').read_text()).body:
+                if isinstance(item, ast.ImportFrom) and item.level == 1 and names & {a.name for a in item.names}:
+                    found.add(target.joinpath(*str(item.module).split('.')).with_suffix('.py'))
+    return {module for module in found if module.is_relative_to(field) and module != path}
+
+
+def _registers_system(path: Path) -> bool:
+    """Return whether a module decorates a factory with `register_system`."""
+    return any(
+        isinstance(decorator, ast.Call) and getattr(decorator.func, 'id', None) == 'register_system'
+        for node in ast.parse(path.read_text()).body
+        if isinstance(node, ast.FunctionDef)
+        for decorator in node.decorator_list
+    )
+
+
+def _owners(field: Path) -> dict[Path, set[Path]]:
+    """Return the system modules that reach every other private module of a field, through modules registering nothing.
+
+    Public modules, such as the `types` module of a subfield, are part of the interface and serve no single system. A
+    module of `common` that another module of `common` imports belongs to a shared family, such as the force tables of
+    an external engine, and serves no single system either.
+    """
+    modules = [path for path in sorted(field.rglob('_*.py')) if path.name != '__init__.py']
+    imports = {path: _imported_modules(path, field) for path in modules}
+    systems = {path for path in modules if _registers_system(path)}
+    common = field / 'common'
+    family = {
+        module
+        for path in modules
+        if path.is_relative_to(common)
+        for module in imports[path]
+        if module.is_relative_to(common)
+    }
+    owners: dict[Path, set[Path]] = {path: set() for path in modules if path not in systems | family}
+    for system in systems:
+        stack, seen = list(imports[system]), set()
+        while stack:
+            module = stack.pop()
+            if module in seen or module in systems or module not in imports:
+                continue
+            seen.add(module)
+            if module in owners:
+                owners[module].add(system)
+            stack.extend(imports[module])
+    return owners
+
+
+@pytest.mark.parametrize(
+    'field',
+    [
+        (
+            pytest.param(field, marks=pytest.mark.xfail(reason='Its components are not folded yet.', strict=True))
+            if field in UNFOLDED
+            else field
+        )
+        for field in FIELDS
+    ],
+)
+def test_no_module_serves_one_system(field):
+    """Test that no module of a field that registers no system serves only one system, which should hold it instead."""
+    root = Path(str(files('skcomplex.systems'))) / field
+    found = [
+        f'{module.relative_to(root)} -> {next(iter(systems)).relative_to(root)}'
+        for module, systems in _owners(root).items()
+        if len(systems) == 1
+    ]
+    assert found == []
+
+
+@pytest.mark.parametrize('field', FIELDS)
+def test_no_system_module_imports_another(field):
+    """Test that no module registering systems imports another module registering systems of its subfield."""
+    root = Path(str(files('skcomplex.systems'))) / field
+    systems = [path for path in sorted(root.rglob('_*.py')) if _registers_system(path)]
+    found = [
+        f'{path.relative_to(root)} -> {module.relative_to(root)}'
+        for path in systems
+        for module in sorted(_imported_modules(path, root))
+        if module.parent == path.parent and _registers_system(module)
+    ]
+    assert found == []

@@ -21,11 +21,13 @@ from ..spaces import (
     LatticeSpace,
     MemoryNeighborhood,
     NetworkSpace,
+    StateTranslationNeighborhood,
 )
 from ._base import BaseLaw
 
 SCHEDULES = ('synchronous', 'random-sequential', 'random-site', 'checkerboard', 'colored')
 IDENTITY = '1'
+TABLE_AXES = 2
 
 
 class LocalRuleLaw(BaseLaw):
@@ -47,7 +49,8 @@ class LocalRuleLaw(BaseLaw):
 
         over:
             The neighbourhood whose values the rule reads: a lattice neighbourhood of offsets, an adjacency on a
-            network, or a memory of group elements on a group space.
+            network, a memory of group elements on a group space, or a memory translated by the group element that
+            the first read state holds at every site, `StateTranslationNeighborhood`.
 
         rule:
             A function, a `TableSpec`, a `TotalisticSpec` rule, an `OuterTotalisticSpec` rule, a `LinearRuleSpec`, or an
@@ -142,6 +145,30 @@ class LocalRuleLaw(BaseLaw):
         offsets = self.over.prepare().offsets_
         return LatticeNeighborhood(((0,) * len(offsets[0]), *offsets))
 
+    def _get_table(self, space: BaseSpace, values: npt.NDArray[np.generic]) -> IntArray:
+        """Return the neighbour table, or for a translated memory the table of every configuration at its values.
+
+        Args:
+            space:
+                The space of the sites.
+
+            values:
+                The values of the first read state, one per site on the last axis.
+
+        Returns:
+            table:
+                One row per site and one column per neighbour, with leading axes of the configurations when translated.
+        """
+        neighborhood = self._get_neighborhood()
+        if not isinstance(neighborhood, StateTranslationNeighborhood):
+            return space._index_table(neighborhood)
+        translations = space._translation_table(neighborhood)
+        size = translations.shape[0]
+        elements = np.rint(np.asarray(values, dtype=float))
+        named = (elements >= 0) & (elements < size)
+        table = translations[np.arange(size), np.where(named, elements, 0).astype(np.intp)]
+        return np.where(named[..., None], table, size)
+
     def _get_linear_values(self, *columns: npt.ArrayLike) -> npt.NDArray[np.generic]:
         """Return the linear combination of one column of values per neighbour, reduced modulo the field size."""
         rule = self._get_rule()
@@ -212,12 +239,17 @@ class LocalRuleLaw(BaseLaw):
             raise ValidationError(error_msg)
         if not hasattr(space, 'size_'):
             space.prepare()
-        table = space._index_table(self._get_neighborhood())
+        states = [np.asarray(keywords.pop(name)) for name in names]
+        table = self._get_table(space, states[0])
         columns = []
-        for name in names:
-            values = np.asarray(keywords.pop(name))
+        for values in states:
             fill = np.full((*values.shape[:-1], 1), getattr(space, 'fill', 0), dtype=values.dtype)
-            columns.append(np.concatenate([values, fill], axis=-1)[..., table])
+            padded = np.concatenate([values, fill], axis=-1)
+            if table.ndim == TABLE_AXES:
+                columns.append(padded[..., table])
+            else:
+                gathered = np.take_along_axis(padded, table.reshape(*table.shape[:-2], -1), axis=-1)
+                columns.append(gathered.reshape(table.shape))
         cells = np.concatenate(columns, axis=-1)
         shape = cells.shape[:-1]
         patterns = cells.reshape(-1, cells.shape[-1])

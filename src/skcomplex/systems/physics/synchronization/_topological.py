@@ -17,9 +17,12 @@ from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import codifferential, exterior_derivative, mean
 from ....core.components.spaces import CellComplexSpace, NetworkSpace
 from ....core.components.system import System
+from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, VisualSpec
 from ..._catalog import register_system
-from ..common.oscillators import PhaseOscillatorElement
+from ..common.oscillators import LinkElement, PhaseOscillatorElement
+
+MODELS = ('NL', 'NLT')
 
 
 def _order_of(expression: Expression, over: SimpleNamespace) -> Expression:
@@ -39,6 +42,16 @@ def _link_rate(coupling: float, namespace: SimpleNamespace) -> Expression:
     links, nodes = namespace.target, namespace.sources[0]
     down = exterior_derivative(sin(codifferential(links.theta)))
     return coupling * (_order_of(nodes.theta, nodes) * down - codifferential(sin(exterior_derivative(links.theta))))
+
+
+def _triangle_link_rate(coupling: float, namespace: SimpleNamespace) -> Expression:
+    """Return the link coupling of the Nodes-Links-Triangles system, each term scaled by the order of the other face."""
+    links, nodes, triangles = namespace.target, namespace.sources[0], namespace.sources[1]
+    down = exterior_derivative(sin(codifferential(links.theta)))
+    up = codifferential(sin(exterior_derivative(links.theta)))
+    order_down = _order_of(codifferential(links.theta), nodes)
+    order_up = _order_of(exterior_derivative(links.theta), triangles)
+    return coupling * (_order_of(nodes.theta, nodes) * order_up * down - order_down * up)
 
 
 def _modulus(values: object) -> float:
@@ -88,6 +101,7 @@ def topological_kuramoto(
     coupling: float = 2.0,
     width: float = 1.0,
     seed: int = 0,
+    model: str = 'NL',
 ) -> System:
     """Return phases on the nodes and links of a clique complex, coupled through its incidence by order parameters.
 
@@ -98,6 +112,11 @@ def topological_kuramoto(
     `R_links` that of the projection of the link phases on the nodes. The review takes frequencies of mean `Omega` and
     standard deviation `1 / tau`, with `Omega = 2` and `tau = 1` for its Fig. 2, on complexes of 500 nodes. The mean 0,
     the size, and the random graph are choices of this system.
+
+    The Nodes-Links-Triangles system, `model='NLT'`, Eq. 8 of the review, scales the coupling of the link phases through
+    the nodes by `R_nodes R_up` and through the triangles by `R_links`, where `R_up` is the order parameter of the
+    projection of the link phases on the triangles. Every projection then couples to another, so all three order
+    parameters jump together at one explosive transition, while in the Nodes-Links system `R_up` moves on its own.
 
     Args:
         n_nodes:
@@ -115,15 +134,26 @@ def topological_kuramoto(
         seed:
             The seed of the graph, the frequencies, and the initial phases.
 
+        model:
+            The coupling, `'NL'` for the Nodes-Links system or `'NLT'` for the Nodes-Links-Triangles system.
+
     Returns:
         system:
-            The system.
+            The system, with a group `triangles` of unit weights on the faces for the Nodes-Links-Triangles system,
+            which only gives the order parameter of the projection on the triangles.
+
+    Raises:
+        ValidationError:
+            The model is neither `'NL'` nor `'NLT'`.
 
     Examples:
         >>> from skcomplex.systems.physics.synchronization import topological_kuramoto
         >>> [element.size_ for element in topological_kuramoto(6, density=0.8).prepare().elements]
         [6, 13]
     """
+    if model not in MODELS:
+        error_msg = f'Unknown model {model!r}. Use one of {", ".join(MODELS)}.'
+        raise ValidationError(error_msg)
     rng = np.random.default_rng(seed)
     graph = nx.gnp_random_graph(n_nodes, density, seed=seed)
     space = CellComplexSpace(NetworkSpace(graph), faces='cliques').prepare()
@@ -151,12 +181,22 @@ def topological_kuramoto(
             sources=['links'],
             rate=partial(_node_rate, coupling),
         ),
-        RateInteraction(
+    ]
+    if model == 'NL':
+        link_coupling = RateInteraction(
             'link_coupling',
             target='links',
             state='theta',
             sources=['nodes'],
             rate=partial(_link_rate, coupling),
-        ),
-    ]
-    return System(elements=[nodes, links], interactions=interactions)
+        )
+        return System(elements=[nodes, links], interactions=[*interactions, link_coupling])
+    triangles = GroupElement('triangles', element=LinkElement, space=space, on='hyperedges')
+    link_coupling = RateInteraction(
+        'link_coupling',
+        target='links',
+        state='theta',
+        sources=['nodes', 'triangles'],
+        rate=partial(_triangle_link_rate, coupling),
+    )
+    return System(elements=[nodes, links, triangles], interactions=[*interactions, link_coupling])

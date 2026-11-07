@@ -4,15 +4,346 @@
 # License: MIT
 
 import math
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
+from ....core.components.elements import Element
+from ....core.components.interactions import RateInteraction
+from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
+from ....core.components.laws.utils import ramp
 from ....core.components.system import System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.errors import ValidationError
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._ramped_fold import RampedFoldElement
-from ._stochastic_energy_balance import C1, StochasticEnergyBalanceElement
+
+
+class FoldFollowerElement(Element):
+    """Stochastic fold `dy = (-y³ + y + c) dt + sigma dW`, whose control a leading element shifts.
+
+    The fold has a lower and an upper stable branch while `|c| < 2 / (3 √3)`, and a coupling adds to its control.
+
+    Args:
+        label:
+            The label of the follower.
+
+        visual:
+            How the follower is drawn, or `None` for `default_visual_`.
+
+        y:
+            The initial state.
+
+        c:
+            The control of the fold, without the coupling.
+
+        sigma:
+            The amplitude of the noise.
+
+    Attributes:
+        default_visual_:
+            The visual of the follower when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.climate import FoldFollowerElement
+        >>> FoldFollowerElement('follower').c
+        0.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        y: Annotated[float, StateSpec()] = -1.0,
+        c: Annotated[float, ParameterSpec()] = 0.0,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.y = y
+        self.c = c
+        self.sigma = sigma
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the fold and its noise.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rate law and the noise law of the state.
+        """
+        return [RateLaw(s.y, -(s.y**3) + s.y + s.c), NoiseLaw(s.y, s.sigma)]
+
+
+class HopfFollowerElement(Element):
+    """Stochastic Hopf normal form `dz = ((mu + i omega) z - |z|² z) dt + sigma dW`, whose `mu` a leader shifts.
+
+    The complex amplitude `z = y + i z_im` is held as two real states. For `mu < 0` it decays to a focus at the origin,
+    and for `mu > 0` it settles on a limit cycle of radius `sqrt(mu)`, and a coupling adds to `mu`.
+
+    Args:
+        label:
+            The label of the follower.
+
+        visual:
+            How the follower is drawn, or `None` for `default_visual_`.
+
+        y:
+            The initial real part of the amplitude.
+
+        z:
+            The initial imaginary part of the amplitude.
+
+        mu:
+            The distance from the Hopf bifurcation, without the coupling.
+
+        omega:
+            The frequency of the oscillation.
+
+        sigma:
+            The amplitude of the noise.
+
+    Attributes:
+        default_visual_:
+            The visual of the follower when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.climate import HopfFollowerElement
+        >>> HopfFollowerElement('follower').omega
+        1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        y: Annotated[float, StateSpec()] = 0.1,
+        z: Annotated[float, StateSpec()] = 0.0,
+        mu: Annotated[float, ParameterSpec()] = 0.0,
+        omega: Annotated[float, ParameterSpec()] = 1.0,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.y = y
+        self.z = z
+        self.mu = mu
+        self.omega = omega
+        self.sigma = sigma
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the Hopf normal form and its noise.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rate laws and the noise laws of the two parts of the amplitude.
+        """
+        radius = s.y**2 + s.z**2
+        return [
+            RateLaw(s.y, s.mu * s.y - s.omega * s.z - radius * s.y),
+            RateLaw(s.z, s.omega * s.y + s.mu * s.z - radius * s.z),
+            NoiseLaw(s.y, s.sigma),
+            NoiseLaw(s.z, s.sigma),
+        ]
+
+
+class RampedFoldElement(Element):
+    """Stochastic fold `dx = (a x^3 + b x + phi(t)) dt + sigma dW` whose control rises linearly from `phi0` to `phi1`.
+
+    For `a < 0 < b` the fold has two stable branches for `|phi| < phi_c = sqrt(-4 b^3 / (27 a))`, and the lower
+    branch vanishes at `phi = phi_c`. The control rises at the rate `rate` and stays at `phi1` once it reaches it.
+
+    Args:
+        label:
+            The label of the system.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial state.
+
+        a:
+            The cubic coefficient, negative.
+
+        b:
+            The linear coefficient, positive.
+
+        sigma:
+            The amplitude of the noise.
+
+        phi0:
+            The initial control.
+
+        phi1:
+            The final control.
+
+        rate:
+            The rate at which the control rises.
+
+    Examples:
+        >>> from skcomplex.systems.physics.climate import RampedFoldElement
+        >>> RampedFoldElement('system').rate
+        0.004
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = -1.3247,
+        a: Annotated[float, ParameterSpec()] = -1.0,
+        b: Annotated[float, ParameterSpec()] = 1.0,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
+        phi0: float = -1.0,
+        phi1: float = 1.0,
+        rate: float = 0.004,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.a = a
+        self.b = b
+        self.sigma = sigma
+        self.phi0 = phi0
+        self.phi1 = phi1
+        self.rate = rate
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the fold with its ramped control and its noise.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        control = self.phi0 + ramp(s.t, 0.0, (self.phi1 - self.phi0) / self.rate, self.phi1 - self.phi0)
+        return [RateLaw(s.x, s.a * s.x**3 + s.b * s.x + control), NoiseLaw(s.x, s.sigma)]
+
+
+C0 = 1.10869e-8
+
+
+C1 = 9.7137e9
+
+
+class StochasticEnergyBalanceElement(Element):
+    """Global mean surface temperature of the Sutera-Fraedrich energy balance, with drifting and ramped controls.
+
+    The temperature follows `dT = c0 [-T^4 + c1 mu (b2 T^2 - a2)] dt + sqrt(nu) dW`, in kelvin and years. The control
+    `mu` drifts at the rate `-drift`, and `b2 = b_ini + lam (b_fin - b_ini)` follows the logistic ramp
+    `dlam/dt = rho lam (1 - lam)`. The control `a2 = a_ini + c1 mu (b2^2 - b_ini^2) / 4` moves with `b2` so that the
+    discriminant `(c1 mu b2)^2 - 4 c1 mu a2` of the equilibria stays constant during the ramp.
+
+    Args:
+        label:
+            The label of the climate.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        T:
+            The initial temperature in kelvin.
+
+        mu:
+            The initial relative solar input.
+
+        lam:
+            The initial progress of the ramp, between 0 and 1.
+
+        drift:
+            The rate at which `mu` decreases, per year.
+
+        rho:
+            The rate of the logistic ramp of `b2`, per year.
+
+        b_ini:
+            The initial value of `b2`, per square kelvin.
+
+        b_fin:
+            The final value of `b2`, per square kelvin.
+
+        a_ini:
+            The initial value of `a2`.
+
+        nu:
+            The variance of the noise per year, in square kelvin.
+
+        c0:
+            The scale of the energy balance, per cubic kelvin and year.
+
+        c1:
+            The scale of the absorbed radiation, in kelvin to the fourth.
+
+    Examples:
+        >>> from skcomplex.systems.physics.climate import StochasticEnergyBalanceElement
+        >>> StochasticEnergyBalanceElement('earth').nu
+        1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        T: Annotated[float, StateSpec()] = 290.0,
+        mu: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        lam: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        drift: Annotated[float, ParameterSpec()] = 0.0,
+        rho: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        b_ini: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.69e-05,
+        b_fin: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.69e-05,
+        a_ini: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6927,
+        nu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        c0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = C0,
+        c1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = C1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.T = T
+        self.mu = mu
+        self.lam = lam
+        self.drift = drift
+        self.rho = rho
+        self.b_ini = b_ini
+        self.b_fin = b_fin
+        self.a_ini = a_ini
+        self.nu = nu
+        self.c0 = c0
+        self.c1 = c1
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the energy balance with its noise, the drift of `mu`, and the logistic ramp of `b2` and `a2`.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        b2 = s.b_ini + s.lam * (s.b_fin - s.b_ini)
+        a2 = s.a_ini + s.c1 * s.mu * (b2**2 - s.b_ini**2) / 4
+        return [
+            RateLaw(s.T, s.c0 * (-(s.T**4) + s.c1 * s.mu * (b2 * s.T**2 - a2))),
+            NoiseLaw(s.T, s.nu**0.5),
+            RateLaw(s.mu, -s.drift),
+            RateLaw(s.lam, s.rho * s.lam * (1 - s.lam)),
+        ]
+
 
 REAL_TOLERANCE = 1e-9
 
@@ -28,6 +359,9 @@ def _warm_state(mu: float, b2: float, a2: float) -> float:
     """Return the warm stable equilibrium of the energy balance, the largest root of `T^4 = c1 mu (b2 T^2 - a2)`."""
     root = C1 * mu * b2 + math.sqrt((C1 * mu * b2) ** 2 - 4 * C1 * mu * a2)
     return math.sqrt(root / 2)
+
+
+FOLLOWERS = ('fold', 'hopf')
 
 
 def _lower_branch(a: float, b: float, phi: float) -> float:
@@ -157,3 +491,116 @@ def ramped_stochastic_fold(
         rate=rate,
     )
     return System(elements=[fold])
+
+
+@register_system(
+    field='physics/climate',
+    tags=('tipping points', 'cascades', 'fold', 'hopf bifurcation', 'ramp', 'sde'),
+    references=('Dekker, von der Heydt, and Dijkstra 2018', 'Fang, Wang, Kurths, and Fan 2025'),
+    defaults={'until': 500.0, 'dt': 0.5, 'solver': EulerMaruyamaSolver(dt=0.01)},
+)
+def leading_following_cascade(
+    follower: str = 'fold',
+    *,
+    coupling: float = 0.4,
+    rate: float = 0.004,
+    sigma: float = 0.02,
+    phi0: float = -1.0,
+    phi1: float = 1.0,
+    c: float = 0.0,
+    mu: float = 0.0,
+    omega: float = 1.0,
+) -> System:
+    """Return a cascade of two tipping elements, a leading fold driven by a ramp and a follower forced by the leader.
+
+    The leading element follows `dx = (-x³ + x + phi(t)) dt + sigma dW`, whose control rises as `phi = phi0 + rate t`
+    until `phi1`, and it tips from its lower to its upper branch when `phi` passes `2 / (3 √3)`. The following element
+    is forced linearly by the state of the leader, Eq. 10 of Fang et al. after Dekker et al. A fold follower obeys
+    `dy = (-y³ + y + c + coupling x) dt + sigma dW`, and it tips too, a domino cascade, when the tipped leader moves
+    its control `c + coupling x` past `2 / (3 √3)`. A Hopf follower obeys
+    `dw = ((mu + coupling x + i omega) w - |w|² w) dt + sigma dW`, and the tipped leader can carry it through its Hopf
+    bifurcation onto an oscillation of radius `sqrt(mu + coupling x)`. The follower can show rising variance and
+    autocorrelation before the leader tips even when it stays far from its own tipping point.
+
+    Args:
+        follower:
+            The normal form of the following element, `'fold'` or `'hopf'`.
+
+        coupling:
+            The strength of the linear forcing of the follower by the leader.
+
+        rate:
+            The rate at which the control of the leader rises.
+
+        sigma:
+            The amplitude of the noise of both elements.
+
+        phi0:
+            The initial control of the leader.
+
+        phi1:
+            The final control of the leader.
+
+        c:
+            The control of a fold follower, without the coupling.
+
+        mu:
+            The distance of a Hopf follower from its bifurcation, without the coupling.
+
+        omega:
+            The frequency of a Hopf follower.
+
+    Returns:
+        system:
+            The system, with the leader `leader.x` and the follower `follower.y`, and also `follower.z` for the Hopf
+            follower.
+
+    Raises:
+        ValidationError:
+            The follower is neither `'fold'` nor `'hopf'`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.climate import leading_following_cascade
+        >>> leading_following_cascade('hopf').elements[1].omega
+        1.0
+    """
+    if follower not in FOLLOWERS:
+        error_msg = f'Unknown follower {follower!r}. Use one of {", ".join(FOLLOWERS)}.'
+        raise ValidationError(error_msg)
+    start = _lower_branch(-1.0, 1.0, phi0)
+    leader = RampedFoldElement('leader', x=start, sigma=sigma, phi0=phi0, phi1=phi1, rate=rate)
+    if follower == 'fold':
+        follows: Element = FoldFollowerElement(
+            'follower',
+            y=_lower_branch(-1.0, 1.0, c + coupling * start),
+            c=c,
+            sigma=sigma,
+        )
+        forcing = [
+            RateInteraction(
+                'forcing',
+                target='follower',
+                state='y',
+                sources=['leader'],
+                rate=lambda s: coupling * s.sources[0].x,
+            ),
+        ]
+    else:
+        follows = HopfFollowerElement('follower', mu=mu, omega=omega, sigma=sigma)
+        forcing = [
+            RateInteraction(
+                'forcing_y',
+                target='follower',
+                state='y',
+                sources=['leader'],
+                rate=lambda s: coupling * s.sources[0].x * s.target.y,
+            ),
+            RateInteraction(
+                'forcing_z',
+                target='follower',
+                state='z',
+                sources=['leader'],
+                rate=lambda s: coupling * s.sources[0].x * s.target.z,
+            ),
+        ]
+    return System(elements=[leader, follows], interactions=forcing)

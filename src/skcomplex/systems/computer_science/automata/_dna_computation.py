@@ -1,0 +1,248 @@
+"""DNA computation: Adleman's test tube, where random ligation of edge oligos into paths solves a Hamiltonian path."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
+
+import numpy as np
+
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.system import System
+from ....core.engine.solvers import AgentView, SystemView
+from ....core.errors import ParameterError
+from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.types import AnyArray, IntArray
+from ..._catalog import register_system
+
+ADLEMAN_EDGES = (
+    (0, 1),
+    (0, 3),
+    (0, 6),
+    (1, 2),
+    (1, 3),
+    (2, 1),
+    (2, 3),
+    (3, 2),
+    (3, 4),
+    (4, 1),
+    (4, 5),
+    (5, 1),
+    (5, 2),
+    (5, 6),
+)
+"""The directed links of the seven-node graph of Adleman's experiment, whose only Hamiltonian path is 0 to 6 in
+order.
+"""
+
+EMPTY = -1
+
+
+class StrandView(AgentView):
+    """View of a strand of DNA, with its path as an attribute."""
+
+    path: IntArray
+
+
+class StrandElement(Element):
+    """Strand of DNA in the test tube, the path of nodes its ligated edge oligos spell, padded with -1.
+
+    Args:
+        label:
+            The label of the strand or the group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        path:
+            The initial nodes of the path, padded with -1 to the longest path the tube holds.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import StrandElement
+        >>> StrandElement('strand', path=(0, 1, -1)).path
+        (0, 1, -1)
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        path: Annotated[object, StateSpec()] = EMPTY,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.path = path
+
+    @classmethod
+    def _get_view(cls) -> type[StrandView]:
+        """Return the view of the strands, which types their path."""
+        return StrandView
+
+
+class LigationInteraction(Interaction):
+    """Random ligation of the strands of a test tube, which joins a strand that ends at a node to one that starts there.
+
+    Every step the strands meet in random pairs. The oligo of the node that the first strand ends at and the second
+    starts at holds their ends together, and the ligase joins them into one strand, as long as the joined path fits the
+    longest path the tube holds. The second strand is consumed, and an edge oligo drawn uniformly from the links of the
+    graph takes its place, since the tube holds a vast excess of oligos.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of strands.
+
+        edges:
+            The directed links of the graph, one edge oligo each.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import LigationInteraction
+        >>> LigationInteraction('ligation', target='strands', edges=((0, 1),)).edges
+        ((0, 1),)
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        edges: Sequence[tuple[int, int]] = ADLEMAN_EDGES,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.edges = edges
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rule of the ligations of a step.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rule of the ligations.
+        """
+        return [RuleLaw(self._ligate)]
+
+    def _ligate(self, system: SystemView) -> None:
+        """Join the strands of random pairs whose ends meet, and replace every consumed strand with a fresh oligo."""
+        strands = system.agents('target', StrandView)
+        rng = system.rng
+        order = rng.permutation(len(strands))
+        for first, second in zip(order[::2], order[1::2], strict=False):
+            head, tail = np.asarray(strands[first].path), np.asarray(strands[second].path)
+            head_length, tail_length = int((head >= 0).sum()), int((tail >= 0).sum())
+            if head[head_length - 1] != tail[0] or head_length + tail_length - 1 > head.size:
+                continue
+            joined = head.copy()
+            joined[head_length : head_length + tail_length - 1] = tail[1:tail_length]
+            strands[first].path = joined
+            strands[second].path = self._oligo(head.size, rng)
+
+    def _oligo(self, size: int, rng: np.random.Generator) -> IntArray:
+        """Return a fresh edge oligo drawn uniformly from the links, as a path of two nodes padded to the size."""
+        path = np.full(size, EMPTY)
+        path[:2] = self.edges[int(rng.integers(len(self.edges)))]
+        return path
+
+
+def _solutions(paths: AnyArray, start: int, end: int, n_nodes: int) -> IntArray:
+    """Return the mask of the strands that pass Adleman's filters, the Hamiltonian paths from the start to the end."""
+    nodes: IntArray = np.asarray(paths, dtype=np.int64)
+    lengths = (nodes >= 0).sum(axis=1)
+    rows = np.arange(len(nodes))
+    starting = nodes[:, 0] == start
+    ending = nodes[rows, np.maximum(lengths - 1, 0)] == end
+    sized = lengths == n_nodes
+    covered = np.array([np.unique(path[path >= 0]).size == n_nodes for path in nodes])
+    return starting & ending & sized & covered
+
+
+def _adleman_solutions(paths: AnyArray) -> float:
+    """Return the number of strands that are the Hamiltonian path of Adleman's graph from node 0 to node 6."""
+    return float(_solutions(paths, 0, 6, 7).sum())
+
+
+def _filtered_counts(paths: AnyArray, start: int, end: int, n_nodes: int) -> list[int]:
+    """Return the numbers of strands left after each of Adleman's filters, by start and end, length, and coverage."""
+    nodes: IntArray = np.asarray(paths, dtype=np.int64)
+    lengths = (nodes >= 0).sum(axis=1)
+    rows = np.arange(len(nodes))
+    ends = (nodes[:, 0] == start) & (nodes[rows, np.maximum(lengths - 1, 0)] == end)
+    sized = ends & (lengths == n_nodes)
+    return [int(ends.sum()), int(sized.sum()), int(_solutions(nodes, start, end, n_nodes).sum())]
+
+
+@register_system(
+    field='computer_science/automata',
+    tags=('dna computing', 'molecular computation', 'hamiltonian path', 'agents', 'stochastic'),
+    references=('Adleman 1994', 'Raman 2021'),
+    defaults={'until': 60},
+    observables=lambda system: [
+        ObservableSpec('solutions', group='strands', variable='path', reduce=_adleman_solutions),
+    ],
+)
+def dna_computation(
+    n_strands: int = 2000,
+    *,
+    edges: Sequence[tuple[int, int]] = ADLEMAN_EDGES,
+    start: int = 0,
+    end: int = 6,
+    random_state: int | np.random.Generator | None = 0,
+) -> System:
+    """Return Adleman's DNA computation of a Hamiltonian path, by random ligation of edge oligos in a test tube.
+
+    Every node of a directed graph is an oligonucleotide, and every link an oligo that joins the end of one node to the
+    start of the next, so ligation builds strands that spell random paths of the graph. The tube starts with edge oligos
+    drawn uniformly from the links, which meet in random pairs and join when the end of one is the start of the other.
+    Adleman's filters then keep the strands that start at `start` and end at `end`, that pass through as many nodes as
+    the graph has, and that visit every node, and any strand left is a Hamiltonian path. On the graph of Adleman's
+    experiment, with seven nodes and fourteen links, solutions appear after some steps and every one of them is the
+    path 0, 1, 2, 3, 4, 5, 6, while a graph without a Hamiltonian path leaves no strand.
+
+    Args:
+        n_strands:
+            The number of strands in the tube.
+
+        edges:
+            The directed links of the graph, with the nodes numbered from 0.
+
+        start:
+            The node the paths start at.
+
+        end:
+            The node the paths end at.
+
+        random_state:
+            The seed or generator of the initial oligos.
+
+    Returns:
+        system:
+            The system, with the group `strands` of paths `path`, padded with -1. Its standard observable `solutions`
+            is the number of strands that pass the filters for the default nodes of Adleman's graph.
+
+    Raises:
+        ParameterError:
+            The graph has no links, or the start or the end is not a node of it.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import dna_computation
+        >>> dna_computation(10).elements[0].values['path'].shape
+        (10, 7)
+    """
+    nodes = {node for edge in edges for node in edge}
+    if not edges or start not in nodes or end not in nodes:
+        error_msg = f'The start {start!r} and the end {end!r} need to be nodes of a graph with links.'
+        raise ParameterError(error_msg)
+    rng = np.random.default_rng(random_state)
+    paths = np.full((n_strands, len(nodes)), EMPTY)
+    paths[:, :2] = np.asarray(edges)[rng.integers(len(edges), size=n_strands)]
+    strands = GroupElement('strands', element=StrandElement, size=n_strands, values={'path': paths})
+    return System(elements=[strands], interactions=[LigationInteraction('ligation', target='strands', edges=edges)])

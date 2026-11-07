@@ -95,6 +95,11 @@ class RuleKernel(BaseKernel):
 
         classes:
             The sites of every class of the colored or checkerboard schedule.
+
+        translations:
+            The site of `g h s` for every site `g`, group element `h`, and word `s` of a memory set translated by the
+            value of the first read state, or `None` for the fixed table. With it, every step reads the table at the
+            values of that state, and a value that names no site reads the fill value.
     """
 
     values_: None
@@ -114,6 +119,7 @@ class RuleKernel(BaseKernel):
         fused: bool = False,
         degrees: Array | None = None,
         classes: tuple[Indices, ...] = (),
+        translations: Indices | None = None,
     ) -> None:
         self.owner = owner
         self.targets = targets
@@ -127,6 +133,7 @@ class RuleKernel(BaseKernel):
         self.fused = fused
         self.degrees = degrees
         self.classes = classes
+        self.translations = translations
 
     @property
     def space(self) -> BaseSpace:
@@ -143,13 +150,32 @@ class RuleKernel(BaseKernel):
         ones = np.ones(int(real.sum()))
         return scipy.sparse.csr_matrix((ones, (rows[real], columns[real])), shape=(size, size))
 
+    def _table_of(self, x: Array, sites: Indices | None) -> Indices:
+        """Return the neighbour table of some sites, read at the values of the first read state when translated."""
+        if self.translations is None:
+            return self.table if sites is None else self.table[sites]
+        size = self.translations.shape[0]
+        rows = np.arange(size) if sites is None else sites
+        values = np.rint(x[self.reads[0].sites][rows])
+        named = (values >= 0) & (values < size)
+        table = self.translations[rows, np.where(named, values, 0).astype(np.intp)]
+        return np.where(named[:, None], table, size)
+
+    def _gather(self, x: Array, state: LatticeStateSpec, table: Indices) -> list[Array]:
+        """Return the values of a state at every neighbour, with the components of every member on a last axis."""
+        values = x[state.sites].reshape(-1, state.components)
+        padded = np.vstack([values, np.full((1, state.components), self.space.fill)])[table]
+        return [
+            padded[:, column, 0] if state.components == 1 else padded[:, column] for column in range(table.shape[1])
+        ]
+
     def _next(self, x: Array, p: Array, sites: Indices | None, rng: np.random.Generator) -> list[Array]:
         """Return the next values of the targets at some sites, read from the current state."""
         space = self.space
-        table = self.table if sites is None else self.table[sites]
+        table = self._table_of(x, sites)
         if self.lookup is not None:
             values = x[self.reads[0].sites]
-            if self.fused and sites is None:
+            if self.fused and sites is None and self.translations is None:
                 centers = x[self.targets[0].sites]
                 lookup = self.lookup
                 following = _fused_lookup(
@@ -173,7 +199,7 @@ class RuleKernel(BaseKernel):
                 return [lookup.values[totals]]
             centers = x[self.targets[0].sites].astype(np.intp)
             return [lookup.values[(centers if sites is None else centers[sites]) * lookup.columns + totals]]
-        columns = [column for state in self.reads for column in np.append(x[state.sites], space.fill)[table].T]
+        columns = [column for state in self.reads for column in self._gather(x, state, table)]
         keywords = self.arguments.values(x, p, sites)
         if self.degrees is not None:
             keywords['degree'] = self.degrees if sites is None else self.degrees[sites]
@@ -190,15 +216,23 @@ class RuleKernel(BaseKernel):
                 f'The local rule of {self.owner} returned {len(results)} arrays for {len(self.targets)} targets.'
             )
             raise SolverError(error_msg)
-        return [np.broadcast_to(np.asarray(item, dtype=float), (table.shape[0],)) for item in results]
+        return [
+            np.broadcast_to(
+                np.asarray(item, dtype=float),
+                (table.shape[0],) if state.components == 1 else (table.shape[0], state.components),
+            )
+            for state, item in zip(self.targets, results, strict=True)
+        ]
 
     def _assign(self, x: Array, values: list[Array], sites: Indices | None) -> None:
-        """Write the next values of the targets at some sites."""
+        """Write the next values of the targets at some sites, the components of every member together."""
         for state, value in zip(self.targets, values, strict=True):
             if sites is None:
-                x[state.sites] = value
+                x[state.sites] = np.ravel(value)
             else:
-                x[state.start + sites] = value
+                components = state.components
+                indices = state.start + components * sites[:, None] + np.arange(components)
+                x[indices.ravel()] = np.ravel(value)
 
     def _run_near(self, inputs: RunStateSpec, active: npt.NDArray[np.bool_]) -> None:
         """Update the state in place, synchronously, at the active sites and the sites that read one of them."""

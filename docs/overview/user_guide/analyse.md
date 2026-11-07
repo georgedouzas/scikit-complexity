@@ -568,7 +568,7 @@ them around a uniform state, and turns every Laplacian into its eigenvalue on ea
 returns the growth rate and frequency of every mode, exact for the discretization of the system. A band of growing
 modes is a Turing instability, and a growing mode with a nonzero frequency travels.
 
-### Agents
+### Agent populations
 
 Measure how agents align, how they spread in space, and how groups segregate.
 
@@ -674,6 +674,28 @@ scale.number_of_nodes(), scale.number_of_edges()
   `k^max(1, beta)`, with `k` the degree.
 
 In both kinds, two supernodes link when any of their nodes link.
+
+`AutocatalyticSetAnalysis` finds the largest autocatalytic set, the largest RAF, of a catalytic reaction network read
+from a network snapshot or from chosen `frames` of a trajectory:
+
+```python
+import numpy as np
+
+from skcomplex.core.analysis import AutocatalyticSetAnalysis
+from skcomplex.core.specs import NetworkSnapshotSpec
+
+reactions = np.array([[0, 1, 2], [2, 0, 3], [3, 1, 4]])
+snapshot = NetworkSnapshotSpec(np.arange(5), np.array([3, 4, 0]), np.array([2, 3, 4]), np.arange(3), reactions)
+AutocatalyticSetAnalysis().prepare(snapshot).run().reactions_[0].tolist()
+```
+
+- Every hyperedge is a reaction that produces its last member from the others, and the -1 that pad a smaller
+  hyperedge are left out.
+- An edge from `c` to `p` makes `c` a catalyst of every reaction that produces `p`.
+- The food set is `food`, or the nodes present that no reaction produces.
+- The algorithm of Hordijk and Steel removes the reactions with a reactant outside the closure of the food set or
+  without a catalyst in it, until none is removed. It sets `reactions_`, `products_`, `sizes_`, `fractions_`, and
+  `exists_` per frame. The system `tap_catalysis` grows such a network.
 
 `ScalingAnalysis('allometric')` fits the exponent of a quantity against system size across runs. It reads a mapping
 from size to samples, such as the results of a `GridDesign` sweep, or two columns.

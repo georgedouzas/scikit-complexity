@@ -47,9 +47,10 @@ class BaseSpace(BasePart[None, SimpleNamespace]):
     A space is a part of its system: it stores its arguments in its own `__init__`, `prepare` validates them and
     derives the facts of the space, and `_get_laws` returns the laws the space contributes, none by default. A space
     with sites answers the hooks the engine reads: `_get_neighbors` gives the sites around a site, `_index_table` the
-    neighbour of every site in every slot of a neighbourhood, `_ball` the neighbourhood within a radius,
-    `_neighbor_pairs` the pairs of neighbouring sites, and `_default_neighborhood` the neighbourhood `_get_neighbors`
-    reads when it is given none. A space without sites, such as a continuous one, answers none of them.
+    neighbour of every site in every slot of a neighbourhood, `_translation_table` the sites a group space reads at the
+    products of a site and a group element, `_ball` the neighbourhood within a radius, `_neighbor_pairs` the pairs of
+    neighbouring sites, and `_default_neighborhood` the neighbourhood `_get_neighbors` reads when it is given none. A
+    space without sites, such as a continuous one, answers none of them.
 
     Args:
         label:
@@ -129,6 +130,20 @@ class BaseSpace(BasePart[None, SimpleNamespace]):
                 One row per site and one column per neighbour.
         """
         error_msg = f'{type(self).__name__} has no sites, so it has no neighbour table.'
+        raise SpaceError(error_msg)
+
+    def _translation_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
+        """Return the site of `g h s` for every site `g`, group element `h`, and word `s` of a translated memory set.
+
+        Args:
+            neighborhood:
+                The memory set translated by the value of a cell.
+
+        Returns:
+            table:
+                One row per site `g`, one column per element `h`, and one layer per word `s`, with `size_` outside.
+        """
+        error_msg = f'{type(self).__name__} is no group space, so it reads no memory translated by a group element.'
         raise SpaceError(error_msg)
 
     def _ball(self, radius: int) -> BaseNeighborhood:

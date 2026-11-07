@@ -84,10 +84,10 @@ class TopologyFunctionsPass(BasePass):
         spec: KernelSpec,
         request: TopologyRequestSpec,
         networks: dict[int, NetworkRowsSpec],
-        weights: dict[int, LawKernel],
+        weights: dict[tuple[int, bool], LawKernel],
         declarations: DeclarationsSpec,
     ) -> CompiledRequestSpec:
-        """Return a request of a spec with its network, its rows, and the kernel of its weights."""
+        """Return a request of a spec with its network, its rows, and the kernels of its weights and its score."""
         space, rows = TopologyFunctionsPass._request_network(spec, declarations)
         network = networks.get(id(space))
         if network is None:
@@ -106,18 +106,75 @@ class TopologyFunctionsPass(BasePass):
             )
             raise ValidationError(error_msg)
         if request.hyperedge is not None and network.hyperedges is not None:
-            size = network.hyperedges.members.columns if network.hyperedges.members is not None else 0
-            if size != request.hyperedge:
-                error_msg = (
-                    f'{spec.owner} requests {request!r}, which forms hyperedges of size {request.hyperedge}, but the '
-                    f'hyperedges of the network have size {size}. Give the request the size of the hyperedges.'
-                )
-                raise ValidationError(error_msg)
-        needs = {'remove-edge': 'edge', 'rewire': 'edge', 'add-edge': 'node', 'remove-node': 'node'}.get(request.kind)
-        if needs is not None and needs != rows:
+            TopologyFunctionsPass._check_hyperedge_size(spec, request, network.hyperedges, declarations)
+        needs = {
+            'remove-edge': 'edge',
+            'rewire': 'edge',
+            'add-edge': 'node',
+            'remove-node': 'node',
+            'replace-node': 'node',
+            'add-hyperedge': 'node',
+            'remove-hyperedge': 'hyperedge',
+            'close-triangle': 'node',
+            'contract-edge': 'node',
+            'duplicate-node': 'node',
+        }.get(request.kind)
+        once = request.kind == 'add-edge' and rows == 'single'
+        if needs is not None and needs != rows and not once:
             error_msg = f'{spec.owner} requests {request!r}, which runs for every {needs}, from laws of every {rows}.'
             raise ValidationError(error_msg)
-        return CompiledRequestSpec(request, spec.owner, network, rows, toward=weights.get(id(request)))
+        if request.kind == 'remove-hyperedge' and network.hyperedges is None:
+            error_msg = f'{spec.owner} removes hyperedges of a network without a variable group on its hyperedges.'
+            raise ValidationError(error_msg)
+        return CompiledRequestSpec(
+            request,
+            spec.owner,
+            network,
+            rows,
+            toward=weights.get((id(request), False)),
+            score=weights.get((id(request), True)),
+        )
+
+    @staticmethod
+    def _check_hyperedge_size(
+        spec: KernelSpec,
+        request: TopologyRequestSpec,
+        hyperedges: CapacityRowsSpec,
+        declarations: DeclarationsSpec,
+    ) -> None:
+        """Raise an error for a request that forms hyperedges of another size than the rows of the network hold.
+
+        A variable group on hyperedges with a rank holds hyperedges of every size up to it, and one without a rank
+        holds hyperedges of the size of its initial hyperedges.
+
+        Args:
+            spec:
+                The spec of the requesting laws.
+
+            request:
+                The request, which forms a hyperedge.
+
+            hyperedges:
+                The rows of the variable group on the hyperedges of the network.
+
+            declarations:
+                The declarations of the compilation.
+
+        Raises:
+            ValidationError:
+                The hyperedge is larger than the rank, or of another size than the hyperedges of a group without one.
+        """
+        width = hyperedges.members.columns if hyperedges.members is not None else 0
+        size = int(request.hyperedge or 0)
+        ranked = getattr(declarations.blocks[hyperedges.path].node.component, 'rank', None) is not None
+        if size == width or (ranked and size < width):
+            return
+        limit = f'at most {width} members, the rank of the group' if ranked else f'size {width}'
+        error_msg = (
+            f'{spec.owner} requests {request!r}, which forms hyperedges of size {size}, but the hyperedges of the '
+            f'network have {limit}. Give the request such a size, or give the group a larger rank.'
+        )
+        raise ValidationError(error_msg)
 
     @staticmethod
     def _is_weight(law: BaseLaw) -> bool:
@@ -141,7 +198,7 @@ class TopologyFunctionsPass(BasePass):
             (spec, laws) for spec, laws in apart if not all(TopologyFunctionsPass._is_weight(law) for law in laws)
         ]
         weights = {
-            id(target.request): TopologyFunctionsPass._request_kernel(spec, law.value, declarations)
+            (id(target.request), target.score): TopologyFunctionsPass._request_kernel(spec, law.value, declarations)
             for spec, laws in towards
             for law in laws
             if isinstance(law, UpdateLaw) and isinstance(target := law._get_targets()[0], _WeightSpec)
@@ -163,6 +220,12 @@ class TopologyFunctionsPass(BasePass):
             for output in kernel.outputs:
                 _, law = lowered.laws[id(output)]
                 found = jumps.get(id(law))
+                if found is not None and found[1].one:
+                    error_msg = (
+                        f'{found[0].owner} fires {found[1]!r} at a rate for one drawn member. A jump channel already '
+                        'belongs to one member, so give `one=True` to a request with a probability per step.'
+                    )
+                    raise ValidationError(error_msg)
                 if found is not None:
                     channels[index] = TopologyFunctionsPass._compiled_request(*found, networks, weights, declarations)
                 index += 1
@@ -248,7 +311,9 @@ class TopologyFunctionsPass(BasePass):
             nodes = declarations.blocks[source]
             return SpecsPass._group_space(nodes), 'edge'
         if spec.group in declarations.capacity:
-            return SpecsPass._group_space(declarations.capacity[spec.group]), 'node'
+            block = declarations.capacity[spec.group]
+            on = getattr(block.node.component, 'on', None)
+            return SpecsPass._group_space(block), 'hyperedge' if on == 'hyperedges' else 'node'
         if spec.rows == 1:
             spaces = {id(block.node.space): block.node.space for block in declarations.capacity.values()}
             if len(spaces) == 1:

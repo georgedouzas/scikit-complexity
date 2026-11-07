@@ -14,10 +14,24 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime
 from ....core.components.system import System
-from ....core.engine.solvers import SystemView
+from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._investing_firm_view import InvestingFirmView
+
+
+class InvestingFirmView(AgentView):
+    """Firm as its rule sees it: its states `A`, `K`, `Z`, `B`, `Y`, `P` and parameters `gamma`, `phi`, `r`, `pbar`."""
+
+    A: float
+    K: float
+    Z: float
+    B: float
+    Y: float
+    P: float
+    gamma: float
+    phi: float
+    r: float
+    pbar: float
 
 
 class InvestingFirmElement(Element):

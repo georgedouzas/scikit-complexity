@@ -3,27 +3,288 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Annotated, ClassVar
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement
-from ....core.components.interactions import MapInteraction, MatchingInteraction
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import FeedbackInteraction, MapInteraction, MatchingInteraction
 from ....core.components.spaces import DiscreteTime
 from ....core.components.system import System
-from ....core.engine.solvers import SystemView
+from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import (
     BatchMatchingSpec,
     ContinuousMatchingSpec,
     MatchSpec,
+    ParameterSpec,
     PhaseSpec,
     PhasesScheduleSpec,
+    StateSpec,
+    VisualSpec,
 )
 from ..._catalog import register_system
-from ._auction_ledger import AuctionLedgerInteraction
-from ._zero_intelligence_buyer import ZeroIntelligenceBuyerElement
-from ._zero_intelligence_buyer_view import ZeroIntelligenceBuyerView
-from ._zero_intelligence_seller import ZeroIntelligenceSellerElement
-from ._zero_intelligence_seller_view import ZeroIntelligenceSellerView
+
+
+class ZeroIntelligenceBuyerView(AgentView):
+    """Zero-intelligence buyer as the rules see it, with its value, bid, demand, profit, and price bounds.
+
+    It reads its `value`, `bid`, `demand`, and `profit`, the price `ceiling`, and whether it is `constrained`.
+    """
+
+    value: float
+    bid: float
+    demand: float
+    profit: float
+    ceiling: float
+    constrained: float
+
+
+class ZeroIntelligenceBuyerElement(Element):
+    """Buyer of one unit per trading period who bids a random price, below its value under the budget constraint.
+
+    In every round of a trading period, a buyer that has not bought yet bids a price drawn uniformly from 0 to its
+    value, or to the price ceiling without the constraint, the zero-intelligence traders of Gode and Sunder (1993).
+
+    Args:
+        label:
+            The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        value:
+            The value of the unit to the buyer, its redemption value.
+
+        bid:
+            The current bid.
+
+        demand:
+            The number of units still wanted in the trading period.
+
+        profit:
+            The accumulated surplus of the buyer's trades.
+
+        ceiling:
+            The highest price of the market.
+
+        constrained:
+            One when the buyer never bids above its value, zero otherwise.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.systems.economics.markets import ZeroIntelligenceBuyerElement
+        >>> GroupElement('buyers', element=ZeroIntelligenceBuyerElement, size=5, values={'value': 100.0}).size
+        5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        value: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
+        bid: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        demand: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        profit: Annotated[float, StateSpec()] = 0.0,
+        ceiling: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 200.0,
+        constrained: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.value = value
+        self.bid = bid
+        self.demand = demand
+        self.profit = profit
+        self.ceiling = ceiling
+        self.constrained = constrained
+
+    @classmethod
+    def _get_view(cls) -> type[ZeroIntelligenceBuyerView]:
+        """Return the view of a buyer, with its value, bid, demand, and profit."""
+        return ZeroIntelligenceBuyerView
+
+    @staticmethod
+    def get_bid(agent: ZeroIntelligenceBuyerView, system: SystemView) -> float:
+        """Return a bid drawn uniformly from 0 to the value, or to the price ceiling without the constraint.
+
+        Args:
+            agent:
+                The buyer.
+
+            system:
+                The system view of the quotes.
+
+        Returns:
+            bid:
+                The bid of the round.
+        """
+        return float(system.rng.uniform(0.0, agent.value if agent.constrained else agent.ceiling))
+
+
+class ZeroIntelligenceSellerView(AgentView):
+    """Zero-intelligence seller as the rules see it, with its cost, ask, supply, profit, and price bounds.
+
+    It reads its cost `value`, `ask`, `supply`, and `profit`, the price `ceiling`, and whether it is `constrained`.
+    """
+
+    value: float
+    ask: float
+    supply: float
+    profit: float
+    ceiling: float
+    constrained: float
+
+
+class ZeroIntelligenceSellerElement(Element):
+    """Seller of one unit per trading period who asks a random price, above its cost under the budget constraint.
+
+    In every round of a trading period, a seller that has not sold yet asks a price drawn uniformly from its cost, or
+    from 0 without the constraint, to the price ceiling.
+
+    Args:
+        label:
+            The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        value:
+            The cost of the unit to the seller.
+
+        ask:
+            The current ask.
+
+        supply:
+            The number of units still offered in the trading period.
+
+        profit:
+            The accumulated surplus of the seller's trades.
+
+        ceiling:
+            The highest price of the market.
+
+        constrained:
+            One when the seller never asks below its cost, zero otherwise.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.systems.economics.markets import ZeroIntelligenceSellerElement
+        >>> GroupElement('sellers', element=ZeroIntelligenceSellerElement, size=5, values={'value': 50.0}).size
+        5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        value: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
+        ask: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 200.0,
+        supply: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        profit: Annotated[float, StateSpec()] = 0.0,
+        ceiling: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 200.0,
+        constrained: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.value = value
+        self.ask = ask
+        self.supply = supply
+        self.profit = profit
+        self.ceiling = ceiling
+        self.constrained = constrained
+
+    @classmethod
+    def _get_view(cls) -> type[ZeroIntelligenceSellerView]:
+        """Return the view of a seller, with its cost, ask, supply, and profit."""
+        return ZeroIntelligenceSellerView
+
+    @staticmethod
+    def get_ask(agent: ZeroIntelligenceSellerView, system: SystemView) -> float:
+        """Return an ask drawn uniformly from the cost, or from 0 without the constraint, to the price ceiling.
+
+        Args:
+            agent:
+                The seller.
+
+            system:
+                The system view of the quotes.
+
+        Returns:
+            ask:
+                The ask of the round.
+        """
+        bottom = agent.value if agent.constrained else 0.0
+        return float(system.rng.uniform(bottom, max(bottom, agent.ceiling)))
+
+
+def maximum_surplus(values: np.ndarray, costs: np.ndarray) -> float:
+    """Return the largest total surplus of single units, the competitive surplus of the supply and demand schedules.
+
+    Args:
+        values:
+            The value of a unit to every buyer.
+
+        costs:
+            The cost of a unit to every seller.
+
+    Returns:
+        surplus:
+            The sum of the positive differences between the highest values and the lowest costs.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.systems.economics.markets import maximum_surplus
+        >>> maximum_surplus(np.array([10.0, 6.0, 2.0]), np.array([1.0, 4.0, 8.0]))
+        11.0
+    """
+    demand, supply = np.sort(values)[::-1], np.sort(costs)
+    size = min(len(demand), len(supply))
+    return float(np.maximum(demand[:size] - supply[:size], 0).sum())
+
+
+class AuctionLedgerInteraction(FeedbackInteraction[SystemView]):
+    """Ledger that closes every trading period: it measures its surplus and gives every trader a new unit.
+
+    The realised surplus is the value of the units bought minus the cost of the units sold, and the allocative
+    efficiency is its ratio to the maximum surplus of the supply and demand schedules.
+
+    Args:
+        label:
+            The label of the ledger.
+
+        phase:
+            The phase the ledger acts in.
+
+    Examples:
+        >>> from skcomplex.systems.economics.markets import AuctionLedgerInteraction
+        >>> AuctionLedgerInteraction('ledger', phase='close').reports
+        ('surplus', 'efficiency')
+    """
+
+    reports: ClassVar[tuple[str, ...]] = ('surplus', 'efficiency')
+
+    def act(self, system: SystemView) -> None:
+        """Report the surplus and the efficiency of the trading period and open the next one.
+
+        Args:
+            system:
+                The system view scoped to the ledger.
+        """
+        buyers = system.agents('buyers', ZeroIntelligenceBuyerView)
+        sellers = system.agents('sellers', ZeroIntelligenceSellerView)
+        values = np.array([buyer.value for buyer in buyers])
+        costs = np.array([seller.value for seller in sellers])
+        bought = np.array([buyer.demand <= 0 for buyer in buyers])
+        sold = np.array([seller.supply <= 0 for seller in sellers])
+        surplus = float(values[bought].sum() - costs[sold].sum())
+        system.report('surplus', surplus)
+        system.report('efficiency', surplus / maximum_surplus(values, costs))
+        for buyer in buyers:
+            buyer.demand = 1.0
+        for seller in sellers:
+            seller.supply = 1.0
+
 
 PROTOCOLS = ('order_book', 'call_auction')
 
@@ -41,7 +302,7 @@ def _book_profit(trade: MatchSpec, system: SystemView) -> None:
 @register_system(
     field='economics/markets',
     tags=('market', 'agents', 'double auction', 'zero intelligence'),
-    references=('Gooding 2019 ch. 8-12', 'Gode and Sunder 1993'),
+    references=('Gode and Sunder 1993',),
     defaults={'until': 20},
 )
 def double_auction(
@@ -61,6 +322,9 @@ def double_auction(
     the market matches the quotes, continuously in a limit order book or at one uniform price in a call auction. With
     the budget constraint (ZI-C) no trader accepts a loss, and the market alone reaches nearly the whole competitive
     surplus. Without it (ZI-U), traders make losing trades and the efficiency drops.
+
+    The traders are the zero-intelligence traders of Gode and Sunder (1993). The double auction of Gooding (2019),
+    whose traders adapt their bids and asks, is a different model.
 
     Args:
         n_buyers:

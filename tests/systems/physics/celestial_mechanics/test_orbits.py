@@ -5,18 +5,35 @@ import math
 import numpy as np
 import pytest
 
+from skcomplex.core.components.spaces import ContinuousSpace
+from skcomplex.core.components.system import System
 from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.solvers import Yoshida4Solver
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ScipyODESolver, Yoshida4Solver
 from skcomplex.core.errors import SolverError
 from skcomplex.systems import create_simulation
-from skcomplex.systems.physics.celestial_mechanics import (
-    n_body,
-    restricted_three_body,
-    sitnikov,
-    two_body_orbit,
-)
+from skcomplex.systems.physics.celestial_mechanics import n_body, restricted_three_body, sitnikov, two_body_orbit
+from skcomplex.systems.physics.celestial_mechanics._orbits import GravityInteraction
+from skcomplex.systems.physics.common.particles import MassPointElement
 
 from ..conftest import _relative_spread, _run, _series, _upward_crossings
+
+
+def test_gravity_keeps_circular_orbit():
+    """Test that a light body on a circular orbit keeps its radius."""
+    system = System(
+        elements=[
+            MassPointElement('sun', m=1000.0),
+            MassPointElement('planet', x=[10.0, 0.0], x_d1=[0.0, 10.0], m=1e-6),
+        ],
+        interactions=[GravityInteraction('gravity', first='sun', second='planet', G=1.0)],
+        space=ContinuousSpace(n_dim=2),
+    )
+    trajectory = (
+        Simulation(system, solver=ScipyODESolver(rtol=1e-10, atol=1e-12), dt=0.5).prepare().run(until=6).trajectory_
+    )
+    radius = np.linalg.norm(trajectory.values('planet.x') - trajectory.values('sun.x'), axis=1)
+    assert np.allclose(radius, 10.0, rtol=1e-4)
 
 
 def test_kepler_orbit_conserves_energy_and_momentum_and_follows_the_third_law():

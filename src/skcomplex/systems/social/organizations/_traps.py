@@ -1,21 +1,154 @@
-"""Organization systems: Meadows' system traps of success to the successful, shifting the burden, and escalation."""
+"""Organization systems: Meadows' system traps, from success to the successful to drift to low performance."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from types import SimpleNamespace
+from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
+from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import distributed_delay, lookup, where
 from ....core.components.system import System
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._arms_race import ArmsRaceElement
-from ._burden import BurdenElement
-from ._contest import ContestElement
+
+
+class ArmsRaceElement(Element):
+    """Arms race element."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        a: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='arms')] = 10.0,
+        b: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='arms')] = 10.5,
+        margin: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        adjustment_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        perception_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.a = a
+        self.b = b
+        self.margin = margin
+        self.adjustment_time = adjustment_time
+        self.perception_delay = perception_delay
+
+
+class BurdenElement(Element):
+    """Burden element."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        capability: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='capability')] = 0.5,
+        intervention: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='intervention')] = 0.0,
+        desired: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        fix_rate: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        build_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+        solution_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        erosion: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.capability = capability
+        self.intervention = intervention
+        self.desired = desired
+        self.fix_rate = fix_rate
+        self.build_time = build_time
+        self.solution_delay = solution_delay
+        self.erosion = erosion
+
+
+class ContestElement(Element):
+    """Contest element."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        a: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='resources')] = 55.0,
+        b: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='resources')] = 45.0,
+        budget: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        lifetime: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.a = a
+        self.b = b
+        self.budget = budget
+        self.lifetime = lifetime
+
+
+class PerformanceElement(Element):
+    """Performance element."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        performance: Annotated[object, StateSpec(quantity='performance')] = 1.0,
+        perceived: Annotated[object, StateSpec(quantity='performance')] = 1.0,
+        desired: Annotated[object, StateSpec(quantity='performance')] = 1.0,
+        bias: Annotated[object, ParameterSpec(domain=RealSet.open(-oo, 1))] = 0.1,
+        perception_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        correction_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        goal_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+        erosion: Annotated[object, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.performance = performance
+        self.perceived = perceived
+        self.desired = desired
+        self.bias = bias
+        self.perception_time = perception_time
+        self.correction_time = correction_time
+        self.goal_time = goal_time
+        self.erosion = erosion
+
+
+class StandoffElement(Element):
+    """Standoff element."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        stock: Annotated[object, StateSpec(quantity='stock')] = 50.0,
+        effort_a: Annotated[object, StateSpec(quantity='effort')] = 0.0,
+        effort_b: Annotated[object, StateSpec(quantity='effort')] = 0.0,
+        effort_c: Annotated[object, StateSpec(quantity='effort')] = 0.0,
+        goal_a: Annotated[object, ParameterSpec()] = 80.0,
+        goal_b: Annotated[object, ParameterSpec()] = 20.0,
+        goal_c: Annotated[object, ParameterSpec()] = 50.0,
+        strength_a: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        strength_b: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        strength_c: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        intensification_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.stock = stock
+        self.effort_a = effort_a
+        self.effort_b = effort_b
+        self.effort_c = effort_c
+        self.goal_a = goal_a
+        self.goal_b = goal_b
+        self.goal_c = goal_c
+        self.strength_a = strength_a
+        self.strength_b = strength_b
+        self.strength_c = strength_c
+        self.intensification_time = intensification_time
+
+
+ACTORS = ('a', 'b', 'c')
 
 ALLOCATION_TABLE = ((0.0, 0.0), (0.2, 0.05), (0.5, 0.5), (0.8, 0.95), (1.0, 1.0))
 
@@ -93,6 +226,61 @@ def _build_b(s: SimpleNamespace) -> Expression:
     race = s.source
     desired = _desired_b(race)
     return where(desired > race.b, desired - race.b, 0) / race.adjustment_time
+
+
+def _pull(s: SimpleNamespace, actor: str) -> Expression:
+    """Return the corrective pull of an actor, its strength times the gap from its goal to the stock."""
+    return getattr(s, f'strength_{actor}') * (getattr(s, f'goal_{actor}') - s.stock)
+
+
+def _push(s: SimpleNamespace) -> Expression:
+    """Return the change of the stock, the corrective pulls and the efforts of all three actors."""
+    standoff = s.source
+    return sum(_pull(standoff, actor) + getattr(standoff, f'effort_{actor}') for actor in ACTORS)
+
+
+def _intensify_a(s: SimpleNamespace) -> Expression:
+    """Return the intensification of the effort of the first actor while the stock misses its goal."""
+    return _pull(s.source, 'a') / s.source.intensification_time
+
+
+def _intensify_b(s: SimpleNamespace) -> Expression:
+    """Return the intensification of the effort of the second actor while the stock misses its goal."""
+    return _pull(s.source, 'b') / s.source.intensification_time
+
+
+def _intensify_c(s: SimpleNamespace) -> Expression:
+    """Return the intensification of the effort of the third actor while the stock misses its goal."""
+    return _pull(s.source, 'c') / s.source.intensification_time
+
+
+def _compromise(s: SimpleNamespace) -> Expression:
+    """Return the goal the stock settles at, the mean of the goals weighted by the strengths of the actors."""
+    strengths = [getattr(s, f'strength_{actor}') for actor in ACTORS]
+    goals = [getattr(s, f'goal_{actor}') for actor in ACTORS]
+    return sum(strength * goal for strength, goal in zip(strengths, goals, strict=True)) / sum(strengths)
+
+
+def _correction(s: SimpleNamespace) -> Expression:
+    """Return the corrective action, the gap from the performance to the desired state over the correction time."""
+    return (s.source.desired - s.source.performance) / s.source.correction_time
+
+
+def _perception(s: SimpleNamespace) -> Expression:
+    """Return the update of the perceived state toward the performance lowered by the negative bias."""
+    performance = s.source
+    return ((1 - performance.bias) * performance.performance - performance.perceived) / performance.perception_time
+
+
+def _goal_erosion(s: SimpleNamespace) -> Expression:
+    """Return the slip of the desired state toward the perceived state, zero for absolute standards."""
+    performance = s.source
+    return performance.erosion * (performance.perceived - performance.desired) / performance.goal_time
+
+
+def _discrepancy(s: SimpleNamespace) -> Expression:
+    """Return the discrepancy between the desired state and the perceived state."""
+    return s.desired - s.perceived
 
 
 @register_system(
@@ -320,3 +508,164 @@ def escalation(
         legs=[(Source('production'), 'b', _build_b, 'build_b')],
     )
     return System(elements=[race], interactions=[build])
+
+
+@register_system(
+    field='social/organizations',
+    tags=('system traps', 'policy resistance', 'stocks and flows', 'system dynamics', 'ode'),
+    references=('Meadows 2008',),
+    defaults={'until': 100.0, 'dt': 0.5},
+    observables=lambda system: [ObservableSpec('compromise', _compromise, element='standoff')],
+)
+def policy_resistance(
+    stock: float = 50.0,
+    *,
+    goals: tuple[float, float, float] = (80.0, 20.0, 50.0),
+    strengths: tuple[float, float, float] = (0.1, 0.1, 0.1),
+    intensification_time: float = 10.0,
+) -> System:
+    """Return Meadows' policy resistance trap, one stock pulled by three actors toward inconsistent goals.
+
+    Every actor compares the stock with its own goal and pulls the stock toward it, in proportion to the discrepancy
+    and to its strength, and intensifies its effort while the discrepancy persists, the ratchet of the book. The book's
+    example is the drug supply on the streets, which addicts want high, enforcement agencies want low, and pushers want
+    in the middle. The countermoves produce a standoff: the stock settles at the mean of the goals weighted by the
+    strengths, which none of the actors wants, while the efforts of the actors above and below it grow without bound.
+    When one actor lets up, its strength set to zero, the others drag the stock toward their own goals. The book gives
+    the structure only, as a narrative, so the corrective rules and the parameters are a documented choice.
+
+    Args:
+        stock:
+            The initial stock.
+
+        goals:
+            The goals of the three actors.
+
+        strengths:
+            The rates at which the three actors pull the stock toward their goals, per unit of discrepancy.
+
+        intensification_time:
+            The time over which an actor doubles its effort against a persistent discrepancy.
+
+    Returns:
+        system:
+            The system, with the stock `standoff.stock` and the efforts `standoff.effort_a`, `standoff.effort_b`, and
+            `standoff.effort_c`, and the flows `standoff.push`, `standoff.intensify_a`, `standoff.intensify_b`, and
+            `standoff.intensify_c`. The observable of the system is `standoff.compromise`.
+
+    Examples:
+        >>> from skcomplex.systems.social.organizations import policy_resistance
+        >>> policy_resistance(strengths=(0.1, 0.0, 0.1)).elements[0].strength_b
+        0.0
+    """
+    standoff = StandoffElement(
+        'standoff',
+        stock=stock,
+        goal_a=goals[0],
+        goal_b=goals[1],
+        goal_c=goals[2],
+        strength_a=strengths[0],
+        strength_b=strengths[1],
+        strength_c=strengths[2],
+        intensification_time=intensification_time,
+    )
+    actions = TransferInteraction(
+        'actions',
+        source='standoff',
+        target='standoff',
+        state=Source('actors'),
+        into='stock',
+        amount=_push,
+        flow='push',
+        legs=[
+            (Source('actors'), 'effort_a', _intensify_a, 'intensify_a'),
+            (Source('actors'), 'effort_b', _intensify_b, 'intensify_b'),
+            (Source('actors'), 'effort_c', _intensify_c, 'intensify_c'),
+        ],
+    )
+    return System(elements=[standoff], interactions=[actions])
+
+
+@register_system(
+    field='social/organizations',
+    tags=('system traps', 'eroding goals', 'stocks and flows', 'system dynamics', 'ode'),
+    references=('Meadows 2008',),
+    defaults={'until': 100.0, 'dt': 0.5},
+    observables=lambda system: [ObservableSpec('discrepancy', _discrepancy, element='performance')],
+)
+def drift_to_low_performance(
+    performance: float = 1.0,
+    *,
+    bias: float = 0.1,
+    perception_time: float = 2.0,
+    correction_time: float = 2.0,
+    goal_time: float = 5.0,
+    absolute: bool = False,
+) -> System:
+    """Return Meadows' drift to low performance trap, eroding goals that follow a pessimistic view of the performance.
+
+    The actor compares the desired state with the actual performance and corrects the gap over the correction time,
+    an ordinary balancing loop. The actor perceives the performance worse than it is, smoothed over the perception
+    time and lowered by the negative bias, and the desired state slips toward the perceived state over the goal time.
+    The lower the perceived state, the lower the goal, the less corrective action, and the lower the performance, a
+    reinforcing loop that drags the performance down exponentially. With absolute standards, `absolute=True`, the
+    desired state does not slip and the performance holds, and with an upbeat bias, a negative `bias`, the same
+    structure drifts toward high performance, the two ways out of the book. The book gives the structure only, as a
+    narrative, so the parameters are a documented choice.
+
+    Args:
+        performance:
+            The initial performance, also the initial perceived and desired states.
+
+        bias:
+            The fraction by which the actor underrates the performance, negative for an upbeat bias.
+
+        perception_time:
+            The time over which the actor perceives the performance.
+
+        correction_time:
+            The time over which the corrective action closes the gap to the desired state.
+
+        goal_time:
+            The time over which the desired state follows the perceived state.
+
+        absolute:
+            Whether the desired state is kept absolute, regardless of the performance.
+
+    Returns:
+        system:
+            The system, with the performance `performance.performance`, the perceived state `performance.perceived`,
+            and the desired state `performance.desired`, and the flows `performance.correction`,
+            `performance.perception`, and `performance.goal_erosion`. The observable of the system is
+            `performance.discrepancy`.
+
+    Examples:
+        >>> from skcomplex.systems.social.organizations import drift_to_low_performance
+        >>> drift_to_low_performance(absolute=True).elements[0].erosion
+        0.0
+    """
+    element = PerformanceElement(
+        'performance',
+        performance=performance,
+        perceived=performance,
+        desired=performance,
+        bias=bias,
+        perception_time=perception_time,
+        correction_time=correction_time,
+        goal_time=goal_time,
+        erosion=0.0 if absolute else 1.0,
+    )
+    flows = TransferInteraction(
+        'flows',
+        source='performance',
+        target='performance',
+        state=Source('effort'),
+        into='performance',
+        amount=_correction,
+        flow='correction',
+        legs=[
+            (Source('information'), 'perceived', _perception, 'perception'),
+            (Source('standards'), 'desired', _goal_erosion, 'goal_erosion'),
+        ],
+    )
+    return System(elements=[element], interactions=[flows])

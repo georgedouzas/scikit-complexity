@@ -6,7 +6,7 @@
 import functools
 import re
 from collections import defaultdict
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 
 import numpy as np
 import numpy.typing as npt
@@ -22,7 +22,14 @@ from skfem.models.poisson import laplace, mass
 
 from ...components.elements import FieldElement
 from ...components.laws import BaseLaw, BoundaryLaw, FluxLaw, NoiseLaw, RateLaw, UpdateLaw
-from ...components.laws.utils import COORDINATE_PREFIX, INVERSION_BOUNDARIES, displacement, where
+from ...components.laws.utils import (
+    COORDINATE_PREFIX,
+    INVERSION_BOUNDARIES,
+    coordinate,
+    displacement,
+    integration_variable,
+    where,
+)
 from ...components.spaces import (
     AdjacencyNeighborhood,
     LatticeNeighborhood,
@@ -30,6 +37,7 @@ from ...components.spaces import (
     MeshSpace,
     NetworkSpace,
     PhaseSpace,
+    SimplexSpace,
 )
 from ...errors import ValidationError
 from ...specs import NeighborReadSpec, RunStateSpec
@@ -59,8 +67,10 @@ OPERATOR_NAMES = (
     'reduce_axes',
     'maximum_entropy',
     'collision',
+    'integral_transform',
+    'cumulative_integral',
 )
-PHASE_OPERATOR_NAMES = ('reduce_axes', 'maximum_entropy', 'collision')
+PHASE_OPERATOR_NAMES = ('reduce_axes', 'maximum_entropy', 'collision', 'integral_transform')
 NEWTON_STEPS = 50
 NEWTON_TOLERANCE = 1e-14
 LARGEST_EXPONENT_CHANGE = 5.0
@@ -541,6 +551,8 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             return self._phase_operator(name, [SR(item) for item in operands], place)
         if name == 'convolve':
             return self._convolve(SR(operands[0]), SR(operands[1]), SR(operands[2]), place)
+        if name == 'cumulative_integral':
+            return self._cumulative(SR(operands[0]), int(SR(operands[1])), bool(SR(operands[2])), place)
         return self._discretized(name, operands, place)
 
     def _phase_operator(self, name: str, operands: list[Expression], place: FieldElement) -> Expression:
@@ -549,6 +561,8 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             return self._reduced(operands[0], operands[1:], place)
         if name == 'maximum_entropy':
             return self._equilibrium(operands[0], int(operands[1]), operands[2:], place)
+        if name == 'integral_transform':
+            return self._transformed(operands[0], operands[1], operands[2:], place)
         return self._collision(operands[0], place)
 
     def _phase_space(self, operand: Expression, place: FieldElement) -> PhaseSpace:
@@ -582,9 +596,64 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
 
         over_positions = self.spec.rows == space.position_size_ != space.size_
 
+        volumes = self._volumes(space)
+
         def apply(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-            reduced = np.reshape(values, dimensions).sum(axis=axes, keepdims=True) * width
+            reduced = (np.reshape(values, dimensions) * volumes).sum(axis=axes, keepdims=True) * width
             return reduced.ravel() if over_positions else np.broadcast_to(reduced, dimensions).ravel()
+
+        read = FieldOperatorKernel(operand=operand, symbols=self._symbols(operand), apply=apply)
+        return self._derived(place, read.prepare())
+
+    def _transformed(
+        self,
+        operand: Expression,
+        kernel: Expression,
+        coordinates: list[Expression],
+        place: FieldElement,
+    ) -> Expression:
+        """Return the symbol of the integral of an expression over class axes against a kernel of two points."""
+        space = self._phase_space(operand, place)
+        axes = self._axes_of(coordinates, space)
+        names = [str(item).removeprefix(COORDINATE_PREFIX) for item in coordinates]
+        sizes = [space.shape_[axis] for axis in axes]
+        targets = np.meshgrid(*(space.coordinates_[name] for name in names), indexing='ij')
+        points = [np.reshape(item, (-1, 1)) for item in targets]
+        sources = [np.reshape(item, (1, -1)) for item in targets]
+        symbols = [coordinate(name) for name in names] + [integration_variable(name) for name in names]
+        sampled = self._sampled_kernel(kernel, symbols, [*points, *sources], 'integrates against')
+        width = float(np.prod([space.spacings_[axis] for axis in axes]))
+        matrix = np.broadcast_to(sampled, (int(np.prod(sizes)),) * 2) * width
+        volumes = np.broadcast_to(self._volumes(space), space.shape_)
+        dimensions = space.shape_
+        ends = tuple(range(len(dimensions) - len(axes), len(dimensions)))
+
+        def apply(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+            moved = np.moveaxis(np.reshape(values, dimensions) * volumes, axes, ends)
+            flat = np.reshape(moved, (*moved.shape[: -len(axes)], -1)) @ matrix.T
+            return np.moveaxis(np.reshape(flat, moved.shape), ends, axes).ravel()
+
+        read = FieldOperatorKernel(operand=operand, symbols=self._symbols(operand), apply=apply)
+        return self._derived(place, read.prepare())
+
+    def _cumulative(self, operand: Expression, axis: int, reverse: bool, place: FieldElement) -> Expression:
+        """Return the symbol of the integral of an expression along an axis of a lattice up to every site or beyond."""
+        space = place.space
+        if not isinstance(space, LatticeSpace) or not 0 <= axis < space.n_dim_:
+            error_msg = (
+                f'A law of {self.spec.owner} integrates {operand} along axis {axis}, which needs a lattice with that '
+                'axis. Give the field a lattice space, or integrate along one of its axes.'
+            )
+            raise ValidationError(error_msg)
+        dimensions = space.shape_
+        volumes = self._volumes(space)
+        width = space.spacings_[axis]
+
+        def apply(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+            cells = np.reshape(values, dimensions) * volumes * width
+            ordered = np.flip(cells, axis) if reverse else cells
+            totals = np.cumsum(ordered, axis=axis) - ordered / 2
+            return (np.flip(totals, axis) if reverse else totals).ravel()
 
         read = FieldOperatorKernel(operand=operand, symbols=self._symbols(operand), apply=apply)
         return self._derived(place, read.prepare())
@@ -623,6 +692,12 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
 
     def _discretized(self, name: str, operands: list[object], place: FieldElement) -> Expression:
         """Return a local operator or an inversion lowered for the discretization of its field."""
+        if isinstance(place.space, SimplexSpace):
+            error_msg = (
+                f'A law of {self.spec.owner} applies {name} to a field on a simplex, which only takes finite-volume '
+                'fluxes, reductions, and integrals. Write the transport as a flux of the finite-volume discretization.'
+            )
+            raise ValidationError(error_msg)
         if place.discretization == 'spectral':
             return self._spectral(name, operands, place)
         if name == 'inverse_helmholtz':
@@ -807,6 +882,58 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             self.solution_boundaries_[solution] = (kind, value)
         return solution
 
+    def _parameter_values(self) -> dict[Expression, float]:
+        """Return the initial value of every parameter the spec reads."""
+        return {
+            key: item
+            for key, item in self.initial_.items()
+            if not getattr(self._reference_of(key, self.spec), 'is_state', True)
+        }
+
+    def _sampled_kernel(
+        self,
+        kernel: Expression,
+        symbols: list[Expression],
+        grids: Sequence[npt.NDArray[np.float64]],
+        verb: str,
+    ) -> npt.NDArray[np.float64]:
+        """Return a kernel of some symbols and the parameters evaluated on grids of the symbols.
+
+        Args:
+            kernel:
+                The kernel.
+
+            symbols:
+                The symbols the kernel is a function of besides the parameters.
+
+            grids:
+                The values of every symbol, arrays that broadcast together.
+
+            verb:
+                The verb of the operator in an error message, such as `'convolves with'`.
+
+        Returns:
+            sampled:
+                The kernel at the broadcast points of the grids.
+
+        Raises:
+            ValidationError:
+                The kernel reads a symbol that is neither one of the symbols nor a parameter.
+        """
+        parameters = {key: item for key, item in self._parameter_values().items() if key not in symbols}
+        value = SR(kernel).subs(parameters)
+        unknown = sorted(set(value.variables()) - set(symbols), key=str)
+        if unknown:
+            error_msg = (
+                f'A law of {self.spec.owner} {verb} the kernel {kernel}, which reads {", ".join(map(str, unknown))}. '
+                f'Write the kernel in {", ".join(map(str, symbols))} and the parameters.'
+            )
+            raise ValidationError(error_msg)
+        printer = ExpressionPrinter(time=TIME, compiled=True).prepare(symbols)
+        function = ExpressionPrinter._function_of(printer.run([value]).code_)
+        computed = ExpressionPrinter._values_of(function(0.0, *grids))[0]
+        return np.asarray(computed, dtype=float)
+
     def _kernel_weights(
         self,
         kernel: Expression,
@@ -839,20 +966,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
                 The kernel reads a symbol that is not a displacement or a parameter.
         """
         axes = [displacement(axis) for axis in range(space.n_dim_)]
-        parameters = {
-            key: item
-            for key, item in self.initial_.items()
-            if not getattr(self._reference_of(key, self.spec), 'is_state', True)
-        }
-        value = SR(kernel).subs(parameters)
-        unknown = sorted(set(value.variables()) - set(axes), key=str)
-        if unknown:
-            error_msg = (
-                f'A law of {self.spec.owner} convolves with the kernel {kernel}, which reads '
-                f'{", ".join(map(str, unknown))}. Write the kernel in the displacements and the parameters.'
-            )
-            raise ValidationError(error_msg)
-        distance = float('inf') if SR(radius).is_infinity() else float(SR(radius).subs(parameters))
+        distance = float('inf') if SR(radius).is_infinity() else float(SR(radius).subs(self._parameter_values()))
         if wrapped:
             steps = [np.fft.fftfreq(size, d=1.0 / size) for size in space.shape_]
         else:
@@ -862,15 +976,12 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             ]
             steps = [np.arange(-item, item + 1, dtype=float) for item in reach]
         grids = np.meshgrid(*[item * step for item, step in zip(steps, space.spacings_, strict=True)], indexing='ij')
-        printer = ExpressionPrinter(time=TIME, compiled=True).prepare(axes)
-        function = ExpressionPrinter._function_of(printer.run([value]).code_)
-        computed = ExpressionPrinter._values_of(function(0.0, *grids))[0]
-        sampled = np.broadcast_to(np.asarray(computed, dtype=float), grids[0].shape)
+        sampled = np.broadcast_to(self._sampled_kernel(kernel, axes, grids, 'convolves with'), grids[0].shape)
         inside = np.sqrt(sum((grid**2 for grid in grids), np.zeros(grids[0].shape))) <= distance * (1 + WHOLE_SITE)
         return np.where(inside, sampled, 0.0) * float(np.prod(space.spacings_))
 
     def _convolve(self, operand: Expression, kernel: Expression, radius: Expression, place: FieldElement) -> Expression:
-        """Return the symbol of the convolution of an expression with a kernel on a lattice."""
+        """Return the symbol of the convolution of an expression with a kernel on a lattice, along its position axes."""
         space = place.space
         if not isinstance(space, LatticeSpace):
             error_msg = (
@@ -878,17 +989,21 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
                 'space. Give the field a lattice space.'
             )
             raise ValidationError(error_msg)
-        if place.discretization == 'spectral':
+        phase = isinstance(space, PhaseSpace)
+        if place.discretization == 'spectral' and not phase:
             weights = self._kernel_weights(kernel, space, radius, wrapped=True)
             return self._multiplied(operand, np.fft.rfftn(weights).astype(complex), place)
         kind, value = self._boundary(operand, place)
         if kind == 'fixed' and not isinstance(value, float):
             error_msg = f'A law of {self.spec.owner} convolves {operand}, which needs a number outside fixed edges.'
             raise ValidationError(error_msg)
-        window = self._kernel_weights(kernel, space, radius, wrapped=False)
+        lattice = space.position if isinstance(space, PhaseSpace) else space
+        window = self._kernel_weights(kernel, lattice, radius, wrapped=False)
+        window = np.reshape(window, window.shape + (1,) * (space.n_dim_ - window.ndim))
         if kind == 'periodic' and max(window.shape) > SMALL_KERNEL:
-            weights = self._kernel_weights(kernel, space, radius, wrapped=True)
-            apply = self._spectral_apply(np.fft.rfftn(weights).astype(complex), space.shape_)
+            modes = np.fft.rfftn(self._kernel_weights(kernel, lattice, radius, wrapped=True))
+            multiplier = np.reshape(modes, modes.shape + (1,) * (space.n_dim_ - modes.ndim))
+            apply = self._spectral_apply(multiplier, space.shape_, tuple(range(lattice.n_dim_)))
         else:
             apply = self._window_apply(window, space.shape_, kind, float(value) if isinstance(value, float) else 0.0)
         matrix = None if SR(radius).is_infinity() else self._window_matrix(window, place, kind, value)
@@ -1184,6 +1299,11 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         return FieldLowering._has_operators(getattr(law, 'value', None))
 
     @staticmethod
+    def _volumes(space: object) -> npt.NDArray[np.float64] | float:
+        """Return the fraction of the volume of every cell inside the domain of a simplex space, or one elsewhere."""
+        return space.volumes_ if isinstance(space, SimplexSpace) else 1.0
+
+    @staticmethod
     def _over_positions(
         space: PhaseSpace,
         apply: Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]],
@@ -1229,6 +1349,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
     def _spectral_apply(
         multiplier: npt.NDArray[np.complex128],
         dimensions: tuple[int, ...],
+        axes: tuple[int, ...] | None = None,
     ) -> Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]:
         """Return the function that applies a Fourier multiplier to the values of a periodic lattice.
 
@@ -1239,14 +1360,19 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
             dimensions:
                 The lattice shape.
 
+            axes:
+                The axes of the transform, or `None` for every axis.
+
         Returns:
             apply:
                 The function of the values at every site.
         """
+        transformed_axes = tuple(range(len(dimensions))) if axes is None else axes
+        sizes = [dimensions[axis] for axis in transformed_axes]
 
         def apply(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-            transformed = np.fft.rfftn(np.reshape(values, dimensions)) * multiplier
-            return np.fft.irfftn(transformed, s=dimensions, axes=range(len(dimensions))).ravel()
+            transformed = np.fft.rfftn(np.reshape(values, dimensions), axes=transformed_axes) * multiplier
+            return np.fft.irfftn(transformed, s=sizes, axes=transformed_axes).ravel()
 
         return apply
 
@@ -1273,7 +1399,7 @@ class FieldLowering(BaseLowering[list[BaseLaw]]):
         """Return the function that convolves the values of a lattice with a centred window of weights.
 
         Windows of at most `SMALL_KERNEL` sites per axis use a direct filter, and larger ones an overlap-add FFT of the
-        values padded beyond the edges with the fixed value or their mirror image.
+        values padded beyond the edges with the fixed value or their mirror image. Windows act along the axes they span.
 
         Args:
             window:

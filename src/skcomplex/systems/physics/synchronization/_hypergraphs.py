@@ -21,8 +21,7 @@ from ....core.components.spaces import NetworkSpace
 from ....core.components.system import System
 from ....core.specs import ParameterSpec, RoleSpec, VisualSpec
 from ..._catalog import register_system
-from ..common.oscillators import PhaseOscillatorElement
-from ._utils import _order_parameter
+from ..common.oscillators import PhaseOscillatorElement, order_parameter
 
 PAIR = 2
 
@@ -84,7 +83,7 @@ def _simplices(n_oscillators: int, links: float, triangles: float, seed: int) ->
     tags=('synchronization', 'oscillators', 'phase', 'hypergraph'),
     references=('Skardal and Arenas 2019', 'Majhi et al. 2022'),
     defaults={'until': 40.0, 'dt': 0.1},
-    observables=lambda system: _order_parameter('order', 'oscillators'),
+    observables=lambda system: order_parameter('order', 'oscillators'),
 )
 def hypergraph_kuramoto(
     n_oscillators: int = 60,

@@ -11,6 +11,7 @@ from sage.all__sagemath_symbolics import RR
 
 from ..types import VariableKind
 from ._base_spec import BaseSpec
+from ._matrix_group_spec import MatrixGroupSpec
 
 
 @dataclass(frozen=True)
@@ -86,6 +87,9 @@ class VariableSpec(BaseSpec):
 
         algebraic:
             Whether the equations of the system determine the state, which no law integrates.
+
+        group:
+            The matrix group whose elements a state takes, or `None`.
     """
 
     kind: VariableKind
@@ -111,6 +115,7 @@ class VariableSpec(BaseSpec):
     shape: tuple[str, ...] | None = None
     tensor: str | None = None
     algebraic: bool = False
+    group: MatrixGroupSpec | None = None
 
     @property
     def is_place(self) -> bool:

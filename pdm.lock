@@ -5,7 +5,7 @@
 groups = ["default", "changelog", "checks", "docs", "formatting", "gallery", "maintenance", "metabolism", "release", "rna", "structures", "tests", "trajectories"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.1"
-content_hash = "sha256:7841edf3473ea81d9a37d1ca9de8c4b039d6d371369093ab9158f49554e631f5"
+content_hash = "sha256:8e1036571dca0d6d95e2be13b72f5ddbdf441399a1b5ccb46d12f29bfbf474fa"
 
 [[metadata.targets]]
 requires_python = ">=3.12,!=3.14.1,<3.15"
@@ -178,6 +178,44 @@ files = [
     {file = "ast_serialize-0.13.1-cp39-abi3-win_amd64.whl", hash = "sha256:ddf7cbc9c8abf70102c4a088efe154bb86bfb825b0a10e556d2b15972cf99bd7"},
     {file = "ast_serialize-0.13.1-cp39-abi3-win_arm64.whl", hash = "sha256:48f11d96c9ec71119612f8e79a8c55c12f2b136716d68347433c561d27a25f43"},
     {file = "ast_serialize-0.13.1.tar.gz", hash = "sha256:401cc84e8888d4d76f2c8d296fa006ed1a5ff993b6aff90dd777c03973efd025"},
+]
+
+[[package]]
+name = "astropy"
+version = "8.0.2"
+requires_python = ">=3.11"
+summary = "Astronomy and astrophysics core library"
+groups = ["default"]
+marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
+dependencies = [
+    "PyYAML>=6.0.0",
+    "astropy-iers-data>=0.2026.9.28.0.59.37",
+    "numpy>=2.0",
+    "packaging>=25.0",
+    "pyerfa>=2.0.1.3",
+]
+files = [
+    {file = "astropy-8.0.2-cp311-abi3-macosx_10_9_x86_64.whl", hash = "sha256:3d8492ac4987e2a0634610e387b14b79962b15e8dc5d51667d9100f770aa86e7"},
+    {file = "astropy-8.0.2-cp311-abi3-macosx_11_0_arm64.whl", hash = "sha256:fd67922cca66b7557b58dfcc2271f3871957d85e67c65e712a129ce04ad9ed51"},
+    {file = "astropy-8.0.2-cp311-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:d0e63e0011cc984426c478da8601fe177975fe4cb0b2a059ee88d26d60a0890f"},
+    {file = "astropy-8.0.2-cp311-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:000d6998bcf4f097257b3776f29f1dafde0967bf1b091edbad95df564eee4eea"},
+    {file = "astropy-8.0.2-cp311-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:f462b80fe16e0603e813efd1098d4d6d94a487e64f95e2d9699e46b641577f8b"},
+    {file = "astropy-8.0.2-cp311-abi3-win32.whl", hash = "sha256:57b2388a229ec572437c5786e0387cb21a08ffe6001e5422ae59d2b8b9242001"},
+    {file = "astropy-8.0.2-cp311-abi3-win_amd64.whl", hash = "sha256:8baaf4451dc4fdbdf635e033378cbb626a9fd4755803c8fdc30ef520fb1688ba"},
+    {file = "astropy-8.0.2-cp311-abi3-win_arm64.whl", hash = "sha256:0827b3f83edbae1bda32ad5ab92d0b85f78dc71cfc2fd5c843c30d57de96d4cb"},
+    {file = "astropy-8.0.2.tar.gz", hash = "sha256:e6af35823099ad6a40b57dbe5ff845f577374ea131925c9fa4b49eeab06c5310"},
+]
+
+[[package]]
+name = "astropy-iers-data"
+version = "0.2026.11.2.0.34.55"
+requires_python = ">=3.11"
+summary = "IERS Earth Rotation and Leap Second tables for the astropy core package"
+groups = ["default"]
+marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
+files = [
+    {file = "astropy_iers_data-0.2026.11.2.0.34.55-py3-none-any.whl", hash = "sha256:785cd5bc193d9206316bd7c786fe0647e212ebf017cd861beabedd91cbe585bf"},
+    {file = "astropy_iers_data-0.2026.11.2.0.34.55.tar.gz", hash = "sha256:20827b7431096723bbfac3f42eddc45df1bf35ea9bc6f3978837f65d8443cf6b"},
 ]
 
 [[package]]
@@ -1413,6 +1451,27 @@ dependencies = [
 files = [
     {file = "dot2tex-2.12.0-py3-none-any.whl", hash = "sha256:84e0de1aff0578ee91cfa0f05d8a7977370e751a9526e90859893fe6a9a90b50"},
     {file = "dot2tex-2.12.0.tar.gz", hash = "sha256:11b097390b94d1a6f5072c08c50637e724e2f81b463794972c3d423005b5f536"},
+]
+
+[[package]]
+name = "einsteinpy"
+version = "0.5.0"
+requires_python = ">=3.10"
+summary = "Python package for General Relativity"
+groups = ["default"]
+marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
+dependencies = [
+    "astropy>=5.1.1",
+    "matplotlib>=3.6.2",
+    "numba!=0.49.0,>=0.56.3; implementation_name == \"cpython\"",
+    "numpy>=1.23.4",
+    "plotly>=5.11.0",
+    "scipy>=1.9.3",
+    "sympy>=1.11.1",
+]
+files = [
+    {file = "einsteinpy-0.5.0-py3-none-any.whl", hash = "sha256:3f8af4cf3e8972c9b95e103c4888fb2a258bdb2bab8d3006b927b1a75bbe259d"},
+    {file = "einsteinpy-0.5.0.tar.gz", hash = "sha256:2eee8f66a58de91ac854919424bc8582a0ff09bbc3a7a22cb641422b92e42852"},
 ]
 
 [[package]]
@@ -5011,6 +5070,22 @@ files = [
 ]
 
 [[package]]
+name = "plotly"
+version = "7.1.0"
+requires_python = ">=3.8"
+summary = "An open-source interactive data visualization library for Python"
+groups = ["default"]
+marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
+dependencies = [
+    "narwhals>=1.15.1",
+    "packaging",
+]
+files = [
+    {file = "plotly-7.1.0-py3-none-any.whl", hash = "sha256:dbb7fa18afce40d0a8e80d1bf162eceb3faa0ce5a77fe741ad09a74cf78f53f3"},
+    {file = "plotly-7.1.0.tar.gz", hash = "sha256:f860166a4a3d78c69cb1f4a15f28a5c8283eade98a282a698f3bb853a449ace5"},
+]
+
+[[package]]
 name = "pltable"
 version = "1.1.0"
 summary = "Python 3 library for easily displaying tabular data in a visually appealing text table format"
@@ -5427,6 +5502,27 @@ dependencies = [
 files = [
     {file = "pyee-14.0.0-py3-none-any.whl", hash = "sha256:3ac2d3229a9677f7de2c33d7f52fe25b638a46b19c413fea2edc8c6d0a644e4d"},
     {file = "pyee-14.0.0.tar.gz", hash = "sha256:76dd0f4314ecd27f02dc73589dea7fd3853f9b6176d8ef9b122860657e3602de"},
+]
+
+[[package]]
+name = "pyerfa"
+version = "2.0.1.5"
+requires_python = ">=3.9"
+summary = "Python bindings for ERFA"
+groups = ["default"]
+marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
+dependencies = [
+    "numpy>=1.19.3",
+]
+files = [
+    {file = "pyerfa-2.0.1.5-cp39-abi3-macosx_10_9_x86_64.whl", hash = "sha256:b282d7c60c4c47cf629c484c17ac504fcb04abd7b3f4dfcf53ee042afc3a5944"},
+    {file = "pyerfa-2.0.1.5-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:be1aeb70390dd03a34faf96749d5cabc58437410b4aab7213c512323932427df"},
+    {file = "pyerfa-2.0.1.5-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:b0603e8e1b839327d586c8a627cdc634b795e18b007d84f0cda5500a0908254e"},
+    {file = "pyerfa-2.0.1.5-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0e43c7194e3242083f2350b46c09fd4bf8ba1bcc0ebd1460b98fc47fe2389906"},
+    {file = "pyerfa-2.0.1.5-cp39-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:07b80cd70701f5d066b1ac8cce406682cfcd667a1186ec7d7ade597239a6021d"},
+    {file = "pyerfa-2.0.1.5-cp39-abi3-win32.whl", hash = "sha256:d30b9b0df588ed5467e529d851ea324a67239096dd44703125072fd11b351ea2"},
+    {file = "pyerfa-2.0.1.5-cp39-abi3-win_amd64.whl", hash = "sha256:66292d437dcf75925b694977aa06eb697126e7b86553e620371ed3e48b5e0ad0"},
+    {file = "pyerfa-2.0.1.5.tar.gz", hash = "sha256:17d6b24fe4846c65d5e7d8c362dcb08199dc63b30a236aedd73875cc83e1f6c0"},
 ]
 
 [[package]]
@@ -5950,7 +6046,7 @@ name = "pyyaml"
 version = "6.0.3"
 requires_python = ">=3.8"
 summary = "YAML parser and emitter for Python"
-groups = ["checks", "docs"]
+groups = ["default", "checks", "docs"]
 marker = "python_version >= \"3.12\" and python_full_version < \"3.14.1\" or python_full_version > \"3.14.1\" and python_version < \"3.15\""
 files = [
     {file = "pyyaml-6.0.3-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:7f047e29dcae44602496db43be01ad42fc6f1cc0d8cd6c83d342306c32270196"},

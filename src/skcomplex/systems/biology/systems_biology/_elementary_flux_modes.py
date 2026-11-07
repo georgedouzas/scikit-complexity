@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from ....core.components.spaces import StaticTime
 from ....core.components.system import System
 from ..._catalog import register_system
-from ._flux_balance import ToyNetworkElement
+from ..common.metabolism import ToyNetworkElement
 
 
 @register_system(

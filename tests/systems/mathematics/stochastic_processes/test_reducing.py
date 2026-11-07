@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.systems.mathematics.stochastic_processes import (
+    cascading_sample_space_reducing,
     fragmentation,
     sample_space_reducing,
 )
@@ -26,3 +27,15 @@ def test_fragmentation_conserves_the_total_size():
     lengths = trajectory.agents('fragments', 20).values['length']
     assert lengths.sum() == 500
     assert trajectory.values('fragments.count')[-1] > trajectory.values('fragments.count')[5] > 1
+
+
+@pytest.mark.parametrize(('mu', 'n_cascades'), [(0.5, 3000), (1.0, 1000), (2.0, 50)])
+def test_cascading_sample_space_reducing_visits_follow_the_multiplication_exponent(mu, n_cascades):
+    """Test that the visits of cascades that multiply by `mu` fall off as `i^(-mu)`."""
+    trajectory = _run(cascading_sample_space_reducing(n_cascades, n_states=100, mu=mu), 101)
+    visits = np.concatenate([trajectory.agents('balls', frame).values['level'] for frame in range(102)])
+    counts = np.bincount(visits.astype(int), minlength=101)
+    states = np.arange(2, 31)
+    slope = np.polyfit(np.log(states), np.log(counts[states]), 1)[0]
+    assert slope == pytest.approx(-mu, abs=0.15)
+    assert trajectory.values('balls.count')[-1] == 0

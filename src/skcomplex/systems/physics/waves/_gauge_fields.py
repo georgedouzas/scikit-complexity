@@ -6,26 +6,132 @@
 from collections.abc import Mapping, Sequence
 from functools import partial
 from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import scipy.sparse
 import scipy.sparse.linalg
-from sage.all__sagemath_symbolics import Expression
+from sage.all__sagemath_symbolics import Expression, pi
 
-from ....core.components.elements import GroupElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import codifferential, exterior_derivative
 from ....core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
 from ....core.components.system import System
 from ....core.engine.solvers import VelocityVerletSolver
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, VisualSpec
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._catalog import register_system
-from ._gauge_link import GaugeLinkElement
-from ._maxwell_link import MaxwellLinkElement
-from ._static_charge import StaticChargeElement
-from ._wilson_sampling import WilsonSamplingInteraction
+from ..common.fields import WilsonSamplingInteraction
+
+
+class GaugeLinkElement(Element):
+    """Link of a lattice with an angle `theta`, the U(1) or Z_N variable of a lattice gauge theory.
+
+    Args:
+        label:
+            The label of the link or the group on the links.
+
+        visual:
+            How the link is drawn, or `None` for `default_visual_`.
+
+        theta:
+            The angle of the link.
+
+    Attributes:
+        default_visual_:
+            The visual of the link when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.waves import GaugeLinkElement
+        >>> GaugeLinkElement('link', theta=0.5).theta
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+
+
+class MaxwellLinkElement(Element):
+    """Link of a lattice with a vector potential `A` of second order, whose velocity `A_d1` is the field `-E`.
+
+    Args:
+        label:
+            The label of the link or the group on the links.
+
+        visual:
+            How the link is drawn, or `None` for `default_visual_`.
+
+        A:
+            The initial vector potential.
+
+        A_d1:
+            The initial velocity of the vector potential, minus the electric field.
+
+    Attributes:
+        default_visual_:
+            The visual of the link when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.waves import MaxwellLinkElement
+        >>> MaxwellLinkElement('link', A=0.5).A
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        A: Annotated[float, StateSpec(order=2)] = 0.0,
+        A_d1: float = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.A = A
+        self.A_d1 = A_d1
+
+
+class StaticChargeElement(Element):
+    """Site of a lattice with a static electric charge `q`.
+
+    Args:
+        label:
+            The label of the site or the group on the sites.
+
+        visual:
+            How the site is drawn, or `None` for `default_visual_`.
+
+        q:
+            The electric charge.
+
+    Attributes:
+        default_visual_:
+            The visual of the site when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.waves import StaticChargeElement
+        >>> StaticChargeElement('site', q=-1.0).q
+        -1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        q: Annotated[float, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.q = q
+
 
 DYNAMICS = ('monte-carlo', 'hamiltonian')
 SOLVER_TOLERANCE = 1e-15

@@ -4,23 +4,26 @@
 # License: MIT
 
 
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.components.elements import Element
 from ....core.components.interactions import BaseInteraction, RateInteraction, ReactionInteraction
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import clip, delayed
 from ....core.components.system import System
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
-from ._metastasis_chemotherapy import MetastasisChemotherapyElement
-from ._multidrug_resistance import MultidrugResistanceElement
-from ._resistance_switching import ResistanceSwitchingElement
-from ._resting_hunting_chemotherapy import RestingHuntingChemotherapyElement
 from ._tumour_immune_chemotherapy import TumourImmuneChemotherapyElement
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
-
 DRUGS = (1, 2, 3)
-
 
 RESISTANCE_CLASSES = {
     (): 'S',
@@ -32,6 +35,652 @@ RESISTANCE_CLASSES = {
     (2, 3): 'R23',
     (1, 2, 3): 'R123',
 }
+
+
+class MetastasisChemotherapyElement(Element):
+    """Normal and tumour cells at a primary and a secondary site, each with its drug, and a delayed migration.
+
+    At each site the normal and tumour cells grow logistically, compete, and a drug kills them with a saturating
+    response, `a N U / (bc + N)`. The drug at a site follows `dU/dt = u - (k + g1 N / (bc + N) + g2 A / (bc + A)) U`.
+    Tumour cells leave the primary site at the rate `delta`, and a fraction `epsilon` of them reaches the secondary site
+    after the delay `tau`, `dAs/dt = ... + epsilon delta Ap(t - tau)`. Before the start the primary tumour keeps its
+    initial value.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of `delayed_metastasis`
+    read its parameters.
+
+    Args:
+        label:
+            The label of the patient.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        Np:
+            The initial normal cells at the primary site.
+
+        Ap:
+            The initial tumour cells at the primary site.
+
+        Up:
+            The initial drug concentration at the primary site.
+
+        Ns:
+            The initial normal cells at the secondary site.
+
+        As:
+            The initial tumour cells at the secondary site.
+
+        Us:
+            The initial drug concentration at the secondary site.
+
+        r1:
+            The growth rate of normal cells at the primary site.
+
+        r2:
+            The growth rate of tumour cells at the primary site.
+
+        r3:
+            The growth rate of normal cells at the secondary site.
+
+        r4:
+            The growth rate of tumour cells at the secondary site.
+
+        b1:
+            The reciprocal carrying capacity of normal cells at the primary site.
+
+        b2:
+            The reciprocal carrying capacity of tumour cells at the primary site.
+
+        b3:
+            The reciprocal carrying capacity of normal cells at the secondary site.
+
+        b4:
+            The reciprocal carrying capacity of tumour cells at the secondary site.
+
+        c1:
+            The rate at which the tumour competes with normal cells at the primary site.
+
+        c2:
+            The rate at which normal cells compete with the tumour at the primary site.
+
+        c3:
+            The rate at which the tumour competes with normal cells at the secondary site.
+
+        c4:
+            The rate at which normal cells compete with the tumour at the secondary site.
+
+        a1:
+            The kill rate of the drug on normal cells at the primary site.
+
+        a2:
+            The kill rate of the drug on tumour cells at the primary site.
+
+        a3:
+            The kill rate of the drug on normal cells at the secondary site.
+
+        a4:
+            The kill rate of the drug on tumour cells at the secondary site.
+
+        g1:
+            The rate at which the drug combines with normal cells at the primary site.
+
+        g2:
+            The rate at which the drug combines with tumour cells at the primary site.
+
+        g3:
+            The rate at which the drug combines with normal cells at the secondary site.
+
+        g4:
+            The rate at which the drug combines with tumour cells at the secondary site.
+
+        bc:
+            The half saturation of the kill and of the binding.
+
+        k:
+            The elimination rate of the drug at both sites, `dU1` and `dU2` in the book.
+
+        delta:
+            The rate at which tumour cells leave the primary site.
+
+        epsilon:
+            The fraction of leaving cells that reaches the secondary site.
+
+        tau:
+            The delay of the migration.
+
+        up:
+            The infusion rate of the drug at the primary site.
+
+        us:
+            The infusion rate of the drug at the secondary site.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import MetastasisChemotherapyElement
+        >>> MetastasisChemotherapyElement('patient').epsilon
+        0.0001
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        Np: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1460.0,
+        Ap: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 165.0,
+        Up: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        Ns: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1750.0,
+        As: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        Us: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
+        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        r3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        r4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 12.0,
+        b1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00068,
+        b2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00047,
+        b3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00057,
+        b4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00043,
+        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0075,
+        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
+        c3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.002,
+        c4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
+        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0008,
+        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
+        a3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0006,
+        a4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        g1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0024,
+        g2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.24,
+        g3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0018,
+        g4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        bc: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
+        delta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        up: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        us: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.Np = Np
+        self.Ap = Ap
+        self.Up = Up
+        self.Ns = Ns
+        self.As = As
+        self.Us = Us
+        self.r1 = r1
+        self.r2 = r2
+        self.r3 = r3
+        self.r4 = r4
+        self.b1 = b1
+        self.b2 = b2
+        self.b3 = b3
+        self.b4 = b4
+        self.c1 = c1
+        self.c2 = c2
+        self.c3 = c3
+        self.c4 = c4
+        self.a1 = a1
+        self.a2 = a2
+        self.a3 = a3
+        self.a4 = a4
+        self.g1 = g1
+        self.g2 = g2
+        self.g3 = g3
+        self.g4 = g4
+        self.bc = bc
+        self.k = k
+        self.delta = delta
+        self.epsilon = epsilon
+        self.tau = tau
+        self.up = up
+        self.us = us
+
+
+class MultidrugResistanceElement(Element):
+    """Tumour cells split by their resistance to three drugs, each given by a constant infusion with its toxicity.
+
+    The sensitive cells `S`, the cells resistant to one drug `R1`, `R2`, `R3`, to two drugs `R12`, `R13`, `R23`, and
+    to all three `R123` grow at the same rate `r`. A fraction `m_i` of the offspring of a population gains resistance
+    to drug `i`, so `dS/dt = r (1 - m1 - m2 - m3) S - K S`, `dRi/dt = r ((1 - mj - mk) Ri + mi S) - K Ri`, and so on,
+    where `K` sums the kill `a_i (U_i - Uth) F(U_i - Uth)` of every drug the population is sensitive to. The drugs
+    follow `dU_i/dt = u_i - k_i U_i` and their toxicities `dTX_i/dt = U_i - eta_i TX_i`.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of `multidrug_resistance`
+    read its parameters.
+
+    Args:
+        label:
+            The label of the tumour.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        S:
+            The initial sensitive cells.
+
+        R1:
+            The initial cells resistant to drug 1.
+
+        R2:
+            The initial cells resistant to drug 2.
+
+        R3:
+            The initial cells resistant to drug 3.
+
+        R12:
+            The initial cells resistant to drugs 1 and 2.
+
+        R13:
+            The initial cells resistant to drugs 1 and 3.
+
+        R23:
+            The initial cells resistant to drugs 2 and 3.
+
+        R123:
+            The initial cells resistant to all drugs.
+
+        U1:
+            The initial concentration of drug 1.
+
+        U2:
+            The initial concentration of drug 2.
+
+        U3:
+            The initial concentration of drug 3.
+
+        TX1:
+            The initial toxicity of drug 1.
+
+        TX2:
+            The initial toxicity of drug 2.
+
+        TX3:
+            The initial toxicity of drug 3.
+
+        r:
+            The growth rate of every population.
+
+        m1:
+            The rate of mutation to resistance against drug 1.
+
+        m2:
+            The rate of mutation to resistance against drug 2.
+
+        m3:
+            The rate of mutation to resistance against drug 3.
+
+        a1:
+            The kill rate of drug 1 per unit of concentration above the threshold.
+
+        a2:
+            The kill rate of drug 2 per unit of concentration above the threshold.
+
+        a3:
+            The kill rate of drug 3 per unit of concentration above the threshold.
+
+        Uth:
+            The concentration above which a drug kills.
+
+        k1:
+            The decay rate of drug 1, `dU1` in the book.
+
+        k2:
+            The decay rate of drug 2, `dU2` in the book.
+
+        k3:
+            The decay rate of drug 3, `dU3` in the book.
+
+        eta1:
+            The metabolic rate that lowers the toxicity of drug 1.
+
+        eta2:
+            The metabolic rate that lowers the toxicity of drug 2.
+
+        eta3:
+            The metabolic rate that lowers the toxicity of drug 3.
+
+        u1:
+            The infusion rate of drug 1.
+
+        u2:
+            The infusion rate of drug 2.
+
+        u3:
+            The infusion rate of drug 3.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import MultidrugResistanceElement
+        >>> MultidrugResistanceElement('tumour').Uth
+        10.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        S: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 460500000000.0,
+        R1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        R2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        R3: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        R12: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        R13: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        R23: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        R123: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        U1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        U2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        U3: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        TX1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        TX2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        TX3: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0099,
+        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.008,
+        m2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        m3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.014,
+        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0084,
+        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0074,
+        a3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0092,
+        Uth: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        k1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.32,
+        k2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.27,
+        k3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.25,
+        eta1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
+        eta2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        eta3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.45,
+        u1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        u2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        u3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.S = S
+        self.R1 = R1
+        self.R2 = R2
+        self.R3 = R3
+        self.R12 = R12
+        self.R13 = R13
+        self.R23 = R23
+        self.R123 = R123
+        self.U1 = U1
+        self.U2 = U2
+        self.U3 = U3
+        self.TX1 = TX1
+        self.TX2 = TX2
+        self.TX3 = TX3
+        self.r = r
+        self.m1 = m1
+        self.m2 = m2
+        self.m3 = m3
+        self.a1 = a1
+        self.a2 = a2
+        self.a3 = a3
+        self.Uth = Uth
+        self.k1 = k1
+        self.k2 = k2
+        self.k3 = k3
+        self.eta1 = eta1
+        self.eta2 = eta2
+        self.eta3 = eta3
+        self.u1 = u1
+        self.u2 = u2
+        self.u3 = u3
+
+
+class ResistanceSwitchingElement(Element):
+    """Sensitive cells and cells resistant by mutation or by a reversible phenotype switch, under a constant dose.
+
+    With the total `V = S + Rm + Rp`, the sensitive cells follow
+    `dS/dt = r1 (1 - b V) S - (m1 + m2) S - (alpha_m + alpha_p) u S - a u S + m5 Rp`, the mutated cells
+    `dRm/dt = r2 (1 - b V) Rm + m1 S + alpha_m u S - am u Rm`, and the switched cells
+    `dRp/dt = r3 (1 - b V) Rp + m2 S + alpha_p u S - m5 Rp - ap u Rp`. The rates `m1` and `m2` are the spontaneous
+    (acquired) resistance, `alpha_m` and `alpha_p` the resistance the drug induces, and `m5` the resensitization of
+    switched cells.
+
+    Args:
+        label:
+            The label of the tumour.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        S:
+            The initial sensitive cells.
+
+        Rm:
+            The initial cells resistant by mutation.
+
+        Rp:
+            The initial cells resistant by phenotype switching.
+
+        r1:
+            The growth rate of sensitive cells.
+
+        r2:
+            The growth rate of mutated cells.
+
+        r3:
+            The growth rate of switched cells.
+
+        b:
+            The reciprocal carrying capacity of the tumour.
+
+        m1:
+            The rate of spontaneous resistance by mutation.
+
+        m2:
+            The rate of spontaneous resistance by phenotype switching.
+
+        alpha_m:
+            The rate per unit of dose of resistance induced by mutation.
+
+        alpha_p:
+            The rate per unit of dose of resistance induced by phenotype switching.
+
+        m5:
+            The rate at which switched cells become sensitive again.
+
+        a:
+            The kill rate of sensitive cells per unit of dose.
+
+        am:
+            The kill rate of mutated cells per unit of dose.
+
+        ap:
+            The kill rate of switched cells per unit of dose.
+
+        u:
+            The effective dose.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import ResistanceSwitchingElement
+        >>> ResistanceSwitchingElement('tumour').alpha_m
+        0.01
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        S: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        Rm: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        Rp: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        r3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1e-06,
+        m2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        alpha_m: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        alpha_p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        m5: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        am: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        ap: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.S = S
+        self.Rm = Rm
+        self.Rp = Rp
+        self.r1 = r1
+        self.r2 = r2
+        self.r3 = r3
+        self.b = b
+        self.m1 = m1
+        self.m2 = m2
+        self.alpha_m = alpha_m
+        self.alpha_p = alpha_p
+        self.m5 = m5
+        self.a = a
+        self.am = am
+        self.ap = ap
+        self.u = u
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the growth, transitions, and kill of the sensitive, mutated, and switched cells.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        S, Rm, Rp, u = s.S, s.Rm, s.Rp, s.u
+        room = 1 - s.b * (S + Rm + Rp)
+        return [
+            RateLaw(
+                S,
+                s.r1 * room * S - (s.m1 + s.m2) * S - (s.alpha_m + s.alpha_p) * u * S - s.a * u * S + s.m5 * Rp,
+            ),
+            RateLaw(Rm, s.r2 * room * Rm + s.m1 * S + s.alpha_m * u * S - s.am * u * Rm),
+            RateLaw(Rp, s.r3 * room * Rp + s.m2 * S + s.alpha_p * u * S - s.m5 * Rp - s.ap * u * Rp),
+        ]
+
+
+class RestingHuntingChemotherapyElement(Element):
+    """Hunting immune cells recruited from resting cells after a delay, a tumour, and a drug that kills all three.
+
+    The hunting cells follow `dE/dt = m1 E Q(t - tau) - d1 E - c1 A E - a E / (bd + E) U`, the resting cells
+    `dQ/dt = r1 Q (1 - b1 Q) - m1 E Q(t - tau) - a Q / (bd + Q) U`, the tumour
+    `dA/dt = r2 A (1 - b2 A) - c2 A E - a A / (bd + A) U`, and the drug
+    `dU/dt = u - (k + g (E / (bd + E) + Q / (bd + Q) + A / (bd + A))) U`, which binds to the cells it kills. Before
+    the start the resting cells keep their initial value.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `delayed_resting_hunting_chemotherapy` read its parameters.
+
+    Args:
+        label:
+            The label of the patient.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        E:
+            The initial hunting cells.
+
+        Q:
+            The initial resting cells.
+
+        A:
+            The initial tumour cells.
+
+        U:
+            The initial drug concentration.
+
+        m1:
+            The rate at which resting cells become hunting cells.
+
+        d1:
+            The death rate of hunting cells.
+
+        c1:
+            The rate at which the tumour inactivates hunting cells.
+
+        c2:
+            The rate at which hunting cells kill the tumour.
+
+        r1:
+            The growth rate of resting cells.
+
+        b1:
+            The reciprocal carrying capacity of resting cells.
+
+        r2:
+            The growth rate of the tumour.
+
+        b2:
+            The reciprocal carrying capacity of the tumour.
+
+        a:
+            The kill rate of the drug on every population.
+
+        bd:
+            The half saturation of the kill.
+
+        g:
+            The rate at which the drug combines with every population.
+
+        k:
+            The elimination rate of the drug, `dU` in the book.
+
+        tau:
+            The delay of the conversion of resting cells to hunting cells.
+
+        u:
+            The constant infusion rate of the drug.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import RestingHuntingChemotherapyElement
+        >>> RestingHuntingChemotherapyElement('patient').tau
+        45.6
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        Q: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.48,
+        A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.18,
+        U: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.093,
+        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0412,
+        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005133,
+        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.6515,
+        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0245,
+        b1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
+        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.18,
+        b2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
+        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
+        bd: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.0001,
+        g: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 45.6,
+        u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.E = E
+        self.Q = Q
+        self.A = A
+        self.U = U
+        self.m1 = m1
+        self.d1 = d1
+        self.c1 = c1
+        self.c2 = c2
+        self.r1 = r1
+        self.b1 = b1
+        self.r2 = r2
+        self.b2 = b2
+        self.a = a
+        self.bd = bd
+        self.g = g
+        self.k = k
+        self.tau = tau
+        self.u = u
 
 
 @register_system(

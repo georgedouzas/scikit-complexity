@@ -8,11 +8,9 @@ from skcomplex.core.components.system import System
 from skcomplex.core.engine.compile import OperatorCompiler
 from skcomplex.core.engine.problems import BaseProblemSpec, OperatorProblemSpec, ProblemSpec
 from skcomplex.core.types import FormKind
-from skcomplex.systems.physics.common.quantum import (
-    ModeElement,
-    SpinElement,
-    mode_space,
-)
+from skcomplex.systems.physics.common.quantum import ModeElement, mode_space
+
+from .....conftest import SpinElement
 
 
 def test_compiler_gives_the_dimensions_of_a_chain_and_a_mode():

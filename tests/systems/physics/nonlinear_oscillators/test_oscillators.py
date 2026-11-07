@@ -5,15 +5,40 @@ import math
 import numpy as np
 import pytest
 
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.systems import create_simulation
 from skcomplex.systems.physics.nonlinear_oscillators import (
+    VanDerPolElement,
     adler_equation,
+    forced_toda,
     forced_van_der_pol,
+    impulsive_oscillator,
     stuart_landau,
 )
 
 from ..conftest import _run, _series, _upward_crossings
+
+
+def _run_van_der_pol(**parameters):
+    """Return the trajectory of one Van der Pol oscillator over a long run."""
+    system = System(elements=[VanDerPolElement('oscillator', **parameters)])
+    solver = ScipyODESolver(rtol=1e-9, atol=1e-11)
+    return Simulation(system, dt=0.05, solver=solver).prepare().run(until=100.0).trajectory_
+
+
+def test_unforced_oscillator_reaches_its_limit_cycle():
+    """Test that a small displacement grows to the limit cycle of amplitude near 2."""
+    trajectory = _run_van_der_pol(x=0.1, mu=1.0)
+    assert np.abs(trajectory.values('oscillator.x')[-400:]).max() == pytest.approx(2.0, abs=0.02)
+
+
+def test_undamped_forced_oscillator_follows_the_forcing():
+    """Test that without damping and from rest the forced oscillator follows `A (cos(w t) - cos(t)) / (1 - w^2)`."""
+    trajectory = _run_van_der_pol(x=0.0, mu=0.0, A=0.5, omega=2.0)
+    expected = 0.5 * (np.cos(2.0 * trajectory.times) - np.cos(trajectory.times)) / (1 - 4.0)
+    np.testing.assert_allclose(trajectory.values('oscillator.x'), expected, atol=1e-6)
 
 
 def test_van_der_pol_reaches_limit_cycle():
@@ -69,3 +94,56 @@ def test_adler_equation_locks_inside_the_tongue_and_slips_outside(detuning):
         return
     slips = np.interp(2 * math.pi * np.arange(1, 8), phi - phi[0], trajectory.times)
     assert np.diff(slips).mean() == pytest.approx(2 * math.pi / math.sqrt(detuning**2 - 1), rel=1e-3)
+
+
+def test_nuclear_quadrupole_conserves_energy():
+    """Test that the quadrupole Hamiltonian stays within its invariant tolerance along a chaotic orbit."""
+    trajectory = create_simulation('nuclear_quadrupole').prepare().run().trajectory_
+    q1, q2, p1, p2 = (np.asarray(trajectory.values(f'nucleus.{name}')) for name in ('q1', 'q2', 'p1', 'p2'))
+    q = q1**2 + q2**2
+    energy = (q + p1**2 + p2**2) / 2 + 0.5 * q1 * (3 * q2**2 - q1**2) / math.sqrt(2) + q**2 / 8
+    assert energy[0] == pytest.approx(0.75)
+    assert np.abs(energy - energy[0]).max() < 1e-6
+    np.testing.assert_allclose(trajectory.values('nucleus.energy'), energy)
+
+
+def test_free_toda_oscillator_conserves_energy_and_swings_further_on_the_soft_side():
+    """Test that the free Toda oscillator keeps `v² / 2 + e^x - 1 - x` and reaches the turning points of energy 1."""
+    trajectory = _run(forced_toda(x=0.0, v=math.sqrt(2.0), d=0.0, a=0.0), 30.0, 0.01)
+    x, v = _series(trajectory, 'toda.x', 'toda.x_d1')
+    energy = v**2 / 2 + np.exp(x) - 1 - x
+    assert np.ptp(energy) < 1e-8
+    assert x.max() == pytest.approx(1.1462, abs=2e-3)
+    assert x.min() == pytest.approx(-1.8414, abs=2e-3)
+
+
+def test_forced_toda_oscillator_shifts_its_mean_to_the_soft_side():
+    """Test that the driven Toda oscillator oscillates around a negative mean displacement."""
+    trajectory = _run(forced_toda(omega=0.8), 300.0, 0.05)
+    x = _series(trajectory, 'toda.x')[0]
+    assert x[len(x) // 2 :].mean() < -0.05
+
+
+def test_impulsive_oscillator_follows_the_exact_periodic_orbit():
+    """Test that the default kicked orbit repeats with the period `4 a` and the amplitude `arcsin(sin A sin(a / q))`."""
+    amplitude, a = 1.2, 0.4165
+    q = math.cos(amplitude)
+    trajectory = _run(impulsive_oscillator(), 3 * 4 * a, 0.001)
+    x, v = _series(trajectory, 'oscillator.x', 'oscillator.x_d1')
+    times = np.asarray(trajectory.times)
+    assert x.max() == pytest.approx(math.asin(math.sin(amplitude) * math.sin(a / q)), abs=3e-3)
+    for period in (1, 2, 3):
+        index = np.argmin(np.abs(times - 4 * a * period))
+        assert x[index] == pytest.approx(0.0, abs=0.03)
+        assert v[index] == pytest.approx(math.tan(amplitude), abs=0.01)
+
+
+def test_impulsive_oscillator_shifts_and_scales_the_dipole_impulses():
+    """Test that the shift moves the impulses to `(1 - gamma) a` and `(3 + gamma) a` and scales them by `1 - gamma²`."""
+    trajectory = _run(impulsive_oscillator(a=0.5, gamma=0.5, spring='linear'), 1.8, 0.01)
+    pull, push = trajectory.events[:2]
+    assert (pull.label, push.label) == ('pull', 'push')
+    assert pull.time == pytest.approx(0.25)
+    assert push.time == pytest.approx(1.75)
+    assert pull.after[1] - pull.before[1] == pytest.approx(-4 / 0.75)
+    assert push.after[1] - push.before[1] == pytest.approx(4 / 0.75)

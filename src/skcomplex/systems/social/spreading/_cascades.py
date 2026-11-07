@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 from typing import Annotated
 
 import networkx as nx
@@ -13,12 +12,59 @@ from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import NetworkSpace
 from ....core.components.system import System
-from ....core.specs import StateSpec, VisualSpec
+from ....core.components.types import SystemViewProtocol
+from ....core.engine.solvers import AgentView
+from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._threshold_activation import ThresholdActivationInteraction
-from ._threshold_node_view import ThresholdNodeView
+
+
+class ThresholdNodeView(AgentView):
+    """View of a node of the Watts cascade system, with its states and parameters as attributes."""
+
+    active: float
+    threshold: float
+
+
+class ThresholdActivationInteraction(MapInteraction):
+    """Activation of the Watts cascade system, where a node becomes active once enough of its neighbours are active.
+
+    A node becomes active for good once the share of active nodes among its neighbouring nodes reaches its threshold.
+    The nodes update one after the other in a new random order every step, each reading the activations the nodes
+    before it set, so a cascade can cross several nodes in one step.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of nodes.
+
+    Examples:
+        >>> from skcomplex.systems.social.spreading import ThresholdActivationInteraction
+        >>> ThresholdActivationInteraction('activation', target='nodes').state
+        'active'
+    """
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
+        super().__init__(
+            label,
+            target=target,
+            state='active',
+            function=self._get_active,
+            schedule='random-sequential',
+            form='agent',
+        )
+
+    def _get_active(self, agent: ThresholdNodeView, system: SystemViewProtocol) -> float:
+        """Return 1 for a node that is or becomes active, and 0 for one that stays inactive."""
+        del system
+        neighbors = [item for item in agent.neighbors() if isinstance(item, ThresholdNodeView)]
+        if agent.active or not neighbors:
+            return float(agent.active)
+        return float(sum(neighbor.active for neighbor in neighbors) / len(neighbors) >= agent.threshold)
 
 
 class ThresholdNodeElement(Element):

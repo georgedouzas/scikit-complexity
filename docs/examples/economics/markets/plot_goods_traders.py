@@ -52,10 +52,10 @@ simulation = (
 # Prices converge while every good is conserved
 # ---------------------------------------------
 # Bilateral barter at the geometric mean of the marginal rates of substitution moves every pair toward equal rates,
-# so the rates of all traders, and with them the prices, should converge (Epstein and Axtell 1996, Gooding 2019). The
-# spread of the logarithm of the price should fall steadily, for two goods as for three, the mean utility should rise
-# and level off, and the totals of the goods, which the invariants of the exchange check every step, should stay
-# exactly at their first values.
+# so the rates of all traders, and with them the prices, should converge (Epstein and Axtell 1996). The spread of the
+# logarithm of the price should fall steadily, for two goods as for three, the mean utility should rise and level off,
+# and the totals of the goods, which the invariants of the exchange check every step, should stay exactly at their
+# first values.
 
 fig, (spread, utility, totals) = plt.subplots(1, 3, figsize=(14, 4))
 for goods in (2, 3):

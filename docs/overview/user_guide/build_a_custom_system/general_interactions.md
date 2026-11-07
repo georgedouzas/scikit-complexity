@@ -22,12 +22,16 @@ list, then follow the link to its subsection.
   `RelaxationInteraction`, in [Rates and relaxation](#rates-and-relaxation).
 - Move states down a potential, or write the mechanics of a Lagrangian or a Hamiltonian: `GradientInteraction`,
   `EulerLagrangeInteraction`, and `HamiltonianInteraction`, in [Gradients and mechanics](#gradients-and-mechanics).
+- Move a particle along the geodesics of a curved metric, or evolve a metric ansatz by the Einstein equations:
+  `PseudoRiemannianSpace`, `GeodesicInteraction`, and `EinsteinInteraction`, in [Curved spacetimes](#curved-spacetimes).
 - Conserve, carry, or spread a quantity over a field: `ConservationInteraction`, `AdvectionInteraction`, and
   `DiffusionInteraction`, in [Conservation laws](#conservation-laws).
 - Update a state in steps, search by trial and error, or run a cellular automaton or a cascade: `MapInteraction`,
   `SignAdjustmentInteraction`, `LocalRuleInteraction`, and `CascadeInteraction`, in [Discrete time](#discrete-time).
 - Couple members over the edges of a lattice or a network, over a group, or over close pairs: `CouplingInteraction`
   and `PairCouplingInteraction`, in [Coupling over a structure](#coupling-over-a-structure).
+- Move particles through a viscous fluid by the forces, torques, and active slip of all of them: `MobilityInteraction`,
+  in [Coupling over a structure](#coupling-over-a-structure).
 - Fire random events or chemical reactions: `JumpInteraction` and `ReactionInteraction`, in
   [Jumps and reactions](#jumps-and-reactions).
 - Move a member between discrete values, such as susceptible and infected: `TransitionInteraction`, in
@@ -266,6 +270,102 @@ InvariantAnalysis(expressions=[momentum]).prepare(system).run().conserved_
 rotation = SymmetrySpec('rotation', lambda s: {'sun.x': -s.sun.y, 'sun.y': s.sun.x})
 InvariantAnalysis('symmetry', symmetry=rotation).prepare(system).run().charge_
 ```
+
+### Curved spacetimes
+
+Use `PseudoRiemannianSpace` and `GeodesicInteraction` when a particle falls freely in a metric you know, such as a
+planet around a static mass in the Schwarzschild metric:
+
+```python
+from sage.all__sagemath_symbolics import SR, diagonal_matrix, pi, sin
+
+from skcomplex.core.components.elements import PointElement
+from skcomplex.core.components.interactions import GeodesicInteraction
+from skcomplex.core.components.spaces import PseudoRiemannianSpace
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.solvers import ScipyODESolver
+
+t, r, theta, phi = SR.var('t r theta phi')
+lapse = 1 - 2 / r
+metric = diagonal_matrix(SR, [-lapse, 1 / lapse, r**2, r**2 * sin(theta) ** 2])
+spacetime = PseudoRiemannianSpace(metric, (t, r, theta, phi), curvature=False)
+dilation = 1 / (1 - 3 / 20) ** 0.5
+planet = PointElement('planet', x=[0.0, 20.0, pi / 2, 0.0], x_d1=[dilation, 0.0, 0.0, dilation / 20**1.5])
+fall = GeodesicInteraction('fall', target='planet', space=spacetime)
+system = System(elements=[planet], interactions=[fall], space=spacetime)
+solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
+trajectory = Simulation(system, dt=10.0, solver=solver).prepare().run(until=500.0).trajectory_
+round(float(trajectory.values('planet.x')[-1][1]), 6)
+```
+
+`PseudoRiemannianSpace(metric, coordinates, curvature=True)` takes a symmetric Sage matrix and its coordinates, and
+`prepare` derives through EinsteinPy the Christoffel symbols `christoffel_`, and with `curvature` the tensors
+`riemann_`, `ricci_`, `ricci_scalar_`, and `einstein_`. It derives them again only when the metric, the coordinates,
+or `curvature` change. The space is an unbounded continuous space with one dimension per coordinate, so a point on it
+has one component per coordinate. `GeodesicInteraction(target, state='x', space)` gives that vector state of order 2
+the geodesic equation `x''^mu = -Γ^mu_(alpha beta) x'^alpha x'^beta`, with the system time as the affine parameter.
+The initial four-velocity decides the kind of geodesic: a norm `g_(mu nu) x'^mu x'^nu` of -1 is a massive particle on
+its proper time, and 0 is a light ray. The circular orbit above, of radius `20 M`, keeps its radius.
+
+Use `EinsteinInteraction` when the metric itself is the unknown, reduced by a symmetry to functions of time, such as
+the scale factor `a(t)` of a flat universe of dust:
+
+```python
+import math
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import SR, diagonal_matrix, function, sin
+
+from skcomplex.core.components.elements import Element
+from skcomplex.core.components.interactions import EinsteinInteraction
+from skcomplex.core.components.spaces import PseudoRiemannianSpace
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.specs import ParameterSpec, StateSpec
+
+
+class UniverseElement(Element):
+    def __init__(
+        self,
+        label,
+        *,
+        a: Annotated[float, StateSpec(order=2)] = 1.0,
+        a_d1: float = 1.0,
+        rho: Annotated[float, ParameterSpec()] = 3 / (8 * math.pi),
+    ):
+        super().__init__(label)
+        self.a = a
+        self.a_d1 = a_d1
+        self.rho = rho
+
+
+t, r, theta, phi = SR.var('t r theta phi')
+a = function('a')(t)
+metric = diagonal_matrix(SR, [-1, a**2, a**2 * r**2, a**2 * r**2 * sin(theta) ** 2])
+ansatz = PseudoRiemannianSpace(metric, (t, r, theta, phi))
+
+
+def dust(s):
+    return diagonal_matrix(SR, [-s.target.rho / s.target.a**3, 0, 0, 0])
+
+
+expansion = EinsteinInteraction(
+    'expansion', target='universe', states='a', space=ansatz, components=[(1, 1)], source=dust
+)
+system = System(elements=[UniverseElement('universe')], interactions=[expansion])
+trajectory = Simulation(system, dt=0.1).prepare().run(until=2.0).trajectory_
+round(float(trajectory.values('universe.a')[-1]), 4)
+```
+
+`EinsteinInteraction(target, states, space, components, source=None, coupling=8π, cosmological_constant=0.0, time=0,
+axes=None)` names every function of the metric after a state or parameter of the target. It takes one component
+`(mu, nu)` of the mixed equations `G^mu_nu + Λ δ^mu_nu = κ T^mu_nu` per state, and solves them for the second time
+derivatives. The source returns the mixed energy-momentum tensor, here dust of density `ρ / a³`, so the scale factor
+grows as `(3 t / 2 + 1)^(2/3)`. The other components, such as the Friedmann equation `G^t_t`, are constraints the
+initial values satisfy. A function of a spatial coordinate too, such as the radius `R(t, r)` of the shells of a dust
+ball, needs that coordinate on a lattice axis of a field, `axes={1: 0}`, and its derivatives become `partial` of the
+field. An equation that mixes time and space derivatives, or keeps a coordinate, raises an error.
 
 ### Conservation laws
 
@@ -512,6 +612,64 @@ round(float(distances.min()), 2), round(float(distances.max()), 2)
 `PairCouplingInteraction(first, second, cutoff, read, write, function=None, potential=None, divisor=None,
 period=None)` adds to both members of every pair within the cutoff either `function(s)`, or minus the gradient of
 `potential(s, r)` at their distance `r`. With several states in `write`, the function returns one value per state.
+
+Use `MobilityInteraction` for spheres in a viscous fluid at low Reynolds number, where the force on one sphere moves all
+the others through the flow it creates. Two spheres that sediment side by side fall faster than one alone:
+
+```python
+from typing import Annotated
+
+import numpy as np
+import numpy.typing as npt
+from sage.all__sagemath_symbolics import vector
+
+from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.interactions import MobilityInteraction
+from skcomplex.core.components.spaces import ContinuousSpace
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.specs import StateSpec
+
+
+class SphereElement(Element):
+    def __init__(self, label, *, x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0):
+        super().__init__(label)
+        self.x = x
+
+
+def fall(positions):
+    gravity = MobilityInteraction('stokes', target='spheres', force=lambda s: vector([0.0, 0.0, -1.0]))
+    spheres = GroupElement('spheres', element=SphereElement, size=len(positions), values={'x': positions})
+    system = System(elements=[spheres], interactions=[gravity], space=ContinuousSpace(n_dim=3))
+    heights = Simulation(system, dt=1.0).prepare().run(until=10.0).trajectory_.values('spheres.x')[..., 2]
+    return float(heights[0, 0] - heights[-1, 0]) / 10 * 6 * np.pi
+
+
+round(fall([[0.0, 0.0, 0.0]]), 3), round(fall([[0.0, 0.0, 0.0], [3.0, 0.0, 0.0]]), 3)
+```
+
+`MobilityInteraction(target, position='x', orientation=None, tensor='rotne-prager-yamakawa', form='rate', force,
+torque, velocity, stresslet, dipole, potential, cutoff, root='cholesky', radius, viscosity, temperature, dt)` moves the
+spheres of a group by the grand mobility `M`, the linear map from the forces and torques on all spheres to their
+velocities and angular velocities. A lone sphere moves at `F / (6 pi eta a)`, and the second sphere above adds the
+fraction `3 a / (4 r) + a^3 / (2 r^3)` to the speed of the first, about a quarter at the distance `r = 3`.
+
+- The tensor is `'oseen'`, the flow of a point force, `'rotne-prager-yamakawa'`, which adds the finite size of the
+  spheres and stays positive definite when they overlap, or `'free-draining'`, which couples no pair. The rotlet couples
+  torques to velocities and forces to angular velocities, and an `orientation` state turns at `Omega x p`.
+- The force, the torque, an intrinsic `velocity`, a `stresslet`, and a potential `dipole` are functions of the namespace
+  of a member. The stresslet and the dipole are force-free sources whose flows move and turn the other spheres, so
+  together with the intrinsic velocity they carry the active slip of a microswimmer. A pair `potential(s, r)` of the
+  distance adds its forces within `cutoff`.
+- In `form='map'`, in discrete time, every step is the Ermak-McCammon step `x + M F dt + sqrt(2 kT dt) B xi` of Brownian
+  dynamics, where `B B^T = M`. `root='cholesky'` factors `M`, and `root='lanczos'` applies a Krylov approximation of
+  its square root with the matrix-free product, for larger groups. The time of the namespace then counts steps.
+- Positions in the plane are the plane `z = 0` of a three-dimensional fluid. The fluid is unbounded, every evaluation
+  costs `O(N^2)`, and Cholesky costs `O(N^3)`.
+
+The library has `squirmers`, spherical microswimmers whose slip modes make them pushers or pullers, and
+`hydrodynamically_coupled_traps`, two Brownian spheres in blinking optical tweezers whose free steps correlate through
+the mobility.
 
 ## Events and discrete states
 

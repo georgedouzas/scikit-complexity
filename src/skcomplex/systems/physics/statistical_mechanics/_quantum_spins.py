@@ -4,22 +4,245 @@
 # License: MIT
 
 from types import SimpleNamespace
+from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression
+import qutip
+from sage.all__sagemath_symbolics import CC, Expression, oo
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import LatticeElement
-from ....core.components.interactions import BaseInteraction
+from ....core.components.elements import Element, LatticeElement
+from ....core.components.interactions import BaseInteraction, Interaction, NeighborInteraction
+from ....core.components.laws import BaseLaw, DissipatorLaw, GeneratorLaw
 from ....core.components.laws.utils import local_operator
 from ....core.components.spaces import LatticeSpace
 from ....core.components.system import System
 from ....core.engine.compile import OperatorCompiler
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec
+from ....core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ..common.quantum import SpinElement
-from ._dephasing import DephasingInteraction
-from ._xxz_exchange import XXZExchangeInteraction
-from ._zeeman_field import ZeemanFieldInteraction
+
+MIN_SPIN_DIMENSION = 2
+
+
+def spin_space(j: float = 0.5) -> HilbertSpec:
+    """Return the Hilbert space of a spin of quantum number `j`, with the basis from `m = j` down to `m = -j`.
+
+    Its operators are the spin components `x`, `y`, `z` and the ladder operators `plus` and `minus`.
+
+    Args:
+        j:
+            The spin quantum number, a positive multiple of one half.
+
+    Returns:
+        space:
+            The Hilbert space, of dimension `2 j + 1`.
+
+    Raises:
+        ValidationError:
+            The quantum number is not a positive multiple of one half.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics._quantum_spins import spin_space
+        >>> spin_space(1).dimension
+        3
+    """
+    size = 2 * j + 1
+    if not float(size).is_integer() or size < MIN_SPIN_DIMENSION:
+        error_msg = f'A spin has j = {j!r}, which is not a positive multiple of one half.'
+        raise ValidationError(error_msg)
+    operators = {
+        'x': (qutip.jmat(j, 'x').full(), True),
+        'y': (qutip.jmat(j, 'y').full(), True),
+        'z': (qutip.jmat(j, 'z').full(), True),
+        'plus': (qutip.jmat(j, '+').full(), False),
+        'minus': (qutip.jmat(j, '-').full(), False),
+    }
+    return HilbertSpec(int(size), operators, basis={'up': 0, 'down': int(size) - 1})
+
+
+SPIN_HALF = spin_space()
+
+
+class SpinElement(Element):
+    """Spin of the Hilbert space it takes, with the spin components `x`, `y`, `z` and the ladder operators.
+
+    The basis is ordered from `m = j` to `m = -j`, so `'up'` is index 0 and `'down'` is the last index. Its laws read
+    the operators of its state `psi`, such as `local_operator(namespace.psi, 'z')`.
+
+    Args:
+        label:
+            The label of the spin.
+
+        psi:
+            The state in the Hilbert space: `'up'`, `'down'`, a basis index, or a vector.
+
+        hilbert:
+            The Hilbert space, `spin_space(j)`, by default that of a spin one half.
+
+        visual:
+            How the spin is drawn.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics._quantum_spins import SpinElement, spin_space
+        >>> SpinElement('s', hilbert=spin_space(1)).hilbert.dimension
+        3
+    """
+
+    def __init__(
+        self,
+        label: str,
+        psi: Annotated[object, StateSpec(domain=CC)] = 'up',
+        *,
+        hilbert: HilbertSpec = SPIN_HALF,
+        visual: VisualSpec | None = VisualSpec('expectations'),
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.psi = psi
+        self.hilbert = hilbert
+
+
+class DephasingInteraction(Interaction):
+    """Dephasing of every spin of a chain, a dissipator with the collapse operator `S^z_i` at the rate `gamma`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the spin chain.
+
+        gamma:
+            The dephasing rate.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import DephasingInteraction
+        >>> DephasingInteraction('dephasing', target='chain', gamma=0.1).gamma
+        0.1
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.gamma = gamma
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return one dissipator per spin.
+
+        Args:
+            s:
+                The namespace of the interaction.
+
+        Returns:
+            laws:
+                The dissipators.
+        """
+        return [DissipatorLaw(local_operator(member.psi, 'z'), s.gamma) for member in s.target]
+
+
+class XXZExchangeInteraction(NeighborInteraction):
+    """Exchange `J (S^x_i S^x_j + S^y_i S^y_j + Δ S^z_i S^z_j)` between neighbouring spins.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the spin chain.
+
+        J:
+            The exchange coupling, antiferromagnetic when positive.
+
+        delta:
+            The anisotropy `Δ`, 1 for the isotropic chain and 0 for the XX chain.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import XXZExchangeInteraction
+        >>> XXZExchangeInteraction('exchange', target='chain', delta=0.5).delta
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        J: Annotated[float, ParameterSpec()] = 1.0,
+        delta: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.J = J
+        self.delta = delta
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the exchange Hamiltonian of one bond.
+
+        Args:
+            s:
+                The namespace of the bond, with `s.source` and `s.target`.
+
+        Returns:
+            laws:
+                The Hamiltonian of the bond.
+        """
+        first, second = s.source.psi, s.target.psi
+        exchange = (
+            local_operator(first, 'x') * local_operator(second, 'x')
+            + local_operator(first, 'y') * local_operator(second, 'y')
+            + s.delta * local_operator(first, 'z') * local_operator(second, 'z')
+        )
+        return [GeneratorLaw(s.J * exchange)]
+
+
+class ZeemanFieldInteraction(Interaction):
+    """Uniform field `-h Σ S^z_i` on the spins of a chain.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the spin chain.
+
+        h:
+            The field.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import ZeemanFieldInteraction
+        >>> ZeemanFieldInteraction('field', target='chain', h=0.2).h
+        0.2
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        h: Annotated[float, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.h = h
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the Hamiltonian of the field.
+
+        Args:
+            s:
+                The namespace of the interaction.
+
+        Returns:
+            laws:
+                The field Hamiltonian.
+        """
+        return [GeneratorLaw(-s.h * sum(local_operator(member.psi, 'z') for member in s.target))]
+
 
 INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')
 

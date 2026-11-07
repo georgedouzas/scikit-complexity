@@ -483,9 +483,6 @@ def test_changing_network_logs_present_nodes_and_changed_edges(on_system):
             """Return the laws of the node element."""
             return [UpdateLaw(s.age, s.age + 1)]
 
-    class LinkElement(Element):
-        """Link element."""
-
     class GrowthElement(Element):
         """Growth element."""
 
@@ -498,7 +495,7 @@ def test_changing_network_logs_present_nodes_and_changed_edges(on_system):
     system = System(
         elements=[
             GroupElement('nodes', element=NodeElement, on='sites', variable=True, capacity=10, **owned),
-            GroupElement('links', element=LinkElement, on='edges', variable=True, capacity=10, **owned),
+            GroupElement('links', element=Element, on='edges', variable=True, capacity=10, **owned),
             GrowthElement('growth'),
         ],
         space=space if on_system else None,

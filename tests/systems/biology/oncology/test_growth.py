@@ -2,7 +2,12 @@
 
 import numpy as np
 
+from skcomplex.core.components.elements import CompartmentElement
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
 from skcomplex.systems.biology.oncology import (
+    GompertzGrowthInteraction,
+    PowerLawGrowthInteraction,
     dynamic_carrying_capacity,
     exponential_linear_growth,
     generalized_logistic,
@@ -14,6 +19,13 @@ from skcomplex.systems.biology.oncology import (
 )
 
 from ..conftest import _run_precise
+
+
+def _run_compartment(interaction, n0, until=4.0, dt=0.01):
+    """Return the times and the population of one compartment under one interaction."""
+    system = System(elements=[CompartmentElement('population', n=n0)], interactions=[interaction])
+    trajectory = Simulation(system, dt=dt).prepare().run(until=until).trajectory_
+    return np.asarray(trajectory.times), np.asarray(trajectory.values('population.n'))
 
 
 def test_gompertz_matches_closed_form():
@@ -86,3 +98,15 @@ def test_norton_simon_regrows_faster_after_a_dose():
     before, after = rate[np.isclose(times, 41.5)][0], rate[np.isclose(times, 44.0)][0]
     assert n[np.isclose(times, 43.0)][0] < n[np.isclose(times, 42.0)][0]
     assert after > before
+
+
+def test_gompertz_growth_follows_its_closed_solution():
+    """Test that Gompertz growth follows `K exp(log(n0 / K) exp(-r t))`."""
+    times, population = _run_compartment(GompertzGrowthInteraction('growth', target='population', r=0.5, K=100.0), 2.0)
+    np.testing.assert_allclose(population, 100.0 * np.exp(np.log(0.02) * np.exp(-0.5 * times)), rtol=1e-4)
+
+
+def test_power_law_growth_follows_its_closed_solution():
+    """Test that power-law growth with the exponent 1/2 follows `(sqrt(n0) + r t / 2) ** 2`."""
+    times, population = _run_compartment(PowerLawGrowthInteraction('growth', target='population', r=0.5, p=0.5), 2.0)
+    np.testing.assert_allclose(population, (np.sqrt(2.0) + 0.25 * times) ** 2, rtol=1e-4)

@@ -6,14 +6,16 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import FieldElement
+from skcomplex.core.components.elements import FieldElement, GroupElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import hill, laplacian
-from skcomplex.core.components.spaces import ContinuousTime
+from skcomplex.core.components.spaces import ContinuousTime, DiscreteTime
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.specs import ParameterSpec, StateSpec
 from skcomplex.systems.biology.physiology import (
+    ContourCellElement,
+    ContourUptakeInteraction,
     ExchangingCellElement,
     closed_contour_cell_exchange,
     nanotube_gap_junction_exchange,
@@ -85,3 +87,14 @@ def test_nanotube_gap_junction_exchange_keeps_the_trajectory_of_the_coupling_in_
     trajectory = Simulation(system, dt=0.5).prepare().run(until=100).trajectory_
     expected = Simulation(previous, dt=0.5).prepare().run(until=100).trajectory_
     assert np.abs(trajectory.values('cells.x') - expected.values('cells.x')).max() < 1e-10
+
+
+def test_contour_uptake_interaction_mixes_logistic_map_and_next_cell():
+    """Test that every cell mixes its logistic map with the power of the next cell, the last with the first."""
+    x, r, c, p = np.array([0.2, 0.5, 0.7]), 3.0, np.array([0.1, 0.2, 0.3]), np.array([0.5, 1.0, 2.0])
+    cells = GroupElement('cells', element=ContourCellElement, size=3, values={'x': x, 'r': r, 'c': c, 'p': p})
+    uptake = ContourUptakeInteraction('uptake', target='cells')
+    system = System(elements=[cells], interactions=[uptake], time=DiscreteTime())
+    found = Simulation(system).prepare().run(until=1).trajectory_.values('cells.x')[-1]
+    expected = (1 - c) * r * x * (1 - x) + c * np.roll(x, -1) ** p
+    np.testing.assert_allclose(found, expected)

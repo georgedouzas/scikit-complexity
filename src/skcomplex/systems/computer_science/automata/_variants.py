@@ -6,11 +6,14 @@
 import itertools
 import re
 from collections.abc import Callable, Sequence
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import LatticeElement
+from ....core.components.elements import Element, LatticeElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import (
     BoxNeighborhood,
@@ -21,13 +24,82 @@ from ....core.components.spaces import (
 )
 from ....core.components.system import System
 from ....core.errors import ParameterError
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._catalog import register_system
 from ._binary_cell import BinaryCellElement
 from ._codes import Wolfram, life
-from ._diffusion_cell import DiffusionCellElement
-from ._noisy_elementary_cell import NoisyElementaryCellElement
 from ._pascal_cell import PascalCellElement
+
+
+class DiffusionCellElement(Element):
+    """Cell of a lattice with a content and the share of the difference it exchanges with each neighbour in a step.
+
+    Args:
+        label:
+            The label of the cell or the lattice group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        level:
+            The initial content.
+
+        r:
+            The share of the difference with a neighbour exchanged in a step, below `1 / (2 d)` in `d` dimensions.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import DiffusionCellElement
+        >>> DiffusionCellElement('cell', r=0.2).r
+        0.2
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        level: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.level = level
+        self.r = r
+
+
+class NoisyElementaryCellElement(BinaryCellElement):
+    """Binary cell that holds the probability that the output of its local rule is flipped.
+
+    Args:
+        label:
+            The label of the cell or the lattice group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        alive:
+            The initial value, 0 or 1.
+
+        noise:
+            The probability that the output of the rule is flipped.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import NoisyElementaryCellElement
+        >>> NoisyElementaryCellElement('cell', noise=0.1).noise
+        0.1
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        alive: float = 0,
+        noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+    ) -> None:
+        super().__init__(label, visual=visual, alive=alive)
+        self.noise = noise
+
 
 LIFE_RULE = re.compile(r'^B(?P<born>[0-8]*)/S(?P<survive>[0-8]*)$')
 
@@ -265,7 +337,9 @@ def unbounded_alphabet_automaton(size: int = 101) -> System:
     """Return an additive automaton over the nonnegative integers, `x'(n) = x(n - 1) + x(n)`, from a single 1.
 
     Its alphabet has no bound: from a single 1 the cells after `t` steps hold the binomial coefficients `C(t, k)`, so
-    every row of Pascal's triangle appears.
+    every row of Pascal's triangle appears. Reduced modulo 2, the rule is the mirror image of the additive automaton
+    `x(n) + x(n + 1)` of Ceccherini-Silberstein and Coornaert (2023, Example 3.3.8), which this system lifts to the
+    nonnegative integers.
 
     Args:
         size:

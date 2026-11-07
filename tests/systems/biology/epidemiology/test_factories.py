@@ -1,11 +1,14 @@
 """Test the `_factories` module of `skcomplex.systems.biology.epidemiology`."""
 
+import numpy as np
 import pytest
 
-from skcomplex.systems.biology.epidemiology import (
-    sirs,
-    sis,
-)
+from skcomplex.core.components.elements import CompartmentElement
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.types import FormKind
+from skcomplex.systems.biology.epidemiology import InfectionInteraction, RecoveryInteraction, sirs, sis, zombie_outbreak
 
 from ..conftest import _run_until
 
@@ -24,3 +27,42 @@ def test_sirs_settles_at_endemic_equilibrium():
     susceptible = 0.1 / 0.0003
     assert trajectory.values('S.n')[-1] == pytest.approx(susceptible, rel=1e-3)
     assert trajectory.values('I.n')[-1] == pytest.approx(0.02 * (1000 - susceptible) / 0.12, rel=1e-3)
+
+
+@pytest.mark.parametrize('stochastic', [False, True])
+def test_zombies_overrun_humans_and_conserve_the_total(stochastic):
+    """Test Munz et al.: without births the total is conserved and the humans vanish, the doomsday state."""
+    trajectory = _run_until(zombie_outbreak(zombies=5.0, stochastic=stochastic), 10, dt=0.5, random_state=1)
+    total = trajectory.values('S.n') + trajectory.values('Z.n') + trajectory.values('R.n')
+    np.testing.assert_allclose(total, 505.0, rtol=1e-9)
+    assert trajectory.values('S.n')[-1] < 1.0
+    assert trajectory.values('Z.n')[-1] > 200.0
+
+
+def test_epidemic_stochastic_mode_is_jump_process():
+    """Test that stochastic infection and recovery give integer counts of a jump process."""
+    system = System(
+        elements=[CompartmentElement('S', n=990), CompartmentElement('I', n=10), CompartmentElement('R')],
+        interactions=[
+            InfectionInteraction('infection', susceptible='S', infected='I', beta=0.0005, stochastic=True),
+            RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.1, stochastic=True),
+        ],
+    )
+    assert PassCompiler().prepare(system).run().problem_.form == FormKind.JUMP
+    states = Simulation(system, dt=1.0, random_state=3).prepare().run(until=50).trajectory_.states
+    assert np.all(states >= 0)
+    assert np.all(states == np.round(states))
+    assert np.allclose(states.sum(axis=1), 1000)
+
+
+def test_epidemic_deterministic_mode_conserves_population():
+    """Test that the deterministic SIR system keeps the total population."""
+    system = System(
+        elements=[CompartmentElement('S', n=990), CompartmentElement('I', n=10), CompartmentElement('R')],
+        interactions=[
+            InfectionInteraction('infection', susceptible='S', infected='I', beta=0.0005),
+            RecoveryInteraction('recovery', infected='I', recovered='R', gamma=0.1),
+        ],
+    )
+    states = Simulation(system, dt=1.0).prepare().run(until=50).trajectory_.states
+    assert np.allclose(states.sum(axis=1), 1000)

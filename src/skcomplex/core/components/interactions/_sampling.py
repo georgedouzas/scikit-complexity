@@ -3,23 +3,49 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import functools
 import inspect
+import math
 from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
+import networkx as nx
+import numba
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import RR, SR, ConditionSet, Expression
 
 from ...errors import ValidationError
-from ...specs import MoveSpec, ObjectiveSpec, ParameterSpec, RoleSpec, RowScoreSpec, SamplerSpec
-from ...types import Array, ElementKind
+from ...specs import (
+    HolonomyScoreSpec,
+    MatrixGroupSpec,
+    MoveSpec,
+    ObjectiveSpec,
+    ParameterSpec,
+    RegionScoreSpec,
+    RoleSpec,
+    RowScoreSpec,
+    SamplerSpec,
+)
+from ...types import Array, ComplexArray, ElementKind, Indices
 from ..laws import BaseLaw, DriveLaw, SampleLaw
-from ..spaces import BaseNeighborhood, VonNeumannNeighborhood
+from ..spaces import (
+    AdjacencyNeighborhood,
+    BaseNeighborhood,
+    BaseSpace,
+    CellComplexSpace,
+    LatticeSpace,
+    NetworkSpace,
+    VonNeumannNeighborhood,
+)
 from ._interaction import Interaction
 
-MOVES = ('flip', 'random-value', 'rotate', 'gaussian', 'cluster')
+MOVES = ('flip', 'random-value', 'rotate', 'gaussian', 'cluster', 'copy')
+HOLONOMY_MOVES = ('rotate', 'random-value')
+HOLONOMY_SCHEDULES = ('colored', 'random-sequential')
+COLORING_STRATEGY = 'largest_first'
+MATRIX_AXES = 2
 
 
 def _is_positive(value: float) -> bool:
@@ -28,6 +54,78 @@ def _is_positive(value: float) -> bool:
 
 
 POSITIVE_VALUES = ConditionSet(RR, _is_positive)
+
+
+@numba.njit(cache=True)
+def _elastic_change(strength: float, target: float, total: float, step: float) -> float:  # pragma: no cover
+    """Return the change of `strength * (total - target)^2` when the total grows by a step."""
+    return strength * step * (2.0 * (total - target) + step)
+
+
+@numba.njit(cache=True)
+def _copy_labels(
+    labels: Indices,
+    contacts: tuple[Indices, Indices, Array, Array],
+    scores: tuple[Array, Array, Array],
+    proposals: tuple[Indices, Array, Array],
+    acceptance: tuple[float, bool],
+) -> None:  # pragma: no cover
+    """Propose label copies at the given sites, accept them in place, and keep the totals of every label.
+
+    Every attempt copies the label of a neighbour of a site, the neighbour at the fraction `picks` of its neighbours,
+    into the site. The contacts are the neighbours of every site, their number, the weights of the contacts, and the
+    volumes of the sites. The change of the objective sums the contact energies `contact` between labels weighted by the
+    contacts of the site, and the change of the elastic constraints of the two labels, of strengths `constraints[0]` and
+    targets `constraints[1]` on the volumes `totals[0]`, and of strengths `constraints[2]` and targets `constraints[3]`
+    on the surfaces `totals[1]`. An accepted copy updates the totals of the two labels only. The proposals are the
+    sites, the picks, and the uniform numbers of the acceptance, and the acceptance the intensity and whether the rule
+    is the Metropolis rule.
+    """
+    neighbors, counts, weights, sizes = contacts
+    contact, constraints, totals = scores
+    sites, picks, draws = proposals
+    intensity, metropolis = acceptance
+    for attempt in range(sites.size):
+        site = sites[attempt]
+        count = counts[site]
+        if count == 0:
+            continue
+        old = labels[site]
+        new = labels[neighbors[site, min(int(picks[attempt] * count), count - 1)]]
+        if old == new:
+            continue
+        change = 0.0
+        old_surface = 0.0
+        new_surface = 0.0
+        for slot in range(count):
+            other = labels[neighbors[site, slot]]
+            weight = weights[site, slot]
+            if other == new:
+                new_surface -= weight
+            else:
+                change += weight * contact[new, other]
+                new_surface += weight
+            if other == old:
+                old_surface += weight
+            else:
+                change -= weight * contact[old, other]
+                old_surface -= weight
+        size = sizes[site]
+        change += _elastic_change(constraints[0, old], constraints[1, old], totals[0, old], -size)
+        change += _elastic_change(constraints[0, new], constraints[1, new], totals[0, new], size)
+        change += _elastic_change(constraints[2, old], constraints[3, old], totals[1, old], old_surface)
+        change += _elastic_change(constraints[2, new], constraints[3, new], totals[1, new], new_surface)
+        exponent = 0.0 if change == 0.0 else change * intensity
+        if metropolis:
+            accepted = exponent <= 0.0 or draws[attempt] < math.exp(-exponent)
+        else:
+            accepted = draws[attempt] < 1.0 / (1.0 + math.exp(min(exponent, 700.0)))
+        if accepted:
+            labels[site] = new
+            totals[0, old] -= size
+            totals[0, new] += size
+            totals[1, old] += old_surface
+            totals[1, new] += new_surface
 
 
 class SamplingInteraction(Interaction):
@@ -56,6 +154,23 @@ class SamplingInteraction(Interaction):
     a move that keeps the objective with probability 1 under the Metropolis rule and 1/2 under the Glauber rule, and it
     never accepts a move that raises the objective.
 
+    An objective that is a `HolonomyScoreSpec` samples a matrix group state on the edges of a `CellComplexSpace`
+    instead, whose local objective of an edge sums a class function over the holonomies of the faces around it. The
+    move `'rotate'` multiplies the matrix of an edge from the left by a random matrix of the group near the identity of
+    spread `width`, `'random-value'` draws it from the Haar measure of the group, and a function move receives the
+    matrices of some edges and the random generator and returns their proposed matrices. Every sweep proposes `hits`
+    moves per edge, the `'colored'` schedule updates together only edges that share no face, and the matrices are
+    projected back onto the group at the end of every sweep, which undoes the rounding of repeated products.
+
+    An objective that is a `RegionScoreSpec` samples a state of integer labels from 0 on the sites of a `LatticeSpace`
+    or the nodes of a `NetworkSpace` instead, whose sites of one label form a region, by the move `'copy'`. Every sweep
+    proposes `hits` copies per site, each at a random site, of the label of one of its neighbours drawn at random, and
+    accepts it from the change of the contact energy between regions and of the volume and surface constraints of the
+    two regions it changes. The sampler keeps the volume and the surface of every region and updates them on every
+    accepted copy. The neighbourhood is that of the copies and the contacts, by default the Moore neighbourhood of a
+    square lattice, the six neighbours of a triangular lattice, or the edges of a network, whose edge attribute
+    `'weight'` weighs the contact and node attribute `'volume'` the volume of a site. The schedule does not apply.
+
     Args:
         label:
             The label of the interaction, unique among the parts of its system.
@@ -67,10 +182,12 @@ class SamplingInteraction(Interaction):
             The name of the state the moves change.
 
         objective:
-            The function `objective(namespace)` of the local objective of a member, or a `RowScoreSpec`.
+            The function `objective(namespace)` of the local objective of a member, a `RowScoreSpec`, a
+            `HolonomyScoreSpec`, or a `RegionScoreSpec`.
 
         move:
-            `'flip'`, `'random-value'`, `'rotate'`, `'gaussian'`, `'cluster'`, or a function that proposes values.
+            `'flip'`, `'random-value'`, `'rotate'`, `'gaussian'`, `'cluster'`, `'copy'` of the label of a neighbour,
+            which a region score takes, or a function that proposes values.
 
         intensity:
             The factor of the change of the objective in the acceptance `exp(-intensity * change)`, positive and
@@ -99,7 +216,9 @@ class SamplingInteraction(Interaction):
     Raises:
         ValidationError:
             The move, the rule, or the schedule is unknown, the objective is not callable, or a row score takes a
-            cluster move, or the heat-bath rule without a random-value move and its values.
+            cluster move, or the heat-bath rule without a random-value move and its values, or a holonomy score takes a
+            move, a rule, or a schedule other than those of a matrix group, or a region score takes a move other than
+            `'copy'` or the heat-bath rule, or the move `'copy'` has an objective other than a region score.
 
     Examples:
         >>> from skcomplex.core.components.elements import Element, LatticeElement
@@ -149,6 +268,38 @@ class SamplingInteraction(Interaction):
         >>> system = System(elements=[spins], interactions=[walk], time=DiscreteTime())
         >>> Simulation(system, random_state=0).prepare().run(until=3).trajectory_.values('walk.score').shape
         (4, 2)
+        >>> from skcomplex.core.specs import HolonomyScoreSpec, MatrixGroupSpec
+        >>> group = MatrixGroupSpec('SU', 2)
+        >>> class MatrixLinkElement(Element):
+        ...     def __init__(self, label, U: Annotated[object, StateSpec(group=group)] = tuple(group.identity)):
+        ...         super().__init__(label)
+        ...         self.U = U
+        >>> trace = lambda holonomies: -np.trace(holonomies, axis1=-2, axis2=-1).real
+        >>> score = HolonomyScoreSpec(trace, group)
+        >>> wilson = SamplingInteraction(
+        ...     'wilson', target='links', state='U', objective=score, move='rotate', width=0.5, schedule='colored'
+        ... )
+        >>> space = CellComplexSpace(LatticeSpace((4, 4)))
+        >>> links = GroupElement('links', element=MatrixLinkElement, space=space, on='edges')
+        >>> system = System(elements=[links], interactions=[wilson], time=DiscreteTime())
+        >>> Simulation(system, random_state=0).prepare().run(until=2).trajectory_.values('links.U').shape
+        (3, 32, 8)
+        >>> from skcomplex.core.specs import RegionScoreSpec
+        >>> class SiteElement(Element):
+        ...     def __init__(self, label, region: Annotated[float, StateSpec()] = 0.0):
+        ...         super().__init__(label)
+        ...         self.region = region
+        >>> contact = lambda first, second: np.ones(np.broadcast(first, second).shape)
+        >>> area = lambda labels: (1.0, 16.0)
+        >>> copies = SamplingInteraction(
+        ...     'copies', target='sites', state='region', objective=RegionScoreSpec(contact, area), move='copy'
+        ... )
+        >>> regions = np.kron(np.arange(4).reshape(2, 2), np.ones((4, 4)))
+        >>> sites = LatticeElement('sites', element=SiteElement, space=LatticeSpace((8, 8)), values={'region': regions})
+        >>> system = System(elements=[sites], interactions=[copies], time=DiscreteTime())
+        >>> final = Simulation(system, random_state=0).prepare().run(until=20).state_
+        >>> sorted(np.unique(final).tolist())
+        [0.0, 1.0, 2.0, 3.0]
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (DriveLaw, SampleLaw)
@@ -159,7 +310,7 @@ class SamplingInteraction(Interaction):
         *,
         target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
         state: str,
-        objective: Callable[[SimpleNamespace], object] | RowScoreSpec,
+        objective: Callable[[SimpleNamespace], object] | RowScoreSpec | HolonomyScoreSpec | RegionScoreSpec,
         move: str | Callable[..., object] = 'flip',
         intensity: Annotated[float, ParameterSpec(domain=POSITIVE_VALUES)] = 1.0,
         rule: str = 'metropolis',
@@ -294,6 +445,293 @@ class SamplingInteraction(Interaction):
                     rows[index], current = proposal, proposed
         return rows.reshape(values.shape)
 
+    def _check_holonomy_score(self, score: HolonomyScoreSpec) -> None:
+        """Raise an error for a holonomy score with a move, a rule, or a schedule that a matrix group does not take."""
+        score._validated()
+        if not callable(self.move) and self.move not in HOLONOMY_MOVES:
+            error_msg = (
+                f'The holonomy score of sampling {self.label!r} moves matrices of a group. Use the move '
+                f'{" or ".join(map(repr, HOLONOMY_MOVES))}, or a function of the matrices and the random generator.'
+            )
+            raise ValidationError(error_msg)
+        if self.rule == 'heat-bath':
+            error_msg = f"The holonomy score of sampling {self.label!r} takes the rule 'metropolis' or 'glauber'."
+            raise ValidationError(error_msg)
+        if self.schedule not in HOLONOMY_SCHEDULES:
+            error_msg = (
+                f'The holonomy score of sampling {self.label!r} updates edges of a cell complex. Use the schedule '
+                f'{" or ".join(map(repr, HOLONOMY_SCHEDULES))}.'
+            )
+            raise ValidationError(error_msg)
+
+    @staticmethod
+    @functools.cache
+    def _get_staples(space: CellComplexSpace) -> tuple[tuple[Indices, ...], Indices, Array, Array, Array]:
+        """Return the tables of the faces around every edge of a cell complex, read once per complex.
+
+        Args:
+            space:
+                The prepared cell complex.
+
+        Returns:
+            classes:
+                The classes of a proper coloring of the graph that joins the edges that share a face.
+
+            edges:
+                For every edge and face around it, the other edges of the face in path order after the edge.
+
+            signs:
+                The sign of the traversal of every edge of `edges`, 0 for padding.
+
+            orientations:
+                The sign of the traversal of the edge itself in every face around it.
+
+            real:
+                Whether every face around an edge is a face of the complex and not padding.
+        """
+        cofaces, boundaries, turns = space.cofaces_[1], space.boundaries_, space.boundary_signs_
+        real = cofaces < boundaries.shape[0]
+        faces = np.where(real, cofaces, 0)
+        around, signs = boundaries[faces], turns[faces]
+        lengths = (signs != 0).sum(axis=-1)
+        position = np.argmax(around == np.arange(cofaces.shape[0])[:, None, None], axis=-1)
+        orientations = np.take_along_axis(signs, position[..., None], axis=-1)[..., 0]
+        steps = np.arange(max(boundaries.shape[1] - 1, 0))
+        after = (position[..., None] + 1 + steps) % np.maximum(lengths, 1)[..., None]
+        kept = (steps < lengths[..., None] - 1) & real[..., None]
+        edges = np.where(kept, np.take_along_axis(around, after, axis=-1), 0)
+        shared = (abs(space.incidences_[1]).T @ abs(space.incidences_[1])).tocoo()
+        graph = nx.Graph()
+        graph.add_nodes_from(range(cofaces.shape[0]))
+        graph.add_edges_from(zip(shared.row.tolist(), shared.col.tolist(), strict=True))
+        graph.remove_edges_from(nx.selfloop_edges(graph))
+        colors = nx.greedy_color(graph, strategy=COLORING_STRATEGY)
+        found = np.asarray([colors[edge] for edge in range(cofaces.shape[0])], dtype=np.intp)
+        classes = tuple(np.flatnonzero(found == color) for color in range(int(found.max(initial=-1)) + 1))
+        return classes, edges, np.where(kept, np.take_along_axis(signs, after, axis=-1), 0.0), orientations, real
+
+    def _get_local_scores(
+        self,
+        matrices: ComplexArray,
+        staples: ComplexArray,
+        orientations: Array,
+        real: Array,
+        keywords: Mapping[str, object],
+    ) -> Array:
+        """Return the local objective of every edge, the score of the holonomies of its faces that start at it."""
+        score = getattr(self, self._get_parameter('objective'))
+        inverse = np.conj(np.swapaxes(matrices, -1, -2))
+        oriented = np.where((orientations > 0)[..., None, None], matrices[:, None], inverse[:, None])
+        values = np.asarray(score.function(oriented @ staples, **keywords), dtype=float)
+        return np.where(real, values, 0.0).sum(axis=-1)
+
+    def _propose_matrices(
+        self,
+        matrices: ComplexArray,
+        group: MatrixGroupSpec,
+        rng: np.random.Generator,
+    ) -> ComplexArray:
+        """Return the proposed matrices of some edges by the move."""
+        if callable(self.move):
+            return np.asarray(self.move(matrices.copy(), rng), dtype=complex)
+        if self.move == 'random-value':
+            return group.uniform_of(rng, len(matrices))
+        return group.near_identity_of(rng, self.width, len(matrices)) @ matrices
+
+    def _accept_changes(self, changes: Array, intensity: float, rng: np.random.Generator) -> npt.NDArray[np.bool_]:
+        """Return whether every change of an objective is accepted by the rule at the intensity."""
+        exponents = np.where(changes == 0.0, 0.0, changes * np.where(changes == 0.0, 1.0, intensity))
+        draws = rng.random(changes.shape)
+        with np.errstate(over='ignore'):
+            if self.rule == 'metropolis':
+                return (exponents <= 0.0) | (draws < np.exp(-np.maximum(exponents, 0.0)))
+            return draws < 1.0 / (1.0 + np.exp(exponents))
+
+    def _sample_holonomies(
+        self,
+        values: Array,
+        *,
+        random: np.random.Generator,
+        time: float,
+        space: BaseSpace,
+        **parameters: object,
+    ) -> Array:
+        """Return a matrix group state on the edges of a cell complex after one sweep of moves of every edge."""
+        score = getattr(self, self._get_parameter('objective'))
+        if (
+            not isinstance(space, CellComplexSpace)
+            or values.ndim != MATRIX_AXES
+            or values.shape[0] != len(space.cofaces_[1])
+        ):
+            error_msg = (
+                f'The holonomy score of sampling {self.label!r} reads a group on the edges of a CellComplexSpace.'
+            )
+            raise ValidationError(error_msg)
+        intensity = float(SR(self._get_intensity(SimpleNamespace(**parameters))))
+        if self.cooling is not None:
+            intensity /= float(SR(self.cooling(time)))
+        group = score.group
+        matrices = group.matrices_of(values)
+        classes, edges, signs, orientations, real = self._get_staples(space)
+        keywords = self._get_keywords(score.function, parameters)
+        order = classes if self.schedule == 'colored' else tuple(random.permutation(values.shape[0])[:, None])
+        for links in order:
+            local = {
+                name: (
+                    value[links][:, None]
+                    if isinstance(value, np.ndarray) and value.shape[:1] == values.shape[:1]
+                    else value
+                )
+                for name, value in keywords.items()
+            }
+            staples = group.holonomy_of(matrices, edges[links], signs[links])
+            current = self._get_local_scores(matrices[links], staples, orientations[links], real[links], local)
+            for _ in range(score.hits):
+                proposal = self._propose_matrices(matrices[links], group, random)
+                proposed = self._get_local_scores(proposal, staples, orientations[links], real[links], local)
+                accepted = self._accept_changes(proposed - current, intensity, random)
+                matrices[links[accepted]] = proposal[accepted]
+                current = np.where(accepted, proposed, current)
+        return group.components_of(group.projection_of(matrices))
+
+    def _check_region_score(self, score: RegionScoreSpec) -> None:
+        """Raise an error for a region score with a move other than a label copy, or the heat-bath rule."""
+        score._validated()
+        if self.move != 'copy':
+            error_msg = f"The region score of sampling {self.label!r} moves labels by the move 'copy'."
+            raise ValidationError(error_msg)
+        if self.rule == 'heat-bath':
+            error_msg = f"The region score of sampling {self.label!r} takes the rule 'metropolis' or 'glauber'."
+            raise ValidationError(error_msg)
+
+    @staticmethod
+    @functools.cache
+    def _get_contacts(space: BaseSpace, neighborhood: BaseNeighborhood | None) -> tuple[Indices, Indices, Array, Array]:
+        """Return the tables of the neighbours of every site, the weights of their contacts, and the site volumes.
+
+        A lattice site has the neighbours of the neighbourhood, or of the default neighbourhood of the lattice, with
+        contacts of weight 1 and a volume of 1. A node of a network has its neighbours along the edges of the layer of
+        the neighbourhood, with the edge attribute `'weight'` of the contact and the node attribute `'volume'`, both 1
+        by default.
+
+        Args:
+            space:
+                The prepared lattice or network.
+
+            neighborhood:
+                The neighbourhood of the contacts, or `None` for the default neighbourhood of the space.
+
+        Returns:
+            neighbors:
+                The index of every neighbour of every site, the other sites first, padded with the site itself.
+
+            counts:
+                The number of neighbours of every site.
+
+            weights:
+                The weight of the contact of every site with every neighbour, 0 for padding.
+
+            sizes:
+                The volume of every site.
+        """
+        over = space._default_neighborhood() if neighborhood is None else neighborhood
+        size = space.size_
+        sizes = np.ones(size)
+        if isinstance(space, NetworkSpace):
+            layer = over.layer if isinstance(over, AdjacencyNeighborhood) else None
+            graph = space.graphs_[layer]
+            indptr, others, edges = space.adjacency_[layer]
+            rows = np.repeat(np.arange(size), np.diff(indptr))
+            edge_weights = np.asarray([data.get('weight', 1.0) for *_, data in graph.edges(data=True)], dtype=float)
+            nodes = space.graph.nodes(data='volume', default=1.0)
+            sizes = np.asarray([volume for _, volume in nodes], dtype=float)
+            table = np.full((size, int(np.diff(indptr).max(initial=0))), size, dtype=np.intp)
+            slots = np.arange(others.size) - indptr[rows]
+            table[rows, slots] = others
+            values = np.zeros(table.shape)
+            values[rows, slots] = edge_weights[edges] if edges.size else 0.0
+        else:
+            table = space._index_table(over)
+            values = np.ones(table.shape)
+        sites = np.arange(size)[:, None]
+        valid = (table < size) & (table != sites)
+        order = np.argsort(~valid, axis=1, kind='stable')
+        valid = np.take_along_axis(valid, order, axis=1)
+        neighbors = np.where(valid, np.take_along_axis(table, order, axis=1), sites)
+        weights = np.where(valid, np.take_along_axis(values, order, axis=1), 0.0)
+        return neighbors, valid.sum(axis=1).astype(np.intp), weights, sizes
+
+    def _get_constraint(
+        self,
+        function: Callable[..., object] | None,
+        labels: Indices,
+        parameters: Mapping[str, object],
+    ) -> tuple[Array, Array]:
+        """Return the strength and the target of a constraint of every label, zero for no constraint."""
+        if function is None:
+            return np.zeros(labels.size), np.zeros(labels.size)
+        constraint = np.asarray(function(labels, **self._get_keywords(function, parameters)), dtype=object)
+        strengths = np.asarray(np.broadcast_to(np.asarray(constraint[0], dtype=np.float64), labels.shape), dtype=float)
+        targets = np.asarray(np.broadcast_to(np.asarray(constraint[1], dtype=np.float64), labels.shape), dtype=float)
+        return strengths, targets
+
+    def _sample_regions(
+        self,
+        values: Array,
+        *,
+        random: np.random.Generator,
+        time: float,
+        space: BaseSpace,
+        **parameters: object,
+    ) -> Array:
+        """Return a state of labels after one sweep of label copies, as many as `hits` times the sites."""
+        rng = random
+        score = getattr(self, self._get_parameter('objective'))
+        if not isinstance(space, (LatticeSpace, NetworkSpace)) or values.size != space.size_:
+            error_msg = f'The region score of sampling {self.label!r} reads a label per site of a lattice or a network.'
+            raise ValidationError(error_msg)
+        labels = np.rint(values).astype(np.intp).ravel()
+        if labels.size and labels.min() < 0:
+            error_msg = f'The region score of sampling {self.label!r} reads labels from 0, but got {labels.min()}.'
+            raise ValidationError(error_msg)
+        intensity = float(SR(self._get_intensity(SimpleNamespace(**parameters))))
+        if self.cooling is not None:
+            intensity /= float(SR(self.cooling(time)))
+        neighbors, counts, weights, sizes = self._get_contacts(space, self.neighborhood)
+        ids = np.arange(int(labels.max(initial=-1)) + 1)
+        contact = score.contact(ids[:, None], ids[None, :], **self._get_keywords(score.contact, parameters))
+        contact = np.ascontiguousarray(np.broadcast_to(np.asarray(contact, dtype=float), (ids.size, ids.size)))
+        constraints = np.stack(
+            [
+                *self._get_constraint(score.volume, ids, parameters),
+                *self._get_constraint(score.surface, ids, parameters),
+            ],
+        )
+        foreign = (weights * (labels[neighbors] != labels[:, None])).sum(axis=1)
+        totals = np.stack(
+            [
+                np.bincount(labels, weights=sizes, minlength=ids.size),
+                np.bincount(labels, weights=foreign, minlength=ids.size),
+            ],
+        )
+        attempts = score.hits * labels.size
+        _copy_labels(
+            labels,
+            (neighbors, counts, weights, sizes),
+            (contact, constraints, totals),
+            (rng.integers(labels.size, size=attempts), rng.random(attempts), rng.random(attempts)),
+            (intensity, self.rule == 'metropolis'),
+        )
+        return labels.reshape(values.shape).astype(values.dtype)
+
+    def _get_keywords(self, function: Callable[..., object], parameters: Mapping[str, object]) -> dict[str, object]:
+        """Return the parameters that a function names."""
+        try:
+            names = inspect.signature(function).parameters
+        except (TypeError, ValueError):
+            return {}
+        return {name: value for name, value in parameters.items() if name in names}
+
     def _check(self) -> None:
         """Raise an error for an unknown move, rule, or schedule, or an objective that is not callable.
 
@@ -307,8 +745,15 @@ class SamplingInteraction(Interaction):
             raise ValidationError(error_msg)
         self._check_variant('move', self.move, MOVES, functions=True)
         objective = getattr(self, self._get_parameter('objective'))
+        if self.move == 'copy' and not isinstance(objective, RegionScoreSpec):
+            error_msg = f"The move 'copy' of sampling {self.label!r} copies labels, which a RegionScoreSpec scores."
+            raise ValidationError(error_msg)
         if isinstance(objective, RowScoreSpec):
             self._check_row_score(objective)
+        elif isinstance(objective, HolonomyScoreSpec):
+            self._check_holonomy_score(objective)
+        elif isinstance(objective, RegionScoreSpec):
+            self._check_region_score(objective)
         elif not callable(objective):
             error_msg = f'The objective of sampling {self.label!r} must be a function of the namespace.'
             raise ValidationError(error_msg)
@@ -329,6 +774,10 @@ class SamplingInteraction(Interaction):
         declared = getattr(self, self._get_parameter('objective'))
         if isinstance(declared, RowScoreSpec):
             return [DriveLaw(target, self._accept_rows, label=self.label, score=self._score_rows)]
+        if isinstance(declared, HolonomyScoreSpec):
+            return [DriveLaw(target, self._sample_holonomies, label=self.label)]
+        if isinstance(declared, RegionScoreSpec):
+            return [DriveLaw(target, self._sample_regions, label=self.label)]
         over = VonNeumannNeighborhood() if self.neighborhood is None else self.neighborhood
         objective = ObjectiveSpec(declared(namespace), over)
         intensity = self._get_intensity(namespace)

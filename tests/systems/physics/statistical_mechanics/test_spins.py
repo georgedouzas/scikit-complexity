@@ -8,8 +8,26 @@ from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import ImageVisual, RerunObserver
 from skcomplex.core.experiments import Experiment, GridDesign
 from skcomplex.systems.physics.statistical_mechanics import ising, potts, xy
+from skcomplex.systems.physics.statistical_mechanics._spins import PottsSamplingInteraction, XYSamplingInteraction
 
+from ..common.spins.conftest import _run
 from .conftest import magnetization
+
+
+def test_potts_spins_take_only_their_states_and_order_cold():
+    """Test that Potts spins stay within their `q` states and order into one state at a low temperature."""
+    colors = np.random.default_rng(1).integers(0, 3, (12, 12)).astype(float)
+    sampling = PottsSamplingInteraction('potts', target='sites', q=3)
+    values = _run(sampling, 'color', {'color': colors, 'temperature': 0.1})
+    assert set(np.unique(values)) <= {0.0, 1.0, 2.0}
+    assert np.bincount(values[-1].astype(int).ravel()).max() > 0.6 * values[-1].size
+
+
+def test_aligned_xy_spins_stay_aligned_when_cold():
+    """Test that aligned planar spins keep a large magnetization at a low temperature."""
+    angles = _run(XYSamplingInteraction('xy', target='sites', width=0.5), 'theta', {'temperature': 0.1})
+    assert np.abs(np.exp(1j * angles[-1]).mean()) > 0.9
+
 
 CRITICAL_TEMPERATURE = 2 / np.log(1 + np.sqrt(2))
 

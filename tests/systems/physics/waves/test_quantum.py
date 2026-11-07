@@ -1,9 +1,11 @@
 """Test the `_quantum` module of `skcomplex.systems.physics.waves`."""
 
+import networkx as nx
 import numpy as np
 import pytest
 
 from skcomplex.core.analysis import OperatorAnalysis
+from skcomplex.core.components.spaces import NetworkSpace
 from skcomplex.core.engine.compile import OperatorCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import ETDRK4Solver
@@ -11,6 +13,7 @@ from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems import create_system
 from skcomplex.systems.physics.waves import schrodinger
+from skcomplex.systems.physics.waves._quantum import SiteElement, site_space
 
 from ..conftest import _relative_spread, _series
 
@@ -52,3 +55,12 @@ def test_schrodinger_dephased_packet_keeps_its_trace(tmp_path):
     assert np.all(np.diff(OperatorAnalysis('purity').prepare(trajectory).run().purity_) <= 1e-10)
     with pytest.raises(ValidationError, match='formulation'):
         create_system('schrodinger', gamma=0.5)
+
+
+def test_site_operators_hold_projectors_and_the_adjacency():
+    """Test that a particle on sites has projectors, the adjacency, and the Laplacian of its network."""
+    site = SiteElement('p', hilbert=site_space(NetworkSpace(nx.cycle_graph(4)), projectors=True))
+    operators = OperatorCompiler._view_of(site).local_operators()
+    assert operators['site_2'].matrix.toarray()[2, 2] == 1
+    assert operators['adjacency'].matrix.sum() == 8
+    assert operators['laplacian'].matrix.toarray()[0, 0] == -2

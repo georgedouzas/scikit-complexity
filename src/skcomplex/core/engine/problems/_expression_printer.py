@@ -46,9 +46,12 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
     """Printer of Sage expressions as code of NumPy, scalar Python for Numba, or LAMMPS Lepton.
 
     `prepare(symbols)` takes the symbols the code reads, in order, and `run(expressions)` keeps in `code_` the
-    assignments of the repeated compound subexpressions, bound to numbered names, and the code of every expression. A
-    compiled printer keeps instead the NumPy or JAX function `f(t, *symbols)` of the expressions. A NumPy function runs
-    in a NumPy error state that ignores division, invalid, and overflow warnings when the expressions hold conditions.
+    assignments of the repeated compound subexpressions, bound to numbered names, and the code of every expression.
+    Sage orders the operands of sums and products differently in every process, so the printer orders them by their
+    canonical form, and a law prints the same code in every process, which lets the Numba backend reuse the kernels it
+    cached by their source. A compiled printer keeps instead the NumPy or JAX function `f(t, *symbols)` of the
+    expressions. A NumPy function runs in a NumPy error state that ignores division, invalid, and overflow warnings when
+    the expressions hold conditions.
 
     Lepton has neither comparisons nor a remainder, so conditions become `step` and `select` and remainders `floor`.
 
@@ -148,6 +151,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
             raise ValidationError(error_msg)
         expressions = [SR(expression) for expression in inputs]
         self.bound_: dict[PrintedKey, str] = {}
+        self.canonical_: dict[PrintedKey, str] = {}
         counts = self._subexpressions(expressions)
         assignments: list[tuple[str, str]] = []
 
@@ -158,7 +162,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
             key = self._key(item)
             if key in self.bound_:
                 return
-            for operand in item.operands():
+            for operand in self._operands(item):
                 bind(operand)
             if counts[key] > 1:
                 name = f'{self.prefix}{len(assignments)}'
@@ -267,7 +271,7 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         coefficient: Number = 1
         numerator: list[str] = []
         denominator: list[str] = []
-        for factor in item.operands() if self._is_product(item) else [item]:
+        for factor in self._operands(item) if self._is_product(item) else [item]:
             if factor.is_numeric():
                 coefficient *= self._numeric(factor)
                 continue
@@ -305,8 +309,9 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
         return PrintedSpec(code, POWER)
 
     def _total(self, item: Expression) -> PrintedSpec:
-        """Return the code of a sum."""
-        terms = [self._print(term) for term in item.operands()]
+        """Return the code of a sum, its terms in canonical order with the negated ones last."""
+        terms = [self._print(term) for term in self._operands(item)]
+        terms.sort(key=lambda term: term.precedence == NEGATION and term.code.startswith('-'))
         code = self._wrap(terms[0], SUM)
         for term in terms[1:]:
             if term.precedence == NEGATION and term.code.startswith('-'):
@@ -344,6 +349,31 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
             return self._template(RELATIONS[function], item.operands())
         name = function.name() if hasattr(function, 'name') else str(function)
         return self._template(name, item.operands())
+
+    def _canonical(self, item: Expression) -> str:
+        """Return the canonical form of an expression, its printed form with the operands of sums and products sorted.
+
+        Sage prints the operands of sums and products in an order that depends on the process, such as on the order the
+        symbols were created in, while the canonical form depends only on the expression.
+        """
+        if item.operator() is None:
+            return str(item)
+        key = self._key(item)
+        if key not in self.canonical_:
+            function = item.operator()
+            name = function.name() if hasattr(function, 'name') else getattr(function, '__name__', str(function))
+            operands = [self._canonical(operand) for operand in item.operands()]
+            if self._is_sum(item) or self._is_product(item):
+                operands.sort()
+            self.canonical_[key] = f'{name}({", ".join(operands)})'
+        return self.canonical_[key]
+
+    def _operands(self, item: Expression) -> list[Expression]:
+        """Return the operands of an expression, those of a sum or a product in canonical order with numbers last."""
+        operands = list(item.operands())
+        if self._is_sum(item) or self._is_product(item):
+            operands.sort(key=lambda operand: (bool(operand.is_numeric()), self._canonical(operand)))
+        return operands
 
     @staticmethod
     def _is_sum(item: Expression) -> bool:

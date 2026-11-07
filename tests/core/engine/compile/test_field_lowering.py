@@ -22,14 +22,14 @@ from skcomplex.core.components.laws.utils import (
     laplacian,
     shifted,
 )
-from skcomplex.core.components.spaces import LatticeSpace, MeshSpace, NetworkSpace
+from skcomplex.core.components.spaces import LatticeSpace, MeshSpace, NetworkSpace, PhaseSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import AxisSpec, ParameterSpec, StateSpec, VisualSpec
 
 
 class HeatElement(Element):
@@ -561,6 +561,33 @@ def test_convolve_follows_the_kernel_parameters():
     direct = np.real(np.fft.ifft(np.fft.fft(field) * np.fft.fft(np.exp(-(steps**2) / 8) * 0.1)))
     assert np.abs(wide - direct).max() < 1e-10
     assert np.abs(wide - narrow).max() > 1e-3
+
+
+@pytest.mark.parametrize('boundary', ['fixed', 'periodic'])
+def test_convolve_acts_along_the_positions_of_a_phase_space(boundary):
+    """Test that a convolution on a phase space convolves every class slice along the positions alone."""
+    field = np.random.default_rng(0).random((30, 4))
+    position = LatticeSpace((30,), spacing=0.5, boundary=boundary)
+    space = PhaseSpace(position, [AxisSpec('h', 4, 0.0, 1.0)])
+    kernel = exp(-abs(displacement(0)))
+    rate = np.reshape(_rate(lambda s: convolve(s.u, kernel), space, {'u': field}), (30, 4))
+    weights = np.exp(-0.5 * np.abs(np.arange(-29, 30))) * 0.5
+    wrapped = np.exp(-0.5 * np.abs(np.fft.fftfreq(30, d=1 / 30))) * 0.5
+    for column in range(4):
+        if boundary == 'fixed':
+            expected = np.convolve(field[:, column], weights)[29:59]
+        else:
+            expected = np.real(np.fft.ifft(np.fft.fft(field[:, column]) * np.fft.fft(wrapped)))
+        assert np.abs(rate[:, column] - expected).max() < 1e-12
+
+
+def test_convolve_on_a_phase_space_lowers_recruitment_at_fixed_edges():
+    """Test that a uniform density convolved over positions with fixed zero edges is lower at the edges."""
+    space = PhaseSpace(LatticeSpace((40,), spacing=0.25, boundary='fixed'), [AxisSpec('h', 3, 0.0, 1.0)])
+    kernel = exp(-abs(displacement(0))) / 2
+    rate = np.reshape(_rate(lambda s: convolve(s.u, kernel), space, {'u': np.ones((40, 3))}), (40, 3))
+    assert np.allclose(rate, rate[:, :1])
+    assert rate[0, 0] < 0.6 * rate[20, 0]
 
 
 def test_convolve_composes_with_the_laplacian_on_a_spectral_field():

@@ -7,22 +7,189 @@ import itertools
 import math
 from collections.abc import Sequence
 from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, cos, sqrt
+from sage.all__sagemath_symbolics import Expression, cos, oo, sqrt
+from sage.sets.real_set import RealSet
 
+from ....core.components.elements import Element
 from ....core.components.interactions import GradientInteraction, HamiltonianInteraction
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.system import System
 from ....core.engine.solvers import RK4Solver, Yoshida4Solver
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ..common.particles import GravityInteraction, MassPointElement
-from ._kepler_body import KeplerBodyElement
-from ._rotating_frame_body import RotatingFrameBodyElement
-from ._sitnikov_body import SitnikovBodyElement
+from ..common.particles import MassPointElement, PotentialEnergyInteraction
 from .types import Preset
+
+
+def _star(**_: float) -> list[list[float]]:
+    """Return the position of the star at the origin of the relative coordinate."""
+    return [[0.0, 0.0]]
+
+
+class KeplerBodyElement(Element):
+    """Planet at `(x, y)` relative to a heavy star, with the canonical momenta `(px, py)` of the Kepler problem.
+
+    The states are of order 1, and the star of mass `mass` sits at the origin.
+
+    Args:
+        label:
+            The label of the planet.
+
+        visual:
+            How the planet is drawn, or `None` for its class visual.
+
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        px:
+            The initial first momentum per unit mass.
+
+        py:
+            The initial second momentum per unit mass.
+
+        G:
+            The gravitational constant.
+
+        mass:
+            The mass of the star.
+
+    Examples:
+        >>> from skcomplex.systems.physics.celestial_mechanics import KeplerBodyElement
+        >>> KeplerBodyElement('planet', mass=10.0).mass
+        10.0
+    """
+
+    visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'marks': _star})
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 10.0,
+        y: Annotated[float, StateSpec()] = 0.0,
+        px: Annotated[float, StateSpec()] = 0.0,
+        py: Annotated[float, StateSpec()] = 10.0,
+        G: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        mass: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1000.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.px = px
+        self.py = py
+        self.G = G
+        self.mass = mass
+
+
+def _primaries(mu: float, **_: float) -> list[list[float]]:
+    """Return the positions of the two primaries in the rotating frame."""
+    return [[-mu, 0.0], [1 - mu, 0.0]]
+
+
+class RotatingFrameBodyElement(Element):
+    """Light body at `(x, y)` with the canonical momenta `(px, py)` in the frame that rotates with two primaries.
+
+    The states are of order 1, and the momenta are `px = x' - y` and `py = y' + x` for the unit angular velocity of the
+    frame. The primaries of masses `1 - mu` and `mu` sit at `(-mu, 0)` and `(1 - mu, 0)`.
+
+    Args:
+        label:
+            The label of the body.
+
+        visual:
+            How the body is drawn, or `None` for its class visual.
+
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        px:
+            The initial first momentum.
+
+        py:
+            The initial second momentum.
+
+        mu:
+            The mass of the lighter primary, as a fraction of the total.
+
+    Examples:
+        >>> from skcomplex.systems.physics.celestial_mechanics import RotatingFrameBodyElement
+        >>> RotatingFrameBodyElement('body', mu=0.1).mu
+        0.1
+    """
+
+    visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'marks': _primaries})
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 0.5,
+        y: Annotated[float, StateSpec()] = 0.0,
+        px: Annotated[float, StateSpec()] = 0.0,
+        py: Annotated[float, StateSpec()] = 0.5,
+        mu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01215,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.px = px
+        self.py = py
+        self.mu = mu
+
+
+class SitnikovBodyElement(Element):
+    """Light body at the height `z`, of order 2, on the axis through the centre of mass of two equal primaries.
+
+    The primaries orbit with the eccentricity `e`.
+
+    Args:
+        label:
+            The label of the body.
+
+        visual:
+            How the body is drawn, or `None` for none.
+
+        z:
+            The initial height.
+
+        z_d1:
+            The initial vertical velocity.
+
+        e:
+            The eccentricity of the primaries' orbits.
+
+    Examples:
+        >>> from skcomplex.systems.physics.celestial_mechanics import SitnikovBodyElement
+        >>> SitnikovBodyElement('body', e=0.1).e
+        0.1
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        z: Annotated[float, StateSpec(order=2)] = 0.5,
+        z_d1: float = 0.0,
+        e: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.z = z
+        self.z_d1 = z_d1
+        self.e = e
+
 
 FIGURE_EIGHT: Preset = (
     1.0,
@@ -47,6 +214,67 @@ INNER_SOLAR_SYSTEM: Preset = (
 """Gravitational constant, masses, positions, and velocities of the Sun and the inner planets."""
 
 PRESETS = {'figure_eight': FIGURE_EIGHT, 'inner_solar_system': INNER_SOLAR_SYSTEM}
+
+
+class GravityInteraction(PotentialEnergyInteraction):
+    """Newtonian gravity between two particles.
+
+    The energy is `-G * m_first * m_second / |x_first - x_second|`, and its gradient moves both particles.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        first:
+            The path of the first particle.
+
+        second:
+            The path of the second particle.
+
+        G:
+            The gravitational constant.
+
+        states:
+            The name of the vector state that holds the positions of the particles.
+
+        divisor:
+            The name of the state or parameter that holds the masses of the particles.
+
+    Examples:
+        >>> from skcomplex.systems.physics.celestial_mechanics._orbits import GravityInteraction
+        >>> GravityInteraction('gravity', first='sun', second='earth', G=1.0).G
+        1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+        G: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        states: str = 'x',
+        divisor: str = 'm',
+    ) -> None:
+        super().__init__(label, target=first, states=states, divisor=divisor)
+        self.first = first
+        self.second = second
+        self.G = G
+
+    def _get_potential(self, s: SimpleNamespace) -> Expression:
+        """Return `-G * m_first * m_second / |x_first - x_second|`.
+
+        Args:
+            s:
+                The namespace of the symbols the energy can use.
+
+        Returns:
+            energy:
+                The potential energy as a symbolic expression.
+        """
+        gap = getattr(s.first, self._get_names()[0]) - getattr(s.second, self._get_names()[0])
+        masses = getattr(s.first, str(self.divisor)) * getattr(s.second, str(self.divisor))
+        return -s.G * masses / sqrt(gap.dot_product(gap))
 
 
 def _get_kepler_energy(body: SimpleNamespace) -> Expression:

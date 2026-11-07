@@ -5,22 +5,340 @@
 
 import math
 from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import Expression, oo, sqrt
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import FieldElement, GroupElement, PointElement
+from ....core.components.elements import Element, FieldElement, GroupElement, PointElement
+from ....core.components.interactions import PairCouplingInteraction
+from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
+from ....core.components.laws.utils import advection, divergence, gradient, laplacian
 from ....core.components.spaces import ContinuousSpace, LatticeSpace
 from ....core.components.system import System
 from ....core.engine.solvers import EulerMaruyamaSolver, RK4Solver
-from ....core.specs import VisualSpec
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._catalog import register_system
-from ..common.particles import SoftSphereInteraction
-from ._active_particle import ActiveParticleElement
-from ._cucker_smale_alignment import CuckerSmaleAlignmentInteraction
-from ._phoretic_attraction import PhoreticAttractionInteraction
-from ._polar_fluid import PolarFluidElement
-from ._self_propulsion import SelfPropulsionInteraction
+from ..common.particles import ActiveParticleElement, SelfPropulsionInteraction
+
+
+class PolarFluidElement(Element):
+    """Site of the Toner-Tu polar active fluid, with a density `rho` and a velocity `(vx, vy)`.
+
+    The density is conserved, `drho/dt + div(rho v) = 0`, and the velocity follows
+    `dv/dt + lam (v . grad) v = a (rho - rho_c) v - beta |v|^2 v - sigma grad(rho) + D laplacian(v)` with additive
+    noise of intensity `noise`. Above the critical density the fluid moves with the speed
+    `sqrt(a (rho - rho_c) / beta)`.
+
+    Args:
+        label:
+            The label of the site or the field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        rho:
+            The initial density.
+
+        vx:
+            The initial velocity along the first axis.
+
+        vy:
+            The initial velocity along the second axis.
+
+        a:
+            The rate of the ordering instability per unit density.
+
+        rho_c:
+            The critical density of the ordering transition.
+
+        beta:
+            The saturation of the speed.
+
+        lam:
+            The strength of the self-advection.
+
+        sigma:
+            The pressure per unit density.
+
+        D:
+            The viscosity of the velocity.
+
+        noise:
+            The intensity of the velocity noise.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import PolarFluidElement
+        >>> PolarFluidElement('site').rho_c
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        rho: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        vx: Annotated[float, StateSpec()] = 0.0,
+        vy: Annotated[float, StateSpec()] = 0.0,
+        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        rho_c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        lam: Annotated[float, ParameterSpec()] = 1.0,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        D: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.rho = rho
+        self.vx = vx
+        self.vy = vy
+        self.a = a
+        self.rho_c = rho_c
+        self.beta = beta
+        self.lam = lam
+        self.sigma = sigma
+        self.D = D
+        self.noise = noise
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the continuity equation and the Toner-Tu equation of each velocity component.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        velocity = [s.vx, s.vy]
+        pressure = gradient(s.sigma * s.rho, 2)
+        speed_squared = s.vx**2 + s.vy**2
+        laws: list[BaseLaw] = [RateLaw(s.rho, -divergence([s.rho * s.vx, s.rho * s.vy]))]
+        for axis, component in enumerate(velocity):
+            transport = advection(component, [s.lam * item for item in velocity])
+            growth = (s.a * (s.rho - s.rho_c) - s.beta * speed_squared) * component
+            laws += [
+                RateLaw(component, -transport + growth - pressure[axis] + s.D * laplacian(component)),
+                NoiseLaw(component, sqrt(2 * s.noise)),
+            ]
+        return laws
+
+
+class SoftSphereInteraction(PairCouplingInteraction):
+    """Soft repulsion between overlapping spheres, `k * (cutoff - r) ** 2 / 2` closer than the cutoff.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        first:
+            The path of the group or particle of the first members.
+
+        second:
+            The path of the group or particle of the second members.
+
+        cutoff:
+            The contact distance, the sum of the two radii.
+
+        position:
+            The name of the vector state that holds the positions of the members.
+
+        write:
+            The name of the state whose rate the force changes, the position of order 2 by default.
+
+        divisor:
+            The name of the parameter that holds the masses of the members, or `None` for unit masses.
+
+        period:
+            The side of a periodic box, for minimum image distances, or `None` for the period of the space.
+
+        k:
+            The stiffness.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter._collective import SoftSphereInteraction
+        >>> SoftSphereInteraction('contact', first='gas', second='gas', cutoff=0.1, k=50.0).k
+        50.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        first: str,
+        second: str,
+        cutoff: float = 1.0,
+        position: str = 'x',
+        *,
+        write: str = 'x',
+        divisor: str | None = None,
+        period: float | None = None,
+        k: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+    ) -> None:
+        super().__init__(
+            label,
+            first,
+            second,
+            cutoff=cutoff,
+            position=position,
+            write=write,
+            potential=self._get_soft_sphere_energy,
+            divisor=divisor,
+            period=period,
+        )
+        self.k = k
+
+    @staticmethod
+    def _get_soft_sphere_energy(s: SimpleNamespace, r: Expression) -> Expression:
+        """Return `k * (cutoff - r) ** 2 / 2`."""
+        return s.k * (s.cutoff - r) ** 2 / 2
+
+
+class CuckerSmaleAlignmentInteraction(PairCouplingInteraction):
+    """Cucker-Smale alignment, `x_i'' += K / N psi(r_ij) (x_j' - x_i')` with `psi(r) = (1 + r^2)^(-beta)`.
+
+    Every pair of members within the cutoff pulls their velocities, the first derivatives of their positions of order
+    2, towards each other with a weight that decays with their distance.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        first:
+            The path of the group or particle of the first members.
+
+        second:
+            The path of the group or particle of the second members.
+
+        cutoff:
+            The distance beyond which pairs do not align, large for the all-to-all system.
+
+        position:
+            The name of the vector state of order 2 that holds the positions of the members.
+
+        K:
+            The strength of the alignment.
+
+        beta:
+            The decay exponent of the weight.
+
+        period:
+            The side of a periodic box, for minimum image distances, or `None` for the period of the space.
+
+        n_agents:
+            The number of agents `N` that normalizes the alignment.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import CuckerSmaleAlignmentInteraction
+        >>> CuckerSmaleAlignmentInteraction('align', first='birds', second='birds', beta=0.25).beta
+        0.25
+    """
+
+    def __init__(
+        self,
+        label: str,
+        first: str,
+        second: str,
+        cutoff: float = 1.0,
+        position: str = 'x',
+        *,
+        K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.25,
+        period: float | None = None,
+        n_agents: int = 1,
+    ) -> None:
+        super().__init__(
+            label,
+            first,
+            second,
+            cutoff=cutoff,
+            position=position,
+            write=position,
+            function=self._align,
+            period=period,
+        )
+        self.K = K
+        self.beta = beta
+        self.n_agents = n_agents
+
+    def _align(self, namespace: SimpleNamespace) -> Expression:
+        """Return the pull `K / N psi(r) (x_j' - x_i')` of the velocity of the first member towards the second."""
+        first, second = namespace.first, namespace.second
+        separation = getattr(first, self.position) - getattr(second, self.position)
+        velocity = f'{self.position}_d1'
+        weight = namespace.K / self.n_agents * (1 + separation.dot_product(separation)) ** (-namespace.beta)
+        return weight * (getattr(second, velocity) - getattr(first, velocity))
+
+
+class PhoreticAttractionInteraction(PairCouplingInteraction):
+    """Phoretic attraction between active colloids, the pair potential `-v0 R^2 / r` of an overdamped position.
+
+    Every member of a pair drifts towards the other at the speed `v0 R^2 / r^2`.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        first:
+            The path of the group or particle of the first members.
+
+        second:
+            The path of the group or particle of the second members.
+
+        cutoff:
+            The distance beyond which the attraction is neglected.
+
+        position:
+            The name of the vector state that holds the positions of the members.
+
+        v0:
+            The drift speed at the distance `R`.
+
+        R:
+            The particle radius.
+
+        period:
+            The side of a periodic box, for minimum image distances, or `None` for the period of the space.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import PhoreticAttractionInteraction
+        >>> PhoreticAttractionInteraction('phoresis', first='colloids', second='colloids', v0=20.0).v0
+        20.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        first: str,
+        second: str,
+        cutoff: float = 1.0,
+        position: str = 'x',
+        *,
+        v0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
+        R: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        period: float | None = None,
+    ) -> None:
+        super().__init__(
+            label,
+            first,
+            second,
+            cutoff=cutoff,
+            position=position,
+            write=position,
+            potential=self._attraction,
+            period=period,
+        )
+        self.v0 = v0
+        self.R = R
+
+    @staticmethod
+    def _attraction(namespace: SimpleNamespace, r: Expression) -> Expression:
+        """Return the potential `-v0 R^2 / r` of a pair at the distance `r`."""
+        return -namespace.v0 * namespace.R**2 / r
 
 
 def _disks(

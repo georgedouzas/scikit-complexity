@@ -13,7 +13,8 @@ space.edges_[None][0][:5].tolist(), space.edges_[None][1][:5].tolist()
 ```
 
 The states and the structure of a network can change together. Interactions read and change the states of edges, laws
-reduce over the neighbours of a node, and topology requests add and remove nodes and edges.
+reduce over the neighbours of a node and over its shortest paths, and topology requests add and remove nodes, edges,
+and hyperedges.
 
 ## Generators and layers
 
@@ -184,7 +185,10 @@ A law of the focal member runs once per member of every hyperedge and adds into 
 gather table per size of hyperedge, so the laws run as gathers and scatter-adds on the NumPy and Numba backends.
 
 A second role may bind a group on the hyperedges, read as `s.hyperedge`, or a group on the edges, read as `s.edge`, the
-edge that joins the first two members of the hyperedge. A law that targets either runs once per hyperedge.
+edge that joins the first two members of the hyperedge. A law that targets either runs once per hyperedge. Hyperedges
+that share an edge would set it several times, so a link that several nodes act on lists them all in one hyperedge.
+The catalog system `spatial_triadic_percolation` lists the negative and then the positive regulators of every link,
+whose numbers the link holds, and pads the hyperedges to one size with members its law leaves out.
 
 The compiler reports two mistakes with the issue code `binding`: an interaction whose size no hyperedge of the network
 has, and an edge group whose edge does not join the first two members of a hyperedge.
@@ -550,6 +554,57 @@ role, so a condition on both ends gives site percolation and an edge weight give
 
 The NumPy backend runs SciPy's `connected_components` on the active links, and the Numba backend a union-find.
 
+### Shortest paths of a network
+
+Read a quantity of the shortest paths on the network as it is now, such as the load of a node, the number of shortest
+paths through it. Nodes fail once their load exceeds a capacity, the cascade of Motter and Lai:
+
+```python
+from typing import Annotated
+
+import networkx as nx
+
+from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.interactions import TopologyInteraction
+from skcomplex.core.components.laws.utils import shortest_paths
+from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.specs import StateSpec
+
+
+class NodeElement(Element):
+    def __init__(self, label, *, capacity: Annotated[float, StateSpec()] = 0.0):
+        super().__init__(label)
+        self.capacity = capacity
+
+
+graph = nx.barabasi_albert_graph(100, 2, seed=0)
+loads = nx.betweenness_centrality(graph, normalized=False)
+capacity = [1.2 * loads[node] for node in graph.nodes]
+capacity[max(loads, key=loads.get)] = -1.0
+nodes = GroupElement('nodes', element=NodeElement, on='sites', variable=True, values={'capacity': capacity})
+links = GroupElement('links', element=Element, on='edges', variable=True)
+overload = TopologyInteraction(
+    'overload', target='nodes', action='remove-node', condition=lambda s: shortest_paths(1) > s.source.capacity
+)
+system = System(elements=[nodes, links], interactions=[overload], space=NetworkSpace(graph), time=DiscreteTime())
+trajectory = Simulation(system).prepare().run(until=10).trajectory_
+[len(trajectory.network(frame).nodes) for frame in range(4)]
+```
+
+`shortest_paths(active, over=None, reduce='betweenness')` reduces over the shortest paths of the active links between
+the members of a group, read without direction, with the links and the activity of `components`. The reductions are:
+
+- `'betweenness'`, the number of shortest paths between other members through every member, as
+  `networkx.betweenness_centrality(graph, normalized=False)` gives it,
+- `'closeness'`, the closeness of every member, as `networkx.closeness_centrality(graph)` gives it.
+
+NetworkX computes the reduction, again only when the active links changed since the last evaluation, so it follows a
+network whose topology changes during a run. The Numba backend runs the laws that read it in Python, with a
+`BackendWarning`. The catalog system `motter_lai_overload` removes the node of the largest load, of the largest degree,
+or a random node, and lets the cascade run.
+
 ## Topology requests
 
 Grow, shrink, and rewire a network while it runs. Barabási-Albert growth adds one node with two edges at every step,
@@ -579,10 +634,6 @@ class NodeElement(Element):
         return [UpdateLaw(s.age, s.age + 1)]
 
 
-class LinkElement(Element):
-    pass
-
-
 def degree(node):
     return neighbors(1)
 
@@ -595,7 +646,7 @@ class GrowthElement(Element):
 system = System(
     elements=[
         GroupElement('nodes', element=NodeElement, on='sites', variable=True, capacity=203),
-        GroupElement('links', element=LinkElement, on='edges', variable=True, capacity=403),
+        GroupElement('links', element=Element, on='edges', variable=True, capacity=403),
         GrowthElement('growth'),
     ],
     space=NetworkSpace(nx.complete_graph(3)),
@@ -607,6 +658,8 @@ degrees = np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))
 snapshot.nodes.size, snapshot.sources.size, int(degrees.max()) > 10
 ```
 
+The links carry no state, so their group takes the core `Element` itself as its element.
+
 A network that changes needs room to grow. A variable group on the sites or edges of a network,
 `GroupElement(..., on='sites', variable=True, capacity=n)`, holds rows for up to `capacity` members, and marks the
 members present as active. The NumPy and Numba backends run such groups with fixed array shapes:
@@ -615,8 +668,9 @@ members present as active. The NumPy and Numba backends run such groups with fix
 - reductions read the members present,
 - neighbourhoods and interactions over neighbours read the edges present.
 
-A change of structure is a `TopologyRequestSpec` of the kind `'add-node'`, `'remove-node'`, `'add-edge'`,
-`'remove-edge'`, or `'rewire'`. It is the target of update and jump laws:
+A change of structure is a `TopologyRequestSpec` of the kind `'add-node'`, `'remove-node'`, `'replace-node'`,
+`'add-edge'`, `'remove-edge'`, `'rewire'`, `'add-hyperedge'`, `'remove-hyperedge'`, `'close-triangle'`,
+`'contract-edge'`, or `'duplicate-node'`. It is the target of update and jump laws:
 
 - `UpdateLaw(request, probability)` fires the request with a probability at every step, for every member or edge its
   law runs for.
@@ -718,3 +772,158 @@ new node form a hyperedge of `k` members with `k - 1` existing nodes, and join e
   capacity=n)`. The initial hyperedges and the new ones have one size.
 - Hyperedge interactions read the hyperedges present at every step, and `trajectory.network(frame).hyperedges` holds
   the members of those present at a frame.
+
+Hyperedges also come and go on their own, and hyperedges of several sizes share one group. Nodes form random triangles
+that dissolve, and new nodes join hyperedges of two to four members:
+
+```python
+import networkx as nx
+
+from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.interactions import TopologyInteraction
+from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+
+system = System(
+    elements=[
+        GroupElement('nodes', element=Element, on='sites', variable=True, capacity=40),
+        GroupElement('links', element=Element, on='edges', variable=True, capacity=40),
+        GroupElement('groups', element=Element, on='hyperedges', variable=True, size=0, capacity=200, rank=4),
+    ],
+    interactions=[
+        TopologyInteraction('form', target='nodes', action='add-hyperedge', hyperedge=3, probability=0.1),
+        TopologyInteraction('dissolve', target='groups', action='remove-hyperedge', probability=0.2),
+        *(TopologyInteraction(f'join_{size}', action='add-node', hyperedge=size, edges=0) for size in (2, 3, 4)),
+    ],
+    space=NetworkSpace(nx.empty_graph(10)),
+    time=DiscreteTime(),
+)
+trajectory = Simulation(system, random_state=0).prepare().run(until=10).trajectory_
+trajectory.network(-1).hyperedges[:3].tolist()
+```
+
+- `'add-hyperedge'`, as an action or a `TopologyRequestSpec` kind, runs for every node, which forms a hyperedge of
+  size `hyperedge` with nodes drawn by `toward` and is its last member.
+- `'remove-hyperedge'` runs for every hyperedge of the variable group on the hyperedges that the target binds, and its
+  laws read the hyperedge member as `s.source`.
+- A variable group with a rank, `GroupElement(on='hyperedges', variable=True, rank=k)`, holds hyperedges of every size
+  up to `k`. Its rows hold `k` members, and a smaller hyperedge fills its last ones with -1, as
+  `trajectory.network(frame).hyperedges` shows. Hyperedge interactions run on groups of one size, without a rank.
+- With `edges=0` or `independent=True`, a new node with a hyperedge draws every other member by `toward`, and joins
+  them by no edge of its own.
+
+A new node can also join a random number of nodes: with `independent=True`, every candidate becomes a new end on its
+own with the probability `toward`, and on a directed layer `direction` sends the new edges `'out'` of the node, `'in'`
+to it, or `'both'` ways, each way drawn apart. The catalog system `tap_catalysis` grows goods whose production
+functions are hyperedges of every size up to the number of parents, and catalysis edges both ways, and
+`AutocatalyticSetAnalysis` finds the largest autocatalytic set of its production functions.
+
+### Choices, closures, contractions, and copies
+
+Choose a new edge among candidates. Explosive percolation adds one edge per step to isolated nodes, the one of two
+candidates whose product of the sizes of the components it joins is smaller:
+
+```python
+from typing import Annotated
+
+import networkx as nx
+
+from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.interactions import MapInteraction, TopologyInteraction
+from skcomplex.core.components.laws.utils import components
+from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.specs import StateSpec
+
+
+class ClusteredElement(Element):
+    def __init__(self, label, visual=None, *, size: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label, visual=visual)
+        self.size = size
+
+
+def product(node):
+    return node.size * node.source.size
+
+
+system = System(
+    elements=[
+        GroupElement('nodes', element=ClusteredElement, on='sites', variable=True, capacity=500),
+        GroupElement('links', element=Element, on='edges', variable=True, capacity=500),
+    ],
+    interactions=[
+        MapInteraction('size', target='nodes', state='size', function=lambda s: components(1, reduce='size')),
+        TopologyInteraction('linking', action='add-edge', candidates=2, score=product),
+    ],
+    space=NetworkSpace(nx.empty_graph(500)),
+    time=DiscreteTime(),
+)
+trajectory = Simulation(system, random_state=0).prepare().run(until=400).trajectory_
+int(trajectory.values('nodes.size')[-1].max()) < 100
+```
+
+- `candidates` draws that many candidate ends for every new edge of `'add-edge'`, and `score`, a function of the
+  namespace of a candidate end that reads the other end as `node.source`, picks the candidate of the smallest score.
+  A negated score picks the largest.
+- Without a target, `'add-edge'` runs once per step, and every candidate joins two distinct nodes not yet joined,
+  drawn uniformly. With one candidate the edges form an Erdős-Rényi graph.
+
+Further requests run for a node:
+
+- `'close-triangle'` joins two neighbours of the node that are not yet joined, drawn uniformly among such pairs. A node
+  without such a pair joins `edges` nodes by `toward` instead, as `'add-edge'` does, and `edges=0` turns this off.
+- `'contract-edge'` draws a neighbour by `toward` and merges it into the node, which keeps the union of their links on
+  every layer, without loops or repeated links. The neighbour leaves with its hyperedges.
+- `'duplicate-node'` adds a copy of the node with its values, overridden by `values`. The copy inherits each link with
+  probability `inherit` and joins the node with probability `parent`, and joins further ends like a new node, among
+  the nodes joined to neither.
+- `'replace-node'` removes the node and adds a new one in one request, so a replacement fired with a probability
+  removes and adds together.
+
+With `one=True`, a request runs at every step for one member drawn uniformly among the members present, node, edge, or
+hyperedge, and fires with the probability of its law there. The member is drawn when the request applies, after the
+requests before it, so a deletion followed by a duplication never duplicates the deleted node. A jump law cannot take
+it, since a jump channel already belongs to one member. A network of fixed size closes triangles and replaces nodes:
+
+```python
+import networkx as nx
+
+from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.interactions import TopologyInteraction
+from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+
+system = System(
+    elements=[
+        GroupElement('nodes', element=Element, on='sites', variable=True, capacity=50),
+        GroupElement('links', element=Element, on='edges', variable=True, capacity=400),
+    ],
+    interactions=[
+        TopologyInteraction('closure', target='nodes', action='close-triangle', one=True),
+        TopologyInteraction('turnover', target='nodes', action='replace-node', one=True, probability=0.2),
+    ],
+    space=NetworkSpace(nx.gnm_random_graph(50, 50, seed=0)),
+    time=DiscreteTime(),
+)
+trajectory = Simulation(system, random_state=0).prepare().run(until=500).trajectory_
+len(trajectory.network(-1).nodes)
+```
+
+The catalog systems `explosive_percolation`, `davidsen_ebel_bornholdt`, `node_merging`, and `duplication_deletion`
+build on these requests.
+
+## Sets of members on the nodes
+
+Give every node a collection that grows during the run, such as the balls of an urn, and let the neighbours read it.
+The members of a variable agent group placed on the nodes are the collection of each node:
+
+- `agent.agents_here(group)` reads the collection of the node of an agent,
+- `agent.neighbors(group=group)` reads the collections of the nodes around it, without the agents of other groups,
+- `agent.create(group)` adds a member to the collection of its node, and `remove` takes one out.
+
+The catalog system `interacting_urns_network` places an urn with triggering on every node of a network, with one ball
+agent per colour and its multiplicity, and every urn draws from its own balls and from the colours of the urns around
+it. [Agent-based systems](agent_based_systems.md) describes the rules and phases that act on such collections.

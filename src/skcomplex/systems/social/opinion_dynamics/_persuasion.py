@@ -3,25 +3,265 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
 import numpy as np
+from sage.all__sagemath_symbolics import NN, ZZ, Expression, oo
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement
-from ....core.components.interactions import GroupingInteraction
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import GroupingInteraction, MapInteraction
+from ....core.components.laws.utils import mean, where
 from ....core.components.spaces import LatticeSpace, NetworkSpace
 from ....core.components.system import System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
-from ....core.specs import RoleSpec
+from ....core.engine.solvers import AgentView
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._catalog import register_system
-from ._citizen import CitizenElement
-from ._discussions import DiscussionsInteraction
-from ._influencee import InfluenceeElement
-from ._persuader import PersuaderElement
-from ._persuader_view import PersuaderView
-from ._social_impact import SocialImpactInteraction
+
+
+class PersuaderView(AgentView):
+    """View of an agent of the Sznajd system, with its states and parameters as attributes."""
+
+    opinion: float
+
+
+class PersuaderElement(Element):
+    """Agent of the Sznajd system, who convinces the neighbours of an agreeing pair.
+
+    A step of an agent picks a random neighbour, and when both share an opinion every neighbour of either adopts it.
+    On a ring this is the original one-dimensional rule, where the pair convinces the two agents beside it.
+
+    Args:
+        label:
+            The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
+        opinion:
+            The initial opinion, 0 or 1.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.systems.social.opinion_dynamics import PersuaderElement
+        >>> group = GroupElement('people', element=PersuaderElement, size=10, values={'opinion': 1.0})
+        >>> group.label, group.element.__name__, group.size
+        ('people', 'PersuaderElement', 10)
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)}),
+        *,
+        opinion: Annotated[float, StateSpec(domain=NN)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.opinion = opinion
+
+    @classmethod
+    def _get_view(cls) -> type[PersuaderView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return PersuaderView
+
+
+class CitizenView(AgentView):
+    """View of an agent of the Galam majority system, with its states and parameters as attributes."""
+
+    opinion: float
+
+
+class CitizenElement(Element):
+    """Agent of the Galam majority system, who holds a binary opinion.
+
+    Args:
+        label:
+            The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
+        opinion:
+            The initial opinion, 0 or 1.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.systems.social.opinion_dynamics import CitizenElement
+        >>> group = GroupElement('citizens', element=CitizenElement, size=10, values={'opinion': 1.0})
+        >>> group.label, group.element.__name__, group.size
+        ('citizens', 'CitizenElement', 10)
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        opinion: Annotated[float, StateSpec(domain=NN)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.opinion = opinion
+
+    @classmethod
+    def _get_view(cls) -> type[CitizenView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return CitizenView
+
+
+class InfluenceeView(AgentView):
+    """View of an agent of the social impact system, with its states and parameters as attributes."""
+
+    opinion: float
+    persuasiveness: float
+    supportiveness: float
+    exponent: float
+    noise: float
+
+
+class InfluenceeElement(Element):
+    """Agent of the social impact system, with an opinion of -1 or 1, a persuasiveness, and a supportiveness.
+
+    Args:
+        label:
+            The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
+        opinion:
+            The initial opinion, -1 or 1.
+
+        persuasiveness:
+            The strength with which the agent persuades agents of the other opinion.
+
+        supportiveness:
+            The strength with which the agent supports agents of its opinion.
+
+        exponent:
+            The exponent of the distance by which impact decays.
+
+        noise:
+            The half-width of the uniform random field added to the impact on every agent and step.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.systems.social.opinion_dynamics import InfluenceeElement
+        >>> group = GroupElement('people', element=InfluenceeElement, size=4, values={'opinion': -1.0})
+        >>> group.label, group.element.__name__, group.size
+        ('people', 'InfluenceeElement', 4)
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (-1.0, 1.0)}),
+        *,
+        opinion: Annotated[float, StateSpec(domain=ZZ)] = 1.0,
+        persuasiveness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        supportiveness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        exponent: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        noise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.opinion = opinion
+        self.persuasiveness = persuasiveness
+        self.supportiveness = supportiveness
+        self.exponent = exponent
+        self.noise = noise
+
+    @classmethod
+    def _get_view(cls) -> type[InfluenceeView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return InfluenceeView
+
+
+class DiscussionsInteraction(GroupingInteraction):
+    """Discussions of the Galam system, which split the citizens into random groups that adopt their majority opinion.
+
+    It is a symbolic `GroupingInteraction` of random partitions, drawn again at every step. A tie in a group of even
+    size goes to opinion 0, the status quo.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of citizens.
+
+        size:
+            The number of citizens in each discussion group, the last group holding the remainder.
+
+    Examples:
+        >>> from skcomplex.systems.social.opinion_dynamics import DiscussionsInteraction
+        >>> DiscussionsInteraction('talks', target='citizens', size=4).write
+        'opinion'
+    """
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], size: int = 3) -> None:
+        super().__init__(
+            label,
+            target=target,
+            groups='partition',
+            size=size,
+            form='symbolic',
+            write='opinion',
+            function=self._get_majority,
+        )
+
+    def _get_majority(self, group: SimpleNamespace) -> Expression:
+        """Return 1 when more than half of the members of a group hold opinion 1, and 0 otherwise."""
+        return where(mean(group.members.opinion, over=group.members) > 1 / 2, 1, 0)
+
+
+class SocialImpactInteraction(MapInteraction):
+    """Synchronous update of the social impact system, where every agent takes the opinion of the stronger impact.
+
+    The impact on agent `i` is `I_i = sum_j t_j (1 - o_i o_j) / d_ij^a - sum_j s_j (1 + o_i o_j) / d_ij^a`, with the
+    persuasiveness `t`, the supportiveness `s`, and the distance `d` on the grid, where an agent supports itself from
+    distance 1. The impact is the net pressure to change, whatever the opinion, so an agent flips its opinion when
+    `I_i + h_i > 0`, with a uniform random field `h_i`. Every agent decides from the opinions at the start of the step.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of agents.
+
+    Examples:
+        >>> from skcomplex.systems.social.opinion_dynamics import SocialImpactInteraction
+        >>> SocialImpactInteraction('impact', target='people').form
+        'agent'
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label, target=target, state='opinion', function=self._get_opinion, form='agent')
+
+    def _get_impact(self, agent: InfluenceeView, system: SystemViewProtocol) -> float:
+        """Return the net pressure to change on an agent from every agent of the group, itself from distance 1."""
+        agents = [item for item in system.agents('target') if isinstance(item, InfluenceeView)]
+        locations = np.array([item.location for item in agents], dtype=float)
+        distances = np.linalg.norm(locations - np.asarray(agent.location, dtype=float), axis=-1)
+        distances[[item.id == agent.id for item in agents]] = 1.0
+        weights = distances**-agent.exponent
+        agreement = agent.opinion * np.array([item.opinion for item in agents], dtype=float)
+        persuasion = np.array([item.persuasiveness for item in agents], dtype=float)
+        support = np.array([item.supportiveness for item in agents], dtype=float)
+        return float((weights * persuasion * (1 - agreement)).sum() - (weights * support * (1 + agreement)).sum())
+
+    def _get_opinion(self, agent: InfluenceeView, system: SystemViewProtocol) -> float:
+        """Return the opposite opinion of an agent under a positive net pressure to change, and its own otherwise."""
+        field = system.rng.uniform(-agent.noise, agent.noise)
+        return -agent.opinion if self._get_impact(agent, system) + field > 0 else float(agent.opinion)
 
 
 def _shares(size: int, share: float, random_state: int | np.random.Generator | None) -> Array:

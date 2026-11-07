@@ -5,16 +5,118 @@
 
 import math
 from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import FieldElement
-from ....core.components.interactions import BaseInteraction, RateInteraction
+from ....core.components.elements import Element, FieldElement
+from ....core.components.interactions import BaseInteraction, GradientInteraction, RateInteraction
+from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.system import System
 from ....core.engine.solvers import ETDRK4Solver
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ..common.fields import LandauEnergyInteraction, PhaseFieldElement
+
+
+class PhaseFieldElement(Element):
+    """Site of a phase field, which holds the order parameter `phi` that free energies and noise move.
+
+    Args:
+        label:
+            The label of the site or the field.
+
+        visual:
+            How the site is drawn, or `None` for `default_visual_`.
+
+        phi:
+            The initial order parameter.
+
+    Attributes:
+        default_visual_:
+            The visual of the site when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.pattern_formation._ordering import PhaseFieldElement
+        >>> PhaseFieldElement('site', phi=0.5).phi
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        phi: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.phi = phi
+
+
+class LandauEnergyInteraction(GradientInteraction):
+    """Gradient flow of a field `phi` in the Landau free energy of a double well with a cost of gradients.
+
+    The free energy is `F = integral -phi^2 / 2 + phi^4 / 4 + kappa |grad phi|^2 / 2`. Its functional derivative is
+    the chemical potential `mu = -phi + phi^3 - kappa laplacian(phi)`. A non-conserved field relaxes as `phi_t = -mu`,
+    the Allen-Cahn equation of system A, and a conserved field as `phi_t = laplacian(mu)`, the Cahn-Hilliard equation of
+    system B, whose total stays constant.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        target:
+            The path of the field.
+
+        state:
+            The name of the state of the field that holds the order parameter.
+
+        kappa:
+            The cost of gradients, the square of the width of the interfaces.
+
+        conserved:
+            Whether the order parameter is conserved.
+
+    Examples:
+        >>> from types import SimpleNamespace
+        >>> from sage.all__sagemath_symbolics import var
+        >>> from skcomplex.systems.physics.pattern_formation._ordering import LandauEnergyInteraction
+        >>> energy = LandauEnergyInteraction('energy', target='mixture').prepare()
+        >>> namespace = SimpleNamespace(target=SimpleNamespace(phi=var('phi')), kappa=var('kappa'))
+        >>> [law.value for law in energy.run(namespace).laws_]
+        [-phi^3 + kappa*laplacian(phi) + phi]
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        state: str = 'phi',
+        kappa: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        conserved: bool = False,
+    ) -> None:
+        super().__init__(label, target=target, states=state, variational=True, conserved=conserved)
+        self.state = state
+        self.kappa = kappa
+
+    def _get_potential(self, namespace: SimpleNamespace) -> Expression:
+        """Return the density `-phi^2 / 2 + phi^4 / 4 - kappa phi laplacian(phi) / 2`, the gradient term by parts.
+
+        Args:
+            namespace:
+                The namespace of the symbols the density can use.
+
+        Returns:
+            density:
+                The density of the free energy.
+        """
+        phi = getattr(namespace.target, self.state)
+        return -(phi**2) / 2 + phi**4 / 4 - namespace.kappa * phi * laplacian(phi) / 2
+
 
 REFERENCES = ('Brauns and Marchetti 2024', 'Allen and Cahn 1979', 'Cahn and Hilliard 1958', 'Bray 1994')
 

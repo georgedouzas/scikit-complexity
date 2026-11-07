@@ -14,8 +14,10 @@ from sage.libs.gap.element import GapElement
 from ...errors import SpaceError, SpaceTooLargeError, ValidationError
 from ._base import BaseNeighborhood, BaseSpace
 from ._memory import MemoryNeighborhood
+from ._state_translation import StateTranslationNeighborhood
 
 MAX_SITES = 100_000
+MAX_PRODUCTS = 10_000_000
 LEVEL_POINTS = 2**14
 ORDERINGS = ('shortlex', 'recursive')
 KNUTH_BENDIX_LIMITS = (('maxeqns', 5000), ('maxstates', 50000))
@@ -35,7 +37,9 @@ class CayleySpace(BaseSpace):
     Sites are the distinct elements of a ball of a radius in the generators and their inverses, numbered by word length
     and then by order of discovery, so a ball is a prefix of every larger ball. Without a ball the group must be finite,
     and the sites are all its elements. A cell at the site `g` reads the site `g s` for every element `s` of a memory
-    set, and a neighbour outside a ball, or reached through a site outside it, reads the value `fill`.
+    set, and a neighbour outside a ball, or reached through a site outside it, reads the value `fill`. A memory set
+    translated by the values of the cells, `StateTranslationNeighborhood`, reads the site `g x(g) s` of the group
+    element `x(g)` that a cell holds as the number of its site, under the same convention.
 
     Args:
         group:
@@ -343,6 +347,45 @@ class CayleySpace(BaseSpace):
                 inside = sites >= 0
                 sites = np.where(inside, self.generator_table_[np.where(inside, sites, 0), column], -1)
             table[:, position] = np.where(sites >= 0, sites, size)
+        return table
+
+    def _translation_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
+        """Return the site of `g h s` for every site `g`, site `h`, and word `s`, with `size_` outside the space.
+
+        The product walks the shortest word of `h` and then the word `s` from `g`, so on a ball a product reached
+        through a site outside it lies outside, as for a memory set.
+
+        Args:
+            neighborhood:
+                The memory set translated by the value of a cell.
+
+        Returns:
+            table:
+                One row per site `g`, one column per site `h`, and one layer per word `s`.
+
+        Raises:
+            ValidationError:
+                The neighbourhood is no state translation neighbourhood.
+
+            SpaceTooLargeError:
+                The table would hold more than ten million entries.
+        """
+        if not isinstance(neighborhood, StateTranslationNeighborhood):
+            error_msg = f'A Cayley space translates a memory set by group elements, but it was given {neighborhood!r}.'
+            raise ValidationError(error_msg)
+        size = self.size_
+        words = neighborhood.prepare().elements_
+        if size * size * len(words) > MAX_PRODUCTS:
+            error_msg = (
+                f'The products of the {size} sites of the group space with each other and {len(words)} words exceed '
+                f'{MAX_PRODUCTS} entries. Ask for a smaller ball or a finite quotient.'
+            )
+            raise SpaceTooLargeError(error_msg)
+        products = self._index_table(MemoryNeighborhood(tuple(self.words_)))
+        table = np.empty((size, size, len(words)), dtype=np.intp)
+        for layer, word in enumerate(words):
+            right = np.append(self._index_table(MemoryNeighborhood((word,)))[:, 0], size)
+            table[:, :, layer] = right[products]
         return table
 
     def _ball(self, radius: int) -> MemoryNeighborhood:

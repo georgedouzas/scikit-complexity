@@ -1,0 +1,301 @@
+"""Mechanics systems: the beam-beam map of colliding beams and a mass that sticks and slips under friction."""
+
+# Author: Georgios Douzas <gdouzas@icloud.com>
+# License: MIT
+
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import Expression, cos, exp, oo, pi, sin
+from sage.sets.real_set import RealSet
+
+from ....core.components.elements import Element
+from ....core.components.interactions import MapInteraction
+from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws.utils import both, where
+from ....core.components.spaces import DiscreteTime
+from ....core.components.system import System
+from ....core.engine.solvers import RK4Solver
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_system
+
+
+class BeamElement(Element):
+    """Transverse position and momentum of a particle of an accelerator beam, kicked by the opposite beam every turn.
+
+    Map interactions rotate the particle by the tune and kick its momentum with the field of the opposite beam, so the
+    element holds the states and the parameters they read.
+
+    Args:
+        label:
+            The label of the particle.
+
+        visual:
+            How the particle is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial transverse position.
+
+        y:
+            The initial transverse momentum.
+
+        nu:
+            The tune, the rotation per turn in units of `pi`, in `[0, 2]`.
+
+        c:
+            The strength of the beam-beam kick.
+
+    Attributes:
+        default_visual_:
+            The visual of the particle when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.mechanics import BeamElement
+        >>> BeamElement('particle').nu
+        0.3
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 0.5,
+        y: Annotated[float, StateSpec()] = 0.0,
+        nu: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 2))] = 0.3,
+        c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.nu = nu
+        self.c = c
+
+
+class FrictionOscillatorElement(Element):
+    """Mass on a spring with static, Coulomb, and viscous friction, which sticks and slips.
+
+    The mass `m` at the position `x` with the velocity `v` feels the spring `-k x` and the viscous friction `-c v`.
+    While it slides it feels the Coulomb friction `-mu_k m g sign(v)`, and at rest it stays at rest while the spring
+    force stays within the static friction `mu_s m g`. The friction is discontinuous in the velocity, so the mass
+    counts as at rest below the speed `v_stick`, which must exceed the change of speed of one solver step, and its
+    position stays still while it is at rest.
+
+    Args:
+        label:
+            The label of the mass.
+
+        visual:
+            How the mass is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial position.
+
+        v:
+            The initial velocity.
+
+        m:
+            The mass.
+
+        k:
+            The stiffness of the spring.
+
+        c:
+            The viscous friction coefficient.
+
+        mu_s:
+            The static friction coefficient.
+
+        mu_k:
+            The kinetic friction coefficient.
+
+        g:
+            The gravitational acceleration.
+
+        v_stick:
+            The speed below which the mass counts as at rest.
+
+    Attributes:
+        default_visual_:
+            The visual of the mass when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.mechanics import FrictionOscillatorElement
+        >>> FrictionOscillatorElement('mass').mu_s
+        0.06
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 1.03,
+        v: Annotated[float, StateSpec()] = 0.0,
+        m: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        mu_s: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.06,
+        mu_k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        g: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        v_stick: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.v = v
+        self.m = m
+        self.k = k
+        self.c = c
+        self.mu_s = mu_s
+        self.mu_k = mu_k
+        self.g = g
+        self.v_stick = v_stick
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the motion of the mass under the spring and the friction that sticks and slips.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rates of the position and the velocity.
+        """
+        s = namespace
+        force = -s.k * s.x - s.c * s.v
+        moving = abs(s.v) > s.v_stick
+        direction = where(moving, where(s.v > 0, 1, -1), where(force > 0, 1, -1))
+        stuck = both(abs(s.v) <= s.v_stick, abs(s.k * s.x) <= s.mu_s * s.m * s.g)
+        return [
+            RateLaw(s.x, where(moving, s.v, 0)),
+            RateLaw(s.v, where(stuck, 0, (force - s.mu_k * s.m * s.g * direction) / s.m)),
+        ]
+
+
+def _rotate(s: SimpleNamespace) -> tuple[Expression, Expression]:
+    """Return the position and momentum of the target turned by the angle `pi nu`."""
+    a, b = cos(pi * s.target.nu), sin(pi * s.target.nu)
+    return a * s.target.x + b * s.target.y, -b * s.target.x + a * s.target.y
+
+
+def _kick(s: SimpleNamespace) -> Expression:
+    """Return the momentum of the target after its rotation and the kick `-8 pi c (1 - exp(-u² / 2)) / u`."""
+    position, momentum = _rotate(s)
+    safe = where(position == 0, 1, position)
+    return momentum - 8 * pi * s.target.c * where(position == 0, 0, (1 - exp(-(safe**2) / 2)) / safe)
+
+
+@register_system(
+    field='physics/mechanics',
+    tags=('discrete map', 'hamiltonian', 'area preserving', 'accelerator', 'chaos'),
+    references=('Dilão and Alves-Pires 1996', 'Dilão 2023'),
+    defaults={'until': 2000, 'dt': 1},
+)
+def beam_beam_map(x: float = 0.5, y: float = 0.0, *, nu: float = 0.3, c: float = 0.05) -> System:
+    """Return the beam-beam map of a particle of an accelerator beam that meets the opposite beam once every turn.
+
+    Every turn the transverse position and momentum rotate by the angle `pi nu` of the tune, `u = a x + b y` with
+    `a = cos(pi nu)` and `b = sin(pi nu)`, and the round Gaussian charge of the opposite beam kicks the momentum:
+    `x' = u`, `y' = -b x + a y - 8 pi c (1 - exp(-u² / 2)) / u`. The map preserves area, as the composition of a
+    rotation and a kick. The origin is a fixed point, whose linearisation has the trace `2 a - 4 pi c b` and is
+    elliptic when the trace lies in `(-2, 2)`, and the phase space mixes invariant curves, island chains, and chaotic
+    layers.
+
+    Args:
+        x:
+            The initial transverse position.
+
+        y:
+            The initial transverse momentum.
+
+        nu:
+            The tune, in `[0, 2]`.
+
+        c:
+            The strength of the beam-beam kick.
+
+    Returns:
+        system:
+            The system, with the states `particle.x` and `particle.y`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.mechanics import beam_beam_map
+        >>> beam_beam_map(nu=0.5).elements[0].nu
+        0.5
+    """
+    rotation = MapInteraction('x_map', target='particle', state='x', function=lambda s: _rotate(s)[0])
+    kick = MapInteraction('y_map', target='particle', state='y', function=_kick)
+    return System(
+        elements=[BeamElement('particle', x=x, y=y, nu=nu, c=c)],
+        interactions=[rotation, kick],
+        time=DiscreteTime(),
+    )
+
+
+@register_system(
+    field='physics/mechanics',
+    tags=('mechanics', 'ode', 'friction', 'stick-slip', 'piecewise linear'),
+    references=('Khalil 2002', 'Trzaska 2023'),
+    defaults={'until': 40.0, 'dt': 0.01, 'solver': RK4Solver(dt=0.005)},
+)
+def friction_oscillator(
+    x: float = 1.03,
+    v: float = 0.0,
+    *,
+    m: float = 1.0,
+    k: float = 1.0,
+    c: float = 0.0,
+    mu_s: float = 0.06,
+    mu_k: float = 0.05,
+    g: float = 1.0,
+    v_stick: float = 0.01,
+) -> System:
+    """Return a mass on a linear spring with static, Coulomb, and viscous friction, `m x'' + c x' + k x + f = 0`.
+
+    While the mass slides, the friction `f = mu_k m g sign(x')` opposes its motion, so in each half of the phase plane
+    the motion is linear, around the shifted centres `x = ∓ mu_k m g / k`. At rest the static friction holds the mass
+    while `|k x| <= mu_s m g`, so the system has a whole segment of equilibria rather than isolated ones. Without
+    viscous friction, every half swing ends `2 mu_k m g / k` closer to the origin, and the mass sticks at the first
+    turning point inside the segment, after finitely many swings. The friction is discontinuous, so the mass counts
+    as at rest below the speed `v_stick`.
+
+    Args:
+        x:
+            The initial position.
+
+        v:
+            The initial velocity.
+
+        m:
+            The mass.
+
+        k:
+            The stiffness of the spring.
+
+        c:
+            The viscous friction coefficient.
+
+        mu_s:
+            The static friction coefficient.
+
+        mu_k:
+            The kinetic friction coefficient.
+
+        g:
+            The gravitational acceleration.
+
+        v_stick:
+            The speed below which the mass counts as at rest.
+
+    Returns:
+        system:
+            The system, with the position `mass.x` and the velocity `mass.v`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.mechanics import friction_oscillator
+        >>> friction_oscillator(mu_k=0.1).elements[0].mu_k
+        0.1
+    """
+    mass = FrictionOscillatorElement('mass', x=x, v=v, m=m, k=k, c=c, mu_s=mu_s, mu_k=mu_k, g=g, v_stick=v_stick)
+    return System(elements=[mass])

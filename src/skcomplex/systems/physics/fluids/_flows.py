@@ -5,10 +5,12 @@
 
 import math
 from collections.abc import Mapping, Sequence
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import Expression
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import (
@@ -22,13 +24,208 @@ from ....core.components.laws.utils import gradient, inverse_laplacian, laplacia
 from ....core.components.spaces import LatticeSpace
 from ....core.components.system import System
 from ....core.engine.solvers import ETDRK4Solver, SSPRKSolver
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._catalog import register_system
-from ._boussinesq import BoussinesqElement
-from ._burgers import BurgersElement
-from ._kuramoto_sivashinsky import KuramotoSivashinskyElement
-from ._shallow_water import ShallowWaterElement
-from ._vorticity import VorticityElement
+
+
+class BoussinesqElement(Element):
+    """Vorticity and temperature of Boussinesq convection, in units of the thermal diffusion time.
+
+    The temperature `theta` is the departure from the linear profile between a hot bottom and a cold top, so
+    `dtheta/dt + u . grad(theta) = w + laplacian(theta)` and
+    `domega/dt + u . grad(omega) = Pr laplacian(omega) + Ra Pr dtheta/dx`. The advections, the diffusions, and the
+    buoyancy are interactions of the system.
+
+    Args:
+        label:
+            The label of the site or the field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        omega:
+            The initial vorticity.
+
+        theta:
+            The initial temperature departure.
+
+        Ra:
+            The Rayleigh number.
+
+        Pr:
+            The Prandtl number.
+
+    Examples:
+        >>> from skcomplex.systems.physics.fluids import BoussinesqElement
+        >>> BoussinesqElement('site').Ra
+        1000.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        omega: Annotated[float, StateSpec()] = 0.0,
+        theta: Annotated[float, StateSpec()] = 0.0,
+        Ra: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1000.0,
+        Pr: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.omega = omega
+        self.theta = theta
+        self.Ra = Ra
+        self.Pr = Pr
+
+
+class BurgersElement(Element):
+    """Site of a field `u` that the Burgers equation `du/dt + d(u^2 / 2)/dx = 0` carries.
+
+    Args:
+        label:
+            The label of the site.
+
+        visual:
+            How the site is drawn, or `None` for none.
+
+        u:
+            The initial value.
+
+    Examples:
+        >>> from skcomplex.systems.physics.fluids import BurgersElement
+        >>> BurgersElement('site', u=1.5).u
+        1.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+
+
+class KuramotoSivashinskyElement(Element):
+    """Site of a flame front or a thin film, `du/dt = -d(u^2 / 2)/dx - laplacian(u) - laplacian(laplacian(u))`.
+
+    The conservation of the flux `u^2 / 2` and the rate of the linear operator are interactions of the system.
+
+    Args:
+        label:
+            The label of the site.
+
+        visual:
+            How the site is drawn, or `None` for none.
+
+        u:
+            The initial height of the front.
+
+    Examples:
+        >>> from skcomplex.systems.physics.fluids import KuramotoSivashinskyElement
+        >>> KuramotoSivashinskyElement('site', u=0.5).u
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+
+
+class ShallowWaterElement(Element):
+    """Site of a channel of shallow water, with the depth `h` and the discharge `q` per unit width.
+
+    The mass `h` and the momentum `q` are conserved by two conservation interactions, with the fluxes `q` and
+    `q^2 / h + g h^2 / 2`, which form one hyperbolic system.
+
+    Args:
+        label:
+            The label of the site.
+
+        visual:
+            How the site is drawn, or `None` for none.
+
+        h:
+            The initial depth.
+
+        q:
+            The initial discharge.
+
+        g:
+            The gravitational acceleration.
+
+    Examples:
+        >>> from skcomplex.systems.physics.fluids import ShallowWaterElement
+        >>> ShallowWaterElement('site', h=2.0).h
+        2.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        h: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
+        q: Annotated[float, StateSpec()] = 0.0,
+        g: Annotated[float, ParameterSpec()] = 9.81,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.h = h
+        self.q = q
+        self.g = g
+
+
+class VorticityElement(Element):
+    """Vorticity of an incompressible two-dimensional flow, `domega/dt + u . grad(omega) = nu laplacian(omega) + f`.
+
+    The velocity comes from the streamfunction, the solution of a Poisson equation, so the flow is divergence free,
+    and the advection is written in conservative form so that dealiasing applies to it. The advection, the viscosity,
+    and the forcing are interactions of the system.
+
+    Args:
+        label:
+            The label of the site or the field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        omega:
+            The initial vorticity.
+
+        nu:
+            The kinematic viscosity.
+
+        f:
+            The forcing of the vorticity.
+
+    Examples:
+        >>> from skcomplex.systems.physics.fluids import VorticityElement
+        >>> VorticityElement('site').nu
+        0.001
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        omega: Annotated[float, StateSpec()] = 0.0,
+        nu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
+        f: Annotated[float, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.omega = omega
+        self.nu = nu
+        self.f = f
 
 
 @register_system(

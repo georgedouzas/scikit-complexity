@@ -3,16 +3,145 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import numpy as np
+from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.components.elements import GroupElement
+import numpy as np
+from sage.all__sagemath_symbolics import exp, oo
+from sage.sets.real_set import RealSet
+
+from ....core.components.base import BasePart
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import Interaction
+from ....core.components.laws import EquationLaw
+from ....core.components.laws.utils import log_sum_exp, total
 from ....core.components.spaces import StaticTime
 from ....core.components.system import System
-from ....core.specs import VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._boltzmann_average import BoltzmannAverageElement
-from ._boltzmann_sum import BoltzmannSumInteraction
-from ._energy_level import EnergyLevelElement
+
+
+class BoltzmannAverageElement(Element):
+    """Log partition function, mean energy, and entropy per spin of a group of levels.
+
+    Args:
+        label:
+            The label of the element.
+
+        log_partition:
+            The initial guess of the log partition function, which the equations replace.
+
+        energy:
+            The initial guess of the mean energy, which the equations replace.
+
+        entropy:
+            The initial guess of the entropy per spin, which the equations replace.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import BoltzmannAverageElement
+        >>> BoltzmannAverageElement('ensemble').entropy
+        0.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        log_partition: Annotated[float, StateSpec()] = 0.0,
+        energy: Annotated[float, StateSpec()] = 0.0,
+        entropy: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.log_partition = log_partition
+        self.energy = energy
+        self.entropy = entropy
+
+
+class EnergyLevelElement(Element):
+    """Energy level of a configuration, held fixed.
+
+    Args:
+        label:
+            The label of the level or the group.
+
+        energy:
+            The energy of the level.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import EnergyLevelElement
+        >>> EnergyLevelElement('level', energy=-1.5).energy
+        -1.5
+    """
+
+    def __init__(self, label: str, energy: Annotated[float, StateSpec()] = 0.0) -> None:
+        super().__init__(label)
+        self.energy = energy
+
+
+class BoltzmannSumInteraction(Interaction):
+    """Boltzmann sums over a group of levels, which give the log partition function, mean energy, and entropy per spin.
+
+    The log partition function is `ln Z = log sum_j exp(-E_j / T)`, the mean energy is
+    `U = sum_j E_j exp(-E_j / T - ln Z)`, and the entropy per spin is `(ln Z + U / T) / N`. The sums reduce in log
+    space, so they do not overflow at any temperature.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the element that holds the averages.
+
+        levels:
+            The path of the group of levels.
+
+        temperature:
+            The temperature.
+
+        n_spins:
+            The number of spins the entropy is divided by.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import BoltzmannSumInteraction
+        >>> BoltzmannSumInteraction('sums', target='ensemble', levels='levels', temperature=0.5).temperature
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        levels: Annotated[str, RoleSpec()],
+        temperature: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        n_spins: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.levels = levels
+        self.temperature = temperature
+        self.n_spins = n_spins
+
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+        """Return the equations of the log partition function, the mean energy, and the entropy per spin.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The three equations.
+        """
+        weight = -s.levels.energy / s.temperature
+        log_partition = log_sum_exp(weight, over=s.levels)
+        energy = total(s.levels.energy * exp(weight - log_partition), over=s.levels)
+        entropy = (s.target.log_partition + s.target.energy / s.temperature) / s.n_spins
+        return [
+            EquationLaw(s.target.log_partition == log_partition, target=s.target.log_partition),
+            EquationLaw(s.target.energy == energy, target=s.target.energy),
+            EquationLaw(s.target.entropy == entropy, target=s.target.entropy),
+        ]
 
 
 @register_system(

@@ -11,7 +11,7 @@ import pytest
 from skcomplex.core.components.elements import DensityElement, FieldElement
 from skcomplex.core.components.interactions import AdvectionInteraction, ConservationInteraction
 from skcomplex.core.components.laws.utils import coordinate, gradient, inverse_laplacian, moment
-from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace
+from skcomplex.core.components.spaces import LatticeSpace, PhaseSpace, SimplexSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import SemiLagrangianSolver
@@ -57,6 +57,17 @@ def test_nonlinear_flux_raises_a_named_error() -> None:
         solver=SemiLagrangianSolver(dt=0.1),
     )
     with pytest.raises(SolverError, match='not a linear drift'):
+        simulation.prepare().run(until=0.1)
+
+
+def test_partial_cells_raise_a_named_error() -> None:
+    """Raise a named error saying that a field on a simplex has partial cells that whole slices cannot shift."""
+    space = SimplexSpace(LatticeSpace((1,)), [AxisSpec('x', 8, 0.0, 1.0), AxisSpec('y', 8, 0.0, 1.0)])
+    values = {'f': 2.0 * (space.prepare().volumes_ > 0)}
+    groups = FieldElement('groups', element=DensityElement, space=space, values=values, discretization='finite-volume')
+    flow = AdvectionInteraction('flow', target='groups', state='f', drift=lambda _: [0, 1.0, -1.0])
+    simulation = Simulation(System(elements=[groups], interactions=[flow]), solver=SemiLagrangianSolver(dt=0.1))
+    with pytest.raises(SolverError, match='partial cells'):
         simulation.prepare().run(until=0.1)
 
 

@@ -22,7 +22,7 @@ from ....components.laws.utils import COORDINATE_PREFIX, coordinate
 from ....components.spaces import BaseSpace, LatticeSpace, NetworkSpace, PhaseSpace
 from ....components.specs import CensusRecordSpec, NodeSpec
 from ....errors import LabelError, SpaceError, ValidationError
-from ....specs import EntrySpec, TensorSpec, VariableSpec, WienerProcessSpec
+from ....specs import EntrySpec, PowerSeriesSpec, TensorSpec, VariableSpec, WienerProcessSpec
 from ....types import Array, VariableKind
 from ..._utils import components_of, declarations_of, default_of, symbol, vector
 from ...problems import BlockSpec, DeclarationsSpec, ReferenceSpec
@@ -450,6 +450,9 @@ class LayoutPass(BasePass):
     def _members(node: NodeSpec, space: NetworkSpace) -> Array:
         """Return the member nodes of every row of a variable group on hyperedges, with zeros in the free rows.
 
+        A group with a rank holds a column per member of its largest hyperedge, and a smaller hyperedge fills its
+        last columns with -1, no member.
+
         Args:
             node:
                 The node of the variable group.
@@ -463,17 +466,28 @@ class LayoutPass(BasePass):
 
         Raises:
             ValidationError:
-                The hyperedges of the network have more than one size, or none.
+                The group has no rank and the hyperedges of the network have more than one size, or none, or a
+                hyperedge holds more members than the rank.
         """
         sizes = sorted({len(hyperedge) for hyperedge in space.hyperedges_})
-        if len(sizes) != 1:
+        rank = getattr(node.component, 'rank', None)
+        if rank is None and len(sizes) != 1:
             error_msg = (
                 f'The variable group {node.path} lies on the hyperedges of a network whose hyperedges have the sizes '
-                f'{sizes}. Give the network hyperedges of one size, which every new hyperedge also has.'
+                f'{sizes}. Give the network hyperedges of one size, which every new hyperedge also has, or give the '
+                'group the rank of its largest hyperedge, `GroupElement(..., rank=k)`.'
             )
             raise ValidationError(error_msg)
-        members = np.zeros(((node.members or 0), sizes[0]))
-        members[: len(space.hyperedges_)] = np.asarray(space.hyperedges_, dtype=float)
+        width = int(rank) if rank is not None else sizes[0]
+        if sizes and sizes[-1] > width:
+            error_msg = (
+                f'The variable group {node.path} has rank {width}, but the network holds a hyperedge of {sizes[-1]} '
+                'members. Give a rank of at least the size of its largest hyperedge.'
+            )
+            raise ValidationError(error_msg)
+        members = np.zeros(((node.members or 0), width))
+        for row, hyperedge in enumerate(space.hyperedges_):
+            members[row] = [*hyperedge, *([-1] * (width - len(hyperedge)))]
         return members
 
     @staticmethod
@@ -557,7 +571,9 @@ class LayoutPass(BasePass):
 
         Returns:
             shape:
-                `()` for a scalar, `(n_dim,)` for a vector, and the number of independent components for a tensor.
+                `()` for a scalar, `(n_dim,)` for a vector, the number of independent components for a tensor, the
+                number of real components of a matrix for a matrix group state, and the order of a truncated power
+                series state.
 
         Raises:
             SpaceError:
@@ -566,6 +582,10 @@ class LayoutPass(BasePass):
             ValidationError:
                 The space dimension is not a positive integer.
         """
+        if declaration.group is not None:
+            return (declaration.group.size,)
+        if isinstance(declaration.domain, PowerSeriesSpec):
+            return (declaration.domain.order,)
         if not declaration.vector and declaration.tensor is None:
             return ()
         if space is None:

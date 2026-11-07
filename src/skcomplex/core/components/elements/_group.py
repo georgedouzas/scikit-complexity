@@ -17,6 +17,7 @@ from ._base import BaseElement
 from ._declared import DeclaredElement
 
 PARTS = ('sites', 'edges', 'hyperedges')
+MIN_RANK = 2
 
 
 class GroupElement(BaseElement):
@@ -64,6 +65,11 @@ class GroupElement(BaseElement):
         capacity:
             The largest number of members of a variable group on the sites or edges of a network, which compiled
             backends reserve rows for, or `None` for twice the initial size.
+
+        rank:
+            The largest number of members of a hyperedge of a variable group on the hyperedges of a network, the rank
+            of its hypergraph, which compiled backends reserve a column per member for, so the group holds hyperedges
+            of every size up to it, or `None` for one size, that of the initial hyperedges.
 
     Attributes:
         default_visual_:
@@ -116,6 +122,7 @@ class GroupElement(BaseElement):
         location: object = None,
         layer: str | None = None,
         capacity: int | None = None,
+        rank: int | None = None,
     ) -> None:
         super().__init__(label, visual=visual)
         self.element = element
@@ -127,6 +134,7 @@ class GroupElement(BaseElement):
         self.location = location
         self.layer = layer
         self.capacity = capacity
+        self.rank = rank
 
     def _size_of(self, space: BaseSpace | None = None) -> int:
         """Return the size of the group, the number of parts of its own space or else of an inherited space."""
@@ -227,14 +235,25 @@ class GroupElement(BaseElement):
         """Raise an error for a size that is not a positive integer, except an empty variable group on parts."""
         if self.size is None and self.on is not None:
             return
-        empty = self.variable and self.on in {'sites', 'edges'} and self.size == 0
+        empty = self.variable and self.on in PARTS and self.size == 0
         positive_integer = self.size is not None and self.size in ZZ and self.size > 0
         if not empty and not positive_integer:
             error_msg = f'Group {self.label!r} has size {self.size!r}, which is not a positive integer.'
             raise ValidationError(error_msg)
 
+    def _check_rank(self) -> None:
+        """Raise an error for a rank of a group that is not a variable group on hyperedges, or below two members."""
+        if self.rank is None:
+            return
+        if not self.variable or self.on != 'hyperedges':
+            error_msg = f'Group {self.label!r} has a rank, which only a variable group on hyperedges takes.'
+            raise ValidationError(error_msg)
+        if self.rank not in ZZ or self.rank < MIN_RANK:
+            error_msg = f'Group {self.label!r} has rank {self.rank!r}. A hyperedge holds a whole number of at least 2.'
+            raise ValidationError(error_msg)
+
     def _check(self) -> None:
-        """Raise an error for a part, an element type, a size, or values the group cannot take.
+        """Raise an error for a part, an element type, a size, a rank, or values the group cannot take.
 
         Raises:
             SpaceError:
@@ -244,12 +263,14 @@ class GroupElement(BaseElement):
                 A value names an argument the constructor of the element type does not take.
 
             ValidationError:
-                The element type is not an element class, or the size is not a positive integer.
+                The element type is not an element class, the size is not a positive integer, or the rank does not
+                belong to a variable group on hyperedges or is below 2.
         """
         super()._check()
         self._check_on()
         self._check_element()
         self._check_size()
+        self._check_rank()
         self._get_member()
 
     def _prepare(self, context: BaseSpace | None = None) -> None:

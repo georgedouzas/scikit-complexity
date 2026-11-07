@@ -12,10 +12,12 @@ from ._conservation import ConservationInteraction
 from ._coupling import CouplingInteraction
 from ._crossing import CrossingInteraction
 from ._diffusion import DiffusionInteraction
+from ._einstein import EinsteinInteraction
 from ._encounter import EncounterInteraction
 from ._euler_lagrange import EulerLagrangeInteraction
 from ._evolution import EvolutionInteraction
 from ._feedback import FeedbackInteraction
+from ._geodesic import GeodesicInteraction
 from ._gradient import GradientInteraction
 from ._grouping import GroupingInteraction
 from ._hamiltonian import HamiltonianInteraction
@@ -28,6 +30,7 @@ from ._life_cycle import LifeCycleInteraction
 from ._local_rule import LocalRuleInteraction
 from ._map import MapInteraction
 from ._matching import MatchingInteraction
+from ._mobility import MobilityInteraction
 from ._movement import MovementInteraction
 from ._neighbor import NeighborInteraction
 from ._optimization import OptimizationInteraction
@@ -56,10 +59,12 @@ __all__: list[str] = [
     'CouplingInteraction',
     'CrossingInteraction',
     'DiffusionInteraction',
+    'EinsteinInteraction',
     'EncounterInteraction',
     'EulerLagrangeInteraction',
     'EvolutionInteraction',
     'FeedbackInteraction',
+    'GeodesicInteraction',
     'GradientInteraction',
     'GroupingInteraction',
     'HamiltonianInteraction',
@@ -72,6 +77,7 @@ __all__: list[str] = [
     'LocalRuleInteraction',
     'MapInteraction',
     'MatchingInteraction',
+    'MobilityInteraction',
     'MovementInteraction',
     'NeighborInteraction',
     'OptimizationInteraction',

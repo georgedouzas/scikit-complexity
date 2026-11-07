@@ -2333,3 +2333,691 @@ coefficients, time step, and inoculum of Harcombe et al. (2014), and each defaul
 
 - **WHEN** `comets` runs from the inoculum at the centre of the lattice
 - **THEN** the biomass stays symmetric about the centre within 1e-6, and the radius of the colony grows over the run
+
+### Requirement: Lattice Yang-Mills model samples SU(2) and SU(3) links
+The library SHALL provide `lattice_yang_mills` in `physics/waves`, after Satz (2022 §7) and Schwichtenberg (2020 §4.4).
+It SHALL sample SU(2) or SU(3) link matrices on the cell complex of a periodic lattice by the Wilson action
+`-(beta / N) sum_p Re tr U_p` under discrete time, through `WilsonSamplingInteraction` with a matrix group, from Haar
+links or given links, with an extent of the last axis for finite temperature. Its catalog entry SHALL declare the mean
+plaquette and the Polyakov loop as observables, and `GaugeAnalysis` SHALL measure Wilson loops of given extents and the
+Polyakov loop of matrix links.
+
+#### Scenario: Four-dimensional SU(2)
+- **WHEN** `lattice_yang_mills` samples SU(2) at `beta = 2.3` on a periodic 4^4 lattice for 100 sweeps
+- **THEN** the mean plaquette after 30 sweeps is within 0.03 of 0.60
+
+#### Scenario: Deconfinement
+- **WHEN** `lattice_yang_mills` samples SU(2) on a 4 × 4 × 4 × 2 lattice at `beta = 1.5` and at `beta = 2.6`
+- **THEN** the mean Polyakov loop at `beta = 2.6` is more than three times that at `beta = 1.5`
+
+#### Scenario: Gauge-invariant loops of matrix links
+- **WHEN** a random gauge transformation is applied to random SU(2) or SU(3) links
+- **THEN** the 2 × 1 Wilson loop and the Polyakov loop are unchanged within 1e-12
+
+### Requirement: Lattice Yang-Mills is recorded in the system inventory
+The inventory SHALL record `lattice_yang_mills` as implemented with its sources, the primitives `link-fields` and
+`matrix-groups`, and the matrix domain, and the gallery SHALL hold its curated example.
+
+#### Scenario: Inventory and gallery
+- **WHEN** the inventory check and the strict gallery coverage run
+- **THEN** they report no problem for `lattice_yang_mills`
+
+### Requirement: Squirmers swim and stir through the mobility
+
+The catalog SHALL include `squirmers`, spherical squirmers in an unbounded Stokes fluid with the surface slip modes `B1`
+and `B2`, which swim at `2 B1 / 3` along their orientation and stir the fluid as pushers (`B2 < 0`) or pullers
+(`B2 > 0`) through the stresslet `4 pi eta a^2 B2 (e e - I / 3)` and the potential dipole `B1 a^3 e / 3`, with a soft
+repulsion between overlapping spheres.
+
+#### Scenario: A lone squirmer swims at its speed
+
+- **WHEN** one squirmer runs alone
+- **THEN** it moves along its orientation at the speed `2 B1 / 3`
+
+#### Scenario: Pullers and pushers reorient each other differently
+
+- **WHEN** two squirmers swim side by side
+- **THEN** the flows of pullers and pushers turn them in opposite senses
+
+### Requirement: Hydrodynamically coupled particles in blinking traps
+
+The catalog SHALL include `hydrodynamically_coupled_traps`, two Brownian beads in optical traps that switch on and off
+periodically, coupled by the Rotne-Prager-Yamakawa or Oseen mobility, after Argun et al. 2021, Problems 7.4 and 7.5.
+
+#### Scenario: Free motion is correlated
+
+- **WHEN** the traps are off
+- **THEN** the displacements of the two beads along their line of centres are positively correlated as the mobility
+  predicts, and the correlation vanishes without the coupling
+
+### Requirement: Hydrodynamic systems are recorded in the system inventory
+
+The system inventory SHALL list `squirmers` and `hydrodynamically_coupled_traps` as implemented, with their sources and
+the `hydrodynamic-interactions` primitive, and the gallery SHALL hold an example of each.
+
+#### Scenario: Inventory and gallery checks pass
+
+- **WHEN** the inventory check and the gallery coverage check run
+- **THEN** both systems are found implemented, with gallery examples
+
+### Requirement: Multilevel selection with pairwise group conflict
+The library SHALL provide the density of group compositions of defectors and altruistic punishers under within-group
+replicator dynamics and pairwise between-group conflict with a victory probability that is not additively separable,
+the group Fermi rule, the local rule normalized by the payoffs of both groups, or the Tullock contest function, as
+`nonlinear_pairwise_group_conflict` under `social/cooperation` (Cooney 2024, arXiv 2405.18419 §3.1 and §6). The
+inventory SHALL record it as implemented.
+
+#### Scenario: Strong between-group conflict sustains punishers
+- **WHEN** the pairwise conflict with the group Fermi rule runs from a uniform density with `lambda = 2` and with
+  `lambda = 0.1`
+- **THEN** the mean fraction of punishers ends higher with `lambda = 2` than with `lambda = 0.1`, and the total stays
+  one
+
+### Requirement: Trimorphic multilevel selection on the simplex
+The library SHALL provide the density on the 2-simplex of cooperators, defectors, and altruistic punishers with the
+victory probability of the fraction of non-defectors or of the normalized payoff difference, as
+`trimorphic_multilevel_selection` under `social/cooperation` (arXiv 2405.18419 §3.2 and §7). The inventory SHALL record
+it as implemented.
+
+#### Scenario: Trimorphic selection lowers defection
+- **WHEN** the trimorphic model with the victory probability of non-defectors runs from a uniform density on the
+  simplex
+- **THEN** the mean fraction of defectors decreases, and the total stays one
+
+### Requirement: Size-structured forest with shading and dispersal
+The library SHALL provide the McKendrick-von Foerster density of trees over position and height, with growth slowed by
+Beer-Lambert shading from taller trees, mortality from canopy and resource competition, and recruitment at the
+sapling height from seeds dispersed over a strip with uncolonized land beyond its edges, as `forest_size_structure`
+under `biology/ecology` (Grilletta et al. 2026, arXiv 2608.11918 Eq. 9, 10, and 16). The inventory SHALL record it as
+implemented.
+
+#### Scenario: Edges deplete small trees
+- **WHEN** the forest runs on a strip towards its stationary state
+- **THEN** the density of trees is lower at the edges than in the bulk, and smaller trees are depleted at the edges by a
+  larger fraction than taller trees
+
+### Requirement: Cellular Potts model sorts cells by differential adhesion
+The library SHALL provide `cellular_potts` in `biology/physiology`, after Nemati and de Graaf (2024, arXiv 2404.09055,
+Eq. 3) and Graner and Glazier (1992). It SHALL sample a confluent tissue of cells, regions of sites with one label,
+whose kinds have a symmetric adhesion matrix, with an area constraint and an optional perimeter constraint, by label
+copies under discrete time on a periodic square lattice with the Moore neighbourhood, a triangular lattice, or a
+disordered lattice, the periodic Voronoi tessellation of jittered points with contacts weighted by side length over the
+mean and sites of their Voronoi area. Its catalog entry SHALL declare the share of homotypic contacts and the mean
+relative deviation of the areas from the target as observables.
+
+#### Scenario: Area constraint holds
+- **WHEN** the tissue runs 200 sweeps on any of the three lattices
+- **THEN** no cell vanishes and the mean relative deviation of the areas after 50 sweeps is below 0.1
+
+#### Scenario: Differential adhesion sorts the kinds
+- **WHEN** the tissue runs 1500 sweeps on the square or the disordered lattice with the default adhesion
+- **THEN** the share of homotypic contacts rises by more than 0.1, while equal adhesions keep it within 0.1
+
+### Requirement: Interacting urns model on a network
+The library SHALL provide `interacting_urns_network` in `economics/innovation`, after Iacopini et al. (2020, Eqs. 1 and
+2): an urn with triggering on every node of a network, with reinforcement `rho` and triggering `nu`, that draws from
+its own balls and one ball of every colour of the urns of its neighbours, the balls being agents of a variable group
+on the nodes.
+
+#### Scenario: Isolated urns
+- **WHEN** 30 isolated urns with `rho = 4` and `nu = 2` draw for 200 steps
+- **THEN** their mean number of novelties is within 5 percent of Eq. (4) without neighbours
+
+#### Scenario: Star network
+- **WHEN** the urns of a star of seven nodes with `rho = 6` and `nu = 3` draw for 150 steps
+- **THEN** the centre discovers more than every leaf, as Eq. (4) predicts
+
+### Requirement: TAP model with catalysis
+The library SHALL provide `tap_catalysis` in `economics/innovation`, after Hordijk and Kauffman (2022, Algorithm 1):
+goods made from up to `K` parents at the rates `alpha^i C(M, i)` until `M` goods, production functions as hyperedges
+of a ranked group, and catalysis edges both ways with probability `pc`.
+
+#### Scenario: Production functions
+- **WHEN** the TAP model grows to 200 goods with three parents at most
+- **THEN** every new good has one production function of two to four members, whose parents are older goods
+
+#### Scenario: Emergence of autocatalytic sets
+- **WHEN** four runs grow to 300 goods at `pc = 0.004` and four at `pc = 0.04`
+- **THEN** no run of the first holds a RAF of half its production functions, and every run of the second a RAF of
+  more than 90 percent of them
+
+### Requirement: Motter-Lai overload cascades
+The library SHALL provide `motter_lai_overload` in `mathematics/networks`, after Motter and Lai (2002) as Artime et al.
+(2025, section 5) review it: nodes with the capacity `(1 + tolerance)` times their initial betweenness, one node removed
+by load, degree, or at random, and every node whose betweenness on the network present exceeds its capacity removed at
+every later step.
+
+#### Scenario: Attack and failure
+- **WHEN** the node of the largest load and a random node of Barabási-Albert graphs of 300 nodes are removed at the
+  tolerance 0.1
+- **THEN** the attack leaves less than a third of the nodes in the largest component, and the failure more than 90
+  percent
+
+#### Scenario: Overloaded nodes fail
+- **WHEN** the cascade runs at tolerance 0.2
+- **THEN** the nodes that fail at every step are exactly those whose betweenness on the network before the step
+  exceeds their capacity
+
+### Requirement: New systems are recorded in the system inventory
+The inventory SHALL record `interacting_urns_network`, `tap_catalysis`, and `motter_lai_overload` as implemented with
+their sources and the primitives `member-sets`, `hyperedge-requests`, and `path-reductions`, and the gallery SHALL hold
+their examples.
+
+#### Scenario: Inventory and gallery
+- **WHEN** the inventory check and the strict gallery coverage run
+- **THEN** they report no problem for the three systems
+
+### Requirement: Audited maps and flows of dynamical systems
+The library SHALL provide in `mathematics/dynamical_systems` the Fermi-Ulam map `fermi_ulam_map` (Datseris and Parlitz
+Ex 1.11), the Nosé-Hoover oscillator `nose_hoover` (Ex 2.11), Sprott's mixed flow `sprott_mixed_flow` (Ex 3.17), and,
+after Dilão, the CDN map `cdn_map`, the Lozi map `lozi_map`, the conservative Hénon map `conservative_henon_map`, the
+Langford and Thomas flows `langford` and `thomas`, the hyperchaotic Rössler flow `hyperchaotic_rossler`, and the Ikeda
+delay equation `ikeda`.
+
+#### Scenario: Hyperchaos
+- **WHEN** the Lyapunov spectrum of `hyperchaotic_rossler` is computed over 2000 time units
+- **THEN** its two largest exponents are near 0.11 and 0.02
+
+#### Scenario: Mixed state space
+- **WHEN** `sprott_mixed_flow` runs from `(1, 0, 0)` and from `(2, 0, 0)`
+- **THEN** the mean volume rate `2(y + z)` is near 0 on the first orbit and below -0.1 on the second
+
+#### Scenario: Delay bifurcation
+- **WHEN** `ikeda` runs with `a tau` below and above `π / 2`
+- **THEN** it settles at `π` in the first case and oscillates about it in the second
+
+### Requirement: Audited stochastic processes and fractals
+The library SHALL provide `cascading_sample_space_reducing` (Thurner et al. 3.3.5.4), `random_branch_map` (Dilão Ex
+5.10), and `exponential_growth_at_random_times` (Thurner et al. 3.3.6.1) in `mathematics/stochastic_processes`, and
+`inverse_julia` (Dilão Ex 5.8) in `mathematics/fractals`.
+
+#### Scenario: Any exponent
+- **WHEN** cascades that multiply by `mu` run on 100 states
+- **THEN** their visits fall as `i^(-mu)`
+
+#### Scenario: Power law from two exponentials
+- **WHEN** growth at the rate `mu` is observed at the rate `lam`
+- **THEN** the Hill estimate of the tail of the values is `lam / mu`
+
+#### Scenario: Julia set of the squaring map
+- **WHEN** `inverse_julia` runs with `omega = 0`
+- **THEN** every point lies on the unit circle
+
+### Requirement: Audited network systems
+The library SHALL provide `graphlet_arrival` (Raman 3.2.4.2), `kronecker_graph` (Gros, chapter 1),
+`configuration_model` (Jensen 8.5.1 and Thurner et al. 4.5.1), and `interdependent_network_cascade` (Artime et al.
+section 5) in `mathematics/networks`, and `barabasi_albert(fitness=True)` SHALL attach new edges in proportion to
+`eta k` with a uniform fitness `eta` per node (Raman 3.2.4).
+
+#### Scenario: Graphlet degree shares
+- **WHEN** graphlets arrive for 1000 steps
+- **THEN** the network is a tree whose shares of degree 1 and 2 are `2 (2 - alpha) / 5` and `alpha (7 - alpha) / 15`
+
+#### Scenario: Interdependent collapse
+- **WHEN** two Erdős-Rényi networks of mean degree 4 keep a share `p` of their nodes
+- **THEN** the cascade stops at `S = p (1 - exp(-4 S))²` for `p = 0.85` and removes every node for `p = 0.55`
+
+#### Scenario: Degree sequence kept
+- **WHEN** the configuration model pairs the half-links of a degree sequence
+- **THEN** the graph is simple and every node has its degree
+
+### Requirement: Audited mathematics systems are recorded in the inventory
+The inventory SHALL record every new system as implemented with the sections of its sources, and the gallery SHALL
+hold its example.
+
+#### Scenario: Inventory and gallery
+- **WHEN** the inventory check and the strict gallery coverage run
+- **THEN** they report no problem for the new systems
+
+### Requirement: Audited physics systems
+The library SHALL provide, as registered factories built from the general classes of the core, the physics systems of
+the reference audit that the core supports: `nuclear_quadrupole`, `forced_toda`, and `impulsive_oscillator` in
+`physics/nonlinear_oscillators`, `beam_beam_map` and `friction_oscillator` in `physics/mechanics`,
+`keplerian_dumbbell` and `relativistic_orbit` in `physics/celestial_mechanics`, `forest_dieback`,
+`social_forest_dieback`, `leading_following_cascade`, and `population_pollution` in `physics/climate`,
+`rossler_driven_lorenz` and `adaptive_kuramoto` in `physics/synchronization`, `fixed_energy_sandpile`,
+`zhang_sandpile`, and `self_organized_branching` in `physics/criticality`, `hpp_lattice_gas` in `physics/fluids`,
+`inertial_active_brownian_particles`, `active_polymer`, and `deformable_active_particles` in `physics/active_matter`,
+and `anisotropic_brownian_particles` and `rigid_dimers` in `physics/soft_matter`. Every one SHALL have tests of a known
+result of its source, a gallery example, and an inventory entry with its sources and sections.
+
+#### Scenario: Conserved quantities
+- **WHEN** `nuclear_quadrupole`, `keplerian_dumbbell`, or `fixed_energy_sandpile` runs with its defaults
+- **THEN** the quadrupole energy, the dumbbell energy and angular momentum, or the number of grains stay constant
+  within the tolerance of the solver
+
+#### Scenario: Published fixed points and orbits
+- **WHEN** `impulsive_oscillator`, `relativistic_orbit`, `deformable_active_particles`, or `forest_dieback` runs from
+  the states of its analytic solution
+- **THEN** it follows the exact periodic orbit, the precession period, the straight or circular motion, or the root of
+  its balance equation that the source derives
+
+#### Scenario: Self-organization and synchronization
+- **WHEN** `self_organized_branching`, `rossler_driven_lorenz`, or `adaptive_kuramoto` runs long enough
+- **THEN** the branching probability settles at 1/2, the two driven Lorenz copies converge for a coupling above the
+  critical value and not below it, and identical oscillators split into frequency clusters
+
+#### Scenario: Statistical laws of particles
+- **WHEN** `inertial_active_brownian_particles`, `active_polymer`, `anisotropic_brownian_particles`, or `rigid_dimers`
+  runs
+- **THEN** the projection of the velocity on the orientation, the motion of the centre of mass, the decorrelation of
+  the axes and the body-frame diffusion, and the diffusion of the centre and the rod match their analytic forms
+
+### Requirement: Variants as options of existing systems
+`billiards` SHALL take the shape `'three_disk'`, the open billiard of three discs, `parametric_pendulum` SHALL take the
+direction `'horizontal'` of the pivot, `aggregate_averaging_synchronization` SHALL take the Bernoulli map and a delay
+of the coupling, `topological_kuramoto` SHALL take the model `'NLT'`, and `vicsek` SHALL take a number of nearest
+neighbours, a vision cone, and a delay of the alignment, negative for a linear prediction. The defaults SHALL keep the
+earlier behaviour of every system.
+
+#### Scenario: Chaotic scattering
+- **WHEN** a particle comes towards the centre of the three-disk table along the line through the centre of a disc
+- **THEN** it bounces once and goes straight back, and other directions give several bounces
+
+#### Scenario: Delayed synchronization
+- **WHEN** two Bernoulli maps of slope 1.5 are coupled with a delay
+- **THEN** they synchronize exactly for the couplings whose linear transverse map is stable, and not outside them
+
+#### Scenario: Nodes-Links-Triangles
+- **WHEN** `topological_kuramoto` runs at a weak coupling with the models `'NL'` and `'NLT'`
+- **THEN** the node phases synchronize in the first and stay incoherent in the second
+
+#### Scenario: Vicsek variants
+- **WHEN** `vicsek` aligns with the 8 nearest neighbours rather than the nearest one, or with a delay of 25 steps or
+  a prediction 2 steps ahead
+- **THEN** the flock orders more with more neighbours, and the long and negative delays leave fewer neighbours around
+  every particle than no delay
+
+#### Scenario: Variants that do not combine
+- **WHEN** `vicsek` gets both a number of nearest neighbours and a vision cone
+- **THEN** a parameter error names the two options
+
+### Requirement: Fishery with measurement errors
+The library SHALL provide `fishery_measurement_errors` in `economics/resources`, after Argun et al. (2021, Problem
+14.8): independent logistic fish stocks with a noisy growth rate, harvested by the quota `x~ - K / 2` of a measurement
+with a Gaussian error, floored at zero unless restocking is allowed, as an Euler-Maruyama map.
+
+#### Scenario: Deterministic quota
+- **WHEN** the stocks run without noise
+- **THEN** they settle at `K / sqrt(2)` with the quota `K / sqrt(2) - K / 2`
+
+#### Scenario: Extinction
+- **WHEN** the growth is noisy and the measurement error has a standard deviation of 0.3
+- **THEN** more than 30 percent of the stocks go extinct, and none with restocking
+
+### Requirement: Rice food balance
+The library SHALL provide `rice_food_balance` in `economics/resources`, the food security model of Bala et al. (2017,
+Section 4.11.3), with its equations and defaults.
+
+#### Scenario: Food security peaks
+- **WHEN** the model runs for 100 years
+- **THEN** the area approaches `L / (1 + T f)`, and the food security peaks between 10 and 35 years and ends below its
+  start
+
+### Requirement: Crop livestock household
+The library SHALL provide `crop_livestock_household` in `economics/resources`, the crop livestock model of Bala et al.
+(2017, Section 4.11.6), as a yearly map with truncated purchases and sales and a pipeline delay of three years.
+
+#### Scenario: Maturation delay
+- **WHEN** the household runs for 12 years
+- **THEN** the animal bought in year 1 joins the herd in year 5, and the livestock income starts after five years
+
+### Requirement: Brock-Mirman growth
+The library SHALL provide `brock_mirman_growth` in `economics/macroeconomics`, after Caiani et al. (2016, Section
+1.1.4), the capital map `K' = alpha beta z K^alpha` with consumption `(1 - alpha beta) Y` and Markov productivity.
+
+#### Scenario: Steady state and stationary mean
+- **WHEN** the productivity is constant, or it switches between 0.9 and 1.1 for 4000 periods
+- **THEN** the capital reaches `(alpha beta)^(1 / (1 - alpha))`, or the mean of `ln K` is
+  `(ln(alpha beta) + E ln z) / (1 - alpha)` within 0.02
+
+### Requirement: Network herding
+The library SHALL provide `network_herding` in `economics/macroeconomics`, the choices `c_t = Theta c_t-1 + gamma x_t`
+of Caiani et al. (2016, Section 1.1.6) on a weighted network.
+
+#### Scenario: Aggregation through the out-degrees
+- **WHEN** the choices run without shocks
+- **THEN** the mean choice follows Eq. 1.12 at every step and the choices reach `(I - Theta)^-1 gamma x`
+
+### Requirement: Categorized purchasing power
+The library SHALL provide `categorized_purchasing_power` in `economics/macroeconomics`, the three-sector system
+`z' = A z + B x`, `y = C z + D x` of Forrest (2018, Sections 11.4 and 22), with an option for the feedback component
+that decouples the sectors.
+
+#### Scenario: Decoupling
+- **WHEN** a step policy hits the luxury sector
+- **THEN** with feedback only the luxury index moves, to the steady state of its decoupled system, and without feedback
+  the other indices move too
+
+### Requirement: Mark-0 economy
+The library SHALL provide `mark0` in `economics/macroeconomics`, the Mark-0 economy of Sharma et al. (2020, Section 2)
+with a shock to consumption and productivity, naive and adaptive credit policies, and helicopter money.
+
+#### Scenario: Recession and policy
+- **WHEN** the consumption propensity falls by half for nine months
+- **THEN** without policy the unemployment stays above 50 percent, and with adaptive credit it returns below 10 percent
+
+### Requirement: Kirman exchange rate
+The library SHALL provide `kirman_exchange_rate` in `economics/finance`, Eq. 1.36 of Caiani et al. (2016, Section
+1.3.2) with the share of fundamentalists of Kirman's recruitment chain.
+
+#### Scenario: Regimes
+- **WHEN** the market runs for 40000 steps
+- **THEN** the share of fundamentalists is mostly near 0 or 1, and the rate changes more when chartists dominate
+
+### Requirement: Default cascades
+The library SHALL provide `default_cascade` in `economics/finance`, the threshold cascade of Thurner et al. (2018,
+Section 5.5.3.2) with a recovery rate, and the random network of Gai and Kapadia reviewed by Bardoscia et al. (2021,
+Section 3.1).
+
+#### Scenario: Contagion window
+- **WHEN** one bank of networks of mean degree 0.5, 4, and 12 is shocked
+- **THEN** cascades are large only at the intermediate degree
+
+### Requirement: Eisenberg-Noe clearing
+The library SHALL provide `eisenberg_noe_clearing` in `economics/finance`, the iteration of proportional payments to
+the greatest clearing vector.
+
+#### Scenario: Linear programme
+- **WHEN** the clearing runs to convergence
+- **THEN** the payments solve the linear programme of the clearing vector
+
+### Requirement: Fire sales of overlapping portfolios
+The library SHALL provide `overlapping_portfolio_fire_sales` in `economics/finance`, banks with common assets that
+sell under a threshold or leverage targeting, with market impact, after Bardoscia et al. (2021, Section 3.2).
+
+#### Scenario: Indirect contagion
+- **WHEN** one asset loses 60 percent of its price
+- **THEN** only its holders default without market impact, and more than twice as many with it
+
+### Requirement: Guru order book
+The library SHALL provide `guru_order_book` in `economics/finance`, the order-driven market of noise traders who follow
+gurus on a network rewired towards wealth, of Caiani et al. (2016, Chapter 3).
+
+#### Scenario: Coordination and fat tails
+- **WHEN** the market runs for 1000 days
+- **THEN** cash and stocks are conserved, a guru gathers more than 40 followers, and the returns have an excess kurtosis
+  above 3
+
+### Requirement: Household demand
+The library SHALL provide `household_demand` in `economics/markets`, the Cobb-Douglas and the elasticity demand of
+Hamill and Gilbert (2016, Sections 3.2 and 3.3) for households with unequal budgets.
+
+#### Scenario: Price rise
+- **WHEN** the price of food rises by 10 percent
+- **THEN** Cobb-Douglas households keep their expenditure, and households with elasticities lower their demand by 3.5
+  to 5 percent and raise their expenditure by 4.5 to 6 percent
+
+### Requirement: Fair Food Program
+The library SHALL provide `fair_food_program` in `economics/markets`, the four rules of Chesney (2021, Chapter 7).
+
+#### Scenario: Tipping point
+- **WHEN** the programme runs for 5000 periods
+- **THEN** farms join only after most buyers commit, and then all farms and buyers join
+
+### Requirement: Gooding double auction
+The library SHALL provide `gooding_double_auction` in `economics/markets`, buyers and sellers who adapt their quotes,
+after Gooding (2019, Section 11.3).
+
+#### Scenario: Competitive price
+- **WHEN** 100 buyers and 100 sellers of five units trade
+- **THEN** the 500 units trade at a mean price within 5 of 70
+
+### Requirement: Toy Trader
+The library SHALL provide `toy_trader` in `economics/markets`, Gooding's Toy Trader with market sight, mutation, and
+imitation under a fitness test, and the Three-Goods Trader as `n_goods=3`.
+
+#### Scenario: Market sight
+- **WHEN** traders see one unit or the whole torus for 300 iterations
+- **THEN** the price falls below 9 or rises above 11, and money and toys are conserved
+
+### Requirement: El Farol coalitions
+The library SHALL provide `el_farol_coalitions` in `economics/econophysics`, Collins' strategic group formation in the
+El Farol bar of Rand and Wilensky.
+
+#### Scenario: Coalitions lower returns
+- **WHEN** patrons run alone and in coalitions for 500 nights
+- **THEN** lone patrons attend near capacity and coalitions lower the returns by more than 0.1
+
+### Requirement: CCC model
+The library SHALL provide `ccc_model` in `economics/innovation`, the co-evolving combinatorial critical model of
+Thurner et al. (2018, Section 5.6.4).
+
+#### Scenario: Regimes
+- **WHEN** the model runs with intermediate, mostly productive, and mostly destructive tensors
+- **THEN** the first is punctuated, the second fills, and the third stays nearly empty
+
+### Requirement: Audited cooperation systems
+The library SHALL provide in `social/cooperation` Argun's evolutionary iterated prisoner's dilemma on a lattice
+`iterated_lattice_dilemma` (Argun et al. 13.2 and 13.3), Cooney's two-level replicator equation `two_level_replicator`
+with the additively separable pairwise group conflict as its option `victory` (arXiv 2405.18419 Eq. 3.3 and section 5),
+the finite two-level birth-death process `two_level_birth_death` (section 3.1 and appendix A.1), and evolutionary
+dynamics with game transitions `game_transitions` (arXiv 1905.10269).
+
+#### Scenario: Best reply in the iterated dilemma
+- **WHEN** the years in prison of every strategy `n` against a strategy `m` of a ten-round game are computed
+- **THEN** the fewest years come from `n = m - 1`
+
+#### Scenario: Three regimes of two strategies
+- **WHEN** `iterated_lattice_dilemma` with only the extreme strategies runs at `R = 0.82`, `0.84`, and `0.86`
+- **THEN** cooperation dominates, coexists with defection, and vanishes
+
+#### Scenario: Threshold of group selection
+- **WHEN** `two_level_replicator` with `G(z) = z` runs from a uniform density above and below `lambda* = c + q - p`
+- **THEN** the mean fraction of punishers tends to `1 - (c + q - p) / lambda` above it and to 0 below it
+
+#### Scenario: Transitions favour cooperation
+- **WHEN** `game_transitions` runs under pairwise comparison with `b1 - b2 > 2 c`, with and without transitions
+- **THEN** cooperators take over with transitions and die out with game 1 alone
+
+### Requirement: Audited opinion dynamics systems
+The library SHALL provide in `social/opinion_dynamics` the three-state opinion network `three_state_opinion` and its
+mean-field flows `undecided_flows` (Jensen 11.5, Project 1), the majority rule with willingness `willing_majority`
+(Jensen 11.5, Exercise 4), and the echo chamber model `echo_chamber_radicalization` (arXiv 1906.12325 Eqs. 1 and 2).
+
+#### Scenario: Critical size of the undecided
+- **WHEN** `undecided_flows` with flows driven by the undecided runs above and below `N_c = omega (1 / gamma + 1 / eta)`
+- **THEN** `N - N_c` agents stay undecided above it and none below it
+
+#### Scenario: Zealots
+- **WHEN** `willing_majority` runs with every agent willing, with zealots of both opinions, and with zealots of one
+- **THEN** the first reaches consensus, the second does not, and the third ends at the zealots' opinion
+
+#### Scenario: Echo chambers
+- **WHEN** `echo_chamber_radicalization` runs at low controversy, without homophily, and with homophily
+- **THEN** opinions reach the neutral consensus, radicalize to one side, and split into two opposite groups
+
+### Requirement: Audited crowd, segregation, and language systems
+The library SHALL provide Bellomo's kinetic crowd in a street with walls and panic `kinetic_crowd` in `social/crowds`
+(Bellomo et al. 6.4 and 6.5), distinct from `evacuation`, the Big Sort as the option `choices` of `schelling` (Downey,
+Exercise 9-1), and Miller's random typewriting `random_typewriting` in `social/language` (Thurner et al. 3.3.6.2).
+
+#### Scenario: Fundamental diagram
+- **WHEN** `kinetic_crowd` runs with one cell over the street
+- **THEN** its mean speed follows Eq. 6.30 of the density within ten percent
+
+#### Scenario: Big Sort
+- **WHEN** `schelling` runs with one, four, and ten choices
+- **THEN** the like-neighbour share stays near its start with one choice and grows with the number of choices
+
+#### Scenario: Zipf's law of random typing
+- **WHEN** `random_typewriting` types with five letters and a space bar of probability 0.2
+- **THEN** words of one more letter are 6.25 times rarer and the rank-frequency exponent is near `1 - log(0.8) / log 5`
+
+### Requirement: Audited organization systems
+The library SHALL provide in `social/organizations` Chesney's Ajani's Choice `ajanis_choice` (Chesney 3.3 and 3.8) and
+Namrata's Family `supply_chain_diffusion` (4.9 and 4.10), Meadows' watchmakers `watchmakers` (chapter 3), policy
+resistance `policy_resistance`, and drift to low performance `drift_to_low_performance` (chapter 5), and the
+exploration and preferential return `exploration_preferential_return` and container model `container_mobility` of
+human mobility (arXiv 2109.07381).
+
+#### Scenario: Underpayment needs plentiful workers
+- **WHEN** `ajanis_choice` runs with more workers than jobs and with fewer
+- **THEN** workers are paid below the minimum wage only in the first case
+
+#### Scenario: Power in supply chains
+- **WHEN** a buyer with two suppliers and a buyer with one adopt good working conditions
+- **THEN** the suppliers whose outflow is below the buyer's inflow adopt, and a single supplier never does
+
+#### Scenario: Hierarchy of the watchmakers
+- **WHEN** `watchmakers` runs for 20,000 actions with an interruption probability of 1%
+- **THEN** Hora finishes a watch about every 1173 actions and Tempus none
+
+#### Scenario: Eroding goals
+- **WHEN** `drift_to_low_performance` runs with eroding goals, absolute standards, and an upbeat bias
+- **THEN** the performance drifts down, holds, and drifts up
+
+#### Scenario: Scales of mobility
+- **WHEN** `container_mobility` runs with the probabilities of travel 0.6, 0.3, and 0.1
+- **THEN** the displacements happen at the three levels with these shares and grow with the level
+
+### Requirement: Audited social systems are recorded in the inventory
+The inventory SHALL record every new system as implemented with the sections of its sources, and the gallery SHALL
+hold its example.
+
+#### Scenario: Inventory and gallery
+- **WHEN** the inventory check and the strict gallery coverage run
+- **THEN** they report no problem for the new systems
+
+### Requirement: Audited biology models
+The library SHALL provide the biology models of the reference audit, listed in the proposal, as registered
+factories in the biology subfields built from the general classes of the core, each with a curated gallery example and
+an inventory entry that cites its source section.
+
+#### Scenario: Consumers coexist where their isoclines cross
+- **WHEN** `consumer_resource` runs with the settings of Mehta and Blumenthal (2024, figure 4)
+- **THEN** the resources settle at `(5/3, 5/9)`, where both zero net growth isoclines cross
+
+#### Scenario: Single-resource competition of Gros
+- **WHEN** `consumer_resource` runs with one supplied resource without dilution
+- **THEN** the total population tends to `a / d`, the resource to `d / max r`, and only the fastest consumer survives
+
+#### Scenario: Ricker period doubling
+- **WHEN** `ricker` runs with `r = 5` and with `r = 9`
+- **THEN** it settles on `ln r` in the first case and on a two-cycle in the second
+
+#### Scenario: Doomsday of the zombie outbreak
+- **WHEN** `zombie_outbreak` runs without births, deterministically or stochastically
+- **THEN** the total is conserved and the humans vanish
+
+#### Scenario: Record dynamics of outbreaks
+- **WHEN** `record_dynamics_epidemic` runs for 100 years over many seeds
+- **THEN** the mean number of outbreak years is close to the harmonic number of the strains drawn
+
+#### Scenario: Gamma rhythm of the neural mass
+- **WHEN** `next_generation_neural_mass` runs unforced with `H_e = 10`
+- **THEN** the excitatory rate oscillates between 40 and 50 Hz
+
+#### Scenario: Transient attractors of the dHAN
+- **WHEN** `associative_thought_process` runs on the seven-site network of Gros (2015)
+- **THEN** every lasting winning coalition is a stored clique and at least four cliques are visited
+
+#### Scenario: Kleiber scaling of the distribution network
+- **WHEN** `west_brown_enquist` is solved for growing depths
+- **THEN** the blood volume and the capillaries follow the sums of the branching rules and the exponent rises towards 3/4
+
+#### Scenario: Kimura fixation probability
+- **WHEN** `kimura_diffusion` runs with many replicates until loss or fixation
+- **THEN** the share of fixed replicates is `(1 - exp(-N s x)) / (1 - exp(-N s))`
+
+#### Scenario: Critical noise of the Boolean network
+- **WHEN** `noisy_boolean_network` runs with three inputs per node
+- **THEN** it orders below the mean-field noise `1/6` and disorders above it
+
+#### Scenario: Adaptation of the enzyme circuit
+- **WHEN** `enzyme_adaptation_circuit` receives a step of its input
+- **THEN** its output has a sensitivity above 1 and a precision above 10
+
+#### Scenario: Ants heal a disruption
+- **WHEN** `ant_colony_optimization` cuts its best path midway
+- **THEN** the colony settles near the shortest path before the cut and again after it
+
+#### Scenario: Shepherd brings the flock home
+- **WHEN** `shepherding` runs from a scattered flock
+- **THEN** the centre of the flock reaches the goal
+
+### Requirement: Networks built from new topology requests
+The library SHALL provide in `mathematics/networks` `explosive_percolation` (Achlioptas, D'Souza, and Spencer 2009),
+`davidsen_ebel_bornholdt` and `node_merging` (Thurner et al. 4.5.4.6), `duplication_deletion` (Jensen 8.5.1), and
+`network_superposition` (Thurner et al. 4.5.2), whose linking probability is drawn once per Erdős-Rényi subgraph, the
+reading that gives Eq. 4.34.
+
+#### Scenario: Abrupt giant component
+- **WHEN** `explosive_percolation` adds edges by the product rule to 2000 nodes
+- **THEN** its largest component jumps from below 10 percent to above half of the nodes between 0.8 and 0.95 edges per
+  node, where Erdős-Rényi graphs already hold most nodes at 0.8
+
+#### Scenario: Turnover sets the degree
+- **WHEN** `davidsen_ebel_bornholdt` reaches its steady state with turnover `gamma`
+- **THEN** its mean degree is within 15 percent of `1 + 1 / gamma` and its clustering is above 0.2
+
+#### Scenario: Merging makes hubs
+- **WHEN** `node_merging` runs for 20 steps per node
+- **THEN** its largest degree exceeds ten times the mean degree, far above the largest degree of an Erdős-Rényi graph
+  of the same size and mean
+
+#### Scenario: Steady connectance
+- **WHEN** `duplication_deletion` runs for 40 steps per node
+- **THEN** its mean connectance is within 15 percent of Eq. 8.84
+
+#### Scenario: Superposed degrees
+- **WHEN** `network_superposition` draws power-law linking probabilities for 1000 subgraphs of 100 nodes
+- **THEN** its degree distribution is within a total variation distance of 0.05 of Eq. 4.34
+
+### Requirement: Links regulated by several signed regulators
+The library SHALL provide `spatial_triadic_percolation` (Millán et al. 2023, arXiv 2311.14877, Methods, Eqs. 1-2) on a
+torus, whose hyperedges list the ends of a link, its negative regulators, and then its positive regulators, whose
+numbers the link holds, and whose links are active with probability `p` when no negative regulator is active and a
+positive regulator is active, or no positive regulator exists.
+
+#### Scenario: Signed regulators
+- **WHEN** `spatial_triadic_percolation` runs one step with `p = 1` on the NumPy and Numba backends
+- **THEN** every link is active exactly when none of its negative regulators and one of its positive regulators, if it
+  has any, were active
+
+#### Scenario: Blinking patterns
+- **WHEN** `spatial_triadic_percolation` runs with `c+ = c- = 0.2`, `d0 = dr = 0.25`, `c = 0.4`, and `p = 0.8`
+- **THEN** the giant component keeps changing size, the active nodes of consecutive steps are anti-correlated, and the
+  activity of a node correlates with that of the nodes within `d0` of it
+
+### Requirement: Audited engineering and computer science systems
+The library SHALL provide, as registered factories built from the general classes of the core, the engineering and
+computer science systems of the reference audit that the core supports: `memristive_mixed_mode_oscillator` and
+`coupled_colpitts` in `engineering/circuits`, `magnetic_levitation` and `vibrating_table` in
+`engineering/mechatronics`, `minimum_time_control` in `engineering/control`, `grain_storage` in
+`engineering/processes`, `light_emitting_robots` in `engineering/robotics`, and `fredkin_replicator`,
+`turing_machine`, `small_world_life`, `dna_computation`, and `lenia` in `computer_science/automata`. The module of
+every system SHALL define the elements, interactions, views, and helpers that only this system uses. Every system
+SHALL have tests of a known result of its source, a gallery example, and an inventory entry with its sources and
+sections.
+
+#### Scenario: Published waveforms
+- **WHEN** `memristive_mixed_mode_oscillator`, `magnetic_levitation`, or `vibrating_table` runs with its defaults
+- **THEN** it settles on the mixed-mode oscillation `2^11` of period near 7.8, follows the closed-form periodic
+  velocity, or vibrates steadily at the supply frequency close to its linearized model
+
+#### Scenario: Control and synchronization
+- **WHEN** `minimum_time_control` steers a free particle from `(3, 2)`, or `coupled_colpitts` runs with and without
+  coupling
+- **THEN** the particle reaches the origin near the time `2 + 2 sqrt(5)` and stays, or the phases drift apart without
+  coupling and stay locked for `k = 0.4`
+
+#### Scenario: Machines and automata
+- **WHEN** `turing_machine`, `fredkin_replicator`, `small_world_life`, `dna_computation`, or `lenia` runs
+- **THEN** the busy beaver halts after 13 steps with six ones, the pattern reappears four times at the powers of two,
+  the unrewired network follows the Game of Life, the filtered strands are the only Hamiltonian path, and Orbium
+  glides with a steady mass while one step follows equation 1
+
+#### Scenario: Stocks and robots
+- **WHEN** `grain_storage` runs, or `light_emitting_robots` runs with delays of 10 s and -10 s
+- **THEN** the stock oscillates and settles at `6000 / (1 + 0.025 * 5)`, and the robots gather with the delay and
+  spread with the prediction
+
+### Requirement: Evolution by circumstance of RobbyGA
+`robby_ga` SHALL take the regime `'circumstance'`, in which strategies live `lifespan` generations, the fraction
+`starvation` with the lowest scores starves, and random survivors breed in the places of the dead, with an optional
+period that switches the starvation on and off. The default regime SHALL keep the earlier behaviour.
+
+#### Scenario: Starvation as selection
+- **WHEN** `robby_ga` runs in the regime `'circumstance'` with a starvation of 0.3 and of 0
+- **THEN** the mean score rises near zero with starvation and stays near the score of random strategies without it

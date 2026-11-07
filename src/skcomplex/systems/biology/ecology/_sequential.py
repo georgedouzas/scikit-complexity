@@ -4,20 +4,120 @@
 # License: MIT
 
 
+from types import SimpleNamespace
+from typing import Annotated
+
 import networkx as nx
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement
-from ....core.components.interactions import MapInteraction, TopologyInteraction
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import Interaction, MapInteraction, TopologyInteraction
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.laws.utils import neighbors, total, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.system import System
-from ....core.specs import VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
 from ..common.networks import EdgeDrawInteraction, WeightedEdgeElement
-from ._abundance import AbundanceElement
-from ._linear_growth import LinearGrowthInteraction
 
 HIDDEN = VisualSpec('sites', {'states': []})
+
+
+class AbundanceElement(Element):
+    """Species of an ecosystem with its relative abundance and its age, which goes extinct below a threshold.
+
+    Args:
+        label:
+            The label of the species or of the group of species.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The relative abundance.
+
+        age:
+            The number of steps since the species appeared.
+
+        threshold:
+            The abundance below which the species goes extinct.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import AbundanceElement
+        >>> AbundanceElement('species').threshold
+        0.001
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        threshold: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.age = age
+        self.threshold = threshold
+
+
+class LinearGrowthInteraction(Interaction):
+    """Linear growth of every species by the abundances of the species that influence it, normalised to one.
+
+    Every species grows by `rate` times the sum of the abundances of the species it reads weighted by the strengths `w`
+    of the influences, its abundance stays nonnegative, and the abundances are normalised to sum to one.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        species:
+            The path of the group of species on the nodes.
+
+        influences:
+            The path of the variable group on the edges.
+
+        rate:
+            The growth per step per unit of influence.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import LinearGrowthInteraction
+        >>> LinearGrowthInteraction('growth', species='species', influences='influences').rate
+        0.2
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        species: Annotated[str, RoleSpec()],
+        influences: Annotated[str, RoleSpec()],
+        rate: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.2,
+    ) -> None:
+        super().__init__(label)
+        self.species = species
+        self.influences = influences
+        self.rate = rate
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the linear growth and the normalisation of the abundances.
+
+        Args:
+            namespace:
+                The namespace with `namespace.species` and `namespace.influences`.
+
+        Returns:
+            laws:
+                The update of the abundance.
+        """
+        species = namespace.species
+        grown = species.x + namespace.rate * neighbors(species.other.x, weight=namespace.influences.w)
+        kept = where(grown > 0, grown, 0)
+        return [UpdateLaw(species.x, kept / total(kept))]
 
 
 @register_system(

@@ -3,14 +3,19 @@
 import math
 
 import numpy as np
+import pytest
 
 from skcomplex.core.analysis import LyapunovAnalysis
 from skcomplex.systems import create_simulation
 from skcomplex.systems.mathematics.dynamical_systems import (
     baker_map,
     cat_map,
+    cdn_map,
     circle_map,
+    conservative_henon_map,
+    fermi_ulam_map,
     intermittency_map,
+    lozi_map,
     newton_raphson_map,
     standard_map,
     tent_map,
@@ -97,3 +102,42 @@ def test_henon_map_stays_on_attractor():
     trajectory = create_simulation('henon_map').prepare().run().trajectory_
     assert np.abs(trajectory.values('map.x')[100:]).max() < 1.5
     assert np.abs(trajectory.values('map.y')[100:]).max() < 0.5
+
+
+def test_lozi_map_is_chaotic():
+    """Test that the Lozi map has the exponents near 0.47 and -1.16 of its attractor for `a = 1.7`, `b = 0.5`."""
+    exponents = LyapunovAnalysis(until=10000).prepare(lozi_map()).run().exponents_
+    np.testing.assert_allclose(exponents, [0.47, -1.16], atol=0.03)
+
+
+def test_conservative_henon_map_keeps_its_saddle_and_its_centre():
+    """Test that `(2 tan(π nu), -2 tan²(π nu))` is fixed and orbits near the centre at the origin stay bounded."""
+    nu = 0.2114
+    tangent = math.tan(math.pi * nu)
+    saddle = _run(conservative_henon_map(2 * tangent, -2 * tangent**2, nu=nu), 5)
+    np.testing.assert_allclose(saddle.values('map.x'), 2 * tangent, atol=1e-12)
+    np.testing.assert_allclose(saddle.values('map.y'), -2 * tangent**2, atol=1e-12)
+    orbit = _run(conservative_henon_map(0.1, 0.0, nu=nu), 2000)
+    assert np.hypot(orbit.values('map.x'), orbit.values('map.y')).max() < 0.2
+
+
+def test_conservative_henon_map_preserves_area():
+    """Test that the map has two exponents of opposite sign that sum to zero."""
+    exponents = LyapunovAnalysis(until=5000).prepare(conservative_henon_map(0.5, 0.0)).run().exponents_
+    assert exponents.sum() == pytest.approx(0.0, abs=1e-9)
+
+
+def test_fermi_ulam_map_rests_at_its_fixed_points():
+    """Test that the speeds `1 / m` at the phases 0 and π are fixed points of the Fermi-Ulam map."""
+    for speed, phase in ((0.5, 0.0), (1.0, math.pi), (1 / 3, 0.0)):
+        trajectory = _run(fermi_ulam_map(speed, phase, epsilon=0.1), 5)
+        np.testing.assert_allclose(trajectory.values('map.u'), speed, atol=1e-12)
+        np.testing.assert_allclose(np.cos(trajectory.values('map.theta')), math.cos(phase), atol=1e-9)
+
+
+def test_cdn_map_is_chaotic_inside_the_window_of_dilao_and_periodic_outside():
+    """Test that the Gaussian map at `alpha = 2.8` has a positive exponent at `β = -0.5` and a negative one at -0.1."""
+    chaotic = LyapunovAnalysis(until=10000).prepare(cdn_map(beta=-0.5)).run().exponents_[0]
+    periodic = LyapunovAnalysis(until=10000).prepare(cdn_map(beta=-0.1)).run().exponents_[0]
+    assert chaotic > 0.3
+    assert periodic < -0.5

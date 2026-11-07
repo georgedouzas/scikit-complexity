@@ -1,8 +1,9 @@
 """
-# Dynamical billiards of Sinai and mushroom shapes
+# Dynamical billiards of Sinai, mushroom, and open three-disk shapes
 
 A particle bounces around a square table with a round obstacle in the middle. The convex disc scatters nearby paths
-apart at every hit, so the motion of the Sinai billiard is chaotic and its path soon criss-crosses the whole table.
+apart at every hit, so the motion of the Sinai billiard is chaotic and its path soon criss-crosses the whole table. In
+the open three-disk billiard the particle comes from far away, bounces between three discs, and leaves again.
 """
 
 # %%
@@ -49,4 +50,31 @@ ax.semilogy(times, distance)
 ax.set_xlabel('time')
 ax.set_ylabel('distance between the particles')
 ax.set_title('Exponential divergence in the Sinai billiard')
+plt.show()
+
+# %%
+# Chaotic scattering by three discs
+# ---------------------------------
+# Particles come from far away towards the center of the three-disk table, from the polar angle `phi`, and the
+# number of their collisions before they leave is counted. Most directions give one or two collisions, but near the
+# edges of the discs the count should jump, and every zoom into such an edge should show more of these jumps, the
+# fractal scattering function.
+
+angles = np.linspace(1.44, 1.56, 121)
+collisions = []
+for phi in angles:
+    system = create_system(
+        SYSTEM,
+        shape='three_disk',
+        x=8 * np.cos(phi),
+        y=8 * np.sin(phi),
+        vx=-np.cos(phi),
+        vy=-np.sin(phi),
+    )
+    collisions.append(len(Simulation(system, dt=0.1).prepare().run(until=25).trajectory_.events))
+fig, ax = plt.subplots(figsize=(6, 4))
+ax.plot(angles, collisions, '.-')
+ax.set_xlabel('incoming angle phi')
+ax.set_ylabel('number of collisions')
+ax.set_title('Scattering by the open three-disk billiard')
 plt.show()

@@ -8,13 +8,15 @@ from typing import Annotated
 import numpy as np
 import numpy.typing as npt
 import pytest
+import qutip
+from sage.all__sagemath_symbolics import CC
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BaseLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import mean, total
 from skcomplex.core.components.system import System
-from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec, WienerProcessSpec
+from skcomplex.core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec, WienerProcessSpec
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -229,3 +231,35 @@ def _weighted(
         ],
         interactions=[interaction('input', target='hidden', source=source, W=matrix, reduce=reduce)],
     )
+
+
+def _spin_space(j: float = 0.5) -> HilbertSpec:
+    """Return the Hilbert space of a spin `j`, with the spin components and the ladder operators, from up to down."""
+    size = int(2 * j + 1)
+    operators = {
+        'x': (qutip.jmat(j, 'x').full(), True),
+        'y': (qutip.jmat(j, 'y').full(), True),
+        'z': (qutip.jmat(j, 'z').full(), True),
+        'plus': (qutip.jmat(j, '+').full(), False),
+        'minus': (qutip.jmat(j, '-').full(), False),
+    }
+    return HilbertSpec(size, operators, basis={'up': 0, 'down': size - 1})
+
+
+SPIN_HALF = _spin_space()
+
+
+class SpinElement(Element):
+    """Spin of the Hilbert space it takes, by default a spin one half."""
+
+    def __init__(
+        self,
+        label: str,
+        psi: Annotated[object, StateSpec(domain=CC)] = 'up',
+        *,
+        hilbert: HilbertSpec = SPIN_HALF,
+        visual: VisualSpec | None = VisualSpec('expectations'),
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.psi = psi
+        self.hilbert = hilbert

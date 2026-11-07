@@ -34,6 +34,7 @@ from ._fractional_rows_spec import FractionalRowsSpec
 from ._fractional_state_spec import FractionalStateSpec
 from ._geometry_spec import TURTLE_SYMBOLS, GeometrySpec
 from ._hilbert_spec import HilbertSpec
+from ._holonomy_score_spec import HolonomyScoreSpec
 from ._hyperedge_reduction_spec import HyperedgeReductionSpec
 from ._interaction_requirement_spec import InteractionRequirementSpec
 from ._issue_spec import IssueSpec
@@ -47,6 +48,7 @@ from ._local_operator_spec import LocalOperatorSpec
 from ._lookup_spec import LookupSpec
 from ._lowered_functions_spec import LoweredFunctionsSpec
 from ._match_spec import MatchSpec
+from ._matrix_group_spec import MatrixGroupSpec
 from ._matrix_law_spec import MatrixLawSpec
 from ._module_spec import Letters, ModuleSpec
 from ._move_spec import MOVES, MoveSpec
@@ -68,12 +70,14 @@ from ._partner_switch_spec import PartnerSwitchSpec
 from ._patch_structure_spec import PatchStructureSpec
 from ._phase_spec import PhaseSpec
 from ._phases_schedule_spec import ACTIVATIONS, DEFAULT_PHASE, PhasesScheduleSpec
+from ._power_series_spec import PowerSeriesSpec
 from ._prototile_spec import PrototileSpec
 from ._queue_spec import QueueSpec
 from ._radius_spec import RadiusSpec
 from ._random_search_spec import RandomSearchSpec
 from ._read_spec import ReadSpec
 from ._reduction_spec import ReductionSpec
+from ._region_score_spec import RegionScoreSpec
 from ._renewal_record_spec import RenewalRecordSpec
 from ._requirement_spec import RequirementSpec
 from ._role_spec import RoleSpec, Spec
@@ -98,7 +102,7 @@ from ._symmetry_spec import SymmetrySpec
 from ._table_spec import TableSpec
 from ._table_values_spec import TableValuesSpec
 from ._tensor_spec import TensorSpec
-from ._topology_request_spec import EDGE_KINDS, ENDS, TOPOLOGY_KINDS, TopologyRequestSpec
+from ._topology_request_spec import EDGE_KINDS, ENDS, HYPEREDGE_KINDS, TOPOLOGY_KINDS, TopologyRequestSpec
 from ._totalistic_spec import TotalisticSpec
 from ._validation_report_spec import ValidationReportSpec
 from ._variable_spec import VariableSpec
@@ -112,6 +116,7 @@ __all__ = [
     'DEFAULT_PHASE',
     'EDGE_KINDS',
     'ENDS',
+    'HYPEREDGE_KINDS',
     'MONTE_CARLO_SCHEDULES',
     'MOVES',
     'SAMPLERS',
@@ -151,6 +156,7 @@ __all__ = [
     'FractionalStateSpec',
     'GeometrySpec',
     'HilbertSpec',
+    'HolonomyScoreSpec',
     'HyperedgeReductionSpec',
     'InteractionRequirementSpec',
     'IssueSpec',
@@ -165,6 +171,7 @@ __all__ = [
     'LookupSpec',
     'LoweredFunctionsSpec',
     'MatchSpec',
+    'MatrixGroupSpec',
     'MatrixLawSpec',
     'ModuleSpec',
     'MoveSpec',
@@ -186,12 +193,14 @@ __all__ = [
     'PatchStructureSpec',
     'PhaseSpec',
     'PhasesScheduleSpec',
+    'PowerSeriesSpec',
     'PrototileSpec',
     'QueueSpec',
     'RadiusSpec',
     'RandomSearchSpec',
     'ReadSpec',
     'ReductionSpec',
+    'RegionScoreSpec',
     'RenewalRecordSpec',
     'RequirementSpec',
     'RoleSpec',

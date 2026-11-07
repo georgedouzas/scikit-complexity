@@ -66,3 +66,25 @@ sweep.set_title('Segregation exceeds the preference')
 sweep.legend()
 fig.tight_layout()
 plt.show()
+
+# %%
+# The Big Sort
+# ------------
+# Bishop's hypothesis, Downey's Exercise 9-1: residents move for any reason, a tenth of them every step, and choose
+# among `k` random empty cells the one with the most neighbours of their own kind. With one choice the moves are
+# random and the like-neighbour share should stay at its initial value, and it should grow with the number of choices.
+
+choices = [1, 2, 4, 8, 16]
+sorted_shares = []
+for count in choices:
+    system = create_system(SYSTEM, width=SIDE, height=SIDE, minority=0.5, choices=count, random_state=0)
+    trajectory = Simulation(system, random_state=0).prepare().run(until=STEPS).trajectory_
+    sorted_shares.append(like_share(trajectory, STEPS))
+fig, axis = plt.subplots(figsize=(5, 4))
+axis.plot(choices, sorted_shares, 'o-')
+axis.set_xscale('log', base=2)
+axis.set_xlabel('empty cells compared, k')
+axis.set_ylabel('like-neighbour share')
+axis.set_title('The Big Sort')
+fig.tight_layout()
+plt.show()

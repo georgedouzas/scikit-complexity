@@ -3,16 +3,234 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Annotated
 
-from ....core.components.elements import GroupElement
+import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime
 from ....core.components.system import System
-from ....core.specs import ObservableSpec
+from ....core.engine.solvers import AgentView, SystemView
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._gibrat_firm import GibratFirmElement
-from ._kesten_firm import KestenFirmElement
-from ._reflecting_floor import ReflectingFloorInteraction
+
+
+class GibratFirmView(AgentView):
+    """Firm of Gibrat's process as the rules see it, with its size and growth factor.
+
+    It reads its size `x`, its `previous` size, and the mean `mu` and the deviation `sigma` of its growth factor.
+    """
+
+    x: float
+    previous: float
+    mu: float
+    sigma: float
+
+
+class GibratFirmElement(Element):
+    """Firm whose size is multiplied every step by an independent normal growth factor, `x = lambda x`.
+
+    Args:
+        label:
+            The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial size.
+
+        previous:
+            The size before the last step.
+
+        mu:
+            The mean of the growth factor.
+
+        sigma:
+            The standard deviation of the growth factor.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.systems.economics.finance import GibratFirmElement
+        >>> GroupElement('firms', element=GibratFirmElement, size=10, values={'mu': 1.0}).size
+        10
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 100.0,
+        previous: Annotated[float, StateSpec()] = 100.0,
+        mu: Annotated[float, ParameterSpec()] = 1.02,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.previous = previous
+        self.mu = mu
+        self.sigma = sigma
+
+    @classmethod
+    def _get_view(cls) -> type[GibratFirmView]:
+        """Return the view of the agents of the element."""
+        return GibratFirmView
+
+    @staticmethod
+    def get_growth(agent: GibratFirmView, system: SystemView) -> float:
+        """Return the size multiplied by a growth factor drawn from a normal distribution.
+
+        Args:
+            agent:
+                The firm.
+
+            system:
+                The system view of the growth.
+
+        Returns:
+            size:
+                The size after the step.
+        """
+        return agent.x * float(system.rng.normal(agent.mu, agent.sigma))
+
+
+class KestenFirmView(AgentView):
+    """Firm of Kesten's process as its rule sees it: its size `x` and the bounds of its random factor and term."""
+
+    x: float
+    lambda_low: float
+    lambda_high: float
+    b_low: float
+    b_high: float
+
+
+class KestenFirmElement(Element):
+    """Firm whose size follows Kesten's process, `x = lambda x + b`, with uniform random `lambda` and `b`.
+
+    Args:
+        label:
+            The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial size.
+
+        lambda_low:
+            The lower bound of the multiplicative factor.
+
+        lambda_high:
+            The upper bound of the multiplicative factor.
+
+        b_low:
+            The lower bound of the additive term.
+
+        b_high:
+            The upper bound of the additive term.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.systems.economics.finance import KestenFirmElement
+        >>> GroupElement('firms', element=KestenFirmElement, size=10, values={'b_high': 2.0}).size
+        10
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 100.0,
+        lambda_low: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.48,
+        lambda_high: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.48,
+        b_low: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        b_high: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.lambda_low = lambda_low
+        self.lambda_high = lambda_high
+        self.b_low = b_low
+        self.b_high = b_high
+
+    @classmethod
+    def _get_view(cls) -> type[KestenFirmView]:
+        """Return the view of the agents of the element."""
+        return KestenFirmView
+
+    @staticmethod
+    def get_growth(agent: KestenFirmView, system: SystemView) -> float:
+        """Return the size multiplied by a random factor plus a random term.
+
+        Args:
+            agent:
+                The firm.
+
+            system:
+                The system view of the growth.
+
+        Returns:
+            size:
+                The size after the step.
+        """
+        factor = float(system.rng.uniform(agent.lambda_low, agent.lambda_high))
+        return factor * agent.x + float(system.rng.uniform(agent.b_low, agent.b_high))
+
+
+class ReflectingFloorInteraction(MapInteraction):
+    """Lower bound on the sizes of a group at a fraction of their mean before the step, `x = max(x, c <x_{t-1}>)`.
+
+    It is a map of the agent form that raises every size below the floor to the floor, the mean of the states
+    `previous` of the group times `c`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of firms.
+
+        c:
+            The fraction of the previous mean size below which no size falls.
+
+        phase:
+            The phase of the step the floor acts in, or `None` for the default phase.
+
+    Examples:
+        >>> from skcomplex.systems.economics.finance import ReflectingFloorInteraction
+        >>> ReflectingFloorInteraction('floor', target='firms', c=0.5).c
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
+        phase: str | None = None,
+    ) -> None:
+        super().__init__(label, target=target, state='x', function=self._get_floored, form='agent', phase=phase)
+        self.c = c
+
+    def _get_floor(self, system: SystemView) -> float:
+        """Return the floor of the step, `c` times the mean size of the group before it, computed once per step."""
+        cached = system.storage.get('floor')
+        if isinstance(cached, tuple) and cached[0] == system.time:
+            return float(cached[1])
+        previous = [firm.previous for firm in system.agents('target', GibratFirmView)]
+        floor = system.parameter('c') * float(np.mean(previous))
+        system.storage['floor'] = (system.time, floor)
+        return floor
+
+    def _get_floored(self, agent: GibratFirmView, system: SystemView) -> float:
+        """Return the size of a firm raised to the floor, `c` times the mean size of its group before the step."""
+        return max(agent.x, self._get_floor(system))
 
 
 def _get_gibrat_growth() -> list[MapInteraction]:

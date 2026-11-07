@@ -9,11 +9,86 @@ authors = [{name = "Georgios Douzas", email = "gdouzas@icloud.com"}]
 license = "MIT"
 readme = "README.md"
 requires-python = ">=3.12, <3.15"
-keywords = []
+keywords = [
+    "complex systems",
+    "complexity science",
+    "simulation",
+    "modeling",
+    "scientific computing",
+    "scikit-learn",
+    "numerical methods",
+    "symbolic computation",
+    "SageMath",
+    "dynamical systems",
+    "nonlinear dynamics",
+    "chaos",
+    "bifurcation",
+    "ordinary differential equations",
+    "stochastic differential equations",
+    "partial differential equations",
+    "delay differential equations",
+    "fractional calculus",
+    "Markov chains",
+    "Gillespie algorithm",
+    "stochastic processes",
+    "cellular automata",
+    "rewriting systems",
+    "L-systems",
+    "graph theory",
+    "Cayley graphs",
+    "agent-based modeling",
+    "network science",
+    "network growth",
+    "adaptive networks",
+    "higher-order interactions",
+    "hypergraphs",
+    "lattice models",
+    "reaction-diffusion",
+    "pattern formation",
+    "linear programming",
+    "flux balance analysis",
+    "optimal control",
+    "co-simulation",
+    "early warning signals",
+    "criticality",
+    "synchronization",
+    "Kuramoto model",
+    "computational biology",
+    "systems biology",
+    "ecology",
+    "population dynamics",
+    "epidemiology",
+    "neuroscience",
+    "oncology",
+    "chemistry",
+    "chemical kinetics",
+    "physics",
+    "statistical mechanics",
+    "Ising model",
+    "quantum dynamics",
+    "climate",
+    "economics",
+    "finance",
+    "social systems",
+    "urban scaling",
+    "engineering",
+    "mechatronics",
+    "control systems",
+    "system dynamics",
+    "Vensim",
+    "XMILE",
+    "SBML",
+    "Numba",
+    "JAX",
+    "visualization",
+    "Rerun",
+]
 dynamic = ["version"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Education",
     "Operating System :: MacOS",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python",
@@ -22,14 +97,20 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
-    "Topic :: Documentation",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Life",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Visualization",
     "Topic :: Software Development",
-    "Topic :: Utilities",
     "Typing :: Typed",
 ]
 dependencies = [
     "numpy>=2.1.0",
-    "scipy>=1.13.0",
+    "scipy>=1.15.0",
     "passagemath-symbolics>=10.8.13",
     "passagemath-maxima>=10.8.13",
     "passagemath-gap>=10.8.13",
@@ -68,6 +149,7 @@ dependencies = [
     "highspy>=1.15.1",
     "passagemath-polyhedra>=10.8.13",
     "pysd>=3.14.3,<4",
+    "einsteinpy>=0.5.0",
 ]
 
 [project.optional-dependencies]
@@ -400,6 +482,7 @@ modules = [
     "skcomplex.systems.physics.waves",
     "skcomplex.systems.social.cooperation",
     "skcomplex.systems.social.crowds",
+    "skcomplex.systems.social.language",
     "skcomplex.systems.social.opinion_dynamics",
     "skcomplex.systems.social.organizations",
     "skcomplex.systems.social.segregation",
@@ -411,8 +494,10 @@ name = "Systems of biology use only the shared code of their own field"
 type = "forbidden"
 source_modules = ["skcomplex.systems.biology"]
 forbidden_modules = [
+    "skcomplex.systems.chemistry.common",
     "skcomplex.systems.economics.common",
     "skcomplex.systems.engineering.common",
+    "skcomplex.systems.mathematics.common",
     "skcomplex.systems.physics.common",
 ]
 
@@ -424,6 +509,7 @@ forbidden_modules = [
     "skcomplex.systems.biology.common",
     "skcomplex.systems.economics.common",
     "skcomplex.systems.engineering.common",
+    "skcomplex.systems.mathematics.common",
     "skcomplex.systems.physics.common",
 ]
 
@@ -433,8 +519,10 @@ type = "forbidden"
 source_modules = ["skcomplex.systems.computer_science"]
 forbidden_modules = [
     "skcomplex.systems.biology.common",
+    "skcomplex.systems.chemistry.common",
     "skcomplex.systems.economics.common",
     "skcomplex.systems.engineering.common",
+    "skcomplex.systems.mathematics.common",
     "skcomplex.systems.physics.common",
 ]
 
@@ -444,7 +532,9 @@ type = "forbidden"
 source_modules = ["skcomplex.systems.economics"]
 forbidden_modules = [
     "skcomplex.systems.biology.common",
+    "skcomplex.systems.chemistry.common",
     "skcomplex.systems.engineering.common",
+    "skcomplex.systems.mathematics.common",
     "skcomplex.systems.physics.common",
 ]
 
@@ -454,7 +544,9 @@ type = "forbidden"
 source_modules = ["skcomplex.systems.engineering"]
 forbidden_modules = [
     "skcomplex.systems.biology.common",
+    "skcomplex.systems.chemistry.common",
     "skcomplex.systems.economics.common",
+    "skcomplex.systems.mathematics.common",
     "skcomplex.systems.physics.common",
 ]
 
@@ -464,6 +556,7 @@ type = "forbidden"
 source_modules = ["skcomplex.systems.mathematics"]
 forbidden_modules = [
     "skcomplex.systems.biology.common",
+    "skcomplex.systems.chemistry.common",
     "skcomplex.systems.economics.common",
     "skcomplex.systems.engineering.common",
     "skcomplex.systems.physics.common",
@@ -475,8 +568,10 @@ type = "forbidden"
 source_modules = ["skcomplex.systems.physics"]
 forbidden_modules = [
     "skcomplex.systems.biology.common",
+    "skcomplex.systems.chemistry.common",
     "skcomplex.systems.economics.common",
     "skcomplex.systems.engineering.common",
+    "skcomplex.systems.mathematics.common",
 ]
 
 [[tool.importlinter.contracts]]
@@ -485,9 +580,79 @@ type = "forbidden"
 source_modules = ["skcomplex.systems.social"]
 forbidden_modules = [
     "skcomplex.systems.biology.common",
+    "skcomplex.systems.chemistry.common",
     "skcomplex.systems.economics.common",
     "skcomplex.systems.engineering.common",
+    "skcomplex.systems.mathematics.common",
     "skcomplex.systems.physics.common",
+]
+
+[[tool.importlinter.contracts]]
+name = "The shared code of a field imports no subfield package"
+type = "forbidden"
+source_modules = [
+    "skcomplex.systems.biology.common",
+    "skcomplex.systems.chemistry.common",
+    "skcomplex.systems.economics.common",
+    "skcomplex.systems.engineering.common",
+    "skcomplex.systems.mathematics.common",
+    "skcomplex.systems.physics.common",
+]
+forbidden_modules = [
+    "skcomplex.systems.biology.collective_behaviour",
+    "skcomplex.systems.biology.ecology",
+    "skcomplex.systems.biology.epidemiology",
+    "skcomplex.systems.biology.evolution",
+    "skcomplex.systems.biology.neuroscience",
+    "skcomplex.systems.biology.oncology",
+    "skcomplex.systems.biology.physiology",
+    "skcomplex.systems.biology.systems_biology",
+    "skcomplex.systems.chemistry.kinetics",
+    "skcomplex.systems.chemistry.pattern_formation",
+    "skcomplex.systems.computer_science.automata",
+    "skcomplex.systems.computer_science.evolutionary_computation",
+    "skcomplex.systems.computer_science.neural_networks",
+    "skcomplex.systems.economics.econophysics",
+    "skcomplex.systems.economics.finance",
+    "skcomplex.systems.economics.innovation",
+    "skcomplex.systems.economics.macroeconomics",
+    "skcomplex.systems.economics.markets",
+    "skcomplex.systems.economics.resources",
+    "skcomplex.systems.engineering.circuits",
+    "skcomplex.systems.engineering.control",
+    "skcomplex.systems.engineering.mechatronics",
+    "skcomplex.systems.engineering.power_systems",
+    "skcomplex.systems.engineering.processes",
+    "skcomplex.systems.engineering.robotics",
+    "skcomplex.systems.engineering.traffic",
+    "skcomplex.systems.mathematics.dynamical_systems",
+    "skcomplex.systems.mathematics.fractals",
+    "skcomplex.systems.mathematics.fractional_dynamics",
+    "skcomplex.systems.mathematics.networks",
+    "skcomplex.systems.mathematics.stochastic_processes",
+    "skcomplex.systems.physics.active_matter",
+    "skcomplex.systems.physics.celestial_mechanics",
+    "skcomplex.systems.physics.climate",
+    "skcomplex.systems.physics.cosmology",
+    "skcomplex.systems.physics.criticality",
+    "skcomplex.systems.physics.fluids",
+    "skcomplex.systems.physics.heat",
+    "skcomplex.systems.physics.mechanics",
+    "skcomplex.systems.physics.nonlinear_oscillators",
+    "skcomplex.systems.physics.oceanography",
+    "skcomplex.systems.physics.pattern_formation",
+    "skcomplex.systems.physics.seismology",
+    "skcomplex.systems.physics.soft_matter",
+    "skcomplex.systems.physics.statistical_mechanics",
+    "skcomplex.systems.physics.synchronization",
+    "skcomplex.systems.physics.waves",
+    "skcomplex.systems.social.cooperation",
+    "skcomplex.systems.social.crowds",
+    "skcomplex.systems.social.language",
+    "skcomplex.systems.social.opinion_dynamics",
+    "skcomplex.systems.social.organizations",
+    "skcomplex.systems.social.segregation",
+    "skcomplex.systems.social.spreading",
 ]
 
 [tool.pytest.ini_options]

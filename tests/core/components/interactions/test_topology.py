@@ -15,7 +15,7 @@ from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import Simulation, Trajectory
 from skcomplex.core.engine.solvers import MesaSolver
-from skcomplex.core.errors import SolverError, ValidationError
+from skcomplex.core.errors import RoleError, SolverError, ValidationError
 from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
@@ -237,9 +237,9 @@ def test_get_laws_add_node_with_a_hyperedge_needs_a_hyperedge_group_of_its_size(
 
 
 def test_check_rejects_an_edge_action_without_target():
-    """Test that an action other than a node addition needs a target."""
+    """Test that an action other than an addition of nodes or edges needs a target."""
     with pytest.raises(ValidationError):
-        TopologyInteraction('change', action='add-edge').prepare()
+        TopologyInteraction('change', action='remove-edge').prepare()
 
 
 @pytest.mark.parametrize(
@@ -253,6 +253,9 @@ def test_check_rejects_an_edge_action_without_target():
         {'edges': -1},
         {'action': 'add-edge', 'hyperedge': 3},
         {'action': 'add-node', 'hyperedge': 1},
+        {'action': 'add-hyperedge'},
+        {'action': 'remove-hyperedge', 'hyperedge': 3},
+        {'direction': 'sideways'},
     ],
 )
 def test_check_rejects_invalid_arguments(arguments):
@@ -475,3 +478,195 @@ def test_get_laws_add_node_runs_on_no_mesa_path():
     system = System(elements=[nodes, links], interactions=[growth], space=NetworkSpace(nx.path_graph(4)))
     with pytest.raises(SolverError, match='does not support the laws UpdateLaw'):
         Simulation(system, solver=MesaSolver(), random_state=0).prepare()
+
+
+def _ranked(*interactions: BaseInteraction, directed: bool = False, capacity: int = 80) -> System:
+    """Return five nodes without hyperedges whose variable group on hyperedges holds every size up to four."""
+    nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=capacity)
+    links = GroupElement('links', element=Element, on='edges', variable=True, capacity=capacity * capacity)
+    groups = GroupElement('groups', element=Element, on='hyperedges', variable=True, size=0, capacity=capacity, rank=4)
+    graph = nx.empty_graph(5, create_using=nx.DiGraph if directed else nx.Graph)
+    return System(
+        elements=[nodes, links, groups],
+        interactions=list(interactions),
+        space=NetworkSpace(graph),
+        time=DiscreteTime(),
+    )
+
+
+@BACKENDS
+def test_get_laws_add_node_forms_hyperedges_of_every_size_up_to_the_rank(backend):
+    """Test that new nodes of hyperedges of two, three, and four members fill a ranked group, padded with -1."""
+    growth = [TopologyInteraction(f'growth_{size}', action='add-node', hyperedge=size, edges=0) for size in (2, 3, 4)]
+    trajectory = Simulation(_ranked(*growth), backend=backend, random_state=0).prepare().run(until=10).trajectory_
+    network = trajectory.network(-1)
+    sizes = (network.hyperedges >= 0).sum(axis=1)
+    assert network.hyperedges.shape == (30, 4)
+    assert sorted(np.bincount(sizes).tolist()) == [0, 0, 10, 10, 10]
+    assert all(row[size - 1] == max(row[:size]) for row, size in zip(network.hyperedges, sizes, strict=True))
+    assert len(network.nodes) == 35
+    assert len(network.sources) == 0
+
+
+def test_get_laws_add_node_joins_independent_ends_both_ways():
+    """Test that independent ends of a probability join about that share of the nodes, in each direction apart."""
+    growth = TopologyInteraction(
+        'growth',
+        action='add-node',
+        edges=0,
+        independent=True,
+        direction='both',
+        toward=lambda node: 0.5,
+    )
+    trajectory = Simulation(_ranked(growth, directed=True), random_state=0).prepare().run(until=60).trajectory_
+    network = trajectory.network(-1)
+    edges = set(zip(network.sources.tolist(), network.targets.tolist(), strict=True))
+    pairs = 65 * 64 / 2 - 5 * 4 / 2
+    assert len(edges) == len(network.sources)
+    assert len(edges) / (2 * pairs) == pytest.approx(0.5, abs=0.05)
+    assert len({(first, second) for first, second in edges if (second, first) in edges}) > 0
+
+
+def test_get_laws_add_hyperedge_and_remove_hyperedge_change_the_hyperedges():
+    """Test that nodes form triangles that dissolve, so the number of hyperedges settles near its balance."""
+    form = TopologyInteraction('form', target='nodes', action='add-hyperedge', hyperedge=3, probability=0.2)
+    dissolve = TopologyInteraction('dissolve', target='triangles', action='remove-hyperedge', probability=0.25)
+    system = _triangles(form, dissolve, capacity=200)
+    trajectory = Simulation(system, random_state=0).prepare().run(until=200).trajectory_
+    counts = [trajectory.network(frame).hyperedges.shape[0] for frame in range(100, 201)]
+    assert np.mean(counts) == pytest.approx(3 * 0.2 / 0.25, rel=0.3)
+    network = trajectory.network(-1)
+    assert len(network.nodes) == 3
+    assert len(network.sources) == 3
+    assert all(len(set(row.tolist())) == 3 for row in network.hyperedges)
+
+
+def test_get_laws_hyperedges_beyond_the_rank_or_interactions_on_a_ranked_group_are_reported():
+    """Test that a hyperedge larger than the rank and laws per hyperedge on a ranked group are rejected."""
+    growth = TopologyInteraction('growth', action='add-node', hyperedge=5, edges=0)
+    with pytest.raises(ValidationError, match='rank'):
+        Simulation(_ranked(growth), random_state=0).prepare()
+    system = _ranked(AgeingInteraction('ageing', nodes='nodes', triangles='groups'))
+    system.space = NetworkSpace(nx.complete_graph(5), hyperedges=[[0, 1, 2], [1, 2, 3, 4]])
+    system.elements[2].size = None
+    with pytest.raises(RoleError, match='rank'):
+        Simulation(system, random_state=0).prepare()
+
+
+def _edges(trajectory: Trajectory, frame: int) -> set[tuple[int, int]]:
+    """Return the edges of the network at a frame as pairs of node rows in increasing order."""
+    network = trajectory.network(frame)
+    return {
+        (min(first, second), max(first, second))
+        for first, second in zip(network.sources.tolist(), network.targets.tolist(), strict=True)
+    }
+
+
+def _marked(**options: object) -> TopologyInteraction:
+    """Return a change of the nodes whose mark exceeds 1."""
+    return TopologyInteraction('change', target='nodes', condition=lambda s: s.source.mark > 1, **options)
+
+
+def test_get_laws_close_triangle_joins_two_neighbours():
+    """Test that the centre of a star joins two of its leaves and keeps its own edges."""
+    trajectory = _run(nx.star_graph(5), _marked(action='close-triangle'), 1, mark=[2.0] + [0.0] * 5)
+    added = _edges(trajectory, 1) - _edges(trajectory, 0)
+    assert len(added) == 1
+    assert 0 not in next(iter(added))
+    assert _edges(trajectory, 0) <= _edges(trajectory, 1)
+
+
+def test_get_laws_close_triangle_joins_new_ends_without_an_open_pair_of_neighbours():
+    """Test that a node with one neighbour, or whose neighbours are all joined, joins a new end instead."""
+    graph = nx.empty_graph(4)
+    graph.add_edge(0, 1)
+    assert _sizes(_run(graph, _marked(action='close-triangle'), 1, mark=[2.0, 0, 0, 0]), 1) == (4, 2)
+    graph = nx.complete_graph(4)
+    graph.add_node(4)
+    trajectory = _run(graph, _marked(action='close-triangle'), 1, mark=[2.0, 0, 0, 0, 0])
+    assert _edges(trajectory, 1) - _edges(trajectory, 0) == {(0, 4)}
+
+
+def test_get_laws_contract_edge_keeps_the_union_of_the_links():
+    """Test that node 0 of the path 3-0-1-2 merges node 1 and joins nodes 2 and 3."""
+    graph = nx.Graph([(3, 0), (0, 1), (1, 2)])
+    change = _marked(action='contract-edge', toward=lambda node: where(abs(node.mark - 1) < 0.5, 1, 0))
+    marks = {3: 0.0, 0: 2.0, 1: 1.0, 2: 0.0}
+    trajectory = _run(graph, change, 1, mark=[marks[node] for node in graph.nodes])
+    network = trajectory.network(1)
+    rows = {node: row for row, node in enumerate(graph.nodes)}
+    assert sorted(network.nodes.tolist()) == sorted(rows[node] for node in (0, 2, 3))
+    assert _edges(trajectory, 1) == {tuple(sorted((rows[0], rows[node]))) for node in (2, 3)}
+
+
+def test_get_laws_contract_edge_frees_repeated_links():
+    """Test that contracting an edge of a triangle leaves one edge between the two remaining nodes."""
+    change = _marked(action='contract-edge', toward=lambda node: where(abs(node.mark - 1) < 0.5, 1, 0))
+    trajectory = _run(nx.complete_graph(3), change, 1, mark=[2.0, 1.0, 0.0])
+    assert _edges(trajectory, 1) == {(0, 2)}
+
+
+def test_get_laws_duplicate_node_copies_the_values_and_the_links():
+    """Test that an exact copy of a node of a cycle takes its mark and its neighbours, and may join it."""
+    trajectory = _run(nx.cycle_graph(6), _marked(action='duplicate-node', edges=0), 1, mark=[2.0] + [0.0] * 5)
+    assert _edges(trajectory, 1) - _edges(trajectory, 0) == {(1, 6), (5, 6)}
+    assert trajectory.values('nodes.mark')[-1][6] == 2.0
+    change = _marked(action='duplicate-node', edges=0, inherit=0.0, parent=1.0)
+    trajectory = _run(nx.cycle_graph(6), change, 1, mark=[2.0] + [0.0] * 5)
+    assert _edges(trajectory, 1) - _edges(trajectory, 0) == {(0, 6)}
+
+
+def test_get_laws_duplicate_node_inherits_a_share_of_the_links_and_joins_new_ends_away_from_the_node():
+    """Test that a copy inherits about the given share of links and joins only nodes the node does not join."""
+    change = _marked(action='duplicate-node', edges=0, inherit=0.3)
+    trajectory = _run(nx.star_graph(100), change, 1, mark=[2.0] + [0.0] * 100)
+    assert 15 < len(_edges(trajectory, 1)) - 100 < 45
+    change = _marked(action='duplicate-node', inherit=0.0, independent=True, toward=lambda node: 1)
+    trajectory = _run(nx.cycle_graph(6), change, 1, mark=[2.0] + [0.0] * 5)
+    assert _edges(trajectory, 1) - _edges(trajectory, 0) == {(2, 6), (3, 6), (4, 6)}
+
+
+def test_get_laws_replace_node_with_a_probability_removes_and_adds_together():
+    """Test that replacements fired with a probability keep the number of nodes at every step."""
+    change = TopologyInteraction('turnover', target='nodes', action='replace-node', probability=0.3)
+    trajectory = _run(nx.cycle_graph(50), change, 20)
+    assert {_sizes(trajectory, frame)[0] for frame in range(21)} == {50}
+
+
+def test_get_laws_one_drawn_member_runs_once_per_step():
+    """Test that a removal of one drawn node per step removes exactly one node per step."""
+    change = TopologyInteraction('loss', target='nodes', action='remove-node', one=True)
+    trajectory = _run(nx.cycle_graph(30), change, 10)
+    assert [_sizes(trajectory, frame)[0] for frame in range(11)] == list(range(30, 19, -1))
+
+
+def test_get_laws_one_drawn_member_rejects_a_rate():
+    """Test that a jump law that requests a change for one drawn member raises an error."""
+    change = TopologyInteraction('loss', target='nodes', action='remove-node', rate=1.0, one=True)
+    nodes = GroupElement('nodes', element=MarkedElement, on='sites', variable=True, capacity=10)
+    links = GroupElement('links', element=Element, on='edges', variable=True, capacity=10)
+    system = System(elements=[nodes, links], interactions=[change], space=NetworkSpace(nx.cycle_graph(5)))
+    with pytest.raises(ValidationError, match='one drawn member'):
+        Simulation(system, random_state=0).prepare()
+
+
+def test_get_laws_add_edge_chooses_the_candidate_of_the_smallest_score():
+    """Test that a node adds the edge to its candidate of the smallest score, or of the largest negated score."""
+    marks = [9.0, 0.5, 0.3, 0.7, 0.4]
+    for score, end in ((lambda node: node.mark, 2), (lambda node: -node.mark, 3)):
+        change = _marked(action='add-edge', candidates=4, score=score)
+        assert _edges(_run(nx.empty_graph(5), change, 1, mark=marks), 1) == {(0, end)}
+
+
+def test_get_laws_add_edge_without_target_joins_drawn_pairs_by_score():
+    """Test that edges without a target join pairs of nodes once per step, the pair of the smallest score."""
+    change = TopologyInteraction('linking', action='add-edge')
+    assert _sizes(_run(nx.empty_graph(10), change, 5), 5) == (10, 5)
+    change = TopologyInteraction(
+        'linking',
+        action='add-edge',
+        candidates=300,
+        score=lambda node: node.mark + node.source.mark,
+    )
+    trajectory = _run(nx.empty_graph(10), change, 1, mark=[0.0, 0.0] + [10.0] * 8)
+    assert _edges(trajectory, 1) == {(0, 1)}

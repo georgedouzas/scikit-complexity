@@ -1002,3 +1002,43 @@ def test_observables_read_agent_views():
     observables = [ObservableSpec('weights', group='visited', expression=_weight_of, reduce='sum')]
     trajectory = Simulation(_visited_system(1.0), observables=observables).prepare().run(until=1).trajectory_
     assert trajectory.values('weights').tolist() == [8.0, 8.0]
+
+
+class HolderElement(Element):
+    """Agent on a node that counts the tokens on the nodes around it, and the agents of every group there."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        around: Annotated[float, StateSpec()] = 0.0,
+        every: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.around = around
+        self.every = every
+
+    def _get_laws(self, s):
+        """Return the counting rule."""
+        return [RuleLaw(self.hold)]
+
+    def hold(self, agent, system):
+        """Count the tokens of the neighbouring nodes, and the agents of every group there."""
+        agent.around = len(agent.neighbors(group='tokens'))
+        agent.every = len(agent.neighbors())
+
+
+def test_network_neighbours_of_one_group_read_the_member_sets_of_the_nodes_around():
+    """Test that a holder on a path reads the tokens on its neighbouring nodes apart from the holders there."""
+    system = System(
+        elements=[
+            GroupElement('holders', element=HolderElement, size=4, location=[0, 1, 2, 3]),
+            GroupElement('tokens', element=Element, size=6, variable=True, location=[0, 0, 1, 2, 3, 3]),
+        ],
+        space=NetworkSpace(nx.path_graph(4)),
+    )
+    snapshot = Simulation(system, random_state=0).prepare().run(until=1).trajectory_.agents('holders', 1)
+    places = snapshot.locations.tolist()
+    assert dict(zip(places, snapshot.values['around'].tolist(), strict=True)) == {0: 1.0, 1: 3.0, 2: 3.0, 3: 1.0}
+    assert dict(zip(places, snapshot.values['every'].tolist(), strict=True)) == {0: 2.0, 1: 5.0, 2: 5.0, 3: 2.0}

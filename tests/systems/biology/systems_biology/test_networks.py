@@ -4,6 +4,7 @@ import numpy as np
 
 from skcomplex.systems.biology.systems_biology import (
     biochemical_systems_theory,
+    glycolysis_oscillations,
     goodwin_oscillator,
     phosphorylation_oscillator,
 )
@@ -56,3 +57,15 @@ def test_biochemical_systems_theory_reaches_log_linear_steady_state():
         )
         final = np.array([trajectory.values(f'X{index}.x')[-1] for index in (1, 2, 3)])
         assert np.allclose(final, expected, rtol=1e-4)
+
+
+def test_glycolysis_oscillates_and_balances_its_nicotinamide_pool():
+    """Test Nielsen et al.: NADH oscillates with a steady period, and `NAD + NADH` relaxes to the feed of 4.24 mM."""
+    trajectory = _run_with_solver(glycolysis_oscillations(), until=600.0, dt=0.5, solver=SYSTEMS_PRECISE)
+    nadh = trajectory.values('extract.NADH')[600:]
+    peaks = np.flatnonzero((nadh[1:-1] > nadh[:-2]) & (nadh[1:-1] > nadh[2:]))
+    periods = np.diff(trajectory.times[600:][1:-1][peaks])
+    assert np.ptp(nadh) > 0.1
+    assert periods.std() < 0.05 * periods.mean()
+    pool = trajectory.values('extract.NAD') + trajectory.values('extract.NADH')
+    assert abs(pool[-1] - 4.24) < abs(pool[0] - 4.24)

@@ -23,8 +23,8 @@ from ..common.oscillators import (
     PhaseOscillatorElement,
     SitedOscillatorElement,
     StuartLandauElement,
+    order_parameter,
 )
-from ._utils import _order_parameter
 
 
 class DelayedCouplingInteraction(RateInteraction):
@@ -161,7 +161,7 @@ def delayed_kuramoto(
     tags=('synchronization', 'oscillators', 'phase', 'mean field'),
     references=('Kuramoto 1984', 'Datseris and Parlitz 2022', 'Gros 2015', 'Jensen 2023'),
     defaults={'until': 50.0, 'dt': 0.5},
-    observables=lambda system: _order_parameter('order', 'oscillators'),
+    observables=lambda system: order_parameter('order', 'oscillators'),
 )
 def kuramoto(n_oscillators: int = 50, *, K: float = 4.0, sigma: float = 1.0, seed: int = 0) -> System:
     """Return Kuramoto oscillators coupled all to all, `theta_i' = omega_i + (K / N) sum_j sin(theta_j - theta_i)`.
@@ -221,7 +221,7 @@ def kuramoto(n_oscillators: int = 50, *, K: float = 4.0, sigma: float = 1.0, see
     tags=('synchronization', 'oscillators', 'phase', 'chimera'),
     references=('Abrams et al. 2008', 'Jensen 2023'),
     defaults={'until': 100.0, 'dt': 1.0},
-    observables=lambda system: [*_order_parameter('first_order', 'first'), *_order_parameter('second_order', 'second')],
+    observables=lambda system: [*order_parameter('first_order', 'first'), *order_parameter('second_order', 'second')],
 )
 def kuramoto_sakaguchi_chimera(
     n_oscillators: int = 32,
@@ -309,7 +309,7 @@ def kuramoto_sakaguchi_chimera(
     tags=('synchronization', 'oscillators', 'phase', 'chimera', 'nonlocal coupling'),
     references=('Kuramoto and Battogtokh 2002', 'Datseris and Parlitz 2022'),
     defaults={'until': 100.0, 'dt': 1.0},
-    observables=lambda system: _order_parameter('order', 'ring'),
+    observables=lambda system: order_parameter('order', 'ring'),
 )
 def nonlocal_ring_chimera(
     n_oscillators: int = 100,

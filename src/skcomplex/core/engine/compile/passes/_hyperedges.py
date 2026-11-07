@@ -284,10 +284,16 @@ class HyperedgeTables:
 
         Raises:
             RoleError:
-                The nodes are not a variable group, the second role binds another group, or the interaction runs on
-                another size than the hyperedges of the group.
+                The nodes are not a variable group, the second role binds another group, the group has a rank, or
+                the interaction runs on another size than the hyperedges of the group.
         """
         size = growing.entries[MEMBERS].columns
+        if getattr(growing.node.component, 'rank', None) is not None:
+            error_msg = (
+                f'Hyperedge interaction {node.path} runs on {growing.node.path}, whose hyperedges have every size up '
+                'to its rank. Laws per hyperedge run on a variable group of one size, without a rank.'
+            )
+            raise RoleError(error_msg)
         if nodes.node.active is None:
             error_msg = (
                 f'Hyperedge interaction {node.path} binds {nodes.node.path} on a network whose hyperedges change. '

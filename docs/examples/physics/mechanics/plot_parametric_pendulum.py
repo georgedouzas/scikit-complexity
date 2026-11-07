@@ -1,8 +1,9 @@
 """
-# Parametric pendulum
+# Pendulum with a vertically or horizontally oscillating pivot
 
 A pendulum whose pivot is shaken up and down at twice its natural frequency swings ever higher from a tiny start, like
-a child pumping a swing: parametric resonance pumps energy in at every half swing.
+a child pumping a swing: parametric resonance pumps energy in at every half swing. Shaken sideways, the pivot drives the
+pendulum like an external force instead.
 """
 
 # %%
@@ -51,5 +52,25 @@ ax.set_ylim(0.005, 4)
 ax.set_xlabel('time')
 ax.set_ylabel('peak |θ| (radians)')
 ax.set_title('Parametric resonance of a shaken pendulum')
+ax.legend()
+plt.show()
+
+# %%
+# Pivot oscillating horizontally
+# ------------------------------
+# Shaking the pivot sideways instead pushes the bob directly, a forced oscillator rather than a parametric one. At the
+# natural frequency `Ω = ω0` and from rest, the swing should grow linearly as `ε ω0 t / 2`, dashed, while a pivot
+# shaken vertically at the same frequency should leave the pendulum at rest.
+
+fig, ax = plt.subplots(figsize=(6, 4))
+for direction in ['horizontal', 'vertical']:
+    system = create_system(SYSTEM, theta=0.0, omega=0.0, epsilon=0.002, Omega=natural, direction=direction)
+    run = Simulation(system, dt=0.01).prepare().run(until=40)
+    times = np.asarray(run.trajectory_.times)
+    ax.plot(times, np.ravel(run.trajectory_.values('swing.theta')), label=direction)
+ax.plot(times, 0.002 * natural * times / 2, '--', color='black', label='ε ω0 t / 2')
+ax.set_xlabel('time')
+ax.set_ylabel('θ (radians)')
+ax.set_title('Linear resonance of a pendulum shaken sideways')
 ax.legend()
 plt.show()
