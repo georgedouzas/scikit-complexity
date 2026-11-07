@@ -3,9 +3,10 @@
 import numpy as np
 import pytest
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ParameterError
 from skcomplex.systems import create_simulation
-from skcomplex.systems.computer_science.automata import lenia
+from skcomplex.systems.computer_science.automata import LeniaSystem
 
 
 def _bump(q):
@@ -33,7 +34,7 @@ def _centre(world):
 
 def test_lenia_update_is_equation_1():
     """Test that one step adds the growth map of the ring-kernel convolution over `T` and clips to `[0, 1]`."""
-    trajectory = create_simulation('lenia').prepare().run(until=1).trajectory_
+    trajectory = simulate(LeniaSystem(), until=1, random_state=0)
     world = trajectory.lattice('world.A')
     expected = np.clip(world[0] + _growth(world[0], 13.0, 0.15, 0.015) / 10, 0, 1)
     np.testing.assert_allclose(world[1], expected, atol=1e-9)
@@ -41,7 +42,7 @@ def test_lenia_update_is_equation_1():
 
 def test_lenia_orbium_glides_with_a_steady_mass():
     """Test that Orbium keeps its mass near 71 while its centre of mass moves across the torus."""
-    trajectory = create_simulation('lenia').prepare().run(until=60).trajectory_
+    trajectory = simulate(LeniaSystem(), until=60, random_state=0)
     world = trajectory.lattice('world.A')
     masses, centres = zip(*(_centre(frame) for frame in world[10:]), strict=True)
     assert np.ptp(masses) < 5
@@ -86,4 +87,4 @@ def test_lenia_runs_in_three_dimensions():
 def test_lenia_rejects_a_kernel_of_a_missing_channel():
     """Test that a kernel that reads a channel the world does not have raises a parameter error."""
     with pytest.raises(ParameterError, match='channels'):
-        lenia(kernels=[(1, 0, 1.0, 1.0, (1.0,), 0.15, 0.015)])
+        LeniaSystem(kernels=[(1, 0, 1.0, 1.0, (1.0,), 0.15, 0.015)]).prepare()

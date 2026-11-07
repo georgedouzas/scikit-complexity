@@ -12,12 +12,11 @@ import numpy as np
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import AnyArray, IntArray
-from ..._catalog import register_system
 
 ADLEMAN_EDGES = (
     (0, 1),
@@ -107,6 +106,8 @@ class LigationInteraction(Interaction):
         ((0, 1),)
     """
 
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -180,32 +181,18 @@ def _filtered_counts(paths: AnyArray, start: int, end: int, n_nodes: int) -> lis
     return [int(ends.sum()), int(sized.sum()), int(_solutions(nodes, start, end, n_nodes).sum())]
 
 
-@register_system(
-    field='computer_science/automata',
-    tags=('dna computing', 'molecular computation', 'hamiltonian path', 'agents', 'stochastic'),
-    references=('Adleman 1994', 'Raman 2021'),
-    defaults={'until': 60},
-    observables=lambda system: [
-        ObservableSpec('solutions', group='strands', variable='path', reduce=_adleman_solutions),
-    ],
-)
-def dna_computation(
-    n_strands: int = 2000,
-    *,
-    edges: Sequence[tuple[int, int]] = ADLEMAN_EDGES,
-    start: int = 0,
-    end: int = 6,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Adleman's DNA computation of a Hamiltonian path, by random ligation of edge oligos in a test tube.
+class DNAComputationSystem(BaseSystem):
+    """Adleman's DNA computation of a Hamiltonian path, by random ligation of edge oligos in a test tube.
 
     Every node of a directed graph is an oligonucleotide, and every link an oligo that joins the end of one node to the
     start of the next, so ligation builds strands that spell random paths of the graph. The tube starts with edge oligos
     drawn uniformly from the links, which meet in random pairs and join when the end of one is the start of the other.
     Adleman's filters then keep the strands that start at `start` and end at `end`, that pass through as many nodes as
     the graph has, and that visit every node, and any strand left is a Hamiltonian path. On the graph of Adleman's
-    experiment, with seven nodes and fourteen links, solutions appear after some steps and every one of them is the
-    path 0, 1, 2, 3, 4, 5, 6, while a graph without a Hamiltonian path leaves no strand.
+    experiment, with seven nodes and fourteen links, solutions appear after some steps and every one of them is the path
+    0, 1, 2, 3, 4, 5, 6, while a graph without a Hamiltonian path leaves no strand. The system has the group `strands`
+    of paths `path`, padded with -1. Its standard observable `solutions` is the number of strands that pass the filters
+    for the default nodes of Adleman's graph.
 
     Args:
         n_strands:
@@ -223,26 +210,54 @@ def dna_computation(
         random_state:
             The seed or generator of the initial oligos.
 
-    Returns:
-        system:
-            The system, with the group `strands` of paths `path`, padded with -1. Its standard observable `solutions`
-            is the number of strands that pass the filters for the default nodes of Adleman's graph.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ParameterError:
             The graph has no links, or the start or the end is not a node of it.
 
     Examples:
-        >>> from skcomplex.systems.computer_science.automata import dna_computation
-        >>> dna_computation(10).elements[0].values['path'].shape
+        >>> from skcomplex.systems.computer_science.automata import DNAComputationSystem
+        >>> DNAComputationSystem(10).prepare().system_.elements[0].values['path'].shape
         (10, 7)
     """
-    nodes = {node for edge in edges for node in edge}
-    if not edges or start not in nodes or end not in nodes:
-        error_msg = f'The start {start!r} and the end {end!r} need to be nodes of a graph with links.'
-        raise ParameterError(error_msg)
-    rng = np.random.default_rng(random_state)
-    paths = np.full((n_strands, len(nodes)), EMPTY)
-    paths[:, :2] = np.asarray(edges)[rng.integers(len(edges), size=n_strands)]
-    strands = GroupElement('strands', element=StrandElement, size=n_strands, values={'path': paths})
-    return System(elements=[strands], interactions=[LigationInteraction('ligation', target='strands', edges=edges)])
+
+    field = 'computer_science/automata'
+    topics = ('dna computing', 'molecular computation', 'hamiltonian path', 'agents', 'stochastic')
+    references = ('Adleman 1994', 'Raman 2021')
+    until = 60
+    observables = (ObservableSpec('solutions', group='strands', variable='path', reduce=_adleman_solutions),)
+
+    def __init__(
+        self,
+        n_strands: int = 2000,
+        *,
+        edges: Sequence[tuple[int, int]] = ADLEMAN_EDGES,
+        start: int = 0,
+        end: int = 6,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_strands = n_strands
+        self.edges = edges
+        self.start = start
+        self.end = end
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return Adleman's DNA computation of a Hamiltonian path, by random ligation of edge oligos in a test tube."""
+        nodes = {node for edge in self.edges for node in edge}
+        if not self.edges or self.start not in nodes or self.end not in nodes:
+            error_msg = f'The start {self.start!r} and the end {self.end!r} need to be nodes of a graph with links.'
+            raise ParameterError(error_msg)
+        rng = np.random.default_rng(self.random_state)
+        paths = np.full((self.n_strands, len(nodes)), EMPTY)
+        paths[:, :2] = np.asarray(self.edges)[rng.integers(len(self.edges), size=self.n_strands)]
+        strands = GroupElement('strands', element=StrandElement, size=self.n_strands, values={'path': paths})
+        return System(
+            self.label,
+            elements=[strands],
+            interactions=[LigationInteraction('ligation', target='strands', edges=self.edges)],
+        )
