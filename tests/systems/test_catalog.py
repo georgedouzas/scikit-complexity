@@ -306,12 +306,22 @@ def _registers_system(path: Path) -> bool:
 def _owners(field: Path) -> dict[Path, set[Path]]:
     """Return the system modules that reach every other private module of a field, through modules registering nothing.
 
-    Public modules, such as the `types` module of a subfield, are part of the interface and serve no single system.
+    Public modules, such as the `types` module of a subfield, are part of the interface and serve no single system. A
+    module of `common` that another module of `common` imports belongs to a shared family, such as the force tables of
+    an external engine, and serves no single system either.
     """
     modules = [path for path in sorted(field.rglob('_*.py')) if path.name != '__init__.py']
     imports = {path: _imported_modules(path, field) for path in modules}
     systems = {path for path in modules if _registers_system(path)}
-    owners: dict[Path, set[Path]] = {path: set() for path in modules if path not in systems}
+    common = field / 'common'
+    family = {
+        module
+        for path in modules
+        if path.is_relative_to(common)
+        for module in imports[path]
+        if module.is_relative_to(common)
+    }
+    owners: dict[Path, set[Path]] = {path: set() for path in modules if path not in systems | family}
     for system in systems:
         stack, seen = list(imports[system]), set()
         while stack:
@@ -319,7 +329,8 @@ def _owners(field: Path) -> dict[Path, set[Path]]:
             if module in seen or module in systems or module not in imports:
                 continue
             seen.add(module)
-            owners[module].add(system)
+            if module in owners:
+                owners[module].add(system)
             stack.extend(imports[module])
     return owners
 
