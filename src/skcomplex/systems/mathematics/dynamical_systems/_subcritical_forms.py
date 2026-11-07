@@ -1,4 +1,4 @@
-"""Dynamical systems systems: the subcritical Hopf normal form, with bistability and hysteresis."""
+"""Dynamical systems: the subcritical Hopf normal form, with bistability and hysteresis."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT

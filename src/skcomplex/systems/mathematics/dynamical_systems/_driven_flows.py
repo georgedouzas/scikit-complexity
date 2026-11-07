@@ -13,7 +13,7 @@ from ....core.components.system import System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._rossler import RosslerElement
+from ..common.flows._rossler import RosslerElement
 
 
 class DrivenRosslerElement(RosslerElement):
