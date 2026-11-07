@@ -6,22 +6,21 @@ red cells and the quiescent cells fall, all settling over a few years at new ste
 """
 
 # %%
-# The system is created by name from the catalog with a drug level of 500 pMol per 8 x 10^8 red cells, within the range
-# of the book. The observer saves every second frame with the default blueprint, whose primary view is the time series
-# of the cells and the mean volume.
+# The system is built from its class with a drug level of 500 pMol per 8 x 10^8 red cells, within the range of the
+# book. The observer saves every second frame with the default blueprint, whose primary view is the time series of the
+# cells and the mean volume.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import ErythropoiesisMercaptopurineSystem
 
 SYSTEM = 'erythropoiesis_mercaptopurine'
 
-system = create_system(SYSTEM, U=500.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=10.0, observers=[observer]).prepare().run(until=3000)
+trajectory = simulate(ErythropoiesisMercaptopurineSystem(U=500.0), observers=[observer])
 
 # %%
 # Volume and cell counts at steady state
@@ -33,11 +32,10 @@ simulation = Simulation(system, dt=10.0, observers=[observer]).prepare().run(unt
 levels = np.array([0.0, 158.0, 300.0, 500.0, 750.0, 1000.0])
 volumes, cells = [], []
 for level in levels:
-    trajectory = Simulation(create_system(SYSTEM, U=level), dt=20.0).prepare().run(until=8000).trajectory_
+    trajectory = simulate(ErythropoiesisMercaptopurineSystem(U=level), dt=20.0, until=8000)
     volumes.append(trajectory.values('patient.MCV')[-1])
     cells.append(trajectory.values('patient.L')[-1])
 fig, (course, steady) = plt.subplots(1, 2, figsize=(10, 4))
-trajectory = simulation.trajectory_
 course.plot(trajectory.times, trajectory.values('patient.MCV'), label='mean volume (fL)')
 course.axhline(85.0 + 0.0317 * 500.0, color='grey', linestyle=':', label='MCV0 + g1 U')
 course.set_xlabel('time (days)')

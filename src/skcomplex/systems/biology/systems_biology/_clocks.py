@@ -11,9 +11,8 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import ReactionInteraction
 from ....core.components.laws.utils import hill
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.kinetics import MichaelisMentenInteraction
 
 
@@ -24,8 +23,8 @@ class PerClockElement(Element):
     phosphorylated reversibly to `P1` and `P2`, and `P2` is degraded or enters the nucleus as `PN`. Concentrations are
     in µM and time in hours.
 
-    The element holds the states and parameters and has no laws of its own: the interactions of `circadian_clock` read
-    its parameters.
+    The element holds the states and parameters and has no laws of its own: the interactions of `CircadianClockSystem`
+    read its parameters.
 
     Args:
         label:
@@ -149,24 +148,13 @@ class PerClockElement(Element):
         self.K = K
 
 
-@register_system(
-    field='biology/systems_biology',
-    tags=('circadian rhythm', 'oscillations', 'gene regulation'),
-    references=('Goldbeter 1995', 'Trzaska 2023'),
-    defaults={'until': 240.0, 'dt': 0.5},
-)
-def circadian_clock(
-    *,
-    v_s: float = 0.76,
-    v_d: float = 0.95,
-    k_s: float = 0.38,
-    n: float = 4.0,
-) -> System:
-    """Return Goldbeter's system of the Drosophila circadian clock, PER that represses its own transcription.
+class CircadianClockSystem(BaseSystem):
+    """Goldbeter's system of the Drosophila circadian clock, PER that represses its own transcription.
 
     Multiple phosphorylation and nuclear entry delay the negative feedback, which yields a limit cycle with a period
-    near 24 hours for the published parameters. Larger degradation `v_d` lengthens the period, from 22.6 hours at
-    `v_d = 0.8` to 29.3 hours at `v_d = 1.6`.
+    near 24 hours for the published parameters. Larger degradation `v_d` lengthens the period, from 22.6 hours at `v_d =
+    0.8` to 29.3 hours at `v_d = 1.6`. The system has the concentrations `clock.M`, `clock.P0`, `clock.P1`, `clock.P2`,
+    and `clock.PN`.
 
     Args:
         v_s:
@@ -181,94 +169,117 @@ def circadian_clock(
         n:
             The Hill coefficient of repression.
 
-    Returns:
-        system:
-            The system, with the concentrations `clock.M`, `clock.P0`, `clock.P1`, `clock.P2`, and `clock.PN`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import circadian_clock
-        >>> circadian_clock(v_d=1.2).elements[0].v_d
+        >>> from skcomplex.systems.biology.systems_biology import CircadianClockSystem
+        >>> CircadianClockSystem(v_d=1.2).prepare().system_.elements[0].v_d
         1.2
     """
-    clock = PerClockElement('clock', v_s=v_s, v_d=v_d, k_s=k_s, n=n)
-    reactions = [
-        ReactionInteraction(
-            'transcription',
-            target='clock',
-            products={'M': 1},
-            propensity=lambda s: s.target.v_s * (1 - hill(s.target.PN, s.target.K_I, s.target.n)),
-        ),
-        MichaelisMentenInteraction(
-            'mrna_degradation',
-            target='clock',
-            reactants={'M': 1},
-            substrate='M',
-            vmax=lambda s: s.target.v_m,
-            km=lambda s: s.target.K_m,
-        ),
-        ReactionInteraction(
-            'translation',
-            target='clock',
-            products={'P0': 1},
-            propensity=lambda s: s.target.k_s * s.target.M,
-        ),
-        MichaelisMentenInteraction(
-            'first_phosphorylation',
-            target='clock',
-            reactants={'P0': 1},
-            products={'P1': 1},
-            substrate='P0',
-            vmax=lambda s: s.target.V1,
-            km=lambda s: s.target.K,
-        ),
-        MichaelisMentenInteraction(
-            'first_dephosphorylation',
-            target='clock',
-            reactants={'P1': 1},
-            products={'P0': 1},
-            substrate='P1',
-            vmax=lambda s: s.target.V2,
-            km=lambda s: s.target.K,
-        ),
-        MichaelisMentenInteraction(
-            'second_phosphorylation',
-            target='clock',
-            reactants={'P1': 1},
-            products={'P2': 1},
-            substrate='P1',
-            vmax=lambda s: s.target.V3,
-            km=lambda s: s.target.K,
-        ),
-        MichaelisMentenInteraction(
-            'second_dephosphorylation',
-            target='clock',
-            reactants={'P2': 1},
-            products={'P1': 1},
-            substrate='P2',
-            vmax=lambda s: s.target.V4,
-            km=lambda s: s.target.K,
-        ),
-        ReactionInteraction(
-            'nuclear_entry',
-            target='clock',
-            reactants={'P2': 1},
-            products={'PN': 1},
-            propensity=lambda s: s.target.k1 * s.target.P2,
-        ),
-        ReactionInteraction(
-            'nuclear_exit',
-            target='clock',
-            reactants={'PN': 1},
-            products={'P2': 1},
-            propensity=lambda s: s.target.k2 * s.target.PN,
-        ),
-        MichaelisMentenInteraction(
-            'per_degradation',
-            target='clock',
-            reactants={'P2': 1},
-            substrate='P2',
-            vmax=lambda s: s.target.v_d,
-            km=lambda s: s.target.K_d,
-        ),
-    ]
-    return System(elements=[clock], interactions=reactions)
+
+    field = 'biology/systems_biology'
+    topics = ('circadian rhythm', 'oscillations', 'gene regulation')
+    references = ('Goldbeter 1995', 'Trzaska 2023')
+    until = 240.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        *,
+        v_s: float = 0.76,
+        v_d: float = 0.95,
+        k_s: float = 0.38,
+        n: float = 4.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.v_s = v_s
+        self.v_d = v_d
+        self.k_s = k_s
+        self.n = n
+
+    def _build_system(self) -> System:
+        """Return the parts of Goldbeter's system of the Drosophila circadian clock."""
+        clock = PerClockElement('clock', v_s=self.v_s, v_d=self.v_d, k_s=self.k_s, n=self.n)
+        reactions = [
+            ReactionInteraction(
+                'transcription',
+                target='clock',
+                products={'M': 1},
+                propensity=lambda s: s.target.v_s * (1 - hill(s.target.PN, s.target.K_I, s.target.n)),
+            ),
+            MichaelisMentenInteraction(
+                'mrna_degradation',
+                target='clock',
+                reactants={'M': 1},
+                substrate='M',
+                vmax=lambda s: s.target.v_m,
+                km=lambda s: s.target.K_m,
+            ),
+            ReactionInteraction(
+                'translation',
+                target='clock',
+                products={'P0': 1},
+                propensity=lambda s: s.target.k_s * s.target.M,
+            ),
+            MichaelisMentenInteraction(
+                'first_phosphorylation',
+                target='clock',
+                reactants={'P0': 1},
+                products={'P1': 1},
+                substrate='P0',
+                vmax=lambda s: s.target.V1,
+                km=lambda s: s.target.K,
+            ),
+            MichaelisMentenInteraction(
+                'first_dephosphorylation',
+                target='clock',
+                reactants={'P1': 1},
+                products={'P0': 1},
+                substrate='P1',
+                vmax=lambda s: s.target.V2,
+                km=lambda s: s.target.K,
+            ),
+            MichaelisMentenInteraction(
+                'second_phosphorylation',
+                target='clock',
+                reactants={'P1': 1},
+                products={'P2': 1},
+                substrate='P1',
+                vmax=lambda s: s.target.V3,
+                km=lambda s: s.target.K,
+            ),
+            MichaelisMentenInteraction(
+                'second_dephosphorylation',
+                target='clock',
+                reactants={'P2': 1},
+                products={'P1': 1},
+                substrate='P2',
+                vmax=lambda s: s.target.V4,
+                km=lambda s: s.target.K,
+            ),
+            ReactionInteraction(
+                'nuclear_entry',
+                target='clock',
+                reactants={'P2': 1},
+                products={'PN': 1},
+                propensity=lambda s: s.target.k1 * s.target.P2,
+            ),
+            ReactionInteraction(
+                'nuclear_exit',
+                target='clock',
+                reactants={'PN': 1},
+                products={'P2': 1},
+                propensity=lambda s: s.target.k2 * s.target.PN,
+            ),
+            MichaelisMentenInteraction(
+                'per_degradation',
+                target='clock',
+                reactants={'P2': 1},
+                substrate='P2',
+                vmax=lambda s: s.target.v_d,
+                km=lambda s: s.target.K_d,
+            ),
+        ]
+        return System(self.label, elements=[clock], interactions=reactions)

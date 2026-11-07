@@ -5,23 +5,18 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import Simulation, simulate
 from skcomplex.systems.biology.physiology import (
-    coagulation_positive_feedback,
-    glucose_dual_hormone_control,
-    steerable_feedback_loop,
+    CoagulationPositiveFeedbackSystem,
+    GlucoseDualHormoneControlSystem,
+    SteerableFeedbackLoopSystem,
 )
 
 
 def test_glucose_dual_hormone_control_attenuates_the_drop():
     """Test that the glucagon loop limits the drop of glucose during exercise, which insulin alone cannot."""
-    dual = Simulation(glucose_dual_hormone_control(), dt=0.05).prepare().run(24).trajectory_.values('organism.G')
-    single = (
-        Simulation(glucose_dual_hormone_control(glucagon=False), dt=0.05)
-        .prepare()
-        .run(24)
-        .trajectory_.values('organism.G')
-    )
+    dual = simulate(GlucoseDualHormoneControlSystem(), dt=0.05, until=24).values('organism.G')
+    single = simulate(GlucoseDualHormoneControlSystem(glucagon=False), dt=0.05, until=24).values('organism.G')
     assert 1 - dual.min() < 0.8 * (1 - single.min())
     assert dual[-1] == pytest.approx(1.0, abs=1e-3)
     assert single[-1] == pytest.approx(1.0, abs=1e-3)
@@ -31,7 +26,7 @@ def test_coagulation_positive_feedback_is_all_or_nothing():
     """Test that a weak injury fades, a stronger one bursts to a similar peak, and fibrinolysis dissolves the clot."""
     peaks, clots = {}, {}
     for injury in (0.3, 0.7, 1.0):
-        trajectory = Simulation(coagulation_positive_feedback(injury=injury), dt=0.1).prepare().run(120).trajectory_
+        trajectory = simulate(CoagulationPositiveFeedbackSystem(injury=injury), dt=0.1, until=120)
         peaks[injury], clots[injury] = trajectory.values('blood.T').max(), trajectory.values('blood.F')
     threshold = (3 - math.sqrt(5)) / 2
     assert peaks[0.3] < threshold < peaks[0.7]
@@ -41,7 +36,7 @@ def test_coagulation_positive_feedback_is_all_or_nothing():
 
 def test_steering_signal_shifts_the_set_point_and_releases_it():
     """Test that the loop holds `x = 1`, climbs to the steered set point while the signal acts, and returns after."""
-    trajectory = Simulation(steerable_feedback_loop(), dt=0.5).prepare().run(until=60).trajectory_
+    trajectory = simulate(SteerableFeedbackLoopSystem(), dt=0.5, until=60)
     product, times = trajectory.values('loop.x'), trajectory.times
     assert product[(times > 15) & (times < 20)] == pytest.approx(1.0, abs=1e-3)
     assert product[(times > 35) & (times < 40)] == pytest.approx(1.2911656, abs=1e-3)
@@ -50,6 +45,8 @@ def test_steering_signal_shifts_the_set_point_and_releases_it():
 
 def test_a_long_transmission_delay_makes_the_loop_oscillate():
     """Test that a transmission delay long against the response of the loop turns regulation into oscillations."""
-    trajectory = Simulation(steerable_feedback_loop(tau=3.0, steering=0.0), dt=0.5).prepare().run(until=60)
+    trajectory = (
+        Simulation(SteerableFeedbackLoopSystem(tau=3.0, steering=0.0).prepare().system_, dt=0.5).prepare().run(until=60)
+    )
     late = trajectory.trajectory_.values('loop.x')[60:]
     assert np.ptp(late) > 0.8

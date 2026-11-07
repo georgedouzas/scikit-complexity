@@ -7,20 +7,19 @@ moment, a place invariant of the net.
 """
 
 # %%
-# The system is created by name from the catalog with the gene expression net, and the observer saves every frame with
-# the default blueprint, whose primary view is the time series of the tokens.
+# The system is built from its class with the gene expression net, and the observer saves every frame with the default
+# blueprint, whose primary view is the time series of the tokens.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.systems_biology import PetriNetSystem
 
 SYSTEM = 'petri_net'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer], random_state=0).prepare().run(until=100)
+trajectory = simulate(PetriNetSystem(), observers=[observer], random_state=0)
 
 # %%
 # Stochastic and continuous firing
@@ -28,8 +27,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer], random_state=0).pr
 # The stochastic net should fluctuate around the continuous Petri net of the same transitions, and the place invariant
 # `gene_on + gene_off` should stay at 1.
 
-continuous = Simulation(create_system(SYSTEM, stochastic=False), dt=0.5).prepare().run(until=100).trajectory_
-trajectory = simulation.trajectory_
+continuous = simulate(PetriNetSystem(stochastic=False))
 fig, (tokens, invariant) = plt.subplots(1, 2, figsize=(11, 4.5))
 tokens.step(trajectory.times, trajectory.values('protein.n'), where='post', label='protein, stochastic')
 tokens.plot(continuous.times, continuous.values('protein.n'), label='protein, continuous')

@@ -12,15 +12,19 @@ is harder to find than the last, so the walk slows near the top and stops on a l
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.evolution import AdaptiveClimbingSystem
 
 SYSTEM = 'adaptive_climbing'
 
-system = create_system(SYSTEM, size=10, u=0.1, length=20, seed=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=200)
+trajectory = simulate(
+    AdaptiveClimbingSystem(size=10, u=0.1, length=20, seed=0),
+    dt=1,
+    observers=[observer],
+    random_state=0,
+)
 
 # %%
 # An adaptive walk
@@ -30,12 +34,12 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 
 best = []
 for seed in range(8):
-    run = (
-        Simulation(create_system(SYSTEM, size=10, u=0.1, length=20, seed=seed), dt=1, random_state=seed)
-        .prepare()
-        .run(until=200)
+    trajectory = simulate(
+        AdaptiveClimbingSystem(size=10, u=0.1, length=20, seed=seed),
+        until=200,
+        dt=1,
+        random_state=seed,
     )
-    trajectory = run.trajectory_
     best.append(
         [trajectory.agents('population', frame).values['fitness'].max() for frame in range(len(trajectory.times))],
     )

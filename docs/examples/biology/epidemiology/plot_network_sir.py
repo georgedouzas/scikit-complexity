@@ -7,22 +7,27 @@ and the outbreak in the whole network rises, peaks, and burns out.
 """
 
 # %%
-# The system is created by name from the catalog on its default Barabási-Albert network of 20 cities with 20
-# travellers each. The recorded run stops at day 25, near the peak of the outbreak, so that the default blueprint's view
-# of the network shows the cities in the middle of the epidemic. The analysis runs the outbreak to its end.
+# The system is built from its class on its default Barabási-Albert network of 20 cities with 20 travellers each. The
+# recorded run stops at day 25, near the peak of the outbreak, so that the default blueprint's view of the network
+# shows the cities in the middle of the epidemic. The analysis runs the outbreak to its end.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.epidemiology import NetworkSIRSystem
 
 SYSTEM = 'network_sir'
 
-system = create_system(SYSTEM, residents=20, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=25)
+trajectory = simulate(
+    NetworkSIRSystem(residents=20, random_state=0),
+    dt=1,
+    observers=[observer],
+    random_state=0,
+    until=25,
+)
 
 # %%
 # The outbreak in the network
@@ -30,12 +35,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 # Counting the health states of the travellers, the infected should rise, peak, and decline while the recovered
 # accumulate, as in a single well-mixed SIR epidemic but slowed by the travel between cities.
 
-trajectory = (
-    Simulation(create_system(SYSTEM, residents=20, random_state=0), dt=1, random_state=0)
-    .prepare()
-    .run(until=150)
-    .trajectory_
-)
+trajectory = simulate(NetworkSIRSystem(residents=20, random_state=0), dt=1, random_state=0)
 health = np.array([trajectory.agents('travellers', frame).values['health'] for frame in range(len(trajectory.times))])
 fig, ax = plt.subplots(figsize=(8, 4))
 for value, label in [(0, 'susceptible'), (2, 'infected'), (3, 'recovered')]:

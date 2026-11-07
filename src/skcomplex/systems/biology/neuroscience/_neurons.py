@@ -12,9 +12,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.excitable import SpikeResetInteraction
 
 PEAK = 30.0
@@ -53,6 +52,8 @@ class IzhikevichElement(Element):
         >>> IzhikevichElement('neuron').b
         0.2
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -120,6 +121,8 @@ class LeakyIntegrateAndFireElement(Element):
         10.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -152,26 +155,11 @@ class LeakyIntegrateAndFireElement(Element):
         return [RateLaw(s.v, (-(s.v - s.rest) + s.resistance * s.I) / s.tau)]
 
 
-@register_system(
-    field='biology/neuroscience',
-    tags=('neuron', 'spiking', 'events'),
-    references=('Lapicque 1907', 'Gerstner et al. 2014'),
-    defaults={'until': 100.0, 'dt': 0.1},
-)
-def integrate_and_fire(
-    v: float = -65.0,
-    *,
-    rest: float = -65.0,
-    threshold: float = -50.0,
-    reset: float = -65.0,
-    resistance: float = 10.0,
-    tau: float = 10.0,
-    I: float = 2.0,
-) -> System:
-    """Return the leaky integrate-and-fire neuron, `tau v' = -(v - rest) + R I`, which spikes and resets at a threshold.
+class IntegrateAndFireSystem(BaseSystem):
+    """The leaky integrate-and-fire neuron, `tau v' = -(v - rest) + R I`, which spikes and resets at a threshold.
 
-    With `R I` above `threshold - rest` it fires periodically with period `tau ln(R I / (R I - threshold + rest))`
-    when `reset = rest`.
+    With `R I` above `threshold - rest` it fires periodically with period `tau ln(R I / (R I - threshold + rest))` when
+    `reset = rest`. The system has the membrane potential `neuron.v` and its spikes recorded as `spike` events.
 
     Args:
         v:
@@ -195,42 +183,64 @@ def integrate_and_fire(
         I:
             The input current in nA.
 
-    Returns:
-        system:
-            The system, with the membrane potential `neuron.v` and its spikes recorded as `spike` events.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.neuroscience import integrate_and_fire
-        >>> from skcomplex.core.engine.runtime import Simulation
-        >>> trajectory = Simulation(integrate_and_fire(), dt=0.1).prepare().run(until=50.0).trajectory_
+        >>> from skcomplex.systems.biology.neuroscience import IntegrateAndFireSystem
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> trajectory = simulate(IntegrateAndFireSystem(), until=50.0, dt=0.1)
         >>> round(trajectory.events[0].time, 2)
         13.86
     """
-    neuron = LeakyIntegrateAndFireElement('neuron', v=v, rest=rest, resistance=resistance, tau=tau, I=I)
-    spike = SpikeResetInteraction('spike', target='neuron', threshold=threshold, after=reset)
-    return System(elements=[neuron], interactions=[spike])
+
+    field = 'biology/neuroscience'
+    topics = ('neuron', 'spiking', 'events')
+    references = ('Lapicque 1907', 'Gerstner et al. 2014')
+    until = 100.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        v: float = -65.0,
+        *,
+        rest: float = -65.0,
+        threshold: float = -50.0,
+        reset: float = -65.0,
+        resistance: float = 10.0,
+        tau: float = 10.0,
+        I: float = 2.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.v = v
+        self.rest = rest
+        self.threshold = threshold
+        self.reset = reset
+        self.resistance = resistance
+        self.tau = tau
+        self.I = I
+
+    def _build_system(self) -> System:
+        """Return the parts of the leaky integrate-and-fire neuron."""
+        neuron = LeakyIntegrateAndFireElement(
+            'neuron',
+            v=self.v,
+            rest=self.rest,
+            resistance=self.resistance,
+            tau=self.tau,
+            I=self.I,
+        )
+        spike = SpikeResetInteraction('spike', target='neuron', threshold=self.threshold, after=self.reset)
+        return System(self.label, elements=[neuron], interactions=[spike])
 
 
-@register_system(
-    field='biology/neuroscience',
-    tags=('neuron', 'spiking', 'events', 'bursting'),
-    references=('Izhikevich 2003',),
-    defaults={'until': 200.0, 'dt': 0.1},
-)
-def izhikevich(
-    v: float = -65.0,
-    u: float | None = None,
-    *,
-    a: float = 0.02,
-    b: float = 0.2,
-    c: float = -65.0,
-    d: float = 8.0,
-    I: float = 10.0,
-) -> System:
-    """Return the Izhikevich neuron, whose four parameters give regular spiking, bursting, chattering, and more.
+class IzhikevichSystem(BaseSystem):
+    """The Izhikevich neuron, whose four parameters give regular spiking, bursting, chattering, and more.
 
-    The potential follows `v' = 0.04 v² + 5 v + 140 - u + I` and the recovery `u' = a (b v - u)`. When `v` reaches
-    30 mV the neuron spikes, `v` resets to `c`, and `u` grows by `d`. The defaults give regular spiking.
+    The potential follows `v' = 0.04 v² + 5 v + 140 - u + I` and the recovery `u' = a (b v - u)`. When `v` reaches 30 mV
+    the neuron spikes, `v` resets to `c`, and `u` grows by `d`. The defaults give regular spiking. The system has the
+    potential `neuron.v`, the recovery `neuron.u`, and its spikes as `spike` events.
 
     Args:
         v:
@@ -254,15 +264,51 @@ def izhikevich(
         I:
             The input current.
 
-    Returns:
-        system:
-            The system, with the potential `neuron.v`, the recovery `neuron.u`, and its spikes as `spike` events.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.neuroscience import izhikevich
-        >>> izhikevich(d=2.0).interactions[0].kick
+        >>> from skcomplex.systems.biology.neuroscience import IzhikevichSystem
+        >>> IzhikevichSystem(d=2.0).prepare().system_.interactions[0].kick
         2.0
     """
-    neuron = IzhikevichElement('neuron', v=v, u=b * v if u is None else u, a=a, b=b, I=I)
-    spike = SpikeResetInteraction('spike', target='neuron', threshold=PEAK, after=c, kicked='u', kick=d)
-    return System(elements=[neuron], interactions=[spike])
+
+    field = 'biology/neuroscience'
+    topics = ('neuron', 'spiking', 'events', 'bursting')
+    references = ('Izhikevich 2003',)
+    until = 200.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        v: float = -65.0,
+        u: float | None = None,
+        *,
+        a: float = 0.02,
+        b: float = 0.2,
+        c: float = -65.0,
+        d: float = 8.0,
+        I: float = 10.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.v = v
+        self.u = u
+        self.a = a
+        self.b = b
+        self.c = c
+        self.d = d
+        self.I = I
+
+    def _build_system(self) -> System:
+        """Return the parts of the Izhikevich neuron."""
+        neuron = IzhikevichElement(
+            'neuron',
+            v=self.v,
+            u=self.b * self.v if self.u is None else self.u,
+            a=self.a,
+            b=self.b,
+            I=self.I,
+        )
+        spike = SpikeResetInteraction('spike', target='neuron', threshold=PEAK, after=self.c, kicked='u', kick=self.d)
+        return System(self.label, elements=[neuron], interactions=[spike])

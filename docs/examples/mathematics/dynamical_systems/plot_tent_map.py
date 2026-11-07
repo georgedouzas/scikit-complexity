@@ -17,10 +17,10 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import lyapunov
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import OrbitDiagramExperiment
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.mathematics.dynamical_systems import TentMapSystem
 
 SYSTEM = 'tent_map'
 
@@ -43,11 +43,11 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer]).prepare().run(until=200)
+trajectory = simulate(TentMapSystem(), observers=[observer])
 slopes = np.linspace(1.0, 2.0, 400)
 diagram = (
     OrbitDiagramExperiment(
-        describe(SYSTEM).factory,
+        TentMapSystem,
         'map.mu',
         slopes,
         'map.x',
@@ -71,7 +71,7 @@ observer.recording_.flush()
 # positive for all `mu > 1`, unlike the logistic map, whose exponent dips below 0 in periodic windows.
 
 sample = np.linspace(1.05, 1.99, 20)
-exponents = [lyapunov(simulation.system, until=2000, parameters={'map.mu': mu}).exponents[0] for mu in sample]
+exponents = [lyapunov(TentMapSystem(), until=2000, parameters={'map.mu': mu}).exponents[0] for mu in sample]
 fig, (orbits, exponent_axes) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
 orbits.plot(points[:, 0] / 100, -points[:, 1] / 100, ',', color='C0')
 orbits.set_ylabel('long-run x')

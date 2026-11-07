@@ -6,23 +6,22 @@ regrows, while adoptive therapy with IL-2 above the book's treatment levels clea
 """
 
 # %%
-# The system is created by name from the catalog with an antigenicity of 0.02, in the oscillatory range, and no
-# treatment, from one unit of every population. The system is stiff, so it runs with LSODA. The observer saves every
-# frame with the default blueprint, whose primary view is the time series of the effector cells, the tumour, and IL-2.
+# The system is built from its class with an antigenicity of 0.02, in the oscillatory range, and no treatment, from
+# one unit of every population. The system is stiff, so it runs with LSODA. The observer saves every frame with the
+# default blueprint, whose primary view is the time series of the effector cells, the tumour, and IL-2.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import KirschnerPanettaSystem
 
 SYSTEM = 'kirschner_panetta'
 
 solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
-system = create_system(SYSTEM, alpha_a=0.02)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=5.0, solver=solver, observers=[observer]).prepare().run(until=1000)
+trajectory = simulate(KirschnerPanettaSystem(alpha_a=0.02), dt=5.0, solver=solver, observers=[observer])
 
 # %%
 # Oscillations and clearance
@@ -31,13 +30,8 @@ simulation = Simulation(system, dt=5.0, solver=solver, observers=[observer]).pre
 # effector cells lagging behind. With the adoptive therapy and the IL-2 injection 10% above the book's treatment
 # factors, `u1 = u2 = 1.1`, the tumour should fall below one cell and stay there.
 
-untreated = simulation.trajectory_
-treated = (
-    Simulation(create_system(SYSTEM, alpha_a=0.02, u1=1.1, u2=1.1), dt=5.0, solver=solver)
-    .prepare()
-    .run(until=1000)
-    .trajectory_
-)
+untreated = trajectory
+treated = simulate(KirschnerPanettaSystem(alpha_a=0.02, u1=1.1, u2=1.1), dt=5.0, solver=solver)
 fig, (cycles, therapy) = plt.subplots(1, 2, figsize=(10, 4))
 cycles.semilogy(untreated.times, untreated.values('site.A'), label='tumour')
 cycles.semilogy(untreated.times, untreated.values('site.E'), label='effector cells')

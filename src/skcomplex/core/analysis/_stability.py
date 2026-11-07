@@ -167,11 +167,11 @@ def stability(
 
     Examples:
         >>> from skcomplex.core.analysis import stability
-        >>> from skcomplex.systems.biology.ecology import logistic_growth
-        >>> result = stability(logistic_growth())
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+        >>> result = stability(LogisticGrowthSystem())
         >>> sorted(str(point['population.n']) for point in result.fixed_points)
         ['0', 'K_growth']
-        >>> stability(logistic_growth(), points=[{'population.n': 100.0}]).classifications
+        >>> stability(LogisticGrowthSystem(), points=[{'population.n': 100.0}]).classifications
         ['stable node']
         >>> from skcomplex.systems.chemistry.pattern_formation import BrusselatorSystem
         >>> relation = stability(BrusselatorSystem((64,), b=1.9, Dv=8.0), kind='dispersion')

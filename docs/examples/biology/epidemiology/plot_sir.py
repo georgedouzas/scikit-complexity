@@ -16,9 +16,9 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.epidemiology import SIRSystem
 
 SYSTEM = 'sir'
 
@@ -39,11 +39,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = (
-    Simulation(create_system(SYSTEM, stochastic=True), dt=1.0, observers=[observer], random_state=0)
-    .prepare()
-    .run(until=160)
-)
+trajectory = simulate(SIRSystem(stochastic=True), until=160, dt=1.0, observers=[observer], random_state=0)
 
 # %%
 # Final size of the epidemic
@@ -52,7 +48,6 @@ simulation = (
 # equation `S = S0 exp(-(beta / gamma) (N - S))`, with `N` the population. The simulated susceptibles should settle
 # close to its solution, up to the randomness of a single outbreak.
 
-trajectory = simulation.trajectory_
 susceptible, infected = trajectory.values('S.n'), trajectory.values('I.n')
 total = susceptible[0] + infected[0] + trajectory.values('R.n')[0]
 ratio = 0.0003 / 0.1

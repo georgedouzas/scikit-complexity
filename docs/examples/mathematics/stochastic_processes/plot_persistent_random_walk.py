@@ -13,13 +13,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.stochastic_processes import PersistentRandomWalkSystem
 
 SYSTEM = 'persistent_random_walk'
 
-system = create_system(SYSTEM, n_walkers=300, persistence=0.8)
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
     rrb.TimeSeriesView(
@@ -33,7 +32,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=200)
+trajectory = simulate(PersistentRandomWalkSystem(n_walkers=300, persistence=0.8), observers=[observer], random_state=0)
 
 # %%
 # Mean squared displacement
@@ -42,7 +41,6 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 # `t (1 + rho) / (1 - rho) - 2 rho (1 - rho^t) / (1 - rho)^2`, four times faster at long times than the `t` of a
 # simple random walk, which the dotted line shows.
 
-trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
 rho = 2 * 0.8 - 1
 exact = times * (1 + rho) / (1 - rho) - 2 * rho * (1 - rho**times) / (1 - rho) ** 2

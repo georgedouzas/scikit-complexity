@@ -92,9 +92,9 @@ class Experiment(BaseExperiment):
 
     Examples:
         >>> from skcomplex.core.experiments import Experiment, GridDesign
-        >>> from skcomplex.systems.biology.ecology import logistic_growth
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
         >>> bounds = {'r': [0.5, 1.0]}
-        >>> experiment = Experiment(logistic_growth, GridDesign(), bounds, until=5, outputs=['population.n'])
+        >>> experiment = Experiment(LogisticGrowthSystem, GridDesign(), bounds, until=5, outputs=['population.n'])
         >>> len(experiment.prepare().run().result_.rows)
         2
     """

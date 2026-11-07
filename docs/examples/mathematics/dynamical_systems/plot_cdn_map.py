@@ -15,10 +15,10 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import lyapunov
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import OrbitDiagramExperiment
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.mathematics.dynamical_systems import CDNMapSystem
 
 SYSTEM = 'cdn_map'
 
@@ -41,12 +41,10 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer]).prepare().run(until=200)
+trajectory = simulate(CDNMapSystem(), observers=[observer])
 shifts = np.linspace(-1.0, 0.0, 400)
 diagram = (
-    OrbitDiagramExperiment(describe(SYSTEM).factory, 'map.beta', shifts, 'map.x', transient=500, keep=100, dt=1)
-    .prepare()
-    .run()
+    OrbitDiagramExperiment(CDNMapSystem, 'map.beta', shifts, 'map.x', transient=500, keep=100, dt=1).prepare().run()
 )
 points = np.array(
     [(100 * beta, -100 * x) for beta, values in zip(diagram.values, diagram.points_, strict=True) for x in values],
@@ -61,7 +59,7 @@ observer.recording_.flush()
 # Fig. 3.17, with dips below 0 in the periodic windows, and negative outside it.
 
 sample = np.linspace(-1.0, 0.0, 101)
-exponents = [lyapunov(simulation.system, until=3000, parameters={'map.beta': beta}).exponents[0] for beta in sample]
+exponents = [lyapunov(CDNMapSystem(), until=3000, parameters={'map.beta': beta}).exponents[0] for beta in sample]
 fig, (orbits, exponent_axes) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
 orbits.plot(points[:, 0] / 100, -points[:, 1] / 100, ',', color='C0')
 orbits.set_ylabel('long-run x')

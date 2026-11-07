@@ -16,13 +16,12 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import renormalization
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.networks import PopularitySimilarityNetworkSystem
 
 SYSTEM = 'popularity_similarity_network'
 
-system = create_system(SYSTEM)
 # The graph view lays out the nodes of a changing network by forces, which these settings keep compact and centred.
 blueprint = rrb.Blueprint(
     rrb.GraphView(
@@ -39,7 +38,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).prepare().run(until=297)
+trajectory = simulate(PopularitySimilarityNetworkSystem(), dt=2.0, observers=[observer], random_state=0)
 
 # %%
 # Clustering against the temperature
@@ -50,8 +49,8 @@ simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).pr
 temperatures = np.linspace(0.1, 0.9, 5)
 clustering = []
 for temperature in temperatures:
-    run = Simulation(create_system(SYSTEM, n_nodes=1000, temperature=temperature), dt=997.0, random_state=1)
-    clustering.append(nx.average_clustering(run.prepare().run(until=997).trajectory_.network(-1).graph()))
+    run = simulate(PopularitySimilarityNetworkSystem(n_nodes=1000, temperature=temperature), until=997, random_state=1)
+    clustering.append(nx.average_clustering(run.network(-1).graph()))
 fig, axis = plt.subplots(figsize=(6, 4))
 axis.plot(temperatures, clustering, 'o-')
 axis.set_xlabel('temperature')
@@ -66,8 +65,8 @@ plt.show()
 # `renormalization(kind='geometric')` merges pairs of consecutive nodes by angle three times. The tail of the
 # degree distribution keeps its slope at every scale, and the clustering stays high.
 
-run = Simulation(create_system(SYSTEM, n_nodes=2000), dt=1997.0, random_state=0).prepare().run(until=1997)
-scales = renormalization(run.trajectory_, kind='geometric', steps=3, beta=5.0)
+run = simulate(PopularitySimilarityNetworkSystem(n_nodes=2000), until=1997, dt=1997.0, random_state=0)
+scales = renormalization(run, kind='geometric', steps=3, beta=5.0)
 fig, axis = plt.subplots(figsize=(6, 4))
 for level, degrees in enumerate(scales.degrees):
     values = np.sort(degrees)[::-1]

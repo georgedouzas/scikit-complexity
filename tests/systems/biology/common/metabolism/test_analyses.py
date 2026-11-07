@@ -8,7 +8,7 @@ import pytest
 from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import MissingExtraError
 from skcomplex.core.specs import RunStateSpec
 from skcomplex.systems.biology.common.metabolism import (
@@ -33,7 +33,7 @@ def _core_system(**values):
 
 def _objective(system):
     """Return the objective of the only program of a static system."""
-    trajectory = Simulation(system).prepare().run(0.0).trajectory_
+    trajectory = simulate(system, until=0.0)
     return float(trajectory.values('cell.objective_0')[0])
 
 

@@ -1,13 +1,13 @@
 """Fractional dynamics: relaxation, oscillators, and chaotic flows whose states have Caputo derivatives of an order."""
 
 from ._fractional import (
+    FractionalLorenzSystem,
+    FractionalOscillatorSystem,
+    FractionalRelaxationSystem,
+    FractionalVanDerPolSystem,
     OscillatorElement,
     RelaxationElement,
     VanDerPolElement,
-    fractional_lorenz,
-    fractional_oscillator,
-    fractional_relaxation,
-    fractional_van_der_pol,
     lorenz_type,
     oscillator_type,
     relaxation_type,
@@ -15,13 +15,13 @@ from ._fractional import (
 )
 
 __all__: list[str] = [
+    'FractionalLorenzSystem',
+    'FractionalOscillatorSystem',
+    'FractionalRelaxationSystem',
+    'FractionalVanDerPolSystem',
     'OscillatorElement',
     'RelaxationElement',
     'VanDerPolElement',
-    'fractional_lorenz',
-    'fractional_oscillator',
-    'fractional_relaxation',
-    'fractional_van_der_pol',
     'lorenz_type',
     'oscillator_type',
     'relaxation_type',

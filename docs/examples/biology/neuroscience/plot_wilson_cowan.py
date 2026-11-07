@@ -7,21 +7,19 @@ population activity.
 """
 
 # %%
-# The system is created by name from the catalog with Wilson and Cowan's couplings and the input `P = 1.25`. The
-# observer saves every second frame with the default blueprint, whose primary view is the time series of both
-# activities.
+# The system is built from its class with Wilson and Cowan's couplings and the input `P = 1.25`. The observer saves
+# every second frame with the default blueprint, whose primary view is the time series of both activities.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.neuroscience import WilsonCowanSystem
 
 SYSTEM = 'wilson_cowan'
 
-system = create_system(SYSTEM, P=1.25)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(until=50)
+trajectory = simulate(WilsonCowanSystem(P=1.25), observers=[observer], until=50)
 
 # %%
 # Limit cycle against rest
@@ -29,9 +27,9 @@ simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(unti
 # With the input the trajectory should settle on a closed orbit in the `(E, I)` plane whatever its start, while
 # without input the activity should decay to rest.
 
-oscillating = simulation.trajectory_
-second = Simulation(create_system(SYSTEM, E=0.4, I=0.3, P=1.25), dt=0.2).prepare().run(until=100).trajectory_
-resting = Simulation(create_system(SYSTEM, E=0.4, I=0.3, P=0.0), dt=0.2).prepare().run(until=100).trajectory_
+oscillating = trajectory
+second = simulate(WilsonCowanSystem(E=0.4, I=0.3, P=1.25))
+resting = simulate(WilsonCowanSystem(E=0.4, I=0.3, P=0.0))
 fig, ax = plt.subplots(figsize=(6, 5))
 ax.plot(oscillating.values('cortex.E'), oscillating.values('cortex.I'), label='P = 1.25, from (0.1, 0.05)')
 ax.plot(second.values('cortex.E'), second.values('cortex.I'), '--', label='P = 1.25, from (0.4, 0.3)')

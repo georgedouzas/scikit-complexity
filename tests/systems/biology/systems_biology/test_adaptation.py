@@ -6,9 +6,9 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.systems.biology.systems_biology import enzyme_adaptation_circuit
+from skcomplex.systems.biology.systems_biology import EnzymeAdaptationCircuitSystem
 
 
 def _sensitivity_and_precision(links=None) -> tuple[float, float]:
@@ -16,8 +16,12 @@ def _sensitivity_and_precision(links=None) -> tuple[float, float]:
 
     define.
     """
-    system = enzyme_adaptation_circuit() if links is None else enzyme_adaptation_circuit(links)
-    trajectory = Simulation(system, dt=0.1).prepare().run(until=800).trajectory_
+    system = (
+        EnzymeAdaptationCircuitSystem().prepare().system_
+        if links is None
+        else EnzymeAdaptationCircuitSystem(links).prepare().system_
+    )
+    trajectory = simulate(system, dt=0.1, until=800)
     output, times = trajectory.values('C.X'), trajectory.times
     before, after = output[times < 300][-1], output[times >= 300]
     peak = after[np.argmax(np.abs(after - before))]
@@ -52,4 +56,4 @@ def test_three_node_topologies_whose_input_reaches_the_output():
 def test_invalid_links_raise():
     """Test that a sign other than 1, -1, and 0 raises an error."""
     with pytest.raises(ValidationError):
-        enzyme_adaptation_circuit(((0, 2, 0), (0, 0, 1), (1, 0, 0)))
+        EnzymeAdaptationCircuitSystem(((0, 2, 0), (0, 0, 1), (1, 0, 0))).prepare()

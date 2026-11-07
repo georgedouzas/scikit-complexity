@@ -3,18 +3,17 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import Simulation, simulate
 from skcomplex.core.engine.solvers import CoSimulationSolver, RK4Solver
 from skcomplex.core.errors import ValidationError
-from skcomplex.systems import create_simulation
-from skcomplex.systems.biology.systems_biology import dynamic_fba
+from skcomplex.systems.biology.systems_biology import DynamicFBASystem
 
 KM = 0.015
 
 
 def test_batch_culture_grows_in_one_phase_until_the_glucose_ends():
     """Test the falling glucose, the growth rate, and the plateau of the batch culture."""
-    trajectory = create_simulation('dynamic_fba').prepare().run().trajectory_
+    trajectory = simulate(DynamicFBASystem())
     biomass = trajectory.values('culture/biomass.x')
     glucose = trajectory.values('culture/glucose.c')
     assert np.all(np.diff(glucose) <= 1e-12)
@@ -28,7 +27,7 @@ def test_batch_culture_grows_in_one_phase_until_the_glucose_ends():
 
 def test_batch_culture_records_a_zero_exchange_after_depletion():
     """Test that the glucose exchange is recorded at every frame and is zero after depletion."""
-    trajectory = create_simulation('dynamic_fba').prepare().run().trajectory_
+    trajectory = simulate(DynamicFBASystem())
     exchange = trajectory.values('fba/cell.v_EX_glc__D_e')
     assert exchange.size == trajectory.times.size
     assert exchange[0] == pytest.approx(-10, rel=0.01)
@@ -37,12 +36,14 @@ def test_batch_culture_records_a_zero_exchange_after_depletion():
 
 def test_static_optimisation_approaches_the_direct_approach():
     """Test that the biomass at 6 h approaches the direct approach, with an error that falls at least linearly."""
-    direct = create_simulation('dynamic_fba', approach='direct').prepare().run(until=6.0).trajectory_
+    direct = simulate(DynamicFBASystem(approach='direct'), until=6.0)
     reference = float(direct.values('biomass.x')[-1])
     errors = []
     for interval in (0.1, 0.05, 0.025):
         solver = CoSimulationSolver(sync_dt=interval, solvers={'culture': RK4Solver(dt=0.005)})
-        simulation = Simulation(dynamic_fba(interval=interval), solver=solver, dt=0.1).prepare().run(6.0)
+        simulation = (
+            Simulation(DynamicFBASystem(interval=interval).prepare().system_, solver=solver, dt=0.1).prepare().run(6.0)
+        )
         errors.append(abs(float(simulation.trajectory_.values('culture/biomass.x')[-1]) - reference))
     assert errors[1] <= errors[0] * 0.75 + 1e-9
     assert errors[2] <= errors[1] * 0.75 + 1e-9
@@ -51,4 +52,4 @@ def test_static_optimisation_approaches_the_direct_approach():
 def test_dynamic_fba_rejects_an_unknown_approach():
     """Test that an unknown approach raises an error that names the approaches."""
     with pytest.raises(ValidationError, match='static, direct'):
-        dynamic_fba('mixed')
+        DynamicFBASystem('mixed').prepare()

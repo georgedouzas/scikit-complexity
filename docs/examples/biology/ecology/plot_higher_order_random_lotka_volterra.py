@@ -8,10 +8,10 @@ theory of the paper predicts.
 """
 
 # %%
-# The system is created by name from the catalog, with the parameters of the paper for third-order interactions,
-# `mu = -4`, `sigma = 1`, and uncorrelated coefficients. It has 100 species here to keep the page quick, half the 200 of
-# the paper, so its tensor holds a million entries, and an adaptive solver takes the long steps the slow approach
-# allows. The primary view shows the abundances.
+# The system is built from its class, with the parameters of the paper for third-order interactions, `mu = -4`, `sigma
+# = 1`, and uncorrelated coefficients. It has 100 species here to keep the page quick, half the 200 of the paper, so
+# its tensor holds a million entries, and an adaptive solver takes the long steps the slow approach allows. The
+# primary view shows the abundances.
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -19,19 +19,17 @@ from scipy.integrate import quad
 from scipy.optimize import brentq
 from scipy.stats import norm
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import HigherOrderRandomLotkaVolterraSystem
 
 SYSTEM = 'higher_order_random_lotka_volterra'
 MU, SIGMA, EXTINCT = -4.0, 1.0, 1e-6
 
-system = create_system(SYSTEM, size=100)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
 solver = ScipyODESolver('RK45', rtol=1e-6, atol=1e-9)
-simulation = Simulation(system, dt=10.0, solver=solver, observers=[observer]).prepare().run(until=1000)
-trajectory = simulation.trajectory_
+trajectory = simulate(HigherOrderRandomLotkaVolterraSystem(size=100), solver=solver, observers=[observer])
 
 # %%
 # Survivors against the theory

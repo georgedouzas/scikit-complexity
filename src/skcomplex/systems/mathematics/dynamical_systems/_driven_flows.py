@@ -9,10 +9,9 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.interactions import RateInteraction, RelaxationInteraction
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.flows._rossler import RosslerElement
 
 
@@ -83,31 +82,14 @@ class DrivenRosslerElement(RosslerElement):
         self.rho = rho
 
 
-@register_system(
-    field='mathematics/dynamical_systems',
-    tags=('Rössler', 'Ornstein-Uhlenbeck', 'sde', 'bifurcation diagram', 'chaos', 'nonstationary'),
-    references=('Cestnik and Martens 2025', 'Rössler 1976', 'Uhlenbeck and Ornstein 1930'),
-    defaults={'until': 500.0, 'dt': 0.1, 'solver': EulerMaruyamaSolver(dt=0.01)},
-)
-def ou_driven_rossler(
-    x: float = 1.0,
-    y: float = 1.0,
-    z: float = 1.0,
-    *,
-    a: float = 0.2,
-    b: float = 0.4,
-    c: float = 5.743,
-    tau: float = 50.0,
-    rho: float = 0.5,
-    eta: float = 0.0,
-) -> System:
-    """Return the Rössler flow driven through its bifurcations by a slow Ornstein-Uhlenbeck control parameter.
+class OUDrivenRosslerSystem(BaseSystem):
+    """The Rössler flow driven through its bifurcations by a slow Ornstein-Uhlenbeck control parameter.
 
     The flow is `x' = -y - z`, `y' = x + a y + eta`, `z' = b + z (x - c)`, Eq. 13 of Cestnik and Martens, and the
-    control follows `eta' = (-eta + rho xi) / tau` with white noise `xi`. The control is an Ornstein-Uhlenbeck
-    process with the correlation time `tau` and the stationary variance `rho^2 / (2 tau)`. A control that varies
-    slowly against the period of the flow sweeps it through the period doublings and chaotic bands of its
-    bifurcation diagram.
+    control follows `eta' = (-eta + rho xi) / tau` with white noise `xi`. The control is an Ornstein-Uhlenbeck process
+    with the correlation time `tau` and the stationary variance `rho^2 / (2 tau)`. A control that varies slowly against
+    the period of the flow sweeps it through the period doublings and chaotic bands of its bifurcation diagram. The
+    system has the states `rossler.x`, `rossler.y`, `rossler.z`, and the control `rossler.eta`.
 
     Args:
         x:
@@ -137,22 +119,67 @@ def ou_driven_rossler(
         eta:
             The initial control.
 
-    Returns:
-        system:
-            The system, with the states `rossler.x`, `rossler.y`, `rossler.z`, and the control `rossler.eta`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import ou_driven_rossler
-        >>> ou_driven_rossler(tau=10.0).elements[0].tau
+        >>> from skcomplex.systems.mathematics.dynamical_systems import OUDrivenRosslerSystem
+        >>> OUDrivenRosslerSystem(tau=10.0).prepare().system_.elements[0].tau
         10.0
     """
-    rossler = DrivenRosslerElement('rossler', x=x, y=y, z=z, eta=eta, a=a, b=b, c=c, tau=tau, rho=rho)
-    drive = RateInteraction('drive', target='rossler', state='y', rate=lambda s: s.target.eta)
-    control = RelaxationInteraction(
-        'control',
-        target='rossler',
-        state='eta',
-        time=lambda s: s.target.tau,
-        noise=lambda s: s.target.rho / s.target.tau,
-    )
-    return System(elements=[rossler], interactions=[drive, control])
+
+    field = 'mathematics/dynamical_systems'
+    topics = ('Rössler', 'Ornstein-Uhlenbeck', 'sde', 'bifurcation diagram', 'chaos', 'nonstationary')
+    references = ('Cestnik and Martens 2025', 'Rössler 1976', 'Uhlenbeck and Ornstein 1930')
+    until = 500.0
+    dt = 0.1
+    solver = EulerMaruyamaSolver(dt=0.01)
+
+    def __init__(
+        self,
+        x: float = 1.0,
+        y: float = 1.0,
+        z: float = 1.0,
+        *,
+        a: float = 0.2,
+        b: float = 0.4,
+        c: float = 5.743,
+        tau: float = 50.0,
+        rho: float = 0.5,
+        eta: float = 0.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.a = a
+        self.b = b
+        self.c = c
+        self.tau = tau
+        self.rho = rho
+        self.eta = eta
+
+    def _build_system(self) -> System:
+        """Return the Rössler flow driven through its bifurcations by a slow Ornstein-Uhlenbeck control parameter."""
+        rossler = DrivenRosslerElement(
+            'rossler',
+            x=self.x,
+            y=self.y,
+            z=self.z,
+            eta=self.eta,
+            a=self.a,
+            b=self.b,
+            c=self.c,
+            tau=self.tau,
+            rho=self.rho,
+        )
+        drive = RateInteraction('drive', target='rossler', state='y', rate=lambda s: s.target.eta)
+        control = RelaxationInteraction(
+            'control',
+            target='rossler',
+            state='eta',
+            time=lambda s: s.target.tau,
+            noise=lambda s: s.target.rho / s.target.tau,
+        )
+        return System(self.label, elements=[rossler], interactions=[drive, control])

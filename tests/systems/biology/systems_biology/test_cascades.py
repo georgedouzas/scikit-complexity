@@ -4,9 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.engine.solvers import ScipyODESolver
-from skcomplex.systems.biology.systems_biology import (
-    hormone_cascade_amplifier,
-)
+from skcomplex.systems.biology.systems_biology import HormoneCascadeAmplifierSystem
 
 from ..conftest import _run_with_solver
 
@@ -16,7 +14,7 @@ def test_hormone_cascade_amplifier_multiplies_the_signal_by_the_gains_until_the_
     runs = {}
     for k_gtp in (0.5, 0.05):
         trajectory = _run_with_solver(
-            hormone_cascade_amplifier(k_gtp=k_gtp),
+            HormoneCascadeAmplifierSystem(k_gtp=k_gtp),
             60.0,
             0.05,
             ScipyODESolver(rtol=1e-9, atol=1e-12),

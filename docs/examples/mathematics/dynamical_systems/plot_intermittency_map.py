@@ -14,14 +14,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import distribution, events
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.dynamical_systems import IntermittencyMapSystem
 
 SYSTEM = 'intermittency_map'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
-simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer]).prepare().run(until=2900)
+trajectory = simulate(IntermittencyMapSystem(), until=2900, observers=[observer])
 
 # %%
 # Durations of the laminar phases
@@ -31,12 +31,12 @@ simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer]).prepa
 # over 200000 steps: as `1 / τ` for `z = 2` and as `1 / τ²` for `z = 1.5`.
 
 fig, (series, tails) = plt.subplots(1, 2, figsize=(11, 4))
-series.plot(simulation.trajectory_.times, simulation.trajectory_.values('map.x'), linewidth=0.6)
+series.plot(trajectory.times, trajectory.values('map.x'), linewidth=0.6)
 series.set_xlabel('step')
 series.set_ylabel('x')
 series.set_title('Laminar phases and bursts, z = 2')
 for z in (1.5, 2.0):
-    values = Simulation(create_system(SYSTEM, z=z), dt=1).prepare().run(until=200_000).trajectory_.values('map.x')
+    values = simulate(IntermittencyMapSystem(z=z), until=200_000).values('map.x')
     laminar = events(values, kind='laminar-durations', threshold=0.1)
     ccdf = distribution(laminar.durations, kind='ccdf')
     durations, share = ccdf.support, ccdf.survival

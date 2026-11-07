@@ -6,22 +6,21 @@ would push out, decline towards a level at which the two coexist.
 """
 
 # %%
-# The system is created by name from the catalog: normal cells at 0.5 and tumour cells at 0.8 of their capacities
-# compete, and the tumour is irradiated five days a week at the per capita kill rate 0.2. Frames are a week apart, at
-# the same phase of the schedule, and the observer saves every frame with the default blueprint, whose primary view is
-# the time series of the two concentrations.
+# The system is built from its class: normal cells at 0.5 and tumour cells at 0.8 of their capacities compete, and the
+# tumour is irradiated five days a week at the per capita kill rate 0.2. Frames are a week apart, at the same phase of
+# the schedule, and the observer saves every frame with the default blueprint, whose primary view is the time series
+# of the two concentrations.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import RadiotherapyCompetitionSystem
 
 SYSTEM = 'radiotherapy_competition'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=7.0, observers=[observer]).prepare().run(until=1400)
+trajectory = simulate(RadiotherapyCompetitionSystem(), dt=7.0, observers=[observer])
 
 # %%
 # Coexistence instead of exclusion
@@ -34,8 +33,8 @@ simulation = Simulation(system, dt=7.0, observers=[observer]).prepare().run(unti
 r1, r2, c1, c2, a2, epsilon = 0.008, 0.4, 0.01, 0.15, 0.2, 0.001
 kill = a2 * 5 / 7
 normal = (r1 - epsilon - c1 * (1 - kill / r2)) / (r1 - c1 * c2 / r2)
-untreated = Simulation(create_system(SYSTEM, a2=0.0, epsilon=0.0), dt=7.0).prepare().run(until=1400).trajectory_
-treated = simulation.trajectory_
+untreated = simulate(RadiotherapyCompetitionSystem(a2=0.0, epsilon=0.0), dt=7.0)
+treated = trajectory
 fig, (cells, tumour) = plt.subplots(1, 2, figsize=(10, 4))
 cells.plot(treated.times, treated.values('tissue.N'), label='irradiated')
 cells.plot(untreated.times, untreated.values('tissue.N'), label='untreated')

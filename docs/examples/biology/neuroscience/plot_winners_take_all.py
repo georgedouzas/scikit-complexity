@@ -6,22 +6,20 @@ unit with the largest input wins and settles at an activity equal to its input, 
 """
 
 # %%
-# The system is created by name from the catalog with five units whose inputs differ by at most 20% and the inhibition
-# `beta = 2`. The observer saves every frame with the default blueprint, whose primary view is the time series of the
-# activities.
+# The system is built from its class with five units whose inputs differ by at most 20% and the inhibition `beta = 2`.
+# The observer saves every frame with the default blueprint, whose primary view is the time series of the activities.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.neuroscience import WinnersTakeAllSystem
 
 SYSTEM = 'winners_take_all'
 
 inputs = (1.0, 1.1, 0.9, 1.05, 0.95)
-system = create_system(SYSTEM, inputs=inputs, beta=2.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(until=40)
+trajectory = simulate(WinnersTakeAllSystem(inputs=inputs, beta=2.0), observers=[observer])
 
 # %%
 # One winner or several
@@ -31,7 +29,7 @@ simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(unti
 
 fig, axes = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
 for ax, beta in zip(axes, [2.0, 0.5], strict=True):
-    trajectory = Simulation(create_system(SYSTEM, inputs=inputs, beta=beta), dt=0.2).prepare().run(until=40).trajectory_
+    trajectory = simulate(WinnersTakeAllSystem(inputs=inputs, beta=beta))
     for unit, value in enumerate(inputs):
         ax.plot(trajectory.times, trajectory.values(f'unit_{unit}.x'), label=f'input {value}')
     ax.set_xlabel('time')

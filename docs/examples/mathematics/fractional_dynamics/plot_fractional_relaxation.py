@@ -18,9 +18,9 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import symbolic
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.fractional_dynamics import FractionalRelaxationSystem
 
 SYSTEM = 'fractional_relaxation'
 ORDERS = (1.0, 0.8, 0.6, 0.4)
@@ -45,11 +45,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create_system(SYSTEM, order=0.6), dt=0.1, observers=[observer]).prepare().run(until=20)
-runs = {
-    order: Simulation(create_system(SYSTEM, order=order), dt=0.1).prepare().run(until=20).trajectory_
-    for order in ORDERS
-}
+trajectory = simulate(FractionalRelaxationSystem(order=0.6), observers=[observer])
+runs = {order: simulate(FractionalRelaxationSystem(order=order)) for order in ORDERS}
 strips = [np.column_stack([10 * run.times, -100 * run.values('relaxation.x')]) for run in runs.values()]
 observer.recording_.log('orders', rr.LineStrips2D(strips, radii=0.8, colors=COLORS), static=True)
 observer.recording_.flush()
@@ -64,7 +61,7 @@ observer.recording_.flush()
 fig, ax = plt.subplots(figsize=(6, 4.5))
 for (order, run), color in zip(runs.items(), COLORS, strict=True):
     times = run.times[1:]
-    solve = symbolic(create_system(SYSTEM, order=order), kind='solve', use_initial_state=True)
+    solve = symbolic(FractionalRelaxationSystem(order=order), kind='solve', use_initial_state=True)
     solution = solve.solutions['relaxation.x'].rhs()
     symbols = {str(symbol): symbol for symbol in solution.variables()}
     exact = [float(solution.subs({symbols['t']: time, symbols['lam_relaxation']: 1.0})) for time in times]

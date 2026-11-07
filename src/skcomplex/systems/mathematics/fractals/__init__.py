@@ -1,7 +1,7 @@
 """Fractals: escape-time sets, chaos-game attractors, and words and patches of named curves and sets."""
 
-from ._chaos_game import ChaosPointElement, RandomAffineMapInteraction, chaos_game
-from ._quadratic import InverseJuliaPointElement, QuadraticMapElement, inverse_julia, julia, mandelbrot
+from ._chaos_game import ChaosGameSystem, ChaosPointElement, RandomAffineMapInteraction
+from ._quadratic import InverseJuliaPointElement, InverseJuliaSystem, JuliaSystem, MandelbrotSystem, QuadraticMapElement
 from ._substitution import (
     CantorElement,
     KochElement,
@@ -13,17 +13,17 @@ from ._substitution import (
 
 __all__: list[str] = [
     'CantorElement',
+    'ChaosGameSystem',
     'ChaosPointElement',
     'InverseJuliaPointElement',
+    'InverseJuliaSystem',
+    'JuliaSystem',
     'KochElement',
+    'MandelbrotSystem',
     'QuadraticMapElement',
     'RandomAffineMapInteraction',
     'SierpinskiElement',
     'cantor_set',
-    'chaos_game',
-    'inverse_julia',
-    'julia',
     'koch_curve',
-    'mandelbrot',
     'sierpinski_substitution',
 ]

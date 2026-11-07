@@ -19,11 +19,10 @@ import rerun.blueprint as rrb
 
 from skcomplex.core.components.interactions import RateInteraction
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
-from skcomplex.systems.computer_science.neural_networks import LorenzFlowElement
+from skcomplex.systems.computer_science.neural_networks import LorenzFlowElement, NextGenerationReservoirSystem
 
 SYSTEM = 'next_generation_reservoir'
 STEP = 0.025
@@ -38,8 +37,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-system = create_system(SYSTEM)
-forecast = Simulation(system, dt=1, observers=[observer]).prepare().run(until=200).trajectory_
+system = NextGenerationReservoirSystem()
+forecast = simulate(system, observers=[observer])
 for name, color in zip(VARIABLES, ((31, 119, 180), (255, 127, 14), (44, 160, 44)), strict=True):
     observer.recording_.log(f'reservoir/{name}', rr.SeriesLines(colors=[color], names=name), static=True)
     observer.recording_.send_columns(
@@ -70,15 +69,15 @@ def lorenz_samples(samples):
         interactions=[RateInteraction(name, target='flow', state=name, rate=rate) for name, rate in rates.items()],
     )
     solver = ScipyODESolver(method='RK23', rtol=1e-3, atol=1e-6)
-    run = Simulation(flow, solver=solver, dt=STEP).prepare().run(until=5.0 + STEP * (samples - 1)).trajectory_
+    run = simulate(flow, until=5.0 + STEP * (samples - 1), solver=solver, dt=STEP)
     return np.column_stack([run.values(f'flow.{name}') for name in VARIABLES])[-samples:]
 
 
 TRAINED = 402
 HORIZON = 800
 values = lorenz_samples(TRAINED + HORIZON + 1)
-trained = create_system(SYSTEM, series=values[: TRAINED + 1])
-run = Simulation(trained, dt=1).prepare().run(until=HORIZON).trajectory_
+trained = NextGenerationReservoirSystem(series=values[: TRAINED + 1])
+run = simulate(trained, until=HORIZON, dt=1)
 predicted = np.column_stack([run.values(f'reservoir.{name}') for name in VARIABLES])[1:]
 truth = values[TRAINED + 1 :]
 size = np.ptp(values, axis=0).max()

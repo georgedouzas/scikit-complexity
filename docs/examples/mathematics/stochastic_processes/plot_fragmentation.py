@@ -18,9 +18,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.stochastic_processes import FragmentationSystem
 
 SYSTEM = 'fragmentation'
 
@@ -35,10 +35,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = (
-    Simulation(create_system(SYSTEM, size=10**6), dt=1, observers=[observer], random_state=0).prepare().run(until=14)
-)
-trajectory = simulation.trajectory_
+trajectory = simulate(FragmentationSystem(size=10**6), until=14, dt=1, observers=[observer], random_state=0)
 lengths = [trajectory.agents('fragments', frame).values['length'] for frame in range(len(trajectory.times))]
 rows = np.zeros((15 * len(lengths), 800, 3), dtype=np.uint8)
 for step, row in enumerate(lengths):

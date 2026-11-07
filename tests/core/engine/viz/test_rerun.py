@@ -29,8 +29,8 @@ from skcomplex.core.engine.viz import (
 from skcomplex.core.specs import StateSpec, TopologyRequestSpec, VisualSpec
 from skcomplex.systems import create_system, describe
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-from skcomplex.systems.biology.ecology import higher_order_random_lotka_volterra
-from skcomplex.systems.computer_science.automata import game_of_life
+from skcomplex.systems.biology.ecology import HigherOrderRandomLotkaVolterraSystem
+from skcomplex.systems.computer_science.automata import GameOfLifeSystem
 from skcomplex.systems.physics.common.particles import ConstantForceInteraction, MassPointElement
 from skcomplex.systems.physics.statistical_mechanics import ideal_gas
 from skcomplex.systems.social.opinion_dynamics import VoterSystemSystem
@@ -143,7 +143,11 @@ def test_rerun_observer_leaves_out_a_coupling_tensor(monkeypatch, tmp_path):
         return original(self, path, *args, **kwargs)
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
-    _run(higher_order_random_lotka_volterra(4), RerunObserver('test', save_path=tmp_path / 'run.rrd'), until=0.2)
+    _run(
+        HigherOrderRandomLotkaVolterraSystem(4).prepare().system_,
+        RerunObserver('test', save_path=tmp_path / 'run.rrd'),
+        until=0.2,
+    )
     assert 'parameters/triplets.a' not in logged
     assert 'parameters/growth.r' in logged
 
@@ -527,7 +531,7 @@ def test_large_game_of_life_runs_in_real_time(tmp_path):
     """Test that a 1000 x 1000 Game of Life on Numba sustains 30 steps per second while streaming images."""
     observer = RerunObserver('life', save_path=tmp_path / 'life.rrd')
     simulation = Simulation(
-        game_of_life((1000, 1000)),
+        GameOfLifeSystem((1000, 1000)).prepare().system_,
         dt=1,
         backend=NumbaBackend(),
         record=False,

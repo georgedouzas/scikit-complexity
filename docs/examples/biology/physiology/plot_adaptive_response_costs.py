@@ -8,17 +8,17 @@ shrink, and the capacity that climbs with every episode and decays a little betw
 """
 
 # %%
-# The system is created by name from the catalog with the adaptive strategy and episodes of height 1 and width 2 every
-# 10 time units. The run lasts 200 time units and the observer saves every tenth step. The blueprint shows the
-# excursion `e` and the capacity `c` over the whole run.
+# The system is built from its class with the adaptive strategy and episodes of height 1 and width 2 every 10 time
+# units. The run lasts 200 time units and the observer saves every tenth step. The blueprint shows the excursion `e`
+# and the capacity `c` over the whole run.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.physiology import AdaptiveResponseCostsSystem
 
 SYSTEM = 'adaptive_response_costs'
 COSTS = ('response', 'restore', 'repair', 'prepare')
@@ -36,9 +36,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, strategy='adaptive')
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=10)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=200)
+trajectory = simulate(AdaptiveResponseCostsSystem(strategy='adaptive'), observers=[observer])
 
 # %%
 # The costs of the three levels of adaptivity
@@ -50,7 +49,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 
 totals = {}
 for strategy in STRATEGIES:
-    trajectory = Simulation(create_system(SYSTEM, strategy=strategy), dt=0.1).prepare().run(until=200).trajectory_
+    trajectory = simulate(AdaptiveResponseCostsSystem(strategy=strategy))
     totals[strategy] = [trajectory.values(f'organism.{kind}_cost')[-1] for kind in COSTS]
 fig, (bars, peaks) = plt.subplots(1, 2, figsize=(10, 4))
 bottom = np.zeros(len(STRATEGIES))
@@ -61,8 +60,8 @@ for index, kind in enumerate(COSTS):
 bars.set_ylabel('cost over 20 episodes')
 bars.set_title('Total cost falls with each level of adaptivity')
 bars.legend()
-times = simulation.trajectory_.times
-excursion = simulation.trajectory_.values('organism.e')
+times = trajectory.times
+excursion = trajectory.values('organism.e')
 episodes = np.arange(1.0, 200.0, 10.0)
 maxima = [excursion[(times >= start) & (times < start + 10)].max() for start in episodes]
 peaks.plot(np.arange(1, len(maxima) + 1), maxima, 'o-')

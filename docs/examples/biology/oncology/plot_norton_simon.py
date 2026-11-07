@@ -6,22 +6,21 @@ regrows quickly, since a smaller Gompertzian tumour grows faster.
 """
 
 # %%
-# The system is created by name from the catalog: a tumour of 100 mm³ grows towards 1964 mm³, and from day 42 a one-day
-# dose every three weeks kills at the rate 1. The observer saves every second frame with the default blueprint, whose
-# primary view is the time series of the volume.
+# The system is built from its class: a tumour of 100 mm³ grows towards 1964 mm³, and from day 42 a one-day dose every
+# three weeks kills at the rate 1. The observer saves every second frame with the default blueprint, whose primary
+# view is the time series of the volume.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import NortonSimonSystem
 
 SYSTEM = 'norton_simon'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=150)
+trajectory = simulate(NortonSimonSystem(), observers=[observer])
 
 # %%
 # Regrowth after a dose
@@ -29,7 +28,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 # Between doses the per capita growth rate is `r log(K / n)`, which is larger the smaller the tumour. The rate measured
 # from the simulation should lie on this line, and the doses should show as dips below it.
 
-times, volume = simulation.trajectory_.times, simulation.trajectory_.values('tumour.n')
+times, volume = trajectory.times, trajectory.values('tumour.n')
 r, K = 0.0719, 1964.0
 rate = np.gradient(np.log(volume), times)
 fig, (curve, kinetics) = plt.subplots(1, 2, figsize=(10, 4))

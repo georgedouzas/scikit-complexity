@@ -52,6 +52,8 @@ class LorenzElement(Element):
         [2.0, 1.5576, 1.2131]
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,

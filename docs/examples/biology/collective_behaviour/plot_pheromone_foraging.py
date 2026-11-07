@@ -7,21 +7,20 @@ coordination through marks left in the environment.
 """
 
 # %%
-# The system is created by name from the catalog with forty ants on a grid of 40 by 20 cells. The observer saves every
-# third step with the default blueprint, whose primary view is the image of the pheromone.
+# The system is built from its class with forty ants on a grid of 40 by 20 cells. The observer saves every third step
+# with the default blueprint, whose primary view is the image of the pheromone.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.collective_behaviour import PheromoneForagingSystem
 
 SYSTEM = 'pheromone_foraging'
 
-system = create_system(SYSTEM, n_ants=40)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=600)
+trajectory = simulate(PheromoneForagingSystem(n_ants=40), observers=[observer], random_state=0)
 
 # %%
 # The trail and the traffic
@@ -29,7 +28,6 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 # Once the trail forms, more ants should be carrying food at any time, and the pheromone should concentrate along the
 # band between nest and food rather than spread over the grid.
 
-trajectory = simulation.trajectory_
 frames = range(len(trajectory.times))
 carrying = [np.sum(trajectory.agents('colony/ants', frame).values['carrying']) for frame in frames]
 pheromone = trajectory.lattice('ground/pheromone.level')

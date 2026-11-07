@@ -6,22 +6,21 @@ doses stop the metabolism lowers it.
 """
 
 # %%
-# The system is created by name from the catalog: a one-day infusion every week, a drug eliminated at the rate 0.5 a
-# day, and a toxicity cleared at the rate 0.05 a day. The observer saves every second frame with the default blueprint,
-# whose primary view is the time series of the concentration and the toxicity.
+# The system is built from its class: a one-day infusion every week, a drug eliminated at the rate 0.5 a day, and a
+# toxicity cleared at the rate 0.05 a day. The observer saves every second frame with the default blueprint, whose
+# primary view is the time series of the concentration and the toxicity.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.physiology import DrugToxicitySystem
 
 SYSTEM = 'drug_toxicity'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(until=84)
+trajectory = simulate(DrugToxicitySystem(), observers=[observer])
 
 # %%
 # Toxicity and exposure
@@ -29,12 +28,12 @@ simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(unti
 # Without clearance the toxicity is the integral of the concentration, which the run without clearance should match.
 # With clearance at the rate `eta`, the toxicity should decay as `exp(-eta t)` after the last dose.
 
-times = simulation.trajectory_.times
-cumulative = Simulation(create_system(SYSTEM, eta=0.0), dt=0.2).prepare().run(until=84).trajectory_
+times = trajectory.times
+cumulative = simulate(DrugToxicitySystem(eta=0.0))
 exposure = np.concatenate(
     ([0.0], np.cumsum(np.diff(times) * (cumulative.values('patient.c')[1:] + cumulative.values('patient.c')[:-1]) / 2)),
 )
-toxicity = simulation.trajectory_.values('patient.T')
+toxicity = trajectory.values('patient.T')
 late = times >= 50.0
 fig, (accumulation, decay) = plt.subplots(1, 2, figsize=(10, 4))
 accumulation.plot(times, cumulative.values('patient.T'), label='toxicity, eta = 0')

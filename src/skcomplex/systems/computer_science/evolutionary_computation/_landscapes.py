@@ -12,12 +12,11 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import EvolutionInteraction
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class BitStringView(AgentView):
@@ -183,24 +182,12 @@ class ReproductionInteraction(EvolutionInteraction):
         return np.where(bits == 1, one_values, zero_values).mean(axis=1)
 
 
-@register_system(
-    field='computer_science/evolutionary_computation',
-    tags=('evolution', 'agents', 'fitness landscape', 'genetic algorithm'),
-    references=('Downey 2018',),
-    defaults={'until': 100},
-)
-def bit_string_evolution(
-    n_agents: int = 100,
-    *,
-    n_bits: int = 8,
-    death: float = 0.1,
-    mutation: float = 0.05,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return a population of bit strings that evolves on a random additive fitness landscape.
+class BitStringEvolutionSystem(BaseSystem):
+    """A population of bit strings that evolves on a random additive fitness landscape.
 
     Every step each agent dies with a constant probability, and the dead are replaced by copies of parents chosen in
-    proportion to their fitness, with one bit flipped with a small probability, so the mean fitness climbs.
+    proportion to their fitness, with one bit flipped with a small probability, so the mean fitness climbs. The system
+    has the group `genomes` of states `genome` and `fitness`.
 
     Args:
         n_agents:
@@ -218,35 +205,60 @@ def bit_string_evolution(
         random_state:
             The seed or generator of the landscape and of the random initial genomes.
 
-    Returns:
-        system:
-            The system, with the group `genomes` of states `genome` and `fitness`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.computer_science.evolutionary_computation import bit_string_evolution
-        >>> bit_string_evolution(10, n_bits=4).interactions[0].target
+        >>> from skcomplex.systems.computer_science.evolutionary_computation import BitStringEvolutionSystem
+        >>> BitStringEvolutionSystem(10, n_bits=4).prepare().system_.interactions[0].target
         'genomes'
     """
-    rng = np.random.default_rng(random_state)
-    zero_values, one_values = rng.random(n_bits), rng.random(n_bits)
-    genomes = rng.integers(0, 2**n_bits, size=n_agents).astype(float)
-    fitness = ReproductionInteraction._fitness_of(genomes, zero_values, one_values)
-    reproduction = ReproductionInteraction(
-        'reproduction',
-        target='genomes',
-        death=death,
-        mutation=mutation,
-        zero_values=tuple(zero_values.tolist()),
-        one_values=tuple(one_values.tolist()),
-    )
-    return System(
-        elements=[
-            GroupElement(
-                'genomes',
-                element=BitStringElement,
-                size=n_agents,
-                values={'genome': genomes, 'fitness': fitness},
-            ),
-        ],
-        interactions=[reproduction],
-    )
+
+    field = 'computer_science/evolutionary_computation'
+    topics = ('evolution', 'agents', 'fitness landscape', 'genetic algorithm')
+    references = ('Downey 2018',)
+    until = 100
+
+    def __init__(
+        self,
+        n_agents: int = 100,
+        *,
+        n_bits: int = 8,
+        death: float = 0.1,
+        mutation: float = 0.05,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+        self.n_bits = n_bits
+        self.death = death
+        self.mutation = mutation
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return a population of bit strings that evolves on a random additive fitness landscape."""
+        rng = np.random.default_rng(self.random_state)
+        zero_values, one_values = rng.random(self.n_bits), rng.random(self.n_bits)
+        genomes = rng.integers(0, 2**self.n_bits, size=self.n_agents).astype(float)
+        fitness = ReproductionInteraction._fitness_of(genomes, zero_values, one_values)
+        reproduction = ReproductionInteraction(
+            'reproduction',
+            target='genomes',
+            death=self.death,
+            mutation=self.mutation,
+            zero_values=tuple(zero_values.tolist()),
+            one_values=tuple(one_values.tolist()),
+        )
+        return System(
+            self.label,
+            elements=[
+                GroupElement(
+                    'genomes',
+                    element=BitStringElement,
+                    size=self.n_agents,
+                    values={'genome': genomes, 'fitness': fitness},
+                ),
+            ],
+            interactions=[reproduction],
+        )

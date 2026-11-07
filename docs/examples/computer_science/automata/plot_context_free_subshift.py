@@ -15,15 +15,14 @@ import re
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.automata import ContextFreeSubshiftSystem
 
 SYSTEM = 'context_free_subshift'
 
-system = create_system(SYSTEM, size=60, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=50)
+trajectory = simulate(ContextFreeSubshiftSystem(size=60, random_state=0), observers=[observer], random_state=0)
 
 # %%
 # Blocks and symbols
@@ -32,7 +31,7 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 # the constraint, so they spread as the chain mixes, and the frequencies of the three symbols move away from those of
 # the balanced start.
 
-symbols = simulation.trajectory_.values('cells.symbol').astype(int)
+symbols = trajectory.values('cells.symbol').astype(int)
 pattern = re.compile('1*2*')
 
 
@@ -50,7 +49,7 @@ image.set_xlabel('cell n')
 image.set_ylabel('step')
 image.set_title('Rings of the context-free subshift')
 for symbol in range(3):
-    check.plot(simulation.trajectory_.times, (symbols == symbol).mean(axis=1), label=f'symbol {symbol}')
+    check.plot(trajectory.times, (symbols == symbol).mean(axis=1), label=f'symbol {symbol}')
 check.set_xlabel('step')
 check.set_ylabel('frequency')
 check.set_title(f'Unbalanced blocks visited: {sum(unbalanced(ring) for ring in symbols)}')

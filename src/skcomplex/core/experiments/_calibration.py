@@ -81,11 +81,11 @@ class CalibrationExperiment(BaseExperiment):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.experiments import CalibrationExperiment
-        >>> from skcomplex.systems.biology.ecology import logistic_growth
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
         >>> times = np.arange(0, 21.0)
         >>> values = 100 / (1 + 9 * np.exp(-0.5 * times))
         >>> bounds = {'growth.r': (0.1, 2.0), 'growth.K': (50, 200)}
-        >>> calibration = CalibrationExperiment(logistic_growth, {'population.n': (times, values)}, bounds)
+        >>> calibration = CalibrationExperiment(LogisticGrowthSystem, {'population.n': (times, values)}, bounds)
         >>> estimates = calibration.prepare().run().estimates_
         >>> round(estimates['growth.r'], 2), round(estimates['growth.K'])
         (0.5, 100)

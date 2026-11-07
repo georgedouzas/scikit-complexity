@@ -77,6 +77,8 @@ class MetabolicNetworkElement(DeclaredElement):
         4.0
     """
 
+    law_classes = (LinearProgramLaw,)
+
     def __init__(
         self,
         label: str,

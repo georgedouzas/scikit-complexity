@@ -10,10 +10,9 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import HeunSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class IntermittentVariableElement(Element):
@@ -56,25 +55,14 @@ class IntermittentVariableElement(Element):
         self.D = D
 
 
-@register_system(
-    field='mathematics/stochastic_processes',
-    tags=('noise', 'sde', 'multiplicative noise', 'intermittency', 'bifurcation'),
-    references=('Bertin 2021', 'Platt, Spiegel, and Tresser 1993', 'Heagy, Platt, and Hammel 1994'),
-    defaults={'until': 500.0, 'dt': 0.1, 'solver': HeunSolver(dt=0.01)},
-)
-def on_off_intermittency(
-    n_realizations: int = 20,
-    *,
-    epsilon: float = 0.0,
-    D: float = 0.5,
-    x: float = 1.0,
-) -> System:
-    """Return stochastic on-off intermittency, `dx/dt = (epsilon + xi) x - x^3` with Stratonovich white noise `xi`.
+class OnOffIntermittencySystem(BaseSystem):
+    """Stochastic on-off intermittency, `dx/dt = (epsilon + xi) x - x^3` with Stratonovich white noise `xi`.
 
     The noise has the correlation `<xi(t) xi(t')> = 2 D delta(t - t')`. The variable `y = ln x` diffuses freely while
     `x` is small and is pushed back by `-exp(2 y)` once `x` grows, so near the bifurcation `epsilon = 0` the variable
-    rests close to 0 for long laminar phases, whose durations are distributed as `tau^(-3/2)`, between bursts where
-    `x` is of order 1. For `epsilon > 0` the power law is cut off beyond durations of order `D / epsilon^2`.
+    rests close to 0 for long laminar phases, whose durations are distributed as `tau^(-3/2)`, between bursts where `x`
+    is of order 1. For `epsilon > 0` the power law is cut off beyond durations of order `D / epsilon^2`. The system has
+    the values `variables.x`.
 
     Args:
         n_realizations:
@@ -89,27 +77,51 @@ def on_off_intermittency(
         x:
             The initial value of every realization.
 
-    Returns:
-        system:
-            The system, with the values `variables.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.stochastic_processes import on_off_intermittency
-        >>> on_off_intermittency(5).elements[0].size
+        >>> from skcomplex.systems.mathematics.stochastic_processes import OnOffIntermittencySystem
+        >>> OnOffIntermittencySystem(5).prepare().system_.elements[0].size
         5
     """
-    variables = GroupElement(
-        'variables',
-        element=IntermittentVariableElement,
-        size=n_realizations,
-        values={'x': x, 'epsilon': epsilon, 'D': D},
-    )
-    drift = RateInteraction(
-        'drift',
-        target='variables',
-        state='x',
-        rate=lambda s: s.target.epsilon * s.target.x - s.target.x**3,
-        noise=lambda s: sqrt(2 * s.target.D) * s.target.x,
-        convention='stratonovich',
-    )
-    return System(elements=[variables], interactions=[drift])
+
+    field = 'mathematics/stochastic_processes'
+    topics = ('noise', 'sde', 'multiplicative noise', 'intermittency', 'bifurcation')
+    references = ('Bertin 2021', 'Platt, Spiegel, and Tresser 1993', 'Heagy, Platt, and Hammel 1994')
+    until = 500.0
+    dt = 0.1
+    solver = HeunSolver(dt=0.01)
+
+    def __init__(
+        self,
+        n_realizations: int = 20,
+        *,
+        epsilon: float = 0.0,
+        D: float = 0.5,
+        x: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_realizations = n_realizations
+        self.epsilon = epsilon
+        self.D = D
+        self.x = x
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        variables = GroupElement(
+            'variables',
+            element=IntermittentVariableElement,
+            size=self.n_realizations,
+            values={'x': self.x, 'epsilon': self.epsilon, 'D': self.D},
+        )
+        drift = RateInteraction(
+            'drift',
+            target='variables',
+            state='x',
+            rate=lambda s: s.target.epsilon * s.target.x - s.target.x**3,
+            noise=lambda s: sqrt(2 * s.target.D) * s.target.x,
+            convention='stratonovich',
+        )
+        return System(self.label, elements=[variables], interactions=[drift])

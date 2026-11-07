@@ -16,16 +16,16 @@ from skcomplex.core.analysis import automaton
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import BoxNeighborhood
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import LinearRuleSpec
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.automata import LinearRingAutomatonSystem
 
 SYSTEM = 'linear_ring_automaton'
 
-system = create_system(SYSTEM, size=101, modulus=3)
+system = LinearRingAutomatonSystem(size=101, modulus=3)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer]).prepare().run(until=40)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Nonzero cells and invertibility
@@ -35,10 +35,10 @@ simulation = Simulation(system, observers=[observer]).prepare().run(until=40)
 # matrix of `a^-1 + a - 2`, whose rank over GF(3) decides whether a configuration can be recovered from its image, and
 # on the integers its Laurent polynomial is surjective, not being zero, but not invertible, not being a monomial.
 
-values = simulation.trajectory_.values('cells.value')
+values = trajectory.values('cells.value')
 steps = np.arange(values.shape[0])
 laplacian = System(
-    elements=system.elements,
+    elements=system.prepare().system_.elements,
     interactions=[
         LocalRuleInteraction(
             'laplacian',

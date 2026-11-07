@@ -14,9 +14,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.collective_behaviour import BoidsSystem
 
 SYSTEM = 'boids'
 
@@ -32,9 +32,13 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, n_boids=150, size=40.0, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=200)
+trajectory = simulate(
+    BoidsSystem(n_boids=150, size=40.0, random_state=0),
+    observers=[observer],
+    random_state=0,
+    until=200,
+)
 
 # %%
 # Polarization
@@ -44,13 +48,13 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 # in different directions, so it need not reach one.
 
 polarization = []
-for frame in range(len(simulation.trajectory_.times)):
-    boids = simulation.trajectory_.agents('flock', frame)
+for frame in range(len(trajectory.times)):
+    boids = trajectory.agents('flock', frame)
     headings = np.column_stack([boids.values['vx'], boids.values['vy']])
     headings /= np.linalg.norm(headings, axis=1, keepdims=True)
     polarization.append(np.linalg.norm(headings.mean(axis=0)))
 fig, ax = plt.subplots(figsize=(6, 4))
-ax.plot(simulation.trajectory_.times, polarization)
+ax.plot(trajectory.times, polarization)
 ax.set_ylim(0, 1)
 ax.set_xlabel('step')
 ax.set_ylabel('polarization')

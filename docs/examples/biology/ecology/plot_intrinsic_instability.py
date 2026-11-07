@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import IntrinsicInstabilitySystem
 
 SYSTEM = 'intrinsic_instability'
 
@@ -31,7 +31,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create_system(SYSTEM), dt=10, observers=[observer], random_state=0).prepare().run(2000)
+trajectory = simulate(IntrinsicInstabilitySystem(), observers=[observer], random_state=0)
 
 # %%
 # Leaving the fixed point along its unstable direction
@@ -41,7 +41,6 @@ simulation = Simulation(create_system(SYSTEM), dt=10, observers=[observer], rand
 # slope `log(1 + beta)` on a log scale, and the trajectory in the `xy`-plane should leave the axis `y = 0` and turn
 # towards `x = 0`, as in Jensen's Figure 13.2.
 
-trajectory = simulation.trajectory_
 times, x, y = np.asarray(trajectory.times), trajectory.values('populations.x'), trajectory.values('populations.y')
 seeded = int(np.argmax(y > 0))
 growth = y[seeded] * (1 + 0.01) ** (times[seeded:] - times[seeded])

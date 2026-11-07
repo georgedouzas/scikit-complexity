@@ -12,7 +12,7 @@ from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.system import System
 from skcomplex.core.errors import EnumerationLimitError
 from skcomplex.systems.biology.common.metabolism import load_network
-from skcomplex.systems.biology.systems_biology import elementary_flux_modes
+from skcomplex.systems.biology.systems_biology import ElementaryFluxModesSystem
 
 
 def _analysed(system):
@@ -27,7 +27,7 @@ def _column(analysis, name):
 
 def test_modes_have_one_yield_and_decompose_the_optimum():
     """Test the 2 modes of yield 1/12, and that the optimum of growth 50 is their non-negative combination."""
-    analysis = _analysed(elementary_flux_modes())
+    analysis = _analysed(ElementaryFluxModesSystem().prepare().system_)
     assert analysis.modes.shape[0] == 2
     assert set(_column(analysis, 'vbio')) == {Fraction(1, 12)}
     assert set(_column(analysis, 'v6') / _column(analysis, 'vbio')) == {Fraction(20)}
@@ -46,7 +46,7 @@ def test_modes_have_one_yield_and_decompose_the_optimum():
 
 def test_knock_out_leaves_the_second_route():
     """Test that with `v1` closed one mode remains, through `v2` and `v3`, with the same yield."""
-    analysis = _analysed(elementary_flux_modes(knockouts=('v1',)))
+    analysis = _analysed(ElementaryFluxModesSystem(knockouts=('v1',)).prepare().system_)
     assert analysis.modes.shape[0] == 1
     assert _column(analysis, 'v2')[0] == Fraction(1)
     assert _column(analysis, 'v3')[0] == Fraction(1)

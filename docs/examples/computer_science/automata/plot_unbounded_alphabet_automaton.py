@@ -19,9 +19,9 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.special import comb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.automata import UnboundedAlphabetAutomatonSystem
 
 SYSTEM = 'unbounded_alphabet_automaton'
 
@@ -36,8 +36,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer]).prepare().run(until=50)
-values = simulation.trajectory_.lattice('cells.value')
+trajectory = simulate(UnboundedAlphabetAutomatonSystem(), observers=[observer])
+values = trajectory.lattice('cells.value')
 logarithm = np.where(values > 0, np.log10(np.maximum(values, 1)) + 1, 0)
 start, steps_run = values.shape[1] // 2, values.shape[0] - 1
 triangle = np.zeros((steps_run + 1, 2 * (steps_run + 1)))

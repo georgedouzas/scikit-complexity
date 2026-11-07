@@ -13,17 +13,15 @@ term, and 30 fractions of 2 Gy at `alpha / beta = 10` give the biologically effe
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import Experiment, GridDesign
-from skcomplex.systems import create_system
-from skcomplex.systems.biology.oncology import lq_cell_survival
+from skcomplex.systems.biology.oncology import LQCellSurvivalSystem
 
 SYSTEM = 'lq_cell_survival'
 
-system = create_system(SYSTEM, dose=60.0, fractions=30.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer]).prepare().run(until=1.0)
+trajectory = simulate(LQCellSurvivalSystem(dose=60.0, fractions=30.0), observers=[observer], until=1.0)
 
 # %%
 # Survival against the dose
@@ -35,7 +33,7 @@ simulation = Simulation(system, observers=[observer]).prepare().run(until=1.0)
 def survival(fractions: float) -> tuple[np.ndarray, np.ndarray]:
     """Return the doses and the surviving fractions of a number of fractions."""
     bounds = {'dose': np.linspace(0.0, 20.0, 21).tolist(), 'fractions': [fractions]}
-    experiment = Experiment(lq_cell_survival, GridDesign(), bounds, until=1.0, outputs=['cells.survival'])
+    experiment = Experiment(LQCellSurvivalSystem, GridDesign(), bounds, until=1.0, outputs=['cells.survival'])
     result = experiment.prepare().run().result_
     return result.column('dose'), result.series('cells.survival')[:, 0]
 

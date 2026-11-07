@@ -18,11 +18,10 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import both, clip, convolve, displacement, where
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import AnyArray, Array
-from ..._catalog import register_system
 
 
 class LeniaSiteElement(Element):
@@ -105,6 +104,8 @@ class LeniaUpdateInteraction(Interaction):
         >>> LeniaUpdateInteraction('update', target='world').T
         10.0
     """
+
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
@@ -208,57 +209,20 @@ def _mass(values: AnyArray) -> float:
     return float(np.sum(np.asarray(values, dtype=float)))
 
 
-def _initial_values(shape: tuple[int, ...], channels: int, initial: npt.ArrayLike | None) -> AnyArray:
-    """Return the initial values of every channel, one array of the shape per channel."""
-    if initial is None:
-        if len(shape) != MIN_AXES or min(shape) < ORBIUM.shape[0]:
-            error_msg = f'Orbium needs a two-dimensional world of at least {ORBIUM.shape[0]} sites a side.'
-            raise ParameterError(error_msg)
-        values = np.zeros(shape)
-        top, left = (shape[0] - ORBIUM.shape[0]) // 2, (shape[1] - ORBIUM.shape[1]) // 2
-        values[top : top + ORBIUM.shape[0], left : left + ORBIUM.shape[1]] = ORBIUM
-    else:
-        values = np.asarray(initial, dtype=float)
-    if values.shape == shape:
-        return np.broadcast_to(values, (channels, *shape)).copy()
-    if values.shape != (channels, *shape):
-        error_msg = f'The initial values have the shape {values.shape}, but the world has {channels} of {shape}.'
-        raise ParameterError(error_msg)
-    return values
-
-
-@register_system(
-    field='computer_science/automata',
-    tags=('lattice', 'continuous automaton', 'convolution', 'soliton', 'artificial life', 'field'),
-    references=('Chan 2019', 'Chan 2020'),
-    defaults={'until': 200, 'dt': 1},
-    observables=lambda system: [
-        ObservableSpec(f'mass_{channel}', group='world', variable=channel, reduce=_mass) for channel in CHANNELS
-    ],
-)
-def lenia(
-    shape: Sequence[int] = (64, 64),
-    *,
-    initial: npt.ArrayLike | None = None,
-    R: float = 13.0,
-    T: float = 10.0,
-    mu: float = 0.15,
-    sigma: float = 0.015,
-    beta: Sequence[float] = (1.0,),
-    channels: int = 1,
-    kernels: Sequence[Kernel] | None = None,
-) -> System:
-    """Return Lenia, a continuous automaton whose ring-kernel convolutions grow gliding, lifelike solitons.
+class LeniaSystem(BaseSystem):
+    """Lenia, a continuous automaton whose ring-kernel convolutions grow gliding, lifelike solitons.
 
     The world is a torus of sites with values in `[0, 1]`, and one step of `1 / T` adds the growth map of the
-    convolution of the world with a ring kernel and clips the result, `A <- [A + G(K * A) / T]` in `[0, 1]`, with
-    `G(u) = 2 exp(-(u - mu)^2 / (2 sigma^2)) - 1` and the kernel of radius `R`, whose concentric rings peak at `beta`.
-    The expanded universe of Chan (2020) has several channels and several kernels
-    `(source, destination, r, h, beta, mu, sigma)`, each of radius `r R` with its own growth map, which reads its
-    source channel and grows its destination with the weight `h` over the sum of the weights into that destination,
-    `A_j <- [A_j + sum_k (h_k / h_j) G_k(K_k * A_i) / T]`, on worlds of three or more dimensions. By default the world
-    holds Orbium unicaudatus, which glides across the torus at a steady speed while its mass stays near 71. Every
-    step of the system is one update, so a unit of Lenia's time takes `T` steps.
+    convolution of the world with a ring kernel and clips the result, `A <- [A + G(K * A) / T]` in `[0, 1]`, with `G(u)
+    = 2 exp(-(u - mu)^2 / (2 sigma^2)) - 1` and the kernel of radius `R`, whose concentric rings peak at `beta`. The
+    expanded universe of Chan (2020) has several channels and several kernels `(source, destination, r, h, beta, mu,
+    sigma)`, each of radius `r R` with its own growth map, which reads its source channel and grows its destination with
+    the weight `h` over the sum of the weights into that destination, `A_j <- [A_j + sum_k (h_k / h_j) G_k(K_k * A_i) /
+    T]`, on worlds of three or more dimensions. By default the world holds Orbium unicaudatus, which glides across the
+    torus at a steady speed while its mass stays near 71. Every step of the system is one update, so a unit of Lenia's
+    time takes `T` steps. The system has the values `world.A`, `world.B`, and `world.C` of the three channels of the
+    sites, the last two at 0 for a world of one channel. Its standard observables `mass_A`, `mass_B`, and `mass_C` are
+    the totals of the values of every channel.
 
     Args:
         shape:
@@ -290,11 +254,8 @@ def lenia(
             The kernels `(source, destination, r, h, beta, mu, sigma)` of the expanded universe, with the channels as
             indices, or `None` for the single kernel of `mu`, `sigma`, and `beta` on the first channel.
 
-    Returns:
-        system:
-            The system, with the values `world.A`, `world.B`, and `world.C` of the three channels of the sites, the
-            last two at 0 for a world of one channel. Its standard observables `mass_A`, `mass_B`, and `mass_C` are the
-            totals of the values of every channel.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ParameterError:
@@ -302,39 +263,99 @@ def lenia(
             initial values do not have the shape, or a kernel names a channel the world does not have.
 
     Examples:
-        >>> from skcomplex.systems.computer_science.automata import lenia
-        >>> lenia().elements[0].values['A'].shape
+        >>> from skcomplex.systems.computer_science.automata import LeniaSystem
+        >>> LeniaSystem().prepare().system_.elements[0].values['A'].shape
         (64, 64)
     """
-    shape = tuple(shape)
-    if len(shape) < MIN_AXES or not 1 <= channels <= len(CHANNELS):
-        error_msg = f'Lenia needs two or more axes and one to three channels, but got {shape!r} and {channels!r}.'
-        raise ParameterError(error_msg)
-    values = _initial_values(shape, channels, initial)
-    rings = ((0, 0, 1.0, 1.0, tuple(beta), mu, sigma),) if kernels is None else tuple(kernels)
-    if any(not 0 <= index < channels for kernel in rings for index in kernel[:2]):
-        error_msg = f'Every kernel needs a source and a destination among the {channels} channels.'
-        raise ParameterError(error_msg)
-    world = FieldElement(
-        'world',
-        element=LeniaSiteElement,
-        space=LatticeSpace(shape),
-        values={CHANNELS[index]: values[index] for index in range(channels)},
+
+    field = 'computer_science/automata'
+    topics = ('lattice', 'continuous automaton', 'convolution', 'soliton', 'artificial life', 'field')
+    references = ('Chan 2019', 'Chan 2020')
+    until = 200
+    dt = 1
+    observables = tuple(
+        ObservableSpec(f'mass_{channel}', group='world', variable=channel, reduce=_mass) for channel in CHANNELS
     )
-    updates = [
-        LeniaUpdateInteraction(
-            f'update_{CHANNELS[index]}',
-            target='world',
-            channel=CHANNELS[index],
-            kernels=[
-                (CHANNELS[source], radius * R, weight, tuple(peaks), centre, width)
-                for source, destination, radius, weight, peaks, centre, width in rings
-                if destination == index
-            ],
-            T=T,
-            n_dim=len(shape),
+
+    def __init__(
+        self,
+        shape: Sequence[int] = (64, 64),
+        *,
+        initial: npt.ArrayLike | None = None,
+        R: float = 13.0,
+        T: float = 10.0,
+        mu: float = 0.15,
+        sigma: float = 0.015,
+        beta: Sequence[float] = (1.0,),
+        channels: int = 1,
+        kernels: Sequence[Kernel] | None = None,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.initial = initial
+        self.R = R
+        self.T = T
+        self.mu = mu
+        self.sigma = sigma
+        self.beta = beta
+        self.channels = channels
+        self.kernels = kernels
+
+    @staticmethod
+    def _initial_values(shape: tuple[int, ...], channels: int, initial: npt.ArrayLike | None) -> AnyArray:
+        """Return the initial values of every channel, one array of the shape per channel."""
+        if initial is None:
+            if len(shape) != MIN_AXES or min(shape) < ORBIUM.shape[0]:
+                error_msg = f'Orbium needs a two-dimensional world of at least {ORBIUM.shape[0]} sites a side.'
+                raise ParameterError(error_msg)
+            values = np.zeros(shape)
+            top, left = (shape[0] - ORBIUM.shape[0]) // 2, (shape[1] - ORBIUM.shape[1]) // 2
+            values[top : top + ORBIUM.shape[0], left : left + ORBIUM.shape[1]] = ORBIUM
+        else:
+            values = np.asarray(initial, dtype=float)
+        if values.shape == shape:
+            return np.broadcast_to(values, (channels, *shape)).copy()
+        if values.shape != (channels, *shape):
+            error_msg = f'The initial values have the shape {values.shape}, but the world has {channels} of {shape}.'
+            raise ParameterError(error_msg)
+        return values
+
+    def _build_system(self) -> System:
+        """Return Lenia, a continuous automaton whose ring-kernel convolutions grow gliding, lifelike solitons."""
+        shape = tuple(self.shape)
+        if len(shape) < MIN_AXES or not 1 <= self.channels <= len(CHANNELS):
+            error_msg = (
+                f'Lenia needs two or more axes and one to three channels, but got {shape!r} and {self.channels!r}.'
+            )
+            raise ParameterError(error_msg)
+        values = self._initial_values(shape, self.channels, self.initial)
+        rings = (
+            ((0, 0, 1.0, 1.0, tuple(self.beta), self.mu, self.sigma),) if self.kernels is None else tuple(self.kernels)
         )
-        for index in range(channels)
-        if any(kernel[1] == index for kernel in rings)
-    ]
-    return System(elements=[world], interactions=updates, time=DiscreteTime())
+        if any(not 0 <= index < self.channels for kernel in rings for index in kernel[:2]):
+            error_msg = f'Every kernel needs a source and a destination among the {self.channels} channels.'
+            raise ParameterError(error_msg)
+        world = FieldElement(
+            'world',
+            element=LeniaSiteElement,
+            space=LatticeSpace(shape),
+            values={CHANNELS[index]: values[index] for index in range(self.channels)},
+        )
+        updates = [
+            LeniaUpdateInteraction(
+                f'update_{CHANNELS[index]}',
+                target='world',
+                channel=CHANNELS[index],
+                kernels=[
+                    (CHANNELS[source], radius * self.R, weight, tuple(peaks), centre, width)
+                    for source, destination, radius, weight, peaks, centre, width in rings
+                    if destination == index
+                ],
+                T=self.T,
+                n_dim=len(shape),
+            )
+            for index in range(self.channels)
+            if any(kernel[1] == index for kernel in rings)
+        ]
+        return System(self.label, elements=[world], interactions=updates, time=DiscreteTime())

@@ -6,22 +6,21 @@ growth rate to exceed the death rate.
 """
 
 # %%
-# The system is created by name from the catalog: algae start at their minimum quota, where they cannot grow, in a
-# medium whose uptake fills the quota to twice the minimum, with a death rate of 0.45 a day. The observer saves every
-# frame with the default blueprint, whose primary view is the time series of the quota and the biomass.
+# The system is built from its class: algae start at their minimum quota, where they cannot grow, in a medium whose
+# uptake fills the quota to twice the minimum, with a death rate of 0.45 a day. The observer saves every frame with
+# the default blueprint, whose primary view is the time series of the quota and the biomass.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import DroopCellQuotaSystem
 
 SYSTEM = 'droop_cell_quota'
 
-system = create_system(SYSTEM, Q=1.0, d=0.45)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=20)
+trajectory = simulate(DroopCellQuotaSystem(Q=1.0, d=0.45), observers=[observer])
 
 # %%
 # Quota equilibrium
@@ -29,7 +28,6 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 # The quota settles at `Q* = q + v / r_inf = 2`, where the uptake `v = vmax R / (g + R) = 1` balances the dilution by
 # growth. The biomass then grows exponentially at `r_inf (1 - q / Q*) - d = 0.05` a day.
 
-trajectory = simulation.trajectory_
 times = trajectory.times
 fig, (quota, biomass) = plt.subplots(1, 2, figsize=(10, 4))
 quota.plot(times, trajectory.values('algae.Q'), label='simulated')

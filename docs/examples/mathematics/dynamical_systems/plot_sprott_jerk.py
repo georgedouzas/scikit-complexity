@@ -18,9 +18,9 @@ import rerun.blueprint as rrb
 from scipy.signal import find_peaks
 
 from skcomplex.core.analysis import lyapunov
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.dynamical_systems import SprottJerkSystem
 
 SYSTEM = 'sprott_jerk'
 
@@ -39,8 +39,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=12)
-simulation = Simulation(create_system(SYSTEM), dt=0.1, observers=[observer]).prepare().run(until=300)
-trajectory = simulation.trajectory_
+trajectory = simulate(SprottJerkSystem(), until=300, observers=[observer])
 points = np.column_stack([trajectory.values(name) for name in ('jerk.x', 'jerk.x_d1', 'jerk.x_d2')])[200:]
 observer.recording_.log('attractor', rr.LineStrips3D([points], radii=0.01, colors=[255, 170, 40]), static=True)
 observer.recording_.flush()
@@ -51,10 +50,10 @@ observer.recording_.flush()
 # Successive maxima of `x` should lie close to a single curve, the trace of the fold of the band. The largest Lyapunov
 # exponent should be positive, near the 0.036 that Sprott reports, and the exponents should sum to the divergence `-A`.
 
-x = Simulation(create_system(SYSTEM), dt=0.05).prepare().run(until=3000).trajectory_.values('jerk.x')[2000:]
+x = simulate(SprottJerkSystem(), until=3000, dt=0.05).values('jerk.x')[2000:]
 maxima = x[find_peaks(x)[0]]
 # The symbolic Jacobian of `|x|` divides by `|x|`, so the tangent dynamics start off `x = 0` (see fix-core-defects).
-exponents = lyapunov(create_system(SYSTEM, x=0.1), until=3000).exponents
+exponents = lyapunov(SprottJerkSystem(x=0.1), until=3000).exponents
 fig, ax = plt.subplots(figsize=(5.5, 5))
 ax.plot(maxima[:-1], maxima[1:], '.', markersize=4)
 ax.set_xlabel('maximum $x_n$')

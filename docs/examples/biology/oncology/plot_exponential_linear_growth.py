@@ -6,22 +6,20 @@ of 67.8 mm³ a day, near day 15.
 """
 
 # %%
-# The system is created by name from the catalog and run for 40 days from 2 mm³ with the breast cancer fit of
-# Padmanabhan et al. The observer saves every frame with the default blueprint, whose primary view is the time series
-# of the volume.
+# The system is built from its class and run for 40 days from 2 mm³ with the breast cancer fit of Padmanabhan et al.
+# The observer saves every frame with the default blueprint, whose primary view is the time series of the volume.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import ExponentialLinearGrowthSystem
 
 SYSTEM = 'exponential_linear_growth'
 
-system = create_system(SYSTEM, n=2.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(until=40)
+trajectory = simulate(ExponentialLinearGrowthSystem(n=2.0), observers=[observer])
 
 # %%
 # Growth rate
@@ -29,7 +27,7 @@ simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(unti
 # The growth rate `dn/dt` should rise in proportion to the volume, as `r0 n`, until it reaches `r` at
 # `tau = log(r / (r0 n0)) / r0`, and stay constant after.
 
-times, volume = simulation.trajectory_.times, simulation.trajectory_.values('tumour.n')
+times, volume = trajectory.times, trajectory.values('tumour.n')
 r0, r = 0.31, 67.8
 tau = np.log(r / (r0 * 2.0)) / r0
 fig, (curve, rate) = plt.subplots(1, 2, figsize=(10, 4))

@@ -16,9 +16,9 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import scaling
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.dynamical_systems import HenonMapSystem
 
 SYSTEM = 'henon_map'
 
@@ -41,8 +41,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=12)
-simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer]).prepare().run(until=3000)
-points = np.column_stack([simulation.trajectory_.values('map.x'), -simulation.trajectory_.values('map.y')])[10:]
+trajectory = simulate(HenonMapSystem(), until=3000, observers=[observer])
+points = np.column_stack([trajectory.values('map.x'), -trajectory.values('map.y')])[10:]
 observer.recording_.log('attractor', rr.Points2D(100 * points, radii=0.5, colors=[90, 170, 255]), static=True)
 observer.recording_.flush()
 
@@ -53,8 +53,8 @@ observer.recording_.flush()
 # whole picture. The correlation sum of the orbit should grow as a power of the radius with the correlation dimension
 # close to the 1.21 that Grassberger and Procaccia measured.
 
-orbit = np.column_stack([simulation.trajectory_.values('map.x'), simulation.trajectory_.values('map.y')])[10:]
-long_orbit = Simulation(create_system(SYSTEM), dt=1).prepare().run(until=100_000).trajectory_
+orbit = np.column_stack([trajectory.values('map.x'), trajectory.values('map.y')])[10:]
+long_orbit = simulate(HenonMapSystem(), until=100_000)
 long_orbit = np.column_stack([long_orbit.values('map.x'), long_orbit.values('map.y')])[10:]
 dimension = scaling(long_orbit[:20000], kind='correlation-dimension').exponent
 fig, (whole, zoom) = plt.subplots(1, 2, figsize=(10, 4))

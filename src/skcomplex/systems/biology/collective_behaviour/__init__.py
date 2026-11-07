@@ -1,9 +1,19 @@
 """Collective behaviour: animals and people that coordinate through signals, trails, and contact."""
 
-from ._colony_optimization import ColonySearchInteraction, TrailSegmentElement, ant_colony_optimization
-from ._decisions import AlarmInteraction, BranchElement, RatsElement, TrailChoiceInteraction, binary_ant_decision, rats
+from ._colony_optimization import AntColonyOptimizationSystem, ColonySearchInteraction, TrailSegmentElement
+from ._decisions import (
+    AlarmInteraction,
+    BinaryAntDecisionSystem,
+    BranchElement,
+    RatsElement,
+    RatsSystem,
+    TrailChoiceInteraction,
+)
 from ._flocks import (
+    BirdSwarmSystem,
     BoidElement,
+    Boids3dSystem,
+    BoidsSystem,
     FlightInteraction,
     FlockingInteraction,
     HeadingInteraction,
@@ -11,21 +21,25 @@ from ._flocks import (
     SelfPropulsionInteraction,
     SpatialBoidElement,
     SpatialFlightInteraction,
-    bird_swarm,
-    boids,
-    boids_3d,
 )
-from ._foraging import AntElement, PheromoneElement, pheromone_foraging
-from ._herding import HerdedSheepElement, ShepherdElement, ShepherdingInteraction, shepherding
-from ._leadership import SchoolingInteraction, ShoalMemberElement, SwimmingInteraction, couzin_leadership
-from ._trails import GroundElement, WalkerElement, active_walkers
+from ._foraging import AntElement, PheromoneElement, PheromoneForagingSystem
+from ._herding import HerdedSheepElement, ShepherdElement, ShepherdingInteraction, ShepherdingSystem
+from ._leadership import CouzinLeadershipSystem, SchoolingInteraction, ShoalMemberElement, SwimmingInteraction
+from ._trails import ActiveWalkersSystem, GroundElement, WalkerElement
 
 __all__: list[str] = [
+    'ActiveWalkersSystem',
     'AlarmInteraction',
+    'AntColonyOptimizationSystem',
     'AntElement',
+    'BinaryAntDecisionSystem',
+    'BirdSwarmSystem',
     'BoidElement',
+    'Boids3dSystem',
+    'BoidsSystem',
     'BranchElement',
     'ColonySearchInteraction',
+    'CouzinLeadershipSystem',
     'FlightInteraction',
     'FlockingInteraction',
     'GroundElement',
@@ -33,11 +47,14 @@ __all__: list[str] = [
     'HerdedSheepElement',
     'MorsePotentialInteraction',
     'PheromoneElement',
+    'PheromoneForagingSystem',
     'RatsElement',
+    'RatsSystem',
     'SchoolingInteraction',
     'SelfPropulsionInteraction',
     'ShepherdElement',
     'ShepherdingInteraction',
+    'ShepherdingSystem',
     'ShoalMemberElement',
     'SpatialBoidElement',
     'SpatialFlightInteraction',
@@ -45,14 +62,4 @@ __all__: list[str] = [
     'TrailChoiceInteraction',
     'TrailSegmentElement',
     'WalkerElement',
-    'active_walkers',
-    'ant_colony_optimization',
-    'binary_ant_decision',
-    'bird_swarm',
-    'boids',
-    'boids_3d',
-    'couzin_leadership',
-    'pheromone_foraging',
-    'rats',
-    'shepherding',
 ]

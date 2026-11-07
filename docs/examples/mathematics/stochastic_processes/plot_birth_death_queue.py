@@ -6,7 +6,7 @@ departure, and spend about half of the time empty and rarely grow beyond a few c
 """
 
 # %%
-# The system is created by name from the catalog with three queues of arrival rate 0.5 and service rate 1, so of load
+# The system is built from its class with three queues of arrival rate 0.5 and service rate 1, so of load
 # `rho = 0.5`, and simulated for 60 time units with the Gillespie algorithm. The observer saves every frame with the
 # default blueprint, whose primary view holds the three queue lengths.
 
@@ -14,15 +14,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.stochastic_processes import BirthDeathQueueSystem
 
 SYSTEM = 'birth_death_queue'
 
-system = create_system(SYSTEM, n_queues=3, arrival_rate=0.5, service_rate=1.0)
+system = BirthDeathQueueSystem(n_queues=3, arrival_rate=0.5, service_rate=1.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.2, observers=[observer], random_state=0).prepare().run(until=59.8)
+trajectory = simulate(system, until=59.8, dt=0.2, observers=[observer], random_state=0)
 
 # %%
 # Stationary distribution
@@ -36,13 +36,14 @@ simulation = Simulation(system, dt=0.2, observers=[observer], random_state=0).pr
 loads = np.array([0.2, 0.4, 0.5, 0.6, 0.8])
 occupations, means = {}, []
 for rho in loads:
-    run = Simulation(
-        create_system(SYSTEM, n_queues=200, arrival_rate=rho),
+    run = simulate(
+        BirthDeathQueueSystem(n_queues=200, arrival_rate=rho),
+        until=2000,
         dt=0.5,
         random_state=1,
         backend=NumbaBackend(),
-    ).prepare()
-    lengths = run.run(until=2000).trajectory_.values('queues.n')[200:]
+    )
+    lengths = run.values('queues.n')[200:]
     counts = np.bincount(lengths.astype(int).ravel(), minlength=12)[:12]
     occupations[rho] = np.where(counts >= 100, counts / lengths.size, np.nan)
     means.append(lengths.mean())

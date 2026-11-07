@@ -11,7 +11,7 @@ from skcomplex.core.components.system import System
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.experiments import Experiment, MorrisDesign, OneAtATimeDesign, SaltelliDesign, sensitivity
 from skcomplex.core.specs import ObservableSpec, ParameterSpec, VisualSpec
-from skcomplex.systems.biology.ecology import logistic_growth
+from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 
 
 class PointElement(Element):
@@ -62,7 +62,7 @@ def test_sobol_indices_of_ishigami():
 def test_morris_and_one_at_a_time_rank_parameters(design, method):
     """Test that Morris screening and one-at-a-time effects rank the carrying capacity first for the final size."""
     bounds = {'growth.r': (0.5, 1.0), 'growth.K': (50.0, 150.0)}
-    experiment = Experiment(logistic_growth, design, bounds, until=20, outputs=['population.n'], random_state=0)
+    experiment = Experiment(LogisticGrowthSystem, design, bounds, until=20, outputs=['population.n'], random_state=0)
     result = experiment.prepare().run().result_
     analysis = sensitivity(result, method=method, output='population.n', random_state=0)
     assert analysis.ranking[0] == 'growth.K'

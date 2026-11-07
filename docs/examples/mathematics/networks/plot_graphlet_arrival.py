@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.networks import GraphletArrivalSystem
 
 SYSTEM = 'graphlet_arrival'
 
@@ -36,7 +36,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = Simulation(create_system(SYSTEM), dt=2.0, observers=[observer], random_state=0).prepare().run(until=300)
+trajectory = simulate(GraphletArrivalSystem(), dt=2.0, observers=[observer], random_state=0)
 
 # %%
 # Shares of small degrees
@@ -47,8 +47,7 @@ simulation = Simulation(create_system(SYSTEM), dt=2.0, observers=[observer], ran
 alphas = np.linspace(0.0, 1.0, 11)
 ones, twos = [], []
 for alpha in alphas:
-    run = Simulation(create_system(SYSTEM, n_nodes=2002, alpha=alpha), dt=1000.0, random_state=0).prepare()
-    snapshot = run.run(until=1000).trajectory_.network(-1)
+    snapshot = simulate(GraphletArrivalSystem(n_nodes=2002, alpha=alpha), until=1000, random_state=0).network(-1)
     degrees = np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))
     ones.append(np.mean(degrees == 1))
     twos.append(np.mean(degrees == 2))

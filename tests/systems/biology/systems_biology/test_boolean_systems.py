@@ -3,13 +3,13 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.systems_biology import (
-    boolean_repressilator,
-    mammalian_cell_cycle,
-    noisy_boolean_network,
-    three_gene_boolean_network,
+    BooleanRepressilatorSystem,
+    MammalianCellCycleSystem,
+    NoisyBooleanNetworkSystem,
+    ThreeGeneBooleanNetworkSystem,
 )
 
 from ..conftest import _run_with_solver
@@ -43,27 +43,27 @@ def test_three_gene_boolean_network_matches_the_transition_table():
     }
     for state, successor in successors.items():
         trajectory = _run_with_solver(
-            three_gene_boolean_network(tuple(int(bit) for bit in state)),
+            ThreeGeneBooleanNetworkSystem(tuple(int(bit) for bit in state)),
             until=1,
             dt=1,
         )
         assert _states(trajectory, ('g1', 'g2', 'g3')) == [state, successor]
-    trajectory = _run_with_solver(three_gene_boolean_network((1, 0, 0)), until=10, dt=1)
+    trajectory = _run_with_solver(ThreeGeneBooleanNetworkSystem((1, 0, 0)), until=10, dt=1)
     assert _period(_states(trajectory, ('g1', 'g2', 'g3'))) == 3
 
 
 def test_mammalian_cell_cycle_rests_or_cycles_with_the_growth_signal():
     """Test that the quiescent state is fixed without CycD and that CycD drives a cycle of period 7."""
-    quiescent = _run_with_solver(mammalian_cell_cycle(('Rb', 'p27', 'Cdh1')), until=5, dt=1)
+    quiescent = _run_with_solver(MammalianCellCycleSystem(('Rb', 'p27', 'Cdh1')), until=5, dt=1)
     assert set(_states(quiescent, CELL_CYCLE)) == {'0100010100'}
-    cycling = _run_with_solver(mammalian_cell_cycle(), until=30, dt=1)
+    cycling = _run_with_solver(MammalianCellCycleSystem(), until=30, dt=1)
     assert _period(_states(cycling, CELL_CYCLE)) == 7
     assert cycling.values('CycB.x')[10:].max() == 1
 
 
 def test_mammalian_cell_cycle_knockout_stays_off():
     """Test that a knocked-out cyclin stays off and that the cycle stops without CycE and CycA."""
-    trajectory = _run_with_solver(mammalian_cell_cycle(knockouts=('CycE', 'CycA')), until=30, dt=1)
+    trajectory = _run_with_solver(MammalianCellCycleSystem(knockouts=('CycE', 'CycA')), until=30, dt=1)
     assert trajectory.values('CycA.x').max() == 0
     assert _period(_states(trajectory, CELL_CYCLE)) == 1
 
@@ -71,14 +71,14 @@ def test_mammalian_cell_cycle_knockout_stays_off():
 @pytest.mark.parametrize('delay', [0, 1, 2])
 def test_boolean_repressilator_oscillates_with_delay(delay):
     """Test that the repressilator, with its relays, oscillates with period `6 (delay + 1)`."""
-    system = boolean_repressilator((1, 0, 0), delay=delay)
+    system = BooleanRepressilatorSystem((1, 0, 0), delay=delay).prepare().system_
     trajectory = _run_with_solver(system, until=60, dt=1)
     assert _period(_states(trajectory, [node.label for node in system.elements])) == 6 * (delay + 1)
 
 
 def _order(eta: float) -> float:
     """Return the time average of the absolute mean state over the last half of a run."""
-    trajectory = Simulation(noisy_boolean_network(eta=eta), random_state=0).prepare().run(until=200).trajectory_
+    trajectory = simulate(NoisyBooleanNetworkSystem(eta=eta), random_state=0, until=200)
     return float(np.abs(trajectory.values('nodes.sigma').mean(axis=1)[100:]).mean())
 
 
@@ -92,4 +92,4 @@ def test_order_vanishes_above_the_mean_field_critical_noise():
 def test_even_number_of_inputs_raises():
     """Test that an even number of inputs, which leaves ties, raises an error."""
     with pytest.raises(ValidationError):
-        noisy_boolean_network(k=2)
+        NoisyBooleanNetworkSystem(k=2).prepare()

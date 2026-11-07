@@ -6,24 +6,23 @@ live cells grow only to about `3 10^4` in two months, against about `10^11` with
 """
 
 # %%
-# The system is created by name from the catalog with its default schedule, a one-day infusion of 5 mg/kg/day every
-# week, from the book's initial state of a sparse tumour of radius 13 mm without vessels. The system is stiff, so it
-# runs with LSODA. The observer saves every frame with the default blueprint, whose primary view is the time series of
-# the radius, the cells, the vascular volumes, and the inhibitor.
+# The system is built from its class with its default schedule, a one-day infusion of 5 mg/kg/day every week, from the
+# book's initial state of a sparse tumour of radius 13 mm without vessels. The system is stiff, so it runs with LSODA.
+# The observer saves every frame with the default blueprint, whose primary view is the time series of the radius, the
+# cells, the vascular volumes, and the inhibitor.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import VascularCorePeripherySystem
 
 SYSTEM = 'vascular_core_periphery'
 
 solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-8)
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer]).prepare().run(until=60)
+trajectory = simulate(VascularCorePeripherySystem(), dt=0.5, solver=solver, observers=[observer])
 
 # %%
 # Treated and untreated tumours
@@ -32,8 +31,8 @@ simulation = Simulation(system, dt=0.5, solver=solver, observers=[observer]).pre
 # magnitude, and the radius should expand once the periphery is dense. Under the inhibitor the vessels and the live
 # cells should stay orders of magnitude lower and the radius close to its initial 13 mm.
 
-treated = simulation.trajectory_
-untreated = Simulation(create_system(SYSTEM, dose=0.0), dt=0.5, solver=solver).prepare().run(until=60).trajectory_
+treated = trajectory
+untreated = simulate(VascularCorePeripherySystem(dose=0.0), dt=0.5, solver=solver)
 fig, (cells, vessels) = plt.subplots(1, 2, figsize=(10, 4))
 for trajectory, name in ((untreated, 'untreated'), (treated, 'treated')):
     cells.semilogy(

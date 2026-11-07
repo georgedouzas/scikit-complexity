@@ -16,9 +16,9 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import lyapunov
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.dynamical_systems import LoziMapSystem
 
 SYSTEM = 'lozi_map'
 
@@ -41,8 +41,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=12)
-simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer]).prepare().run(until=3000)
-points = np.column_stack([simulation.trajectory_.values('map.x'), -simulation.trajectory_.values('map.y')])[10:]
+trajectory = simulate(LoziMapSystem(), until=3000, observers=[observer])
+points = np.column_stack([trajectory.values('map.x'), -trajectory.values('map.y')])[10:]
 observer.recording_.log('attractor', rr.Points2D(100 * points, radii=0.5, colors=[90, 170, 255]), static=True)
 observer.recording_.flush()
 
@@ -54,7 +54,7 @@ observer.recording_.flush()
 
 slopes = np.linspace(1.2, 1.8, 13)
 spectra = np.array(
-    [lyapunov(simulation.system, until=5000, parameters={'map.a': a}).exponents for a in slopes],
+    [lyapunov(LoziMapSystem(), until=5000, parameters={'map.a': a}).exponents for a in slopes],
 )
 fig, (attractor, exponent_axes) = plt.subplots(1, 2, figsize=(10, 4))
 attractor.plot(points[:, 0], -points[:, 1], ',', color='C0')

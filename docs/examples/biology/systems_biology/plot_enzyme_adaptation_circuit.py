@@ -6,22 +6,20 @@ the output, then return to the output they had before, perfect adaptation as in 
 """
 
 # %%
-# The system is created by name from the catalog with the adapting loop and a step of the input from 0.5 to 0.6 at
-# time 300. The observer saves every frame with the default blueprint, whose primary view is the time series of the
-# three enzymes.
+# The system is built from its class with the adapting loop and a step of the input from 0.5 to 0.6 at time 300. The
+# observer saves every frame with the default blueprint, whose primary view is the time series of the three enzymes.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.systems_biology import EnzymeAdaptationCircuitSystem
 
 SYSTEM = 'enzyme_adaptation_circuit'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=800)
+trajectory = simulate(EnzymeAdaptationCircuitSystem(), observers=[observer])
 
 # %%
 # Sensitivity, precision, and robustness
@@ -30,14 +28,13 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(unti
 # and its precision, the inverse relative error of the return, exceeds 10. Random changes of up to 20% of all rate
 # constants should mostly keep the loop adaptive.
 
-trajectory = simulation.trajectory_
 rates = np.array([[0.419, 0.3, 5.061], [7.809, 9.355, 4.852], [0.735, 1.176, 1.928], [7.282, 0.182, 7.914]])
 rng = np.random.default_rng(0)
 scores = []
 for _ in range(30):
     factors = rng.uniform(0.8, 1.2, (4, 3))
-    run = Simulation(create_system(SYSTEM, k=(rates * factors).tolist()), dt=1.0).prepare().run(until=800)
-    output, times = run.trajectory_.values('C.X'), run.trajectory_.times
+    run = simulate(EnzymeAdaptationCircuitSystem(k=(rates * factors).tolist()))
+    output, times = run.values('C.X'), run.times
     before, after = output[times < 300][-1], output[times >= 300]
     peak = after[np.argmax(np.abs(after - before))]
     scores.append((abs(peak - before) / before / 0.2, 0.2 * before / max(abs(output[-1] - before), 1e-12)))

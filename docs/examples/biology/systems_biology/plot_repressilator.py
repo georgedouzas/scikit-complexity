@@ -7,22 +7,21 @@ apart.
 """
 
 # %%
-# The system is created by name from the catalog with Elowitz and Leibler's rates and started with only the first
-# protein. The observer saves every third frame with the default blueprint, whose primary view is the time series of
-# the mRNA and protein counts.
+# The system is built from its class with Elowitz and Leibler's rates and started with only the first protein. The
+# observer saves every third frame with the default blueprint, whose primary view is the time series of the mRNA and
+# protein counts.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.systems_biology import RepressilatorSystem
 
 SYSTEM = 'repressilator'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=300)
+trajectory = simulate(RepressilatorSystem(), observers=[observer], until=300)
 
 # %%
 # Deterministic and noisy oscillations
@@ -30,8 +29,8 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 # The differential equations should give regular oscillations of the three proteins in turn. The same rates as a jump
 # process of single molecules should still oscillate, with irregular amplitudes and periods.
 
-deterministic = simulation.trajectory_
-noisy = Simulation(create_system(SYSTEM, stochastic=True), dt=0.5, random_state=0).prepare().run(until=300).trajectory_
+deterministic = trajectory
+noisy = simulate(RepressilatorSystem(stochastic=True), random_state=0, until=300)
 fig, axes = plt.subplots(2, 1, figsize=(9, 6), sharex=True)
 for ax, trajectory, title in zip(axes, [deterministic, noisy], ['Differential equations', 'Jump process'], strict=True):
     for gene in range(3):

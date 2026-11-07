@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.common.kinetics import MichaelisMentenInteraction
@@ -34,7 +34,7 @@ class CellElement(Element):
 def _run(interaction, until=1.0, dt=0.1, **values):
     """Return the times and the substrate of one cell under one reaction."""
     system = System(elements=[CellElement('cell', **values)], interactions=[interaction])
-    trajectory = Simulation(system, dt=dt).prepare().run(until=until).trajectory_
+    trajectory = simulate(system, dt=dt, until=until)
     return np.asarray(trajectory.times), np.asarray(trajectory.values('cell.S'))
 
 

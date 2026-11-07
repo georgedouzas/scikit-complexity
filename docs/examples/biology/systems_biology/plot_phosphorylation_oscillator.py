@@ -6,23 +6,22 @@ loop keeps oscillating with a period of about 4.2.
 """
 
 # %%
-# The system is created by name from the catalog and run for 40 time units from A unphosphorylated and B and C
-# phosphorylated. The Michaelis constants are a hundredth of the totals, so every phosphorylation cycle acts as a
-# sharp switch. The observer saves every fourth frame with the default blueprint, whose primary view is the time
-# series of the three amounts.
+# The system is built from its class and run for 40 time units from A unphosphorylated and B and C phosphorylated. The
+# Michaelis constants are a hundredth of the totals, so every phosphorylation cycle acts as a sharp switch. The
+# observer saves every fourth frame with the default blueprint, whose primary view is the time series of the three
+# amounts.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.systems_biology import PhosphorylationOscillatorSystem
 
 SYSTEM = 'phosphorylation_oscillator'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=40)
+trajectory = simulate(PhosphorylationOscillatorSystem(), observers=[observer])
 
 # %%
 # A negative feedback loop of switches
@@ -31,7 +30,6 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(unt
 # flip between nearly 0 and nearly 1 a fixed time after the protein before it, and the three amounts should trace one
 # closed orbit, the limit cycle, once the start is forgotten.
 
-trajectory = simulation.trajectory_
 times = trajectory.times
 fig, (series, orbit) = plt.subplots(1, 2, figsize=(10, 4))
 for name in ('A', 'B', 'C'):

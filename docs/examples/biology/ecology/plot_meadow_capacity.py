@@ -7,20 +7,19 @@ the meadow grazes it bare and dies out within weeks, which brackets how many cow
 """
 
 # %%
-# The system is created by name from the catalog with 80 cows on a meadow of 40 by 40 patches. The observer saves every
-# week with the default blueprint, whose primary view shows the grass and the cows.
+# The system is built from its class with 80 cows on a meadow of 40 by 40 patches. The observer saves every week with
+# the default blueprint, whose primary view shows the grass and the cows.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import MeadowCapacitySystem
 
 SYSTEM = 'meadow_capacity'
 
-system = create_system(SYSTEM, cows=80, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=25)
+trajectory = simulate(MeadowCapacitySystem(cows=80, random_state=0), dt=1, observers=[observer], random_state=0)
 
 # %%
 # Herds of different sizes
@@ -30,12 +29,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 
 fig, ax = plt.subplots(figsize=(8, 4))
 for herd in [40, 80, 160, 320]:
-    trajectory = (
-        Simulation(create_system(SYSTEM, cows=herd, random_state=0), dt=1, random_state=0)
-        .prepare()
-        .run(until=25)
-        .trajectory_
-    )
+    trajectory = simulate(MeadowCapacitySystem(cows=herd, random_state=0), dt=1, random_state=0)
     ax.plot(trajectory.times, trajectory.values('cows.count'), 'o-', markersize=3, label=f'{herd} cows')
 ax.axhline(64, color='black', linestyle='--', label='capacity without regrowth')
 ax.set_xlabel('week')

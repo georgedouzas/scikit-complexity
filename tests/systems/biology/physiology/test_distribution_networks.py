@@ -5,15 +5,13 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems.biology.physiology import west_brown_enquist
-from skcomplex.systems.biology.physiology._distribution_networks import _network_totals
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.biology.physiology import WestBrownEnquistSystem
 
 
 def _totals(depth: int) -> tuple[float, float]:
     """Return the blood volume and the number of capillaries of a tree of a depth."""
-    system = west_brown_enquist(depth)
-    trajectory = Simulation(system, observables=_network_totals(system)).prepare().run(1.0).trajectory_
+    trajectory = simulate(WestBrownEnquistSystem(depth), until=1.0)
     return float(trajectory.values('blood_volume')[-1]), float(trajectory.values('capillaries')[-1])
 
 

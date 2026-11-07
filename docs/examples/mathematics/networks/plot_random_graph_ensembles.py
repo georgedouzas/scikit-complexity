@@ -14,13 +14,12 @@ import networkx as nx
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.networks import RandomGraphEnsemblesSystem
 
 SYSTEM = 'random_graph_ensembles'
 
-system = create_system(SYSTEM)
 # The graph view lays out the nodes of a changing network by forces, which these settings keep compact and centred.
 blueprint = rrb.Blueprint(
     rrb.GraphView(
@@ -37,8 +36,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=100)
-trajectory = simulation.trajectory_
+trajectory = simulate(RandomGraphEnsemblesSystem(), observers=[observer], random_state=0)
 
 # %%
 # Giant component and small worlds
@@ -61,10 +59,8 @@ shares = np.logspace(-3, 0, 8)
 ring = nx.watts_strogatz_graph(300, 6, 0.0)
 paths, clustering = [], []
 for share in shares:
-    run = Simulation(
-        create_system(SYSTEM, n_nodes=300, ensemble='watts_strogatz', mean_degree=6, rewiring=share, steps=20),
-    ).prepare()
-    graph = run.run(until=20).trajectory_.network(-1).graph()
+    system = RandomGraphEnsemblesSystem(n_nodes=300, ensemble='watts_strogatz', mean_degree=6, rewiring=share, steps=20)
+    graph = simulate(system, until=20).network(-1).graph()
     graph = graph.subgraph(max(nx.connected_components(graph), key=len))
     paths.append(nx.average_shortest_path_length(graph) / nx.average_shortest_path_length(ring))
     clustering.append(nx.average_clustering(graph) / nx.average_clustering(ring))

@@ -12,13 +12,13 @@ from skcomplex.core.components.laws.utils import laplacian, logistic
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import Simulation, simulate
 from skcomplex.systems.biology.neuroscience import (
+    DelayedLIFNetworkSystem,
     InhibitorDriveInteraction,
     InhibitorElement,
+    LegionSystem,
     TermanWangElement,
-    delayed_lif_network,
-    legion,
 )
 
 
@@ -40,7 +40,11 @@ def test_delayed_lif_network_rates():
     period = 20.0 * math.log((25.0 - 10.0) / (25.0 - 20.0))
     counts = []
     for J in (0.0, -2.0):
-        simulation = Simulation(delayed_lif_network(5, J=J, probability=0.5), dt=1.0).prepare().run(until=60)
+        simulation = (
+            Simulation(DelayedLIFNetworkSystem(5, J=J, probability=0.5).prepare().system_, dt=1.0)
+            .prepare()
+            .run(until=60)
+        )
         events = simulation.trajectory_.events
         counts.append(len(events))
         if J == 0.0:
@@ -52,7 +56,7 @@ def test_delayed_lif_network_rates():
 
 def test_legion_segments_objects():
     """Test that LEGION synchronizes each object, alternates between objects, and keeps the background silent."""
-    trajectory = Simulation(legion(epsilon=0.1), dt=0.5).prepare().run(until=120).trajectory_
+    trajectory = simulate(LegionSystem(epsilon=0.1), dt=0.5, until=120)
     active = trajectory.values('oscillators.x').reshape(len(trajectory.times), -1) > 0
     first, second = active[:, [0, 1, 4]], active[:, [11, 15]]
     assert first.mean() > 0.1
@@ -68,7 +72,7 @@ def test_legion_segments_objects():
 
 def test_legion_defaults_fire_both_objects_in_a_short_run():
     """Test that both objects of the default LEGION network start an active phase within 100 time units."""
-    trajectory = Simulation(legion(), dt=0.5).prepare().run(until=100).trajectory_
+    trajectory = simulate(LegionSystem(), dt=0.5, until=100)
     active = trajectory.values('oscillators.x').reshape(len(trajectory.times), -1) > 0
     for sites in ([0, 1, 4], [11, 15]):
         on = active[:, sites].any(axis=1)
@@ -76,8 +80,8 @@ def test_legion_defaults_fire_both_objects_in_a_short_run():
 
 
 def _previous_legion():
-    """Return `legion` with its coupling written in the element, as `laplacian(active) + 4 * active`."""
-    system = legion()
+    """Return `LegionSystem` with its coupling written in the element, as `laplacian(active) + 4 * active`."""
+    system = LegionSystem().prepare().system_
     field, inhibitor = system.elements
     oscillators = FieldElement(
         'oscillators',
@@ -91,7 +95,7 @@ def _previous_legion():
 
 def test_legion_rates_equal_the_coupling_written_in_the_element():
     """Test that the rates of the rebuilt coupling equal those of the previous element at many random states."""
-    problem = PassCompiler().prepare(legion()).run().problem_
+    problem = PassCompiler().prepare(LegionSystem().prepare().system_).run().problem_
     previous = PassCompiler().prepare(_previous_legion()).run().problem_
     assert list(problem.states.names) == list(previous.states.names)
     rng = np.random.default_rng(0)
@@ -104,8 +108,8 @@ def test_legion_rates_equal_the_coupling_written_in_the_element():
 
 def test_legion_short_trajectory_equals_the_coupling_written_in_the_element():
     """Test that the trajectory of the rebuilt coupling equals the previous one before rounding grows."""
-    trajectory = Simulation(legion(), dt=0.5).prepare().run(until=1.5).trajectory_
-    expected = Simulation(_previous_legion(), dt=0.5).prepare().run(until=1.5).trajectory_
+    trajectory = simulate(LegionSystem(), dt=0.5, until=1.5)
+    expected = simulate(_previous_legion(), dt=0.5, until=1.5)
     assert np.abs(trajectory.values('oscillators.x') - expected.values('oscillators.x')).max() < 1e-10
     assert np.abs(trajectory.values('oscillators.y') - expected.values('oscillators.y')).max() < 1e-10
 
@@ -116,5 +120,5 @@ def test_inhibitor_drive_interaction_follows_most_active_oscillator():
     oscillators = FieldElement('oscillators', element=TermanWangElement, space=LatticeSpace((1, 2)), values=values)
     drive = InhibitorDriveInteraction('drive', inhibitor='inhibitor', oscillators='oscillators')
     system = System(elements=[oscillators, InhibitorElement('inhibitor')], interactions=[drive])
-    trajectory = Simulation(system, dt=0.01).prepare().run(until=0.1).trajectory_
+    trajectory = simulate(system, dt=0.01, until=0.1)
     assert trajectory.values('inhibitor.z')[-1] == pytest.approx(1 - np.exp(-0.3), rel=1e-3)

@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.networks import InterdependentNetworkCascadeSystem
 
 SYSTEM = 'interdependent_network_cascade'
 
@@ -27,7 +27,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer]).prepare().run(until=40)
+trajectory = simulate(InterdependentNetworkCascadeSystem(), dt=1, observers=[observer])
 
 # %%
 # A discontinuous transition
@@ -38,11 +38,7 @@ simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer]).prepa
 
 shares = np.linspace(0.45, 0.95, 11)
 survivors = [
-    Simulation(create_system(SYSTEM, n_nodes=1000, p=p), dt=30)
-    .prepare()
-    .run(until=30)
-    .trajectory_.values('nodes.active')[-1]
-    .mean()
+    simulate(InterdependentNetworkCascadeSystem(n_nodes=1000, p=p), until=30, dt=30).values('nodes.active')[-1].mean()
     for p in shares
 ]
 fine = np.linspace(0.4, 1.0, 400)
@@ -53,7 +49,7 @@ for p in fine:
         share = p * (1 - np.exp(-4 * share)) ** 2
     theory.append(share)
 fig, (cascade, transition) = plt.subplots(1, 2, figsize=(10, 4))
-cascade.plot(simulation.trajectory_.times, simulation.trajectory_.values('nodes.active').mean(axis=1), 'o-')
+cascade.plot(trajectory.times, trajectory.values('nodes.active').mean(axis=1), 'o-')
 cascade.set_xlabel('step')
 cascade.set_ylabel('share of functional nodes')
 cascade.set_title('Failures alternate between the networks, p = 0.8')

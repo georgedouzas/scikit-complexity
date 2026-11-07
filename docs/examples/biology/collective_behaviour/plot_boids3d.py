@@ -12,15 +12,18 @@ while it keeps its spread in depth, so the third dimension stays in use.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.collective_behaviour import Boids3dSystem
 
-SYSTEM = 'boids_3d'
+SYSTEM = 'boids3d'
 
-system = create_system(SYSTEM, n_boids=100, cohesion=0.0, separation=0.0, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=100)
+trajectory = simulate(
+    Boids3dSystem(n_boids=100, cohesion=0.0, separation=0.0, random_state=0),
+    observers=[observer],
+    random_state=0,
+)
 
 # %%
 # Polarization and depth
@@ -28,7 +31,6 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 # The polarization, the length of the mean heading, rises from near zero to one as alignment spreads. The spread of
 # the boids along the third axis stays near the side of the cube, as the boids do not collapse onto a plane.
 
-trajectory = simulation.trajectory_
 polarization, depth = [], []
 for frame in range(len(trajectory.times)):
     boids = trajectory.agents('flock', frame)

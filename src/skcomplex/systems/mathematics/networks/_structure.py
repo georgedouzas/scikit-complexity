@@ -12,10 +12,9 @@ import numpy as np
 from ....core.analysis import motifs, network_measures
 from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.errors import AnalysisError
 from ....core.specs import ObservableSpec, ParameterSpec, VisualSpec
-from ..._catalog import register_system
 from ..common._network_node import NetworkNodeElement
 
 
@@ -106,57 +105,14 @@ def _triangle_zscore(s: SimpleNamespace) -> object:
     return s.measures.triangle_zscore
 
 
-def _planted_partition(random_state: int | None) -> nx.Graph:
-    """Return a stochastic block system of 4 blocks of 100 nodes with mean in-block degree 16 and out-block degree 2."""
-    inside = IN_DEGREE / (BLOCK_SIZE - 1)
-    outside = OUT_DEGREE / ((BLOCKS - 1) * BLOCK_SIZE)
-    probabilities = [[inside if row == column else outside for column in range(BLOCKS)] for row in range(BLOCKS)]
-    return nx.stochastic_block_model([BLOCK_SIZE] * BLOCKS, probabilities, seed=random_state)
-
-
-def _reference(graph: nx.Graph, attribute: str | None) -> list[object] | None:
-    """Return the reference community of every node from an attribute, or `None` when a node lacks it."""
-    if attribute is None:
-        return None
-    values = nx.get_node_attributes(graph, attribute)
-    return [values[node] for node in graph.nodes()] if len(values) == graph.number_of_nodes() else None
-
-
-def _structure_observables(system: System) -> list[ObservableSpec]:
-    """Return the clustering, path length, assortativity, modularity, agreement, and triangle z-score.
-
-    The agreement is 0 without a reference partition, and the triangle z-score is 0 without null samples.
-    """
-    return [
-        ObservableSpec('clustering', group='nodes', variable='clustering', reduce='mean'),
-        ObservableSpec('path_length', _path_length),
-        ObservableSpec('assortativity', _assortativity),
-        ObservableSpec('modularity', _modularity),
-        ObservableSpec('agreement', _agreement),
-        ObservableSpec('triangle_zscore', _triangle_zscore),
-    ]
-
-
-@register_system(
-    field='mathematics/networks',
-    tags=('network', 'centrality', 'communities', 'motifs', 'assortativity'),
-    references=('Newman 2010', 'Milo et al. 2002', 'Blondel et al. 2008', 'Bertin 2021'),
-    defaults={'until': 1, 'dt': 1},
-    observables=_structure_observables,
-)
-def network_structure_analysis(
-    graph: nx.Graph | None = None,
-    *,
-    reference: str | None = 'block',
-    null_samples: int = 10,
-    random_state: int | None = 0,
-) -> System:
-    """Return a network recorded with its centralities, degree mixing, communities, and triangle z-score.
+class NetworkStructureAnalysisSystem(BaseSystem):
+    """A network recorded with its centralities, degree mixing, communities, and triangle z-score.
 
     Every node is an agent that carries its degree, clustering, betweenness, and the community found by Louvain
     modularity maximization. The observables report the clustering, the mean path length of the largest component, the
     degree assortativity, the modularity, the agreement of the communities with a reference partition, and the z-score
-    of triangles against degree-preserving edge switches.
+    of triangles against degree-preserving edge switches. The system has the node group `nodes` and the network measures
+    `measures`.
 
     Args:
         graph:
@@ -173,56 +129,109 @@ def network_structure_analysis(
         random_state:
             The seed of the block system, the community detection, and the null graphs.
 
-    Returns:
-        system:
-            The system, with the node group `nodes` and the network measures `measures`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.systems.mathematics.networks import network_structure_analysis
-        >>> system = network_structure_analysis(nx.karate_club_graph(), reference='club', null_samples=0)
+        >>> from skcomplex.systems.mathematics.networks import NetworkStructureAnalysisSystem
+        >>> karate = NetworkStructureAnalysisSystem(nx.karate_club_graph(), reference='club', null_samples=0)
+        >>> system = karate.prepare().system_
         >>> system.elements[0].prepare().size_
         34
     """
-    network = _planted_partition(random_state) if graph is None else graph
-    found = network_measures(
-        network,
-        kind='communities',
-        reference=_reference(network, reference),
-        random_state=random_state,
+
+    field = 'mathematics/networks'
+    topics = ('network', 'centrality', 'communities', 'motifs', 'assortativity')
+    references = ('Newman 2010', 'Milo et al. 2002', 'Blondel et al. 2008', 'Bertin 2021')
+    until = 1
+    dt = 1
+    observables = (
+        ObservableSpec('clustering', group='nodes', variable='clustering', reduce='mean'),
+        ObservableSpec('path_length', _path_length),
+        ObservableSpec('assortativity', _assortativity),
+        ObservableSpec('modularity', _modularity),
+        ObservableSpec('agreement', _agreement),
+        ObservableSpec('triangle_zscore', _triangle_zscore),
     )
-    summary = network_measures(network)
-    clustering = nx.clustering(network)
-    centrality = network_measures(network, kind='centrality', measure='betweenness').centrality
-    assortativity = network_measures(network, kind='assortativity').assortativity
-    labels, modularity, path_length = found.labels, found.modularity, summary.path_length
-    if labels is None or modularity is None or path_length is None or centrality is None or assortativity is None:
-        error_msg = 'The network measures miss the communities, the summary, the centrality, or the assortativity.'
-        raise AnalysisError(error_msg)
-    betweenness = centrality[0]
-    nodes = list(network.nodes())
-    group = GroupElement(
-        'nodes',
-        element=NetworkNodeElement,
-        size=len(nodes),
-        values={
-            'degree': np.asarray([network.degree(node) for node in nodes], dtype=float),
-            'clustering': np.asarray([clustering[node] for node in nodes], dtype=float),
-            'betweenness': np.asarray([betweenness[node] for node in nodes], dtype=float),
-            'community': labels[0].astype(float),
-        },
-        location=nodes,
-    )
-    zscore = 0.0
-    if null_samples:
-        scores = motifs(network, kind='z-scores', samples=null_samples, random_state=random_state).z_scores
-        zscore = 0.0 if scores is None else scores[0]['triangle']
-    measures = NetworkMeasuresElement(
-        'measures',
-        path_length=float(path_length[0]),
-        assortativity=float(assortativity[0]),
-        modularity=float(modularity[0]),
-        agreement=0.0 if found.agreement is None else float(found.agreement[0]),
-        triangle_zscore=zscore,
-    )
-    return System(elements=[group, measures], space=NetworkSpace(network))
+
+    def __init__(
+        self,
+        graph: nx.Graph | None = None,
+        *,
+        reference: str | None = 'block',
+        null_samples: int = 10,
+        random_state: int | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.graph = graph
+        self.reference = reference
+        self.null_samples = null_samples
+        self.random_state = random_state
+
+    @staticmethod
+    def _planted_partition(random_state: int | None) -> nx.Graph:
+        """Return a stochastic block graph of 4 blocks of 100 nodes, of mean degree 16 in a block and 2 out of it."""
+        inside = IN_DEGREE / (BLOCK_SIZE - 1)
+        outside = OUT_DEGREE / ((BLOCKS - 1) * BLOCK_SIZE)
+        probabilities = [[inside if row == column else outside for column in range(BLOCKS)] for row in range(BLOCKS)]
+        return nx.stochastic_block_model([BLOCK_SIZE] * BLOCKS, probabilities, seed=random_state)
+
+    @staticmethod
+    def _reference(graph: nx.Graph, attribute: str | None) -> list[object] | None:
+        """Return the reference community of every node from an attribute, or `None` when a node lacks it."""
+        if attribute is None:
+            return None
+        values = nx.get_node_attributes(graph, attribute)
+        return [values[node] for node in graph.nodes()] if len(values) == graph.number_of_nodes() else None
+
+    def _build_system(self) -> System:
+        """Return a network recorded with its centralities, degree mixing, communities, and triangle z-score."""
+        network = self._planted_partition(self.random_state) if self.graph is None else self.graph
+        found = network_measures(
+            network,
+            kind='communities',
+            reference=self._reference(network, self.reference),
+            random_state=self.random_state,
+        )
+        summary = network_measures(network)
+        clustering = nx.clustering(network)
+        centrality = network_measures(network, kind='centrality', measure='betweenness').centrality
+        assortativity = network_measures(network, kind='assortativity').assortativity
+        labels, modularity, path_length = found.labels, found.modularity, summary.path_length
+        if labels is None or modularity is None or path_length is None or centrality is None or assortativity is None:
+            error_msg = 'The network measures miss the communities, the summary, the centrality, or the assortativity.'
+            raise AnalysisError(error_msg)
+        betweenness = centrality[0]
+        nodes = list(network.nodes())
+        group = GroupElement(
+            'nodes',
+            element=NetworkNodeElement,
+            size=len(nodes),
+            values={
+                'degree': np.asarray([network.degree(node) for node in nodes], dtype=float),
+                'clustering': np.asarray([clustering[node] for node in nodes], dtype=float),
+                'betweenness': np.asarray([betweenness[node] for node in nodes], dtype=float),
+                'community': labels[0].astype(float),
+            },
+            location=nodes,
+        )
+        zscore = 0.0
+        if self.null_samples:
+            scores = motifs(
+                network,
+                kind='z-scores',
+                samples=self.null_samples,
+                random_state=self.random_state,
+            ).z_scores
+            zscore = 0.0 if scores is None else scores[0]['triangle']
+        measures = NetworkMeasuresElement(
+            'measures',
+            path_length=float(path_length[0]),
+            assortativity=float(assortativity[0]),
+            modularity=float(modularity[0]),
+            agreement=0.0 if found.agreement is None else float(found.agreement[0]),
+            triangle_zscore=zscore,
+        )
+        return System(self.label, elements=[group, measures], space=NetworkSpace(network))

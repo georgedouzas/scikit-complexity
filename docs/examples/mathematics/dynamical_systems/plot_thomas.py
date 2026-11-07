@@ -15,9 +15,9 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import lyapunov
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.dynamical_systems import ThomasSystem
 
 SYSTEM = 'thomas'
 
@@ -36,8 +36,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=20)
-simulation = Simulation(create_system(SYSTEM), dt=0.1, observers=[observer]).prepare().run(until=500)
-points = np.column_stack([simulation.trajectory_.values(f'thomas.{state}') for state in 'xyz'])[200:]
+trajectory = simulate(ThomasSystem(), observers=[observer])
+points = np.column_stack([trajectory.values(f'thomas.{state}') for state in 'xyz'])[200:]
 observer.recording_.log('attractor', rr.LineStrips3D([points], radii=0.01, colors=[120, 200, 120]), static=True)
 observer.recording_.flush()
 
@@ -48,7 +48,7 @@ observer.recording_.flush()
 # exponent should stay at or below 0 for strong damping and turn positive below about `a = 0.2`.
 
 dampings = np.linspace(0.12, 0.32, 11)
-largest = [lyapunov(simulation.system, until=1000, parameters={'thomas.a': a}).exponents[0] for a in dampings]
+largest = [lyapunov(ThomasSystem(), until=1000, parameters={'thomas.a': a}).exponents[0] for a in dampings]
 fig, (orbit, exponent_axes) = plt.subplots(1, 2, figsize=(10, 4))
 orbit.plot(points[:, 0], points[:, 1], linewidth=0.3)
 orbit.set_xlabel('x')

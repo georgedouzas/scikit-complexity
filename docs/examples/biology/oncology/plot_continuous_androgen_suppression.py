@@ -6,22 +6,21 @@ the androgen-independent cells grow throughout and cause the relapse.
 """
 
 # %%
-# The system is created by name from the catalog: ten dependent cells and 0.14 independent cells under a suppression
-# of efficacy 0.9. The observer saves every frame with the default blueprint, whose primary view is the time series of
-# the cells and the androgen.
+# The system is built from its class: ten dependent cells and 0.14 independent cells under a suppression of efficacy
+# 0.9. The observer saves every frame with the default blueprint, whose primary view is the time series of the cells
+# and the androgen.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import ContinuousAndrogenSuppressionSystem
 
 SYSTEM = 'continuous_androgen_suppression'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=5.0, observers=[observer]).prepare().run(until=900)
+trajectory = simulate(ContinuousAndrogenSuppressionSystem(), observers=[observer], until=900)
 
 # %%
 # Androgen and relapse
@@ -29,7 +28,6 @@ simulation = Simulation(system, dt=5.0, observers=[observer]).prepare().run(unti
 # The serum androgen follows `U(t) = U0 (1 - a) + U0 a exp(-du t)` and settles at 2 ng/mL. The dependent cells grow
 # while the androgen is still high and decline once it is low, and the independent cells overtake them.
 
-trajectory = simulation.trajectory_
 times = trajectory.times
 fig, (androgen, cells) = plt.subplots(1, 2, figsize=(10, 4))
 androgen.plot(times, trajectory.values('tumour.U'), label='simulated')

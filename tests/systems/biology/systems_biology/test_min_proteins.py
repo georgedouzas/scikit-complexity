@@ -4,16 +4,14 @@ import numpy as np
 
 from skcomplex.core.analysis import stability
 from skcomplex.core.engine.solvers import ScipyODESolver
-from skcomplex.systems.biology.systems_biology import (
-    min_protein_skeleton,
-)
+from skcomplex.systems.biology.systems_biology import MinProteinSkeletonSystem
 
 from ..conftest import _run_with_solver
 
 
 def test_min_protein_skeleton_conserves_both_proteins_and_forms_oscillating_bands():
     """Test that the Min skeleton system conserves MinD and MinE while an oscillatory instability forms bands."""
-    system = min_protein_skeleton(64)
+    system = MinProteinSkeletonSystem(64).prepare().system_
     relation = stability(system, kind='dispersion')
     unstable = relation.growth_rates > 0
     assert unstable.any()

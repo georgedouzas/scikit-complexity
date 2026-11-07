@@ -20,11 +20,10 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 CUTS = 2
 
@@ -136,6 +135,8 @@ class ColonySearchInteraction(Interaction):
         >>> ColonySearchInteraction('search', segments='roads', edges=((0, 1),), lengths=(1.0,), target=1).ants
         20
     """
+
+    law_classes = (RuleLaw,)
 
     reports: ClassVar[tuple[str, ...]] = ('shortest',)
 
@@ -274,31 +275,16 @@ class ColonySearchInteraction(Interaction):
         return {frozenset(pair): index for index, pair in enumerate(self.edges)}
 
 
-@register_system(
-    field='biology/collective_behaviour',
-    tags=('ant colony optimization', 'stigmergy', 'shortest path', 'agents'),
-    references=('Dorigo 1992', 'Argun et al. 2021'),
-    defaults={'until': 100},
-)
-def ant_colony_optimization(
-    n_points: int = 40,
-    *,
-    ants: int = 20,
-    steps: int = 80,
-    alpha: float = 0.8,
-    beta: float = 1.0,
-    rho: float = 0.5,
-    Q: float = 1.0,
-    cut: int | None = None,
-    seed: int | None = 0,
-) -> System:
-    """Return ants that find the shortest path between two points of a Delaunay road network, round after round.
+class AntColonyOptimizationSystem(BaseSystem):
+    """Ants that find the shortest path between two points of a Delaunay road network, round after round.
 
     Every round the ants walk from the point nearest one corner of the unit square towards the point nearest the
     opposite corner, choosing segments by their pheromone and length, and mark the paths they find with pheromone in
     inverse proportion to their length, while all pheromone evaporates. Short paths gather pheromone fastest, so the
-    colony converges on a short path, usually the shortest, as in exercise 15.7 of Argun et al. (2021). Cutting the
-    best path at the round `cut` makes the colony explore again and settle on a new route, exercise 15.12.
+    colony converges on a short path, usually the shortest, as in exercise 15.7 of Argun et al. (2021). Cutting the best
+    path at the round `cut` makes the colony explore again and settle on a new route, exercise 15.12. The system has the
+    pheromone `roads.tau` and the open segments `roads.passable` of the agent group `roads`, and the shortest path of
+    every round `search.shortest`.
 
     Args:
         n_points:
@@ -328,37 +314,70 @@ def ant_colony_optimization(
         seed:
             The seed of the points.
 
-    Returns:
-        system:
-            The system, with the pheromone `roads.tau` and the open segments `roads.passable` of the agent group
-            `roads`, and the shortest path of every round `search.shortest`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.collective_behaviour import ant_colony_optimization
-        >>> ant_colony_optimization(10).interactions[0].ants
+        >>> from skcomplex.systems.biology.collective_behaviour import AntColonyOptimizationSystem
+        >>> AntColonyOptimizationSystem(10).prepare().system_.interactions[0].ants
         20
     """
-    points = np.random.default_rng(seed).random((n_points, 2))
-    triangles = Delaunay(points).simplices
-    pairs = {(int(min(a, b)), int(max(a, b))) for triangle in triangles for a, b in itertools.combinations(triangle, 2)}
-    edges = sorted(pairs)
-    lengths = [float(np.linalg.norm(points[a] - points[b])) for a, b in edges]
-    start = int(np.argmin(np.linalg.norm(points, axis=1)))
-    target = int(np.argmin(np.linalg.norm(points - 1.0, axis=1)))
-    roads = GroupElement('roads', element=TrailSegmentElement, size=len(edges))
-    search = ColonySearchInteraction(
-        'search',
-        segments='roads',
-        edges=tuple(edges),
-        lengths=tuple(lengths),
-        start=start,
-        target=target,
-        ants=ants,
-        steps=steps,
-        alpha=alpha,
-        beta=beta,
-        rho=rho,
-        Q=Q,
-        cut=cut,
-    )
-    return System(elements=[roads], interactions=[search], time=DiscreteTime())
+
+    field = 'biology/collective_behaviour'
+    topics = ('ant colony optimization', 'stigmergy', 'shortest path', 'agents')
+    references = ('Dorigo 1992', 'Argun et al. 2021')
+    until = 100
+
+    def __init__(
+        self,
+        n_points: int = 40,
+        *,
+        ants: int = 20,
+        steps: int = 80,
+        alpha: float = 0.8,
+        beta: float = 1.0,
+        rho: float = 0.5,
+        Q: float = 1.0,
+        cut: int | None = None,
+        seed: int | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_points = n_points
+        self.ants = ants
+        self.steps = steps
+        self.alpha = alpha
+        self.beta = beta
+        self.rho = rho
+        self.Q = Q
+        self.cut = cut
+        self.seed = seed
+
+    def _build_system(self) -> System:
+        """Return the parts of ants that find the shortest path between two points of a Delaunay road network."""
+        points = np.random.default_rng(self.seed).random((self.n_points, 2))
+        triangles = Delaunay(points).simplices
+        pairs = {
+            (int(min(a, b)), int(max(a, b))) for triangle in triangles for a, b in itertools.combinations(triangle, 2)
+        }
+        edges = sorted(pairs)
+        lengths = [float(np.linalg.norm(points[a] - points[b])) for a, b in edges]
+        start = int(np.argmin(np.linalg.norm(points, axis=1)))
+        target = int(np.argmin(np.linalg.norm(points - 1.0, axis=1)))
+        roads = GroupElement('roads', element=TrailSegmentElement, size=len(edges))
+        search = ColonySearchInteraction(
+            'search',
+            segments='roads',
+            edges=tuple(edges),
+            lengths=tuple(lengths),
+            start=start,
+            target=target,
+            ants=self.ants,
+            steps=self.steps,
+            alpha=self.alpha,
+            beta=self.beta,
+            rho=self.rho,
+            Q=self.Q,
+            cut=self.cut,
+        )
+        return System(self.label, elements=[roads], interactions=[search], time=DiscreteTime())

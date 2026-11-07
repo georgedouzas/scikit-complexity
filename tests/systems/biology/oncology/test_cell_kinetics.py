@@ -2,10 +2,7 @@
 
 import numpy as np
 
-from skcomplex.systems.biology.oncology import (
-    cell_cycle_chemotherapy,
-    erythropoiesis_mercaptopurine,
-)
+from skcomplex.systems.biology.oncology import CellCycleChemotherapySystem, ErythropoiesisMercaptopurineSystem
 
 from .conftest import _run
 
@@ -24,17 +21,17 @@ def test_cell_cycle_chemotherapy_kills_above_half():
         matrix = np.array(
             [[-l1, 0.0, 2 * (1 - u1) * l3], [l1, -(1 - u2) * l2, 0.0], [0.0, (1 - u2) * l2, -l3]],
         )
-        trajectory = _run(cell_cycle_chemotherapy(u1=u1, u2=u2), until=400.0, dt=2.0)
+        trajectory = _run(CellCycleChemotherapySystem(u1=u1, u2=u2), until=400.0, dt=2.0)
         rate = _growth_rate(trajectory, ('A1', 'A2', 'A3'))
         assert abs(rate - np.linalg.eigvals(matrix).real.max()) < 1e-6
         assert (rate > 0) == (u1 < 0.5)
-    dormant = _run(cell_cycle_chemotherapy(dormant=True, u1=0.55, v=1.0), until=400.0, dt=2.0)
+    dormant = _run(CellCycleChemotherapySystem(dormant=True, u1=0.55, v=1.0), until=400.0, dt=2.0)
     assert _growth_rate(dormant, ('A0', 'A1', 'A2')) < 0
 
 
 def test_erythropoiesis_mercaptopurine_steady_volume():
     """Test that the mean volume settles at `MCV0 + g1 U` and the mature cells at `r1 Q / d1`."""
-    trajectory = _run(erythropoiesis_mercaptopurine(U=500.0), until=6000.0, dt=20.0)
+    trajectory = _run(ErythropoiesisMercaptopurineSystem(U=500.0), until=6000.0, dt=20.0)
     assert abs(trajectory.values('patient.MCV')[-1] / (85.0 + 0.0317 * 500.0) - 1) < 1e-3
     assert abs(trajectory.values('patient.L')[-1] / (0.00139 * trajectory.values('patient.Q')[-1] / 0.0071) - 1) < 1e-3
     assert trajectory.values('patient.L')[-1] < 0.9 * trajectory.values('patient.L')[0]

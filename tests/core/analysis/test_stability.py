@@ -15,11 +15,11 @@ from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
-from skcomplex.systems.biology.ecology import lotka_volterra
-from skcomplex.systems.biology.epidemiology import sir
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.chemistry.common.kinetics import CubicAutocatalysisInteraction
 from skcomplex.systems.chemistry.pattern_formation import BrusselatorElement
-from skcomplex.systems.mathematics.dynamical_systems import logistic_map, lorenz
+from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem, LorenzSystem
 from skcomplex.systems.physics.mechanics import harmonic_oscillator
 
 
@@ -48,7 +48,7 @@ def _brusselator(b, *, discretization='spectral', boundary='periodic'):
 
 def test_lotka_volterra_centre():
     """Test that the predator-prey interior point is `(d / b, r / a)` with purely imaginary eigenvalues, a centre."""
-    system = lotka_volterra()
+    system = LotkaVolterraSystem().prepare().system_
     analysis = _stability(system)
     d, b, r, a = (SR.var(name) for name in ('d_death', 'b_predation', 'r_growth', 'a_predation'))
     index = next(index for index, point in enumerate(analysis.fixed_points) if point['prey.n'] != 0)
@@ -62,7 +62,7 @@ def test_lotka_volterra_centre():
 
 def test_logistic_map_fixed_point_is_stable():
     """Test that the logistic map's fixed point `1 - 1 / r` is stable at r = 2.5 and 0 is unstable."""
-    analysis = _stability(logistic_map(r=2.5))
+    analysis = _stability(LogisticMapSystem(r=2.5))
     classes = {
         round(float(point['map.x'].subs({SR.var('r_map'): 2.5})), 9): classification
         for point, classification in zip(analysis.fixed_points, analysis.classifications, strict=True)
@@ -72,7 +72,7 @@ def test_logistic_map_fixed_point_is_stable():
 
 def test_parameters_substitute_before_solving():
     """Test that parameter values given by path give numeric fixed points."""
-    points = _stability(lorenz(), parameters={'lorenz.rho': 28.0, 'lorenz.beta': 8 / 3}).fixed_points
+    points = _stability(LorenzSystem(), parameters={'lorenz.rho': 28.0, 'lorenz.beta': 8 / 3}).fixed_points
     assert sorted(round(float(point['lorenz.z']), 6) for point in points) == [0.0, 27.0, 27.0]
 
 
@@ -80,12 +80,12 @@ def test_volume_preservation():
     """Test that the frictionless harmonic oscillator has divergence 0 and Lorenz contracts volumes."""
     assert _stability(harmonic_oscillator()).divergence == 0
     sigma, beta = SR.var('sigma_lorenz'), SR.var('beta_lorenz')
-    assert bool(_stability(lorenz()).divergence == -sigma - beta - 1)
+    assert bool(_stability(LorenzSystem()).divergence == -sigma - beta - 1)
 
 
 def test_jacobian_and_nullclines():
     """Test the Jacobian's shape and the nullclines of a two-state system."""
-    analysis = _stability(lotka_volterra())
+    analysis = _stability(LotkaVolterraSystem().prepare().system_)
     assert analysis.jacobian.dimensions() == (2, 2)
     assert set(analysis.nullclines) == {'prey.n', 'predators.n'}
 
@@ -93,7 +93,7 @@ def test_jacobian_and_nullclines():
 def test_jump_process_has_no_vector_field():
     """Test that stochastic jump systems are rejected."""
     with pytest.raises(AnalysisError, match='jump process'):
-        _stability(sir(stochastic=True))
+        _stability(SIRSystem(stochastic=True).prepare().system_)
 
 
 def _hawks_and_doves(V=2.0, C=3.0, size=2):
@@ -181,7 +181,7 @@ def test_group_above_limit():
 
 def test_points_are_the_given_points():
     """Test that given points replace the fixed points found by solving."""
-    analysis = _stability(lotka_volterra(), points=[{'prey.n': 0, 'predators.n': 0}])
+    analysis = _stability(LotkaVolterraSystem().prepare().system_, points=[{'prey.n': 0, 'predators.n': 0}])
     assert analysis.fixed_points == [{'prey.n': 0, 'predators.n': 0}]
     assert len(analysis.eigenvalues) == 1
 
@@ -228,6 +228,6 @@ def test_dispersion_relation_rejects_non_periodic_fields_and_data():
 def test_stability_checks_its_kind_and_settings():
     """Test that an unknown kind and a setting the kind ignores raise errors."""
     with pytest.raises(AnalysisError, match='fixed-points, dispersion'):
-        stability(lotka_volterra(), kind='unknown')
+        stability(LotkaVolterraSystem().prepare().system_, kind='unknown')
     with pytest.raises(AnalysisError, match='does not read points'):
-        stability(lotka_volterra(), kind='dispersion', points=[{'x': 0.0}])
+        stability(LotkaVolterraSystem().prepare().system_, kind='dispersion', points=[{'x': 0.0}])

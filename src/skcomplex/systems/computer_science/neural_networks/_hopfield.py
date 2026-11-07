@@ -13,12 +13,11 @@ from sage.all__sagemath_symbolics import ZZ
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class NeuronView(AgentView):
@@ -109,31 +108,12 @@ class HopfieldUpdateInteraction(MapInteraction):
         return float(np.sign(field)) if field != 0 else float(agent.spin)
 
 
-def _hebbian_weights(patterns: Array) -> Array:
-    """Return the Hebbian weights `w_ij = Σ_μ ξ_i ξ_j / n` that store patterns, with no self-coupling."""
-    weights = patterns.T @ patterns / patterns.shape[1]
-    np.fill_diagonal(weights, 0.0)
-    return weights
-
-
-@register_system(
-    field='computer_science/neural_networks',
-    tags=('neural network', 'associative memory', 'agents', 'attractor'),
-    references=('Hopfield 1982', 'Trzaska 2023'),
-    defaults={'until': 10},
-)
-def hopfield(
-    patterns: npt.ArrayLike | None = None,
-    *,
-    n_neurons: int = 64,
-    n_patterns: int = 3,
-    noise: float = 0.2,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return a Hopfield network that stores patterns with Hebb's rule and recalls the first from a corrupted copy.
+class HopfieldSystem(BaseSystem):
+    """A Hopfield network that stores patterns with Hebb's rule and recalls the first from a corrupted copy.
 
     Neurons update one at a time in random order, so the energy `-Σ w_ij s_i s_j / 2` never increases and the network
-    settles in a stored pattern when few patterns are stored, about fewer than `0.14 n` for `n` neurons.
+    settles in a stored pattern when few patterns are stored, about fewer than `0.14 n` for `n` neurons. The system has
+    the group `neurons` of states `spin` and `weights` on a complete graph.
 
     Args:
         patterns:
@@ -151,30 +131,62 @@ def hopfield(
         random_state:
             The seed or generator of the random patterns and of the corruption.
 
-    Returns:
-        system:
-            The system, with the group `neurons` of states `spin` and `weights` on a complete graph.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.computer_science.neural_networks import hopfield
-        >>> hopfield(n_neurons=16, n_patterns=2).elements[0].prepare().size_
+        >>> from skcomplex.systems.computer_science.neural_networks import HopfieldSystem
+        >>> HopfieldSystem(n_neurons=16, n_patterns=2).prepare().system_.elements[0].prepare().size_
         16
     """
-    rng = np.random.default_rng(random_state)
-    stored: Array = np.asarray(
-        rng.choice([-1.0, 1.0], size=(n_patterns, n_neurons)) if patterns is None else patterns,
-        dtype=np.float64,
-    )
-    size = stored.shape[1]
-    spins = np.where(rng.random(size) < noise, -stored[0], stored[0])
-    neurons = GroupElement(
-        'neurons',
-        element=NeuronElement,
-        size=size,
-        values={'spin': spins, 'weights': _hebbian_weights(stored)},
-    )
-    return System(
-        elements=[neurons],
-        interactions=[HopfieldUpdateInteraction('update', target='neurons')],
-        space=NetworkSpace(nx.complete_graph(size)),
-    )
+
+    field = 'computer_science/neural_networks'
+    topics = ('neural network', 'associative memory', 'agents', 'attractor')
+    references = ('Hopfield 1982', 'Trzaska 2023')
+    until = 10
+
+    def __init__(
+        self,
+        patterns: npt.ArrayLike | None = None,
+        *,
+        n_neurons: int = 64,
+        n_patterns: int = 3,
+        noise: float = 0.2,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.patterns = patterns
+        self.n_neurons = n_neurons
+        self.n_patterns = n_patterns
+        self.noise = noise
+        self.random_state = random_state
+
+    @staticmethod
+    def _hebbian_weights(patterns: Array) -> Array:
+        """Return the Hebbian weights `w_ij = Σ_μ ξ_i ξ_j / n` that store patterns, with no self-coupling."""
+        weights = patterns.T @ patterns / patterns.shape[1]
+        np.fill_diagonal(weights, 0.0)
+        return weights
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        stored: Array = np.asarray(
+            rng.choice([-1.0, 1.0], size=(self.n_patterns, self.n_neurons)) if self.patterns is None else self.patterns,
+            dtype=np.float64,
+        )
+        size = stored.shape[1]
+        spins = np.where(rng.random(size) < self.noise, -stored[0], stored[0])
+        neurons = GroupElement(
+            'neurons',
+            element=NeuronElement,
+            size=size,
+            values={'spin': spins, 'weights': self._hebbian_weights(stored)},
+        )
+        return System(
+            self.label,
+            elements=[neurons],
+            interactions=[HopfieldUpdateInteraction('update', target='neurons')],
+            space=NetworkSpace(nx.complete_graph(size)),
+        )

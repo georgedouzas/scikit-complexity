@@ -3,12 +3,13 @@
 import numpy as np
 import pytest
 
-from skcomplex.systems import create_simulation
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.biology.ecology import DynamicMultispeciesFBASystem
 
 
 def test_competition_raises_the_share_of_the_faster_strain():
     """Test the rising share of the faster strain, and that the glucose consumed follows the uptake of both strains."""
-    trajectory = create_simulation('dynamic_multispecies_fba').prepare().run().trajectory_
+    trajectory = simulate(DynamicMultispeciesFBASystem())
     times = trajectory.times
     fast, slow = trajectory.values('culture/biomass_fast.x'), trajectory.values('culture/biomass_slow.x')
     glucose = trajectory.values('culture/glucose.c')

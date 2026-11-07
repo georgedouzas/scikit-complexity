@@ -13,15 +13,14 @@ on the first six levels it visits all 64 vertices in turn.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.automata import AddingMachineSystem
 
 SYSTEM = 'adding_machine'
 
-system = create_system(SYSTEM, digits=6, base=2)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer]).prepare().run(until=64)
+trajectory = simulate(AddingMachineSystem(digits=6, base=2), observers=[observer])
 
 # %%
 # Counting and the portrait
@@ -30,13 +29,13 @@ simulation = Simulation(system, observers=[observer]).prepare().run(until=64)
 # back. In base 3 the digit at level `k` turns once every `3^k` steps, the self-similar portrait of the odometer, whose
 # restriction to a subtree below the digit `q - 1` is the odometer again.
 
-digits = simulation.trajectory_.values('cells.digit')
+digits = trajectory.values('cells.digit')
 numbers = digits @ 2 ** np.arange(6)
-ternary = Simulation(create_system(SYSTEM, digits=4, base=3)).prepare().run(until=81).trajectory_.values('cells.digit')
+ternary = simulate(AddingMachineSystem(digits=4, base=3), until=81).values('cells.digit')
 turns = (np.diff(ternary, axis=0) != 0).sum(axis=0)
 fig, (count, portrait) = plt.subplots(1, 2, figsize=(10, 4))
-count.plot(simulation.trajectory_.times, numbers, 'o', markersize=3, label='digits read in base 2')
-count.plot(simulation.trajectory_.times, simulation.trajectory_.times % 64, '--', color='black', label='t mod 64')
+count.plot(trajectory.times, numbers, 'o', markersize=3, label='digits read in base 2')
+count.plot(trajectory.times, trajectory.times % 64, '--', color='black', label='t mod 64')
 count.set_xlabel('step t')
 count.legend()
 count.set_title('The odometer counts through level 6')

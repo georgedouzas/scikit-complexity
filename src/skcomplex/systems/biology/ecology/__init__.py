@@ -1,88 +1,121 @@
 """Ecology: population growth, predation, competition, food webs, succession, grazing, and neutral communities."""
 
 from ..common.populations import PredationInteraction
-from ._agent_predation import PredatorElement, PreyElement, agent_based_lotka_volterra
-from ._cell_quota import QuotaPhytoplanktonElement, droop_cell_quota
-from ._clustering import HabitatPatchElement, HoppingInteraction, neutral_clustering
-from ._comets import comets
-from ._communities import CompetitionInteraction, MutualismInteraction, competition, food_webs, mutualism
-from ._community_fba import community_fba
+from ._agent_predation import AgentBasedLotkaVolterraSystem, PredatorElement, PreyElement
+from ._cell_quota import DroopCellQuotaSystem, QuotaPhytoplanktonElement
+from ._clustering import HabitatPatchElement, HoppingInteraction, NeutralClusteringSystem
+from ._comets import CometsSystem
+from ._communities import (
+    CompetitionInteraction,
+    CompetitionSystem,
+    FoodWebsSystem,
+    MutualismInteraction,
+    MutualismSystem,
+)
+from ._community_fba import CommunityFBASystem
 from ._consumer_resources import (
     ConsumerElement,
     ConsumerGrowthInteraction,
+    ConsumerResourceSystem,
     ConsumptionInteraction,
     ResourceElement,
     ResourceTurnoverInteraction,
-    consumer_resource,
 )
-from ._dynamic_multispecies_fba import dynamic_multispecies_fba
+from ._dynamic_multispecies_fba import DynamicMultispeciesFBASystem
 from ._factories import (
+    ExponentialGrowthSystem,
+    FibonacciRabbitsSystem,
+    HutchinsonSystem,
+    LogisticGrowthSystem,
+    LotkaVolterraSystem,
+    PenaeidShrimpSystem,
     RabbitsElement,
     RickerGrowthInteraction,
+    RickerSystem,
     SeasonalLogisticGrowthInteraction,
     ShrimpElement,
-    exponential_growth,
-    fibonacci_rabbits,
-    hutchinson,
-    logistic_growth,
-    lotka_volterra,
-    penaeid_shrimp,
-    ricker,
-    varying_capacity_logistic,
+    VaryingCapacityLogisticSystem,
 )
-from ._forest_size_structure import forest_size_structure
-from ._fronts import FisherKPPElement, fisher_kpp
-from ._higher_order import TripletInteraction, higher_order_random_lotka_volterra
-from ._instability import UnstablePopulationsElement, intrinsic_instability
-from ._meadow import CowElement, GrazingInteraction, HerdingInteraction, PastureElement, meadow_capacity
-from ._microbial_communities import GeneralizedLotkaVolterraInteraction, MicrobeElement, generalized_lotka_volterra
-from ._neutral import NeutralSpeciesElement, neutral_macroecology
+from ._forest_size_structure import ForestSizeStructureSystem
+from ._fronts import FisherKPPElement, FisherKPPSystem
+from ._higher_order import HigherOrderRandomLotkaVolterraSystem, TripletInteraction
+from ._instability import IntrinsicInstabilitySystem, UnstablePopulationsElement
+from ._meadow import CowElement, GrazingInteraction, HerdingInteraction, MeadowCapacitySystem, PastureElement
+from ._microbial_communities import GeneralizedLotkaVolterraInteraction, GeneralizedLotkaVolterraSystem, MicrobeElement
+from ._neutral import NeutralMacroecologySystem, NeutralSpeciesElement
 from ._predation import (
+    LotkaVolterraWithHarvestingSystem,
+    NicholsonBaileySystem,
     ParasitismInteraction,
     PredatorPreyEventsInteraction,
     RosenzweigMacArthurInteraction,
-    lotka_volterra_with_harvesting,
-    nicholson_bailey,
-    rosenzweig_macarthur,
-    stochastic_predator_prey,
+    RosenzweigMacarthurSystem,
+    StochasticPredatorPreySystem,
 )
-from ._sequential import AbundanceElement, LinearGrowthInteraction, sequentially_linear_ecosystem
-from ._speciation import NeutralReplacementInteraction, OrganismElement, neutral_biodiversity
+from ._sequential import AbundanceElement, LinearGrowthInteraction, SequentiallyLinearEcosystemSystem
+from ._speciation import NeutralBiodiversitySystem, NeutralReplacementInteraction, OrganismElement
 from ._stigmergy import (
     EmotionMarksElement,
     ForagerElement,
     PlantElement,
     StigmergicPredatorElement,
+    StigmergicPredatorPreySystem,
     StigmergicPreyElement,
-    stigmergic_predator_prey,
 )
-from ._succession import PioneerGrowthInteraction, StandElement, SuccessionalGrowthInteraction, mangrove_succession
-from ._wolf_sheep import GrassElement, SheepElement, WolfElement, wolf_sheep
+from ._succession import MangroveSuccessionSystem, PioneerGrowthInteraction, StandElement, SuccessionalGrowthInteraction
+from ._wolf_sheep import GrassElement, SheepElement, WolfElement, WolfSheepSystem
 
 __all__: list[str] = [
     'AbundanceElement',
+    'AgentBasedLotkaVolterraSystem',
+    'CometsSystem',
+    'CommunityFBASystem',
     'CompetitionInteraction',
+    'CompetitionSystem',
     'ConsumerElement',
     'ConsumerGrowthInteraction',
+    'ConsumerResourceSystem',
     'ConsumptionInteraction',
     'CowElement',
+    'DroopCellQuotaSystem',
+    'DynamicMultispeciesFBASystem',
     'EmotionMarksElement',
+    'ExponentialGrowthSystem',
+    'FibonacciRabbitsSystem',
     'FisherKPPElement',
+    'FisherKPPSystem',
+    'FoodWebsSystem',
     'ForagerElement',
+    'ForestSizeStructureSystem',
     'GeneralizedLotkaVolterraInteraction',
+    'GeneralizedLotkaVolterraSystem',
     'GrassElement',
     'GrazingInteraction',
     'HabitatPatchElement',
     'HerdingInteraction',
+    'HigherOrderRandomLotkaVolterraSystem',
     'HoppingInteraction',
+    'HutchinsonSystem',
+    'IntrinsicInstabilitySystem',
     'LinearGrowthInteraction',
+    'LogisticGrowthSystem',
+    'LotkaVolterraSystem',
+    'LotkaVolterraWithHarvestingSystem',
+    'MangroveSuccessionSystem',
+    'MeadowCapacitySystem',
     'MicrobeElement',
     'MutualismInteraction',
+    'MutualismSystem',
+    'NeutralBiodiversitySystem',
+    'NeutralClusteringSystem',
+    'NeutralMacroecologySystem',
     'NeutralReplacementInteraction',
     'NeutralSpeciesElement',
+    'NicholsonBaileySystem',
     'OrganismElement',
     'ParasitismInteraction',
     'PastureElement',
+    'PenaeidShrimpSystem',
     'PioneerGrowthInteraction',
     'PlantElement',
     'PredationInteraction',
@@ -94,49 +127,22 @@ __all__: list[str] = [
     'ResourceElement',
     'ResourceTurnoverInteraction',
     'RickerGrowthInteraction',
+    'RickerSystem',
     'RosenzweigMacArthurInteraction',
+    'RosenzweigMacarthurSystem',
     'SeasonalLogisticGrowthInteraction',
+    'SequentiallyLinearEcosystemSystem',
     'SheepElement',
     'ShrimpElement',
     'StandElement',
     'StigmergicPredatorElement',
+    'StigmergicPredatorPreySystem',
     'StigmergicPreyElement',
+    'StochasticPredatorPreySystem',
     'SuccessionalGrowthInteraction',
     'TripletInteraction',
     'UnstablePopulationsElement',
+    'VaryingCapacityLogisticSystem',
     'WolfElement',
-    'agent_based_lotka_volterra',
-    'comets',
-    'community_fba',
-    'competition',
-    'consumer_resource',
-    'droop_cell_quota',
-    'dynamic_multispecies_fba',
-    'exponential_growth',
-    'fibonacci_rabbits',
-    'fisher_kpp',
-    'food_webs',
-    'forest_size_structure',
-    'generalized_lotka_volterra',
-    'higher_order_random_lotka_volterra',
-    'hutchinson',
-    'intrinsic_instability',
-    'logistic_growth',
-    'lotka_volterra',
-    'lotka_volterra_with_harvesting',
-    'mangrove_succession',
-    'meadow_capacity',
-    'mutualism',
-    'neutral_biodiversity',
-    'neutral_clustering',
-    'neutral_macroecology',
-    'nicholson_bailey',
-    'penaeid_shrimp',
-    'ricker',
-    'rosenzweig_macarthur',
-    'sequentially_linear_ecosystem',
-    'stigmergic_predator_prey',
-    'stochastic_predator_prey',
-    'varying_capacity_logistic',
-    'wolf_sheep',
+    'WolfSheepSystem',
 ]

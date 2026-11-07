@@ -14,11 +14,10 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import ContinuousSpace, DiscreteTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class HerdedSheepView(AgentView):
@@ -167,6 +166,8 @@ class ShepherdingInteraction(Interaction):
         65.0
     """
 
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -281,25 +282,14 @@ class ShepherdingInteraction(Interaction):
         return float(np.clip(position[0], margin, width - margin)), float(np.clip(position[1], margin, height - margin))
 
 
-@register_system(
-    field='biology/collective_behaviour',
-    tags=('shepherding', 'herding', 'agents', 'swarm control'),
-    references=('Strömbom et al. 2014', 'Long et al. 2020'),
-    defaults={'until': 300},
-)
-def shepherding(
-    n_sheep: int = 30,
-    *,
-    size: float = 100.0,
-    goal: tuple[float, float] = (5.0, 5.0),
-    seed: int | None = 0,
-) -> System:
-    """Return a shepherd that collects a scattered flock and drives it to a goal, the heuristic of Strömbom et al.
+class ShepherdingSystem(BaseSystem):
+    """A shepherd that collects a scattered flock and drives it to a goal, the heuristic of Strömbom et al.
 
     The sheep start scattered in the middle of a square field and the shepherd behind them, opposite the goal. Sheep
     flee a near shepherd while they keep together and apart, and graze otherwise. The shepherd alternates between
-    collecting the sheep furthest from the flock and driving the flock from behind towards the goal, and the zig-zag
-    of this alternation brings the flock to the goal in a few hundred steps.
+    collecting the sheep furthest from the flock and driving the flock from behind towards the goal, and the zig-zag of
+    this alternation brings the flock to the goal in a few hundred steps. The system has the agent groups `sheep` and
+    `shepherds`, the latter of one shepherd.
 
     Args:
         n_sheep:
@@ -314,39 +304,62 @@ def shepherding(
         seed:
             The seed of the initial positions.
 
-    Returns:
-        system:
-            The system, with the agent groups `sheep` and `shepherds`, the latter of one shepherd.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.collective_behaviour import shepherding
-        >>> [group.label for group in shepherding(10).elements]
+        >>> from skcomplex.systems.biology.collective_behaviour import ShepherdingSystem
+        >>> [group.label for group in ShepherdingSystem(10).prepare().system_.elements]
         ['sheep', 'shepherds']
     """
-    rng = np.random.default_rng(seed)
-    positions = rng.uniform(0.4 * size, 0.7 * size, (n_sheep, 2))
-    sheep = GroupElement(
-        'sheep',
-        element=HerdedSheepElement,
-        size=n_sheep,
-        location=[tuple(map(float, position)) for position in positions],
-    )
-    dogs = GroupElement(
-        'shepherds',
-        element=ShepherdElement,
-        size=1,
-        location=[(0.9 * size, 0.9 * size)],
-    )
-    herding = ShepherdingInteraction(
-        'herding',
-        sheep='sheep',
-        shepherds='shepherds',
-        goal=goal,
-        n=max(1, round(0.9 * n_sheep)),
-    )
-    return System(
-        elements=[sheep, dogs],
-        interactions=[herding],
-        space=ContinuousSpace(extent=(size, size)),
-        time=DiscreteTime(),
-    )
+
+    field = 'biology/collective_behaviour'
+    topics = ('shepherding', 'herding', 'agents', 'swarm control')
+    references = ('Strömbom et al. 2014', 'Long et al. 2020')
+    until = 300
+
+    def __init__(
+        self,
+        n_sheep: int = 30,
+        *,
+        size: float = 100.0,
+        goal: tuple[float, float] = (5.0, 5.0),
+        seed: int | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_sheep = n_sheep
+        self.size = size
+        self.goal = goal
+        self.seed = seed
+
+    def _build_system(self) -> System:
+        """Return the parts of a shepherd that collects a scattered flock and drives it to a goal."""
+        rng = np.random.default_rng(self.seed)
+        positions = rng.uniform(0.4 * self.size, 0.7 * self.size, (self.n_sheep, 2))
+        sheep = GroupElement(
+            'sheep',
+            element=HerdedSheepElement,
+            size=self.n_sheep,
+            location=[tuple(map(float, position)) for position in positions],
+        )
+        dogs = GroupElement(
+            'shepherds',
+            element=ShepherdElement,
+            size=1,
+            location=[(0.9 * self.size, 0.9 * self.size)],
+        )
+        herding = ShepherdingInteraction(
+            'herding',
+            sheep='sheep',
+            shepherds='shepherds',
+            goal=self.goal,
+            n=max(1, round(0.9 * self.n_sheep)),
+        )
+        return System(
+            self.label,
+            elements=[sheep, dogs],
+            interactions=[herding],
+            space=ContinuousSpace(extent=(self.size, self.size)),
+            time=DiscreteTime(),
+        )

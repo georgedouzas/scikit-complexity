@@ -6,22 +6,21 @@ density of every degree class settles at an endemic level that rises with the de
 """
 
 # %%
-# The system is created by name from the catalog with degrees from 3 to 30 distributed as `k^-2.5` and a spreading
-# rate above the threshold. The observer saves every frame with the default blueprint, whose primary view is the time
-# series of the densities of the degree classes.
+# The system is built from its class with degrees from 3 to 30 distributed as `k^-2.5` and a spreading rate above the
+# threshold. The observer saves every frame with the default blueprint, whose primary view is the time series of the
+# densities of the degree classes.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.epidemiology import HeterogeneousMeanFieldSISSystem
 
 SYSTEM = 'heterogeneous_mean_field_sis'
 
-system = create_system(SYSTEM, lam=0.2)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=50)
+trajectory = simulate(HeterogeneousMeanFieldSISSystem(lam=0.2), observers=[observer])
 
 # %%
 # Endemic density by degree
@@ -33,7 +32,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 degrees = np.arange(3, 31)
 weights = degrees**-2.5 / np.sum(degrees**-2.5)
 threshold = np.sum(weights * degrees) / np.sum(weights * degrees**2)
-final = simulation.trajectory_.values('network.rho')[-1]
+final = trajectory.values('network.rho')[-1]
 theta = np.sum(weights * degrees * final) / np.sum(weights * degrees)
 lam = 0.2
 fig, ax = plt.subplots(figsize=(7, 4))

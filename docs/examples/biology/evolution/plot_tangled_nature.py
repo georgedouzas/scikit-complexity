@@ -15,15 +15,14 @@ collapse abruptly into new ones, a punctuated equilibrium.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.evolution import TangledNatureSystem
 
 SYSTEM = 'tangled_nature'
 
-system = create_system(SYSTEM, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=300)
+trajectory = simulate(TangledNatureSystem(random_state=0), observers=[observer], random_state=0, until=300)
 
 # %%
 # Population and dominant types
@@ -31,7 +30,6 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 # The population should grow from 100 until the couplings and the limit of resources hold it near 340, and the
 # single type of the start should give way to a coexisting set in which the most common type holds about a third.
 
-trajectory = simulation.trajectory_
 frames = range(len(trajectory.times))
 genomes = [trajectory.agents('organisms', frame).values['trait'] for frame in frames]
 sizes = np.array([len(genome) for genome in genomes])
