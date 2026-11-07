@@ -60,3 +60,27 @@ ax.set_ylabel('score per session')
 ax.set_title('Robby learns to avoid walls, then to collect cans')
 ax.legend()
 plt.show()
+
+# %%
+# Evolution by circumstance
+# -------------------------
+# Gooding replaces the selection of the genetic algorithm with deaths: strategies live seven generations, the worst 30%
+# starve every generation, and random survivors, whatever their scores, breed in the places of the dead. Switching the
+# starvation on and off every 30 generations should make the mean score climb while it is on and stall or fall back
+# while it is off, and without any starvation the scores should stay near those of random tables.
+
+fig, ax = plt.subplots(figsize=(7, 4.5))
+for label, settings in (
+    ('starvation switched every 30', {'starvation': 0.3, 'switch': 30}),
+    ('no starvation', {'starvation': 0.0}),
+):
+    run = Simulation(create_system(SYSTEM, regime='circumstance', **settings), dt=1).prepare().run(until=120)
+    means = [run.trajectory_.agents('strategies', frame).values['score'].mean() for frame in range(121)]
+    ax.plot(run.trajectory_.times, means, label=label)
+for start in (30, 90):
+    ax.axvspan(start, start + 30, color='grey', alpha=0.2)
+ax.set_xlabel('generation (starvation off in the grey bands)')
+ax.set_ylabel('mean score per session')
+ax.set_title('Evolution by circumstance')
+ax.legend()
+plt.show()
