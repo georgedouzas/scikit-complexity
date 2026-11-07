@@ -14,10 +14,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.compile import RewritingCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.fractals import KochCurveSystem
 
 SYSTEM = 'koch_curve'
 
@@ -32,8 +31,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create_system(SYSTEM), observers=[observer], compiler=RewritingCompiler()).prepare().run(5)
-trajectory = simulation.trajectory_
+trajectory = simulate(KochCurveSystem(), until=5, observers=[observer])
 segments = trajectory.structure('koch', 5).segments()
 observer.recording_.log(
     'curve',

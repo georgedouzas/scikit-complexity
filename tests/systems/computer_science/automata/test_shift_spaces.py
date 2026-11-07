@@ -5,14 +5,13 @@ import re
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.compile import RewritingCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ParameterError
 from skcomplex.systems.computer_science.automata import (
     AddingMachineSystem,
     ContextFreeSubshiftSystem,
     GapSubshiftSystem,
-    morse_subshift,
+    MorseSubshiftSystem,
 )
 
 from ..conftest import _run
@@ -77,8 +76,7 @@ def test_context_free_subshift_stays_admissible_and_moves():
 
 def test_morse_subshift_builds_the_thue_morse_prefixes():
     """Test that generation `n` is `T(0) ... T(2^n - 1)`, the parity of the ones of every binary expansion."""
-    simulation = Simulation(morse_subshift(), compiler=RewritingCompiler()).prepare().run(until=8)
-    trajectory = simulation.trajectory_
+    trajectory = simulate(MorseSubshiftSystem(), until=8)
     assert trajectory.values('morse.size').tolist() == [2.0**n for n in range(9)]
     word = ''.join(str(code) for code in trajectory.structure('morse', 8).codes)
     assert word == ''.join(str(bin(k).count('1') % 2) for k in range(256))

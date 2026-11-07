@@ -25,7 +25,6 @@ from ....core.engine.compile import RewritingCompiler
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 from ._binary_cell import BinaryCellElement
 
 
@@ -401,35 +400,43 @@ class ContextFreeSubshiftSystem(BaseSystem):
         )
 
 
-@register_system(
-    field='computer_science/automata',
-    tags=('subshift', 'Thue-Morse', 'substitution', 'minimal', 'rewriting system'),
-    references=('Ceccherini-Silberstein and Coornaert 2023',),
-    defaults={'compiler': RewritingCompiler(), 'until': 10, 'dt': 1},
-)
-def morse_subshift(axiom: str = '0') -> System:
-    """Return the Thue-Morse substitution `0 → 01`, `1 → 10`, whose words make the language of the Morse subshift.
+class MorseSubshiftSystem(BaseSystem):
+    """The Thue-Morse substitution `0 → 01`, `1 → 10`, whose words make the language of the Morse subshift.
 
     Generation `n` from `0` is the prefix `T(0) ... T(2^n - 1)` of the Thue-Morse sequence, and the Morse subshift is
     the orbit closure under the shift of the configuration `x(n) = T(n)` for `n >= 0` and `T(-n - 1)` for `n < 0`, an
     infinite minimal subshift that is not sofic, with zero entropy (Ceccherini-Silberstein and Coornaert 2023,
     Exercises 3.51 and 3.52). Its words of every length are the factors of the generations, which number at most a
-    multiple of their length.
+    multiple of their length. The system has the word `morse` and its length `morse.size`.
 
     Args:
         axiom:
             The word at generation 0, `0` for the Thue-Morse sequence and `1` for its mirror.
 
-    Returns:
-        system:
-            The system, with the word `morse` and its length `morse.size`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems import create_simulation
-        >>> create_simulation('morse_subshift').prepare().run(until=3).trajectory_.values('morse.size').tolist()
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.computer_science.automata import MorseSubshiftSystem
+        >>> simulate(MorseSubshiftSystem(), until=3).values('morse.size').tolist()
         [1.0, 2.0, 4.0, 8.0]
     """
-    return System(elements=[MorseElement('morse', axiom=axiom, alphabet='01')])
+
+    field = 'computer_science/automata'
+    topics = ('subshift', 'Thue-Morse', 'substitution', 'minimal', 'rewriting system')
+    references = ('Ceccherini-Silberstein and Coornaert 2023',)
+    until = 10
+    dt = 1
+    compiler = RewritingCompiler()
+
+    def __init__(self, axiom: str = '0', *, label: str = 'system') -> None:
+        super().__init__(label)
+        self.axiom = axiom
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        return System(self.label, elements=[MorseElement('morse', axiom=self.axiom, alphabet='01')])
 
 
 class AddingMachineSystem(BaseSystem):

@@ -42,8 +42,8 @@ from ._shift_spaces import (
     DigitCellElement,
     GapSubshiftSystem,
     MorseElement,
+    MorseSubshiftSystem,
     TernaryCellElement,
-    morse_subshift,
 )
 from ._small_world_life import SmallWorldLifeSystem
 from ._turing_machine import TapeCellElement, TuringMachineSystem
@@ -88,6 +88,7 @@ __all__: list[str] = [
     'LigationInteraction',
     'LinearRingAutomatonSystem',
     'MorseElement',
+    'MorseSubshiftSystem',
     'MullerAutomatonSystem',
     'NilpotentAutomatonSystem',
     'NoisyAutomataSystem',
@@ -115,5 +116,4 @@ __all__: list[str] = [
     'heisenberg',
     'lamplighter',
     'life',
-    'morse_subshift',
 ]

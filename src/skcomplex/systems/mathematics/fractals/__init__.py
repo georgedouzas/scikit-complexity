@@ -4,26 +4,26 @@ from ._chaos_game import ChaosGameSystem, ChaosPointElement, RandomAffineMapInte
 from ._quadratic import InverseJuliaPointElement, InverseJuliaSystem, JuliaSystem, MandelbrotSystem, QuadraticMapElement
 from ._substitution import (
     CantorElement,
+    CantorSetSystem,
+    KochCurveSystem,
     KochElement,
     SierpinskiElement,
-    cantor_set,
-    koch_curve,
-    sierpinski_substitution,
+    SierpinskiSubstitutionSystem,
 )
 
 __all__: list[str] = [
     'CantorElement',
+    'CantorSetSystem',
     'ChaosGameSystem',
     'ChaosPointElement',
     'InverseJuliaPointElement',
     'InverseJuliaSystem',
     'JuliaSystem',
+    'KochCurveSystem',
     'KochElement',
     'MandelbrotSystem',
     'QuadraticMapElement',
     'RandomAffineMapInteraction',
     'SierpinskiElement',
-    'cantor_set',
-    'koch_curve',
-    'sierpinski_substitution',
+    'SierpinskiSubstitutionSystem',
 ]
