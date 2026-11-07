@@ -20,14 +20,13 @@ from ....core.components.interactions import Interaction, SamplingInteraction
 from ....core.components.laws import BaseLaw, DriveLaw
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.specs import CompiledElementSpec
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, RunSettings, System
 from ....core.engine.problems import BaseProblemSpec, FrameSpec
 from ....core.engine.runtime import Trajectory
 from ....core.engine.viz import PointsVisual
 from ....core.errors import AnalysisError, ValidationError
 from ....core.specs import ObservableSpec, RoleSpec, RowScoreSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 from ..._extras import import_extra
 from ._backbone_geometry import BackboneGeometry
 from ._structure_spec import StructureSpec
@@ -128,6 +127,8 @@ class EnsembleReplayInteraction(Interaction):
         >>> EnsembleReplayInteraction('replay', target='chain', state='x', ensemble=np.zeros((2, 3))).state
         'x'
     """
+
+    law_classes = (DriveLaw,)
 
     def __init__(
         self,
@@ -457,19 +458,6 @@ def _read_chain(entry: str) -> tuple[StructureSpec, BackboneGeometry]:
     return structure, BackboneGeometry(structure).prepare()
 
 
-def _rotate_dihedral(width: float, row: Array, rng: np.random.Generator) -> Array:
-    """Return a row of angles with one random angle rotated by up to a width and wrapped to `[-180, 180)`."""
-    site = rng.integers(row.size)
-    row[site] = (row[site] + rng.uniform(-width, width) + 180.0) % 360.0 - 180.0
-    return row
-
-
-def _read_clashes(positions: Array) -> int:
-    """Return the number of pairs of effective atoms apart along the chain and closer than the clash distance."""
-    rows, columns = np.triu_indices(len(positions), NEAREST_SEPARATED_RESIDUES)
-    return int(np.sum(np.linalg.norm(positions[rows] - positions[columns], axis=1) < CLASH_DISTANCE))
-
-
 def _read_value(structure: StructureSpec, kind: str, positions: Array) -> float:
     """Return a value of the fuzzy oil drop of the effective atoms of a chain."""
     values = fuzzy_oil_drop_measures(positions[None], structure=structure, kind=kind).values
@@ -477,13 +465,6 @@ def _read_value(structure: StructureSpec, kind: str, positions: Array) -> float:
         error_msg = f'The fuzzy oil drop of the kind {kind!r} has no value per frame.'
         raise AnalysisError(error_msg)
     return float(values[0])
-
-
-def _score_angles(entry: str, row: Array) -> float:
-    """Return the relative distance of a chain rebuilt from a row of angles, plus one for every clash."""
-    structure, geometry = _read_chain(entry)
-    positions = geometry.run(row).read_effective_atoms()
-    return _read_value(structure, 'relative-distance', positions) + _read_clashes(positions)
 
 
 def _read_observed_value(kind: str, entry: str, state: str, t: float, values: Mapping[str, object]) -> float:
@@ -497,38 +478,16 @@ def _read_observed_value(kind: str, entry: str, state: str, t: float, values: Ma
     return _read_value(structure, kind, positions)
 
 
-def _read_observables(system: System) -> list[ObservableSpec]:
-    """Return the relative distance and the environment factor of the chain of a system, labelled by its entry."""
-    state = COORDINATE_STATE if isinstance(system.interactions[0], EnsembleReplayInteraction) else ANGLE_STATE
-    return [
-        ObservableSpec('RD', function=partial(_read_observed_value, 'relative-distance', system.label, state)),
-        ObservableSpec('K', function=partial(_read_observed_value, 'environment-factor', system.label, state)),
-    ]
-
-
-@register_system(
-    field='biology/systems_biology',
-    tags=('protein', 'hydrophobicity', 'divergence entropy', 'structures', 'monte carlo'),
-    references=('Konieczny et al. 2023', 'Levitt 1976'),
-    defaults={'until': 37},
-    observables=_read_observables,
-)
-def fuzzy_oil_drop(
-    entry: str = ENTRY,
-    *,
-    dynamics: str = 'replay',
-    proposals: int = 1,
-    width: float = 60.0,
-    temperature: float = 0.0,
-) -> System:
-    """Return the fuzzy oil drop of a protein, an ensemble replayed one member per frame or a chain folded by moves.
+class FuzzyOilDropSystem(BaseSystem):
+    """The fuzzy oil drop of a protein, an ensemble replayed one member per frame or a chain folded by moves.
 
     The default replays the systems of an entry, which sets the effective atoms of the chain, the mean atom of each
     residue, to one system per unit of time. With `dynamics='folding'`, the chain starts extended, with all `phi =
     -120°` and `psi = 130°`, and each unit of time proposes moves of its dihedral angles, accepted by the row score `RD`
     plus one for every pair of effective atoms closer than 3 Å and at least two residues apart. The observables `RD` and
     `K` follow Konieczny et al. (2023 §1.3.1) through `fuzzy_oil_drop_measures`. The book gives no folding dynamics, so
-    the extended start, the clash rule, the rotation width of 60°, and the temperature are choices of this system.
+    the extended start, the clash rule, the rotation width of 60°, and the temperature are choices of this system. The
+    system has the lattice `chain` of the state `x` or `angle`.
 
     Args:
         entry:
@@ -547,9 +506,8 @@ def fuzzy_oil_drop(
             The temperature of the folding, one over the intensity of its sampling, where 0 accepts only moves that do
             not raise the score.
 
-    Returns:
-        system:
-            The system, with the lattice `chain` of the state `x` or `angle`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         MissingExtraError:
@@ -559,53 +517,116 @@ def fuzzy_oil_drop(
             The dynamics are unknown.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import fuzzy_oil_drop
-        >>> fuzzy_oil_drop().elements[0].space.shape
+        >>> from skcomplex.systems.biology.systems_biology import FuzzyOilDropSystem
+        >>> FuzzyOilDropSystem().prepare().system_.elements[0].space.shape
         (20, 3)
     """
-    import_extra('Bio.PDB', 'fuzzy_oil_drop', 'structures')
-    if dynamics not in DYNAMICS:
-        error_msg = f'Unknown dynamics {dynamics!r}. Use one of {", ".join(DYNAMICS)}.'
-        raise ValidationError(error_msg)
-    structure = read_structure(entry)
-    if dynamics == 'replay':
-        ensemble = structure.effective_atoms
+
+    field = 'biology/systems_biology'
+    topics = ('protein', 'hydrophobicity', 'divergence entropy', 'structures', 'monte carlo')
+    references = ('Konieczny et al. 2023', 'Levitt 1976')
+    until = 37
+
+    def __init__(
+        self,
+        entry: str = ENTRY,
+        *,
+        dynamics: str = 'replay',
+        proposals: int = 1,
+        width: float = 60.0,
+        temperature: float = 0.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.entry = entry
+        self.dynamics = dynamics
+        self.proposals = proposals
+        self.width = width
+        self.temperature = temperature
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings, with the relative distance and the environment factor of the chain.
+
+        Returns:
+            settings:
+                The tuned run settings by name.
+        """
+        state = ANGLE_STATE if self.dynamics == 'folding' else COORDINATE_STATE
+        return RunSettings(
+            until=self.until,
+            dt=self.dt,
+            solver=self.solver,
+            observables=[
+                ObservableSpec('RD', function=partial(_read_observed_value, 'relative-distance', self.entry, state)),
+                ObservableSpec('K', function=partial(_read_observed_value, 'environment-factor', self.entry, state)),
+            ],
+            initial_state=self.initial_state,
+        )
+
+    @staticmethod
+    def _rotate_dihedral(width: float, row: Array, rng: np.random.Generator) -> Array:
+        """Return a row of angles with one random angle rotated by up to a width and wrapped to `[-180, 180)`."""
+        site = rng.integers(row.size)
+        row[site] = (row[site] + rng.uniform(-width, width) + 180.0) % 360.0 - 180.0
+        return row
+
+    @staticmethod
+    def _read_clashes(positions: Array) -> int:
+        """Return the number of pairs of effective atoms apart along the chain and closer than the clash distance."""
+        rows, columns = np.triu_indices(len(positions), NEAREST_SEPARATED_RESIDUES)
+        return int(np.sum(np.linalg.norm(positions[rows] - positions[columns], axis=1) < CLASH_DISTANCE))
+
+    def _score_angles(self, entry: str, row: Array) -> float:
+        """Return the relative distance of a chain rebuilt from a row of angles, plus one for every clash."""
+        structure, geometry = _read_chain(entry)
+        positions = geometry.run(row).read_effective_atoms()
+        return _read_value(structure, 'relative-distance', positions) + self._read_clashes(positions)
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        import_extra('Bio.PDB', 'fuzzy_oil_drop', 'structures')
+        if self.dynamics not in DYNAMICS:
+            error_msg = f'Unknown dynamics {self.dynamics!r}. Use one of {", ".join(DYNAMICS)}.'
+            raise ValidationError(error_msg)
+        structure = read_structure(self.entry)
+        if self.dynamics == 'replay':
+            ensemble = structure.effective_atoms
+            return System(
+                self.label,
+                elements=[
+                    LatticeElement(
+                        'chain',
+                        element=ChainCoordinateElement,
+                        space=LatticeSpace((ensemble.shape[1], COORDINATES), boundary='fixed'),
+                        values={'x': ensemble[0]},
+                        visual=VisualSpec(BackboneVisual, {'position': 'x'}),
+                    ),
+                ],
+                interactions=[EnsembleReplayInteraction('replay', target='chain', state='x', ensemble=ensemble)],
+                time=DiscreteTime(),
+            )
+        angles = np.full(BackboneGeometry(structure).prepare().angles_.size, EXTENDED_PHI)
+        angles[angles.size // 2 :] = EXTENDED_PSI
         return System(
-            label=entry,
+            self.label,
             elements=[
                 LatticeElement(
                     'chain',
-                    element=ChainCoordinateElement,
-                    space=LatticeSpace((ensemble.shape[1], COORDINATES), boundary='fixed'),
-                    values={'x': ensemble[0]},
-                    visual=VisualSpec(BackboneVisual, {'position': 'x'}),
+                    element=DihedralAngleElement,
+                    space=LatticeSpace((1, angles.size), boundary='fixed'),
+                    values={'angle': angles[None]},
+                    visual=VisualSpec(BackboneVisual, {'position': 'angle', 'structure': structure}),
                 ),
             ],
-            interactions=[EnsembleReplayInteraction('replay', target='chain', state='x', ensemble=ensemble)],
+            interactions=[
+                SamplingInteraction(
+                    'folding',
+                    target='chain',
+                    state='angle',
+                    objective=RowScoreSpec(partial(self._score_angles, self.entry), proposals=self.proposals),
+                    move=partial(self._rotate_dihedral, self.width),
+                    intensity=float('inf') if self.temperature == 0 else 1 / self.temperature,
+                ),
+            ],
             time=DiscreteTime(),
         )
-    angles = np.full(BackboneGeometry(structure).prepare().angles_.size, EXTENDED_PHI)
-    angles[angles.size // 2 :] = EXTENDED_PSI
-    return System(
-        label=entry,
-        elements=[
-            LatticeElement(
-                'chain',
-                element=DihedralAngleElement,
-                space=LatticeSpace((1, angles.size), boundary='fixed'),
-                values={'angle': angles[None]},
-                visual=VisualSpec(BackboneVisual, {'position': 'angle', 'structure': structure}),
-            ),
-        ],
-        interactions=[
-            SamplingInteraction(
-                'folding',
-                target='chain',
-                state='angle',
-                objective=RowScoreSpec(partial(_score_angles, entry), proposals=proposals),
-                move=partial(_rotate_dihedral, width),
-                intensity=float('inf') if temperature == 0 else 1 / temperature,
-            ),
-        ],
-        time=DiscreteTime(),
-    )

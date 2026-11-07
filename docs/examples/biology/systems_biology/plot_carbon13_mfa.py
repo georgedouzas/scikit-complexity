@@ -7,31 +7,30 @@ the split of 2-oxoglutarate in the TCA example of Antoniewicz et al. (2007).
 """
 
 # %%
-# The system is created by name from the catalog, and the data come from its known fluxes under two parallel tracers
-# with noise of standard deviation 0.002 at seed 0. The network with the estimated fluxes runs once, and the primary
-# view is its graph.
+# The system is built from its class, and the data come from its known fluxes under two parallel tracers with noise of
+# standard deviation 0.002 at seed 0. The network with the estimated fluxes runs once, and the primary view is its
+# graph.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
-from skcomplex.systems.biology.systems_biology import tca_labelling_analysis
+from skcomplex.systems.biology.systems_biology import Carbon13MFASystem, tca_labelling_analysis
 
-SYSTEM = 'carbon_13_mfa'
+SYSTEM = 'carbon13_mfa'
 TRUE = {'v1': 100.0, 'v2': 100.0, 'v3': 50.0, 'v4': 50.0, 'v5': 50.0, 'v6': 50.0, 'v8': 50.0, 'v9': 50.0}
 
-system = create_system(SYSTEM)
+system = Carbon13MFASystem().prepare().system_
 labelling = tca_labelling_analysis(noise=0.002, random_state=0)
 result = labelling(system)
 network = system.elements[0]
 fixed = {f'{bound}_{name}': result.fluxes[name] for name in TRUE for bound in ('lower', 'upper')}
 estimated = System(elements=[type(network)(network.label).set_params(**fixed)], time=StaticTime())
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='tca/graph')
-Simulation(estimated, observers=[observer]).prepare().run(until=0.0)
+simulate(estimated, until=0.0, observers=[observer])
 
 # %%
 # Estimated fluxes against the true ones

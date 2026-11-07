@@ -9,18 +9,18 @@ rises after the one-second hormone pulse and decays back to zero within the run.
 """
 
 # %%
-# The system is created by name from the catalog: a hormone pulse of height 1 from `t = 1` to `t = 2`, the GTP
-# hydrolysis rate `k_gtp = 0.5`, and the gains `alpha / beta` of 10, 50, 2, 10, and 10 of the five stages. The view
-# shows the active phosphorylase over the whole run, and a second view shows the active G protein.
+# The system is built from its class: a hormone pulse of height 1 from `t = 1` to `t = 2`, the GTP hydrolysis rate
+# `k_gtp = 0.5`, and the gains `alpha / beta` of 10, 50, 2, 10, and 10 of the five stages. The view shows the active
+# phosphorylase over the whole run, and a second view shows the active G protein.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.systems_biology import HormoneCascadeAmplifierSystem
 
 SYSTEM = 'hormone_cascade_amplifier'
 STAGES = ('g_protein', 'adenylate_cyclase', 'camp', 'protein_kinase_a', 'phosphorylase_kinase', 'phosphorylase')
@@ -38,9 +38,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=0.2, observers=[observer], random_state=0).prepare().run(until=30)
+trajectory = simulate(HormoneCascadeAmplifierSystem(), observers=[observer], random_state=0)
 
 # %%
 # Amplification and the G-protein timer
@@ -53,7 +52,7 @@ simulation = Simulation(system, dt=0.2, observers=[observer], random_state=0).pr
 
 precise = ScipyODESolver(rtol=1e-9, atol=1e-12)
 runs = {
-    k_gtp: Simulation(create_system(SYSTEM, k_gtp=k_gtp), dt=0.05, solver=precise).prepare().run(until=60).trajectory_
+    k_gtp: simulate(HormoneCascadeAmplifierSystem(k_gtp=k_gtp), dt=0.05, solver=precise, until=60)
     for k_gtp in (0.5, 0.05)
 }
 trajectory = runs[0.5]

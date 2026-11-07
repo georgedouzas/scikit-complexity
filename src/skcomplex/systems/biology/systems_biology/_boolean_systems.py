@@ -18,10 +18,9 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import total, uniform, where
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.networks import BooleanFunctionInteraction, BooleanNodeElement
 from .types import Rule
 
@@ -128,6 +127,8 @@ class NoisyMajorityInteraction(Interaction):
         'nodes'
     """
 
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -162,11 +163,12 @@ def _truth_table(rule: Rule, arity: int) -> tuple[int, ...]:
 
 
 def _rule_network(
+    label: str,
     rules: dict[str, tuple[tuple[str, ...], Rule]],
     active: Sequence[str],
     knockouts: Sequence[str] = (),
 ) -> System:
-    """Return the Boolean network of a set of rules, with the active nodes on and the knocked-out nodes kept off."""
+    """Return the labelled Boolean network of rules, with the active nodes on and the knocked-out nodes kept off."""
     unknown = sorted((set(active) | set(knockouts)) - set(rules))
     if unknown:
         error_msg = f'Unknown nodes {unknown}. Use names among {list(rules)}.'
@@ -181,55 +183,57 @@ def _rule_network(
         )
         for name, (inputs, rule) in rules.items()
     ]
-    return System(elements=nodes, interactions=functions)
+    return System(label, elements=nodes, interactions=functions)
 
 
-@register_system(
-    field='biology/systems_biology',
-    tags=('boolean network', 'gene regulation', 'discrete map', 'attractors'),
-    references=(RAMAN,),
-    defaults={'until': 10, 'dt': 1},
-)
-def three_gene_boolean_network(x: Sequence[int] = (1, 0, 0)) -> System:
-    """Return the three-gene Boolean network of Raman, updated synchronously.
+class ThreeGeneBooleanNetworkSystem(BaseSystem):
+    """The three-gene Boolean network of Raman, updated synchronously.
 
     The genes follow `g1* = g2 AND NOT g3`, `g2* = NOT g1`, and `g3* = NOT g3 OR g2`. Its eight states fall into two
     basins: the point attractor `011` and the cycle `001 -> 010 -> 111` of period three, which the state `100` enters.
+    The system has the values `g1.x`, `g2.x`, and `g3.x`.
 
     Args:
         x:
             The initial values of `g1`, `g2`, and `g3`.
 
-    Returns:
-        system:
-            The system, with the values `g1.x`, `g2.x`, and `g3.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import three_gene_boolean_network
-        >>> three_gene_boolean_network().interactions[2].table
+        >>> from skcomplex.systems.biology.systems_biology import ThreeGeneBooleanNetworkSystem
+        >>> ThreeGeneBooleanNetworkSystem().prepare().system_.interactions[2].table
         (1, 0, 1, 1)
     """
-    active = [name for name, value in zip(THREE_GENE_RULES, x, strict=True) if value]
-    return _rule_network(THREE_GENE_RULES, active)
+
+    field = 'biology/systems_biology'
+    topics = ('boolean network', 'gene regulation', 'discrete map', 'attractors')
+    references = (RAMAN,)
+    until = 10
+    dt = 1
+
+    def __init__(
+        self,
+        x: Sequence[int] = (1, 0, 0),
+        *,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+
+    def _build_system(self) -> System:
+        """Return the parts of the three-gene Boolean network of Raman, updated synchronously."""
+        active = [name for name, value in zip(THREE_GENE_RULES, self.x, strict=True) if value]
+        return _rule_network(self.label, THREE_GENE_RULES, active)
 
 
-@register_system(
-    field='biology/systems_biology',
-    tags=('boolean network', 'cell cycle', 'discrete map', 'attractors', 'knock-out'),
-    references=(RAMAN, 'Faure et al. 2006'),
-    defaults={'until': 21, 'dt': 1},
-)
-def mammalian_cell_cycle(
-    active: Sequence[str] = CELL_CYCLE_START,
-    *,
-    knockouts: Sequence[str] = (),
-) -> System:
-    """Return the Boolean system of the mammalian cell cycle of Faure et al., ten proteins updated synchronously.
+class MammalianCellCycleSystem(BaseSystem):
+    """The Boolean system of the mammalian cell cycle of Faure et al., ten proteins updated synchronously.
 
-    The rules are those printed by Raman for CycD, Rb, E2F, CycE, CycA, p27, Cdc20, Cdh1, UbcH10 (`Ubc`), and CycB.
-    The growth signal CycD keeps its value. Without it the network rests in the quiescent state with Rb, p27, and Cdh1
-    on. With it the network leaves that state and runs through a cycle of period 7 in which the cyclins E, A, and B
-    rise and fall in turn. A knocked-out protein stays off.
+    The rules are those printed by Raman for CycD, Rb, E2F, CycE, CycA, p27, Cdc20, Cdh1, UbcH10 (`Ubc`), and CycB. The
+    growth signal CycD keeps its value. Without it the network rests in the quiescent state with Rb, p27, and Cdh1 on.
+    With it the network leaves that state and runs through a cycle of period 7 in which the cyclins E, A, and B rise and
+    fall in turn. A knocked-out protein stays off. The system has the values `<protein>.x`.
 
     Args:
         active:
@@ -238,36 +242,49 @@ def mammalian_cell_cycle(
         knockouts:
             The proteins that are knocked out.
 
-    Returns:
-        system:
-            The system, with the values `<protein>.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             A name is not one of the ten proteins.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import mammalian_cell_cycle
-        >>> [node.label for node in mammalian_cell_cycle().elements if node.x]
+        >>> from skcomplex.systems.biology.systems_biology import MammalianCellCycleSystem
+        >>> [node.label for node in MammalianCellCycleSystem().prepare().system_.elements if node.x]
         ['CycD', 'Rb', 'p27', 'Cdh1']
     """
-    return _rule_network(CELL_CYCLE_RULES, active, knockouts)
+
+    field = 'biology/systems_biology'
+    topics = ('boolean network', 'cell cycle', 'discrete map', 'attractors', 'knock-out')
+    references = (RAMAN, 'Faure et al. 2006')
+    until = 21
+    dt = 1
+
+    def __init__(
+        self,
+        active: Sequence[str] = CELL_CYCLE_START,
+        *,
+        knockouts: Sequence[str] = (),
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.active = active
+        self.knockouts = knockouts
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        return _rule_network(self.label, CELL_CYCLE_RULES, self.active, self.knockouts)
 
 
-@register_system(
-    field='biology/systems_biology',
-    tags=('boolean network', 'repressilator', 'oscillator', 'discrete map', 'delay'),
-    references=(RAMAN, 'Elowitz and Leibler 2000'),
-    defaults={'until': 24, 'dt': 1},
-)
-def boolean_repressilator(x: Sequence[int] = (1, 0, 0), *, delay: int = 0) -> System:
-    """Return the Boolean repressilator, where LacI represses TetR, TetR represses cI, and cI represses LacI.
+class BooleanRepressilatorSystem(BaseSystem):
+    """The Boolean repressilator, where LacI represses TetR, TetR represses cI, and cI represses LacI.
 
     The transfer functions are `TetR* = NOT LacI`, `cI* = NOT TetR`, and `LacI* = NOT cI`. From a state with one or two
     genes on, the genes switch on and off in turn with period 6, and the states `000` and `111` alternate with period
     2. A repression delayed by `delay` steps passes through that many relay nodes, `<repressor>_1` and so on, which
     copy the repressor one step later and start at its initial value. The oscillation remains, with period
-    `6 (delay + 1)`.
+    `6 (delay + 1)`. The system has the values `LacI.x`, `TetR.x`, `cI.x`, and the relays `<repressor>_<k>.x`.
 
     Args:
         x:
@@ -276,51 +293,72 @@ def boolean_repressilator(x: Sequence[int] = (1, 0, 0), *, delay: int = 0) -> Sy
         delay:
             The number of steps by which every repression is delayed.
 
-    Returns:
-        system:
-            The system, with the values `LacI.x`, `TetR.x`, `cI.x`, and the relays `<repressor>_<k>.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The delay is negative.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import boolean_repressilator
-        >>> [node.label for node in boolean_repressilator(delay=1).elements]
+        >>> from skcomplex.systems.biology.systems_biology import BooleanRepressilatorSystem
+        >>> [node.label for node in BooleanRepressilatorSystem(delay=1).prepare().system_.elements]
         ['LacI', 'TetR', 'cI', 'LacI_1', 'TetR_1', 'cI_1']
     """
-    if delay < 0:
-        error_msg = f'The delay must be a nonnegative number of steps, not {delay}.'
-        raise ValidationError(error_msg)
-    genes = [BooleanNodeElement(name, x=int(value)) for name, value in zip(REPRESSILATOR_GENES, x, strict=True)]
-    relays = [BooleanNodeElement(f'{gene.label}_{step}', x=gene.x) for step in range(1, delay + 1) for gene in genes]
-    functions: list[BooleanFunctionInteraction] = []
-    for repressor, target in zip(REPRESSILATOR_GENES, (*REPRESSILATOR_GENES[1:], REPRESSILATOR_GENES[0]), strict=True):
-        chain = [repressor, *(f'{repressor}_{step}' for step in range(1, delay + 1))]
-        functions.extend(
-            BooleanFunctionInteraction(f'relay_{relay}', target=relay, inputs=[source], table=(0, 1))
-            for source, relay in itertools.pairwise(chain)
-        )
-        functions.append(
-            BooleanFunctionInteraction(f'repression_{target}', target=target, inputs=[chain[-1]], table=(1, 0)),
-        )
-    return System(elements=[*genes, *relays], interactions=functions)
+
+    field = 'biology/systems_biology'
+    topics = ('boolean network', 'repressilator', 'oscillator', 'discrete map', 'delay')
+    references = (RAMAN, 'Elowitz and Leibler 2000')
+    until = 24
+    dt = 1
+
+    def __init__(
+        self,
+        x: Sequence[int] = (1, 0, 0),
+        *,
+        delay: int = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.delay = delay
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        if self.delay < 0:
+            error_msg = f'The delay must be a nonnegative number of steps, not {self.delay}.'
+            raise ValidationError(error_msg)
+        genes = [
+            BooleanNodeElement(name, x=int(value)) for name, value in zip(REPRESSILATOR_GENES, self.x, strict=True)
+        ]
+        relays = [
+            BooleanNodeElement(f'{gene.label}_{step}', x=gene.x) for step in range(1, self.delay + 1) for gene in genes
+        ]
+        functions: list[BooleanFunctionInteraction] = []
+        for repressor, target in zip(
+            REPRESSILATOR_GENES,
+            (*REPRESSILATOR_GENES[1:], REPRESSILATOR_GENES[0]),
+            strict=True,
+        ):
+            chain = [repressor, *(f'{repressor}_{step}' for step in range(1, self.delay + 1))]
+            functions.extend(
+                BooleanFunctionInteraction(f'relay_{relay}', target=relay, inputs=[source], table=(0, 1))
+                for source, relay in itertools.pairwise(chain)
+            )
+            functions.append(
+                BooleanFunctionInteraction(f'repression_{target}', target=target, inputs=[chain[-1]], table=(1, 0)),
+            )
+        return System(self.label, elements=[*genes, *relays], interactions=functions)
 
 
-@register_system(
-    field='biology/systems_biology',
-    tags=('boolean network', 'noise', 'phase transition', 'mean field', 'stochastic map'),
-    references=('Huepe and Aldana-González 2002', 'Gros 2015'),
-    defaults={'until': 200, 'dt': 1},
-)
-def noisy_boolean_network(n: int = 1000, *, k: int = 3, eta: float = 0.1, seed: int | None = 0) -> System:
-    """Return the Boolean network of Huepe and Aldana-González, nodes that follow the noisy majority of `k` inputs.
+class NoisyBooleanNetworkSystem(BaseSystem):
+    """The Boolean network of Huepe and Aldana-González, nodes that follow the noisy majority of `k` inputs.
 
     Every node takes the sign of the sum of its `k` random inputs, flipped with the probability `eta`. The order
     parameter `Psi`, the time average of the absolute mean state, undergoes a continuous phase transition at the noise
     `eta_c = (1 - 1 / Phi'(0)) / 2` of mean-field theory, with `Phi'(0) = k C(k - 1, (k - 1) / 2) / 2^(k - 1)`, which is
-    1/6 for `k = 3`. Below it the network orders, above it the mean state falls to fluctuations of order `1 /
-    sqrt(n)`.
+    1/6 for `k = 3`. Below it the network orders, above it the mean state falls to fluctuations of order `1 / sqrt(n)`.
+    The system has the states `nodes.sigma`.
 
     Args:
         n:
@@ -335,31 +373,54 @@ def noisy_boolean_network(n: int = 1000, *, k: int = 3, eta: float = 0.1, seed: 
         seed:
             The seed of the inputs.
 
-    Returns:
-        system:
-            The system, with the states `nodes.sigma`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The number of inputs is even.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import noisy_boolean_network
-        >>> noisy_boolean_network(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.biology.systems_biology import NoisyBooleanNetworkSystem
+        >>> NoisyBooleanNetworkSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    if k % 2 == 0:
-        error_msg = f'The number of inputs must be odd so that the majority is defined, not {k}.'
-        raise ValidationError(error_msg)
-    rng = np.random.default_rng(seed)
-    inputs = np.zeros((n, n))
-    for node in range(n):
-        inputs[node, rng.choice(np.delete(np.arange(n), node), size=k, replace=False)] = 1.0
-    nodes = GroupElement(
-        'nodes',
-        element=MajorityNodeElement,
-        size=n,
-        values={'sigma': np.ones(n), 'eta': eta},
-    )
-    majority = NoisyMajorityInteraction('majority', nodes='nodes', inputs=scipy.sparse.csr_array(inputs))
-    return System(elements=[nodes], interactions=[majority], time=DiscreteTime())
+
+    field = 'biology/systems_biology'
+    topics = ('boolean network', 'noise', 'phase transition', 'mean field', 'stochastic map')
+    references = ('Huepe and Aldana-González 2002', 'Gros 2015')
+    until = 200
+    dt = 1
+
+    def __init__(
+        self,
+        n: int = 1000,
+        *,
+        k: int = 3,
+        eta: float = 0.1,
+        seed: int | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.k = k
+        self.eta = eta
+        self.seed = seed
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        if self.k % 2 == 0:
+            error_msg = f'The number of inputs must be odd so that the majority is defined, not {self.k}.'
+            raise ValidationError(error_msg)
+        rng = np.random.default_rng(self.seed)
+        inputs = np.zeros((self.n, self.n))
+        for node in range(self.n):
+            inputs[node, rng.choice(np.delete(np.arange(self.n), node), size=self.k, replace=False)] = 1.0
+        nodes = GroupElement(
+            'nodes',
+            element=MajorityNodeElement,
+            size=self.n,
+            values={'sigma': np.ones(self.n), 'eta': self.eta},
+        )
+        majority = NoisyMajorityInteraction('majority', nodes='nodes', inputs=scipy.sparse.csr_array(inputs))
+        return System(self.label, elements=[nodes], interactions=[majority], time=DiscreteTime())

@@ -16,10 +16,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import categorical, where
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from .types import Candidates
 
 SHMULEVICH_INPUTS = ('x1', 'x2', 'x3')
@@ -102,6 +101,8 @@ class ProbabilisticFunctionInteraction(MapInteraction):
         (0.7, 0.3)
     """
 
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -175,24 +176,14 @@ class ProbabilisticFunctionInteraction(MapInteraction):
         return [*super()._get_laws(namespace), UpdateLaw(namespace.target.function, self._get_draw())]
 
 
-@register_system(
-    field='biology/systems_biology',
-    tags=('boolean network', 'gene regulation', 'discrete map', 'stochastic'),
-    references=('Shmulevich et al. 2002', 'Raman 2021'),
-    defaults={'until': 100, 'dt': 1},
-)
-def probabilistic_boolean_network(
-    network: Mapping[str, Candidates] | None = None,
-    *,
-    inputs: Sequence[str] = SHMULEVICH_INPUTS,
-    active: Sequence[str] = ('x1',),
-) -> System:
-    """Return a probabilistic Boolean network, whose nodes draw one of their candidate functions at every step.
+class ProbabilisticBooleanNetworkSystem(BaseSystem):
+    """A probabilistic Boolean network, whose nodes draw one of their candidate functions at every step.
 
-    Every node has candidate truth tables of the inputs, each with a probability, and at every step every node draws
-    one of its tables independently and takes its value, all nodes together. The default network follows the three-gene
+    Every node has candidate truth tables of the inputs, each with a probability, and at every step every node draws one
+    of its tables independently and takes its value, all nodes together. The default network follows the three-gene
     example of Shmulevich et al., in which `x1` and `x3` have two candidate functions and `x2` one. From one initial
-    state the network reaches different attractors in different runs.
+    state the network reaches different attractors in different runs. The system has the values `<node>.x` and the
+    indices of the drawn functions `<node>.function`.
 
     Args:
         network:
@@ -205,25 +196,46 @@ def probabilistic_boolean_network(
         active:
             The nodes that are on at the start.
 
-    Returns:
-        system:
-            The system, with the values `<node>.x` and the indices of the drawn functions `<node>.function`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import probabilistic_boolean_network
-        >>> probabilistic_boolean_network().interactions[0].probabilities
+        >>> from skcomplex.systems.biology.systems_biology import ProbabilisticBooleanNetworkSystem
+        >>> ProbabilisticBooleanNetworkSystem().prepare().system_.interactions[0].probabilities
         (0.6, 0.4)
     """
-    chosen = SHMULEVICH_NETWORK if network is None else network
-    nodes = [ProbabilisticNodeElement(name, x=int(name in active)) for name in chosen]
-    functions = [
-        ProbabilisticFunctionInteraction(
-            f'functions_{name}',
-            target=name,
-            inputs=list(inputs),
-            tables=tuple(tuple(table) for table, _ in candidates),
-            probabilities=tuple(probability for _, probability in candidates),
-        )
-        for name, candidates in chosen.items()
-    ]
-    return System(elements=nodes, interactions=functions)
+
+    field = 'biology/systems_biology'
+    topics = ('boolean network', 'gene regulation', 'discrete map', 'stochastic')
+    references = ('Shmulevich et al. 2002', 'Raman 2021')
+    until = 100
+    dt = 1
+
+    def __init__(
+        self,
+        network: Mapping[str, Candidates] | None = None,
+        *,
+        inputs: Sequence[str] = SHMULEVICH_INPUTS,
+        active: Sequence[str] = ('x1',),
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.network = network
+        self.inputs = inputs
+        self.active = active
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        chosen = SHMULEVICH_NETWORK if self.network is None else self.network
+        nodes = [ProbabilisticNodeElement(name, x=int(name in self.active)) for name in chosen]
+        functions = [
+            ProbabilisticFunctionInteraction(
+                f'functions_{name}',
+                target=name,
+                inputs=list(self.inputs),
+                tables=tuple(tuple(table) for table, _ in candidates),
+                probabilities=tuple(probability for _, probability in candidates),
+            )
+            for name, candidates in chosen.items()
+        ]
+        return System(self.label, elements=nodes, interactions=functions)

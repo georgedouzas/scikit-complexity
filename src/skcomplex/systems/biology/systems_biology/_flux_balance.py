@@ -4,28 +4,16 @@
 # License: MIT
 
 from ....core.components.spaces import StaticTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
-from ..._catalog import register_system
 from ..common.metabolism import ToyNetworkElement, load_network
 
 NETWORKS = ('toy', 'ecoli')
 OXYGEN_EXCHANGE = 'EX_o2_e'
 
 
-@register_system(
-    field='biology/systems_biology',
-    tags=('flux balance', 'linear program', 'metabolism', 'static'),
-    references=('Raman 2021', 'Orth et al. 2010'),
-    defaults={'until': 0.0},
-)
-def flux_balance(
-    network: str = 'toy',
-    *,
-    oxygen: float = 1000.0,
-    parsimonious: bool = False,
-) -> System:
-    """Return flux balance analysis of a metabolic network, which sets its fluxes to maximise growth.
+class FluxBalanceSystem(BaseSystem):
+    """Flux balance analysis of a metabolic network, which sets its fluxes to maximise growth.
 
     The steady-state balances of the metabolites and the bounds of the reactions confine the fluxes, and the optimum of
     the growth flux sets them (Raman 2021, Section 8.6). The toy network of Table 8.2 reaches growth 50, set by the
@@ -42,9 +30,8 @@ def flux_balance(
         parsimonious:
             Whether to minimise the total absolute flux after growth.
 
-    Returns:
-        system:
-            The system.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
@@ -54,19 +41,44 @@ def flux_balance(
             The E. coli core system needs the extra, which is not installed.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import Simulation
-        >>> from skcomplex.systems.biology.systems_biology import flux_balance
-        >>> trajectory = Simulation(flux_balance()).prepare().run(0.0).trajectory_
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.biology.systems_biology import FluxBalanceSystem
+        >>> trajectory = simulate(FluxBalanceSystem(), until=0.0)
         >>> round(float(trajectory.values('cell.v_vbio')[0]), 6)
         50.0
     """
-    if network not in NETWORKS:
-        error_msg = f'Unknown network {network!r}. Use one of {", ".join(NETWORKS)}.'
-        raise ValidationError(error_msg)
-    if network == 'toy':
-        return System(elements=[ToyNetworkElement('cell', parsimonious=parsimonious)], time=StaticTime())
-    element = load_network('textbook', 'cell', needed_by='flux_balance')
-    element.parsimonious = parsimonious
-    identifier = f'lower_{element._identifier(OXYGEN_EXCHANGE)}'
-    element.set_params(**{identifier: -float(oxygen)})
-    return System(elements=[element], time=StaticTime())
+
+    field = 'biology/systems_biology'
+    topics = ('flux balance', 'linear program', 'metabolism', 'static')
+    references = ('Raman 2021', 'Orth et al. 2010')
+    until = 0.0
+
+    def __init__(
+        self,
+        network: str = 'toy',
+        *,
+        oxygen: float = 1000.0,
+        parsimonious: bool = False,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.network = network
+        self.oxygen = oxygen
+        self.parsimonious = parsimonious
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        if self.network not in NETWORKS:
+            error_msg = f'Unknown network {self.network!r}. Use one of {", ".join(NETWORKS)}.'
+            raise ValidationError(error_msg)
+        if self.network == 'toy':
+            return System(
+                self.label,
+                elements=[ToyNetworkElement('cell', parsimonious=self.parsimonious)],
+                time=StaticTime(),
+            )
+        element = load_network('textbook', 'cell', needed_by='flux_balance')
+        element.parsimonious = self.parsimonious
+        identifier = f'lower_{element._identifier(OXYGEN_EXCHANGE)}'
+        element.set_params(**{identifier: -float(self.oxygen)})
+        return System(self.label, elements=[element], time=StaticTime())

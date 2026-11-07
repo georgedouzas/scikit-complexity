@@ -14,9 +14,8 @@ from ....core.components.elements import CompartmentElement, Element
 from ....core.components.interactions import Interaction, ReactionInteraction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import where
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 type Regulations = Mapping[str, tuple[Sequence[str], Sequence[int], Mapping[tuple[bool, ...], int]]]
 
@@ -110,6 +109,8 @@ class LogicalRegulationInteraction(Interaction):
         0
     """
 
+    law_classes = (JumpLaw,)
+
     def __init__(
         self,
         label: str,
@@ -157,24 +158,15 @@ class LogicalRegulationInteraction(Interaction):
         return focal
 
 
-@register_system(
-    field='biology/systems_biology',
-    tags=('logical network', 'multi-valued', 'asynchronous', 'thomas', 'jumps'),
-    references=('Thomas 1991', 'Raman 2021'),
-    defaults={'until': 50.0, 'dt': 0.25},
-)
-def generalized_logical_network(
-    regulations: Regulations | None = None,
-    levels: Mapping[str, int] | None = None,
-) -> System:
-    """Return a generalised logical network of Thomas, whose variables step asynchronously towards focal levels.
+class GeneralizedLogicalNetworkSystem(BaseSystem):
+    """A generalised logical network of Thomas, whose variables step asynchronously towards focal levels.
 
     Every variable takes discrete levels, and each of its regulators acts once its level reaches a threshold. The
-    logical parameters give the focal level of the variable for every combination of acting regulators, and the
-    variable rises or falls one level at a time towards it, each step a random event, so the dynamics explores the
-    asynchronous state transition graph. The default is the negative circuit of a three-level `x` that activates `y` at
-    its second threshold and a Boolean `y` that represses `x`, whose state graph is a cycle, a sustained oscillation.
-    A positive circuit, two mutual repressors, has two stable states instead.
+    logical parameters give the focal level of the variable for every combination of acting regulators, and the variable
+    rises or falls one level at a time towards it, each step a random event, so the dynamics explores the asynchronous
+    state transition graph. The default is the negative circuit of a three-level `x` that activates `y` at its second
+    threshold and a Boolean `y` that represses `x`, whose state graph is a cycle, a sustained oscillation. A positive
+    circuit, two mutual repressors, has two stable states instead. The system has the levels `<variable>.level`.
 
     Args:
         regulations:
@@ -184,52 +176,61 @@ def generalized_logical_network(
         levels:
             The initial level of every variable, or `None` for 0.
 
-    Returns:
-        system:
-            The system, with the levels `<variable>.level`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import generalized_logical_network
-        >>> [element.label for element in generalized_logical_network().elements]
+        >>> from skcomplex.systems.biology.systems_biology import GeneralizedLogicalNetworkSystem
+        >>> [element.label for element in GeneralizedLogicalNetworkSystem().prepare().system_.elements]
         ['x', 'y']
     """
-    network = NEGATIVE_CIRCUIT if regulations is None else regulations
-    start = levels or {}
-    return System(
-        elements=[LogicalVariableElement(name, level=float(start.get(name, 0))) for name in network],
-        interactions=[
-            LogicalRegulationInteraction(
-                f'{name}_regulation',
-                target=name,
-                regulators=list(regulators),
-                thresholds=tuple(thresholds),
-                parameters=dict(parameters),
-            )
-            for name, (regulators, thresholds, parameters) in network.items()
-        ],
-    )
+
+    field = 'biology/systems_biology'
+    topics = ('logical network', 'multi-valued', 'asynchronous', 'thomas', 'jumps')
+    references = ('Thomas 1991', 'Raman 2021')
+    until = 50.0
+    dt = 0.25
+
+    def __init__(
+        self,
+        regulations: Regulations | None = None,
+        levels: Mapping[str, int] | None = None,
+        *,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.regulations = regulations
+        self.levels = levels
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        network = NEGATIVE_CIRCUIT if self.regulations is None else self.regulations
+        start = self.levels or {}
+        return System(
+            self.label,
+            elements=[LogicalVariableElement(name, level=float(start.get(name, 0))) for name in network],
+            interactions=[
+                LogicalRegulationInteraction(
+                    f'{name}_regulation',
+                    target=name,
+                    regulators=list(regulators),
+                    thresholds=tuple(thresholds),
+                    parameters=dict(parameters),
+                )
+                for name, (regulators, thresholds, parameters) in network.items()
+            ],
+        )
 
 
-@register_system(
-    field='biology/systems_biology',
-    tags=('petri net', 'stochastic simulation', 'gene expression', 'invariants', 'jumps'),
-    references=('Petri 1962', 'Reddy et al. 1993', 'Raman 2021'),
-    defaults={'until': 100.0, 'dt': 0.5},
-)
-def petri_net(
-    places: Mapping[str, int] | None = None,
-    transitions: Transitions | None = None,
-    *,
-    stochastic: bool = True,
-) -> System:
-    """Return a Petri net, places that hold tokens and transitions that consume and produce them when they fire.
+class PetriNetSystem(BaseSystem):
+    """A Petri net, places that hold tokens and transitions that consume and produce them when they fire.
 
     Every transition is a pair of input and output arcs with weights and a rate. In a stochastic Petri net it fires at
     random times with the mass-action propensity of its input places, consuming the tokens of its input arcs and
     producing those of its output arcs, and otherwise it is a continuous Petri net of rate equations. Every place
-    invariant, a weighted sum of tokens that no transition changes, is conserved. The default net is the expression
-    of a gene that switches on, is transcribed and translated, and is switched off by its own protein, with the
-    invariant `gene_on + gene_off = 1`.
+    invariant, a weighted sum of tokens that no transition changes, is conserved. The default net is the expression of a
+    gene that switches on, is transcribed and translated, and is switched off by its own protein, with the invariant
+    `gene_on + gene_off = 1`. The system has the tokens `<place>.n` of every place.
 
     Args:
         places:
@@ -241,28 +242,50 @@ def petri_net(
         stochastic:
             Whether the transitions fire at random times.
 
-    Returns:
-        system:
-            The system, with the tokens `<place>.n` of every place.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import petri_net
-        >>> [element.label for element in petri_net().elements]
+        >>> from skcomplex.systems.biology.systems_biology import PetriNetSystem
+        >>> [element.label for element in PetriNetSystem().prepare().system_.elements]
         ['gene_off', 'gene_on', 'mRNA', 'protein']
     """
-    marking = GENE_EXPRESSION_PLACES if places is None else places
-    arcs = GENE_EXPRESSION_TRANSITIONS if transitions is None else transitions
-    mode = 'jump' if stochastic else 'rate'
-    return System(
-        elements=[CompartmentElement(name, n=float(tokens)) for name, tokens in marking.items()],
-        interactions=[
-            ReactionInteraction(
-                label,
-                reactants={(place, 'n'): weight for place, weight in inputs.items()} or None,
-                products={(place, 'n'): weight for place, weight in outputs.items()} or None,
-                k=rate,
-                mode=mode,
-            )
-            for label, inputs, outputs, rate in arcs
-        ],
-    )
+
+    field = 'biology/systems_biology'
+    topics = ('petri net', 'stochastic simulation', 'gene expression', 'invariants', 'jumps')
+    references = ('Petri 1962', 'Reddy et al. 1993', 'Raman 2021')
+    until = 100.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        places: Mapping[str, int] | None = None,
+        transitions: Transitions | None = None,
+        *,
+        stochastic: bool = True,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.places = places
+        self.transitions = transitions
+        self.stochastic = stochastic
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        marking = GENE_EXPRESSION_PLACES if self.places is None else self.places
+        arcs = GENE_EXPRESSION_TRANSITIONS if self.transitions is None else self.transitions
+        mode = 'jump' if self.stochastic else 'rate'
+        return System(
+            self.label,
+            elements=[CompartmentElement(name, n=float(tokens)) for name, tokens in marking.items()],
+            interactions=[
+                ReactionInteraction(
+                    label,
+                    reactants={(place, 'n'): weight for place, weight in inputs.items()} or None,
+                    products={(place, 'n'): weight for place, weight in outputs.items()} or None,
+                    k=rate,
+                    mode=mode,
+                )
+                for label, inputs, outputs, rate in arcs
+            ],
+        )

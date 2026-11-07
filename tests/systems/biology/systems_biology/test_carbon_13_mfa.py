@@ -9,10 +9,10 @@ from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.common.metabolism import ReactionSpec, metabolic_network_type
 from skcomplex.systems.biology.systems_biology import (
     AtomMapSpec,
+    Carbon13MFASystem,
     FragmentSpec,
     LabelMeasurementSpec,
     TracerSpec,
-    carbon_13_mfa,
     labelling,
     tca_labelling_analysis,
 )
@@ -22,7 +22,7 @@ TRUE = {'v1': 100.0, 'v2': 100.0, 'v3': 50.0, 'v4': 50.0, 'v5': 50.0, 'v6': 50.0
 
 def test_estimation_recovers_the_split_of_alpha_ketoglutarate():
     """Test the estimated split, that every interval holds its true value, and that the test accepts the fit."""
-    analysis = tca_labelling_analysis(noise=0.002, random_state=0)(carbon_13_mfa())
+    analysis = tca_labelling_analysis(noise=0.002, random_state=0)(Carbon13MFASystem().prepare().system_)
     assert analysis.fluxes['v3'] == pytest.approx(50, abs=2)
     assert analysis.fluxes['v4'] == pytest.approx(50, abs=2)
     assert analysis.accepted
@@ -33,7 +33,7 @@ def test_estimation_recovers_the_split_of_alpha_ketoglutarate():
 
 def test_simulation_gives_the_published_pattern():
     """Test the glutamate of the true fluxes and the tracer of Antoniewicz et al. (2007)."""
-    analysis = tca_labelling_analysis('simulation')(carbon_13_mfa())
+    analysis = tca_labelling_analysis('simulation')(Carbon13MFASystem().prepare().system_)
     found = analysis.distributions['published']['Glu']
     np.testing.assert_allclose(found, [0.3464, 0.2695, 0.2708, 0.0807, 0.0286, 0.0039], atol=5e-5)
 

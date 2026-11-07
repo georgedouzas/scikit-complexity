@@ -12,10 +12,9 @@ from sage.all__sagemath_symbolics import SR, Expression
 
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import where
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec
-from ..._catalog import register_system
 from ..common.networks import BooleanFunctionInteraction, BooleanNodeElement
 
 YEAST_NODES = ('Cln3', 'MBF', 'SBF', 'Cln1_2', 'Cdh1', 'Swi5', 'Cdc20', 'Clb5_6', 'Sic1', 'Clb1_2', 'Mcm1')
@@ -88,24 +87,12 @@ class ThresholdFunctionInteraction(MapInteraction):
         return where(total > 0, 1, where(total < 0, 0, unchanged))
 
 
-@register_system(
-    field='biology/systems_biology',
-    tags=('boolean network', 'gene regulation', 'discrete map', 'criticality'),
-    references=('Kauffman 1969', 'Gros 2015'),
-    defaults={'until': 50, 'dt': 1},
-)
-def random_boolean_network(
-    n_nodes: int = 20,
-    k: int = 2,
-    *,
-    bias: float = 0.5,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return a Kauffman random Boolean network, nodes updated together by random functions of `k` random inputs.
+class RandomBooleanNetworkSystem(BaseSystem):
+    """A Kauffman random Boolean network, nodes updated together by random functions of `k` random inputs.
 
     Each node reads `k` distinct nodes, possibly itself, through a truth table whose entries are 1 with probability
     `bias`. The finite state space makes every run end on a cycle. With `k = 2` and `bias = 0.5` the network is
-    critical, between frozen and chaotic.
+    critical, between frozen and chaotic. The system has the values `node_<i>.x`.
 
     Args:
         n_nodes:
@@ -120,72 +107,109 @@ def random_boolean_network(
         random_state:
             The seed or generator of the wiring, the tables, and the initial values.
 
-    Returns:
-        system:
-            The system, with the values `node_<i>.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             `k` is not between 1 and the number of nodes.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import random_boolean_network
-        >>> len(random_boolean_network(10, 3).interactions[0].table)
+        >>> from skcomplex.systems.biology.systems_biology import RandomBooleanNetworkSystem
+        >>> len(RandomBooleanNetworkSystem(10, 3).prepare().system_.interactions[0].table)
         8
     """
-    if not 1 <= k <= n_nodes:
-        error_msg = f'k = {k} inputs per node must be between 1 and the number of nodes, n_nodes = {n_nodes}.'
-        raise ValidationError(error_msg)
-    rng = np.random.default_rng(random_state)
-    nodes = [BooleanNodeElement(f'node_{index}', x=int(rng.integers(2))) for index in range(n_nodes)]
-    functions = [
-        BooleanFunctionInteraction(
-            f'function_{index}',
-            target=f'node_{index}',
-            inputs=[f'node_{source}' for source in rng.choice(n_nodes, size=k, replace=False)],
-            table=tuple(int(entry) for entry in rng.random(2**k) < bias),
-        )
-        for index in range(n_nodes)
-    ]
-    return System(elements=nodes, interactions=functions)
+
+    field = 'biology/systems_biology'
+    topics = ('boolean network', 'gene regulation', 'discrete map', 'criticality')
+    references = ('Kauffman 1969', 'Gros 2015')
+    until = 50
+    dt = 1
+
+    def __init__(
+        self,
+        n_nodes: int = 20,
+        k: int = 2,
+        *,
+        bias: float = 0.5,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_nodes = n_nodes
+        self.k = k
+        self.bias = bias
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        if not 1 <= self.k <= self.n_nodes:
+            error_msg = (
+                f'k = {self.k} inputs per node must be between 1 and the number of nodes, n_nodes = {self.n_nodes}.'
+            )
+            raise ValidationError(error_msg)
+        rng = np.random.default_rng(self.random_state)
+        nodes = [BooleanNodeElement(f'node_{index}', x=int(rng.integers(2))) for index in range(self.n_nodes)]
+        functions = [
+            BooleanFunctionInteraction(
+                f'function_{index}',
+                target=f'node_{index}',
+                inputs=[f'node_{source}' for source in rng.choice(self.n_nodes, size=self.k, replace=False)],
+                table=tuple(int(entry) for entry in rng.random(2**self.k) < self.bias),
+            )
+            for index in range(self.n_nodes)
+        ]
+        return System(self.label, elements=nodes, interactions=functions)
 
 
-@register_system(
-    field='biology/systems_biology',
-    tags=('boolean network', 'gene regulation', 'discrete map', 'cell cycle'),
-    references=('Li et al. 2004', 'Gros 2015'),
-    defaults={'until': 15, 'dt': 1},
-)
-def yeast_cell_cycle(active: Sequence[str] = YEAST_START) -> System:
-    """Return the Boolean network of the budding yeast cell cycle of Li et al., eleven proteins and their regulation.
+class YeastCellCycleSystem(BaseSystem):
+    """The Boolean network of the budding yeast cell cycle of Li et al., eleven proteins and their regulation.
 
-    Every protein turns on or off with the sign of the summed activations and inhibitions by the active proteins,
-    and the proteins Cln3, Cln1,2, Swi5, Cdc20, and Mcm1 decay without input. Started from the G1 state with Cln3 on,
-    the cell size signal, the network runs through the phases of the cycle into the stationary G1 state.
+    Every protein turns on or off with the sign of the summed activations and inhibitions by the active proteins, and
+    the proteins Cln3, Cln1,2, Swi5, Cdc20, and Mcm1 decay without input. Started from the G1 state with Cln3 on, the
+    cell size signal, the network runs through the phases of the cycle into the stationary G1 state. The system has the
+    values `<protein>.x`.
 
     Args:
         active:
             The proteins that are on at the start, among `Cln3`, `MBF`, `SBF`, `Cln1_2`, `Cdh1`, `Swi5`, `Cdc20`,
             `Clb5_6`, `Sic1`, `Clb1_2`, and `Mcm1`.
 
-    Returns:
-        system:
-            The system, with the values `<protein>.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import yeast_cell_cycle
-        >>> [node.label for node in yeast_cell_cycle().elements if node.x]
+        >>> from skcomplex.systems.biology.systems_biology import YeastCellCycleSystem
+        >>> [node.label for node in YeastCellCycleSystem().prepare().system_.elements if node.x]
         ['Cln3', 'Cdh1', 'Sic1']
     """
-    nodes = [BooleanNodeElement(name, x=int(name in active)) for name in YEAST_NODES]
-    functions = [
-        ThresholdFunctionInteraction(
-            f'regulation_{name}',
-            target=name,
-            inputs=[source for source, _ in YEAST_INPUTS[name]],
-            weights=[float(weight) for _, weight in YEAST_INPUTS[name]],
-            decays=name in YEAST_DECAYING,
-        )
-        for name in YEAST_NODES
-    ]
-    return System(elements=nodes, interactions=functions)
+
+    field = 'biology/systems_biology'
+    topics = ('boolean network', 'gene regulation', 'discrete map', 'cell cycle')
+    references = ('Li et al. 2004', 'Gros 2015')
+    until = 15
+    dt = 1
+
+    def __init__(
+        self,
+        active: Sequence[str] = YEAST_START,
+        *,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.active = active
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        nodes = [BooleanNodeElement(name, x=int(name in self.active)) for name in YEAST_NODES]
+        functions = [
+            ThresholdFunctionInteraction(
+                f'regulation_{name}',
+                target=name,
+                inputs=[source for source, _ in YEAST_INPUTS[name]],
+                weights=[float(weight) for _, weight in YEAST_INPUTS[name]],
+                decays=name in YEAST_DECAYING,
+            )
+            for name in YEAST_NODES
+        ]
+        return System(self.label, elements=nodes, interactions=functions)

@@ -17,13 +17,12 @@ from scipy.stats import chi2
 from ....core.analysis import bind_analysis
 from ....core.analysis.types import Source
 from ....core.components.spaces import StaticTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.compile import PassCompiler
 from ....core.engine.problems import ProblemSpec
 from ....core.errors import AnalysisError, ValidationError
 from ....core.specs import BaseSpec, DeclaredVariableSpec, RunStateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 from ..common.metabolism import MetabolicNetworkElement, ReactionSpec
 
 SUM_TOLERANCE = 1e-9
@@ -126,8 +125,8 @@ class TcaNetworkElement(MetabolicNetworkElement):
             The declared states and parameters that replace the ones of the reactions, by name, or `None` for none.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import carbon_13_mfa
-        >>> carbon_13_mfa().elements[0].get_value('upper_v1')
+        >>> from skcomplex.systems.biology.systems_biology import Carbon13MFASystem
+        >>> Carbon13MFASystem().prepare().system_.elements[0].get_value('upper_v1')
         300.0
     """
 
@@ -555,6 +554,8 @@ def labelling(
     _check_choice('kind', kind, KINDS)
     _check_choice('intervals', intervals, INTERVALS)
     atom_counts = _atom_counts(atoms)
+    if isinstance(source, BaseSystem) and not isinstance(source, System):
+        source = source.prepare().system_
     if not isinstance(source, System):
         error_msg = f'labelling reads a system, not a {type(source).__name__}.'
         raise AnalysisError(error_msg)
@@ -1067,8 +1068,8 @@ def tca_labelling_analysis(
             The function `labelling` bound to the settings, which takes the system.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import carbon_13_mfa, tca_labelling_analysis
-        >>> result = tca_labelling_analysis('simulation')(carbon_13_mfa())
+        >>> from skcomplex.systems.biology.systems_biology import Carbon13MFASystem, tca_labelling_analysis
+        >>> result = tca_labelling_analysis('simulation')(Carbon13MFASystem())
         >>> [round(float(item), 4) for item in result.distributions['published']['Glu']]
         [0.3464, 0.2695, 0.2708, 0.0807, 0.0286, 0.0039]
     """
@@ -1083,7 +1084,7 @@ def tca_labelling_analysis(
             symmetric=TCA_SYMMETRIC,
         )
     simulated = labelling(
-        carbon_13_mfa(),
+        Carbon13MFASystem(),
         kind='simulation',
         atoms=TCA_ATOMS,
         tracers=PARALLEL_TRACERS,
@@ -1112,14 +1113,8 @@ def tca_labelling_analysis(
     )
 
 
-@register_system(
-    field='biology/systems_biology',
-    tags=('carbon-13 flux analysis', 'isotope labelling', 'elementary metabolite units', 'metabolism', 'static'),
-    references=('Raman 2021', 'Antoniewicz et al. 2007', 'Antoniewicz et al. 2006'),
-    defaults={'until': 0.0},
-)
-def carbon_13_mfa(network: MetabolicNetworkElement | None = None) -> System:
-    """Return a metabolic network that `labelling` fits to labelling data, the TCA example by default.
+class Carbon13MFASystem(BaseSystem):
+    """A metabolic network that `labelling` fits to labelling data, the TCA example by default.
 
     Labelled atoms of a tracer spread through the network along its atom transitions, so the measured mass isotopomer
     distributions of its products carry the fluxes (Raman 2021, Section 9.7). `tca_labelling_analysis` gives the
@@ -1129,13 +1124,33 @@ def carbon_13_mfa(network: MetabolicNetworkElement | None = None) -> System:
         network:
             The metabolic network, or `None` for the TCA example.
 
-    Returns:
-        system:
-            The system.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import carbon_13_mfa
-        >>> carbon_13_mfa().elements[0].label
+        >>> from skcomplex.systems.biology.systems_biology import Carbon13MFASystem
+        >>> Carbon13MFASystem().prepare().system_.elements[0].label
         'tca'
     """
-    return System(elements=[TcaNetworkElement('tca') if network is None else network], time=StaticTime())
+
+    field = 'biology/systems_biology'
+    topics = ('carbon-13 flux analysis', 'isotope labelling', 'elementary metabolite units', 'metabolism', 'static')
+    references = ('Raman 2021', 'Antoniewicz et al. 2007', 'Antoniewicz et al. 2006')
+    until = 0.0
+
+    def __init__(
+        self,
+        network: MetabolicNetworkElement | None = None,
+        *,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.network = network
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        return System(
+            self.label,
+            elements=[TcaNetworkElement('tca') if self.network is None else self.network],
+            time=StaticTime(),
+        )

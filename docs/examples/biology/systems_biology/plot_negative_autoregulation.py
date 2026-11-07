@@ -13,15 +13,14 @@ less.
 import matplotlib.pyplot as plt
 
 from skcomplex.core.analysis import distribution
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.systems_biology import NegativeAutoregulationSystem
 
 SYSTEM = 'negative_autoregulation'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer], random_state=0).prepare().run(until=200)
+trajectory = simulate(NegativeAutoregulationSystem(), observers=[observer], random_state=0)
 
 # %%
 # Feedback reduces the noise
@@ -31,7 +30,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer], random_state=0).pr
 
 fig, ax = plt.subplots(figsize=(8, 4))
 for label, K in [('with feedback', 50.0), ('without feedback', 1e9)]:
-    trajectory = Simulation(create_system(SYSTEM, K=K), dt=1.0, random_state=1).prepare().run(until=1000).trajectory_
+    trajectory = simulate(NegativeAutoregulationSystem(K=K), random_state=1, until=1000)
     protein = trajectory.values('gene.p')[trajectory.times > 100]
     fano = distribution(protein, kind='dispersion-index').index[0]
     ax.plot(
