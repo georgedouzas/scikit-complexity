@@ -8,18 +8,18 @@
 
 ## 2. Macroeconomics
 
-- [ ] 2.1 `brock_mirman_growth`, with tests, inventory entry, and gallery example
-- [ ] 2.2 `network_herding`, with tests, inventory entry, and gallery example
-- [ ] 2.3 `categorized_purchasing_power`, with tests, inventory entry, and gallery example
-- [ ] 2.4 `mark0`, with tests, inventory entry, and gallery example
+- [x] 2.1 `brock_mirman_growth`, with tests, inventory entry, and gallery example
+- [x] 2.2 `network_herding`, with tests, inventory entry, and gallery example
+- [x] 2.3 `categorized_purchasing_power`, with tests, inventory entry, and gallery example
+- [x] 2.4 `mark0`, with tests, inventory entry, and gallery example
 
 ## 3. Finance
 
-- [ ] 3.1 `kirman_exchange_rate`, with tests, inventory entry, and gallery example
-- [ ] 3.2 `default_cascade`, with tests, inventory entry, and gallery example
-- [ ] 3.3 `eisenberg_noe_clearing`, with tests, inventory entry, and gallery example
-- [ ] 3.4 `overlapping_portfolio_fire_sales`, with tests, inventory entry, and gallery example
-- [ ] 3.5 `guru_order_book`, with tests, inventory entry, and gallery example
+- [x] 3.1 `kirman_exchange_rate`, with tests, inventory entry, and gallery example
+- [x] 3.2 `default_cascade`, with tests, inventory entry, and gallery example
+- [x] 3.3 `eisenberg_noe_clearing`, with tests, inventory entry, and gallery example
+- [x] 3.4 `overlapping_portfolio_fire_sales`, with tests, inventory entry, and gallery example
+- [x] 3.5 `guru_order_book`, with tests, inventory entry, and gallery example
 
 ## 4. Markets, econophysics, and innovation
 
