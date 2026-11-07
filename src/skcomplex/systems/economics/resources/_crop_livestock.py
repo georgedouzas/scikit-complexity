@@ -12,9 +12,8 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import lag, where
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class CropLivestockElement(Element):
@@ -80,6 +79,8 @@ class CropLivestockElement(Element):
         >>> CropLivestockElement('household', max_livestock=10.0).max_livestock
         10.0
     """
+
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
@@ -212,36 +213,8 @@ class CropLivestockElement(Element):
         ]
 
 
-@register_system(
-    field='economics/resources',
-    tags=('agriculture', 'livestock', 'household', 'livelihood', 'stocks and flows', 'system dynamics', 'discrete map'),
-    references=('Bala et al. 2017',),
-    defaults={'until': 12},
-    observables=lambda system: [
-        ObservableSpec(name, function, element='household')
-        for name, function in (
-            ('crop_production', CropLivestockElement.get_crop_production),
-            ('income_from_crop', CropLivestockElement.get_income_from_crop),
-            ('income_from_livestock', CropLivestockElement.get_income_from_livestock),
-            ('sale', CropLivestockElement.get_sale),
-            ('purchase', CropLivestockElement.get_purchase),
-        )
-    ],
-)
-def crop_livestock_household(
-    wealth: float = 10000.0,
-    livestock: float = 4.0,
-    *,
-    crop_area: float = 0.5,
-    yield_normal: float = 3.2,
-    price: float = 50000.0,
-    unit_price: float = 35000.0,
-    purchase_price: float = 15000.0,
-    household_consumption: float = 75000.0,
-    max_livestock: float = 8.0,
-    sale_fraction: float = 0.2,
-) -> System:
-    """Return Bala's crop livestock model, a farming household that adds livestock rearing to its crop income.
+class CropLivestockHouseholdSystem(BaseSystem):
+    """Bala's crop livestock model, a farming household that adds livestock rearing to its crop income.
 
     A household with a fixed crop area and a grant or loan to start rearing livestock earns the crop production times
     the price and the sales of animals, and spends on its consumption and on buying animals. Every year it sells the
@@ -251,6 +224,11 @@ def crop_livestock_household(
     three years and whose `INT` truncates, so the model is a yearly map. The effects of the cropping intensity and the
     regeneration on the yield are zero. Livestock raises the income of the household considerably, but only after the
     maturation delay.
+
+    The system has the stocks `household.wealth`, `household.livestock`, and `household.yield_multiplier`, and the
+    purchases of the previous year `household.purchases`, over years. The observables of the system are
+    `household.crop_production`, `household.income_from_crop`, `household.income_from_livestock`, `household.sale`, and
+    `household.purchase`.
 
     Args:
         wealth:
@@ -283,32 +261,83 @@ def crop_livestock_household(
         sale_fraction:
             The fraction of the herd sold every year.
 
-    Returns:
-        system:
-            The system, with the stocks `household.wealth`, `household.livestock`, and `household.yield_multiplier`,
-            and the purchases of the previous year `household.purchases`, over years. The observables of the system are
-            `household.crop_production`, `household.income_from_crop`, `household.income_from_livestock`,
-            `household.sale`, and `household.purchase`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.resources import crop_livestock_household
-        >>> crop_livestock_household(wealth=20000.0).elements[0].wealth
+        >>> from skcomplex.systems.economics.resources import CropLivestockHouseholdSystem
+        >>> CropLivestockHouseholdSystem(wealth=20000.0).prepare().system_.elements[0].wealth
         20000.0
     """
-    sale = int(livestock * sale_fraction)
-    affordable = int(wealth / purchase_price)
-    household = CropLivestockElement(
+
+    field = 'economics/resources'
+    topics = (
+        'agriculture',
+        'livestock',
         'household',
-        wealth=wealth,
-        livestock=livestock,
-        purchases=float(affordable if affordable <= max_livestock + sale - livestock else 0),
-        crop_area=crop_area,
-        yield_normal=yield_normal,
-        price=price,
-        unit_price=unit_price,
-        purchase_price=purchase_price,
-        household_consumption=household_consumption,
-        max_livestock=max_livestock,
-        sale_fraction=sale_fraction,
+        'livelihood',
+        'stocks and flows',
+        'system dynamics',
+        'discrete map',
     )
-    return System(elements=[household])
+    references = ('Bala et al. 2017',)
+    until = 12
+    observables = tuple(
+        [
+            ObservableSpec(name, function, element='household')
+            for name, function in (
+                ('crop_production', CropLivestockElement.get_crop_production),
+                ('income_from_crop', CropLivestockElement.get_income_from_crop),
+                ('income_from_livestock', CropLivestockElement.get_income_from_livestock),
+                ('sale', CropLivestockElement.get_sale),
+                ('purchase', CropLivestockElement.get_purchase),
+            )
+        ],
+    )
+
+    def __init__(
+        self,
+        wealth: float = 10000.0,
+        livestock: float = 4.0,
+        *,
+        crop_area: float = 0.5,
+        yield_normal: float = 3.2,
+        price: float = 50000.0,
+        unit_price: float = 35000.0,
+        purchase_price: float = 15000.0,
+        household_consumption: float = 75000.0,
+        max_livestock: float = 8.0,
+        sale_fraction: float = 0.2,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.wealth = wealth
+        self.livestock = livestock
+        self.crop_area = crop_area
+        self.yield_normal = yield_normal
+        self.price = price
+        self.unit_price = unit_price
+        self.purchase_price = purchase_price
+        self.household_consumption = household_consumption
+        self.max_livestock = max_livestock
+        self.sale_fraction = sale_fraction
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        sale = int(self.livestock * self.sale_fraction)
+        affordable = int(self.wealth / self.purchase_price)
+        household = CropLivestockElement(
+            'household',
+            wealth=self.wealth,
+            livestock=self.livestock,
+            purchases=float(affordable if affordable <= self.max_livestock + sale - self.livestock else 0),
+            crop_area=self.crop_area,
+            yield_normal=self.yield_normal,
+            price=self.price,
+            unit_price=self.unit_price,
+            purchase_price=self.purchase_price,
+            household_consumption=self.household_consumption,
+            max_livestock=self.max_livestock,
+            sale_fraction=self.sale_fraction,
+        )
+        return System(self.label, elements=[household])

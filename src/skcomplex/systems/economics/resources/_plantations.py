@@ -13,9 +13,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import BaseLaw, RateLaw, Sink
 from ....core.components.laws.utils import clip, lookup
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 PROFITABILITY_EFFECT = (
     (0.0, 0.02),
@@ -119,34 +118,6 @@ def _conversion(land: SimpleNamespace) -> Expression:
     return clip(land.palm_margin - _profitability(land), 0) / land.palm_margin
 
 
-def _land_use() -> TransferInteraction:
-    """Return the planting, abandonment, fallow, and conversion of cocoa land, reported under the plantation."""
-    return TransferInteraction(
-        'land_use',
-        source='cocoa',
-        target='cocoa',
-        state='forest',
-        into='area',
-        amount=_planting,
-        flow='planting',
-        legs=[
-            ('area', 'abandoned', _abandonment, 'abandonment'),
-            (
-                'abandoned',
-                'forest',
-                lambda s: (1 - _conversion(s.source)) * s.source.abandoned / s.source.conversion_time,
-                'fallow',
-            ),
-            (
-                'abandoned',
-                Sink('oil_palm'),
-                lambda s: _conversion(s.source) * s.source.abandoned / s.source.conversion_time,
-                'conversion',
-            ),
-        ],
-    )
-
-
 def _cocoa_laws(s: SimpleNamespace) -> list[BaseLaw]:
     """Return the thinning of shade and the growth and control of the insects."""
     unprotected = 1 - s.subsidy
@@ -232,6 +203,8 @@ class PlantationElement(Element):
         0.5
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -288,26 +261,8 @@ class PlantationElement(Element):
         return _cocoa_laws(s)
 
 
-@register_system(
-    field='economics/resources',
-    tags=('agriculture', 'boom and bust', 'stocks and flows', 'system dynamics', 'ode'),
-    references=('Bala et al. 2017',),
-    defaults={'until': 50.0, 'dt': 0.25},
-    observables=lambda system: [
-        ObservableSpec('cocoa_yield', _cocoa_yield, element='cocoa'),
-        ObservableSpec('profit_per_area', _profit_per_area, element='cocoa'),
-        ObservableSpec('profitability', _profitability, element='cocoa'),
-    ],
-)
-def cocoa(
-    area: float = 10.0,
-    *,
-    price: float = 40.0,
-    cost: float = 100.0,
-    insect_growth: float = 0.6,
-    subsidy: float = 0.0,
-) -> System:
-    """Return a cocoa production system, plantations that boom with their profit and bust with the insects they invite.
+class CocoaSystem(BaseSystem):
+    """A cocoa production system, plantations that boom with their profit and bust with the insects they invite.
 
     The planted area moves towards a desired area, the current area times a table function of the profit margin, so
     a profitable crop expands it. Farmers thin the shading trees, which raises the yield through an intensification
@@ -319,6 +274,10 @@ def cocoa(
     Bala, Arshad and Noh (2017, Chapter 8), and the rates, the price, and the costs are illustrative, with the area in
     thousands of hectares, the yield in hundreds of kilograms per hectare, the money in ringgit per hundred
     kilograms and per hectare, the shade removal and the insect attack as indices from 0 to 100, and time in years.
+
+    The system has the land stocks `cocoa.area` and `cocoa.abandoned`, the indices `cocoa.shade_removal` and
+    `cocoa.insects`, and the flows `cocoa.planting`, `cocoa.abandonment`, and `cocoa.conversion` per year, over years.
+    The observables of the system are `cocoa.cocoa_yield`, `cocoa.profit_per_area`, and `cocoa.profitability`.
 
     Args:
         area:
@@ -336,24 +295,79 @@ def cocoa(
         subsidy:
             The coverage of the subsidy and extension programme, from 0 to 1.
 
-    Returns:
-        system:
-            The system, with the land stocks `cocoa.area` and `cocoa.abandoned`, the indices `cocoa.shade_removal` and
-            `cocoa.insects`, and the flows `cocoa.planting`, `cocoa.abandonment`, and `cocoa.conversion` per year, over
-            years. The observables of the system are `cocoa.cocoa_yield`, `cocoa.profit_per_area`, and
-            `cocoa.profitability`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.resources import cocoa
-        >>> cocoa(subsidy=1.0).elements[0].subsidy
+        >>> from skcomplex.systems.economics.resources import CocoaSystem
+        >>> CocoaSystem(subsidy=1.0).prepare().system_.elements[0].subsidy
         1.0
     """
-    plantation = PlantationElement(
-        'cocoa',
-        area=area,
-        price=price,
-        cost=cost,
-        insect_growth=insect_growth,
-        subsidy=subsidy,
+
+    field = 'economics/resources'
+    topics = ('agriculture', 'boom and bust', 'stocks and flows', 'system dynamics', 'ode')
+    references = ('Bala et al. 2017',)
+    until = 50.0
+    dt = 0.25
+    observables = (
+        ObservableSpec('cocoa_yield', _cocoa_yield, element='cocoa'),
+        ObservableSpec('profit_per_area', _profit_per_area, element='cocoa'),
+        ObservableSpec('profitability', _profitability, element='cocoa'),
     )
-    return System(elements=[plantation], interactions=[_land_use()])
+
+    def __init__(
+        self,
+        area: float = 10.0,
+        *,
+        price: float = 40.0,
+        cost: float = 100.0,
+        insect_growth: float = 0.6,
+        subsidy: float = 0.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.area = area
+        self.price = price
+        self.cost = cost
+        self.insect_growth = insect_growth
+        self.subsidy = subsidy
+
+    @staticmethod
+    def _land_use() -> TransferInteraction:
+        """Return the planting, abandonment, fallow, and conversion of cocoa land, reported under the plantation."""
+        return TransferInteraction(
+            'land_use',
+            source='cocoa',
+            target='cocoa',
+            state='forest',
+            into='area',
+            amount=_planting,
+            flow='planting',
+            legs=[
+                ('area', 'abandoned', _abandonment, 'abandonment'),
+                (
+                    'abandoned',
+                    'forest',
+                    lambda s: (1 - _conversion(s.source)) * s.source.abandoned / s.source.conversion_time,
+                    'fallow',
+                ),
+                (
+                    'abandoned',
+                    Sink('oil_palm'),
+                    lambda s: _conversion(s.source) * s.source.abandoned / s.source.conversion_time,
+                    'conversion',
+                ),
+            ],
+        )
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        plantation = PlantationElement(
+            'cocoa',
+            area=self.area,
+            price=self.price,
+            cost=self.cost,
+            insect_growth=self.insect_growth,
+            subsidy=self.subsidy,
+        )
+        return System(self.label, elements=[plantation], interactions=[self._land_use()])

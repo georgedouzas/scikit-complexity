@@ -14,9 +14,9 @@ errors of the measurement can push a stock to extinction.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.resources import FisheryMeasurementErrorsSystem
 
 SYSTEM = 'fishery_measurement_errors'
 STEPS = 5000
@@ -24,20 +24,16 @@ STEPS = 5000
 
 def run(**settings):
     """Return the trajectory of the fisheries with some settings."""
-    system = create_system(SYSTEM, sigma_r=1.4, **settings)
-    observables = describe(SYSTEM).observables_of(system)
-    return Simulation(system, random_state=0, observables=observables).prepare().run(until=STEPS).trajectory_
+    return simulate(FisheryMeasurementErrorsSystem(sigma_r=1.4, **settings), until=STEPS, random_state=0)
 
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
-system = create_system(SYSTEM, sigma_r=1.4, error=0.2)
-simulation = Simulation(
-    system,
+trajectory = simulate(
+    FisheryMeasurementErrorsSystem(sigma_r=1.4, error=0.2),
+    until=STEPS,
     observers=[observer],
     random_state=0,
-    observables=describe(SYSTEM).observables_of(system),
-).prepare()
-simulation.run(until=STEPS)
+)
 
 # %%
 # Extinction and the size of the errors
@@ -50,7 +46,6 @@ simulation.run(until=STEPS)
 errors = np.array([0.0, 0.1, 0.2, 0.3, 0.4])
 floored = [run(error=error).values('extinct')[-1] for error in errors]
 restocked = [run(error=error, restocking=True).values('extinct')[-1] for error in errors]
-trajectory = simulation.trajectory_
 fig, (stock, extinction) = plt.subplots(1, 2, figsize=(10, 4))
 stock.plot(trajectory.times * 0.01, trajectory.values('mean_stock'), label='mean stock')
 stock.plot(trajectory.times * 0.01, trajectory.values('mean_catch'), label='mean quota')

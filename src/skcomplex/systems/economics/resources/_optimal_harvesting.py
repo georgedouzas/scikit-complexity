@@ -11,10 +11,9 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import CollocationSolver
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 MAX_EFFORT = 1.0
 
@@ -80,6 +79,8 @@ class HarvestedResourceElement(Element):
         0.5
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -118,32 +119,13 @@ class HarvestedResourceElement(Element):
         return [RateLaw(s.x, s.r * s.x * (1 - s.x / s.K) - s.q * s.effort * s.x)]
 
 
-@register_system(
-    field='economics/resources',
-    tags=('optimal control', 'harvesting', 'bang-bang', 'singular arc', 'ode'),
-    references=('Clark 1990',),
-    defaults={
-        'until': 20.0,
-        'dt': 0.2,
-        'solver': CollocationSolver(objective=_profit, sense='max', nodes=101, scheme='trapezoidal'),
-    },
-    observables=lambda system: [ObservableSpec('catch', _catch)],
-)
-def optimal_harvesting(
-    x: float = 1.0,
-    *,
-    r: float = 1.0,
-    K: float = 1.0,
-    q: float = 1.0,
-    p: float = 1.0,
-    c: float = 0.2,
-    delta: float = 0.1,
-) -> System:
-    """Return a logistic resource harvested with the effort that maximises its discounted profit.
+class OptimalHarvestingSystem(BaseSystem):
+    """A logistic resource harvested with the effort that maximises its discounted profit.
 
-    Run with an optimal control solver, the effort starts at a bound, drives the stock to the level `x*` where
-    `r (1 - 2 x* / K) + c r (1 - x* / K) / (p q x* - c) = delta`, holds it there with the effort `r (1 - x* / K) / q`,
-    and rises to its largest value at the end of the horizon, when the stock left has no value.
+    Run with an optimal control solver, the effort starts at a bound, drives the stock to the level `x*` where `r (1 - 2
+    x* / K) + c r (1 - x* / K) / (p q x* - c) = delta`, holds it there with the effort `r (1 - x* / K) / q`, and rises
+    to its largest value at the end of the horizon, when the stock left has no value. The system has the stock
+    `resource.x`, the effort `resource.effort`, and the observable `catch`.
 
     Args:
         x:
@@ -167,14 +149,54 @@ def optimal_harvesting(
         delta:
             The discount rate.
 
-    Returns:
-        system:
-            The system, with the stock `resource.x`, the effort `resource.effort`, and the observable `catch`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.resources import optimal_harvesting
-        >>> optimal_harvesting(delta=0.05).elements[0].delta
+        >>> from skcomplex.systems.economics.resources import OptimalHarvestingSystem
+        >>> OptimalHarvestingSystem(delta=0.05).prepare().system_.elements[0].delta
         0.05
     """
-    resource = HarvestedResourceElement('resource', x=x, r=r, K=K, q=q, p=p, c=c, delta=delta)
-    return System(elements=[resource])
+
+    field = 'economics/resources'
+    topics = ('optimal control', 'harvesting', 'bang-bang', 'singular arc', 'ode')
+    references = ('Clark 1990',)
+    until = 20.0
+    dt = 0.2
+    solver = CollocationSolver(objective=_profit, sense='max', nodes=101, scheme='trapezoidal')
+    observables = (ObservableSpec('catch', _catch),)
+
+    def __init__(
+        self,
+        x: float = 1.0,
+        *,
+        r: float = 1.0,
+        K: float = 1.0,
+        q: float = 1.0,
+        p: float = 1.0,
+        c: float = 0.2,
+        delta: float = 0.1,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.r = r
+        self.K = K
+        self.q = q
+        self.p = p
+        self.c = c
+        self.delta = delta
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        resource = HarvestedResourceElement(
+            'resource',
+            x=self.x,
+            r=self.r,
+            K=self.K,
+            q=self.q,
+            p=self.p,
+            c=self.c,
+            delta=self.delta,
+        )
+        return System(self.label, elements=[resource])

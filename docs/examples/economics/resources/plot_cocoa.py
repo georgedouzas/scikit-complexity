@@ -14,8 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.economics.resources import CocoaSystem
 
 SYSTEM = 'cocoa'
 
@@ -33,7 +34,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = create_simulation(SYSTEM).set_params(dt=0.25, observers=[observer]).prepare().run(until=50)
+trajectory = simulate(CocoaSystem(), observers=[observer])
 
 # %%
 # Subsidy coverage decides the bust
@@ -43,12 +44,9 @@ simulation = create_simulation(SYSTEM).set_params(dt=0.25, observers=[observer])
 # coverage it should level off near the limit of the forest instead of busting.
 
 fig, (area, crop) = plt.subplots(1, 2, figsize=(10, 4))
-runs = {0.0: simulation.trajectory_}
+runs = {0.0: trajectory}
 runs.update(
-    {
-        subsidy: create_simulation(SYSTEM, subsidy=subsidy).set_params(dt=0.25).prepare().run(until=50).trajectory_
-        for subsidy in (0.6, 1.0)
-    },
+    {subsidy: simulate(CocoaSystem(subsidy=subsidy)) for subsidy in (0.6, 1.0)},
 )
 for subsidy, scenario in runs.items():
     times = np.asarray(scenario.times)

@@ -58,7 +58,7 @@ from skcomplex.core.specs import (
     WienerProcessSpec,
 )
 from skcomplex.core.types import ElementKind
-from skcomplex.systems.economics.resources import harvesting
+from skcomplex.systems.economics.resources import HarvestingSystem
 
 HEALTH = FiniteEnumeratedSet(['susceptible', 'infected', 'recovered'])
 FIELD_WEIGHTS = np.ones((4, 4)) - np.eye(4)
@@ -215,6 +215,11 @@ class SmoothedElement(Element):
     def _get_laws(self, s):
         """Return the relaxation toward the perceived stock."""
         return [RateLaw(s.n, 2.0 - _perceived(s))]
+
+
+def _harvesting() -> System:
+    """Return the parts of the harvesting system, the factory of the scenario experiments."""
+    return HarvestingSystem().prepare().system_
 
 
 def _phase_vector(member):
@@ -712,7 +717,7 @@ def test_observable_of_an_element_rejects_a_delay_no_law_uses():
 def test_scenario_spec_changes_a_parameter_at_its_scheduled_time():
     """Test that halving the effort at time 50 changes the stock only after time 50, with the same seeds."""
     scenarios = [ScenarioSpec('baseline'), ScenarioSpec('quota', schedule=[(50.0, 'harvest.effort', 0.025)])]
-    experiment = Experiment(harvesting, scenarios=scenarios, until=80, outputs=['land/stock.n'], random_state=0)
+    experiment = Experiment(_harvesting, scenarios=scenarios, until=80, outputs=['land/stock.n'], random_state=0)
     result = experiment.prepare().run().result_
     baseline, quota = result.series('land/stock.n')
     times = result.runs[0].times
@@ -725,7 +730,7 @@ def test_scenario_spec_keeps_the_initial_value_before_its_first_change():
     """Test that a parameter keeps its initial value before its first change and the last due change after it."""
     schedule = [(50.0, 'harvest.effort', 0.025), (20.0, 'harvest.effort', 0.04)]
     scenarios = [ScenarioSpec('baseline'), ScenarioSpec('late', schedule=schedule)]
-    experiment = Experiment(harvesting, scenarios=scenarios, until=80, outputs=['land/stock.n'], random_state=0)
+    experiment = Experiment(_harvesting, scenarios=scenarios, until=80, outputs=['land/stock.n'], random_state=0)
     result = experiment.prepare().run().result_
     baseline, late = result.series('land/stock.n')
     times = result.runs[0].times

@@ -13,17 +13,16 @@ use forms concentric rings, beyond which the land lies idle.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import Experiment, GridDesign
-from skcomplex.systems import create_system
-from skcomplex.systems.economics.resources import von_thunen
+from skcomplex.systems.economics.resources import VonThunenSystem
 
 SYSTEM = 'von_thunen'
 
-system = create_system(SYSTEM)
+system = VonThunenSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer]).prepare().run(until=1.0)
+trajectory = simulate(system, until=1.0, observers=[observer])
 
 # %%
 # Rings against the transport rate of the inner crop
@@ -32,7 +31,13 @@ simulation = Simulation(system, observers=[observer]).prepare().run(until=1.0)
 # shrinks, while the second crop takes the land it gives up.
 
 rates = [(0.2, 0.2, 0.2), (0.25, 0.2, 0.2), (0.3, 0.2, 0.2)]
-experiment = Experiment(von_thunen, GridDesign(), {'rates': rates}, until=1.0, outputs=['plain.crop'])
+experiment = Experiment(
+    lambda **parameters: VonThunenSystem(**parameters).prepare().system_,
+    GridDesign(),
+    {'rates': rates},
+    until=1.0,
+    outputs=['plain.crop'],
+)
 crops = experiment.prepare().run().result_.series('plain.crop')[:, 0]
 fig, axes = plt.subplots(1, 3, figsize=(10, 3.5))
 for ax, rate, crop in zip(axes, rates, crops, strict=True):

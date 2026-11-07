@@ -13,9 +13,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RelaxationInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, RateLaw, Sink, Source
 from ....core.components.laws.utils import lookup
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 INPUT_EFFECT = ((0.0, 0.3), (0.25, 0.45), (0.5, 0.58), (0.75, 0.68), (1.0, 0.75), (1.5, 0.8))
 LEARNING_EFFECT = ((0.0, 0.0), (0.25, 0.4), (0.5, 0.7), (0.75, 0.9), (1.0, 1.0))
@@ -168,6 +167,8 @@ class RiceSectorElement(Element):
         0.5
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -246,31 +247,8 @@ class RiceSectorElement(Element):
         return _rice_laws(s)
 
 
-@register_system(
-    field='economics/resources',
-    tags=('food security', 'agriculture', 'stocks and flows', 'system dynamics', 'ode'),
-    references=('Bala et al. 2017',),
-    defaults={'until': 50.0, 'dt': 0.25},
-    observables=lambda system: [
-        ObservableSpec(name, expression, element='rice')
-        for name, expression in (
-            ('input_ratio', _input_ratio),
-            ('productivity', _productivity),
-            ('production', _production),
-            ('requirement', _requirement),
-            ('self_sufficiency', _self_sufficiency),
-        )
-    ],
-)
-def food_security(
-    *,
-    subsidy: float = 0.67,
-    bio_target: float = 0.0,
-    research: float = 0.0,
-    training_target: float = 0.0,
-    intensity_target: float = 1.0,
-) -> System:
-    """Return a food security system, the rice self-sufficiency of a country under subsidy, research, and extension.
+class FoodSecuritySystem(BaseSystem):
+    """A food security system, the rice self-sufficiency of a country under subsidy, research, and extension.
 
     The land suitable for rice is developed into rice area over eight years, and the rice area is discarded for
     housing, roads, and industry at a small fraction per year. The production is the milled share of the
@@ -285,6 +263,12 @@ def food_security(
     initial values follow the food security system of Malaysia of Bala, Arshad and Noh (2017, Chapter 10), and the
     table functions and the rates are illustrative, with the land in millions of hectares, the population in
     millions, the productivity in tonnes of paddy per hectare, the rice in millions of tonnes, and time in years.
+
+    The system has the land stocks `rice.available_land` and `rice.rice_area`, the population `rice.population`, the
+    factors `rice.potential`, `rice.soil_quality`, `rice.practice`, `rice.training`, `rice.bio_fraction`, and
+    `rice.cropping_intensity`, and the flows `rice.development`, `rice.discard`, and `rice.population_growth` per year,
+    over years. The observables of the system are `rice.input_ratio`, `rice.productivity`, `rice.production`,
+    `rice.requirement`, and `rice.self_sufficiency`.
 
     Args:
         subsidy:
@@ -302,69 +286,102 @@ def food_security(
         intensity_target:
             The target cropping intensity, the crops per year on the rice area.
 
-    Returns:
-        system:
-            The system, with the land stocks `rice.available_land` and `rice.rice_area`, the population
-            `rice.population`, the factors `rice.potential`, `rice.soil_quality`, `rice.practice`, `rice.training`,
-            `rice.bio_fraction`, and `rice.cropping_intensity`, and the flows `rice.development`, `rice.discard`, and
-            `rice.population_growth` per year, over years. The observables of the system are `rice.input_ratio`,
-            `rice.productivity`, `rice.production`, `rice.requirement`, and `rice.self_sufficiency`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.resources import food_security
-        >>> food_security(subsidy=0.0).elements[0].subsidy
+        >>> from skcomplex.systems.economics.resources import FoodSecuritySystem
+        >>> FoodSecuritySystem(subsidy=0.0).prepare().system_.elements[0].subsidy
         0.0
     """
-    sector = RiceSectorElement(
-        'rice',
-        subsidy=subsidy,
-        bio_target=bio_target,
-        research=research,
-        training_target=training_target,
-        intensity_target=intensity_target,
+
+    field = 'economics/resources'
+    topics = ('food security', 'agriculture', 'stocks and flows', 'system dynamics', 'ode')
+    references = ('Bala et al. 2017',)
+    until = 50.0
+    dt = 0.25
+    observables = tuple(
+        [
+            ObservableSpec(name, expression, element='rice')
+            for name, expression in (
+                ('input_ratio', _input_ratio),
+                ('productivity', _productivity),
+                ('production', _production),
+                ('requirement', _requirement),
+                ('self_sufficiency', _self_sufficiency),
+            )
+        ],
     )
-    transfers = [
-        TransferInteraction(
-            'land_use',
-            source='rice',
-            target='rice',
-            state='available_land',
-            into='rice_area',
-            amount=lambda s: s.source.available_land / s.source.conversion_time,
-            flow='development',
-            legs=[('rice_area', Sink('urban'), lambda s: s.source.discard_rate * s.source.rice_area, 'discard')],
-        ),
-        TransferInteraction(
-            'births',
-            source='rice',
-            target='rice',
-            state=Source('births'),
-            into='population',
-            amount=lambda s: s.source.growth_rate * s.source.population,
-            flow='population_growth',
-        ),
-    ]
-    relaxations = [
-        RelaxationInteraction(
-            'training',
-            target='rice',
-            state='training',
-            goal=lambda s: s.target.training_target,
-            time=lambda s: s.target.extension_time,
-        ),
-        RelaxationInteraction(
-            'bio_fraction',
-            target='rice',
-            state='bio_fraction',
-            goal=lambda s: s.target.bio_target,
-            time=lambda s: s.target.transition_time,
-        ),
-        RelaxationInteraction(
-            'cropping_intensity',
-            target='rice',
-            state='cropping_intensity',
-            goal=lambda s: s.target.intensity_target,
-            time=lambda s: s.target.implementation_time,
-        ),
-    ]
-    return System(elements=[sector], interactions=[*transfers, *relaxations])
+
+    def __init__(
+        self,
+        *,
+        subsidy: float = 0.67,
+        bio_target: float = 0.0,
+        research: float = 0.0,
+        training_target: float = 0.0,
+        intensity_target: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.subsidy = subsidy
+        self.bio_target = bio_target
+        self.research = research
+        self.training_target = training_target
+        self.intensity_target = intensity_target
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        sector = RiceSectorElement(
+            'rice',
+            subsidy=self.subsidy,
+            bio_target=self.bio_target,
+            research=self.research,
+            training_target=self.training_target,
+            intensity_target=self.intensity_target,
+        )
+        transfers = [
+            TransferInteraction(
+                'land_use',
+                source='rice',
+                target='rice',
+                state='available_land',
+                into='rice_area',
+                amount=lambda s: s.source.available_land / s.source.conversion_time,
+                flow='development',
+                legs=[('rice_area', Sink('urban'), lambda s: s.source.discard_rate * s.source.rice_area, 'discard')],
+            ),
+            TransferInteraction(
+                'births',
+                source='rice',
+                target='rice',
+                state=Source('births'),
+                into='population',
+                amount=lambda s: s.source.growth_rate * s.source.population,
+                flow='population_growth',
+            ),
+        ]
+        relaxations = [
+            RelaxationInteraction(
+                'training',
+                target='rice',
+                state='training',
+                goal=lambda s: s.target.training_target,
+                time=lambda s: s.target.extension_time,
+            ),
+            RelaxationInteraction(
+                'bio_fraction',
+                target='rice',
+                state='bio_fraction',
+                goal=lambda s: s.target.bio_target,
+                time=lambda s: s.target.transition_time,
+            ),
+            RelaxationInteraction(
+                'cropping_intensity',
+                target='rice',
+                state='cropping_intensity',
+                goal=lambda s: s.target.intensity_target,
+                time=lambda s: s.target.implementation_time,
+            ),
+        ]
+        return System(self.label, elements=[sector], interactions=[*transfers, *relaxations])

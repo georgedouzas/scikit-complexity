@@ -21,7 +21,7 @@ from ....core.components.interactions import (
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, MatchingRule, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import SimulationError
@@ -37,7 +37,6 @@ from ....core.specs import (
     StateSpec,
     VisualSpec,
 )
-from ..._catalog import register_system
 
 
 class HerderView(AgentView):
@@ -145,6 +144,8 @@ class CowElement(Element):
         3
     """
 
+    law_classes = ()
+
     def __init__(
         self,
         label: str,
@@ -213,6 +214,8 @@ class PastureElement(Element):
         >>> GroupElement('meadow', element=PastureElement, size=4, values={'capacity': 2.0}).size
         4
     """
+
+    law_classes = (RuleLaw,)
 
     def __init__(
         self,
@@ -451,16 +454,6 @@ class QuotaRegulatorInteraction(FeedbackInteraction[SystemView]):
                 herder.quota += 1
 
 
-def _commons_observables(system: System) -> list[ObservableSpec]:
-    """Return the grass on the meadow, the size of the herd, and the mean quota of the herders."""
-    del system
-    return [
-        ObservableSpec('grass', group='meadow', variable='grass', reduce='sum'),
-        ObservableSpec('herd', group='cows', variable='energy', reduce='count'),
-        ObservableSpec('quota', group='herders', variable='quota', reduce='mean'),
-    ]
-
-
 def _pays(herder: AgentViewProtocol, system: SystemViewProtocol) -> bool:
     """Return whether a cow of a herder earned more than its upkeep in the last step while the herd is below quota."""
     del system
@@ -501,56 +494,8 @@ def _get_cleared(herder: AgentViewProtocol, system: SystemViewProtocol) -> float
     return 0.0
 
 
-def _get_investment() -> list[LifeCycleInteraction | MapInteraction]:
-    """Return the member interactions of a herder: buy or sell a cow, then clear its income and herd."""
-    return [
-        LifeCycleInteraction(
-            'investment',
-            target='herders',
-            group='cows',
-            birth=_pays,
-            values=_get_calf,
-            placement=_get_cell,
-            cull=_exceeds,
-            kin=_owns,
-            schedule='member',
-            phase='herding',
-        ),
-        *(
-            MapInteraction(
-                f'{state}_clearing',
-                target='herders',
-                state=state,
-                function=_get_cleared,
-                form='agent',
-                schedule='member',
-                phase='herding',
-            )
-            for state in ('income', 'herd')
-        ),
-    ]
-
-
-@register_system(
-    field='economics/resources',
-    tags=('commons', 'agents', 'overgrazing', 'regulation', 'grid'),
-    references=('Hamill and Gilbert 2016 sec. 10.2', 'Hardin 1968'),
-    defaults={'until': 100},
-    observables=_commons_observables,
-)
-def tragedy_of_the_commons(
-    n_herders: int = 20,
-    *,
-    width: int = 20,
-    height: int = 20,
-    cows: int = 1,
-    quota: float | None = None,
-    regrowth: float = 0.2,
-    capacity: float = 2.0,
-    upkeep: float = 0.3,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return herders whose cows graze a shared meadow, each adding cows while a cow pays, until the grass collapses.
+class TragedyOfTheCommonsSystem(BaseSystem):
+    """Herders whose cows graze a shared meadow, each adding cows while a cow pays, until the grass collapses.
 
     Every step every cow moves to the richest pasture it can reach, eats, and earns its herder milk, and the grass
     grows back logistically. Every herder adds a cow whenever a cow earned more than its upkeep, since the gain of a
@@ -558,6 +503,9 @@ def tragedy_of_the_commons(
     carries, the herd grows past what the grass sustains, the grass collapses below a tenth of its capacity, and the
     cows starve, so the herd shrinks after it. A regulator with an adaptive quota of cows per herder, lowered when the
     grass runs short and raised when it recovers, keeps the meadow from collapse (Hamill and Gilbert 2016 sec. 10.2).
+
+    The system has the groups `meadow`, `cows`, and `herders`, whose adaptive parameter `quota` the regulator
+    `regulator` changes, and the grazing `grazing`.
 
     Args:
         n_herders:
@@ -587,57 +535,124 @@ def tragedy_of_the_commons(
         random_state:
             The seed or generator of the cells of the cows.
 
-    Returns:
-        system:
-            The system, with the groups `meadow`, `cows`, and `herders`, whose adaptive parameter `quota` the regulator
-            `regulator` changes, and the grazing `grazing`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.resources import tragedy_of_the_commons
-        >>> [group.size for group in tragedy_of_the_commons(4, width=5, height=5).elements]
+        >>> from skcomplex.systems.economics.resources import TragedyOfTheCommonsSystem
+        >>> [group.size for group in TragedyOfTheCommonsSystem(4, width=5, height=5).prepare().system_.elements]
         [25, 4, 4]
     """
-    rng = np.random.default_rng(random_state)
-    cells = [(x, y) for x in range(width) for y in range(height)]
-    meadow = GroupElement(
-        'meadow',
-        element=PastureElement,
-        size=len(cells),
-        values={'grass': capacity, 'capacity': capacity, 'regrowth': regrowth},
-        location=cells,
+
+    field = 'economics/resources'
+    topics = ('commons', 'agents', 'overgrazing', 'regulation', 'grid')
+    references = ('Hamill and Gilbert 2016 sec. 10.2', 'Hardin 1968')
+    until = 100
+    observables = (
+        ObservableSpec('grass', group='meadow', variable='grass', reduce='sum'),
+        ObservableSpec('herd', group='cows', variable='energy', reduce='count'),
+        ObservableSpec('quota', group='herders', variable='quota', reduce='mean'),
     )
-    herders = GroupElement(
-        'herders',
-        element=HerderElement,
-        size=n_herders,
-        values={
-            'upkeep': upkeep,
-            'quota': UNLIMITED if quota is None else quota,
-        },
-        location=[cells[0]] * n_herders,
-    )
-    n_cows = n_herders * cows
-    herd = GroupElement(
-        'cows',
-        element=CowElement,
-        size=n_cows,
-        values={'owner': np.repeat(np.arange(n_herders, dtype=float), cows)},
-        variable=True,
-        location=[cells[index] for index in rng.integers(len(cells), size=n_cows)],
-    )
-    regulator = QuotaRegulatorInteraction('regulator', phase='herding', regulated=float(quota is not None))
-    grazing = GrazingInteraction(
-        'grazing',
-        requesters='cows',
-        providers='meadow',
-        rule=PartnerSpec('local', 'score', score=GrazingInteraction.score, clearing='provider'),
-        herders='herders',
-    )
-    return System(
-        elements=[meadow, herd, herders],
-        interactions=[grazing, *_get_investment(), regulator],
-        space=LatticeSpace((width, height), boundary='periodic', neighborhood='moore'),
-        time=DiscreteTime(
-            schedule=PhasesScheduleSpec([PhaseSpec('grazing'), PhaseSpec('growth'), PhaseSpec('herding')]),
-        ),
-    )
+
+    def __init__(
+        self,
+        n_herders: int = 20,
+        *,
+        width: int = 20,
+        height: int = 20,
+        cows: int = 1,
+        quota: float | None = None,
+        regrowth: float = 0.2,
+        capacity: float = 2.0,
+        upkeep: float = 0.3,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_herders = n_herders
+        self.width = width
+        self.height = height
+        self.cows = cows
+        self.quota = quota
+        self.regrowth = regrowth
+        self.capacity = capacity
+        self.upkeep = upkeep
+        self.random_state = random_state
+
+    @staticmethod
+    def _get_investment() -> list[LifeCycleInteraction | MapInteraction]:
+        """Return the member interactions of a herder: buy or sell a cow, then clear its income and herd."""
+        return [
+            LifeCycleInteraction(
+                'investment',
+                target='herders',
+                group='cows',
+                birth=_pays,
+                values=_get_calf,
+                placement=_get_cell,
+                cull=_exceeds,
+                kin=_owns,
+                schedule='member',
+                phase='herding',
+            ),
+            *(
+                MapInteraction(
+                    f'{state}_clearing',
+                    target='herders',
+                    state=state,
+                    function=_get_cleared,
+                    form='agent',
+                    schedule='member',
+                    phase='herding',
+                )
+                for state in ('income', 'herd')
+            ),
+        ]
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        cells = [(x, y) for x in range(self.width) for y in range(self.height)]
+        meadow = GroupElement(
+            'meadow',
+            element=PastureElement,
+            size=len(cells),
+            values={'grass': self.capacity, 'capacity': self.capacity, 'regrowth': self.regrowth},
+            location=cells,
+        )
+        herders = GroupElement(
+            'herders',
+            element=HerderElement,
+            size=self.n_herders,
+            values={
+                'upkeep': self.upkeep,
+                'quota': UNLIMITED if self.quota is None else self.quota,
+            },
+            location=[cells[0]] * self.n_herders,
+        )
+        n_cows = self.n_herders * self.cows
+        herd = GroupElement(
+            'cows',
+            element=CowElement,
+            size=n_cows,
+            values={'owner': np.repeat(np.arange(self.n_herders, dtype=float), self.cows)},
+            variable=True,
+            location=[cells[index] for index in rng.integers(len(cells), size=n_cows)],
+        )
+        regulator = QuotaRegulatorInteraction('regulator', phase='herding', regulated=float(self.quota is not None))
+        grazing = GrazingInteraction(
+            'grazing',
+            requesters='cows',
+            providers='meadow',
+            rule=PartnerSpec('local', 'score', score=GrazingInteraction.score, clearing='provider'),
+            herders='herders',
+        )
+        return System(
+            self.label,
+            elements=[meadow, herd, herders],
+            interactions=[grazing, *self._get_investment(), regulator],
+            space=LatticeSpace((self.width, self.height), boundary='periodic', neighborhood='moore'),
+            time=DiscreteTime(
+                schedule=PhasesScheduleSpec([PhaseSpec('grazing'), PhaseSpec('growth'), PhaseSpec('herding')]),
+            ),
+        )

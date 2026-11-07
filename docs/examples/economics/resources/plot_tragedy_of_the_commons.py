@@ -16,9 +16,9 @@ in cycles of boom and bust.
 import matplotlib.pyplot as plt
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.resources import TragedyOfTheCommonsSystem
 
 SYSTEM = 'tragedy_of_the_commons'
 STEPS = 100
@@ -33,18 +33,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, random_state=0)
+system = TragedyOfTheCommonsSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = (
-    Simulation(
-        system,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=STEPS)
-)
+trajectory = simulate(system, until=STEPS, observers=[observer], random_state=0)
 
 # %%
 # A regulator saves the meadow
@@ -55,21 +46,12 @@ simulation = (
 # herder whenever the grass falls below half of its capacity, and raises it by one cow above 80%, should keep the
 # grass above a quarter of its capacity and a steady herd.
 
-regulated_system = create_system(SYSTEM, quota=2.0, random_state=0)
-regulated = (
-    Simulation(
-        regulated_system,
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(regulated_system),
-    )
-    .prepare()
-    .run(until=STEPS)
-)
+regulated_system = TragedyOfTheCommonsSystem(quota=2.0, random_state=0)
+regulated = simulate(regulated_system, until=STEPS, random_state=0)
 fig, (grass, herd) = plt.subplots(1, 2, figsize=(11, 4))
-for label, run in (('open access', simulation), ('regulated quota', regulated)):
-    trajectory = run.trajectory_
-    grass.plot(trajectory.times, trajectory.values('grass') / trajectory.values('grass')[0], label=label)
-    herd.plot(trajectory.times, trajectory.values('herd'), label=label)
+for label, run in (('open access', trajectory), ('regulated quota', regulated)):
+    grass.plot(run.times, run.values('grass') / run.values('grass')[0], label=label)
+    herd.plot(run.times, run.values('herd'), label=label)
 grass.axhline(0.1, color='grey', linestyle=':', label='a tenth of the capacity')
 grass.set_xlabel('step')
 grass.set_ylabel('grass as a share of the capacity')

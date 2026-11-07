@@ -14,8 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.economics.resources import RiceFoodBalanceSystem
 
 SYSTEM = 'rice_food_balance'
 
@@ -29,7 +30,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = create_simulation(SYSTEM).set_params(dt=0.25, observers=[observer]).prepare().run(until=100)
+trajectory = simulate(RiceFoodBalanceSystem(), observers=[observer])
 
 # %%
 # Food security against time
@@ -39,7 +40,6 @@ simulation = create_simulation(SYSTEM).set_params(dt=0.25, observers=[observer])
 # security should rise for about twenty years, while the area grows faster than the population, and then fall below
 # its starting level, as in Fig. 4.21 of Bala et al.
 
-trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
 fig, (land, security) = plt.subplots(1, 2, figsize=(10, 4))
 land.plot(times, trajectory.values('region.area_increase_rate'), label='area increase rate')

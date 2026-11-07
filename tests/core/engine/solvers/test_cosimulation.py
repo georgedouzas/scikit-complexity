@@ -26,7 +26,7 @@ from skcomplex.systems.biology.common.populations import (
 )
 from skcomplex.systems.biology.ecology import PredationInteraction
 from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
-from skcomplex.systems.economics.resources import harvesting
+from skcomplex.systems.economics.resources import HarvestingSystem
 
 
 class BreederElement(Element):
@@ -217,7 +217,7 @@ def _counting_system(agents=3):
 
 def test_agents_and_ode_split_into_two_partitions():
     """Test that agents and differential equations in sibling subsystems give an agent and an ODE partition."""
-    problem = PassCompiler().prepare(harvesting()).run().problem_
+    problem = PassCompiler().prepare(HarvestingSystem().prepare().system_).run().problem_
     assert problem.form == FormKind.COUPLED
     assert [(item.name, item.problem.form) for item in problem.partitions] == [
         ('land', FormKind.ODE),
@@ -369,7 +369,7 @@ def test_held_observable_reduces_element_group():
 
 def test_subsystem_partitions_hold_reductions_of_agents():
     """Test that compiling one partition per subsystem holds the reductions of agents that laws read."""
-    problem = PassCompiler(partition='subsystems').prepare(harvesting()).run().problem_
+    problem = PassCompiler(partition='subsystems').prepare(HarvestingSystem().prepare().system_).run().problem_
     assert [partition.name for partition in problem.partitions] == ['land', 'village']
 
 
@@ -402,7 +402,9 @@ def test_sync_interval_must_divide_frame():
 def test_sync_interval_must_be_whole_steps_for_agents():
     """Test that agent partitions need a whole number of steps between synchronisation points."""
     with pytest.raises(ValidationError, match='whole number of steps'):
-        Simulation(harvesting(), solver=CoSimulationSolver(sync_dt=0.5), dt=1).prepare().run(until=1)
+        Simulation(HarvestingSystem().prepare().system_, solver=CoSimulationSolver(sync_dt=0.5), dt=1).prepare().run(
+            until=1,
+        )
 
 
 def test_gauss_seidel_reads_already_advanced_values():
@@ -425,7 +427,9 @@ def test_gauss_seidel_reads_already_advanced_values():
 def test_unknown_scheme_raises_error():
     """Test that an unknown scheme is rejected."""
     with pytest.raises(SolverError, match='gauss-seidel, jacobi'):
-        Simulation(harvesting(), solver=CoSimulationSolver(scheme='newton')).prepare().run(until=1)
+        Simulation(HarvestingSystem().prepare().system_, solver=CoSimulationSolver(scheme='newton')).prepare().run(
+            until=1,
+        )
 
 
 def test_single_form_needs_split():
@@ -449,7 +453,7 @@ def test_split_lotka_volterra_converges():
 
 def test_mixed_trajectory_holds_states_and_agents():
     """Test that a co-simulation trajectory returns ODE states per frame and agent states per agent."""
-    trajectory = Simulation(harvesting(5), random_state=0).prepare().run(until=10).trajectory_
+    trajectory = Simulation(HarvestingSystem(5).prepare().system_, random_state=0).prepare().run(until=10).trajectory_
     assert trajectory.values('land/stock.n').shape == (11,)
     snapshot = trajectory.agents('village/farmers', 10)
     assert len(snapshot.values['wealth']) == 5
@@ -464,7 +468,11 @@ def test_cosimulation_is_reproducible():
 
 def test_live_parameter_reaches_partitions():
     """Test that a live parameter change applies inside the partitions."""
-    simulation = Simulation(harvesting(10, effort=0.05), clock=RealTimeClock(speed=20.0)).prepare().start(until=30)
+    simulation = (
+        Simulation(HarvestingSystem(10, effort=0.05).prepare().system_, clock=RealTimeClock(speed=20.0))
+        .prepare()
+        .start(until=30)
+    )
     time.sleep(0.6)
     simulation.update_parameters({'harvest.effort': 0.0})
     simulation.wait()

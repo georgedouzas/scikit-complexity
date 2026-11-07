@@ -14,8 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.economics.resources import CropLivestockHouseholdSystem
 
 SYSTEM = 'crop_livestock_household'
 
@@ -29,7 +30,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run(until=12)
+trajectory = simulate(CropLivestockHouseholdSystem(), observers=[observer])
 
 # %%
 # Incomes and the maturation delay
@@ -38,7 +39,6 @@ simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare(
 # three years later, so the income from livestock should stay at zero for the first five years and then come in most
 # years, lifting the wealth well above its start, as in Fig. 4.27 of Bala et al.
 
-trajectory = simulation.trajectory_
 years = np.asarray(trajectory.times)
 fig, (income, herd) = plt.subplots(1, 2, figsize=(10, 4))
 income.step(years, trajectory.values('household.income_from_crop'), where='post', label='income from crop')
