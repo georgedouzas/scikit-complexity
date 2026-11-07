@@ -16,6 +16,8 @@ from ..._catalog import register_system
 from ..common.networks import EdgeDrawInteraction, WeightedEdgeElement
 from ._catalytic_link import CatalyticLinkElement
 from ._chemical import ChemicalElement
+from ._competing_species import CompetingSpeciesElement
+from ._competitive_selection import CompetitiveSelectionInteraction
 from ._dependency_field import DependencyFieldInteraction
 from ._taxon import TaxonElement
 
@@ -192,3 +194,59 @@ def jain_krishna(
         visual=HIDDEN,
     )
     return System(elements=[species, links], time=DiscreteTime())
+
+
+@register_system(
+    field='biology/evolution',
+    tags=('autocatalytic set', 'competition', 'cooperation', 'punctuated equilibrium', 'agents'),
+    references=('Jain and Krishna 2002', 'Thurner et al. 2018'),
+    defaults={'until': 400},
+)
+def competitive_jain_krishna(
+    n: int = 50,
+    *,
+    p: float = 0.05,
+    duration: float = 20.0,
+    seed: int | None = 1,
+) -> System:
+    """Return the Jain-Krishna model with signed interactions, whose surviving species come to cooperate.
+
+    Every link of the interaction matrix is present with the probability `p` and drawn from `[-1, 1]`, and every
+    species degrades at a rate drawn from `[-1, 0]`. The populations follow the linear catalytic dynamics with a floor
+    at zero, and at every step the least populated species is replaced by a new random one. Selection keeps the species
+    that catalyse each other, so once an autocatalytic set forms the links among the surviving species turn mostly
+    positive, the emergence of cooperation, and diversity grows until a keystone species is lost.
+
+    Args:
+        n:
+            The number of species.
+
+        p:
+            The probability of every link.
+
+        duration:
+            The time of the population dynamics between replacements.
+
+        seed:
+            The seed of the initial matrix.
+
+    Returns:
+        system:
+            The system, with the populations `x` and the rows `links` of the interaction matrix of the group `species`.
+
+    Examples:
+        >>> from skcomplex.systems.biology.evolution import competitive_jain_krishna
+        >>> competitive_jain_krishna(10).elements[0].prepare().size_
+        10
+    """
+    rng = np.random.default_rng(seed)
+    matrix = rng.uniform(-1, 1, (n, n)) * (rng.random((n, n)) < p)
+    np.fill_diagonal(matrix, -rng.random(n))
+    species = GroupElement(
+        'species',
+        element=CompetingSpeciesElement,
+        size=n,
+        values={'x': np.full(n, 1 / n), 'links': matrix},
+    )
+    selection = CompetitiveSelectionInteraction('selection', species='species', p=p, duration=duration)
+    return System(elements=[species], interactions=[selection], time=DiscreteTime())

@@ -2,6 +2,9 @@
 
 import numpy as np
 
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.systems.biology.evolution import competitive_jain_krishna
+
 from ..conftest import _run
 
 
@@ -23,3 +26,19 @@ def test_jain_krishna_grows_an_autocatalytic_set_that_spans_the_species():
     assert populated[1:40].min() < 20
     assert populated[-1] >= 35
     assert links[1] > links[0]
+
+
+def test_competition_selects_cooperating_species():
+    """Test Jain and Krishna with competition: the share of positive links grows from about a half."""
+
+    def positive_share(links: np.ndarray) -> float:
+        matrix = np.array(links, dtype=float)
+        np.fill_diagonal(matrix, 0.0)
+        return float((matrix[matrix != 0] > 0).mean())
+
+    trajectory = Simulation(competitive_jain_krishna(), random_state=0).prepare().run(until=300).trajectory_
+    assert positive_share(trajectory.agents('species', 0).values['links']) < 0.55
+    assert (
+        np.mean([positive_share(trajectory.agents('species', frame).values['links']) for frame in (200, 250, 300)])
+        > 0.65
+    )

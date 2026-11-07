@@ -1,4 +1,4 @@
-"""Systems biology systems: Boolean networks of gene circuits and of the mammalian cell cycle."""
+"""Systems biology systems: Boolean networks of gene circuits, the mammalian cell cycle, and noisy majorities."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -6,11 +6,18 @@
 import itertools
 from collections.abc import Sequence
 
+import numpy as np
+import scipy.sparse
+
+from ....core.components.elements import GroupElement
+from ....core.components.spaces import DiscreteTime
 from ....core.components.system import System
 from ....core.errors import ValidationError
 from ..._catalog import register_system
 from ._boolean_function import BooleanFunctionInteraction
 from ._boolean_node import BooleanNodeElement
+from ._majority_node import MajorityNodeElement
+from ._noisy_majority import NoisyMajorityInteraction
 from .types import Rule
 
 RAMAN = 'Raman 2021'
@@ -204,3 +211,61 @@ def boolean_repressilator(x: Sequence[int] = (1, 0, 0), *, delay: int = 0) -> Sy
             BooleanFunctionInteraction(f'repression_{target}', target=target, inputs=[chain[-1]], table=(1, 0)),
         )
     return System(elements=[*genes, *relays], interactions=functions)
+
+
+@register_system(
+    field='biology/systems_biology',
+    tags=('boolean network', 'noise', 'phase transition', 'mean field', 'stochastic map'),
+    references=('Huepe and Aldana-González 2002', 'Gros 2015'),
+    defaults={'until': 200, 'dt': 1},
+)
+def noisy_boolean_network(n: int = 1000, *, k: int = 3, eta: float = 0.1, seed: int | None = 0) -> System:
+    """Return the Boolean network of Huepe and Aldana-González, nodes that follow the noisy majority of `k` inputs.
+
+    Every node takes the sign of the sum of its `k` random inputs, flipped with the probability `eta`. The order
+    parameter `Psi`, the time average of the absolute mean state, undergoes a continuous phase transition at the noise
+    `eta_c = (1 - 1 / Phi'(0)) / 2` of mean-field theory, with `Phi'(0) = k C(k - 1, (k - 1) / 2) / 2^(k - 1)`, which is
+    1/6 for `k = 3`. Below it the network orders, above it the mean state falls to fluctuations of order `1 /
+    sqrt(n)`.
+
+    Args:
+        n:
+            The number of nodes.
+
+        k:
+            The number of inputs of every node, odd.
+
+        eta:
+            The noise, the probability of a flip.
+
+        seed:
+            The seed of the inputs.
+
+    Returns:
+        system:
+            The system, with the states `nodes.sigma`.
+
+    Raises:
+        ValidationError:
+            The number of inputs is even.
+
+    Examples:
+        >>> from skcomplex.systems.biology.systems_biology import noisy_boolean_network
+        >>> noisy_boolean_network(10).elements[0].prepare().size_
+        10
+    """
+    if k % 2 == 0:
+        error_msg = f'The number of inputs must be odd so that the majority is defined, not {k}.'
+        raise ValidationError(error_msg)
+    rng = np.random.default_rng(seed)
+    inputs = np.zeros((n, n))
+    for node in range(n):
+        inputs[node, rng.choice(np.delete(np.arange(n), node), size=k, replace=False)] = 1.0
+    nodes = GroupElement(
+        'nodes',
+        element=MajorityNodeElement,
+        size=n,
+        values={'sigma': np.ones(n), 'eta': eta},
+    )
+    majority = NoisyMajorityInteraction('majority', nodes='nodes', inputs=scipy.sparse.csr_array(inputs))
+    return System(elements=[nodes], interactions=[majority], time=DiscreteTime())

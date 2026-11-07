@@ -1,4 +1,4 @@
-"""Physiology systems: electrical waves in cardiac tissue."""
+"""Physiology systems: electrical waves in cardiac tissue and excitable media."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,6 +19,7 @@ from ....core.components.system import System
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
+from ._barkley import BarkleyElement
 
 
 class AlievPanfilovElement(Element):
@@ -165,3 +166,69 @@ def aliev_panfilov(
     tissue = FieldElement('tissue', element=AlievPanfilovElement, space=space, values=values)
     diffusion = DiffusionInteraction('diffusion', target='tissue', state='u', coefficient=D)
     return System(elements=[tissue], interactions=[diffusion])
+
+
+@register_system(
+    field='biology/physiology',
+    tags=('field', 'excitable media', 'spirals', 'spatiotemporal chaos', 'pde'),
+    references=('Barkley 1991', 'Datseris and Parlitz 2022'),
+    defaults={'until': 400.0, 'dt': 4.0, 'solver': RK4Solver(dt=0.2)},
+)
+def barkley(
+    shape: Sequence[int] = (64, 64),
+    *,
+    spacing: float = 3.0,
+    d: float = 1.0,
+    a: float = 0.6,
+    b: float = 0.05,
+    epsilon: float = 0.02,
+    gamma: float = 1.0,
+) -> System:
+    """Return Barkley's excitable medium, started from orthogonal stripes whose crossing curls into a spiral wave.
+
+    The excitation `u` and the recovery `w` start as orthogonal stripes of zeros and ones, so the excited stripe runs
+    into recovering tissue on one side only and its free end rotates. With `(a, b, d, epsilon) = (0.6, 0.05, 1, 0.02)`
+    the spiral is stable for `gamma = 1`. With `(0.7, 0.05, 1, 0.08)` and `gamma = 3` it breaks up into spatiotemporal
+    chaos. The source runs a domain of 300 by 300, and the default lattice covers 192 by 192 with a spacing of 3, wide
+    enough for the stable spiral.
+
+    Args:
+        shape:
+            The number of rows and columns of the lattice with zero-flux edges.
+
+        spacing:
+            The distance between neighbouring sites.
+
+        d:
+            The diffusion of the excitation.
+
+        a:
+            The inverse slope of the threshold.
+
+        b:
+            The offset of the threshold.
+
+        epsilon:
+            The ratio of the time scales of the recovery and the excitation.
+
+        gamma:
+            The exponent of the excitation in the recovery.
+
+    Returns:
+        system:
+            The system, with the excitation `medium.u` and the recovery `medium.w`.
+
+    Examples:
+        >>> from skcomplex.systems.biology.physiology import barkley
+        >>> barkley((20, 20), gamma=3.0).elements[0].values['gamma']
+        3.0
+    """
+    rows, columns = shape
+    u, w = np.zeros(shape), np.zeros(shape)
+    u[:, : columns // 2] = 1.0
+    w[: rows // 2, :] = 1.0
+    values = {'u': u, 'w': w, 'a': a, 'b': b, 'epsilon': epsilon, 'gamma': gamma}
+    space = LatticeSpace((rows, columns), boundary='reflecting', spacing=spacing)
+    medium = FieldElement('medium', element=BarkleyElement, space=space, values=values)
+    diffusion = DiffusionInteraction('diffusion', target='medium', state='u', coefficient=d)
+    return System(elements=[medium], interactions=[diffusion])

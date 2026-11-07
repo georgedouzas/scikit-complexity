@@ -1,0 +1,58 @@
+"""
+# Adaptive delay network
+
+Phase units coupled through axons whose conduction delays adapt to the activity they carry, as myelination does. Fixed
+delays leave the units incoherent, while delays that follow the phase differences of their units bring partial
+synchrony back.
+"""
+
+# %%
+# The system is created by name from the catalog with five units, and the observer saves every other frame with the
+# default blueprint, whose primary view is the time series of the phases and delays.
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.systems import create_system
+
+SYSTEM = 'adaptive_delay_network'
+
+system = create_system(SYSTEM)
+observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
+simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=300)
+
+# %%
+# Synchrony with fixed and adaptive delays
+# ----------------------------------------
+# The order parameter `R = |mean exp(i theta)|` should stay low with fixed delays, `epsilon = 0`, and rise when the
+# delays adapt.
+
+
+def order(trajectory):
+    phases = np.array([trajectory.values(f'unit_{index}.theta') for index in range(5)]).T
+    return np.abs(np.exp(1j * phases).mean(axis=1))
+
+
+fixed = Simulation(create_system(SYSTEM, epsilon=0.0), dt=0.5).prepare().run(until=300).trajectory_
+fig, (coherence, delays) = plt.subplots(1, 2, figsize=(11, 4.5))
+coherence.plot(fixed.times, order(fixed), label='fixed delays')
+coherence.plot(simulation.trajectory_.times, order(simulation.trajectory_), label='adaptive delays')
+coherence.set_xlabel('time')
+coherence.set_ylabel('order parameter R')
+coherence.set_title('Adaptive delays restore synchrony')
+coherence.legend()
+for source in range(5):
+    for target in range(5):
+        if source != target:
+            delays.plot(
+                simulation.trajectory_.times,
+                simulation.trajectory_.values(f'axon_{source}_{target}.tau'),
+                lw=0.8,
+            )
+delays.set_xlabel('time')
+delays.set_ylabel('conduction delay')
+delays.set_title('Delays of the twenty axons')
+fig.tight_layout()
+plt.show()

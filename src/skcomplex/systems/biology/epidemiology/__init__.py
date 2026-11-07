@@ -4,16 +4,25 @@ from ._active_host import ActiveHostElement
 from ._adaptive import activity_driven_epidemics, adaptive_sis, quenched_mean_field_sis
 from ._agents import agent_based_sir, network_sir, random_walker_epidemics
 from ._carrier import CarrierElement
+from ._cities import episims_city
+from ._colocation import ColocationInteraction
+from ._commuter import CommuterElement
+from ._concurrency import pair_formation_sis, watts_may_concurrency
 from ._degree_class import DegreeClassElement
-from ._factories import sir, sirs, sis
+from ._factories import sir, sirs, sis, zombie_outbreak
 from ._host import HostElement
 from ._immunity_loss import ImmunityLossInteraction
 from ._infection import InfectionInteraction
 from ._networks import heterogeneous_mean_field_sis, metapopulation
 from ._outbreaks import ImmunizingDegreeClassElement, heterogeneous_mean_field_sir
+from ._partnership_epidemic import PartnershipEpidemicElement
+from ._pathogen import PathogenElement
 from ._person import PersonElement
+from ._records import record_dynamics_epidemic
 from ._recovery import RecoveryInteraction
 from ._recurrent import EpidemicCenterElement, delayed_sirs
+from ._resident import ResidentElement
+from ._resistance_infection import ResistanceInfectionInteraction
 from ._spreading import SpreadingInteraction
 from ._subpopulation import SubpopulationElement
 from ._traveller import TravellerElement
@@ -23,14 +32,20 @@ from ._walker import WalkerElement
 __all__: list[str] = [
     'ActiveHostElement',
     'CarrierElement',
+    'ColocationInteraction',
+    'CommuterElement',
     'DegreeClassElement',
     'EpidemicCenterElement',
     'HostElement',
     'ImmunityLossInteraction',
     'ImmunizingDegreeClassElement',
     'InfectionInteraction',
+    'PartnershipEpidemicElement',
+    'PathogenElement',
     'PersonElement',
     'RecoveryInteraction',
+    'ResidentElement',
+    'ResistanceInfectionInteraction',
     'SpreadingInteraction',
     'SubpopulationElement',
     'TravellerElement',
@@ -40,14 +55,19 @@ __all__: list[str] = [
     'adaptive_sis',
     'agent_based_sir',
     'delayed_sirs',
+    'episims_city',
     'heterogeneous_mean_field_sir',
     'heterogeneous_mean_field_sis',
     'metapopulation',
     'network_sir',
+    'pair_formation_sis',
     'quenched_mean_field_sis',
     'random_walker_epidemics',
+    'record_dynamics_epidemic',
     'sir',
     'sir_vaccination',
     'sirs',
     'sis',
+    'watts_may_concurrency',
+    'zombie_outbreak',
 ]

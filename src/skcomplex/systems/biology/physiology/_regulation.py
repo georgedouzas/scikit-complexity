@@ -9,6 +9,7 @@ from ....core.components.laws.utils import hill, pulse
 from ....core.components.system import System
 from ..._catalog import register_system
 from ._coagulation import CoagulationElement
+from ._feedback_loop import FeedbackLoopElement
 from ._glucose_control import GlucoseControlElement
 
 
@@ -249,3 +250,81 @@ def coagulation_positive_feedback(
         ),
     ]
     return System(elements=[blood], interactions=interactions)
+
+
+@register_system(
+    field='biology/physiology',
+    tags=('negative feedback', 'homeostasis', 'set point', 'fever', 'delay'),
+    references=('Wach et al. 2015', 'Konieczny et al. 2023'),
+    defaults={'until': 60.0, 'dt': 0.1},
+)
+def steerable_feedback_loop(
+    *,
+    v: float = 2.0,
+    d: float = 1.0,
+    K: float = 1.0,
+    n: float = 4.0,
+    T: float = 1.0,
+    tau: float = 0.5,
+    steering: float = 0.5,
+    start: float = 20.0,
+    duration: float = 20.0,
+) -> System:
+    """Return a receptor-effector loop that holds a product at its set point until a steering signal shifts it.
+
+    The loop of the negative feedback system of Konieczny et al. (2023) settles at the set point where synthesis
+    `v / (1 + (x / K)^n)` balances consumption `d x`. A steering signal, such as a bacterial toxin acting on the
+    temperature receptors in fever, raises the sensitivity of the receptor by the factor `1 + steering`, so the loop
+    climbs to a higher set point while it acts and returns once it ends. A slow effector or a long transmission delay
+    turns the regulation into sustained oscillations around the set point.
+
+    Args:
+        v:
+            The largest rate of synthesis.
+
+        d:
+            The consumption rate of the product.
+
+        K:
+            The sensitivity of the receptor.
+
+        n:
+            The steepness of the receptor.
+
+        T:
+            The response time of the effector.
+
+        tau:
+            The transmission delay between the receptor and the effector.
+
+        steering:
+            The relative shift of the sensitivity by the steering signal.
+
+        start:
+            The time the steering signal starts.
+
+        duration:
+            The duration of the steering signal.
+
+    Returns:
+        system:
+            The system, with the product `loop.x` and the effector activity `loop.e`.
+
+    Examples:
+        >>> from skcomplex.systems.biology.physiology import steerable_feedback_loop
+        >>> steerable_feedback_loop(tau=3.0).elements[0].tau
+        3.0
+    """
+    loop = FeedbackLoopElement(
+        'loop',
+        v=v,
+        d=d,
+        K=K,
+        n=n,
+        T=T,
+        tau=tau,
+        steering=steering,
+        start=start,
+        duration=duration,
+    )
+    return System(elements=[loop])
