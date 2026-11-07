@@ -1,4 +1,4 @@
-"""Test the Lyapunov analysis: spectra of flows and maps, their invariants, and the largest exponent of data."""
+"""Test the Lyapunov exponents: spectra of flows and maps, their invariants, and the largest exponent of data."""
 
 import math
 import time
@@ -7,20 +7,15 @@ import numpy as np
 import pytest
 from scipy.integrate import solve_ivp
 
-from skcomplex.core.analysis import LyapunovAnalysis
+from skcomplex.core.analysis import lyapunov
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.mathematics.dynamical_systems import henon_map, logistic_map, lorenz, sprott_jerk
 from skcomplex.systems.physics.nonlinear_oscillators import van_der_pol
 
 
-def _lyapunov(source, kind='spectrum', **settings):
-    """Return the Lyapunov analysis of a source for one kind, run."""
-    return LyapunovAnalysis(kind, **settings).prepare(source).run()
-
-
 def _spectrum(source, **settings):
     """Return the Lyapunov exponents of a system."""
-    return _lyapunov(source, **settings).exponents_
+    return lyapunov(source, **settings).exponents
 
 
 def _lorenz_states(rho: float, step: float, duration: float) -> np.ndarray:
@@ -88,31 +83,31 @@ def test_laws_with_absolute_values_have_a_spectrum():
 
 def test_kolmogorov_sinai_entropy_of_a_map_and_a_flow():
     """Test that the logistic map at r = 4 gives ln 2 and the Lorenz flow 0.906."""
-    logistic = _lyapunov(logistic_map(r=4.0, x=0.3), until=20_000, dt=1)
-    flow = _lyapunov(lorenz(), until=500)
-    assert logistic.kolmogorov_sinai_entropy_ == pytest.approx(math.log(2), abs=0.01)
-    assert flow.kolmogorov_sinai_entropy_ == pytest.approx(0.906, abs=0.05)
+    logistic = lyapunov(logistic_map(r=4.0, x=0.3), until=20_000, dt=1)
+    flow = lyapunov(lorenz(), until=500)
+    assert logistic.kolmogorov_sinai_entropy == pytest.approx(math.log(2), abs=0.01)
+    assert flow.kolmogorov_sinai_entropy == pytest.approx(0.906, abs=0.05)
 
 
 def test_kaplan_yorke_dimension_of_a_map_and_a_flow():
     """Test that the Hénon map gives 1.26 and the Lorenz flow 2.06, and that exponents pass through as a spectrum."""
-    henon = _lyapunov(henon_map(), until=20_000, dt=1)
-    flow = _lyapunov(lorenz(), until=500)
-    assert henon.kaplan_yorke_dimension_ == pytest.approx(1.26, abs=0.02)
-    assert flow.kaplan_yorke_dimension_ == pytest.approx(2.06, abs=0.03)
-    assert _lyapunov([-1.0, -2.0]).kaplan_yorke_dimension_ == 0
-    assert _lyapunov([0.5, 0.0]).kaplan_yorke_dimension_ == 2
+    henon = lyapunov(henon_map(), until=20_000, dt=1)
+    flow = lyapunov(lorenz(), until=500)
+    assert henon.kaplan_yorke_dimension == pytest.approx(1.26, abs=0.02)
+    assert flow.kaplan_yorke_dimension == pytest.approx(2.06, abs=0.03)
+    assert lyapunov([-1.0, -2.0]).kaplan_yorke_dimension == 0
+    assert lyapunov([0.5, 0.0]).kaplan_yorke_dimension == 2
 
 
 @pytest.mark.slow
 def test_largest_lyapunov_exponent_from_data():
     """Test the largest exponents of the logistic map at r = 4 and of the Lorenz x from recorded series."""
-    logistic = _lyapunov(_logistic(4.0, 10_000), 'largest', dimension=2, trajectory_length=4, min_separation=10)
-    assert logistic.largest_exponent_[0] == pytest.approx(math.log(2), abs=0.1)
+    logistic = lyapunov(_logistic(4.0, 10_000), kind='largest', dimension=2, trajectory_length=4, min_separation=10)
+    assert logistic.largest_exponent[0] == pytest.approx(math.log(2), abs=0.1)
     series = _lorenz_states(28.0, 0.05, 300.0)[:6000, 0]
-    flow = _lyapunov(
+    flow = lyapunov(
         series,
-        'largest',
+        kind='largest',
         dt=0.05,
         dimension=5,
         delay=2,
@@ -120,10 +115,10 @@ def test_largest_lyapunov_exponent_from_data():
         min_separation=30,
         skip=10,
     )
-    assert flow.largest_exponent_[0] == pytest.approx(0.906, abs=0.15)
+    assert flow.largest_exponent[0] == pytest.approx(0.906, abs=0.15)
 
 
 def test_settings_the_kind_ignores_are_rejected():
-    """Test that an embedding setting of the spectrum is rejected at check, with the settings it reads."""
+    """Test that an embedding setting of the spectrum is rejected, with the settings it reads."""
     with pytest.raises(AnalysisError, match='does not read dimension'):
-        LyapunovAnalysis(dimension=4).prepare()
+        lyapunov([0.5, 0.0], dimension=4)

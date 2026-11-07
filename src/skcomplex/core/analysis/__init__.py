@@ -3,7 +3,7 @@
 from ._alignment import AlignmentAnalysis
 from ._autocatalytic import AutocatalyticSetAnalysis
 from ._automata import AutomatonAnalysis
-from ._base import BaseAnalysis
+from ._base import BaseAnalysis, bind_analysis
 from ._cell_complex import CellComplexAnalysis
 from ._clusters import ClusterAnalysis
 from ._coarse_grain import CoarseGrainAnalysis
@@ -31,7 +31,7 @@ from ._large_deviations import LargeDeviationAnalysis
 from ._linearization import LinearizationAnalysis
 from ._local_information import LocalInformationAnalysis
 from ._loops import LoopAnalysis
-from ._lyapunov import LyapunovAnalysis
+from ._lyapunov import LyapunovResult, lyapunov
 from ._markov import MarkovAnalysis
 from ._mode_decomposition import ModeDecompositionAnalysis
 from ._motifs import MotifAnalysis
@@ -43,7 +43,7 @@ from ._passage import PassageAnalysis
 from ._recurrence import RecurrenceAnalysis
 from ._renormalization import RenormalizationAnalysis
 from ._reservoirs import ReservoirAnalysis
-from ._rolling import RollingAnalysis
+from ._rolling import RollingResult, rolling
 from ._scaling import ScalingAnalysis
 from ._sections import SectionAnalysis
 from ._shape import ShapeAnalysis
@@ -86,7 +86,7 @@ __all__: list[str] = [
     'LinearizationAnalysis',
     'LocalInformationAnalysis',
     'LoopAnalysis',
-    'LyapunovAnalysis',
+    'LyapunovResult',
     'MarkovAnalysis',
     'ModeDecompositionAnalysis',
     'MotifAnalysis',
@@ -98,7 +98,7 @@ __all__: list[str] = [
     'RecurrenceAnalysis',
     'RenormalizationAnalysis',
     'ReservoirAnalysis',
-    'RollingAnalysis',
+    'RollingResult',
     'ScalingAnalysis',
     'SectionAnalysis',
     'ShapeAnalysis',
@@ -108,4 +108,7 @@ __all__: list[str] = [
     'StabilityAnalysis',
     'SurrogateTestAnalysis',
     'SymbolicAnalysis',
+    'bind_analysis',
+    'lyapunov',
+    'rolling',
 ]
