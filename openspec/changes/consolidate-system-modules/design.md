@@ -5,6 +5,26 @@ modules for its elements, interactions, and views. A census on 2026-11-07 found 
 970 component modules: 784 serve one system, 39 serve several systems of one subfield, and 147 serve other components
 or nothing. Six fields have a `common` package with 59 modules.
 
+The census of the folding script, run on `development` once the open systems changes merged, follows imports through
+chains of components, so a component reached only through other components counts for the system that reaches it:
+
+| Private modules of the subfields | Count |
+| --- | --- |
+| Register at least one system | 408 |
+| Serve one system | 856 |
+| Serve several systems of one subfield | 45 |
+| Serve no system | 6 |
+
+| Modules of the `common` packages | Count |
+| --- | --- |
+| Serve systems of several subfields | 29 |
+| Serve several systems of one subfield | 8 |
+| Serve one system | 15 |
+| Serve no system | 5 |
+
+No component serves systems of two subfields outside `common`. One module imports across fields:
+`physics.synchronization._chaos` imports the Lorenz element of `mathematics.common.flows`.
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -117,3 +137,29 @@ or nothing. Six fields have a `common` package with 59 modules.
 - **Copies:** none.
 - **Cross-field duplicates:** `_noise` of `chemistry.pattern_formation._reaction_diffusion` has the same source as the
   one of `physics.pattern_formation._patterns`, small uniform noise of a given shape. It is a candidate for the core.
+
+## Biology
+
+- **Folded.** 252 component modules folded into the 85 system modules that alone use them.
+- **Moved to `common`.** Components that several systems of one subfield share moved into the existing packages of
+  `skcomplex.systems.biology.common`, and their subfields re-export them under the same names:
+  `PredationInteraction` and `ReplicatorInteraction` to `populations`, `ThetaNeuronElement` and
+  `SpikeResetInteraction` to `excitable`, `SpeciesElement` and `RepressionInteraction` to `kinetics`, and
+  `HostElement`, `SpreadingInteraction`, `BooleanNodeElement`, and `BooleanFunctionInteraction` to `networks`.
+- **Moved out of `common`.** `GompertzGrowthInteraction` and `PowerLawGrowthInteraction` served only the growth laws of
+  oncology, so they moved into `oncology._growth`. `skcomplex.systems.biology.oncology` now exports them, and
+  `common.populations` no longer does.
+- **Kept as shared subfield modules.** The molecular structures of systems biology (`_structure_spec`, `_structures`,
+  and `_backbone_geometry`) serve the fuzzy oil drop and the early-stage folding intermediate. In `common` they would
+  have to be modules directly in the package, and importing any shared biology component would then load Biopython
+  and MDTraj. `oncology._tumour_immune_chemotherapy` holds the element of the de Pillis and Radunskaya model, which its
+  chemotherapy and its optimal therapy share, and is too specific to that one model for `common`.
+- **Copies.** None.
+- **Cross-field duplicates, candidates for the core.** No class or function has identical source in biology and
+  another field. Ignoring names and docstrings, two bodies match: `CatalyticLinkElement` of `evolution._networks`
+  equals `LinkElement` of `mathematics.networks`, `TieElement` of `social.opinion_dynamics`, and `SupervisorElement`
+  of `social.organizations`, an element of an edge without states. `activity_grid` of `oncology._immune_competition`
+  equals `wealth_classes` of `economics.econophysics` and `criminality_grid` of `social.crowds`, evenly spaced classes
+  on the unit interval.
+- **Left.** `common.metabolism._analyses`, `common.metabolism._community`, and `evolution._neutral_network_analysis`
+  are analyses that no system imports, so they stay where they are.

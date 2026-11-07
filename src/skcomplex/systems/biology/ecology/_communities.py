@@ -4,23 +4,29 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.components.interactions import BaseInteraction
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.components.interactions import BaseInteraction, Interaction
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.system import System
+from ....core.specs import ParameterSpec, RoleSpec
 from ..._catalog import register_system
-from ..common.populations import LogisticGrowthInteraction, MortalityInteraction, PopulationElement
-from ._competition import CompetitionInteraction
-from ._mutualism import MutualismInteraction
-from ._predation_interaction import PredationInteraction
+from ..common.populations import (
+    LogisticGrowthInteraction,
+    MortalityInteraction,
+    PopulationElement,
+    PredationInteraction,
+)
 
 WEB_POPULATIONS = {'frogs': 50.0, 'mice': 50.0, 'snakes': 10.0, 'hawks': 5.0}
 
-
 WEB_GROWTH = {'frogs': (1.0, 100.0), 'mice': (1.2, 100.0)}
 
-
 WEB_MORTALITY = {'snakes': 0.3, 'hawks': 0.2}
-
 
 WEB_LINKS = (
     ('snakes', 'frogs', 0.02, 0.01),
@@ -28,6 +34,154 @@ WEB_LINKS = (
     ('hawks', 'snakes', 0.01, 0.005),
     ('hawks', 'mice', 0.002, 0.001),
 )
+
+
+class CompetitionInteraction(Interaction):
+    """Lotka-Volterra competition of two species for the same resources.
+
+    Each species grows logistically, and the other species fills its carrying capacity in proportion to a competition
+    coefficient, `dn1/dt = r1 n1 (1 - (n1 + alpha12 n2) / K1)` and `dn2/dt = r2 n2 (1 - (n2 + alpha21 n1) / K2)`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        first:
+            The path of the first population.
+
+        second:
+            The path of the second population.
+
+        r1:
+            The growth rate of the first population.
+
+        r2:
+            The growth rate of the second population.
+
+        K1:
+            The carrying capacity of the first population.
+
+        K2:
+            The carrying capacity of the second population.
+
+        alpha12:
+            The effect of one member of the second population on the first, relative to one of its own.
+
+        alpha21:
+            The effect of one member of the first population on the second, relative to one of its own.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import CompetitionInteraction
+        >>> CompetitionInteraction('competition', first='deer', second='elk', alpha12=0.5).alpha12
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        K1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+        K2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+        alpha12: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        alpha21: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label)
+        self.first = first
+        self.second = second
+        self.r1 = r1
+        self.r2 = r2
+        self.K1 = K1
+        self.K2 = K2
+        self.alpha12 = alpha12
+        self.alpha21 = alpha21
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the logistic rates with the competitor in the crowding term.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        first, second = s.first.n, s.second.n
+        return [
+            RateLaw(first, s.r1 * first * (1 - (first + s.alpha12 * second) / s.K1)),
+            RateLaw(second, s.r2 * second * (1 - (second + s.alpha21 * first) / s.K2)),
+        ]
+
+
+class MutualismInteraction(Interaction):
+    """Mutualism with a handling time, where encounters feed both species, `a b n1 n2 / (1 + a T n)` each.
+
+    The benefit to each species saturates with the abundance of its partner, as the handling time `T` limits how much
+    of the partner's resource it can use. A handling time of 0 gives the unbounded type I mutualism `a b n1 n2`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        first:
+            The path of the first population.
+
+        second:
+            The path of the second population.
+
+        a:
+            The effective search rate.
+
+        b:
+            The rate of encounters.
+
+        handling:
+            The handling time `T` of the resource of the partner.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import MutualismInteraction
+        >>> MutualismInteraction('pollination', first='orchids', second='bees', handling=0.5).handling
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        handling: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label)
+        self.first = first
+        self.second = second
+        self.a = a
+        self.b = b
+        self.handling = handling
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the saturating benefits `a b n1 n2 / (1 + a T n2)` and `a b n1 n2 / (1 + a T n1)`.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        first, second = s.first.n, s.second.n
+        encounters = s.a * s.b * first * second
+        return [
+            RateLaw(first, encounters / (1 + s.a * s.handling * second)),
+            RateLaw(second, encounters / (1 + s.a * s.handling * first)),
+        ]
 
 
 @register_system(

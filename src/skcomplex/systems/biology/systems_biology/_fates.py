@@ -3,14 +3,194 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import numpy as np
+from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.components.elements import GroupElement
+import numpy as np
+from sage.all__sagemath_symbolics import Expression, exp, oo
+from sage.sets.real_set import RealSet
+
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws.utils import total
 from ....core.components.system import System
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._fate_landscape import FateLandscapeElement
-from ._lateral_inhibition import LateralInhibitionInteraction
-from ._proneural_cell import ProneuralCellElement
+
+
+class FateLandscapeElement(Element):
+    """Cell state in the compactified elliptic umbilic, the minimal landscape of a decision among three fates.
+
+    The state `(x, y)` descends the potential `f = x^4 + y^4 + x^3 - 2 x y^2 + a (x^2 + y^2) + theta1 x + theta2 y` of
+    Rand et al. (2021, figure 5D), `dx/dt = -df/dx` and `dy/dt = -df/dy`. The signals `theta1` and `theta2` change
+    in time at the rates `v1` and `v2`, and the sign of `a` makes the central rest point an attractor or a repellor.
+
+    Args:
+        label:
+            The label of the cell or of the group of cells.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        a:
+            The curvature of the potential at the centre.
+
+        theta1:
+            The first signal at the start.
+
+        theta2:
+            The second signal at the start.
+
+        v1:
+            The rate of change of the first signal.
+
+        v2:
+            The rate of change of the second signal.
+
+    Examples:
+        >>> from skcomplex.systems.biology.systems_biology import FateLandscapeElement
+        >>> FateLandscapeElement('cell', a=-0.2).a
+        -0.2
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 0.0,
+        y: Annotated[float, StateSpec()] = 0.0,
+        a: Annotated[float, ParameterSpec()] = -0.2,
+        theta1: Annotated[float, ParameterSpec()] = 0.0,
+        theta2: Annotated[float, ParameterSpec()] = 0.0,
+        v1: Annotated[float, ParameterSpec()] = 0.0,
+        v2: Annotated[float, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.a = a
+        self.theta1 = theta1
+        self.theta2 = theta2
+        self.v1 = v1
+        self.v2 = v2
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the gradient descent of the potential under the drifting signals.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        theta1, theta2 = s.theta1 + s.v1 * s.t, s.theta2 + s.v2 * s.t
+        return [
+            RateLaw(s.x, -(4 * s.x**3 + 3 * s.x**2 - 2 * s.y**2 + 2 * s.a * s.x + theta1)),
+            RateLaw(s.y, -(4 * s.y**3 - 4 * s.x * s.y + 2 * s.a * s.y + theta2)),
+        ]
+
+
+class ProneuralCellElement(Element):
+    """Cell of an epithelium that adopts the neural fate when the inhibition from its neighbours is weak.
+
+    The state `a` runs from 0, the epidermal fate, to 1, the neural fate of a sensory bristle. The sigmoids of the
+    lateral inhibition share the width `width`.
+
+    Args:
+        label:
+            The label of the cell or of the group of cells.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        a:
+            The initial neural state.
+
+        width:
+            The width of the sigmoids.
+
+    Examples:
+        >>> from skcomplex.systems.biology.systems_biology import ProneuralCellElement
+        >>> ProneuralCellElement('cell', a=0.1).a
+        0.1
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        a: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
+        width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.127,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.a = a
+        self.width = width
+
+
+class LateralInhibitionInteraction(Interaction):
+    """Lateral inhibition of the neural fate of cells by their neighbours, through a kernel of the distance.
+
+    Following Eq. (2) of Rand et al. (2021), `da_i/dt = sigma(a_i - h_i) - a_i` with the inhibition `h_i = sum_{j != i}
+    K_ij d(a_j)`, where `sigma(u) = 1 / (1 + exp(-u / width))` and `d(a) = sigma(a - 1 / 2)`. A cell under an
+    inhibition below 0.37 can only turn neural, above 0.63 only epidermal, and in between it is bistable.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        cells:
+            The path of the group of cells.
+
+        kernel:
+            The inhibition `K_ij` of every cell by every other, with a zero diagonal.
+
+    Examples:
+        >>> from skcomplex.systems.biology.systems_biology import LateralInhibitionInteraction
+        >>> LateralInhibitionInteraction('inhibition', cells='cells', kernel=((0.0, 1.0), (1.0, 0.0))).kernel
+        ((0.0, 1.0), (1.0, 0.0))
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        cells: Annotated[str, RoleSpec()],
+        kernel: Sequence[Sequence[float]] = ((0.0,),),
+    ) -> None:
+        super().__init__(label)
+        self.cells = cells
+        self.kernel = kernel
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the relaxation of every cell towards the fate its inhibition allows.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        cell = s.cells
+        inhibition = total(self._sigmoid(cell.a - 1 / 2, cell.width), weights=np.asarray(self.kernel, dtype=float))
+        return [RateLaw(cell.a, self._sigmoid(cell.a - inhibition, cell.width) - cell.a)]
+
+    def _sigmoid(self, u: Expression, width: Expression) -> Expression:
+        """Return the logistic sigmoid `1 / (1 + exp(-u / width))`."""
+        return 1 / (1 + exp(-u / width))
 
 
 @register_system(

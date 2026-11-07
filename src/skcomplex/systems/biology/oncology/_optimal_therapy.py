@@ -4,19 +4,290 @@
 # License: MIT
 
 from types import SimpleNamespace
+from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
+from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, ReactionInteraction
 from ....core.components.system import System
 from ....core.engine.solvers import PontryaginSolver
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
 from ._chemotherapy import BOOK
-from ._optimal_chemotherapy import OptimalChemotherapyElement
-from ._optimal_immunotherapy import OptimalImmunotherapyElement
+from ._tumour_immune_chemotherapy import TumourImmuneChemotherapyElement
+
+MAX_DOSE = 1.0
+
+
+class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
+    """Immune, tumour, and normal cells under a chemotherapy whose infusion rate is a bounded control input.
+
+    The cells and the drug follow the system of de Pillis and Radunskaya, `TumourImmuneChemotherapyElement`, with the
+    infusion rate `u` between 0 and its largest dose. The oncologist minimises the tumour burden and the toxicity of
+    the drug, `∫ (A + w u^2 / 2) dt + A(T)`, where the terminal term weighs the tumour left at the end of the
+    treatment.
+
+    Args:
+        label:
+            The label of the patient.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        E:
+            The initial immune cells.
+
+        A:
+            The initial tumour cells.
+
+        N:
+            The initial normal cells.
+
+        U:
+            The initial drug concentration.
+
+        s:
+            The influx of immune cells.
+
+        rho:
+            The immune response rate.
+
+        alpha:
+            The immune threshold.
+
+        c1:
+            The rate at which the tumour inactivates immune cells.
+
+        c2:
+            The rate at which immune cells kill the tumour.
+
+        c3:
+            The rate at which normal cells compete with the tumour.
+
+        c4:
+            The rate at which the tumour competes with normal cells.
+
+        d1:
+            The death rate of immune cells.
+
+        r1:
+            The growth rate of the tumour.
+
+        r2:
+            The growth rate of normal cells.
+
+        b1:
+            The reciprocal carrying capacity of the tumour.
+
+        b2:
+            The reciprocal carrying capacity of normal cells.
+
+        a1:
+            The fraction of immune cells the drug kills.
+
+        a2:
+            The fraction of tumour cells the drug kills.
+
+        a3:
+            The fraction of normal cells the drug kills.
+
+        k:
+            The decay rate of the drug, `dU` in the book.
+
+        u:
+            The infusion rate of the drug, the control input.
+
+        w:
+            The weight of the squared infusion rate in the cost.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import OptimalChemotherapyElement
+        >>> OptimalChemotherapyElement('patient', w=0.5).w
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        E: float = 0.15,
+        A: float = 0.25,
+        N: float = 1.0,
+        U: float = 0.0,
+        s: float = 0.33,
+        rho: float = 0.01,
+        alpha: float = 0.3,
+        c1: float = 1.0,
+        c2: float = 0.5,
+        c3: float = 1.0,
+        c4: float = 1.0,
+        d1: float = 0.2,
+        r1: float = 1.5,
+        r2: float = 1.0,
+        b1: float = 1.0,
+        b2: float = 1.0,
+        a1: float = 0.2,
+        a2: float = 0.3,
+        a3: float = 0.1,
+        k: float = 1.0,
+        u: Annotated[float, ParameterSpec(adaptive=True, bounds=(0.0, MAX_DOSE))] = 0.0,
+        w: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(
+            label,
+            visual=visual,
+            E=E,
+            A=A,
+            N=N,
+            U=U,
+            s=s,
+            rho=rho,
+            alpha=alpha,
+            c1=c1,
+            c2=c2,
+            c3=c3,
+            c4=c4,
+            d1=d1,
+            r1=r1,
+            r2=r2,
+            b1=b1,
+            b2=b2,
+            a1=a1,
+            a2=a2,
+            a3=a3,
+            k=k,
+            u=u,
+        )
+        self.w = w
+
+
+class OptimalImmunotherapyElement(Element):
+    """Effector cells, tumour cells, and IL-2 under adoptive therapy and IL-2 injection at bounded rates.
+
+    The Kirschner-Panetta system in scaled units, with the effector and tumour cells in units of `10^5` and IL-2 in
+    units of `2 10^7`, follows `x' = alpha_a y - d1 x + a1 u1 + rho1 x z / (1 + z)` for the effector cells,
+    `y' = r1 y (1 - b y) - c1 x y / (1 + y)` for the tumour, and `z' = a2 u2 + rho2 x y / (alpha3 + y) - du z` for
+    IL-2. The adoptive therapy `u1` and the IL-2 injection `u2` are control inputs between 0 and 1, and the oncologist
+    minimises `∫ (y + w1 u1^2 / 2 + w2 u2^2 / 2) dt + y(T)`.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of `optimal_immunotherapy`
+    read its parameters.
+
+    Args:
+        label:
+            The label of the tumour site.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial effector cells.
+
+        y:
+            The initial tumour cells.
+
+        z:
+            The initial IL-2 concentration.
+
+        u1:
+            The adoptive therapy rate, a control input.
+
+        u2:
+            The IL-2 injection rate, a control input.
+
+        alpha_a:
+            The antigenicity of the tumour.
+
+        d1:
+            The death rate of effector cells.
+
+        rho1:
+            The proliferation rate of effector cells stimulated by IL-2.
+
+        r1:
+            The growth rate of the tumour.
+
+        b:
+            The inverse carrying capacity of the tumour.
+
+        c1:
+            The kill rate of tumour cells by effector cells.
+
+        rho2:
+            The IL-2 production rate by effector-tumour encounters.
+
+        alpha3:
+            The tumour at half the IL-2 production.
+
+        du:
+            The loss rate of IL-2.
+
+        a1:
+            The effector cells per unit of adoptive therapy.
+
+        a2:
+            The IL-2 per unit of IL-2 injection.
+
+        w1:
+            The weight of the squared adoptive therapy rate in the cost.
+
+        w2:
+            The weight of the squared IL-2 injection rate in the cost.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import OptimalImmunotherapyElement
+        >>> OptimalImmunotherapyElement('site').rho1
+        0.1245
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        y: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        z: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        u1: Annotated[float, ParameterSpec(adaptive=True, bounds=(0.0, MAX_DOSE))] = 0.0,
+        u2: Annotated[float, ParameterSpec(adaptive=True, bounds=(0.0, MAX_DOSE))] = 0.0,
+        alpha_a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.005,
+        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.03,
+        rho1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1245,
+        r1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.18,
+        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
+        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        rho2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.025,
+        alpha3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
+        du: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.5,
+        w1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        w2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.u1 = u1
+        self.u2 = u2
+        self.alpha_a = alpha_a
+        self.d1 = d1
+        self.rho1 = rho1
+        self.r1 = r1
+        self.b = b
+        self.c1 = c1
+        self.rho2 = rho2
+        self.alpha3 = alpha3
+        self.du = du
+        self.a1 = a1
+        self.a2 = a2
+        self.w1 = w1
+        self.w2 = w2
 
 
 def _tumour_share(s: SimpleNamespace) -> Expression:

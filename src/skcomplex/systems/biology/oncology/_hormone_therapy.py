@@ -5,26 +5,23 @@
 
 from collections.abc import Callable
 from types import SimpleNamespace
+from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, log
+from sage.all__sagemath_symbolics import Expression, log, oo
+from sage.sets.real_set import RealSet
 
-from ....core.components.interactions import BaseInteraction, RateInteraction, ReactionInteraction
+from ....core.components.elements import Element
+from ....core.components.interactions import BaseInteraction, CrossingInteraction, RateInteraction, ReactionInteraction
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import hill, pulse_train
 from ....core.components.system import System
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ValidationError
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
 from ..common.pharmacokinetics import DosingInteraction
-from ._androgen_receptor_prostate import AndrogenReceptorProstateElement
-from ._androgen_suppression import AndrogenSuppressionElement
-from ._cell_quota_prostate import CellQuotaProstateElement
-from ._intermittent_suppression import IntermittentSuppressionElement
-from ._piecewise_linear_prostate import PiecewiseLinearProstateElement
-from ._tamoxifen_tumour import TamoxifenTumourElement
-from ._therapy_switch import TherapySwitchInteraction
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
-
 
 PATIENT_FACTORS = {
     1: {
@@ -43,6 +40,1009 @@ PATIENT_FACTORS = {
         'cells': (11.02, 0.976, 0.0),
     },
 }
+
+
+class AndrogenReceptorProstateElement(Element):
+    """Normal epithelium and prostate cancer cells driven by activated androgen receptors, with tissue and serum PSA.
+
+    The normal cells follow `dN/dt = r1 N (1 - (N + c1 (AD + AI)) / b1) - d1 N`, the dependent cells
+    `dAD/dt = r2 AD (1 - m1)(1 - L) - d2 AD`, and the independent cells `dAI/dt = r3 AI (1 - (c1 N + AD + AI) / b3)
+    - d3 AI + m1 r2 AD (1 - L)`, where `L = (c1 N + AD + AI) / b2`. The rates are
+    `r_i = psi1_i UD^2 / (psi2^2 + UD^2) + phi1_i UT^2 / (phi2^2 + UT^2)` and `d_i = psi3_i / (psi4 + UD + UT)` for
+    the receptors activated by DHT, `UD`, and by testosterone, `UT`. The tissue PSA follows
+    `dUIP/dt = -du1 UIP Nf - gamma_p UIP (AD + AI)^2 / (KP + AD + AI) - du2 UIP + r4`, with the production
+    `r4 = sum_i beta_i (UT + UD + sigma) X_i` over the cell types, and the serum PSA gains the leaks and is cleared
+    at `du3`. The capacity of the normal cells `b1` and their share `Nf = N / b1` follow the prostate volume
+    `v1 a^phi / (v2^phi + a^phi) + v3` at the age `a`, divided by the volume `Vc` of a billion cells.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `prostate_androgen_receptor` read its parameters.
+
+    Args:
+        label:
+            The label of the prostate.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        N:
+            The initial normal epithelial cells.
+
+        AD:
+            The initial androgen-dependent cells.
+
+        AI:
+            The initial androgen-independent cells.
+
+        UIP:
+            The initial tissue PSA.
+
+        UP:
+            The initial serum PSA.
+
+        UT:
+            The concentration of receptors activated by testosterone.
+
+        UD:
+            The concentration of receptors activated by dihydrotestosterone.
+
+        m1:
+            The fraction of the divisions of dependent cells that yields independent cells.
+
+        b2:
+            The carrying capacity of the dependent cells.
+
+        b3:
+            The carrying capacity of the independent cells.
+
+        c1:
+            The interaction between normal and cancer cells.
+
+        psi1_n:
+            The maximum growth of the normal cells driven by DHT.
+
+        psi1_d:
+            The maximum growth of the dependent cells driven by DHT.
+
+        psi1_i:
+            The maximum growth of the independent cells driven by DHT.
+
+        phi1_n:
+            The maximum growth of the normal cells driven by testosterone.
+
+        phi1_d:
+            The maximum growth of the dependent cells driven by testosterone.
+
+        phi1_i:
+            The maximum growth of the independent cells driven by testosterone.
+
+        psi2:
+            The DHT-activated receptors at which the growth is half way.
+
+        phi2:
+            The testosterone-activated receptors at which the growth is half way.
+
+        psi3_n:
+            The death of the normal cells.
+
+        psi3_d:
+            The death of the dependent cells.
+
+        psi3_i:
+            The death of the independent cells.
+
+        psi4:
+            The activated receptors at which the death is halved.
+
+        Vc:
+            The volume of a billion cells.
+
+        v1:
+            The prostate volume that ageing adds.
+
+        v2:
+            The age at which half of that volume is added.
+
+        v3:
+            The prostate volume of a young man.
+
+        phi:
+            The steepness of the growth of the prostate with age.
+
+        age:
+            The age of the patient at the start.
+
+        du1:
+            The rate at which tissue PSA leaks through normal epithelium.
+
+        du2:
+            The decay rate of tissue PSA.
+
+        du3:
+            The clearance rate of serum PSA.
+
+        gamma_p:
+            The rate at which tissue PSA leaks through cancer cells.
+
+        KP:
+            The cancer cells at which the leak per cell is half its maximum.
+
+        beta_n:
+            The PSA production of the normal cells.
+
+        beta_d:
+            The PSA production of the dependent cells.
+
+        beta_i:
+            The PSA production of the independent cells.
+
+        sigma:
+            The PSA production independent of the receptors.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import AndrogenReceptorProstateElement
+        >>> AndrogenReceptorProstateElement('prostate').KP
+        800.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        N: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
+        AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        AI: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        UIP: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        UP: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        UT: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 40.0,
+        UD: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 40.0,
+        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
+        b2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 22.4,
+        b3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 22.4,
+        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        psi1_n: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001202,
+        psi1_d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001048,
+        psi1_i: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 9.8e-05,
+        phi1_n: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001281,
+        phi1_d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00111,
+        phi1_i: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.000279,
+        psi2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 12.355,
+        phi2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 49.587,
+        psi3_n: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.008,
+        psi3_d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.15,
+        psi3_i: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        psi4: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 62.162,
+        Vc: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.56,
+        v1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 18.397,
+        v2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 63.753,
+        v3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 28.4,
+        phi: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 12.0,
+        age: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 60.0,
+        du1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001515,
+        du2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05635,
+        du3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.776,
+        gamma_p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3125,
+        KP: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 800.0,
+        beta_n: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0022622,
+        beta_d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.002,
+        beta_i: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.003,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.N = N
+        self.AD = AD
+        self.AI = AI
+        self.UIP = UIP
+        self.UP = UP
+        self.UT = UT
+        self.UD = UD
+        self.m1 = m1
+        self.b2 = b2
+        self.b3 = b3
+        self.c1 = c1
+        self.psi1_n = psi1_n
+        self.psi1_d = psi1_d
+        self.psi1_i = psi1_i
+        self.phi1_n = phi1_n
+        self.phi1_d = phi1_d
+        self.phi1_i = phi1_i
+        self.psi2 = psi2
+        self.phi2 = phi2
+        self.psi3_n = psi3_n
+        self.psi3_d = psi3_d
+        self.psi3_i = psi3_i
+        self.psi4 = psi4
+        self.Vc = Vc
+        self.v1 = v1
+        self.v2 = v2
+        self.v3 = v3
+        self.phi = phi
+        self.age = age
+        self.du1 = du1
+        self.du2 = du2
+        self.du3 = du3
+        self.gamma_p = gamma_p
+        self.KP = KP
+        self.beta_n = beta_n
+        self.beta_d = beta_d
+        self.beta_i = beta_i
+        self.sigma = sigma
+
+
+class AndrogenSuppressionElement(Element):
+    """Androgen-dependent and androgen-independent prostate cancer cells under continuous androgen suppression.
+
+    The dependent cells follow `dAD/dt = r1 U (1 - b (AD + c1 AI)) AD - (d1 + m1)(1 - U / U0) AD`, the independent
+    cells `dAI/dt = r2 (1 - b (AI + c2 AD)) AI + m1 (1 - U / U0) AD`, and the serum androgen
+    `du/dt = -du (U - U0) - U0 du a`, which the drug efficacy `a` lowers to `U0 (1 - a)`.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `continuous_androgen_suppression` read its parameters.
+
+    Args:
+        label:
+            The label of the tumour.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        AD:
+            The initial number of androgen-dependent cells.
+
+        AI:
+            The initial number of androgen-independent cells.
+
+        U:
+            The initial serum androgen concentration.
+
+        r1:
+            The growth rate of the dependent cells per unit of androgen.
+
+        r2:
+            The growth rate of the independent cells.
+
+        b:
+            The reciprocal carrying capacity.
+
+        c1:
+            The competition of the independent cells on the dependent ones.
+
+        c2:
+            The competition of the dependent cells on the independent ones.
+
+        d1:
+            The death rate of the dependent cells under androgen deprivation.
+
+        m1:
+            The rate at which androgen deprivation turns dependent cells independent.
+
+        U0:
+            The normal androgen concentration.
+
+        du:
+            The elimination rate of the androgen.
+
+        a:
+            The efficacy of the suppression.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import AndrogenSuppressionElement
+        >>> AndrogenSuppressionElement('tumour', a=0.6).a
+        0.6
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        AI: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.14,
+        U: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 20.0,
+        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.025,
+        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.006,
+        b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 9.1e-11,
+        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
+        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.064,
+        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5e-05,
+        U0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
+        du: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
+        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.AD = AD
+        self.AI = AI
+        self.U = U
+        self.r1 = r1
+        self.r2 = r2
+        self.b = b
+        self.c1 = c1
+        self.c2 = c2
+        self.d1 = d1
+        self.m1 = m1
+        self.U0 = U0
+        self.du = du
+        self.a = a
+
+
+class CellQuotaProstateElement(Element):
+    """Prostate cancer cells whose growth and mutation follow their androgen cell quota, with the PSA they release.
+
+    The cells grow at the Droop rate `rm (1 - q_i / Q_i)`, die at `d_i`, and switch from dependent to independent at
+    `mx1 m501^n / (Q1^n + m501^n)` and back at `mx2 Q2^n / (Q2^n + m502^n)`. The quotas follow
+    `dQ_i/dt = vm (qm - Q_i) / (qm - q_i) U / (U + v50) - rm (Q_i - q_i) - d3 Q_i`, and the serum PSA
+    `dP/dt = r0 (AD + AI) + r1 AD Q1^theta / (Q1^theta + rho1^theta) + r2 AI Q2^theta / (Q2^theta + rho2^theta)
+    - du P`. The serum androgen relaxes at the rate `du1` to `Umin` during the `width` days of therapy that open
+    every `period` days and to `U0` otherwise.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `prostate_cell_quota` read its parameters.
+
+    Args:
+        label:
+            The label of the tumour.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        AD:
+            The initial number of androgen-dependent cells.
+
+        AI:
+            The initial number of androgen-independent cells.
+
+        Q1:
+            The initial cell quota of the dependent cells.
+
+        Q2:
+            The initial cell quota of the independent cells.
+
+        P:
+            The initial serum PSA.
+
+        U:
+            The initial serum androgen.
+
+        rm:
+            The maximum proliferation rate.
+
+        q1:
+            The minimum quota of the dependent cells.
+
+        q2:
+            The minimum quota of the independent cells.
+
+        d1:
+            The death rate of the dependent cells.
+
+        d2:
+            The death rate of the independent cells.
+
+        d3:
+            The degradation rate of the quota.
+
+        qm:
+            The maximum quota.
+
+        vm:
+            The maximum uptake rate of androgen.
+
+        v50:
+            The serum androgen at which the uptake is half way.
+
+        mx1:
+            The maximum mutation rate from dependent to independent.
+
+        mx2:
+            The maximum mutation rate from independent to dependent.
+
+        m501:
+            The quota at which the mutation to independence is half way.
+
+        m502:
+            The quota at which the mutation back to dependence is half way.
+
+        n:
+            The steepness of the mutation rates.
+
+        r0:
+            The baseline PSA production per cell.
+
+        r1:
+            The androgen-driven PSA production per dependent cell.
+
+        r2:
+            The androgen-driven PSA production per independent cell.
+
+        rho1:
+            The quota at which the PSA production of the dependent cells is half way.
+
+        rho2:
+            The quota at which the PSA production of the independent cells is half way.
+
+        theta:
+            The steepness of the PSA production.
+
+        du:
+            The clearance rate of the PSA.
+
+        U0:
+            The normal serum androgen.
+
+        Umin:
+            The serum androgen under therapy.
+
+        du1:
+            The rate at which the serum androgen relaxes.
+
+        period:
+            The time between the starts of therapy periods.
+
+        width:
+            The duration of a therapy period.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import CellQuotaProstateElement
+        >>> CellQuotaProstateElement('tumour').qm
+        5.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
+        AI: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        Q1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        Q2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        P: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 3.4,
+        U: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
+        rm: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.025,
+        q1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
+        q2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.15,
+        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.015,
+        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.015,
+        d3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.09,
+        qm: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+        vm: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.275,
+        v50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
+        mx1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00015,
+        mx2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0001,
+        m501: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.08,
+        m502: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.7,
+        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+        r0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.15,
+        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.15,
+        rho1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.3,
+        rho2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.1,
+        theta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+        du: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
+        U0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
+        Umin: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        du1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
+        period: float = 500.0,
+        width: float = 250.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.AD = AD
+        self.AI = AI
+        self.Q1 = Q1
+        self.Q2 = Q2
+        self.P = P
+        self.U = U
+        self.rm = rm
+        self.q1 = q1
+        self.q2 = q2
+        self.d1 = d1
+        self.d2 = d2
+        self.d3 = d3
+        self.qm = qm
+        self.vm = vm
+        self.v50 = v50
+        self.mx1 = mx1
+        self.mx2 = mx2
+        self.m501 = m501
+        self.m502 = m502
+        self.n = n
+        self.r0 = r0
+        self.r1 = r1
+        self.r2 = r2
+        self.rho1 = rho1
+        self.rho2 = rho2
+        self.theta = theta
+        self.du = du
+        self.U0 = U0
+        self.Umin = Umin
+        self.du1 = du1
+        self.period = period
+        self.width = width
+
+
+class IntermittentSuppressionElement(Element):
+    """Prostate cancer cells under androgen suppression that PSA thresholds switch on and off.
+
+    The dependent cells follow `dAD/dt = r1 (k1 + (1 - k1) U / (U + k2)) AD - d1 (k3 + (1 - k3) U / (U + k4)) AD
+    - m1 (1 - U / U0) AD`, the independent cells `dAI/dt = m1 (1 - U / U0) AD + r2 (1 - U / U0) AI - d2 AI`, and
+    the serum androgen `du/dt = -du (U - U0) - U0 du u`. The therapy `u` turns 1 when the PSA `x1 AD + x2 AI` rises
+    through `h1` and 0 when it falls through `h0`.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `ideta_intermittent_androgen` read its parameters.
+
+    Args:
+        label:
+            The label of the tumour.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        AD:
+            The initial number of androgen-dependent cells.
+
+        AI:
+            The initial number of androgen-independent cells.
+
+        U:
+            The initial serum androgen concentration.
+
+        u:
+            The initial therapy, 1 on and 0 off.
+
+        r1:
+            The growth rate of the dependent cells.
+
+        r2:
+            The growth rate of the independent cells.
+
+        d1:
+            The death rate of the dependent cells.
+
+        d2:
+            The death rate of the independent cells.
+
+        m1:
+            The maximum rate at which dependent cells turn independent.
+
+        k1:
+            The growth of the dependent cells without androgen, relative to `r1`.
+
+        k2:
+            The androgen at which the growth of the dependent cells is half way.
+
+        k3:
+            The death of the dependent cells without androgen, relative to `d1`.
+
+        k4:
+            The androgen at which the death of the dependent cells is half way.
+
+        U0:
+            The normal androgen concentration.
+
+        du:
+            The elimination rate of the androgen.
+
+        x1:
+            The PSA per dependent cell.
+
+        x2:
+            The PSA per independent cell.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import IntermittentSuppressionElement
+        >>> IntermittentSuppressionElement('tumour').U0
+        30.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        AI: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        U: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 30.0,
+        u: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0204,
+        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0242,
+        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0076,
+        d2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0168,
+        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5e-05,
+        k1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        k2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        k3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 8.0,
+        k4: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        U0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
+        du: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.08,
+        x1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        x2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.AD = AD
+        self.AI = AI
+        self.U = U
+        self.u = u
+        self.r1 = r1
+        self.r2 = r2
+        self.d1 = d1
+        self.d2 = d2
+        self.m1 = m1
+        self.k1 = k1
+        self.k2 = k2
+        self.k3 = k3
+        self.k4 = k4
+        self.U0 = U0
+        self.du = du
+        self.x1 = x1
+        self.x2 = x2
+
+
+class PiecewiseLinearProstateElement(Element):
+    """Androgen-dependent, reversibly and irreversibly independent prostate cancer cells under intermittent therapy.
+
+    During therapy, `u = 1`, the cells follow `dAD/dt = w11_on AD`, `dAIR/dt = w21_on AD + w22_on AIR`, and
+    `dAII/dt = w31_on AD + w32_on AIR + w33_on AII`. Off therapy they follow `dAD/dt = w11_off AD + w12_off AIR`,
+    `dAIR/dt = w22_off AIR`, and `dAII/dt = w33_off AII`. Switches on the PSA `x1 AD + x2 AIR + x3 AII` set the
+    therapy `u`.
+
+    Args:
+        label:
+            The label of the tumour.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        AD:
+            The initial androgen-dependent cells.
+
+        AIR:
+            The initial reversibly independent cells.
+
+        AII:
+            The initial irreversibly independent cells.
+
+        u:
+            The initial therapy, 1 on and 0 off.
+
+        w11_on:
+            The net growth rate of the dependent cells during therapy.
+
+        w21_on:
+            The rate at which dependent cells adapt during therapy.
+
+        w22_on:
+            The net growth rate of the adapted cells during therapy.
+
+        w31_on:
+            The rate at which dependent cells mutate during therapy.
+
+        w32_on:
+            The rate at which adapted cells mutate during therapy.
+
+        w33_on:
+            The net growth rate of the mutated cells during therapy.
+
+        w11_off:
+            The net growth rate of the dependent cells off therapy.
+
+        w12_off:
+            The rate at which adapted cells return to dependence off therapy.
+
+        w22_off:
+            The net growth rate of the adapted cells off therapy.
+
+        w33_off:
+            The net growth rate of the mutated cells off therapy.
+
+        x1:
+            The PSA per dependent cell.
+
+        x2:
+            The PSA per adapted cell.
+
+        x3:
+            The PSA per mutated cell.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import PiecewiseLinearProstateElement
+        >>> PiecewiseLinearProstateElement('tumour').u
+        1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        AD: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 17.84,
+        AIR: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.778,
+        AII: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.382,
+        u: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        w11_on: Annotated[float, ParameterSpec()] = -0.043844,
+        w21_on: Annotated[float, ParameterSpec()] = 0.00130716,
+        w22_on: Annotated[float, ParameterSpec()] = -0.004282,
+        w31_on: Annotated[float, ParameterSpec()] = 0.0,
+        w32_on: Annotated[float, ParameterSpec()] = 0.0,
+        w33_on: Annotated[float, ParameterSpec()] = 0.00181,
+        w11_off: Annotated[float, ParameterSpec()] = 0.00223,
+        w12_off: Annotated[float, ParameterSpec()] = 0.1,
+        w22_off: Annotated[float, ParameterSpec()] = 0.00392,
+        w33_off: Annotated[float, ParameterSpec()] = -0.2,
+        x1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        x2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        x3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.AD = AD
+        self.AIR = AIR
+        self.AII = AII
+        self.u = u
+        self.w11_on = w11_on
+        self.w21_on = w21_on
+        self.w22_on = w22_on
+        self.w31_on = w31_on
+        self.w32_on = w32_on
+        self.w33_on = w33_on
+        self.w11_off = w11_off
+        self.w12_off = w12_off
+        self.w22_off = w22_off
+        self.w33_off = w33_off
+        self.x1 = x1
+        self.x2 = x2
+        self.x3 = x3
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the linear growth and transitions of each mode and the switching of the therapy.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        on, off = s.u, 1 - s.u
+        return [
+            RateLaw(s.AD, on * s.w11_on * s.AD + off * (s.w11_off * s.AD + s.w12_off * s.AIR)),
+            RateLaw(s.AIR, on * (s.w21_on * s.AD + s.w22_on * s.AIR) + off * s.w22_off * s.AIR),
+            RateLaw(s.AII, on * (s.w31_on * s.AD + s.w32_on * s.AIR + s.w33_on * s.AII) + off * s.w33_off * s.AII),
+        ]
+
+
+class TamoxifenTumourElement(Element):
+    """Breast tumour in three Gompertzian cell-cycle phases under tamoxifen, its metabolite, and the lymphocytes.
+
+    The phases follow `dAg/dt = -mg Ag L + 2 mm Am L - a1 Ag (UX + delta1 UH)`, `dAs/dt = -ms As + mg Ag L`, and
+    `dAm/dt = -mm Am L + ms As`, with `L = log(Asat / (Ag + As + Am))`. Tamoxifen passes from the gut `X0` through
+    `X1` to the plasma `X2`, `dX0/dt = -k01 X0 + u(t)`, `dX1/dt = k01 X0 - k12 X1`,
+    `dX2/dt = k12 X1 - (du1 + k23) X2`, and the plasma turns it into 4-hydroxytamoxifen,
+    `dX3/dt = k23 X2 - du2 X3`, with the concentrations `UX = X2 / V` and `UH = X3 / V`. The lymphocytes follow
+    `dE/dt = s - d1 E - a2 E (UX + delta2 UH)`, and tamoxifen enters the gut at the constant rate `u`.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `tamoxifen_cell_cycle` read its parameters.
+
+    Args:
+        label:
+            The label of the tumour.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        Ag:
+            The initial volume of cells in the growth phase.
+
+        As:
+            The initial volume of cells in the synthesis phase.
+
+        Am:
+            The initial volume of cells in mitosis.
+
+        X0:
+            The initial tamoxifen in the gut.
+
+        X1:
+            The initial tamoxifen in the second compartment.
+
+        X2:
+            The initial tamoxifen in the plasma.
+
+        X3:
+            The initial 4-hydroxytamoxifen.
+
+        E:
+            The initial circulating lymphocytes, in millions.
+
+        mg:
+            The transit rate out of the growth phase.
+
+        ms:
+            The transit rate out of the synthesis phase.
+
+        mm:
+            The transit rate out of mitosis.
+
+        Asat:
+            The volume at which growth saturates.
+
+        a1:
+            The kill rate of the tumour per unit of drug.
+
+        a2:
+            The kill rate of the lymphocytes per unit of drug.
+
+        delta1:
+            The tumour kill of the metabolite relative to tamoxifen.
+
+        delta2:
+            The lymphocyte kill of the metabolite relative to tamoxifen.
+
+        k01:
+            The transfer rate from the gut.
+
+        k12:
+            The transfer rate to the plasma.
+
+        k23:
+            The rate at which the plasma metabolizes tamoxifen.
+
+        du1:
+            The elimination rate of tamoxifen.
+
+        du2:
+            The elimination rate of the metabolite.
+
+        V:
+            The volume of distribution.
+
+        s:
+            The influx of lymphocytes, in millions per unit of time.
+
+        d1:
+            The death rate of lymphocytes.
+
+        u:
+            The infusion rate of tamoxifen.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import TamoxifenTumourElement
+        >>> TamoxifenTumourElement('tumour').Asat
+        10000.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        Ag: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 900.0,
+        As: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
+        Am: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 50.0,
+        X0: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        X1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        X2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        X3: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        mg: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0013,
+        ms: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.039,
+        mm: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0169,
+        Asat: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10000.0,
+        a1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0062,
+        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        delta1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 25.0,
+        delta2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 25.0,
+        k01: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.048,
+        k12: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.993,
+        k23: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 35.932,
+        du1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.145,
+        du2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 39.525,
+        V: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 8.592,
+        s: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.121,
+        d1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.012,
+        u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 12.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.Ag = Ag
+        self.As = As
+        self.Am = Am
+        self.X0 = X0
+        self.X1 = X1
+        self.X2 = X2
+        self.X3 = X3
+        self.E = E
+        self.mg = mg
+        self.ms = ms
+        self.mm = mm
+        self.Asat = Asat
+        self.a1 = a1
+        self.a2 = a2
+        self.delta1 = delta1
+        self.delta2 = delta2
+        self.k01 = k01
+        self.k12 = k12
+        self.k23 = k23
+        self.du1 = du1
+        self.du2 = du2
+        self.V = V
+        self.s = s
+        self.d1 = d1
+        self.u = u
+
+
+class TherapySwitchInteraction(CrossingInteraction):
+    """Switch that sets the therapy state of a tumour to a value when a signal crosses a threshold in a direction.
+
+    A pair of switches, one that sets the therapy to 1 when the signal rises through a high threshold and one that
+    sets it to 0 when the signal falls through a low one, is the relay with hysteresis of intermittent therapy. Every
+    switch is an event labelled by the interaction.
+
+    Args:
+        label:
+            The label of the interaction and of its events.
+
+        target:
+            The path of the tumour.
+
+        signal:
+            A function of the namespace that returns the signal, such as the PSA of the tumour.
+
+        threshold:
+            The value of the signal at the switch.
+
+        value:
+            The value of the therapy state after the switch.
+
+        state:
+            The name of the therapy state.
+
+        direction:
+            The direction of the crossing, 1 for a rising and -1 for a falling signal.
+
+    Raises:
+        ValidationError:
+            The direction is not -1, 0, or 1, or the signal is not a function.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import TherapySwitchInteraction
+        >>> switch = TherapySwitchInteraction('on', target='tumour', signal=lambda s: s.target.AD, threshold=15.0)
+        >>> switch.threshold
+        15.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        signal: Callable[[SimpleNamespace], object],
+        threshold: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        value: float = 1.0,
+        state: str = 'u',
+        direction: int = 1,
+    ) -> None:
+        super().__init__(
+            label,
+            target=target,
+            guard=self._get_guard,
+            reset={state: self._get_value},
+            direction=direction,
+        )
+        self.signal = signal
+        self.threshold = threshold
+        self.value = value
+        self.state = state
+
+    def _get_guard(self, s: SimpleNamespace) -> Expression:
+        """Return the signal above the threshold."""
+        return self.signal(s) - s.threshold
+
+    def _get_value(self, s: SimpleNamespace) -> float:
+        """Return the value of the therapy state after the switch."""
+        return self.value
 
 
 def _prostate_volume(target: SimpleNamespace, t: Expression) -> Expression:

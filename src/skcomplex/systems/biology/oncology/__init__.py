@@ -1,28 +1,33 @@
 """Oncology: tumour growth, the vessels that feed it, and the therapies that treat it."""
 
-from ._androgen_receptor_prostate import AndrogenReceptorProstateElement
-from ._androgen_suppression import AndrogenSuppressionElement
-from ._angiogenesis import tumour_angiogenesis
-from ._angiogenesis_immunotherapy_tumour import AngiogenesisImmunotherapyTumourElement
-from ._angiogenic_tumour import AngiogenicTumourElement
-from ._antiangiogenic import hahnfeldt, vascular_core_periphery
-from ._bone_marrow_blood import BoneMarrowBloodElement
-from ._cell_cycle import CellCycleElement
-from ._cell_kinetics import cell_cycle_chemotherapy, erythropoiesis_mercaptopurine
-from ._cell_quota_prostate import CellQuotaProstateElement
-from ._cell_survival import lq_cell_survival
-from ._checkpoint_tumour import CheckpointTumourElement
-from ._chemoimmunotherapy_tumour import ChemoimmunotherapyTumourElement
+from ._angiogenesis import SproutElement, TissueElement, TumourCellElement, VesselElement, tumour_angiogenesis
+from ._antiangiogenic import AngiogenicTumourElement, VascularizedSpheroidElement, hahnfeldt, vascular_core_periphery
+from ._cell_kinetics import (
+    CellCycleElement,
+    DormantCellCycleElement,
+    ErythropoiesisElement,
+    cell_cycle_chemotherapy,
+    erythropoiesis_mercaptopurine,
+)
+from ._cell_survival import LinearQuadraticSurvivalElement, lq_cell_survival
 from ._chemotherapy import (
+    MetastasisChemotherapyElement,
+    MultidrugResistanceElement,
+    ResistanceSwitchingElement,
+    RestingHuntingChemotherapyElement,
     de_pillis_radunskaya,
     delayed_metastasis,
     delayed_resting_hunting_chemotherapy,
     drug_resistance_switching,
     multidrug_resistance,
 )
-from ._chemovirotherapy_tumour import ChemovirotherapyTumourElement
-from ._clonal_tumour import ClonalTumourElement
 from ._combination_therapy import (
+    AngiogenesisImmunotherapyTumourElement,
+    ChemoimmunotherapyTumourElement,
+    ChemovirotherapyTumourElement,
+    ClonalTumourElement,
+    GliomaBrainElement,
+    Her2TumourElement,
     angiogenesis_immunotherapy,
     chemoimmunotherapy,
     chemovirotherapy,
@@ -30,13 +35,23 @@ from ._combination_therapy import (
     glioma_chemovirotherapy,
     her2_targeted_therapy,
 )
-from ._delayed_vaccinated_tumour import DelayedVaccinatedTumourElement
-from ._dormant_cell_cycle import DormantCellCycleElement
-from ._erythropoiesis import ErythropoiesisElement
-from ._exponential_linear_growth import ExponentialLinearGrowthInteraction
-from ._gene_viral_therapy import oncolytic_virus, oncolytic_virus_dendritic, sirna_tgf_beta, tcr_gene_therapy
-from ._glioma_brain import GliomaBrainElement
+from ._gene_viral_therapy import (
+    OncolyticVirusDendriticElement,
+    OncolyticVirusElement,
+    SirnaTgfBetaElement,
+    TcrGeneTherapyElement,
+    oncolytic_virus,
+    oncolytic_virus_dendritic,
+    sirna_tgf_beta,
+    tcr_gene_therapy,
+)
 from ._growth import (
+    ExponentialLinearGrowthInteraction,
+    GompertzGrowthInteraction,
+    LogKillInteraction,
+    PowerLawGrowthInteraction,
+    VascularSupportInteraction,
+    VasculatureElement,
     dynamic_carrying_capacity,
     exponential_linear_growth,
     generalized_logistic,
@@ -46,8 +61,14 @@ from ._growth import (
     skipper_log_kill,
     von_bertalanffy,
 )
-from ._her2_tumour import Her2TumourElement
 from ._hormone_therapy import (
+    AndrogenReceptorProstateElement,
+    AndrogenSuppressionElement,
+    CellQuotaProstateElement,
+    IntermittentSuppressionElement,
+    PiecewiseLinearProstateElement,
+    TamoxifenTumourElement,
+    TherapySwitchInteraction,
     continuous_androgen_suppression,
     ideta_intermittent_androgen,
     piecewise_linear_ias,
@@ -64,47 +85,39 @@ from ._immune_competition import (
     step_table,
 )
 from ._immunotherapy import (
+    CheckpointTumourElement,
+    DelayedVaccinatedTumourElement,
+    KirschnerPanettaTumourElement,
+    SuppressedTumourElement,
+    VaccinatedTumourElement,
     anti_pd1_checkpoint,
     delayed_dc_vaccine,
     dendritic_cell_vaccine,
     kirschner_panetta,
     tumour_immune_suppression,
 )
-from ._intermittent_suppression import IntermittentSuppressionElement
-from ._irradiated_tumour import IrradiatedTumourElement
-from ._irradiation import IrradiationInteraction
-from ._kirschner_panetta_tumour import KirschnerPanettaTumourElement
-from ._leukaemia_stem_cells import LeukaemiaStemCellsElement
-from ._linear_quadratic_survival import LinearQuadraticSurvivalElement
-from ._log_kill import LogKillInteraction
-from ._metastasis_chemotherapy import MetastasisChemotherapyElement
-from ._multidrug_resistance import MultidrugResistanceElement
-from ._oncolytic_virus import OncolyticVirusElement
-from ._oncolytic_virus_dendritic import OncolyticVirusDendriticElement
-from ._optimal_chemotherapy import OptimalChemotherapyElement
-from ._optimal_immunotherapy import OptimalImmunotherapyElement
-from ._optimal_therapy import optimal_chemotherapy, optimal_immunotherapy
-from ._piecewise_linear_prostate import PiecewiseLinearProstateElement
-from ._radiation_competition import RadiationCompetitionElement
-from ._radiotherapy import lq_radiosensitizer, radiotherapy_competition
-from ._resistance_switching import ResistanceSwitchingElement
-from ._resting_hunting_chemotherapy import RestingHuntingChemotherapyElement
-from ._sirna_tgf_beta import SirnaTgfBetaElement
-from ._sprout import SproutElement
-from ._stem_cell_differentiation import StemCellDifferentiationElement
-from ._stem_cells import bone_marrow_blood_leukaemia, leukaemia_stem_cells, stem_cell_differentiation
-from ._suppressed_tumour import SuppressedTumourElement
-from ._tamoxifen_tumour import TamoxifenTumourElement
-from ._tcr_gene_therapy import TcrGeneTherapyElement
-from ._therapy_switch import TherapySwitchInteraction
-from ._tissue import TissueElement
-from ._tumour_cell import TumourCellElement
+from ._optimal_therapy import (
+    OptimalChemotherapyElement,
+    OptimalImmunotherapyElement,
+    optimal_chemotherapy,
+    optimal_immunotherapy,
+)
+from ._radiotherapy import (
+    IrradiatedTumourElement,
+    IrradiationInteraction,
+    RadiationCompetitionElement,
+    lq_radiosensitizer,
+    radiotherapy_competition,
+)
+from ._stem_cells import (
+    BoneMarrowBloodElement,
+    LeukaemiaStemCellsElement,
+    StemCellDifferentiationElement,
+    bone_marrow_blood_leukaemia,
+    leukaemia_stem_cells,
+    stem_cell_differentiation,
+)
 from ._tumour_immune_chemotherapy import TumourImmuneChemotherapyElement
-from ._vaccinated_tumour import VaccinatedTumourElement
-from ._vascular_support import VascularSupportInteraction
-from ._vascularized_spheroid import VascularizedSpheroidElement
-from ._vasculature import VasculatureElement
-from ._vessel import VesselElement
 
 __all__: list[str] = [
     'AndrogenReceptorProstateElement',
@@ -123,6 +136,7 @@ __all__: list[str] = [
     'ErythropoiesisElement',
     'ExponentialLinearGrowthInteraction',
     'GliomaBrainElement',
+    'GompertzGrowthInteraction',
     'Her2TumourElement',
     'IntermittentSuppressionElement',
     'IrradiatedTumourElement',
@@ -138,6 +152,7 @@ __all__: list[str] = [
     'OptimalChemotherapyElement',
     'OptimalImmunotherapyElement',
     'PiecewiseLinearProstateElement',
+    'PowerLawGrowthInteraction',
     'RadiationCompetitionElement',
     'ResistanceSwitchingElement',
     'RestingHuntingChemotherapyElement',

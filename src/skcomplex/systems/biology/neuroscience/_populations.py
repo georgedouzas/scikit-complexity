@@ -6,22 +6,362 @@
 import math
 from collections.abc import Sequence
 from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, sin
+from sage.all__sagemath_symbolics import Expression, cos, oo, sin
+from sage.sets.real_set import RealSet
 from scipy import stats
 
-from ....core.components.elements import GroupElement
-from ....core.components.interactions import RateInteraction, RelaxationInteraction
-from ....core.components.laws.utils import logistic
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import CouplingInteraction, Interaction, RateInteraction, RelaxationInteraction
+from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws.utils import logistic, mean
 from ....core.components.system import System
+from ....core.components.types import Target
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._mutual_inhibition import MutualInhibitionInteraction
-from ._polyhomeostatic_neuron import PolyhomeostaticNeuronElement
-from ._pulse_coupling import PulseCouplingInteraction
-from ._rate_unit import RateUnitElement
-from ._theta_neuron import ThetaNeuronElement
-from ._wilson_cowan import WilsonCowanElement
+from ..common.excitable import ThetaNeuronElement
+
+
+class PolyhomeostaticNeuronElement(Element):
+    """Rate neuron that adapts its gain and threshold so that its firing rate becomes exponentially distributed.
+
+    The membrane potential `x` integrates the input `I0 + A sin(omega t)` with rate `Gamma`, and the neuron fires at
+    rate `y = 1 / (1 + exp(a (b - x)))`. Stochastic gradient descent on the Kullback-Leibler divergence between the
+    distribution of `y` and an exponential of mean `mu` gives `a' = eps_a (1/a + (x - b) d)` and `b' = -eps_b a d`
+    with `d = 1 - (2 + 1/mu) y + y²/mu`. The element holds the states and parameters and has no laws of its own: the
+    relaxation and plasticity interactions of `polyhomeostatic_neuron` read its parameters.
+
+    Args:
+        label:
+            The label of the neuron.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial membrane potential.
+
+        a:
+            The initial gain.
+
+        b:
+            The initial threshold.
+
+        mu:
+            The target mean firing rate.
+
+        eps_a:
+            The adaptation rate of the gain.
+
+        eps_b:
+            The adaptation rate of the threshold.
+
+        Gamma:
+            The leak rate of the membrane potential.
+
+        I0:
+            The mean input.
+
+        A:
+            The amplitude of the periodic input.
+
+        omega:
+            The angular frequency of the periodic input.
+
+    Examples:
+        >>> from skcomplex.systems.biology.neuroscience import PolyhomeostaticNeuronElement
+        >>> PolyhomeostaticNeuronElement('neuron').mu
+        0.2
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 0.0,
+        a: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
+        b: Annotated[float, StateSpec()] = 0.0,
+        mu: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.2,
+        eps_a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        eps_b: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        Gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        I0: Annotated[float, ParameterSpec()] = 0.0,
+        A: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        omega: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.a = a
+        self.b = b
+        self.mu = mu
+        self.eps_a = eps_a
+        self.eps_b = eps_b
+        self.Gamma = Gamma
+        self.I0 = I0
+        self.A = A
+        self.omega = omega
+
+
+class RateUnitElement(Element):
+    """Neural unit of a competitive network, whose activity grows with its input and saturates, `tau x' = x (I - x)`.
+
+    Args:
+        label:
+            The label of the unit.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial activity.
+
+        I:
+            The input.
+
+        tau:
+            The time constant.
+
+    Examples:
+        >>> from skcomplex.systems.biology.neuroscience import RateUnitElement
+        >>> RateUnitElement('unit', I=1.2).I
+        1.2
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        I: Annotated[float, ParameterSpec()] = 1.0,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.I = I
+        self.tau = tau
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the self-limited growth of the activity.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return [RateLaw(s.x, s.x * (s.I - s.x) / s.tau)]
+
+
+class WilsonCowanElement(Element):
+    """Excitatory and inhibitory populations of Wilson and Cowan, as fractions of active cells.
+
+    The excitatory activity follows `tau_e E' = -E + (k_e - r_e E) S_e(c1 E - c2 I + P)` and the inhibitory activity
+    `tau_i I' = -I + (k_i - r_i I) S_i(c3 E - c4 I + Q)`, where `S(x) = 1 / (1 + exp(-a (x - theta))) - 1 / (1 +
+    exp(a theta))` is a sigmoid shifted to vanish at zero input and `k` is its largest value. The element holds the
+    states and parameters and has no laws of its own: the relaxations of `wilson_cowan` read its parameters.
+
+    Args:
+        label:
+            The label of the populations.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        E:
+            The initial excitatory activity.
+
+        I:
+            The initial inhibitory activity.
+
+        c1:
+            The excitatory to excitatory coupling.
+
+        c2:
+            The inhibitory to excitatory coupling.
+
+        c3:
+            The excitatory to inhibitory coupling.
+
+        c4:
+            The inhibitory to inhibitory coupling.
+
+        a_e:
+            The gain of the excitatory response.
+
+        theta_e:
+            The threshold of the excitatory response.
+
+        a_i:
+            The gain of the inhibitory response.
+
+        theta_i:
+            The threshold of the inhibitory response.
+
+        r_e:
+            The refractory period of excitatory cells.
+
+        r_i:
+            The refractory period of inhibitory cells.
+
+        P:
+            The external input to the excitatory population.
+
+        Q:
+            The external input to the inhibitory population.
+
+        tau_e:
+            The time constant of the excitatory population.
+
+        tau_i:
+            The time constant of the inhibitory population.
+
+    Examples:
+        >>> from skcomplex.systems.biology.neuroscience import WilsonCowanElement
+        >>> WilsonCowanElement('cortex', P=1.25).c1
+        16.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        E: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        I: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 16.0,
+        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 12.0,
+        c3: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
+        c4: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
+        a_e: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.3,
+        theta_e: Annotated[float, ParameterSpec()] = 4.0,
+        a_i: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        theta_i: Annotated[float, ParameterSpec()] = 3.7,
+        r_e: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        r_i: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        P: Annotated[float, ParameterSpec()] = 1.25,
+        Q: Annotated[float, ParameterSpec()] = 0.0,
+        tau_e: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        tau_i: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.E = E
+        self.I = I
+        self.c1 = c1
+        self.c2 = c2
+        self.c3 = c3
+        self.c4 = c4
+        self.a_e = a_e
+        self.theta_e = theta_e
+        self.a_i = a_i
+        self.theta_i = theta_i
+        self.r_e = r_e
+        self.r_i = r_i
+        self.P = P
+        self.Q = Q
+        self.tau_e = tau_e
+        self.tau_i = tau_i
+
+
+class MutualInhibitionInteraction(CouplingInteraction):
+    """Inhibition of every unit by the summed activity of all the other units, `-beta x_i sum_{j != i} x_j / tau_i`.
+
+    It is the coupling of the units to each other, as separate elements or as the members of a group, with the term
+    `-beta x_i x_j / tau_i` of every other unit `j`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        units:
+            The paths of the units, an element set, or the path of a group of units.
+
+        beta:
+            The strength of the inhibition.
+
+    Examples:
+        >>> from skcomplex.systems.biology.neuroscience import MutualInhibitionInteraction
+        >>> MutualInhibitionInteraction('inhibition', units=['a', 'b'], beta=2.0).beta
+        2.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        units: Annotated[str | Sequence[str], RoleSpec()],
+        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+    ) -> None:
+        super().__init__(label, target=units, function=self._get_inhibition, mode='group')
+        self.units = units
+        self.beta = beta
+
+    @staticmethod
+    def _get_inhibition(namespace: SimpleNamespace) -> Target:
+        """Return the inhibition of the unit by one other unit, `-beta x_i x_j / tau_i`."""
+        member = namespace.member
+        return -namespace.beta * member.x * namespace.other.x / member.tau
+
+
+class PulseCouplingInteraction(Interaction):
+    """Global coupling of theta neurons through the mean of the smooth pulses that every neuron emits.
+
+    Every neuron receives the current `(1 + cos theta) kappa I`, where `I = mean_j a_n (1 - cos theta_j)^n` is the mean
+    pulse of all neurons at the current state. The pulse peaks when a neuron fires, and `a_n` gives it a unit mean over
+    the phase. With `kappa > 0` the coupling is excitatory.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        neurons:
+            The path of the group of theta neurons.
+
+        kappa:
+            The coupling strength.
+
+        n:
+            The sharpness of the pulses, a positive integer.
+
+    Examples:
+        >>> from skcomplex.systems.biology.neuroscience import PulseCouplingInteraction
+        >>> PulseCouplingInteraction('coupling', neurons='neurons', kappa=2.0).kappa
+        2.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        neurons: Annotated[str, RoleSpec()],
+        kappa: Annotated[float, ParameterSpec()] = 1.0,
+        n: int = 2,
+    ) -> None:
+        super().__init__(label)
+        self.neurons = neurons
+        self.kappa = kappa
+        self.n = n
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the current of the mean pulse into every neuron.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        theta = s.neurons.theta
+        normalization = 2**self.n * math.factorial(self.n) ** 2 / math.factorial(2 * self.n)
+        pulses = mean(normalization * (1 - cos(theta)) ** self.n)
+        return [RateLaw(theta, (1 + cos(theta)) * s.kappa * pulses)]
 
 
 def _lorentzian_quantiles(center: float, width: float, size: int) -> list[float]:
