@@ -12,6 +12,7 @@ from ._binary_cell import BinaryCellElement
 from ._codes import Wolfram, life
 from ._diffusion_cell import DiffusionCellElement
 from ._digit_cell import DigitCellElement
+from ._dna_computation import LigationInteraction, StrandElement, dna_computation
 from ._fredkin_replicator import fredkin_replicator
 from ._free_group_automata import life_in_a_tree, muller_automaton, surjective_linear_automaton
 from ._golden_cell import GoldenCellElement
@@ -56,12 +57,14 @@ __all__: list[str] = [
     'LaplacianCellElement',
     'LeniaSiteElement',
     'LeniaUpdateInteraction',
+    'LigationInteraction',
     'MorseElement',
     'NoisyElementaryCellElement',
     'PairCellElement',
     'PascalCellElement',
     'PowerSeriesCellElement',
     'RealCellElement',
+    'StrandElement',
     'TapeCellElement',
     'TernaryCellElement',
     'Wolfram',
@@ -70,6 +73,7 @@ __all__: list[str] = [
     'baumslag_solitar_automaton',
     'context_free_subshift',
     'diffusion_automaton',
+    'dna_computation',
     'elementary_automaton',
     'fredkin_replicator',
     'free_group',
