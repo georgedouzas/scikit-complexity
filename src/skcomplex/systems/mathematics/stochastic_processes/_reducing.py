@@ -11,11 +11,10 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LifeCycleInteraction, MapInteraction
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class CascadingBallView(AgentView):
@@ -294,14 +293,10 @@ class ReducingJumpInteraction(MapInteraction):
         return float(system.rng.integers(1, top + 1))
 
 
-@register_system(
-    field='mathematics/stochastic_processes',
-    tags=('sample space reduction', 'agents', 'zipf', 'power law'),
-    references=('Corominas-Murtra, Hanel, and Thurner 2015', 'Thurner et al. 2018'),
-    defaults={'until': 100},
-)
-def sample_space_reducing(n_balls: int = 20, *, n_states: int = 10, lam: float = 1.0) -> System:
-    """Return sample-space-reducing processes, whose state visits follow Zipf's law `1 / i` for `lam = 1`.
+class SampleSpaceReducingSystem(BaseSystem):
+    """Sample-space-reducing processes, whose state visits follow Zipf's law `1 / i` for `lam = 1`.
+
+    The system has the group `balls` of state `level`.
 
     Args:
         n_balls:
@@ -313,39 +308,55 @@ def sample_space_reducing(n_balls: int = 20, *, n_states: int = 10, lam: float =
         lam:
             The probability of a reducing jump, the exponent of the visiting distribution.
 
-    Returns:
-        system:
-            The system, with the group `balls` of state `level`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.stochastic_processes import sample_space_reducing
-        >>> sample_space_reducing(4).elements[0].prepare().size_
+        >>> from skcomplex.systems.mathematics.stochastic_processes import SampleSpaceReducingSystem
+        >>> SampleSpaceReducingSystem(4).prepare().system_.elements[0].prepare().size_
         4
     """
-    return System(
-        elements=[
-            GroupElement(
-                'balls',
-                element=ReducingBallElement,
-                size=n_balls,
-                values={'level': float(n_states), 'n_states': float(n_states), 'lam': lam},
-                variable=True,
-            ),
-        ],
-        interactions=[ReducingJumpInteraction('jump', target='balls')],
-    )
+
+    field = 'mathematics/stochastic_processes'
+    topics = ('sample space reduction', 'agents', 'zipf', 'power law')
+    references = ('Corominas-Murtra, Hanel, and Thurner 2015', 'Thurner et al. 2018')
+    until = 100
+
+    def __init__(
+        self,
+        n_balls: int = 20,
+        *,
+        n_states: int = 10,
+        lam: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_balls = n_balls
+        self.n_states = n_states
+        self.lam = lam
+
+    def _build_system(self) -> System:
+        """Return sample-space-reducing processes, whose state visits follow Zipf's law `1 / i` for `lam = 1`."""
+        return System(
+            self.label,
+            elements=[
+                GroupElement(
+                    'balls',
+                    element=ReducingBallElement,
+                    size=self.n_balls,
+                    values={'level': float(self.n_states), 'n_states': float(self.n_states), 'lam': self.lam},
+                    variable=True,
+                ),
+            ],
+            interactions=[ReducingJumpInteraction('jump', target='balls')],
+        )
 
 
-@register_system(
-    field='mathematics/stochastic_processes',
-    tags=('fragmentation', 'agents', 'sample space reduction'),
-    references=('Thurner et al. 2018',),
-    defaults={'until': 30},
-)
-def fragmentation(size: int = 1000, *, rate: float = 0.5) -> System:
-    """Return the random fragmentation of an object of integer size, whose fragments keep breaking into smaller ones.
+class FragmentationSystem(BaseSystem):
+    """The random fragmentation of an object of integer size, whose fragments keep breaking into smaller ones.
 
-    The total size is conserved, and every fragment ends at size 1.
+    The total size is conserved, and every fragment ends at size 1. The system has the group `fragments` of state
+    `length`.
 
     Args:
         size:
@@ -354,52 +365,66 @@ def fragmentation(size: int = 1000, *, rate: float = 0.5) -> System:
         rate:
             The probability that a fragment larger than 1 breaks in a step.
 
-    Returns:
-        system:
-            The system, with the group `fragments` of state `length`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.stochastic_processes import fragmentation
-        >>> fragmentation(50).elements[0].prepare().size_
+        >>> from skcomplex.systems.mathematics.stochastic_processes import FragmentationSystem
+        >>> FragmentationSystem(50).prepare().system_.elements[0].prepare().size_
         1
     """
-    return System(
-        elements=[
-            GroupElement(
-                'fragments',
-                element=FragmentElement,
-                size=1,
-                values={'length': float(size), 'rate': rate},
-                variable=True,
-            ),
-        ],
-        interactions=[
-            LifeCycleInteraction(
-                'breaking',
-                target='fragments',
-                birth=FragmentElement.breaks,
-                split=('length',),
-                keep=FragmentElement.cut,
-            ),
-        ],
-    )
+
+    field = 'mathematics/stochastic_processes'
+    topics = ('fragmentation', 'agents', 'sample space reduction')
+    references = ('Thurner et al. 2018',)
+    until = 30
+
+    def __init__(
+        self,
+        size: int = 1000,
+        *,
+        rate: float = 0.5,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.size = size
+        self.rate = rate
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        return System(
+            self.label,
+            elements=[
+                GroupElement(
+                    'fragments',
+                    element=FragmentElement,
+                    size=1,
+                    values={'length': float(self.size), 'rate': self.rate},
+                    variable=True,
+                ),
+            ],
+            interactions=[
+                LifeCycleInteraction(
+                    'breaking',
+                    target='fragments',
+                    birth=FragmentElement.breaks,
+                    split=('length',),
+                    keep=FragmentElement.cut,
+                ),
+            ],
+        )
 
 
-@register_system(
-    field='mathematics/stochastic_processes',
-    tags=('sample space reduction', 'agents', 'cascade', 'power law'),
-    references=('Corominas-Murtra, Hanel, and Thurner 2017', 'Thurner et al. 2018'),
-    defaults={'until': 100},
-)
-def cascading_sample_space_reducing(n_cascades: int = 100, *, n_states: int = 100, mu: float = 1.5) -> System:
-    """Return cascading sample-space-reducing processes, whose visits follow the power law `i^(-mu)` for any `mu`.
+class CascadingSampleSpaceReducingSystem(BaseSystem):
+    """Cascading sample-space-reducing processes, whose visits follow the power law `i^(-mu)` for any `mu`.
 
     Every cascade starts with one ball at the top state `n_states`. At every step each ball above state 1 jumps to a
     state drawn uniformly below its own and becomes `mu` balls there, `floor(mu)` and one more with the probability of
     the rest, and a ball at state 1 leaves the cascade. Every ball stays one step, so the states of the balls of all
-    frames are the visits, distributed as `i^(-mu)` (Thurner et al. 2018, section 3.3.5.4). For `mu < 1` balls are
-    lost on the way, `1 - mu` being the probability of a removal. With a conservation law that makes the states of
-    the new balls sum to the state of their parent, the exponent is 2 whatever `mu`, the case of `fragmentation`.
+    frames are the visits, distributed as `i^(-mu)` (Thurner et al. 2018, section 3.3.5.4). For `mu < 1` balls are lost
+    on the way, `1 - mu` being the probability of a removal. With a conservation law that makes the states of the new
+    balls sum to the state of their parent, the exponent is 2 whatever `mu`, the case of `FragmentationSystem`. The
+    system has the group `balls` of state `level`.
 
     Args:
         n_cascades:
@@ -411,35 +436,56 @@ def cascading_sample_space_reducing(n_cascades: int = 100, *, n_states: int = 10
         mu:
             The multiplication factor, the mean number of balls a ball becomes at every jump.
 
-    Returns:
-        system:
-            The system, with the group `balls` of state `level`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.stochastic_processes import cascading_sample_space_reducing
-        >>> cascading_sample_space_reducing(4).elements[0].prepare().size_
+        >>> from skcomplex.systems.mathematics.stochastic_processes import CascadingSampleSpaceReducingSystem
+        >>> CascadingSampleSpaceReducingSystem(4).prepare().system_.elements[0].prepare().size_
         4
     """
-    return System(
-        elements=[
-            GroupElement(
-                'balls',
-                element=CascadingBallElement,
-                size=n_cascades,
-                values={'level': float(n_states), 'mu': mu},
-                variable=True,
-            ),
-        ],
-        interactions=[
-            LifeCycleInteraction(
-                'cascade',
-                target='balls',
-                death=CascadingBallElement.stops,
-                birth=1.0,
-                offspring=CascadingBallElement.multiplies,
-                inherit=('mu',),
-                values=CascadingBallElement.jumps,
-                replace=True,
-            ),
-        ],
-    )
+
+    field = 'mathematics/stochastic_processes'
+    topics = ('sample space reduction', 'agents', 'cascade', 'power law')
+    references = ('Corominas-Murtra, Hanel, and Thurner 2017', 'Thurner et al. 2018')
+    until = 100
+
+    def __init__(
+        self,
+        n_cascades: int = 100,
+        *,
+        n_states: int = 100,
+        mu: float = 1.5,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_cascades = n_cascades
+        self.n_states = n_states
+        self.mu = mu
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        return System(
+            self.label,
+            elements=[
+                GroupElement(
+                    'balls',
+                    element=CascadingBallElement,
+                    size=self.n_cascades,
+                    values={'level': float(self.n_states), 'mu': self.mu},
+                    variable=True,
+                ),
+            ],
+            interactions=[
+                LifeCycleInteraction(
+                    'cascade',
+                    target='balls',
+                    death=CascadingBallElement.stops,
+                    birth=1.0,
+                    offspring=CascadingBallElement.multiplies,
+                    inherit=('mu',),
+                    values=CascadingBallElement.jumps,
+                    replace=True,
+                ),
+            ],
+        )

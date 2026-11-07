@@ -1,71 +1,71 @@
 """Stochastic processes: random walks, Markov sources, counting, urn, branching, and sample-space-reducing processes."""
 
-from ._branching import IndividualElement, galton_watson
-from ._counting import BernoulliTrialElement, PoissonCounterElement, bernoulli_process, poisson_process
-from ._intermittency import IntermittentVariableElement, on_off_intermittency
-from ._power_laws import ObservedGrowthElement, exponential_growth_at_random_times
-from ._queues import QueueElement, birth_death_queue
-from ._random_maps import RandomBranchMapElement, random_branch_map
+from ._branching import GaltonWatsonSystem, IndividualElement
+from ._counting import BernoulliProcessSystem, BernoulliTrialElement, PoissonCounterElement, PoissonProcessSystem
+from ._intermittency import IntermittentVariableElement, OnOffIntermittencySystem
+from ._power_laws import ExponentialGrowthAtRandomTimesSystem, ObservedGrowthElement
+from ._queues import BirthDeathQueueSystem, QueueElement
+from ._random_maps import RandomBranchMapElement, RandomBranchMapSystem
 from ._reducing import (
     CascadingBallElement,
+    CascadingSampleSpaceReducingSystem,
+    FragmentationSystem,
     FragmentElement,
     ReducingBallElement,
     ReducingJumpInteraction,
-    cascading_sample_space_reducing,
-    fragmentation,
-    sample_space_reducing,
+    SampleSpaceReducingSystem,
 )
-from ._sources import HiddenMarkovSourceElement, MarkovSourceElement, hidden_markov_source, markov_source
-from ._urns import PolyaUrnElement, polya_urn
+from ._sources import HiddenMarkovSourceElement, HiddenMarkovSourceSystem, MarkovSourceElement, MarkovSourceSystem
+from ._urns import PolyaUrnElement, PolyaUrnSystem
 from ._walks import (
+    AgeingRandomWalkSystem,
     AgeingWalkerElement,
     MemoryWalkerElement,
+    PersistentRandomWalkSystem,
     PersistentWalkerElement,
     RandomWalkerElement,
+    RandomWalkSystem,
+    RandomWalkWithMemorySystem,
+    WeakeningOrnsteinUhlenbeckSystem,
     WeakeningParticleElement,
-    ageing_random_walk,
-    persistent_random_walk,
-    random_walk,
-    random_walk_with_memory,
-    weakening_ornstein_uhlenbeck,
 )
 
 __all__: list[str] = [
+    'AgeingRandomWalkSystem',
     'AgeingWalkerElement',
+    'BernoulliProcessSystem',
     'BernoulliTrialElement',
+    'BirthDeathQueueSystem',
     'CascadingBallElement',
+    'CascadingSampleSpaceReducingSystem',
+    'ExponentialGrowthAtRandomTimesSystem',
     'FragmentElement',
+    'FragmentationSystem',
+    'GaltonWatsonSystem',
     'HiddenMarkovSourceElement',
+    'HiddenMarkovSourceSystem',
     'IndividualElement',
     'IntermittentVariableElement',
     'MarkovSourceElement',
+    'MarkovSourceSystem',
     'MemoryWalkerElement',
     'ObservedGrowthElement',
+    'OnOffIntermittencySystem',
+    'PersistentRandomWalkSystem',
     'PersistentWalkerElement',
     'PoissonCounterElement',
+    'PoissonProcessSystem',
     'PolyaUrnElement',
+    'PolyaUrnSystem',
     'QueueElement',
     'RandomBranchMapElement',
+    'RandomBranchMapSystem',
+    'RandomWalkSystem',
+    'RandomWalkWithMemorySystem',
     'RandomWalkerElement',
     'ReducingBallElement',
     'ReducingJumpInteraction',
+    'SampleSpaceReducingSystem',
+    'WeakeningOrnsteinUhlenbeckSystem',
     'WeakeningParticleElement',
-    'ageing_random_walk',
-    'bernoulli_process',
-    'birth_death_queue',
-    'cascading_sample_space_reducing',
-    'exponential_growth_at_random_times',
-    'fragmentation',
-    'galton_watson',
-    'hidden_markov_source',
-    'markov_source',
-    'on_off_intermittency',
-    'persistent_random_walk',
-    'poisson_process',
-    'polya_urn',
-    'random_branch_map',
-    'random_walk',
-    'random_walk_with_memory',
-    'sample_space_reducing',
-    'weakening_ornstein_uhlenbeck',
 ]
