@@ -17,7 +17,8 @@ from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import BaseLaw, DissipatorLaw, GeneratorLaw, RateLaw
 from ....core.components.laws.utils import laplacian, local_operator
 from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
-from ....core.components.system import BaseSystem, System
+from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.engine.compile import OperatorCompiler
 from ....core.engine.solvers import ETDRK4Solver
 from ....core.errors import ValidationError
 from ....core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -376,6 +377,19 @@ class SchrodingerSystem(BaseSystem):
         self.omega = omega
         self.formulation = formulation
         self.gamma = gamma
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings, with the operator compiler and its own solver for the operator formulation.
+
+        Returns:
+            settings:
+                The tuned run settings by name.
+        """
+        settings = super().get_run_settings()
+        if self.formulation == 'operators':
+            settings['compiler'] = OperatorCompiler()
+            settings['solver'] = None
+        return settings
 
     def _build_system(self) -> System:
         """Return a Gaussian wave packet that follows the Schrödinger equation, as its real and imaginary parts."""

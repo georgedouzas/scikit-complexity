@@ -7,7 +7,7 @@ import pytest
 from skcomplex.core.analysis import operator_measures
 from skcomplex.core.components.spaces import NetworkSpace
 from skcomplex.core.engine.compile import OperatorCompiler
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ETDRK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import ValidationError
@@ -32,19 +32,17 @@ def test_schrodinger_formulations_agree():
     """Test that the field and operator formulations give the same probability of every site."""
     spacing = 40.0 / 128
     fields = simulate(SchrodingerSystem(n_sites=128), dt=0.5, solver=ETDRK4Solver(dt=0.01))
-    operators = SchrodingerSystem(n_sites=128, formulation='operators').prepare().system_
-    operators = Simulation(operators, compiler=OperatorCompiler(), dt=0.5).prepare().run(until=4.0)
+    operators = simulate(SchrodingerSystem(n_sites=128, formulation='operators'), dt=0.5)
     density = fields.values('packet.u') ** 2 + fields.values('packet.w') ** 2
-    probability = np.abs(operators.trajectory_.values('system.state')) ** 2
+    probability = np.abs(operators.values('system.state')) ** 2
     assert np.allclose(density * spacing, probability, atol=1e-6)
 
 
 def test_schrodinger_dephased_packet_keeps_its_trace(tmp_path):
     """Test that a dephased packet keeps trace 1 while its purity falls, and streams its probability."""
-    system = SchrodingerSystem(n_sites=32, length=20.0, formulation='operators', gamma=0.5).prepare().system_
+    system = SchrodingerSystem(n_sites=32, length=20.0, formulation='operators', gamma=0.5)
     observer = RerunObserver('dephased', save_path=tmp_path / 'run.rrd')
-    simulation = Simulation(system, compiler=OperatorCompiler(), dt=0.5, observers=[observer])
-    trajectory = simulation.prepare().run(until=2.0).trajectory_
+    trajectory = simulate(system, until=2.0, dt=0.5, observers=[observer])
     traces = np.trace(trajectory.values('system.state'), axis1=1, axis2=2)
     assert np.allclose(traces, 1, atol=1e-10)
     assert np.all(np.diff(operator_measures(trajectory, kind='purity').purity) <= 1e-10)

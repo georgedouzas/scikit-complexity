@@ -13,8 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import operator_measures
-from skcomplex.core.engine.compile import OperatorCompiler
-from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ETDRK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.physics.waves import SchrodingerSystem
@@ -35,8 +34,7 @@ simulation = simulate(SchrodingerSystem(), observers=[observer], random_state=0)
 
 spacing = 40.0 / 128
 fields = simulate(SchrodingerSystem(n_sites=128), dt=0.5, solver=ETDRK4Solver(dt=0.01))
-particle = SchrodingerSystem(n_sites=128, formulation='operators').prepare().system_
-operators = Simulation(particle, compiler=OperatorCompiler(), dt=0.5).prepare().run(until=4.0).trajectory_
+operators = simulate(SchrodingerSystem(n_sites=128, formulation='operators'), dt=0.5)
 density = (fields.values('packet.u') ** 2 + fields.values('packet.w') ** 2) * spacing
 probability = np.abs(operators.values('system.state')) ** 2
 positions = spacing * np.arange(128) - 20.0
@@ -49,9 +47,7 @@ agreement.set_title('The two formulations agree')
 agreement.legend()
 for gamma in (0.1, 0.5, 2.0):
     dephased = SchrodingerSystem(n_sites=48, length=20.0, formulation='operators', gamma=gamma)
-    trajectory = (
-        Simulation(dephased.prepare().system_, compiler=OperatorCompiler(), dt=0.1).prepare().run(until=4.0).trajectory_
-    )
+    trajectory = simulate(dephased)
     purity = operator_measures(trajectory, kind='purity').purity
     coherence.plot(trajectory.times, purity, label=f'gamma = {gamma}')
 coherence.set_xlabel('time')
