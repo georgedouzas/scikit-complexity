@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import exp, tanh, var
+from sage.all__sagemath_symbolics import Expression, exp, tanh, var
 
 from skcomplex.core.components.elements import DensityElement, FieldElement
 from skcomplex.core.components.interactions import RateInteraction
@@ -80,7 +80,7 @@ def test_integral_transform_with_an_antisymmetric_kernel_conserves_the_total() -
     """Keep the total of a density whose rate integrates it against `rho(z, u) - rho(u, z)` within 1e-10."""
     z, u = coordinate('z'), integration_variable('z')
 
-    def victory(first: object, second: object) -> object:
+    def victory(first: Expression, second: Expression) -> Expression:
         return (1 + tanh(2 * ((first - second) + (first**2 - second**2)))) / 2
 
     def rate(s: SimpleNamespace) -> object:

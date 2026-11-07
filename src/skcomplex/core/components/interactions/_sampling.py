@@ -685,6 +685,7 @@ class SamplingInteraction(Interaction):
         **parameters: object,
     ) -> Array:
         """Return a state of labels after one sweep of label copies, as many as `hits` times the sites."""
+        rng = random
         score = getattr(self, self._get_parameter('objective'))
         if not isinstance(space, (LatticeSpace, NetworkSpace)) or values.size != space.size_:
             error_msg = f'The region score of sampling {self.label!r} reads a label per site of a lattice or a network.'
@@ -718,7 +719,7 @@ class SamplingInteraction(Interaction):
             labels,
             (neighbors, counts, weights, sizes),
             (contact, constraints, totals),
-            (random.integers(labels.size, size=attempts), random.random(attempts), random.random(attempts)),
+            (rng.integers(labels.size, size=attempts), rng.random(attempts), rng.random(attempts)),
             (intensity, self.rule == 'metropolis'),
         )
         return labels.reshape(values.shape).astype(values.dtype)

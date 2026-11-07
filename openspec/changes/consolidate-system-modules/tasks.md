@@ -18,13 +18,13 @@
 
 ## 3. Shared components
 
-- [ ] 3.1 Move components shared within a field to its `common` package, or copy them where the uses differ
-- [ ] 3.2 Move single-user modules of the existing `common` packages into their systems
+- [x] 3.1 Move components shared within a field to its `common` package, or copy them where the uses differ
+- [x] 3.2 Move single-user modules of the existing `common` packages into their systems
 - [ ] 3.3 List cross-field duplicates with a proposal for each, and act on the user's decision
 
 ## 4. Verification
 
-- [ ] 4.1 Every subfield package exports the same public names as before
-- [ ] 4.2 Ruff, black, mypy, pydoclint, the import contracts, and the layout test pass
+- [x] 4.1 Every subfield package exports the same public names as before
+- [x] 4.2 Ruff, black, mypy, pydoclint, the import contracts, and the layout test pass
 - [ ] 4.3 The catalog, systems, and doctest tests pass in batches, and the inventory and gallery checks pass
 - [ ] 4.4 The full suite and the docs build pass in CI

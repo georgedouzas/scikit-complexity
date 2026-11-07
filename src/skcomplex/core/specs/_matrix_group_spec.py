@@ -154,14 +154,14 @@ class MatrixGroupSpec(BaseSpec):
         phase = np.exp(1j * np.angle(np.linalg.det(unitary)) / self.degree)
         return unitary / phase[..., None, None]
 
-    def near_identity_of(self, random: np.random.Generator, width: float, count: int) -> ComplexArray:
+    def near_identity_of(self, rng: np.random.Generator, width: float, count: int) -> ComplexArray:
         """Return random matrices of the group near the identity, `exp(i width H)` for random Hermitian `H`.
 
         The entries of `H` are standard normal up to Hermitian symmetry, and traceless for `SU(n)`. A matrix and its
         inverse are equally likely, so a move by these matrices is symmetric.
 
         Args:
-            random:
+            rng:
                 The random generator.
 
             width:
@@ -182,7 +182,7 @@ class MatrixGroupSpec(BaseSpec):
             True
         """
         shape = (count, self.degree, self.degree)
-        draws = random.normal(size=shape) + 1j * random.normal(size=shape)
+        draws = rng.normal(size=shape) + 1j * rng.normal(size=shape)
         hermitian = (draws + np.conj(np.swapaxes(draws, -1, -2))) / 2
         if self.name == 'SU':
             trace = np.trace(hermitian, axis1=-2, axis2=-1).real / self.degree
@@ -191,14 +191,14 @@ class MatrixGroupSpec(BaseSpec):
         rotations = (vectors * np.exp(1j * width * values)[:, None, :]) @ np.conj(np.swapaxes(vectors, -1, -2))
         return np.asarray(rotations, dtype=complex)
 
-    def uniform_of(self, random: np.random.Generator, count: int) -> ComplexArray:
+    def uniform_of(self, rng: np.random.Generator, count: int) -> ComplexArray:
         """Return matrices drawn from the Haar measure of the group.
 
         SciPy draws unitary matrices from the Haar measure of `U(n)`, and dividing by the principal `n`-th root of the
         determinant keeps the Haar measure of `SU(n)`.
 
         Args:
-            random:
+            rng:
                 The random generator.
 
             count:
@@ -216,9 +216,9 @@ class MatrixGroupSpec(BaseSpec):
             ((5, 2, 2), True)
         """
         if self.degree == 1:
-            unitary = np.exp(2j * np.pi * random.random(count)).reshape(count, 1, 1)
+            unitary = np.exp(2j * np.pi * rng.random(count)).reshape(count, 1, 1)
         else:
-            drawn = scipy.stats.unitary_group.rvs(self.degree, size=count, random_state=random)
+            drawn = scipy.stats.unitary_group.rvs(self.degree, size=count, random_state=rng)
             unitary = np.asarray(drawn, dtype=complex).reshape(count, self.degree, self.degree)
         if self.name == 'U':
             return unitary

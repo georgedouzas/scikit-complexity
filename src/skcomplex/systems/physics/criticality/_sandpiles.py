@@ -156,8 +156,9 @@ def _active(site: SimpleNamespace) -> Expression:
 
 def _load(packet: float, energies: Array, *, random: np.random.Generator) -> Array:
     """Return the energies with a packet of uniform size in `[0, packet]` added on a random site."""
+    rng = random
     following = energies.copy()
-    following[tuple(random.integers(size) for size in energies.shape)] += random.uniform(0.0, packet)
+    following[tuple(rng.integers(size) for size in energies.shape)] += rng.uniform(0.0, packet)
     return following
 
 
