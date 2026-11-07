@@ -5,14 +5,12 @@ import numpy as np
 from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.solvers import IMEXEulerSolver
 from skcomplex.systems import create_system
-from skcomplex.systems.physics.fluids import (
-    rayleigh_benard,
-)
+from skcomplex.systems.physics.fluids import RayleighBenardSystem
 
 
 def test_split_solver_linear_part_matches_linear_rates():
     """Test that the linear part of the rates equals the rates of a small perturbation of the coupled convection."""
-    problem = PassCompiler().prepare(rayleigh_benard(1000.0, shape=(16, 16))).run().problem_
+    problem = PassCompiler().prepare(RayleighBenardSystem(1000.0, shape=(16, 16)).prepare().system_).run().problem_
     solver = IMEXEulerSolver().prepare(problem)
     solver._build_operator(problem.initial_parameters)
     noise = np.random.default_rng(0).standard_normal((2, 16, 16))

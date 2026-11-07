@@ -33,8 +33,8 @@ from skcomplex.core.specs import (
     VisualSpec,
 )
 from skcomplex.systems.computer_science.automata import elementary_automaton, game_of_life
-from skcomplex.systems.physics.criticality import forest_fire
-from skcomplex.systems.physics.statistical_mechanics import ising, xy
+from skcomplex.systems.physics.criticality import ForestFireSystem
+from skcomplex.systems.physics.statistical_mechanics import IsingSystem, XYSystem
 
 
 class ShiftElement(Element):
@@ -314,9 +314,24 @@ def test_unknown_schedule_is_rejected():
 
 def test_forest_fire_is_reproducible():
     """Test that two forest fires with the same seed give identical lattices at every step."""
-    first = Simulation(forest_fire((30, 30)), dt=1, random_state=7).prepare().run(until=30).trajectory_.states
-    second = Simulation(forest_fire((30, 30)), dt=1, random_state=7).prepare().run(until=30).trajectory_.states
-    third = Simulation(forest_fire((30, 30)), dt=1, random_state=8).prepare().run(until=30).trajectory_.states
+    first = (
+        Simulation(ForestFireSystem((30, 30)).prepare().system_, dt=1, random_state=7)
+        .prepare()
+        .run(until=30)
+        .trajectory_.states
+    )
+    second = (
+        Simulation(ForestFireSystem((30, 30)).prepare().system_, dt=1, random_state=7)
+        .prepare()
+        .run(until=30)
+        .trajectory_.states
+    )
+    third = (
+        Simulation(ForestFireSystem((30, 30)).prepare().system_, dt=1, random_state=8)
+        .prepare()
+        .run(until=30)
+        .trajectory_.states
+    )
     assert np.array_equal(first, second)
     assert not np.array_equal(first, third)
 
@@ -489,10 +504,22 @@ def test_monte_carlo_energy_change_is_symbolic():
 def test_samplers_order_cold_ising(sampler):
     """Test that every sampler keeps a cold Ising lattice ordered and disorders a hot one."""
     cold = (
-        Simulation(ising(16, temperature=0.5, initial='up', sampler=sampler), dt=50, random_state=0).prepare().run(200)
+        Simulation(
+            IsingSystem(16, temperature=0.5, initial='up', sampler=sampler).prepare().system_,
+            dt=50,
+            random_state=0,
+        )
+        .prepare()
+        .run(200)
     )
     hot = (
-        Simulation(ising(16, temperature=10.0, initial='up', sampler=sampler), dt=50, random_state=0).prepare().run(200)
+        Simulation(
+            IsingSystem(16, temperature=10.0, initial='up', sampler=sampler).prepare().system_,
+            dt=50,
+            random_state=0,
+        )
+        .prepare()
+        .run(200)
     )
     assert abs(cold.state_.mean()) > 0.95
     assert abs(hot.state_.mean()) < 0.3
@@ -502,7 +529,7 @@ def test_temperature_changes_live():
     """Test that raising the temperature of an ordered lattice during a run disorders it."""
     simulation = (
         Simulation(
-            ising(16, temperature=0.5, initial='up'),
+            IsingSystem(16, temperature=0.5, initial='up').prepare().system_,
             dt=50,
             random_state=0,
             schedule={'spins.temperature': lambda time: 0.5 if time < 100 else 20.0},
@@ -517,7 +544,7 @@ def test_temperature_changes_live():
 
 def test_monte_carlo_wraps_angles_after_every_sweep():
     """Test that Monte Carlo rotations of the XY system keep every angle in (-π, π]."""
-    values = Simulation(xy(16)).prepare().run(until=50).trajectory_.values('spins.theta')
+    values = Simulation(XYSystem(16).prepare().system_).prepare().run(until=50).trajectory_.values('spins.theta')
     assert np.all((values > -np.pi) & (values <= np.pi))
 
 

@@ -10,7 +10,7 @@ from scipy.integrate import solve_ivp
 from skcomplex.core.analysis import lyapunov
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.mathematics.dynamical_systems import henon_map, logistic_map, lorenz, sprott_jerk
-from skcomplex.systems.physics.nonlinear_oscillators import van_der_pol
+from skcomplex.systems.physics.nonlinear_oscillators import VanDerPolSystem
 
 
 def _spectrum(source, **settings):
@@ -60,7 +60,7 @@ def test_henon_map_spectrum():
 
 def test_limit_cycle_is_not_chaotic():
     """Test that the Van der Pol limit cycle has a largest exponent of 0, not a positive one."""
-    assert _spectrum(van_der_pol(), n_exponents=1, until=500)[0] == pytest.approx(0.0, abs=0.01)
+    assert _spectrum(VanDerPolSystem().prepare().system_, n_exponents=1, until=500)[0] == pytest.approx(0.0, abs=0.01)
 
 
 def test_sweep_of_a_map_reuses_its_compiled_tangent_dynamics():

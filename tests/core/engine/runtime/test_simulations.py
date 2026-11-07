@@ -27,7 +27,7 @@ from skcomplex.systems.biology.epidemiology import InfectionInteraction, Recover
 from skcomplex.systems.economics.finance import geometric_brownian_motion
 from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.systems.physics.common.particles import ConstantForceInteraction, MassPointElement
-from skcomplex.systems.physics.statistical_mechanics import ideal_gas
+from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 
 from ....conftest import AdaptiveInputInteraction, _correlated, _summed, _weighted
 
@@ -213,7 +213,12 @@ def test_group_parameter_with_wrong_shape_raises_error():
 
 def test_reflecting_box_keeps_members_inside_ode_run():
     """Test that no member crosses a wall of a reflecting box in an ODE system."""
-    trajectory = Simulation(ideal_gas(500, kT=4.0, random_state=1), dt=0.01).prepare().run(until=2).trajectory_
+    trajectory = (
+        Simulation(IdealGasSystem(500, kT=4.0, random_state=1).prepare().system_, dt=0.01)
+        .prepare()
+        .run(until=2)
+        .trajectory_
+    )
     positions = trajectory.values('gas.x')
     assert np.all((positions >= 0) & (positions <= 1))
 
@@ -222,7 +227,7 @@ def test_reflecting_box_keeps_members_inside_ode_run():
 def test_ideal_gas_runs_in_real_time():
     """Test that an ideal gas of 10000 molecules keeps a real-time clock within 0.1 seconds."""
     simulation = Simulation(
-        ideal_gas(10_000, random_state=0),
+        IdealGasSystem(10_000, random_state=0).prepare().system_,
         dt=0.01,
         clock=RealTimeClock(speed=1.0),
         record=False,

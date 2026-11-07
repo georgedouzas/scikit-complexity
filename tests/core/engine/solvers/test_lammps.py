@@ -35,7 +35,7 @@ from skcomplex.systems.physics.common.particles import (
     LennardJonesInteraction,
     MassPointElement,
 )
-from skcomplex.systems.physics.statistical_mechanics import ideal_gas
+from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 
 CUTOFF = 2.5
 
@@ -244,7 +244,9 @@ def test_lammps_periodic_box_matches_native():
 
 def test_lammps_walls_confine_atoms_on_their_own():
     """Test that LAMMPS walls keep atoms inside a reflecting box without the framework's boundary step."""
-    problem = PassCompiler().prepare(ideal_gas(500, kT=4.0, size=10.0, random_state=0)).run().problem_
+    problem = (
+        PassCompiler().prepare(IdealGasSystem(500, kT=4.0, size=10.0, random_state=0).prepare().system_).run().problem_
+    )
     backend = LammpsSolver(dt=0.01)
     backend.set_params(random_state=np.random.default_rng(0)).prepare(problem)
     state = problem.initial_state
@@ -273,7 +275,7 @@ def test_lammps_forces_match_native(interaction):
 
 def test_lammps_thermostat_temperature_changes_live():
     """Test that raising the thermostat temperature during a LAMMPS run heats the gas towards it."""
-    gas = ideal_gas(1000, kT=1.0, size=30.0, random_state=0)
+    gas = IdealGasSystem(1000, kT=1.0, size=30.0, random_state=0).prepare().system_
     system = System(
         elements=gas.elements,
         interactions=[

@@ -17,7 +17,7 @@ from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import SSPRKSolver
 from skcomplex.core.errors import SolverError
 from skcomplex.core.specs import AxisSpec, StateSpec, VisualSpec
-from skcomplex.systems.physics.fluids import burgers, shallow_water
+from skcomplex.systems.physics.fluids import BurgersSystem, ShallowWaterSystem
 
 N_STATES = 5
 DAM_SPEED_UP = 15.0
@@ -58,7 +58,7 @@ def _volume(system):
 
 def test_max_speed_matches_numerical_eigenvalues():
     """Test that the closed-form speeds of the dam break agree with the numerical eigenvalues."""
-    problem, volume = _volume(shallow_water(200))
+    problem, volume = _volume(ShallowWaterSystem(200).prepare().system_)
     rng = np.random.default_rng(0)
     depth, discharge = volume.starts
     x = problem.initial_state.copy()
@@ -73,7 +73,7 @@ def test_max_speed_matches_numerical_eigenvalues():
 
 def _timed_dam_break(closed):
     """Return the time and the final state of the dam break on 1600 cells, with closed-form or numerical speeds."""
-    simulation = Simulation(shallow_water(1600), dt=0.5, solver=SSPRKSolver()).prepare()
+    simulation = Simulation(ShallowWaterSystem(1600).prepare().system_, dt=0.5, solver=SSPRKSolver()).prepare()
     if not closed:
         simulation.problem_.volumes[0].set_params(speeds=())
     start = time.perf_counter()
@@ -93,7 +93,7 @@ def test_run_is_faster_with_closed_form_speeds():
 
 def test_run_keeps_burgers_shock_conservative_and_monotone():
     """Test that the Burgers shock keeps its total and forms no new extrema with the closed-form speeds."""
-    system = burgers(400)
+    system = BurgersSystem(400).prepare().system_
     initial = np.asarray(system.elements[0].values['u'])
     _, volume = _volume(system)
     values = Simulation(system, dt=2.0, solver=SSPRKSolver()).prepare().run(until=2.0).state_
@@ -125,7 +125,7 @@ def test_run_falls_back_to_numerical_eigenvalues_without_closed_form():
 
 def test_max_speed_rejects_states_outside_the_hyperbolic_region():
     """Test that non-real closed-form speeds raise a solver error naming the field."""
-    problem, volume = _volume(shallow_water(20))
+    problem, volume = _volume(ShallowWaterSystem(20).prepare().system_)
     x = problem.initial_state.copy()
     x[volume.starts[0] : volume.starts[0] + 20] = -1.0
     with pytest.raises(SolverError, match='channel'):

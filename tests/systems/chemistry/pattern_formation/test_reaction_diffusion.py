@@ -8,7 +8,7 @@ from skcomplex.core.engine.runtime import Simulation, simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.chemistry.pattern_formation import BrusselatorSystem, GrayScottSystem, SchnakenbergSystem
-from skcomplex.systems.physics.heat import heat_diffusion
+from skcomplex.systems.physics.heat import HeatDiffusionSystem
 
 
 class Images:
@@ -47,7 +47,7 @@ def test_brusselator_and_heat_stay_bounded():
     values = simulate(BrusselatorSystem((32, 32)), until=20, dt=1).states[-1]
     assert np.all(np.isfinite(values))
     assert values.max() < 20
-    trajectory = Simulation(heat_diffusion((32, 32)), dt=5).prepare().run(until=50).trajectory_
+    trajectory = Simulation(HeatDiffusionSystem((32, 32)).prepare().system_, dt=5).prepare().run(until=50).trajectory_
     assert trajectory.values('plate.u').sum(axis=1) == pytest.approx(
         np.full(len(trajectory.times), trajectory.values('plate.u')[0].sum()),
     )
