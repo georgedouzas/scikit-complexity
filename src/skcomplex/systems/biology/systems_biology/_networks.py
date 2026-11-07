@@ -1,4 +1,4 @@
-"""Systems biology systems: cellular oscillators and power-law rate equations."""
+"""Systems biology systems: cellular oscillators, glycolytic oscillations, and power-law rate equations."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -6,12 +6,17 @@
 import itertools
 from collections.abc import Sequence
 
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
 from ....core.components.interactions import BaseInteraction, ReactionInteraction
 from ....core.components.system import System
 from ....core.errors import ValidationError
+from ....core.specs import DeclaredVariableSpec, ParameterSpec
 from ..._catalog import register_system
 from ..common.kinetics import MichaelisMentenInteraction
 from ._generalized_mass_action import GeneralizedMassActionInteraction
+from ._glycolysis import GlycolysisElement
 from ._phosphorylation_loop import PhosphorylationLoopElement
 from ._repression import RepressionInteraction
 from ._s_system import SSystemInteraction
@@ -357,3 +362,41 @@ def goodwin_oscillator(
     ]
     degradations = [ReactionInteraction(f'degradation_{label}', reactants={(label, 'x'): 1}, k=b) for label in labels]
     return System(elements=stages, interactions=[repression, *syntheses, *degradations])
+
+
+@register_system(
+    field='biology/systems_biology',
+    tags=('glycolysis', 'metabolic oscillations', 'nadh', 'biomodels', 'ode'),
+    references=('Nielsen et al. 1998', 'Raman 2021'),
+    defaults={'until': 300.0, 'dt': 0.5},
+)
+def glycolysis_oscillations(*, flow: float = 0.011, V4: float = 10.0) -> System:
+    """Return the glycolysis of a yeast extract in a flow reactor, whose NADH oscillates with a period of minutes.
+
+    The model of Nielsen et al. (1998), BioModels BIOMD0000000042, has fifteen metabolites, the inhibition of
+    phosphofructokinase by `ATP` and its activation by `AMP`, and the exchange with the feed of the reactor at the rate
+    `flow`. With the published parameters the reactor settles on sustained oscillations of `NADH` and of all the
+    other metabolites. Raman (2021, exercise 5.7) varies `V4`, `K4GAP`, `K4NAD`, `k8f`, and `k8b` by half to study
+    their effect on `NAD` and `NADH`.
+
+    Args:
+        flow:
+            The flow rate of the reactor, per minute.
+
+        V4:
+            The largest rate of glyceraldehyde phosphate dehydrogenase, in mM per minute.
+
+    Returns:
+        system:
+            The system, with the concentrations `extract.<metabolite>`, such as `extract.NADH`, in mM.
+
+    Examples:
+        >>> from skcomplex.systems.biology.systems_biology import glycolysis_oscillations
+        >>> glycolysis_oscillations(flow=0.02).elements[0].get_value('flow')
+        0.02
+    """
+    variables = {
+        'flow': DeclaredVariableSpec(flow, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+        'V4': DeclaredVariableSpec(V4, ParameterSpec(domain=RealSet.closed_open(0, oo))),
+    }
+    return System(elements=[GlycolysisElement('extract', variables=variables)])

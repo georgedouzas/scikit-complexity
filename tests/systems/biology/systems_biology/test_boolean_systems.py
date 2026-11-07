@@ -3,9 +3,12 @@
 import numpy as np
 import pytest
 
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.systems_biology import (
     boolean_repressilator,
     mammalian_cell_cycle,
+    noisy_boolean_network,
     three_gene_boolean_network,
 )
 
@@ -71,3 +74,22 @@ def test_boolean_repressilator_oscillates_with_delay(delay):
     system = boolean_repressilator((1, 0, 0), delay=delay)
     trajectory = _run_with_solver(system, until=60, dt=1)
     assert _period(_states(trajectory, [node.label for node in system.elements])) == 6 * (delay + 1)
+
+
+def _order(eta: float) -> float:
+    """Return the time average of the absolute mean state over the last half of a run."""
+    trajectory = Simulation(noisy_boolean_network(eta=eta), random_state=0).prepare().run(until=200).trajectory_
+    return float(np.abs(trajectory.values('nodes.sigma').mean(axis=1)[100:]).mean())
+
+
+def test_order_vanishes_above_the_mean_field_critical_noise():
+    """Test Huepe and Aldana-González: order below `eta_c = 1/6` for three inputs, disorder above it."""
+    assert _order(0.05) > 0.8
+    assert _order(0.12) > 0.4
+    assert _order(0.25) < 0.1
+
+
+def test_even_number_of_inputs_raises():
+    """Test that an even number of inputs, which leaves ties, raises an error."""
+    with pytest.raises(ValidationError):
+        noisy_boolean_network(k=2)
