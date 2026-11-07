@@ -26,8 +26,8 @@ trajectory = simulate(MemristiveMixedModeOscillatorSystem(), observers=[observer
 # %%
 # Large and small oscillations
 # ----------------------------
-# After a transient the voltage of the memristor should repeat with a period near 7.8: two spikes far above the rest,
-# followed by eleven small peaks.
+# After a transient the voltage of the memristor should repeat with a period near 7.9, close to the 7.816 Trzaska
+# reports: two spikes far above the rest, followed by eleven small peaks.
 
 settled = trajectory.times > 100
 x = np.ravel(trajectory.values('circuit.x'))[settled]

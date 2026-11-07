@@ -127,7 +127,9 @@ class MemristiveMixedModeOscillatorSystem(BaseSystem):
     `epsilon x' = -y - (a + 3 b w^2) x`, `y' = alpha (x - R y - z + e)`, `z' = -β y`, and `w' = x`. Trzaska prints the
     memductance as `a + 3 b w`, but only the derivative `a + 3 b w^2` of the characteristic gives the response he
     reports: for the defaults, from rest, the voltage settles on the mixed-mode oscillation `2^11`, two large spikes
-    and eleven small oscillations in a period of about 7.8.
+    and eleven small oscillations in a period of about 7.9, against the 7.816 he reports. The spikes last about a
+    hundredth of the period, so the tuned solver runs at the relative tolerance `1e-8`, below which looser runs drift
+    to an irregular pattern of shorter periods.
 
     The system has the states `circuit.x`, `circuit.y`, `circuit.z`, and `circuit.w`.
 
@@ -179,7 +181,7 @@ class MemristiveMixedModeOscillatorSystem(BaseSystem):
     references = ('Trzaska 2023',)
     until = 150.0
     dt = 0.02
-    solver = ScipyODESolver(method='LSODA')
+    solver = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 
     def __init__(
         self,
