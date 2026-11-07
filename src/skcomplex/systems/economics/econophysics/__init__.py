@@ -1,5 +1,6 @@
 """Econophysics: wealth exchange between agents."""
 
+from ._coalitions import CoalitionBarInteraction, CoalitionPatronElement, el_farol_coalitions
 from ._crowd_avoidance import CrowdAvoidanceInteraction
 from ._debt_exchange import DebtExchangeInteraction
 from ._diner import DinerElement
@@ -27,6 +28,8 @@ from ._welfare import (
 from ._welfare_policy import WelfarePolicyInteraction, policy_table
 
 __all__: list[str] = [
+    'CoalitionBarInteraction',
+    'CoalitionPatronElement',
     'CrowdAvoidanceInteraction',
     'DebtExchangeInteraction',
     'DinerElement',
@@ -42,6 +45,7 @@ __all__: list[str] = [
     'WelfarePolicyInteraction',
     'boltzmann_wealth',
     'el_farol',
+    'el_farol_coalitions',
     'exchange_table',
     'forecasts',
     'gini_coefficient',

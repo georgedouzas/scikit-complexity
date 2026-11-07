@@ -4,6 +4,7 @@ from ._adoption import HouseholdElement, phone_adoption
 from ._ball import BallElement
 from ._bass import bass_diffusion
 from ._catalysis import tap_catalysis
+from ._ccc import CombinatorialEntityElement, CombinatorialUpdateInteraction, ccc_model
 from ._discovery import interacting_urns_network
 from ._diversity import AdjacentPossibleElement, creative_phase_transition
 from ._invention import InventionInteraction
@@ -15,6 +16,8 @@ from ._urn import UrnElement
 __all__: list[str] = [
     'AdjacentPossibleElement',
     'BallElement',
+    'CombinatorialEntityElement',
+    'CombinatorialUpdateInteraction',
     'HouseholdElement',
     'InventionInteraction',
     'PartElement',
@@ -23,6 +26,7 @@ __all__: list[str] = [
     'UrnElement',
     'arthur_polak',
     'bass_diffusion',
+    'ccc_model',
     'creative_phase_transition',
     'interacting_urns_network',
     'nk_technology',
