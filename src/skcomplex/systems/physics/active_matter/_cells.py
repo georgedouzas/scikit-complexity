@@ -1,4 +1,4 @@
-"""Cells of Szabó et al. (2006): self-propelled discs whose headings turn towards the velocities the forces give."""
+"""Cells of the Szabó (2006) system: self-propelled discs whose headings turn towards the velocities the forces give."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
