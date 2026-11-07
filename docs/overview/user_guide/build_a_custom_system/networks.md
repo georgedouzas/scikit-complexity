@@ -185,7 +185,10 @@ A law of the focal member runs once per member of every hyperedge and adds into 
 gather table per size of hyperedge, so the laws run as gathers and scatter-adds on the NumPy and Numba backends.
 
 A second role may bind a group on the hyperedges, read as `s.hyperedge`, or a group on the edges, read as `s.edge`, the
-edge that joins the first two members of the hyperedge. A law that targets either runs once per hyperedge.
+edge that joins the first two members of the hyperedge. A law that targets either runs once per hyperedge. Hyperedges
+that share an edge would set it several times, so a link that several nodes act on lists them all in one hyperedge.
+The catalog system `spatial_triadic_percolation` lists the negative and then the positive regulators of every link,
+whose numbers the link holds, and pads the hyperedges to one size with members its law leaves out.
 
 The compiler reports two mistakes with the issue code `binding`: an interaction whose size no hyperedge of the network
 has, and an edge group whose edge does not join the first two members of a hyperedge.
@@ -667,8 +670,9 @@ members present as active. The NumPy and Numba backends run such groups with fix
 - reductions read the members present,
 - neighbourhoods and interactions over neighbours read the edges present.
 
-A change of structure is a `TopologyRequestSpec` of the kind `'add-node'`, `'remove-node'`, `'add-edge'`,
-`'remove-edge'`, `'rewire'`, `'add-hyperedge'`, or `'remove-hyperedge'`. It is the target of update and jump laws:
+A change of structure is a `TopologyRequestSpec` of the kind `'add-node'`, `'remove-node'`, `'replace-node'`,
+`'add-edge'`, `'remove-edge'`, `'rewire'`, `'add-hyperedge'`, `'remove-hyperedge'`, `'close-triangle'`,
+`'contract-edge'`, or `'duplicate-node'`. It is the target of update and jump laws:
 
 - `UpdateLaw(request, probability)` fires the request with a probability at every step, for every member or edge its
   law runs for.
@@ -816,6 +820,102 @@ own with the probability `toward`, and on a directed layer `direction` sends the
 to it, or `'both'` ways, each way drawn apart. The catalog system `tap_catalysis` grows goods whose production
 functions are hyperedges of every size up to the number of parents, and catalysis edges both ways, and
 `AutocatalyticSetAnalysis` finds the largest autocatalytic set of its production functions.
+
+### Choices, closures, contractions, and copies
+
+Choose a new edge among candidates. Explosive percolation adds one edge per step to isolated nodes, the one of two
+candidates whose product of the sizes of the components it joins is smaller:
+
+```python
+from typing import Annotated
+
+import networkx as nx
+
+from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.interactions import MapInteraction, TopologyInteraction
+from skcomplex.core.components.laws.utils import components
+from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.specs import StateSpec
+
+
+class ClusteredElement(Element):
+    def __init__(self, label, visual=None, *, size: Annotated[float, StateSpec()] = 1.0):
+        super().__init__(label, visual=visual)
+        self.size = size
+
+
+def product(node):
+    return node.size * node.source.size
+
+
+system = System(
+    elements=[
+        GroupElement('nodes', element=ClusteredElement, on='sites', variable=True, capacity=500),
+        GroupElement('links', element=Element, on='edges', variable=True, capacity=500),
+    ],
+    interactions=[
+        MapInteraction('size', target='nodes', state='size', function=lambda s: components(1, reduce='size')),
+        TopologyInteraction('linking', action='add-edge', candidates=2, score=product),
+    ],
+    space=NetworkSpace(nx.empty_graph(500)),
+    time=DiscreteTime(),
+)
+trajectory = Simulation(system, random_state=0).prepare().run(until=400).trajectory_
+int(trajectory.values('nodes.size')[-1].max()) < 100
+```
+
+- `candidates` draws that many candidate ends for every new edge of `'add-edge'`, and `score`, a function of the
+  namespace of a candidate end that reads the other end as `node.source`, picks the candidate of the smallest score.
+  A negated score picks the largest.
+- Without a target, `'add-edge'` runs once per step, and every candidate joins two distinct nodes not yet joined,
+  drawn uniformly. With one candidate the edges form an Erdős-Rényi graph.
+
+Further requests run for a node:
+
+- `'close-triangle'` joins two neighbours of the node that are not yet joined, drawn uniformly among such pairs. A node
+  without such a pair joins `edges` nodes by `toward` instead, as `'add-edge'` does, and `edges=0` turns this off.
+- `'contract-edge'` draws a neighbour by `toward` and merges it into the node, which keeps the union of their links on
+  every layer, without loops or repeated links. The neighbour leaves with its hyperedges.
+- `'duplicate-node'` adds a copy of the node with its values, overridden by `values`. The copy inherits each link with
+  probability `inherit` and joins the node with probability `parent`, and joins further ends like a new node, among
+  the nodes joined to neither.
+- `'replace-node'` removes the node and adds a new one in one request, so a replacement fired with a probability
+  removes and adds together.
+
+With `one=True`, a request runs at every step for one member drawn uniformly among the members present, node, edge, or
+hyperedge, and fires with the probability of its law there. The member is drawn when the request applies, after the
+requests before it, so a deletion followed by a duplication never duplicates the deleted node. A jump law cannot take
+it, since a jump channel already belongs to one member. A network of fixed size closes triangles and replaces nodes:
+
+```python
+import networkx as nx
+
+from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.interactions import TopologyInteraction
+from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import Simulation
+
+system = System(
+    elements=[
+        GroupElement('nodes', element=Element, on='sites', variable=True, capacity=50),
+        GroupElement('links', element=Element, on='edges', variable=True, capacity=400),
+    ],
+    interactions=[
+        TopologyInteraction('closure', target='nodes', action='close-triangle', one=True),
+        TopologyInteraction('turnover', target='nodes', action='replace-node', one=True, probability=0.2),
+    ],
+    space=NetworkSpace(nx.gnm_random_graph(50, 50, seed=0)),
+    time=DiscreteTime(),
+)
+trajectory = Simulation(system, random_state=0).prepare().run(until=500).trajectory_
+len(trajectory.network(-1).nodes)
+```
+
+The catalog systems `explosive_percolation`, `davidsen_ebel_bornholdt`, `node_merging`, and `duplication_deletion`
+build on these requests.
 
 ## Sets of members on the nodes
 
