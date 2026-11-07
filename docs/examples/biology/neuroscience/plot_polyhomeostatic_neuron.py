@@ -7,22 +7,20 @@ and threshold settle.
 """
 
 # %%
-# The system is created by name from the catalog with the target mean rate `mu = 0.2`. The observer saves every second
-# step with the default blueprint, whose primary view is the time series of the potential, the gain, and the
-# threshold.
+# The system is built from its class with the target mean rate `mu = 0.2`. The observer saves every second step with
+# the default blueprint, whose primary view is the time series of the potential, the gain, and the threshold.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.neuroscience import PolyhomeostaticNeuronSystem
 
 SYSTEM = 'polyhomeostatic_neuron'
 
-system = create_system(SYSTEM, mu=0.2)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=400)
+trajectory = simulate(PolyhomeostaticNeuronSystem(mu=0.2), observers=[observer])
 
 # %%
 # The firing rate approaches its target
@@ -31,7 +29,6 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(unti
 # input should approach the target `mu`, and the histogram of the late rates should be skewed towards low rates, like
 # the exponential target.
 
-trajectory = simulation.trajectory_
 x, gain, threshold = trajectory.values('neuron.x'), trajectory.values('neuron.a'), trajectory.values('neuron.b')
 rate = 1 / (1 + np.exp(-gain * (x - threshold)))
 window = round(2 * np.pi)

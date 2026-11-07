@@ -12,10 +12,9 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 FIELDS = ('r', 's')
 
@@ -64,6 +63,8 @@ class NeuralMassElement(Element):
         >>> NeuralMassElement('excitatory', tau=20.0).tau
         20.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -137,6 +138,8 @@ class SynapticDriveInteraction(Interaction):
         -10.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -203,6 +206,8 @@ class ThetaForcingInteraction(Interaction):
         8.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -231,33 +236,17 @@ class ThetaForcingInteraction(Interaction):
         return [RateLaw(s.target.v, current / s.target.tau)]
 
 
-@register_system(
-    field='biology/neuroscience',
-    tags=('neural mass', 'next generation', 'gamma oscillations', 'theta-gamma', 'ode'),
-    references=('Montbrió, Pazó, and Roxin 2015', 'Segneri et al. 2020'),
-    defaults={'until': 1000.0, 'dt': 0.5},
-)
-def next_generation_neural_mass(
-    setup: str = 'ping',
-    *,
-    H_e: float = 1.3,
-    H_i: float | None = None,
-    J_ee: float = 8.0,
-    J_ie: float = 10.0,
-    J_ei: float = 10.0,
-    J_ii: float | None = None,
-    delta: float | None = None,
-    I0: float | None = None,
-    nu: float = 5.0,
-) -> System:
-    """Return the exact neural mass of quadratic integrate-and-fire neurons whose gamma rhythm nests in a theta drive.
+class NextGenerationNeuralMassSystem(BaseSystem):
+    """The exact neural mass of quadratic integrate-and-fire neurons whose gamma rhythm nests in a theta drive.
 
     In the `'ping'` setup an excitatory and an inhibitory population, with membrane time constants of 20 and 10 ms,
     couple through instantaneous synapses, and the theta current drives the excitatory one. In the `'ing'` setup a
     single inhibitory population inhibits itself through exponential synapses of 10 ms, and the current drives it.
     Without forcing the populations rest or oscillate collectively in the gamma band, about 45 Hz for `H_e = 10`, as
-    their excitabilities cross a Hopf bifurcation. A slow theta current sweeps them across it, so gamma bursts appear
-    at every theta peak, theta-nested gamma oscillations. The defaults are those of Segneri et al. (2020, figure 3).
+    their excitabilities cross a Hopf bifurcation. A slow theta current sweeps them across it, so gamma bursts appear at
+    every theta peak, theta-nested gamma oscillations. The defaults are those of Segneri et al. (2020, figure 3). The
+    system has the rates `excitatory.r` and `inhibitory.r`, in spikes per millisecond, and the potentials `excitatory.v`
+    and `inhibitory.v`, or the inhibitory population alone in `'ing'`.
 
     Args:
         setup:
@@ -290,59 +279,105 @@ def next_generation_neural_mass(
         nu:
             The theta frequency, in hertz.
 
-    Returns:
-        system:
-            The system, with the rates `excitatory.r` and `inhibitory.r`, in spikes per millisecond, and the
-            potentials `excitatory.v` and `inhibitory.v`, or the inhibitory population alone in `'ing'`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The setup is unknown.
 
     Examples:
-        >>> from skcomplex.systems.biology.neuroscience import next_generation_neural_mass
-        >>> [element.label for element in next_generation_neural_mass('ing').elements]
+        >>> from skcomplex.systems.biology.neuroscience import NextGenerationNeuralMassSystem
+        >>> [element.label for element in NextGenerationNeuralMassSystem('ing').prepare().system_.elements]
         ['inhibitory']
     """
-    if setup not in SETUPS:
-        error_msg = f'The setup must be one of {", ".join(SETUPS)}, not {setup!r}.'
-        raise ValidationError(error_msg)
-    if setup == 'ing':
-        population = NeuralMassElement(
-            'inhibitory',
-            tau=10.0,
-            delta=0.3 if delta is None else delta,
-            H=2.0 if H_i is None else H_i,
-        )
+
+    field = 'biology/neuroscience'
+    topics = ('neural mass', 'next generation', 'gamma oscillations', 'theta-gamma', 'ode')
+    references = ('Montbrió, Pazó, and Roxin 2015', 'Segneri et al. 2020')
+    until = 1000.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        setup: str = 'ping',
+        *,
+        H_e: float = 1.3,
+        H_i: float | None = None,
+        J_ee: float = 8.0,
+        J_ie: float = 10.0,
+        J_ei: float = 10.0,
+        J_ii: float | None = None,
+        delta: float | None = None,
+        I0: float | None = None,
+        nu: float = 5.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.setup = setup
+        self.H_e = H_e
+        self.H_i = H_i
+        self.J_ee = J_ee
+        self.J_ie = J_ie
+        self.J_ei = J_ei
+        self.J_ii = J_ii
+        self.delta = delta
+        self.I0 = I0
+        self.nu = nu
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        if self.setup not in SETUPS:
+            error_msg = f'The setup must be one of {", ".join(SETUPS)}, not {self.setup!r}.'
+            raise ValidationError(error_msg)
+        if self.setup == 'ing':
+            population = NeuralMassElement(
+                'inhibitory',
+                tau=10.0,
+                delta=0.3 if self.delta is None else self.delta,
+                H=2.0 if self.H_i is None else self.H_i,
+            )
+            return System(
+                self.label,
+                elements=[population],
+                interactions=[
+                    SynapticDriveInteraction(
+                        'ii',
+                        target='inhibitory',
+                        source='inhibitory',
+                        J=-(21.0 if self.J_ii is None else self.J_ii),
+                        field='s',
+                    ),
+                    ThetaForcingInteraction(
+                        'theta',
+                        target='inhibitory',
+                        I0=9.0 if self.I0 is None else self.I0,
+                        nu=self.nu,
+                    ),
+                ],
+            )
+        width = 1.0 if self.delta is None else self.delta
         return System(
-            elements=[population],
+            self.label,
+            elements=[
+                NeuralMassElement('excitatory', tau=20.0, delta=width, H=self.H_e),
+                NeuralMassElement('inhibitory', tau=10.0, delta=width, H=-5.0 if self.H_i is None else self.H_i),
+            ],
             interactions=[
+                SynapticDriveInteraction('ee', target='excitatory', source='excitatory', J=self.J_ee),
+                SynapticDriveInteraction('ie', target='excitatory', source='inhibitory', J=-self.J_ie),
+                SynapticDriveInteraction('ei', target='inhibitory', source='excitatory', J=self.J_ei),
                 SynapticDriveInteraction(
                     'ii',
                     target='inhibitory',
                     source='inhibitory',
-                    J=-(21.0 if J_ii is None else J_ii),
-                    field='s',
+                    J=-(0.0 if self.J_ii is None else self.J_ii),
                 ),
-                ThetaForcingInteraction('theta', target='inhibitory', I0=9.0 if I0 is None else I0, nu=nu),
+                ThetaForcingInteraction(
+                    'theta',
+                    target='excitatory',
+                    I0=10.0 if self.I0 is None else self.I0,
+                    nu=self.nu,
+                ),
             ],
         )
-    width = 1.0 if delta is None else delta
-    return System(
-        elements=[
-            NeuralMassElement('excitatory', tau=20.0, delta=width, H=H_e),
-            NeuralMassElement('inhibitory', tau=10.0, delta=width, H=-5.0 if H_i is None else H_i),
-        ],
-        interactions=[
-            SynapticDriveInteraction('ee', target='excitatory', source='excitatory', J=J_ee),
-            SynapticDriveInteraction('ie', target='excitatory', source='inhibitory', J=-J_ie),
-            SynapticDriveInteraction('ei', target='inhibitory', source='excitatory', J=J_ei),
-            SynapticDriveInteraction(
-                'ii',
-                target='inhibitory',
-                source='inhibitory',
-                J=-(0.0 if J_ii is None else J_ii),
-            ),
-            ThetaForcingInteraction('theta', target='excitatory', I0=10.0 if I0 is None else I0, nu=nu),
-        ],
-    )
