@@ -4,14 +4,14 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.systems.mathematics.networks import motter_lai_overload
+from skcomplex.systems.mathematics.networks import MotterLaiOverloadSystem
 
 
 def _giant(seed, **arguments):
     """Return the share of the nodes in the largest component after the cascade."""
-    trajectory = Simulation(motter_lai_overload(random_state=seed, **arguments)).prepare().run(until=20).trajectory_
+    trajectory = simulate(MotterLaiOverloadSystem(random_state=seed, **arguments), until=20)
     graph = trajectory.network(-1).graph()
     return max(len(component) for component in nx.connected_components(graph)) / 300
 
@@ -32,8 +32,8 @@ def test_a_larger_tolerance_keeps_more_of_the_network():
 
 def test_failed_nodes_carried_a_load_above_their_capacity():
     """Test that every node that fails after the attack carried more load on the network before than it holds."""
-    system = motter_lai_overload(tolerance=0.2, random_state=1)
-    trajectory = Simulation(system).prepare().run(until=6).trajectory_
+    system = MotterLaiOverloadSystem(tolerance=0.2, random_state=1).prepare().system_
+    trajectory = simulate(system, until=6)
     capacity = system.elements[0].values['capacity']
     for frame in range(1, 5):
         before, after = trajectory.network(frame), trajectory.network(frame + 1)
@@ -45,4 +45,4 @@ def test_failed_nodes_carried_a_load_above_their_capacity():
 def test_motter_lai_overload_rejects_an_unknown_attack():
     """Test that an unknown attack raises an error."""
     with pytest.raises(ValidationError, match='Unknown attack'):
-        motter_lai_overload(attack='nearest')
+        MotterLaiOverloadSystem(attack='nearest').prepare()

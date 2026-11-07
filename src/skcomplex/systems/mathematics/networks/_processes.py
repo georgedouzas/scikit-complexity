@@ -14,11 +14,10 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.interactions import CouplingInteraction, DiffusionInteraction, MovementInteraction
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class NodeContentElement(Element):
@@ -144,31 +143,15 @@ class NetworkWalkerElement(Element):
         return NetworkWalkerView
 
 
-def _count_step(agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
-    """Count a step the walker takes."""
-    if isinstance(agent, NetworkWalkerView):
-        agent.steps += 1
-
-
-def _get_link_term(s: SimpleNamespace) -> object:
-    """Return what one link brings to the rank of a page: a share of the rank of the other page and of the jumps."""
-    member, other = s.member, s.other
-    return member.damping * other.rank / other.degree + (1 - member.damping) / (member.n_nodes * member.degree)
-
-
 def _graph_or_default(graph: nx.Graph | None) -> nx.Graph:
     """Return the graph, or Zachary's karate club when none is given."""
     return nx.karate_club_graph() if graph is None else graph
 
 
-@register_system(
-    field='mathematics/networks',
-    tags=('network', 'random walk', 'agents'),
-    references=('Thurner et al. 2018', 'Jensen 2023'),
-    defaults={'until': 100},
-)
-def network_random_walk(graph: nx.Graph | None = None, *, n_walkers: int = 50) -> System:
-    """Return random walkers on a network, which visit every node of a connected graph in proportion to its degree.
+class NetworkRandomWalkSystem(BaseSystem):
+    """Random walkers on a network, which visit every node of a connected graph in proportion to its degree.
+
+    The system has the group `walkers`.
 
     Args:
         graph:
@@ -177,35 +160,55 @@ def network_random_walk(graph: nx.Graph | None = None, *, n_walkers: int = 50) -
         n_walkers:
             The number of walkers, started at random nodes.
 
-    Returns:
-        system:
-            The system, with the group `walkers`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.systems.mathematics.networks import network_random_walk
-        >>> network_random_walk(nx.cycle_graph(6), n_walkers=3).elements[0].prepare().size_
+        >>> from skcomplex.systems.mathematics.networks import NetworkRandomWalkSystem
+        >>> NetworkRandomWalkSystem(nx.cycle_graph(6), n_walkers=3).prepare().system_.elements[0].prepare().size_
         3
     """
-    graph = _graph_or_default(graph)
-    walk = MovementInteraction('walk', target='walkers', step='neighbor', cost=_count_step)
-    return System(
-        elements=[GroupElement('walkers', element=NetworkWalkerElement, size=n_walkers)],
-        interactions=[walk],
-        space=NetworkSpace(graph),
-    )
+
+    field = 'mathematics/networks'
+    topics = ('network', 'random walk', 'agents')
+    references = ('Thurner et al. 2018', 'Jensen 2023')
+    until = 100
+
+    def __init__(
+        self,
+        graph: nx.Graph | None = None,
+        *,
+        n_walkers: int = 50,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.graph = graph
+        self.n_walkers = n_walkers
+
+    @staticmethod
+    def _count_step(agent: AgentViewProtocol, system: SystemViewProtocol) -> None:
+        """Count a step the walker takes."""
+        if isinstance(agent, NetworkWalkerView):
+            agent.steps += 1
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        graph = _graph_or_default(self.graph)
+        walk = MovementInteraction('walk', target='walkers', step='neighbor', cost=self._count_step)
+        return System(
+            self.label,
+            elements=[GroupElement('walkers', element=NetworkWalkerElement, size=self.n_walkers)],
+            interactions=[walk],
+            space=NetworkSpace(graph),
+        )
 
 
-@register_system(
-    field='mathematics/networks',
-    tags=('network', 'diffusion', 'graph laplacian', 'ode'),
-    references=('Thurner et al. 2018', 'Jensen 2023'),
-    defaults={'until': 10.0, 'dt': 0.1},
-)
-def network_diffusion(graph: nx.Graph | None = None, *, D: float = 1.0, source: int = 0) -> System:
-    """Return diffusion on a network, `du_i/dt = D Σ_j A_ij (u_j - u_i)`, which spreads a unit mass to every node.
+class NetworkDiffusionSystem(BaseSystem):
+    """Diffusion on a network, `du_i/dt = D Σ_j A_ij (u_j - u_i)`, which spreads a unit mass to every node.
 
-    The total is conserved, and on a connected graph the content of every node tends to `1 / n`.
+    The total is conserved, and on a connected graph the content of every node tends to `1 / n`. The system has the
+    contents `nodes.u`.
 
     Args:
         graph:
@@ -217,34 +220,55 @@ def network_diffusion(graph: nx.Graph | None = None, *, D: float = 1.0, source: 
         source:
             The index, in node order, of the node that holds the whole mass at the start.
 
-    Returns:
-        system:
-            The system, with the contents `nodes.u`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.systems.mathematics.networks import network_diffusion
-        >>> network_diffusion(nx.path_graph(4)).elements[0].prepare().size_
+        >>> from skcomplex.systems.mathematics.networks import NetworkDiffusionSystem
+        >>> NetworkDiffusionSystem(nx.path_graph(4)).prepare().system_.elements[0].prepare().size_
         4
     """
-    graph = _graph_or_default(graph)
-    initial = np.zeros(graph.number_of_nodes())
-    initial[source] = 1.0
-    nodes = FieldElement('nodes', element=NodeContentElement, space=NetworkSpace(graph), values={'u': initial, 'D': D})
-    diffusion = DiffusionInteraction('diffusion', target='nodes', state='u', coefficient=lambda s: s.target.D)
-    return System(elements=[nodes], interactions=[diffusion])
+
+    field = 'mathematics/networks'
+    topics = ('network', 'diffusion', 'graph laplacian', 'ode')
+    references = ('Thurner et al. 2018', 'Jensen 2023')
+    until = 10.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        graph: nx.Graph | None = None,
+        *,
+        D: float = 1.0,
+        source: int = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.graph = graph
+        self.D = D
+        self.source = source
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        graph = _graph_or_default(self.graph)
+        initial = np.zeros(graph.number_of_nodes())
+        initial[self.source] = 1.0
+        nodes = FieldElement(
+            'nodes',
+            element=NodeContentElement,
+            space=NetworkSpace(graph),
+            values={'u': initial, 'D': self.D},
+        )
+        diffusion = DiffusionInteraction('diffusion', target='nodes', state='u', coefficient=lambda s: s.target.D)
+        return System(self.label, elements=[nodes], interactions=[diffusion])
 
 
-@register_system(
-    field='mathematics/networks',
-    tags=('network', 'pagerank', 'centrality', 'discrete map'),
-    references=('Brin and Page 1998', 'Thurner et al. 2018', 'Jensen 2023'),
-    defaults={'until': 50, 'dt': 1},
-)
-def pagerank(graph: nx.Graph | None = None, *, damping: float = 0.85) -> System:
-    """Return the PageRank iteration `r_i' = (1 - d) / n + d Σ_j A_ij r_j / k_j` on an undirected network.
+class PagerankSystem(BaseSystem):
+    """The PageRank iteration `r_i' = (1 - d) / n + d Σ_j A_ij r_j / k_j` on an undirected network.
 
-    The ranks start uniform, stay normalized, and converge to the PageRank of the graph. Every node needs a link.
+    The ranks start uniform, stay normalized, and converge to the PageRank of the graph. Every node needs a link. The
+    system has the ranks `pages.rank`.
 
     Args:
         graph:
@@ -253,20 +277,52 @@ def pagerank(graph: nx.Graph | None = None, *, damping: float = 0.85) -> System:
         damping:
             The probability `d` that the surfer follows a link rather than jumping to a random node.
 
-    Returns:
-        system:
-            The system, with the ranks `pages.rank`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.systems.mathematics.networks import pagerank
-        >>> pagerank(nx.cycle_graph(5)).elements[0].prepare().size_
+        >>> from skcomplex.systems.mathematics.networks import PagerankSystem
+        >>> PagerankSystem(nx.cycle_graph(5)).prepare().system_.elements[0].prepare().size_
         5
     """
-    graph = _graph_or_default(graph)
-    size = graph.number_of_nodes()
-    degrees = np.array([degree for _, degree in graph.degree()], dtype=float)
-    values = {'rank': np.full(size, 1 / size), 'degree': degrees, 'n_nodes': float(size), 'damping': damping}
-    pages = FieldElement('pages', element=NodeRankElement, space=NetworkSpace(graph), values=values)
-    links = CouplingInteraction('links', target='pages', read='rank', write='rank', function=_get_link_term, form='map')
-    return System(elements=[pages], interactions=[links])
+
+    field = 'mathematics/networks'
+    topics = ('network', 'pagerank', 'centrality', 'discrete map')
+    references = ('Brin and Page 1998', 'Thurner et al. 2018', 'Jensen 2023')
+    until = 50
+    dt = 1
+
+    def __init__(
+        self,
+        graph: nx.Graph | None = None,
+        *,
+        damping: float = 0.85,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.graph = graph
+        self.damping = damping
+
+    @staticmethod
+    def _get_link_term(s: SimpleNamespace) -> object:
+        """Return what one link brings to the rank of a page: a share of the rank of the other page and of the jumps."""
+        member, other = s.member, s.other
+        return member.damping * other.rank / other.degree + (1 - member.damping) / (member.n_nodes * member.degree)
+
+    def _build_system(self) -> System:
+        """Return the PageRank iteration `r_i' = (1 - d) / n + d Σ_j A_ij r_j / k_j` on an undirected network."""
+        graph = _graph_or_default(self.graph)
+        size = graph.number_of_nodes()
+        degrees = np.array([degree for _, degree in graph.degree()], dtype=float)
+        values = {'rank': np.full(size, 1 / size), 'degree': degrees, 'n_nodes': float(size), 'damping': self.damping}
+        pages = FieldElement('pages', element=NodeRankElement, space=NetworkSpace(graph), values=values)
+        links = CouplingInteraction(
+            'links',
+            target='pages',
+            read='rank',
+            write='rank',
+            function=self._get_link_term,
+            form='map',
+        )
+        return System(self.label, elements=[pages], interactions=[links])
