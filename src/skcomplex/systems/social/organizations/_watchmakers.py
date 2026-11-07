@@ -13,10 +13,19 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.system import System
-from ....core.engine.solvers import SystemView
+from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._watchmaker_view import WatchmakerView
+
+
+class WatchmakerView(AgentView):
+    """View of a watchmaker of the Hora and Tempus fable, with its states and parameters as attributes."""
+
+    progress: float
+    done: float
+    watches: float
+    task_size: float
+    tasks: float
 
 
 class WatchmakerElement(Element):

@@ -16,9 +16,17 @@ from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import NetworkSpace
 from ....core.components.system import System
 from ....core.components.types import SystemViewProtocol
+from ....core.engine.solvers import AgentView
 from ....core.specs import StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._supplier_view import SupplierView
+
+
+class SupplierView(AgentView):
+    """View of a firm of the supply chain diffusion system, with its states as attributes."""
+
+    adopted: float
+    inflow: float
+    outflow: float
 
 
 class SupplierElement(Element):

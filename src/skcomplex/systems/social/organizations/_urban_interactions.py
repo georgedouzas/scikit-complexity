@@ -4,10 +4,12 @@
 # License: MIT
 
 from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
-from sage.all__sagemath_symbolics import exp, ln, pi, sin
+from sage.all__sagemath_symbolics import exp, ln, oo, pi, sin
+from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
@@ -15,9 +17,56 @@ from ....core.components.laws.utils import draw, logistic, neighbors
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.system import System
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._city_dweller import CityDwellerElement
+
+MEETINGS_VISUAL = VisualSpec('sites', {'states': ['meetings']})
+
+
+class CityDwellerElement(Element):
+    """Resident of a growing city, with an angle of similarity, an age, and the meetings of the last step.
+
+    Args:
+        label:
+            The label of the group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        angle:
+            The angle of the resident on the circle, its similarity coordinate.
+
+        age:
+            The number of steps since the resident joined.
+
+        degree:
+            The number of neighbours of the resident at the start of the last step.
+
+        meetings:
+            The number of neighbours the resident met in the last step.
+
+    Examples:
+        >>> from skcomplex.systems.social.organizations import CityDwellerElement
+        >>> CityDwellerElement('residents', angle=1.5).angle
+        1.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = MEETINGS_VISUAL,
+        *,
+        angle: Annotated[float, StateSpec()] = 0.0,
+        age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        meetings: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.angle = angle
+        self.age = age
+        self.degree = degree
+        self.meetings = meetings
+
 
 SMALLEST_ANGLE = 1e-12
 MIN_EXPONENT = 2.0
