@@ -7,24 +7,23 @@ faster than its pacemaker, a tachycardia.
 """
 
 # %%
-# The system is created by name from the catalog on a lattice of 100 by 100 sites, with the upper half excited and its
-# left half refractory, and integrated with Runge-Kutta steps of 0.05. The observer saves every frame with the default
+# The system is built from its class on a lattice of 100 by 100 sites, with the upper half excited and its left half
+# refractory, and integrated with Runge-Kutta steps of 0.05. The observer saves every frame with the default
 # blueprint, whose primary view is the image of the potential.
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import find_peaks
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.physiology import AlievPanfilovSystem
 
 SYSTEM = 'aliev_panfilov'
 
-system = create_system(SYSTEM, shape=(100, 100))
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=2.0, solver=RK4Solver(dt=0.05), observers=[observer]).prepare().run(until=300)
+trajectory = simulate(AlievPanfilovSystem(shape=(100, 100)), solver=RK4Solver(dt=0.05), observers=[observer], until=300)
 
 # %%
 # A periodic rotation
@@ -32,7 +31,6 @@ simulation = Simulation(system, dt=2.0, solver=RK4Solver(dt=0.05), observers=[ob
 # A rotating spiral excites every site once per turn, so the potential at a fixed probe should spike periodically with
 # the rotation period of the spiral, and the last snapshot should show the spiral arm.
 
-trajectory = simulation.trajectory_
 potential = trajectory.lattice('tissue.u')
 probe = potential[:, 75, 75]
 peaks, _ = find_peaks(probe, height=0.5)

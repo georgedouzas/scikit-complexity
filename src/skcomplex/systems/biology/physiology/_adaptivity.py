@@ -12,10 +12,9 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, ReactionInteraction, RelaxationInteraction
 from ....core.components.laws.utils import pulse_train, where
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 STRATEGIES = {'stimulus-response': (0.0, 0.0), 'adaptive': (0.5, 0.0), 'anticipatory': (0.5, 0.5)}
 
@@ -33,7 +32,7 @@ class AdaptiveResponderElement(Element):
     upkeep `upkeep (c - c0 + a)` of the extra capacity and of the anticipation.
 
     The element holds the states and parameters and has no laws of its own: the interactions of
-    `adaptive_response_costs` read its parameters.
+    `AdaptiveResponseCostsSystem` read its parameters.
 
     Args:
         label:
@@ -162,28 +161,18 @@ class AdaptiveResponderElement(Element):
         self.start = start
 
 
-@register_system(
-    field='biology/physiology',
-    tags=('adaptation', 'anticipation', 'homeostasis', 'costs', 'stocks and flows', 'ode'),
-    references=('Mobus 2022', 'Mobus 1999'),
-    defaults={'until': 200.0, 'dt': 0.1},
-)
-def adaptive_response_costs(
-    strategy: str = 'adaptive',
-    *,
-    height: float = 1.0,
-    width: float = 2.0,
-    period: float = 10.0,
-) -> System:
-    """Return a system that meets recurring demands by stimulus-response, adaptive response, or anticipation.
+class AdaptiveResponseCostsSystem(BaseSystem):
+    """A system that meets recurring demands by stimulus-response, adaptive response, or anticipation.
 
     Episodes of demand push a critical parameter away from its norm, and the system counters them, after Mobus. A
-    stimulus-response keeps its baseline capacity, so large episodes overshoot the damage threshold and cost repairs.
-    An adaptive response builds capacity under repeated demand and loses it when demand stops, at the price of its
-    upkeep. An anticipatory response also predicts every episode and avoids half of it. Mobus's objective is the sum
-    of the response, restore, and repair costs over the episodes, with the preparedness cost amortized over them:
-    adaptive response lowers it below stimulus-response by avoiding repairs, and anticipation lowers it further by
-    cutting the response it needs.
+    stimulus-response keeps its baseline capacity, so large episodes overshoot the damage threshold and cost repairs. An
+    adaptive response builds capacity under repeated demand and loses it when demand stops, at the price of its upkeep.
+    An anticipatory response also predicts every episode and avoids half of it. Mobus's objective is the sum of the
+    response, restore, and repair costs over the episodes, with the preparedness cost amortized over them: adaptive
+    response lowers it below stimulus-response by avoiding repairs, and anticipation lowers it further by cutting the
+    response it needs. The system has the excursion `organism.e`, the capacity `organism.c`, the reserves `organism.S`,
+    and the costs `organism.response_cost`, `organism.restore_cost`, `organism.repair_cost`, and
+    `organism.prepare_cost`.
 
     Args:
         strategy:
@@ -198,80 +187,111 @@ def adaptive_response_costs(
         period:
             The time between the starts of episodes.
 
-    Returns:
-        system:
-            The system, with the excursion `organism.e`, the capacity `organism.c`, the reserves `organism.S`, and the
-            costs `organism.response_cost`, `organism.restore_cost`, `organism.repair_cost`, and
-            `organism.prepare_cost`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The strategy is unknown.
 
     Examples:
-        >>> from skcomplex.systems.biology.physiology import adaptive_response_costs
-        >>> adaptive_response_costs('stimulus-response').elements[0].eta
+        >>> from skcomplex.systems.biology.physiology import AdaptiveResponseCostsSystem
+        >>> AdaptiveResponseCostsSystem('stimulus-response').prepare().system_.elements[0].eta
         0.0
     """
-    if strategy not in STRATEGIES:
-        error_msg = f'Unknown strategy {strategy!r}. Use one of {", ".join(STRATEGIES)}.'
-        raise ValidationError(error_msg)
-    eta, anticipation = STRATEGIES[strategy]
-    organism = AdaptiveResponderElement(
-        'organism',
-        eta=eta,
-        anticipation=anticipation,
-        height=height,
-        width=width,
-        period=period,
-    )
-    interactions = [
-        RateInteraction(
-            'stimulus',
-            target='organism',
-            state='e',
-            rate=lambda s: (1 - s.target.anticipation)
-            * pulse_train(s.t, organism.period, organism.width, organism.height, start=organism.start),
-        ),
-        ReactionInteraction(
-            'effort',
-            target='organism',
-            reactants={'e': 1, 'S': 1},
-            products={'response_cost': 1},
-            propensity=lambda s: s.target.c * s.target.e,
-        ),
-        ReactionInteraction(
-            'effort_decay',
-            target='organism',
-            reactants={'e': 1},
-            propensity=lambda s: s.target.k0 * s.target.e,
-        ),
-        RateInteraction('capacity_growth', target='organism', state='c', rate=lambda s: s.target.eta * s.target.e**2),
-        RelaxationInteraction(
-            'capacity_relaxation',
-            target='organism',
-            state='c',
-            goal=lambda s: s.target.c0,
-            time=lambda s: s.target.tau,
-        ),
-        RateInteraction('restoration', target='organism', state='S', rate=lambda s: s.target.kappa * (1 - s.target.S)),
-        RateInteraction(
-            'restoration_cost',
-            target='organism',
-            state='restore_cost',
-            rate=lambda s: s.target.price * s.target.kappa * (1 - s.target.S),
-        ),
-        RateInteraction(
-            'repair_cost',
-            target='organism',
-            state='repair_cost',
-            rate=lambda s: s.target.repair * where(s.target.e > s.target.theta, s.target.e - s.target.theta, 0),
-        ),
-        RateInteraction(
-            'preparation_cost',
-            target='organism',
-            state='prepare_cost',
-            rate=lambda s: s.target.upkeep * (s.target.c - s.target.c0 + s.target.anticipation),
-        ),
-    ]
-    return System(elements=[organism], interactions=interactions)
+
+    field = 'biology/physiology'
+    topics = ('adaptation', 'anticipation', 'homeostasis', 'costs', 'stocks and flows', 'ode')
+    references = ('Mobus 2022', 'Mobus 1999')
+    until = 200.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        strategy: str = 'adaptive',
+        *,
+        height: float = 1.0,
+        width: float = 2.0,
+        period: float = 10.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.strategy = strategy
+        self.height = height
+        self.width = width
+        self.period = period
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        if self.strategy not in STRATEGIES:
+            error_msg = f'Unknown strategy {self.strategy!r}. Use one of {", ".join(STRATEGIES)}.'
+            raise ValidationError(error_msg)
+        eta, anticipation = STRATEGIES[self.strategy]
+        organism = AdaptiveResponderElement(
+            'organism',
+            eta=eta,
+            anticipation=anticipation,
+            height=self.height,
+            width=self.width,
+            period=self.period,
+        )
+        interactions = [
+            RateInteraction(
+                'stimulus',
+                target='organism',
+                state='e',
+                rate=lambda s: (1 - s.target.anticipation)
+                * pulse_train(s.t, organism.period, organism.width, organism.height, start=organism.start),
+            ),
+            ReactionInteraction(
+                'effort',
+                target='organism',
+                reactants={'e': 1, 'S': 1},
+                products={'response_cost': 1},
+                propensity=lambda s: s.target.c * s.target.e,
+            ),
+            ReactionInteraction(
+                'effort_decay',
+                target='organism',
+                reactants={'e': 1},
+                propensity=lambda s: s.target.k0 * s.target.e,
+            ),
+            RateInteraction(
+                'capacity_growth',
+                target='organism',
+                state='c',
+                rate=lambda s: s.target.eta * s.target.e**2,
+            ),
+            RelaxationInteraction(
+                'capacity_relaxation',
+                target='organism',
+                state='c',
+                goal=lambda s: s.target.c0,
+                time=lambda s: s.target.tau,
+            ),
+            RateInteraction(
+                'restoration',
+                target='organism',
+                state='S',
+                rate=lambda s: s.target.kappa * (1 - s.target.S),
+            ),
+            RateInteraction(
+                'restoration_cost',
+                target='organism',
+                state='restore_cost',
+                rate=lambda s: s.target.price * s.target.kappa * (1 - s.target.S),
+            ),
+            RateInteraction(
+                'repair_cost',
+                target='organism',
+                state='repair_cost',
+                rate=lambda s: s.target.repair * where(s.target.e > s.target.theta, s.target.e - s.target.theta, 0),
+            ),
+            RateInteraction(
+                'preparation_cost',
+                target='organism',
+                state='prepare_cost',
+                rate=lambda s: s.target.upkeep * (s.target.c - s.target.c0 + s.target.anticipation),
+            ),
+        ]
+        return System(self.label, elements=[organism], interactions=interactions)

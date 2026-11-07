@@ -3,17 +3,16 @@
 import numpy as np
 import pytest
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
-from skcomplex.systems import create_simulation
-from skcomplex.systems.biology.physiology import CellAdhesionInteraction, cellular_potts
+from skcomplex.systems.biology.physiology import CellAdhesionInteraction, CellularPottsSystem
 
 SHAPE = (30, 32)
 
 
 def _series(lattice, until, **parameters):
     """Return the trajectory of a cellular Potts tissue on a lattice."""
-    simulation = create_simulation('cellular_potts', shape=SHAPE, lattice=lattice, **parameters)
-    return simulation.prepare().run(until=until).trajectory_
+    return simulate(CellularPottsSystem(shape=SHAPE, lattice=lattice, **parameters), until=until, random_state=0)
 
 
 @pytest.mark.parametrize('lattice', ['square', 'triangular', 'disordered'])
@@ -47,7 +46,7 @@ def test_equal_adhesion_does_not_sort_the_kinds_of_cells():
 
 def test_disordered_lattice_tiles_the_box_with_weighted_contacts():
     """Test that the Voronoi sites tile the periodic box and that the contact weights have mean 1."""
-    graph = cellular_potts(SHAPE, lattice='disordered').elements[0].space.graph
+    graph = CellularPottsSystem(SHAPE, lattice='disordered').prepare().system_.elements[0].space.graph
     areas = [area for _, area in graph.nodes(data='volume')]
     weights = [weight for *_, weight in graph.edges(data='weight')]
     assert abs(sum(areas) - SHAPE[0] * SHAPE[1]) < 1e-6
@@ -65,7 +64,7 @@ def test_disordered_lattice_tiles_the_box_with_weighted_contacts():
 def test_cellular_potts_rejects_lattices_and_shapes_it_cannot_tile(parameters, match):
     """Test that an unknown lattice or a shape that the cells do not tile raise an error."""
     with pytest.raises(ValidationError, match=match):
-        cellular_potts(**{'shape': SHAPE, **parameters})
+        CellularPottsSystem(**{'shape': SHAPE, **parameters}).prepare()
 
 
 @pytest.mark.parametrize(

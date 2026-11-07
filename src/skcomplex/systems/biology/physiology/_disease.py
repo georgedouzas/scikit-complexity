@@ -16,9 +16,8 @@ from ....core.components.elements import Element, GroupElement, LatticeElement
 from ....core.components.interactions import NeighborInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class CellOscillatorElement(Element):
@@ -45,6 +44,8 @@ class CellOscillatorElement(Element):
         >>> CellOscillatorElement('cell', omega=0.2).omega
         0.2
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -142,6 +143,8 @@ class AdaptivePhaseCouplingInteraction(NeighborInteraction):
         0.3
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -204,6 +207,8 @@ class LayerCouplingInteraction(NeighborInteraction):
         'partners'
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -230,37 +235,18 @@ class LayerCouplingInteraction(NeighborInteraction):
         return [RateLaw(s.target.phi, -s.sigma * sin(s.target.phi - s.source.phi))]
 
 
-@register_system(
-    field='biology/physiology',
-    tags=('sepsis', 'adaptive network', 'multiplex', 'phase oscillators', 'ode'),
-    references=('Sawicki et al. 2022', 'Berner et al. 2023'),
-    defaults={'until': 200.0, 'dt': 1.0},
-)
-def two_layer_sepsis(
-    n_cells: int = 20,
-    *,
-    beta: float = 0.5 * math.pi,
-    sigma: float = 1.0,
-    pathological: float = 0.0,
-    omega_healthy: float = 0.0,
-    omega_pathological: float = 1.0,
-    omega_immune: float = 0.0,
-    alpha_p: float = 0.3 * math.pi,
-    alpha_s: float = 0.35 * math.pi,
-    epsilon_p: float = 0.03,
-    epsilon_s: float = 0.3,
-    connectivity: float = 0.5,
-    seed: int | None = 0,
-) -> System:
-    """Return the two-layer model of tumour disease and sepsis, parenchymal and immune cells as adaptive oscillators.
+class TwoLayerSepsisSystem(BaseSystem):
+    """The two-layer model of tumour disease and sepsis, parenchymal and immune cells as adaptive oscillators.
 
     The parenchymal layer of `n_cells` phase oscillators couples through fixed links `a_ij`, drawn as 1 with the
     probability `connectivity`, and adaptive cytokine links `kappa_ij`. The immune layer couples through adaptive links
-    alone, which adapt ten times faster, and every cell couples to its partner in the other layer with strength
-    `sigma`. Following Eqs. (40) and (41) of Berner et al. (2023), `dphi_i/dt = omega_i - sum_j (a_ij + kappa_ij)
-    sin(phi_i - phi_j + alpha) / N - sigma sin(phi_i - phi_i')` and `dkappa_ij/dt = -epsilon (kappa_ij + sin(phi_i -
-    phi_j - beta))`. The healthy state is the frequency-synchronized one, and the age parameter `beta` and a fraction
-    `pathological` of cells with another natural frequency push the layers into desynchronized, pathological states.
+    alone, which adapt ten times faster, and every cell couples to its partner in the other layer with strength `sigma`.
+    Following Eqs. (40) and (41) of Berner et al. (2023), `dphi_i/dt = omega_i - sum_j (a_ij + kappa_ij) sin(phi_i -
+    phi_j + alpha) / N - sigma sin(phi_i - phi_i')` and `dkappa_ij/dt = -epsilon (kappa_ij + sin(phi_i - phi_j -
+    beta))`. The healthy state is the frequency-synchronized one, and the age parameter `beta` and a fraction
+    `pathological` of cells with another natural frequency push the layers into desynchronized, pathological states. The
+    system has the phases `cells.phi`, the parenchymal cells first and the immune cells after, and the couplings
+    `parenchymal_links.kappa` and `immune_links.kappa`.
 
     Args:
         n_cells:
@@ -302,73 +288,114 @@ def two_layer_sepsis(
         seed:
             The seed of the fixed links, the pathological cells, and the initial phases and couplings.
 
-    Returns:
-        system:
-            The system, with the phases `cells.phi`, the parenchymal cells first and the immune cells after, and the
-            couplings `parenchymal_links.kappa` and `immune_links.kappa`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.physiology import two_layer_sepsis
-        >>> two_layer_sepsis(5).elements[0].prepare().size_
+        >>> from skcomplex.systems.biology.physiology import TwoLayerSepsisSystem
+        >>> TwoLayerSepsisSystem(5).prepare().system_.elements[0].prepare().size_
         10
     """
-    rng = np.random.default_rng(seed)
-    n = n_cells
-    parenchyma = nx.complete_graph(range(n), create_using=nx.DiGraph)
-    parenchyma.add_nodes_from(range(n, 2 * n))
-    immune = nx.DiGraph()
-    immune.add_nodes_from(range(2 * n))
-    immune.add_edges_from((i, j) for i in range(n, 2 * n) for j in range(n, 2 * n) if i != j)
-    partners = nx.DiGraph()
-    partners.add_nodes_from(range(2 * n))
-    partners.add_edges_from([(i, i + n) for i in range(n)] + [(i + n, i) for i in range(n)])
-    space = NetworkSpace(parenchyma, layers=[LayerSpec('immune', immune), LayerSpec('partners', partners)])
-    frequencies = np.full(2 * n, omega_immune)
-    sick = rng.random(n) < pathological
-    frequencies[:n] = np.where(sick, omega_pathological, omega_healthy)
-    cells = LatticeElement(
-        'cells',
-        element=CellOscillatorElement,
-        space=space,
-        values={'phi': rng.uniform(0, 2 * math.pi, 2 * n), 'omega': frequencies},
-    )
-    edges = n * (n - 1)
-    parenchymal_links = GroupElement(
-        'parenchymal_links',
-        element=CytokineLinkElement,
-        space=space,
-        on='edges',
-        values={'kappa': rng.uniform(-1, 1, edges), 'a': (rng.random(edges) < connectivity).astype(float)},
-    )
-    immune_links = GroupElement(
-        'immune_links',
-        element=CytokineLinkElement,
-        space=space,
-        on='edges',
-        layer='immune',
-        values={'kappa': rng.uniform(-1, 1, edges)},
-    )
-    return System(
-        elements=[cells, parenchymal_links, immune_links],
-        interactions=[
-            AdaptivePhaseCouplingInteraction(
-                'parenchymal_coupling',
-                cells='cells',
-                links='parenchymal_links',
-                N=n,
-                alpha=alpha_p,
-                beta=beta,
-                epsilon=epsilon_p,
-            ),
-            AdaptivePhaseCouplingInteraction(
-                'immune_coupling',
-                cells='cells',
-                links='immune_links',
-                N=n,
-                alpha=alpha_s,
-                beta=beta,
-                epsilon=epsilon_s,
-            ),
-            LayerCouplingInteraction('interlayer', cells='cells', sigma=sigma, layer='partners'),
-        ],
-    )
+
+    field = 'biology/physiology'
+    topics = ('sepsis', 'adaptive network', 'multiplex', 'phase oscillators', 'ode')
+    references = ('Sawicki et al. 2022', 'Berner et al. 2023')
+    until = 200.0
+    dt = 1.0
+
+    def __init__(
+        self,
+        n_cells: int = 20,
+        *,
+        beta: float = 0.5 * math.pi,
+        sigma: float = 1.0,
+        pathological: float = 0.0,
+        omega_healthy: float = 0.0,
+        omega_pathological: float = 1.0,
+        omega_immune: float = 0.0,
+        alpha_p: float = 0.3 * math.pi,
+        alpha_s: float = 0.35 * math.pi,
+        epsilon_p: float = 0.03,
+        epsilon_s: float = 0.3,
+        connectivity: float = 0.5,
+        seed: int | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_cells = n_cells
+        self.beta = beta
+        self.sigma = sigma
+        self.pathological = pathological
+        self.omega_healthy = omega_healthy
+        self.omega_pathological = omega_pathological
+        self.omega_immune = omega_immune
+        self.alpha_p = alpha_p
+        self.alpha_s = alpha_s
+        self.epsilon_p = epsilon_p
+        self.epsilon_s = epsilon_s
+        self.connectivity = connectivity
+        self.seed = seed
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        rng = np.random.default_rng(self.seed)
+        n = self.n_cells
+        parenchyma = nx.complete_graph(range(n), create_using=nx.DiGraph)
+        parenchyma.add_nodes_from(range(n, 2 * n))
+        immune = nx.DiGraph()
+        immune.add_nodes_from(range(2 * n))
+        immune.add_edges_from((i, j) for i in range(n, 2 * n) for j in range(n, 2 * n) if i != j)
+        partners = nx.DiGraph()
+        partners.add_nodes_from(range(2 * n))
+        partners.add_edges_from([(i, i + n) for i in range(n)] + [(i + n, i) for i in range(n)])
+        space = NetworkSpace(parenchyma, layers=[LayerSpec('immune', immune), LayerSpec('partners', partners)])
+        frequencies = np.full(2 * n, self.omega_immune)
+        sick = rng.random(n) < self.pathological
+        frequencies[:n] = np.where(sick, self.omega_pathological, self.omega_healthy)
+        cells = LatticeElement(
+            'cells',
+            element=CellOscillatorElement,
+            space=space,
+            values={'phi': rng.uniform(0, 2 * math.pi, 2 * n), 'omega': frequencies},
+        )
+        edges = n * (n - 1)
+        parenchymal_links = GroupElement(
+            'parenchymal_links',
+            element=CytokineLinkElement,
+            space=space,
+            on='edges',
+            values={'kappa': rng.uniform(-1, 1, edges), 'a': (rng.random(edges) < self.connectivity).astype(float)},
+        )
+        immune_links = GroupElement(
+            'immune_links',
+            element=CytokineLinkElement,
+            space=space,
+            on='edges',
+            layer='immune',
+            values={'kappa': rng.uniform(-1, 1, edges)},
+        )
+        return System(
+            self.label,
+            elements=[cells, parenchymal_links, immune_links],
+            interactions=[
+                AdaptivePhaseCouplingInteraction(
+                    'parenchymal_coupling',
+                    cells='cells',
+                    links='parenchymal_links',
+                    N=n,
+                    alpha=self.alpha_p,
+                    beta=self.beta,
+                    epsilon=self.epsilon_p,
+                ),
+                AdaptivePhaseCouplingInteraction(
+                    'immune_coupling',
+                    cells='cells',
+                    links='immune_links',
+                    N=n,
+                    alpha=self.alpha_s,
+                    beta=self.beta,
+                    epsilon=self.epsilon_s,
+                ),
+                LayerCouplingInteraction('interlayer', cells='cells', sigma=self.sigma, layer='partners'),
+            ],
+        )

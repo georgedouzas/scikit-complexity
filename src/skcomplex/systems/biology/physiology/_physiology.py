@@ -16,10 +16,9 @@ from ....core.components.interactions import DiffusionInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed, hill
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.excitable import FitzHughNagumoInteraction
 
 
@@ -93,6 +92,8 @@ class MackeyGlassElement(Element):
         6.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -126,23 +127,11 @@ class MackeyGlassElement(Element):
         return [RateLaw(s.x, s.beta * history * (1 - hill(history, 1, s.n)) - s.gamma * s.x)]
 
 
-@register_system(
-    field='biology/physiology',
-    tags=('field', 'excitable media', 'spirals', 'pde'),
-    references=('FitzHugh 1961', 'Nagumo, Arimoto, and Yoshizawa 1962', 'Gros 2015'),
-    defaults={'until': 200.0, 'dt': 2.0, 'solver': RK4Solver(dt=0.05)},
-)
-def fitzhugh_nagumo(
-    shape: Sequence[int] = (100, 100),
-    *,
-    D: float = 1.0,
-    a: float = 0.7,
-    b: float = 0.8,
-    epsilon: float = 0.02,
-) -> System:
-    """Return the FitzHugh-Nagumo excitable medium, started from a broken wave that curls into a spiral.
+class FitzhughNagumoSystem(BaseSystem):
+    """The FitzHugh-Nagumo excitable medium, started from a broken wave that curls into a spiral.
 
-    The upper half starts excited and the left half refractory, so the free end of the wave rotates.
+    The upper half starts excited and the left half refractory, so the free end of the wave rotates. The system has the
+    potential `medium.u` and the recovery `medium.v`.
 
     Args:
         shape:
@@ -160,43 +149,65 @@ def fitzhugh_nagumo(
         epsilon:
             The time scale of the recovery.
 
-    Returns:
-        system:
-            The system, with the potential `medium.u` and the recovery `medium.v`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.physiology import fitzhugh_nagumo
-        >>> fitzhugh_nagumo((20, 20)).interactions[0].epsilon
+        >>> from skcomplex.systems.biology.physiology import FitzhughNagumoSystem
+        >>> FitzhughNagumoSystem((20, 20)).prepare().system_.interactions[0].epsilon
         0.02
     """
-    rows, columns = shape
-    u, v = np.full(shape, -1.2), np.full(shape, -0.62)
-    u[: rows // 2, :] = 1.5
-    v[:, : columns // 2] = 1.0
-    space = LatticeSpace((rows, columns), boundary='reflecting')
-    medium = FieldElement('medium', element=FitzHughNagumoElement, space=space, values={'u': u, 'v': v})
-    kinetics = FitzHughNagumoInteraction('kinetics', target='medium', fast='u', slow='v', a=a, b=b, epsilon=epsilon)
-    diffusion = DiffusionInteraction('diffusion', target='medium', state='u', coefficient=D)
-    return System(elements=[medium], interactions=[kinetics, diffusion])
+
+    field = 'biology/physiology'
+    topics = ('field', 'excitable media', 'spirals', 'pde')
+    references = ('FitzHugh 1961', 'Nagumo, Arimoto, and Yoshizawa 1962', 'Gros 2015')
+    until = 200.0
+    dt = 2.0
+    solver = RK4Solver(dt=0.05)
+
+    def __init__(
+        self,
+        shape: Sequence[int] = (100, 100),
+        *,
+        D: float = 1.0,
+        a: float = 0.7,
+        b: float = 0.8,
+        epsilon: float = 0.02,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.D = D
+        self.a = a
+        self.b = b
+        self.epsilon = epsilon
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        rows, columns = self.shape
+        u, v = np.full(self.shape, -1.2), np.full(self.shape, -0.62)
+        u[: rows // 2, :] = 1.5
+        v[:, : columns // 2] = 1.0
+        space = LatticeSpace((rows, columns), boundary='reflecting')
+        medium = FieldElement('medium', element=FitzHughNagumoElement, space=space, values={'u': u, 'v': v})
+        kinetics = FitzHughNagumoInteraction(
+            'kinetics',
+            target='medium',
+            fast='u',
+            slow='v',
+            a=self.a,
+            b=self.b,
+            epsilon=self.epsilon,
+        )
+        diffusion = DiffusionInteraction('diffusion', target='medium', state='u', coefficient=self.D)
+        return System(self.label, elements=[medium], interactions=[kinetics, diffusion])
 
 
-@register_system(
-    field='biology/physiology',
-    tags=('chaos', 'delay', 'physiology'),
-    references=('Mackey and Glass 1977', 'Erneux 2009'),
-    defaults={'until': 500.0, 'dt': 0.5},
-)
-def mackey_glass(
-    x: float = 0.5,
-    *,
-    beta: float = 0.2,
-    gamma: float = 0.1,
-    n: float = 10.0,
-    tau: float = 17.0,
-) -> System:
-    """Return the Mackey-Glass equation `x' = beta x(t - tau) / (1 + x(t - tau)^n) - gamma x` of blood cell production.
+class MackeyGlassSystem(BaseSystem):
+    """The Mackey-Glass equation `x' = beta x(t - tau) / (1 + x(t - tau)^n) - gamma x` of blood cell production.
 
-    It is periodic for `tau = 6` and chaotic for `tau = 17`. The history before the start is the initial value.
+    It is periodic for `tau = 6` and chaotic for `tau = 17`. The history before the start is the initial value. The
+    system has the concentration `cells.x`.
 
     Args:
         x:
@@ -214,13 +225,41 @@ def mackey_glass(
         tau:
             The delay of production.
 
-    Returns:
-        system:
-            The system, with the concentration `cells.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.physiology import mackey_glass
-        >>> mackey_glass(tau=6.0).elements[0].tau
+        >>> from skcomplex.systems.biology.physiology import MackeyGlassSystem
+        >>> MackeyGlassSystem(tau=6.0).prepare().system_.elements[0].tau
         6.0
     """
-    return System(elements=[MackeyGlassElement('cells', x=x, beta=beta, gamma=gamma, n=n, tau=tau)])
+
+    field = 'biology/physiology'
+    topics = ('chaos', 'delay', 'physiology')
+    references = ('Mackey and Glass 1977', 'Erneux 2009')
+    until = 500.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        x: float = 0.5,
+        *,
+        beta: float = 0.2,
+        gamma: float = 0.1,
+        n: float = 10.0,
+        tau: float = 17.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.beta = beta
+        self.gamma = gamma
+        self.n = n
+        self.tau = tau
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        return System(
+            self.label,
+            elements=[MackeyGlassElement('cells', x=self.x, beta=self.beta, gamma=self.gamma, n=self.n, tau=self.tau)],
+        )

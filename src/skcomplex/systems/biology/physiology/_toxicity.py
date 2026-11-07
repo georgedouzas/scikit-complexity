@@ -11,9 +11,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, ReactionInteraction
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.pharmacokinetics import DosingInteraction
 
 
@@ -23,8 +22,8 @@ class DrugToxicityElement(Element):
     The plasma concentration follows `dc/dt = u(t) - k c`, where the infusion `u` is `dose` for `width` time units
     every `period`, and the toxicity `dT/dt = c - eta T`, which the metabolism lowers at the rate `eta`.
 
-    The element holds the states and parameters and has no laws of its own: the interactions of `drug_toxicity` read its
-    parameters.
+    The element holds the states and parameters and has no laws of its own: the interactions of `DrugToxicitySystem`
+    read its parameters.
 
     Args:
         label:
@@ -88,25 +87,12 @@ class DrugToxicityElement(Element):
         self.doses = doses
 
 
-@register_system(
-    field='biology/physiology',
-    tags=('pharmacology', 'toxicity', 'ode', 'dosing'),
-    references=('Padmanabhan, Meskin, and Al Moustafa 2021', 'Martin and Teo 1994'),
-    defaults={'until': 84.0, 'dt': 0.2},
-)
-def drug_toxicity(
-    *,
-    k: float = 0.5,
-    eta: float = 0.05,
-    dose: float = 1.0,
-    period: float = 7.0,
-    width: float = 1.0,
-    doses: int = 6,
-) -> System:
-    """Return the toxicity a weekly drug accumulates in the body, which the metabolism clears once the doses stop.
+class DrugToxicitySystem(BaseSystem):
+    """The toxicity a weekly drug accumulates in the body, which the metabolism clears once the doses stop.
 
-    Every dose raises the plasma concentration, which the body eliminates within days, and the toxicity integrates
-    the concentration, `dT/dt = c - eta T`. With `eta = 0` the toxicity is the cumulative exposure and never falls.
+    Every dose raises the plasma concentration, which the body eliminates within days, and the toxicity integrates the
+    concentration, `dT/dt = c - eta T`. With `eta = 0` the toxicity is the cumulative exposure and never falls. The
+    system has the concentration `patient.c` and the toxicity `patient.T`.
 
     Args:
         k:
@@ -127,38 +113,73 @@ def drug_toxicity(
         doses:
             The number of doses.
 
-    Returns:
-        system:
-            The system, with the concentration `patient.c` and the toxicity `patient.T`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.physiology import drug_toxicity
-        >>> drug_toxicity(eta=0.0).elements[0].eta
+        >>> from skcomplex.systems.biology.physiology import DrugToxicitySystem
+        >>> DrugToxicitySystem(eta=0.0).prepare().system_.elements[0].eta
         0.0
     """
-    patient = DrugToxicityElement('patient', k=k, eta=eta, dose=dose, period=period, width=width, doses=doses)
-    interactions = [
-        DosingInteraction(
-            'dosing',
-            target='patient',
-            state='c',
-            dose=lambda s: s.target.dose,
-            period=period,
-            width=width,
-            count=doses,
-        ),
-        ReactionInteraction(
-            'clearance',
-            target='patient',
-            reactants={'c': 1},
-            propensity=lambda s: s.target.k * s.target.c,
-        ),
-        RateInteraction('toxicity', target='patient', state='T', rate=lambda s: s.target.c),
-        ReactionInteraction(
-            'toxicity_recovery',
-            target='patient',
-            reactants={'T': 1},
-            propensity=lambda s: s.target.eta * s.target.T,
-        ),
-    ]
-    return System(elements=[patient], interactions=interactions)
+
+    field = 'biology/physiology'
+    topics = ('pharmacology', 'toxicity', 'ode', 'dosing')
+    references = ('Padmanabhan, Meskin, and Al Moustafa 2021', 'Martin and Teo 1994')
+    until = 84.0
+    dt = 0.2
+
+    def __init__(
+        self,
+        *,
+        k: float = 0.5,
+        eta: float = 0.05,
+        dose: float = 1.0,
+        period: float = 7.0,
+        width: float = 1.0,
+        doses: int = 6,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.k = k
+        self.eta = eta
+        self.dose = dose
+        self.period = period
+        self.width = width
+        self.doses = doses
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        patient = DrugToxicityElement(
+            'patient',
+            k=self.k,
+            eta=self.eta,
+            dose=self.dose,
+            period=self.period,
+            width=self.width,
+            doses=self.doses,
+        )
+        interactions = [
+            DosingInteraction(
+                'dosing',
+                target='patient',
+                state='c',
+                dose=lambda s: s.target.dose,
+                period=self.period,
+                width=self.width,
+                count=self.doses,
+            ),
+            ReactionInteraction(
+                'clearance',
+                target='patient',
+                reactants={'c': 1},
+                propensity=lambda s: s.target.k * s.target.c,
+            ),
+            RateInteraction('toxicity', target='patient', state='T', rate=lambda s: s.target.c),
+            ReactionInteraction(
+                'toxicity_recovery',
+                target='patient',
+                reactants={'T': 1},
+                propensity=lambda s: s.target.eta * s.target.T,
+            ),
+        ]
+        return System(self.label, elements=[patient], interactions=interactions)
