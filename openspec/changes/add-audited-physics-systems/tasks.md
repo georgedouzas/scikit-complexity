@@ -26,5 +26,5 @@
 
 ## 5. Gallery, inventory, and checks
 
-- [ ] 5.1 Give every system a gallery example and an inventory entry, and pass the inventory and gallery coverage checks
-- [ ] 5.2 Run the formatting and the checks on the changed files, and the tests of the touched subfields and the catalog
+- [x] 5.1 Give every system a gallery example and an inventory entry, and pass the inventory and gallery coverage checks
+- [x] 5.2 Run the formatting and the checks on the changed files, and the tests of the touched subfields and the catalog
