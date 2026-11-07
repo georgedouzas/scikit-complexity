@@ -181,9 +181,12 @@ No component serves systems of two subfields outside `common`. One module import
   `celestial_mechanics._orbits`, `SoftSphereInteraction` into `active_matter._collective`, and
   `PottsSamplingInteraction` and `XYSamplingInteraction` into `statistical_mechanics._spins`.
 - **Kept in `physics.common` although one system uses them.** `ConstantForceInteraction` and
-  `LennardJonesInteraction`, since the LAMMPS tables of `common.particles` and core tests read them. The quantum family,
-  `SiteElement`, `SpinElement`, `site_space`, and `spin_space`, since it is one set of Hilbert-space species with
-  `ModeElement` and `QubitElement`, which no system uses but core tests do.
+  `LennardJonesInteraction`, since the LAMMPS tables of `common.particles` import them, so the layout test counts them
+  as shared.
+- **Quantum species.** `SiteElement` and `site_space` are folded into `waves._quantum`, and `SpinElement` and
+  `spin_space` into `statistical_mechanics._quantum_spins`. `ModeElement`, `mode_space`, and `QubitElement`, which no
+  system uses, stay in `common.quantum`. The core tests that need a spin define their own test spin in the shared
+  conftest instead of importing a system module.
 - **Kept as modules of their subfield.** Analyses that no system uses: `EarlyWarningAnalysis`,
   `CracklingNoiseAnalysis`, `KineticTemperatureAnalysis`, `MaxwellBoltzmannAnalysis`, and `SusceptibilityAnalysis`.
 - **Copied instead of shared.** `LorenzElement` of `mathematics.common.flows`, which

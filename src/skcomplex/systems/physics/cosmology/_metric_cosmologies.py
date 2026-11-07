@@ -335,7 +335,7 @@ def oppenheimer_snyder_collapse(
 
     Examples:
         >>> from skcomplex.systems.physics.cosmology import oppenheimer_snyder_collapse
-        >>> round(oppenheimer_snyder_collapse(4).elements[0].values['energy'][-1], 3)
+        >>> round(float(oppenheimer_snyder_collapse(4).elements[0].values['energy'][-1]), 3)
         -0.1
     """
     if radius <= 2 * mass:

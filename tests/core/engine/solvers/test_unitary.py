@@ -17,7 +17,9 @@ from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import JumpTrajectoriesSolver, LindbladSolver, UnitarySolver
 from skcomplex.core.errors import SolverError
 from skcomplex.core.specs import HilbertSpec, ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from skcomplex.systems.physics.common.quantum import QUBIT, QubitElement, SpinElement
+from skcomplex.systems.physics.common.quantum import QUBIT, QubitElement
+
+from ....conftest import SpinElement
 
 OMEGA = 2.0
 

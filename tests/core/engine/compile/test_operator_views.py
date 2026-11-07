@@ -14,16 +14,10 @@ from skcomplex.core.components.spaces import LatticeSpace, NetworkSpace
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.compile import OperatorCompiler
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.specs import LocalOperatorSpec, OperatorSpec
-from skcomplex.systems.physics.common.quantum import (
-    ModeElement,
-    QubitElement,
-    SiteElement,
-    SpinElement,
-    mode_space,
-    site_space,
-    spin_space,
-)
+from skcomplex.core.specs import HilbertSpec, LocalOperatorSpec, OperatorSpec
+from skcomplex.systems.physics.common.quantum import ModeElement, QubitElement, mode_space
+
+from ....conftest import SpinElement, _spin_space
 
 
 def _namespace(element, key):
@@ -34,7 +28,7 @@ def _namespace(element, key):
 
 def test_spin_local_operators_match_qutip():
     """Test that spin operators are QuTiP's angular momentum matrices."""
-    operators = OperatorCompiler._view_of(SpinElement('s', hilbert=spin_space(1))).local_operators()
+    operators = OperatorCompiler._view_of(SpinElement('s', hilbert=_spin_space(1))).local_operators()
     for name, component in (('x', 'x'), ('y', 'y'), ('z', 'z'), ('plus', '+'), ('minus', '-')):
         assert np.allclose(operators[name].matrix.toarray(), qutip.jmat(1, component).full())
 
@@ -56,7 +50,7 @@ def test_mode_local_operators_match_qutip():
 def test_dimension_rejects_an_element_without_a_hilbert_space():
     """Test that a subsystem without a Hilbert space raises an error."""
     with pytest.raises(ValidationError, match='takes no HilbertSpec'):
-        _ = OperatorCompiler._view_of(SiteElement('p')).dimension
+        _ = OperatorCompiler._view_of(SpinElement('p', hilbert=None)).dimension
 
 
 def test_initial_vector_resolves_labels_and_vectors():
@@ -139,9 +133,17 @@ def test_neighbor_pairs_list_lattice_and_network_bonds():
     assert NetworkSpace(nx.path_graph(3)).prepare()._neighbor_pairs() == [(0, 1), (1, 2)]
 
 
-def test_site_operators_hold_projectors_and_the_adjacency():
-    """Test that a particle on sites has projectors, the adjacency, and the Laplacian of its network."""
-    site = SiteElement('p', hilbert=site_space(NetworkSpace(nx.cycle_graph(4)), projectors=True))
+def test_operators_keep_the_projectors_and_the_adjacency_of_their_space():
+    """Test that an element's operators keep the projectors, the adjacency, and the Laplacian of its Hilbert space."""
+    adjacency = nx.to_numpy_array(nx.cycle_graph(4))
+    projector = np.zeros((4, 4))
+    projector[2, 2] = 1.0
+    operators = {
+        'adjacency': (adjacency, True),
+        'laplacian': (adjacency - np.diag(adjacency.sum(axis=1)), True),
+        'site_2': (projector, True),
+    }
+    site = SpinElement('p', psi=0, hilbert=HilbertSpec(4, operators, display=None))
     operators = OperatorCompiler._view_of(site).local_operators()
     assert operators['site_2'].matrix.toarray()[2, 2] == 1
     assert operators['adjacency'].matrix.sum() == 8

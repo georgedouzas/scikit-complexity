@@ -273,7 +273,7 @@ def test_default_runs_of_a_stochastic_system_repeat():
 
 
 # Fields whose component modules are not yet folded into their systems. The change that folds a field removes it here.
-UNFOLDED = ('physics',)
+UNFOLDED: tuple[str, ...] = ()
 
 
 def _imported_modules(path: Path, field: Path) -> set[Path]:

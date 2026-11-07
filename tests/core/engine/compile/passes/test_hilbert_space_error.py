@@ -7,9 +7,8 @@ from skcomplex.core.components.system import System
 from skcomplex.core.engine.compile import OperatorCompiler
 from skcomplex.core.engine.compile.passes import HilbertSpaceError
 from skcomplex.core.engine.solvers import LindbladSolver
-from skcomplex.systems.physics.common.quantum import (
-    SpinElement,
-)
+
+from .....conftest import SpinElement
 
 
 def test_compiler_rejects_too_large_spaces():

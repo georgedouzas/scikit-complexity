@@ -12,8 +12,9 @@ from skcomplex.core.errors import AnalysisError, ParameterError, ValidationError
 from skcomplex.core.specs import SectorSpec
 from skcomplex.systems import create_system, describe
 from skcomplex.systems.biology.common.populations import PopulationElement
-from skcomplex.systems.physics.common.quantum import SpinElement
 from skcomplex.systems.physics.statistical_mechanics import total_magnetization
+
+from ...conftest import SpinElement
 
 
 def _operator(kind, source, **settings):
