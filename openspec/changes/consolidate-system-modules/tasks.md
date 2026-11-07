@@ -26,5 +26,5 @@
 
 - [x] 4.1 Every subfield package exports the same public names as before
 - [x] 4.2 Ruff, black, mypy, pydoclint, the import contracts, and the layout test pass
-- [ ] 4.3 The catalog, systems, and doctest tests pass in batches, and the inventory and gallery checks pass
-- [ ] 4.4 The full suite and the docs build pass in CI
+- [x] 4.3 The catalog, systems, and doctest tests pass in batches, and the inventory and gallery checks pass
+- [x] 4.4 The full suite and the docs build pass in CI
