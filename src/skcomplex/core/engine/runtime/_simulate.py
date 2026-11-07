@@ -152,12 +152,12 @@ def simulate(
     if not isinstance(system, BaseSystem):
         error_msg = f'simulate takes a system, not {system!r}.'
         raise ValidationError(error_msg)
-    settings = type(system)
-    end = settings.until if until is None else until
+    settings = system.get_run_settings()
+    end = settings['until'] if until is None else until
     if end is None:
         error_msg = f'{type(system).__name__} has no tuned end time. Pass `until`.'
         raise ValidationError(error_msg)
-    tuned = settings.solver if solver is None else solver
+    tuned = settings['solver'] if solver is None else solver
     stepper = None if tuned is None else clone(tuned)
     tags = system.get_tags()
     if stepper is not None:
@@ -165,15 +165,15 @@ def simulate(
     if backend is not None:
         _check_support(backend, 'backend', tags)
     composite = system.prepare().system_
-    tuned_observables = () if composite is system else settings.observables
+    tuned_observables = () if composite is system else settings['observables']
     simulation = Simulation(
         composite,
         solver=_choose_solver(tags) if stepper is None else stepper,
         backend=backend,
-        dt=settings.dt if dt is None else dt,
+        dt=settings['dt'] if dt is None else dt,
         observers=observers,
         observables=observables or tuned_observables,
-        initial_state=settings.initial_state if initial_state is None else initial_state,
+        initial_state=settings['initial_state'] if initial_state is None else initial_state,
         random_state=random_state,
         until=end,
     )

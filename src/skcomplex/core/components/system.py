@@ -10,7 +10,7 @@ from abc import abstractmethod
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from types import SimpleNamespace
-from typing import ClassVar
+from typing import ClassVar, TypedDict
 
 from ..base import BaseConfig
 from ..errors import RoleElementError, TagError, ValidationError
@@ -19,6 +19,16 @@ from .base import BasePart
 from .elements import BaseElement
 from .interactions import BaseInteraction
 from .spaces import BaseSpace, BaseTime
+
+
+class RunSettings(TypedDict):
+    """Tuned run settings of a system, which `simulate` uses for every argument a call leaves out."""
+
+    until: float | None
+    dt: float | None
+    solver: BaseConfig | None
+    observables: Sequence[ObservableSpec]
+    initial_state: Mapping[str, object] | None
 
 
 class BaseSystem(BasePart[BaseSpace, SimpleNamespace]):
@@ -145,6 +155,29 @@ class BaseSystem(BasePart[BaseSpace, SimpleNamespace]):
     def _get_tags(self) -> Tags:
         """Return the tags derived from the parts built from the current model parameters."""
         return self._pass_parameters()._get_tags()
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings that `simulate` uses for every argument a call leaves out.
+
+        The settings are the class attributes `until`, `dt`, `solver`, `observables`, and `initial_state`. A system
+        whose settings depend on its model parameters or on its built parts overrides this method.
+
+        Returns:
+            settings:
+                The tuned run settings by name.
+
+        Examples:
+            >>> from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
+            >>> sorted(GrayScottSystem().get_run_settings())
+            ['dt', 'initial_state', 'observables', 'solver', 'until']
+        """
+        return RunSettings(
+            until=self.until,
+            dt=self.dt,
+            solver=self.solver,
+            observables=self.observables,
+            initial_state=self.initial_state,
+        )
 
 
 class System(BaseSystem):
