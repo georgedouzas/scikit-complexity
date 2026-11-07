@@ -14,7 +14,7 @@ orientation wins. The view shows the spins of a 256 x 256 torus 100 sweeps after
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import InformationAnalysis
+from skcomplex.core.analysis import information
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -54,23 +54,22 @@ plt.show()
 # %%
 # Redundancy peaks at the critical point
 # --------------------------------------
-# The O-information of a block of spins, the kind `'o-information'` of `InformationAnalysis`, is the total
+# The O-information of a block of spins, the kind `'o-information'` of `information`, is the total
 # correlation minus the dual total correlation: positive when the spins share the same information, redundancy, and
 # negative when information lies only in their joint state, synergy. Ising spins should be redundant at every
 # temperature, and their redundancy should peak at `T_c`, where correlations span the lattice (Scagliarini et al. 2022).
 # Every 2 x 2 block of a 48 x 48 lattice, sampled every 10 sweeps after a burn-in of 300, is one sample of four binary
 # variables.
 
-information = []
+redundancies = []
 for temperature in temperatures:
     system_t = create_system(SYSTEM, size=48, temperature=temperature, initial='up')
     run = Simulation(system_t, dt=1, random_state=1).prepare().run(until=600)
     frames = np.asarray(run.trajectory_.values('spins.spin')[300::10]).reshape(-1, 48, 48)
     blocks = frames.reshape(-1, 24, 2, 24, 2).transpose(0, 1, 3, 2, 4).reshape(-1, 4)
-    analysis = InformationAnalysis('o-information').prepare((blocks > 0).astype(int)).run()
-    information.append(analysis.information_)
+    redundancies.append(information((blocks > 0).astype(int), kind='o-information').information)
 fig, ax = plt.subplots(figsize=(7, 4))
-ax.plot(temperatures, information, 'o-')
+ax.plot(temperatures, redundancies, 'o-')
 ax.axvline(2 / np.log(1 + np.sqrt(2)), color='gray', linestyle='--', label='T_c')
 ax.set_xlabel('temperature T / J')
 ax.set_ylabel('O-information of a 2 x 2 block (bits)')

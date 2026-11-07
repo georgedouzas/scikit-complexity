@@ -16,7 +16,7 @@ learning. The view shows the histogram of the temperatures of the agents, which 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import DistributionAnalysis, ErgodicityAnalysis, EventAnalysis, FitAnalysis
+from skcomplex.core.analysis import DistributionAnalysis, FitAnalysis, ergodicity, events
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -45,7 +45,7 @@ rewards = np.asarray(trajectory.values('agents.reward')).mean(axis=1)
 # high for frozen runs at low `k`, near 0 for ergodic runs at high `k`, and in between at the evolved temperatures.
 
 threshold = float(np.quantile(fitness.min(axis=1), 0.97))
-sizes = EventAnalysis('excursions').prepare((fitness < threshold).sum(axis=1)).run().sizes_
+sizes = events((fitness < threshold).sum(axis=1), kind='excursions').sizes
 fit = FitAnalysis(discrete=True, minimum=5).prepare(sizes).run()
 histogram = DistributionAnalysis('histogram', bins=15, log=True).prepare(sizes).run()
 edges, density = histogram.edges_, histogram.density_
@@ -65,8 +65,8 @@ for scale in scales:
         .mean(axis=1)[150:]
         for run in range(4)
     ]
-    distance = ErgodicityAnalysis('distance').prepare(np.asarray(runs)).run()
-    coefficients.append(distance.ergodicity_distance_)
+    distance = ergodicity(np.asarray(runs), kind='distance')
+    coefficients.append(distance.ergodicity_distance)
 
 fig, (spread, cascades, edge) = plt.subplots(1, 3, figsize=(14, 4))
 spread.hist(temperatures[0], bins=20, range=(0, 2), density=True, alpha=0.5, label='initial')

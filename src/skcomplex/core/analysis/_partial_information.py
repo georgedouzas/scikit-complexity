@@ -5,13 +5,14 @@
 
 import math
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 import numpy as np
 
 from ..errors import AnalysisError
-from ..types import DataKind
-from ._base import BaseAnalysis
-from ._information import InformationAnalysis
+from ..types import Array
+from ._base import _import, _read_series
+from ._information import _dit_distribution
 from .types import Source
 
 REDUNDANCIES = {
@@ -25,14 +26,59 @@ REDUNDANCIES = {
 SERIES = 3
 
 
-class PartialInformationAnalysis(BaseAnalysis):
-    """Partial information decomposition of what two series of symbols tell about a third, the target.
+@dataclass(frozen=True)
+class PartialInformationResult:
+    """Partial information decomposition of what two sources give about a target.
+
+    Args:
+        values:
+            The symbols of the two sources and the target, one per column.
+
+        labels:
+            The label of every series.
+
+        redundancy:
+            The information both sources give.
+
+        unique_first:
+            The information only the first source gives.
+
+        unique_second:
+            The information only the second source gives.
+
+        synergy:
+            The information only the two sources together give.
+
+        total:
+            The mutual information of the two sources together with the target, the sum of the four parts.
+    """
+
+    values: Array
+    labels: list[str]
+    redundancy: float
+    unique_first: float
+    unique_second: float
+    synergy: float
+    total: float
+
+
+def partial_information(
+    source: Source,
+    *,
+    variables: Sequence[str] | None = None,
+    redundancy: str = 'mmi',
+    base: float = 2.0,
+) -> PartialInformationResult:
+    """Return the partial information decomposition of what two sources give about a target.
 
     The source holds three series: the first source, the second source, and the target. The mutual information of the
     two sources together with the target splits into the information both give, the information only one of them
     gives, and the information only the two together give, with a redundancy measure of `dit`.
 
     Args:
+        source:
+            The trajectory, or an array of three columns: the two sources and the target.
+
         variables:
             The variables of a trajectory to read, the two sources and the target, or `None` for every scalar series.
 
@@ -43,76 +89,48 @@ class PartialInformationAnalysis(BaseAnalysis):
         base:
             The base of the logarithm, 2 for bits.
 
-    Attributes:
-        values_:
-            The symbols of the two sources and the target, one per column.
+    Returns:
+        result:
+            The symbols and the four parts of the information with their sum.
 
-        labels_:
-            The label of every series.
-
-        redundancy_:
-            The information both sources give.
-
-        unique_first_:
-            The information only the first source gives.
-
-        unique_second_:
-            The information only the second source gives.
-
-        synergy_:
-            The information only the two sources together give.
-
-        total_:
-            The mutual information of the two sources together with the target, the sum of the four parts.
+    Raises:
+        AnalysisError:
+            The redundancy measure is unknown, the base is not positive, or the source does not hold three series.
 
     Examples:
-        >>> from skcomplex.core.analysis import PartialInformationAnalysis
+        >>> from skcomplex.core.analysis import partial_information
         >>> xor = [[0, 0, 0], [0, 1, 1], [1, 0, 1], [1, 1, 0]]
-        >>> parts = PartialInformationAnalysis().prepare(xor).run()
-        >>> round(parts.synergy_, 6), round(parts.redundancy_, 6)
+        >>> parts = partial_information(xor)
+        >>> round(parts.synergy, 6), round(parts.redundancy, 6)
         (1.0, 0.0)
     """
-
-    def __init__(self, variables: Sequence[str] | None = None, *, redundancy: str = 'mmi', base: float = 2.0) -> None:
-        self.variables = variables
-        self.redundancy = redundancy
-        self.base = base
-
-    def _check(self) -> None:
-        """Validate the redundancy measure and the base."""
-        if self.redundancy not in REDUNDANCIES:
-            error_msg = (
-                f'{type(self).__name__} has redundancy={self.redundancy!r}. Use one of {", ".join(REDUNDANCIES)}.'
-            )
-            raise AnalysisError(error_msg)
-        if self.base <= 0:
-            error_msg = f'{type(self).__name__} has base={self.base!r}. Use a positive base.'
-            raise AnalysisError(error_msg)
-
-    def _get_data_kind(self) -> DataKind:
-        """Return the series kind."""
-        return DataKind.SERIES
-
-    def _prepare(self, source: Source) -> None:
-        """Read the two sources and the target as three columns."""
-        series = self._read_series(source, self.variables)
-        if series.values.shape[1] != SERIES:
-            error_msg = (
-                f'{type(self).__name__} reads two sources and a target, but the source has {series.values.shape[1]} '
-                'series. Select three with `variables` or pass an array of three columns.'
-            )
-            raise AnalysisError(error_msg)
-        self.values_ = series.values
-        self.labels_ = series.labels
-
-    def _run(self, inputs: object = None) -> None:
-        """Decompose the information of the sources about the target."""
-        columns = np.column_stack([column.ravel() for column in self.values_.T])
-        measure = getattr(self._import('dit').pid, REDUNDANCIES[self.redundancy])
-        lattice = measure(InformationAnalysis._dit_distribution(columns), [[0], [1]], [2])
-        scale = math.log(2) / math.log(self.base)
-        self.redundancy_ = float(lattice.get_pi(((0,), (1,)))) * scale
-        self.unique_first_ = float(lattice.get_pi(((0,),))) * scale
-        self.unique_second_ = float(lattice.get_pi(((1,),))) * scale
-        self.synergy_ = float(lattice.get_pi(((0, 1),))) * scale
-        self.total_ = self.redundancy_ + self.unique_first_ + self.unique_second_ + self.synergy_
+    if redundancy not in REDUNDANCIES:
+        error_msg = f'partial_information has redundancy={redundancy!r}. Use one of {", ".join(REDUNDANCIES)}.'
+        raise AnalysisError(error_msg)
+    if base <= 0:
+        error_msg = f'partial_information has base={base!r}. Use a positive base.'
+        raise AnalysisError(error_msg)
+    series = _read_series(source, variables)
+    if series.values.shape[1] != SERIES:
+        error_msg = (
+            f'partial_information reads two sources and a target, but the source has {series.values.shape[1]} series. '
+            'Select three with `variables` or pass an array of three columns.'
+        )
+        raise AnalysisError(error_msg)
+    columns = np.column_stack([column.ravel() for column in series.values.T])
+    measure = getattr(_import('dit').pid, REDUNDANCIES[redundancy])
+    lattice = measure(_dit_distribution(columns), [[0], [1]], [2])
+    scale = math.log(2) / math.log(base)
+    shared = float(lattice.get_pi(((0,), (1,)))) * scale
+    unique_first = float(lattice.get_pi(((0,),))) * scale
+    unique_second = float(lattice.get_pi(((1,),))) * scale
+    synergy = float(lattice.get_pi(((0, 1),))) * scale
+    return PartialInformationResult(
+        series.values,
+        series.labels,
+        shared,
+        unique_first,
+        unique_second,
+        synergy,
+        shared + unique_first + unique_second + synergy,
+    )

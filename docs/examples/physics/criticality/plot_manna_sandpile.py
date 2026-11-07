@@ -16,7 +16,7 @@ empty (dark) or holding one grain (bright), between avalanches.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import DistributionAnalysis, EventAnalysis
+from skcomplex.core.analysis import DistributionAnalysis, events
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -36,12 +36,11 @@ simulation = Simulation(system, dt=30, observers=[observer], random_state=0).pre
 # Manna exponent, over two decades, up to a cutoff set by the size of the lattice where it falls off steeply.
 
 heights = simulation.trajectory_.values('pile.height').mean(axis=1)
-found = (
-    EventAnalysis('excursions')
-    .prepare([record for record in simulation.trajectory_.events if record.time > 3000 and record.size > 0])
-    .run()
+found = events(
+    [record for record in simulation.trajectory_.events if record.time > 3000 and record.size > 0],
+    kind='excursions',
 )
-histogram = DistributionAnalysis('histogram', bins=20, log=True).prepare(found.sizes_).run()
+histogram = DistributionAnalysis('histogram', bins=20, log=True).prepare(found.sizes).run()
 edges, density = histogram.edges_, histogram.density_
 centers = np.sqrt(edges[1:] * edges[:-1])
 shown = density > 0
@@ -53,7 +52,7 @@ pile.axhline(0.68, color='gray', linestyle='--', label='critical density 0.68')
 pile.legend()
 pile.set_ylabel('grains per site')
 pile.set_title('The pile drives itself to the critical state')
-laws.loglog(centers[shown], density[shown], 'o', label=f'{len(found.sizes_)} avalanches')
+laws.loglog(centers[shown], density[shown], 'o', label=f'{len(found.sizes)} avalanches')
 guide = np.logspace(0, 2.5, 50)
 reference = density[shown][0] * (centers[shown][0] / guide) ** 1.27
 laws.loglog(guide, reference, color='black', label='s^-1.27')

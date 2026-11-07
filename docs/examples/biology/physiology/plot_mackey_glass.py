@@ -11,7 +11,7 @@ feedback makes the concentration oscillate irregularly, a chaotic signal that ne
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.analysis import EmbeddingAnalysis
+from skcomplex.core.analysis import embedding
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -32,8 +32,7 @@ fig, axes = plt.subplots(1, 2, figsize=(10, 4.5))
 for ax, tau in zip(axes, [6.0, 17.0], strict=True):
     trajectory = Simulation(create_system(SYSTEM, tau=tau), dt=0.5).prepare().run(until=1000).trajectory_
     values = trajectory.values('cells.x')[trajectory.times > 200]
-    embedding = EmbeddingAnalysis(delay=int(tau / 0.5), dimension=2).prepare(values).run()
-    vectors = embedding.points_
+    vectors = embedding(values, delay=int(tau / 0.5), dimension=2).points
     ax.plot(vectors[:, 1], vectors[:, 0], linewidth=0.6)
     ax.set_xlabel('x(t)')
     ax.set_ylabel('x(t - tau)')

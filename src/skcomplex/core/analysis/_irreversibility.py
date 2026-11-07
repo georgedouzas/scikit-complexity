@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
@@ -11,9 +12,9 @@ from scipy import stats
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..types import Array, DataKind
-from ._base import BaseAnalysis
-from ._markov import MarkovAnalysis
+from ..types import Array
+from ._base import _check_choice, _check_settings, _read_path, _read_series
+from ._markov import _stationary_distribution, _transition_counts
 from .types import Source
 
 MIN_PAIRS = 3
@@ -53,8 +54,110 @@ ENSEMBLE_KINDS = (
 )
 
 
-class IrreversibilityAnalysis(BaseAnalysis):
-    """Irreversibility of jump and Langevin dynamics, of one kind.
+@dataclass(frozen=True)
+class IrreversibilityResult:
+    """Irreversibility of a process: its entropy production, detailed balance, fluctuation relations, or response.
+
+    Args:
+        values:
+            The rate matrix, the paths one row per path, or the samples the kind reads.
+
+        duration:
+            The duration of the jump paths, the setting or the duration of a trajectory.
+
+        entropy_production:
+            The entropy production per unit time in units of `k_B`, of the entropy production kinds.
+
+        entropies:
+            The entropy produced along every path, of `'jump-entropy-production'` and
+            `'langevin-entropy-production'`.
+
+        currents:
+            The net number of transitions from every state to every other per step, of `'detailed-balance'`.
+
+        statistic:
+            The statistic `Σ (N_ij - N_ji)² / (N_ij + N_ji)` over pairs of states, of `'detailed-balance'`.
+
+        p_value:
+            The chi-squared p-value of the statistic under detailed balance, of `'detailed-balance'`.
+
+        balanced:
+            Whether the p-value exceeds the significance level, of `'detailed-balance'`.
+
+        centres:
+            The centres of the bins of entropy whose mirror bin is also populated, of `'fluctuation-theorem'`.
+
+        log_ratios:
+            `ln P(s) / P(-s)` at every centre, of `'fluctuation-theorem'`.
+
+        slope:
+            The slope of the log ratio against the entropy, of `'fluctuation-theorem'`.
+
+        mean:
+            The mean of the current over the paths, of `'uncertainty-relation'`.
+
+        variance:
+            The variance of the current over the paths, of `'uncertainty-relation'`.
+
+        product:
+            The squared relative fluctuation of the current times the entropy, of `'uncertainty-relation'`.
+
+        error:
+            The standard error of the product from bootstrap resamples of the paths, of `'uncertainty-relation'`.
+
+        holds:
+            Whether the product is at least 2 within two standard errors, of `'uncertainty-relation'`.
+
+        response:
+            The integrated response at every frame, of `'response'` and `'fluctuation-dissipation'`.
+
+        fluctuation_dissipation_ratio:
+            The fluctuation-dissipation ratio, of `'fluctuation-dissipation'`.
+    """
+
+    values: npt.NDArray[np.int64] | Array
+    duration: float | None = None
+    entropy_production: float | None = None
+    entropies: Array | None = None
+    currents: Array | None = None
+    statistic: float | None = None
+    p_value: float | None = None
+    balanced: bool | None = None
+    centres: Array | None = None
+    log_ratios: Array | None = None
+    slope: float | None = None
+    mean: float | None = None
+    variance: float | None = None
+    product: float | None = None
+    error: float | None = None
+    holds: bool | None = None
+    response: Array | None = None
+    fluctuation_dissipation_ratio: float | None = None
+
+
+def irreversibility(
+    source: Source,
+    *,
+    kind: str = 'entropy-production',
+    variables: Sequence[str] | None = None,
+    rates: npt.ArrayLike | None = None,
+    duration: float | None = None,
+    drive: Callable[[Array], Array] | float = 1.0,
+    intensity: float = 1.0,
+    dt: float = 1.0,
+    n_states: int | None = None,
+    significance: float = 0.05,
+    bins: int = 40,
+    entropy: float | None = None,
+    resamples: int = 200,
+    random_state: int | None = None,
+    unperturbed: npt.ArrayLike | None = None,
+    field: float = 1.0,
+    correlation: npt.ArrayLike | None = None,
+) -> IrreversibilityResult:
+    """Return the irreversibility of a process, of one kind.
+
+    The kinds measure its entropy production, detailed balance, fluctuation relations, or response.
 
     The kinds read a rate matrix, jump paths, Langevin paths, samples, or ensembles:
 
@@ -77,6 +180,10 @@ class IrreversibilityAnalysis(BaseAnalysis):
       two-time `correlation` over the same lags, 1 in equilibrium and below 1 in an aging system.
 
     Args:
+        source:
+            The rate matrix, the trajectory or an array of paths, one row per path, the samples, or the ensemble the
+            kind measures.
+
         kind:
             The measure to compute, one of the kinds above.
 
@@ -126,296 +233,311 @@ class IrreversibilityAnalysis(BaseAnalysis):
         correlation:
             The two-time correlation over lags from 0.
 
-    Attributes:
-        values_:
-            The rate matrix, the paths one row per path, or the samples the kind reads.
+    Returns:
+        result:
+            The values read and the measures of the kind.
 
-        duration_:
-            The duration of the jump paths, the setting or the duration of a trajectory.
-
-        entropy_production_:
-            The entropy production per unit time in units of `k_B`, of the entropy production kinds.
-
-        entropies_:
-            The entropy produced along every path, of `'jump-entropy-production'` and
-            `'langevin-entropy-production'`.
-
-        currents_:
-            The net number of transitions from every state to every other per step, of `'detailed-balance'`.
-
-        statistic_:
-            The statistic `Σ (N_ij - N_ji)² / (N_ij + N_ji)` over pairs of states, of `'detailed-balance'`.
-
-        p_value_:
-            The chi-squared p-value of the statistic under detailed balance, of `'detailed-balance'`.
-
-        balanced_:
-            Whether the p-value exceeds the significance level, of `'detailed-balance'`.
-
-        centres_:
-            The centres of the bins of entropy whose mirror bin is also populated, of `'fluctuation-theorem'`.
-
-        log_ratios_:
-            `ln P(s) / P(-s)` at every centre, of `'fluctuation-theorem'`.
-
-        slope_:
-            The slope of the log ratio against the entropy, of `'fluctuation-theorem'`.
-
-        mean_:
-            The mean of the current over the paths, of `'uncertainty-relation'`.
-
-        variance_:
-            The variance of the current over the paths, of `'uncertainty-relation'`.
-
-        product_:
-            The squared relative fluctuation of the current times the entropy, of `'uncertainty-relation'`.
-
-        error_:
-            The standard error of the product from bootstrap resamples of the paths, of `'uncertainty-relation'`.
-
-        holds_:
-            Whether the product is at least 2 within two standard errors, of `'uncertainty-relation'`.
-
-        response_:
-            The integrated response at every frame, of `'response'` and `'fluctuation-dissipation'`.
-
-        fluctuation_dissipation_ratio_:
-            The fluctuation-dissipation ratio, of `'fluctuation-dissipation'`.
+    Raises:
+        AnalysisError:
+            The kind is unknown, a setting the kind does not read is changed, a setting the kind needs is missing, a
+            setting is out of range, or the data do not suit the kind.
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.analysis import IrreversibilityAnalysis
+        >>> from skcomplex.core.analysis import irreversibility
         >>> ring = 2 * np.roll(np.eye(5), 1, axis=1) + np.roll(np.eye(5), -1, axis=1)
-        >>> production = IrreversibilityAnalysis().prepare(ring).run().entropy_production_
+        >>> production = irreversibility(ring).entropy_production
         >>> bool(abs(production - np.log(2)) < 1e-12)
         True
-        >>> jumps = IrreversibilityAnalysis('jump-entropy-production', rates=[[0, 2], [1, 0]], duration=3.0)
-        >>> jumps.prepare([0, 1, 0, 1]).run().entropies_.round(3).tolist()
+        >>> jumps = irreversibility([0, 1, 0, 1], kind='jump-entropy-production', rates=[[0, 2], [1, 0]], duration=3.0)
+        >>> jumps.entropies.round(3).tolist()
         [0.693]
-        >>> IrreversibilityAnalysis('detailed-balance').prepare([0, 1, 2] * 1000).run().balanced_
+        >>> irreversibility([0, 1, 2] * 1000, kind='detailed-balance').balanced
         False
     """
+    _check_choice('irreversibility', 'kind', kind, KINDS)
+    _check_settings(
+        irreversibility,
+        'kind',
+        SETTINGS[kind] | {'variables'},
+        kind=kind,
+        variables=variables,
+        rates=rates,
+        duration=duration,
+        drive=drive,
+        intensity=intensity,
+        dt=dt,
+        n_states=n_states,
+        significance=significance,
+        bins=bins,
+        entropy=entropy,
+        resamples=resamples,
+        random_state=random_state,
+        unperturbed=unperturbed,
+        field=field,
+        correlation=correlation,
+    )
+    _check(
+        kind,
+        rates=rates,
+        unperturbed=unperturbed,
+        correlation=correlation,
+        entropy=entropy,
+        intensity=intensity,
+        dt=dt,
+        field=field,
+    )
+    values, read_duration = _read_values(source, kind, variables, duration)
+    if kind == 'entropy-production':
+        return IrreversibilityResult(values, read_duration, entropy_production=_entropy_production(values))
+    if kind == 'jump-entropy-production':
+        return _jumps(values, read_duration, np.asarray(rates, dtype=float))
+    if kind == 'count-entropy-production':
+        production = _count_entropy_production(values, n_states, dt)
+        return IrreversibilityResult(values, read_duration, entropy_production=production)
+    if kind == 'detailed-balance':
+        return _detailed_balance(values, read_duration, n_states, significance)
+    return _of_ensemble(
+        values,
+        read_duration,
+        kind,
+        drive=drive,
+        intensity=intensity,
+        dt=dt,
+        bins=bins,
+        entropy=entropy,
+        resamples=resamples,
+        random_state=random_state,
+        unperturbed=unperturbed,
+        field=field,
+        correlation=correlation,
+    )
 
-    def __init__(
-        self,
-        kind: str = 'entropy-production',
-        variables: Sequence[str] | None = None,
-        *,
-        rates: npt.ArrayLike | None = None,
-        duration: float | None = None,
-        drive: Callable[[Array], Array] | float = 1.0,
-        intensity: float = 1.0,
-        dt: float = 1.0,
-        n_states: int | None = None,
-        significance: float = 0.05,
-        bins: int = 40,
-        entropy: float | None = None,
-        resamples: int = 200,
-        random_state: int | None = None,
-        unperturbed: npt.ArrayLike | None = None,
-        field: float = 1.0,
-        correlation: npt.ArrayLike | None = None,
-    ) -> None:
-        self.kind = kind
-        self.variables = variables
-        self.rates = rates
-        self.duration = duration
-        self.drive = drive
-        self.intensity = intensity
-        self.dt = dt
-        self.n_states = n_states
-        self.significance = significance
-        self.bins = bins
-        self.entropy = entropy
-        self.resamples = resamples
-        self.random_state = random_state
-        self.unperturbed = unperturbed
-        self.field = field
-        self.correlation = correlation
 
-    def _check_needed(self, names: Sequence[str]) -> None:
-        """Raise an error for a setting the kind needs that is not given."""
-        missing = [name for name in names if getattr(self, name) is None]
-        if missing:
-            error_msg = f'{type(self).__name__} of kind {self.kind!r} needs {", ".join(missing)}. Give them.'
-            raise AnalysisError(error_msg)
-
-    def _check(self) -> None:
-        """Validate the kind, the settings each kind needs, and that the kind reads every changed setting."""
-        self._check_choice('kind', self.kind, KINDS)
-        self._check_settings('kind', SETTINGS[self.kind] | {'variables'})
-        if self.kind == 'jump-entropy-production':
-            self._check_needed(['rates'])
-        if self.kind in ('response', 'fluctuation-dissipation'):
-            self._check_needed(['unperturbed'])
-        if self.kind == 'fluctuation-dissipation':
-            self._check_needed(['correlation'])
-        if self.kind == 'uncertainty-relation':
-            self._check_needed(['entropy'])
-        if self.intensity <= 0 or self.dt <= 0 or self.field == 0:
-            error_msg = (
-                f'{type(self).__name__} has intensity={self.intensity!r}, dt={self.dt!r}, and '
-                f'field={self.field!r}. Use a positive intensity and step and a nonzero field.'
-            )
-            raise AnalysisError(error_msg)
-
-    def _get_data_kind(self) -> DataKind:
-        """Return the path kind for rates and discrete paths, and the ensemble kind for samples and ensembles."""
-        return DataKind.ENSEMBLE if self.kind in ENSEMBLE_KINDS else DataKind.PATH
-
-    def _prepare(self, source: Source) -> None:
-        """Read the rate matrix, the paths as rows, the samples, or the ensemble the kind measures."""
-        name = self.variables[0] if self.variables else None
-        self.duration_ = self.duration
-        if isinstance(source, Trajectory) and self.kind in PATH_KINDS:
-            path = self._read_path(source, name)
-            self.values_: npt.NDArray[np.int64] | Array = np.asarray(path.states, dtype=np.int64).reshape(1, -1)
-            if self.duration is None:
-                self.duration_ = float(path.times[-1] - path.times[0])
-            return
-        if isinstance(source, Trajectory):
-            self.values_ = self._read_series(source, self.variables).values[:, 0].reshape(1, -1)
-            return
-        dtype = np.int64 if self.kind in PATH_KINDS else float
-        array = np.asarray(source, dtype=dtype)
-        paths = self.kind in PATH_KINDS or self.kind == 'langevin-entropy-production'
-        self.values_ = array.reshape(1, -1) if paths and array.ndim == 1 else array
-
-    def _run_jumps(self) -> None:
-        """Compute the entropy every jump path produces in the medium."""
-        duration = self.duration_
-        if duration is None:
-            error_msg = f'{type(self).__name__} reads paths of an array without their duration. Give the duration.'
-            raise AnalysisError(error_msg)
-        matrix = np.asarray(self.rates, dtype=float)
-        origins, destinations = self.values_[:, :-1], self.values_[:, 1:]
-        moved = origins != destinations
-        steps = np.where(
-            moved,
-            np.log(matrix[origins, destinations] / np.where(moved, matrix[destinations, origins], 1)),
-            0,
+def _check(
+    kind: str,
+    *,
+    rates: npt.ArrayLike | None,
+    unperturbed: npt.ArrayLike | None,
+    correlation: npt.ArrayLike | None,
+    entropy: float | None,
+    intensity: float,
+    dt: float,
+    field: float,
+) -> None:
+    """Raise an error for a setting the kind needs that is not given, or an intensity, step, or field out of range."""
+    needed = {
+        'rates': kind == 'jump-entropy-production',
+        'unperturbed': kind in ('response', 'fluctuation-dissipation'),
+        'correlation': kind == 'fluctuation-dissipation',
+        'entropy': kind == 'uncertainty-relation',
+    }
+    given = {'rates': rates, 'unperturbed': unperturbed, 'correlation': correlation, 'entropy': entropy}
+    missing = [name for name, needs in needed.items() if needs and given[name] is None]
+    if missing:
+        error_msg = f'irreversibility of kind {kind!r} needs {", ".join(missing)}. Give them.'
+        raise AnalysisError(error_msg)
+    if intensity <= 0 or dt <= 0 or field == 0:
+        error_msg = (
+            f'irreversibility has intensity={intensity!r}, dt={dt!r}, and field={field!r}. Use a positive intensity '
+            'and step and a nonzero field.'
         )
-        self.entropies_ = steps.sum(axis=1)
-        self.entropy_production_ = float(self.entropies_.mean() / duration)
+        raise AnalysisError(error_msg)
 
-    def _run_langevin(self) -> None:
-        """Compute the entropy every Langevin path produces, the work of the drive times the intensity."""
-        array = self.values_
-        midpoints = (array[:, 1:] + array[:, :-1]) / 2
-        drifts = self.drive(midpoints) if callable(self.drive) else np.full_like(midpoints, self.drive)
-        self.entropies_ = self.intensity * np.sum(drifts * np.diff(array, axis=1), axis=1)
-        self.entropy_production_ = float(self.entropies_.mean() / (self.dt * (array.shape[1] - 1)))
 
-    def _run_detailed_balance(self) -> None:
-        """Test detailed balance on the transition counts."""
-        counts = MarkovAnalysis._transition_counts(self.values_, self.n_states).astype(float)
-        steps = counts.sum()
-        upper = np.triu_indices_from(counts, k=1)
-        forward, backward = counts[upper], counts.T[upper]
-        visited = (forward + backward) > 0
-        self.statistic_ = float(np.sum((forward - backward)[visited] ** 2 / (forward + backward)[visited]))
-        self.p_value_ = float(stats.chi2.sf(self.statistic_, max(int(visited.sum()), 1)))
-        self.currents_ = (counts - counts.T) / steps
-        self.balanced_ = self.p_value_ > self.significance
+def _of_ensemble(
+    values: npt.NDArray[np.int64] | Array,
+    duration: float | None,
+    kind: str,
+    *,
+    drive: Callable[[Array], Array] | float,
+    intensity: float,
+    dt: float,
+    bins: int,
+    entropy: float | None,
+    resamples: int,
+    random_state: int | None,
+    unperturbed: npt.ArrayLike | None,
+    field: float,
+    correlation: npt.ArrayLike | None,
+) -> IrreversibilityResult:
+    """Return the measure of a kind that reads samples or an ensemble."""
+    if kind == 'langevin-entropy-production':
+        midpoints = (values[:, 1:] + values[:, :-1]) / 2
+        drifts = drive(midpoints) if callable(drive) else np.full_like(midpoints, drive)
+        entropies = intensity * np.sum(drifts * np.diff(values, axis=1), axis=1)
+        production = float(entropies.mean() / (dt * (values.shape[1] - 1)))
+        return IrreversibilityResult(values, duration, entropy_production=production, entropies=entropies)
+    if kind == 'fluctuation-theorem':
+        return _fluctuation_theorem(values, duration, bins)
+    if kind == 'uncertainty-relation':
+        return _uncertainty_relation(values, duration, float(entropy or 0.0), resamples, random_state)
+    response = _response(values, np.asarray(unperturbed, dtype=float), field)
+    ratio = None
+    if kind == 'fluctuation-dissipation':
+        ratio = _fluctuation_dissipation_ratio(np.asarray(correlation, dtype=float), response, intensity)
+    return IrreversibilityResult(values, duration, response=response, fluctuation_dissipation_ratio=ratio)
 
-    def _run_fluctuation_theorem(self) -> None:
-        """Compute the log ratios of producing `s` and `-s` and their slope."""
-        array = self.values_.ravel()
-        reach = float(np.abs(array).max())
-        counts, edges = np.histogram(array, bins=2 * (self.bins // 2), range=(-reach, reach))
-        centres = (edges[1:] + edges[:-1]) / 2
-        mirrored = counts[::-1]
-        usable = (centres > 0) & (counts > 0) & (mirrored > 0)
-        if usable.sum() < MIN_PAIRS:
-            error_msg = f'Fewer than {MIN_PAIRS} bins hold both s and -s. Give more samples or fewer bins.'
-            raise AnalysisError(error_msg)
-        self.log_ratios_ = np.log(counts[usable] / mirrored[usable])
-        self.centres_ = centres[usable]
-        self.slope_ = float(np.sum(self.centres_ * self.log_ratios_) / np.sum(self.centres_**2))
 
-    def _get_product(self, sample: Array) -> float:
-        """Return the squared relative fluctuation of a sample of currents times the entropy."""
-        return float(sample.var(ddof=1) / sample.mean() ** 2 * float(self.entropy or 0.0))
+def _read_values(
+    source: Source,
+    kind: str,
+    variables: Sequence[str] | None,
+    duration: float | None,
+) -> tuple[npt.NDArray[np.int64] | Array, float | None]:
+    """Return the rate matrix, the paths as rows, the samples, or the ensemble the kind measures, and the duration."""
+    name = variables[0] if variables else None
+    if isinstance(source, Trajectory) and kind in PATH_KINDS:
+        path = _read_path(source, name)
+        values = np.asarray(path.states, dtype=np.int64).reshape(1, -1)
+        return values, float(path.times[-1] - path.times[0]) if duration is None else duration
+    if isinstance(source, Trajectory):
+        return _read_series(source, variables).values[:, 0].reshape(1, -1), duration
+    dtype = np.int64 if kind in PATH_KINDS else float
+    array = np.asarray(source, dtype=dtype)
+    paths = kind in PATH_KINDS or kind == 'langevin-entropy-production'
+    return (array.reshape(1, -1) if paths and array.ndim == 1 else array), duration
 
-    def _run_uncertainty_relation(self) -> None:
-        """Compute the precision of the current against the entropy production."""
-        values = np.asarray(self.values_, dtype=np.float64).ravel()
-        entropy = float(self.entropy or 0.0)
-        if values.size < MIN_PATHS or entropy < 0:
-            error_msg = (
-                f'The uncertainty relation needs at least {MIN_PATHS} paths and a nonnegative entropy production, but '
-                f'got {values.size} paths and {self.entropy}.'
-            )
-            raise AnalysisError(error_msg)
-        self.mean_, self.variance_ = float(values.mean()), float(values.var(ddof=1))
-        if self.mean_ == 0:
-            error_msg = (
-                'The mean current is zero, so its relative fluctuation is undefined. Measure a current that flows.'
-            )
-            raise AnalysisError(error_msg)
-        rng = np.random.default_rng(self.random_state)
-        boots = [self._get_product(values[rng.integers(values.size, size=values.size)]) for _ in range(self.resamples)]
-        self.product_, self.error_ = self._get_product(values), float(np.std(boots, ddof=1))
-        self.holds_ = self.product_ + 2 * self.error_ >= TUR_BOUND
 
-    def _run(self, inputs: object = None) -> None:
-        """Compute the measure of the kind."""
-        if self.kind == 'entropy-production':
-            self.entropy_production_ = self._entropy_production(self.values_)
-        elif self.kind == 'jump-entropy-production':
-            self._run_jumps()
-        elif self.kind == 'langevin-entropy-production':
-            self._run_langevin()
-        elif self.kind == 'count-entropy-production':
-            self.entropy_production_ = self._count_entropy_production(self.values_, self.n_states, self.dt)
-        elif self.kind == 'detailed-balance':
-            self._run_detailed_balance()
-        elif self.kind == 'fluctuation-theorem':
-            self._run_fluctuation_theorem()
-        elif self.kind == 'uncertainty-relation':
-            self._run_uncertainty_relation()
-        else:
-            self.response_ = self._response(self.values_, np.asarray(self.unperturbed, dtype=float), self.field)
-            if self.kind == 'fluctuation-dissipation':
-                self.fluctuation_dissipation_ratio_ = self._fluctuation_dissipation_ratio(
-                    np.asarray(self.correlation, dtype=float),
-                    self.response_,
-                    self.intensity,
-                )
+def _jumps(values: npt.NDArray[np.int64] | Array, duration: float | None, matrix: Array) -> IrreversibilityResult:
+    """Return the entropy every jump path produces in the medium."""
+    if duration is None:
+        error_msg = 'irreversibility reads paths of an array without their duration. Give the duration.'
+        raise AnalysisError(error_msg)
+    origins, destinations = values[:, :-1], values[:, 1:]
+    moved = origins != destinations
+    steps = np.where(
+        moved,
+        np.log(matrix[origins, destinations] / np.where(moved, matrix[destinations, origins], 1)),
+        0,
+    )
+    entropies = steps.sum(axis=1)
+    return IrreversibilityResult(
+        values,
+        duration,
+        entropy_production=float(entropies.mean() / duration),
+        entropies=entropies,
+    )
 
-    @staticmethod
-    def _entropy_production(rates: npt.ArrayLike) -> float:
-        """Return `Σ_{i<j} (p_i k_ij - p_j k_ji) ln(p_i k_ij / (p_j k_ji))` with `p` the stationary law of the rates."""
-        matrix = np.asarray(rates, dtype=float)
-        matrix = matrix - np.diag(np.diag(matrix))
-        if np.any((matrix > 0) != (matrix.T > 0)):
-            error_msg = (
-                'A jump has no reverse jump, so the entropy production is infinite. Give every jump its reverse.'
-            )
-            raise AnalysisError(error_msg)
-        flux = MarkovAnalysis._stationary_distribution(matrix, rates=True)[:, None] * matrix
-        positive = flux > 0
-        return float(0.5 * np.sum((flux - flux.T)[positive] * np.log(flux[positive] / flux.T[positive])))
 
-    @staticmethod
-    def _count_entropy_production(states: npt.ArrayLike, n_states: int | None, dt: float) -> float:
-        """Return `Σ_{i<j} (N_ij - N_ji) ln(N_ij / N_ji)` over the pairs visited both ways, per unit time."""
-        counts = MarkovAnalysis._transition_counts(states, n_states).astype(float)
-        upper = np.triu(np.ones_like(counts, dtype=bool), k=1)
-        both = upper & (counts > 0) & (counts.T > 0)
-        forward, backward = counts[both], counts.T[both]
-        return float(np.sum((forward - backward) * np.log(forward / backward)) / (counts.sum() * dt))
+def _detailed_balance(
+    values: npt.NDArray[np.int64] | Array,
+    duration: float | None,
+    n_states: int | None,
+    significance: float,
+) -> IrreversibilityResult:
+    """Test detailed balance on the transition counts."""
+    counts = _transition_counts(values, n_states).astype(float)
+    steps = counts.sum()
+    upper = np.triu_indices_from(counts, k=1)
+    forward, backward = counts[upper], counts.T[upper]
+    visited = (forward + backward) > 0
+    statistic = float(np.sum((forward - backward)[visited] ** 2 / (forward + backward)[visited]))
+    p_value = float(stats.chi2.sf(statistic, max(int(visited.sum()), 1)))
+    return IrreversibilityResult(
+        values,
+        duration,
+        currents=(counts - counts.T) / steps,
+        statistic=statistic,
+        p_value=p_value,
+        balanced=p_value > significance,
+    )
 
-    @staticmethod
-    def _response(perturbed: npt.ArrayLike, unperturbed: npt.ArrayLike, field: float) -> Array:
-        """Return the integrated response `chi(t) = (<x(t)>_h - <x(t)>_0) / h` of ensembles with and without a field."""
-        first, second = np.asarray(perturbed, dtype=float), np.asarray(unperturbed, dtype=float)
-        return (first.mean(axis=0) - second.mean(axis=0)) / field
 
-    @staticmethod
-    def _fluctuation_dissipation_ratio(correlation: npt.ArrayLike, susceptibility: Array, intensity: float) -> float:
-        """Return the slope of `chi / b` against `C(t_w, t_w) - C(t, t_w)`, with `b` the intensity."""
-        values = np.asarray(correlation, dtype=float)
-        decay = values[0] - values
-        scaled = susceptibility / intensity
-        return float(np.sum(decay * scaled) / np.sum(decay**2))
+def _fluctuation_theorem(
+    values: npt.NDArray[np.int64] | Array,
+    duration: float | None,
+    bins: int,
+) -> IrreversibilityResult:
+    """Return the log ratios of producing `s` and `-s` and their slope."""
+    array = values.ravel()
+    reach = float(np.abs(array).max())
+    counts, edges = np.histogram(array, bins=2 * (bins // 2), range=(-reach, reach))
+    centres = (edges[1:] + edges[:-1]) / 2
+    mirrored = counts[::-1]
+    usable = (centres > 0) & (counts > 0) & (mirrored > 0)
+    if usable.sum() < MIN_PAIRS:
+        error_msg = f'Fewer than {MIN_PAIRS} bins hold both s and -s. Give more samples or fewer bins.'
+        raise AnalysisError(error_msg)
+    log_ratios = np.log(counts[usable] / mirrored[usable])
+    kept = centres[usable]
+    return IrreversibilityResult(
+        values,
+        duration,
+        centres=kept,
+        log_ratios=log_ratios,
+        slope=float(np.sum(kept * log_ratios) / np.sum(kept**2)),
+    )
+
+
+def _get_product(sample: Array, entropy: float) -> float:
+    """Return the squared relative fluctuation of a sample of currents times the entropy."""
+    return float(sample.var(ddof=1) / sample.mean() ** 2 * entropy)
+
+
+def _uncertainty_relation(
+    values: npt.NDArray[np.int64] | Array,
+    duration: float | None,
+    entropy: float,
+    resamples: int,
+    random_state: int | None,
+) -> IrreversibilityResult:
+    """Return the precision of the current against the entropy production."""
+    currents = np.asarray(values, dtype=np.float64).ravel()
+    if currents.size < MIN_PATHS or entropy < 0:
+        error_msg = (
+            f'The uncertainty relation needs at least {MIN_PATHS} paths and a nonnegative entropy production, but got '
+            f'{currents.size} paths and {entropy}.'
+        )
+        raise AnalysisError(error_msg)
+    mean, variance = float(currents.mean()), float(currents.var(ddof=1))
+    if mean == 0:
+        error_msg = 'The mean current is zero, so its relative fluctuation is undefined. Measure a current that flows.'
+        raise AnalysisError(error_msg)
+    rng = np.random.default_rng(random_state)
+    boots = [_get_product(currents[rng.integers(currents.size, size=currents.size)], entropy) for _ in range(resamples)]
+    product, error = _get_product(currents, entropy), float(np.std(boots, ddof=1))
+    return IrreversibilityResult(
+        values,
+        duration,
+        mean=mean,
+        variance=variance,
+        product=product,
+        error=error,
+        holds=product + 2 * error >= TUR_BOUND,
+    )
+
+
+def _entropy_production(rates: npt.ArrayLike) -> float:
+    """Return `Σ_{i<j} (p_i k_ij - p_j k_ji) ln(p_i k_ij / (p_j k_ji))` with `p` the stationary law of the rates."""
+    matrix = np.asarray(rates, dtype=float)
+    matrix = matrix - np.diag(np.diag(matrix))
+    if np.any((matrix > 0) != (matrix.T > 0)):
+        error_msg = 'A jump has no reverse jump, so the entropy production is infinite. Give every jump its reverse.'
+        raise AnalysisError(error_msg)
+    flux = _stationary_distribution(matrix, rates=True)[:, None] * matrix
+    positive = flux > 0
+    return float(0.5 * np.sum((flux - flux.T)[positive] * np.log(flux[positive] / flux.T[positive])))
+
+
+def _count_entropy_production(states: npt.ArrayLike, n_states: int | None, dt: float) -> float:
+    """Return `Σ_{i<j} (N_ij - N_ji) ln(N_ij / N_ji)` over the pairs visited both ways, per unit time."""
+    counts = _transition_counts(states, n_states).astype(float)
+    upper = np.triu(np.ones_like(counts, dtype=bool), k=1)
+    both = upper & (counts > 0) & (counts.T > 0)
+    forward, backward = counts[both], counts.T[both]
+    return float(np.sum((forward - backward) * np.log(forward / backward)) / (counts.sum() * dt))
+
+
+def _response(perturbed: npt.ArrayLike, unperturbed: npt.ArrayLike, field: float) -> Array:
+    """Return the integrated response `chi(t) = (<x(t)>_h - <x(t)>_0) / h` of ensembles with and without a field."""
+    first, second = np.asarray(perturbed, dtype=float), np.asarray(unperturbed, dtype=float)
+    return (first.mean(axis=0) - second.mean(axis=0)) / field
+
+
+def _fluctuation_dissipation_ratio(correlation: npt.ArrayLike, susceptibility: Array, intensity: float) -> float:
+    """Return the slope of `chi / b` against `C(t_w, t_w) - C(t, t_w)`, with `b` the intensity."""
+    values = np.asarray(correlation, dtype=float)
+    decay = values[0] - values
+    scaled = susceptibility / intensity
+    return float(np.sum(decay * scaled) / np.sum(decay**2))

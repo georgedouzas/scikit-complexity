@@ -3,15 +3,15 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import FitAnalysis, PassageAnalysis
+from skcomplex.core.analysis import FitAnalysis, passage
 from skcomplex.core.errors import AnalysisError
 
 RUNS = 2000
 
 
-def _passage(kind: str, source: object, **settings: object) -> PassageAnalysis:
+def _passage(kind: str, source: object, **settings: object) -> passage:
     """Return the passage analysis of a source for one kind, run."""
-    return PassageAnalysis(kind, **settings).prepare(source).run()
+    return passage(source, kind=kind, **settings)
 
 
 def _absorbed_walks(rng: np.random.Generator, start: int, size: int, steps: int, *, moran: bool) -> np.ndarray:
@@ -40,31 +40,31 @@ def test_first_passage_times_drifted_diffusion_and_gamblers_ruin():
     dt = 0.01
     steps = rng.normal(0.5 * dt, np.sqrt(dt), (RUNS, 6000))
     paths = np.concatenate([np.zeros((RUNS, 1)), np.cumsum(steps, axis=1)], axis=1)
-    times = _passage('first-passage', paths, threshold=5.0, dt=dt).passage_times_
+    times = _passage('first-passage', paths, threshold=5.0, dt=dt).passage_times
     assert np.nanmean(times) == pytest.approx(10, rel=0.05)
     walks = _absorbed_walks(rng, 3, 10, 600, moran=False)
-    durations = _passage('first-passage', walks, target=[0, 10]).passage_times_
+    durations = _passage('first-passage', walks, target=[0, 10]).passage_times
     assert np.nanmean(durations) == pytest.approx(3 * (10 - 3), rel=0.05)
 
 
 def test_first_passage_times_downward_and_never():
     """Test passages from above and paths that never pass."""
     down = _passage('first-passage', [3.0, 2.0, 1.0], threshold=1.5, direction='down')
-    assert down.passage_times_.tolist() == [2.0]
-    assert np.isnan(_passage('first-passage', [0.0, 0.0], threshold=1.0).passage_times_[0])
+    assert down.passage_times.tolist() == [2.0]
+    assert np.isnan(_passage('first-passage', [0.0, 0.0], threshold=1.0).passage_times[0])
     with pytest.raises(AnalysisError, match='needs a threshold'):
-        PassageAnalysis('first-passage').prepare()
+        passage([0, 1, 0, 1], kind='first-passage')
     with pytest.raises(AnalysisError, match='direction'):
-        PassageAnalysis('first-passage', threshold=1.0, direction='sideways').prepare()
+        passage([0, 1, 0, 1], kind='first-passage', threshold=1.0, direction='sideways')
     with pytest.raises(AnalysisError, match='does not read level'):
-        PassageAnalysis('first-passage', threshold=1.0, level=2.0).prepare()
+        passage([0, 1, 0, 1], kind='first-passage', threshold=1.0, level=2.0)
 
 
 def test_return_times_of_a_random_walk():
     """Test that returns of a random walk have a tail of exponent 3/2."""
     rng = np.random.default_rng(1)
     walk = np.cumsum(rng.choice([-1, 1], 2_000_000))
-    returns = _passage('return-times', walk).return_times_ / 2
+    returns = _passage('return-times', walk).return_times / 2
     fit = FitAnalysis(minimum=10, discrete=True, bootstrap=0).prepare(returns).run()
     assert fit.exponent_ == pytest.approx(1.5, abs=0.1)
 
@@ -72,7 +72,7 @@ def test_return_times_of_a_random_walk():
 def test_hitting_probabilities_fixation_of_a_mutant():
     """Test that one neutral mutant in Moran populations of 20 fixes with probability 1/20 within 0.01."""
     paths = _absorbed_walks(np.random.default_rng(2), 1, 20, 20_000, moran=True)
-    absorbed, fixed = _passage('hitting', paths, target=[0, 20]).hitting_probabilities_
+    absorbed, fixed = _passage('hitting', paths, target=[0, 20]).hitting_probabilities
     assert fixed == pytest.approx(1 / 20, abs=0.01)
     assert absorbed + fixed == pytest.approx(1, abs=0.01)
 
@@ -82,31 +82,31 @@ def test_committor_and_mean_first_passage_time_keep_their_reference_values():
     chain = np.asarray(
         [[0.90, 0.09, 0.01, 0.0], [0.08, 0.90, 0.02, 0.0], [0.0, 0.02, 0.90, 0.08], [0.01, 0.0, 0.09, 0.90]],
     )
-    one = _passage('committor', chain, origin=[0], target=[3]).committor_
+    one = _passage('committor', chain, origin=[0], target=[3]).committor
     np.testing.assert_allclose(one, [0.0, 0.166667, 0.833333, 1.0], rtol=1e-3, atol=1e-9)
-    two = _passage('committor', chain, origin=[0, 1], target=[3]).committor_
+    two = _passage('committor', chain, origin=[0, 1], target=[3]).committor
     np.testing.assert_allclose(two, [0.0, 0.0, 0.8, 1.0], rtol=1e-3, atol=1e-9)
-    time = _passage('mean-first-passage', chain, origin=[0], target=[3]).mean_first_passage_time_
+    time = _passage('mean-first-passage', chain, origin=[0], target=[3]).mean_first_passage_time
     assert time == pytest.approx(96.428571, rel=1e-3)
     both = _passage('mean-first-passage', chain, origin=[0, 1], target=[2, 3], lag=2, dt=0.5)
-    assert both.mean_first_passage_time_ == pytest.approx(65.959821, rel=1e-3)
-    overlap = _passage('mean-first-passage', chain, origin=[0, 3], target=[3]).mean_first_passage_time_
+    assert both.mean_first_passage_time == pytest.approx(65.959821, rel=1e-3)
+    overlap = _passage('mean-first-passage', chain, origin=[0, 3], target=[3]).mean_first_passage_time
     assert overlap == pytest.approx(49.876847, rel=1e-3)
 
 
 def test_committor_and_mean_first_passage_time_of_periodic_chains():
     """Test a ring of four states, which never settles, and a chain of two states that swap."""
     ring = np.roll(np.eye(4), 1, axis=1)
-    np.testing.assert_allclose(_passage('committor', ring, origin=[0], target=[2]).committor_, [0, 1, 1, 0], atol=1e-9)
-    assert _passage('mean-first-passage', ring, origin=[0], target=[2]).mean_first_passage_time_ == pytest.approx(2.0)
+    np.testing.assert_allclose(_passage('committor', ring, origin=[0], target=[2]).committor, [0, 1, 1, 0], atol=1e-9)
+    assert _passage('mean-first-passage', ring, origin=[0], target=[2]).mean_first_passage_time == pytest.approx(2.0)
     swap = [[0.0, 1.0], [1.0, 0.0]]
-    assert _passage('mean-first-passage', swap, origin=[0], target=[1]).mean_first_passage_time_ == pytest.approx(1.0)
+    assert _passage('mean-first-passage', swap, origin=[0], target=[1]).mean_first_passage_time == pytest.approx(1.0)
 
 
 def test_committor_of_an_absorbing_walk():
     """Test the committor of a walk absorbed at both ends, which is linear in the state."""
     walk = [[1.0, 0.0, 0.0, 0.0], [0.5, 0.0, 0.5, 0.0], [0.0, 0.5, 0.0, 0.5], [0.0, 0.0, 0.0, 1.0]]
-    committor = _passage('committor', walk, origin=[0], target=[3]).committor_
+    committor = _passage('committor', walk, origin=[0], target=[3]).committor
     np.testing.assert_allclose(committor, [0.0, 1 / 3, 2 / 3, 1.0], atol=1e-9)
 
 
@@ -124,11 +124,11 @@ def test_committor_and_mean_first_passage_time_of_a_walk():
         walk[state, max(state - 1, 0)] += 0.25
         walk[state, min(state + 1, 4)] += 0.25
         walk[state, state] += 0.5
-    committor = _passage('committor', walk, origin=[0], target=[4]).committor_
+    committor = _passage('committor', walk, origin=[0], target=[4]).committor
     np.testing.assert_allclose(committor, np.linspace(0, 1, 5), atol=1e-12)
-    far = _passage('mean-first-passage', walk, origin=[0], target=[4]).mean_first_passage_time_
-    near = _passage('mean-first-passage', walk, origin=[0], target=[1]).mean_first_passage_time_
+    far = _passage('mean-first-passage', walk, origin=[0], target=[4]).mean_first_passage_time
+    near = _passage('mean-first-passage', walk, origin=[0], target=[1]).mean_first_passage_time
     assert far > near
     assert (
-        _passage('mean-first-passage', [[0.5, 0.5], [0.5, 0.5]], origin=[0], target=[1]).mean_first_passage_time_ == 2.0
+        _passage('mean-first-passage', [[0.5, 0.5], [0.5, 0.5]], origin=[0], target=[1]).mean_first_passage_time == 2.0
     )

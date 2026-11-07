@@ -3,22 +3,22 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import InformationAnalysis, SurrogateTestAnalysis
+from skcomplex.core.analysis import SurrogateTestResult, bind_analysis, information, surrogate_test
 from skcomplex.core.errors import AnalysisError
 
 
-def _test(kind: str, data: np.ndarray, **settings: object) -> SurrogateTestAnalysis:
-    """Return the surrogate test of an information measure of the columns of data, run."""
-    analysis = SurrogateTestAnalysis(InformationAnalysis(kind), 'information_', **settings)
-    return analysis.prepare(data).run()
+def _test(kind: str, data: np.ndarray, **settings: object) -> SurrogateTestResult:
+    """Return the surrogate test of an information measure of the columns of data."""
+    measure = bind_analysis(information, kind=kind)
+    return surrogate_test(data, analysis=measure, attribute='information', **settings)
 
 
 def test_surrogate_test_independent_variables_are_not_significant():
     """Test that independent bits give a large p-value for their total correlation."""
     data = np.random.default_rng(0).integers(0, 2, (2000, 3))
     test = _test('total-correlation', data, n=49, alternative='greater', random_state=1)
-    assert test.p_value_ > 0.05
-    assert test.surrogates_.shape == (49,)
+    assert test.p_value > 0.05
+    assert test.surrogates.shape == (49,)
 
 
 def test_surrogate_test_synergy_is_significant():
@@ -26,15 +26,16 @@ def test_surrogate_test_synergy_is_significant():
     bits = np.random.default_rng(2).integers(0, 2, (2000, 2))
     data = np.column_stack([bits, bits[:, 0] ^ bits[:, 1]])
     test = _test('o-information', data, n=19, alternative='less', random_state=3)
-    assert test.value_ == pytest.approx(-1.0, abs=0.01)
-    assert test.p_value_ == pytest.approx(0.05)
+    assert test.value == pytest.approx(-1.0, abs=0.01)
+    assert test.p_value == pytest.approx(0.05)
 
 
 def test_surrogate_test_rejects_invalid_settings():
     """Test that an unknown alternative, no surrogates, and a measure that is not an analysis raise errors."""
+    measure = bind_analysis(information, kind='total-correlation')
     with pytest.raises(AnalysisError, match='two-sided'):
-        SurrogateTestAnalysis(InformationAnalysis('total-correlation'), 'information_', alternative='both').prepare()
+        surrogate_test([0, 1, 0, 1], analysis=measure, attribute='information', alternative='both')
     with pytest.raises(AnalysisError, match='n = 0'):
-        SurrogateTestAnalysis(InformationAnalysis('total-correlation'), 'information_', n=0).prepare()
+        surrogate_test([0, 1, 0, 1], analysis=measure, attribute='information', n=0)
     with pytest.raises(AnalysisError, match='is an analysis'):
-        SurrogateTestAnalysis(np.mean, 'information_').prepare()
+        surrogate_test([0, 1, 0, 1], analysis='mean', attribute='information')

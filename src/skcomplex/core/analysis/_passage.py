@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
@@ -11,9 +12,9 @@ from pydtmc import MarkovChain
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..types import Array, DataKind
-from ._base import BaseAnalysis
-from ._markov import MarkovAnalysis
+from ..types import Array
+from ._base import _check_choice, _check_settings, _read_path, _read_series
+from ._markov import _stationary_distribution, _transition_matrix
 from .types import Source
 
 KINDS = ('first-passage', 'hitting', 'return-times', 'committor', 'mean-first-passage')
@@ -30,8 +31,61 @@ SETTINGS = {
 MATRIX_KINDS = ('committor', 'mean-first-passage')
 
 
-class PassageAnalysis(BaseAnalysis):
-    """Passages of paths to a level or a set of states, or of a Markov chain between two sets, of one kind.
+@dataclass(frozen=True)
+class PassageResult:
+    """Passages of paths to a level or a set of states, or of a Markov chain between two sets.
+
+    Args:
+        values:
+            The paths, one row per path, or the series of `'return-times'`.
+
+        times:
+            The common times of the steps.
+
+        matrix:
+            The transition matrix of the matrix kinds.
+
+        passage_times:
+            The time from the start to the first passage of every path, `nan` for paths that never pass, of
+            `'first-passage'`.
+
+        hitting_probabilities:
+            The share of paths that hit every target state first, of `'hitting'`.
+
+        return_times:
+            The time between every return and the next, of `'return-times'`.
+
+        committor:
+            The committor of every state, 0 on the origin and 1 on the target, of `'committor'`.
+
+        mean_first_passage_time:
+            The mean first-passage time, of `'mean-first-passage'`.
+    """
+
+    values: Array | None = None
+    times: Array | None = None
+    matrix: Array | None = None
+    passage_times: Array | None = None
+    hitting_probabilities: Array | None = None
+    return_times: Array | None = None
+    committor: Array | None = None
+    mean_first_passage_time: float | None = None
+
+
+def passage(
+    source: Source,
+    *,
+    kind: str = 'first-passage',
+    variables: Sequence[str] | None = None,
+    threshold: float | None = None,
+    target: Sequence[float] | None = None,
+    origin: Sequence[float] | None = None,
+    direction: str = 'up',
+    level: float = 0.0,
+    lag: int = 1,
+    dt: float = 1.0,
+) -> PassageResult:
+    """Return the passages of paths to a level or a set of states, or of a Markov chain between two sets, of one kind.
 
     The kinds read paths, one row per path on common times, or a transition matrix:
 
@@ -47,6 +101,10 @@ class PassageAnalysis(BaseAnalysis):
     The matrix kinds estimate the transition matrix at `lag` of the jump path of a trajectory.
 
     Args:
+        source:
+            The trajectory, an array of paths, one row per path, a series for `'return-times'`, or a transition
+            matrix for the matrix kinds.
+
         kind:
             The passage to measure, one of the kinds above.
 
@@ -74,188 +132,161 @@ class PassageAnalysis(BaseAnalysis):
         dt:
             The time of one step of an array, while a trajectory gives its own times.
 
-    Attributes:
-        values_:
-            The paths, one row per path, or the series of `'return-times'`.
+    Returns:
+        result:
+            The paths, the series, or the matrix read, and the passages of the kind.
 
-        times_:
-            The common times of the steps.
-
-        matrix_:
-            The transition matrix of the matrix kinds.
-
-        passage_times_:
-            The time from the start to the first passage of every path, `nan` for paths that never pass, of
-            `'first-passage'`.
-
-        hitting_probabilities_:
-            The share of paths that hit every target state first, of `'hitting'`.
-
-        return_times_:
-            The time between every return and the next, of `'return-times'`.
-
-        committor_:
-            The committor of every state, 0 on the origin and 1 on the target, of `'committor'`.
-
-        mean_first_passage_time_:
-            The mean first-passage time, of `'mean-first-passage'`.
+    Raises:
+        AnalysisError:
+            A choice is unknown, a setting the kind does not read is changed, the sets the kind needs are missing, a
+            setting is not positive, or the matrix is reducible.
 
     Examples:
-        >>> from skcomplex.core.analysis import PassageAnalysis
-        >>> passage = PassageAnalysis(threshold=2).prepare([[0, 1, 2, 3], [0, 0, 0, 0]]).run()
-        >>> passage.passage_times_.tolist()
+        >>> from skcomplex.core.analysis import passage
+        >>> passage([[0, 1, 2, 3], [0, 0, 0, 0]], threshold=2).passage_times.tolist()
         [2.0, nan]
-        >>> PassageAnalysis('return-times').prepare([0, 1, 0, -1, -2, -1, 0]).run().return_times_.tolist()
+        >>> passage([0, 1, 0, -1, -2, -1, 0], kind='return-times').return_times.tolist()
         [2.0, 4.0]
         >>> walk = [[0.5, 0.5, 0.0], [0.25, 0.5, 0.25], [0.0, 0.5, 0.5]]
-        >>> PassageAnalysis('committor', origin=[0], target=[2]).prepare(walk).run().committor_.tolist()
+        >>> passage(walk, kind='committor', origin=[0], target=[2]).committor.tolist()
         [0.0, 0.5, 1.0]
     """
-
-    def __init__(
-        self,
-        kind: str = 'first-passage',
-        variables: Sequence[str] | None = None,
-        *,
-        threshold: float | None = None,
-        target: Sequence[float] | None = None,
-        origin: Sequence[float] | None = None,
-        direction: str = 'up',
-        level: float = 0.0,
-        lag: int = 1,
-        dt: float = 1.0,
-    ) -> None:
-        self.kind = kind
-        self.variables = variables
-        self.threshold = threshold
-        self.target = target
-        self.origin = origin
-        self.direction = direction
-        self.level = level
-        self.lag = lag
-        self.dt = dt
-
-    def _check(self) -> None:
-        """Validate the kind, the direction, the sets each kind needs, and the step."""
-        self._check_choice('kind', self.kind, KINDS)
-        self._check_choice('direction', self.direction, DIRECTIONS)
-        self._check_settings('kind', SETTINGS[self.kind] | {'variables'})
-        if self.kind == 'first-passage' and self.threshold is None and self.target is None:
-            error_msg = f'{type(self).__name__} needs a threshold or the target states that end the passage.'
-            raise AnalysisError(error_msg)
-        if self.kind == 'hitting' and self.target is None:
-            error_msg = f'{type(self).__name__} of kind {self.kind!r} needs the absorbing target states.'
-            raise AnalysisError(error_msg)
-        if self.kind in MATRIX_KINDS and (self.origin is None or self.target is None):
-            error_msg = f'{type(self).__name__} of kind {self.kind!r} needs the origin and the target states.'
-            raise AnalysisError(error_msg)
-        if self.lag < 1 or self.dt <= 0:
-            error_msg = f'{type(self).__name__} has lag={self.lag!r} and dt={self.dt!r}. Use positive values.'
-            raise AnalysisError(error_msg)
-
-    def _get_data_kind(self) -> DataKind:
-        """Return the series kind for returns, and the path kind otherwise."""
-        return DataKind.SERIES if self.kind == 'return-times' else DataKind.PATH
-
-    def _prepare(self, source: Source) -> None:
-        """Read the transition matrix of the matrix kinds, and the paths or the series otherwise."""
-        name = self.variables[0] if self.variables else None
-        if self.kind in MATRIX_KINDS:
-            if isinstance(source, Trajectory):
-                states = np.asarray(self._read_path(source, name).states, dtype=np.int64)
-                self.matrix_ = MarkovAnalysis._transition_matrix(states, lag=self.lag)
-            else:
-                self.matrix_ = np.asarray(source, dtype=float)
-            return
-        if self.kind == 'return-times':
-            series = self._read_series(source, self.variables)
-            self.values_ = series.values[:, 0]
-            self.times_ = series.times if isinstance(source, Trajectory) else series.times * self.dt
-            return
+    _check_choice('passage', 'kind', kind, KINDS)
+    _check_choice('passage', 'direction', direction, DIRECTIONS)
+    _check_settings(
+        passage,
+        'kind',
+        SETTINGS[kind] | {'variables'},
+        kind=kind,
+        variables=variables,
+        threshold=threshold,
+        target=target,
+        origin=origin,
+        direction=direction,
+        level=level,
+        lag=lag,
+        dt=dt,
+    )
+    _check(kind, threshold=threshold, target=target, origin=origin, lag=lag, dt=dt)
+    name = variables[0] if variables else None
+    if kind in MATRIX_KINDS:
         if isinstance(source, Trajectory):
-            path = self._read_path(source, name)
-            self.values_ = self._rows(path.states)
-            self.times_ = np.asarray(path.times, dtype=float)
-            return
-        self.values_ = self._rows(source)
-        self.times_ = np.arange(self.values_.shape[1], dtype=float) * self.dt
-
-    def _get_states(self, states: Sequence[float] | None) -> list[float]:
-        """Return a set of states as a list, empty without states."""
-        return [] if states is None else list(states)
-
-    def _run_first_passage(self) -> None:
-        """Compute the first passage of every path to the threshold or into the target states."""
-        threshold = float('nan') if self.threshold is None else self.threshold
-        if self.target is not None:
-            hits = np.isin(self.values_, np.asarray(self.target, dtype=float))
-        elif self.direction == 'up':
-            hits = self.values_ >= threshold
+            states = np.asarray(_read_path(source, name).states, dtype=np.int64)
+            matrix = _transition_matrix(states, lag=lag)
         else:
-            hits = self.values_ <= threshold
-        first = self._first_hits(hits)
-        clock = self.times_
-        self.passage_times_ = np.where(first >= 0, clock[np.maximum(first, 0)] - clock[0], np.nan)
+            matrix = np.asarray(source, dtype=float)
+        if kind == 'committor':
+            chain = MarkovChain(matrix)
+            committor = chain.committor_probabilities('forward', _get_indices(origin), _get_indices(target))
+            return PassageResult(matrix=matrix, committor=np.asarray(committor, dtype=float))
+        time = _mean_first_passage(matrix, origin, target, lag, dt)
+        return PassageResult(matrix=matrix, mean_first_passage_time=time)
+    if kind == 'return-times':
+        series = _read_series(source, variables)
+        times = series.times if isinstance(source, Trajectory) else series.times * dt
+        return _returns(series.values[:, 0], times, level)
+    if isinstance(source, Trajectory):
+        path = _read_path(source, name)
+        values = _rows(path.states)
+        times = np.asarray(path.times, dtype=float)
+    else:
+        values = _rows(source)
+        times = np.arange(values.shape[1], dtype=float) * dt
+    if kind == 'first-passage':
+        return _first_passage(values, times, threshold, target, direction)
+    targets = _get_states(target)
+    first = _first_hits(np.isin(values, np.asarray(targets, dtype=float)))
+    reached = values[np.arange(values.shape[0]), np.maximum(first, 0)]
+    probabilities = np.asarray([np.mean((first >= 0) & (reached == state)) for state in targets], dtype=float)
+    return PassageResult(values, times, hitting_probabilities=probabilities)
 
-    def _run_hitting(self) -> None:
-        """Compute the share of paths that reach every target state first."""
-        target = self._get_states(self.target)
-        first = self._first_hits(np.isin(self.values_, np.asarray(target, dtype=float)))
-        reached = self.values_[np.arange(self.values_.shape[0]), np.maximum(first, 0)]
-        self.hitting_probabilities_ = np.asarray(
-            [np.mean((first >= 0) & (reached == state)) for state in target],
-            dtype=float,
-        )
 
-    def _run_returns(self) -> None:
-        """Compute the times between the returns of the series to the level."""
-        array = self.values_ - self.level
-        signs = np.sign(array)
-        crossing = np.concatenate([[False], signs[1:] * signs[:-1] < 0])
-        returns = np.flatnonzero((signs == 0) | crossing)
-        self.return_times_ = np.diff(self.times_[returns])
+def _check(
+    kind: str,
+    *,
+    threshold: float | None,
+    target: Sequence[float] | None,
+    origin: Sequence[float] | None,
+    lag: int,
+    dt: float,
+) -> None:
+    """Raise an error for a set a kind needs that is missing, or a lag or a step that is not positive."""
+    if kind == 'first-passage' and threshold is None and target is None:
+        error_msg = 'passage needs a threshold or the target states that end the passage.'
+        raise AnalysisError(error_msg)
+    if kind == 'hitting' and target is None:
+        error_msg = f'passage of kind {kind!r} needs the absorbing target states.'
+        raise AnalysisError(error_msg)
+    if kind in MATRIX_KINDS and (origin is None or target is None):
+        error_msg = f'passage of kind {kind!r} needs the origin and the target states.'
+        raise AnalysisError(error_msg)
+    if lag < 1 or dt <= 0:
+        error_msg = f'passage has lag={lag!r} and dt={dt!r}. Use positive values.'
+        raise AnalysisError(error_msg)
 
-    def _get_indices(self, states: Sequence[float] | None) -> list[int]:
-        """Return a set of states as the indices of the rows of the matrix."""
-        return [int(state) for state in self._get_states(states)]
 
-    def _run_committor(self) -> None:
-        """Compute the forward committor from the origin to the target states."""
-        chain = MarkovChain(self.matrix_)
-        origin, target = self._get_indices(self.origin), self._get_indices(self.target)
-        self.committor_ = np.asarray(chain.committor_probabilities('forward', origin, target), dtype=float)
+def _returns(values: Array, times: Array, level: float) -> PassageResult:
+    """Return the times between the returns of the series to the level."""
+    signs = np.sign(values - level)
+    crossing = np.concatenate([[False], signs[1:] * signs[:-1] < 0])
+    returns = np.flatnonzero((signs == 0) | crossing)
+    return PassageResult(values, times, return_times=np.diff(times[returns]))
 
-    def _run_mean_first_passage(self) -> None:
-        """Compute the mean first-passage time to the target states, from the origin in its stationary weights."""
-        times = MarkovChain(self.matrix_).first_passage_times_to('mean', self._get_indices(self.target))
-        if times is None:
-            error_msg = f'{type(self).__name__} needs a transition matrix with one stationary law, not a reducible one.'
-            raise AnalysisError(error_msg)
-        origin = self._get_indices(self.origin)
-        weights = MarkovAnalysis._stationary_distribution(self.matrix_)[origin]
-        self.mean_first_passage_time_ = float(weights @ times[origin] / weights.sum() * self.lag * self.dt)
 
-    def _run(self, inputs: object = None) -> None:
-        """Compute the passage of the kind."""
-        if self.kind == 'first-passage':
-            self._run_first_passage()
-        elif self.kind == 'hitting':
-            self._run_hitting()
-        elif self.kind == 'return-times':
-            self._run_returns()
-        elif self.kind == 'committor':
-            self._run_committor()
-        else:
-            self._run_mean_first_passage()
+def _first_passage(
+    values: Array,
+    times: Array,
+    threshold: float | None,
+    target: Sequence[float] | None,
+    direction: str,
+) -> PassageResult:
+    """Return the first passage of every path to the threshold or into the target states."""
+    level = float('nan') if threshold is None else threshold
+    if target is not None:
+        hits = np.isin(values, np.asarray(target, dtype=float))
+    elif direction == 'up':
+        hits = values >= level
+    else:
+        hits = values <= level
+    first = _first_hits(hits)
+    passage_times = np.where(first >= 0, times[np.maximum(first, 0)] - times[0], np.nan)
+    return PassageResult(values, times, passage_times=passage_times)
 
-    @staticmethod
-    def _rows(paths: npt.ArrayLike) -> Array:
-        """Return paths as one row per path."""
-        array = np.asarray(paths, dtype=float)
-        return array.reshape(1, -1) if array.ndim == 1 else array
 
-    @staticmethod
-    def _first_hits(hits: npt.NDArray[np.bool_]) -> npt.NDArray[np.int64]:
-        """Return the first step at which every row hits, or -1 for rows that never hit."""
-        first = hits.argmax(axis=1)
-        return np.where(hits.any(axis=1), first, -1)
+def _get_states(states: Sequence[float] | None) -> list[float]:
+    """Return a set of states as a list, empty without states."""
+    return [] if states is None else list(states)
+
+
+def _get_indices(states: Sequence[float] | None) -> list[int]:
+    """Return a set of states as the indices of the rows of the matrix."""
+    return [int(state) for state in _get_states(states)]
+
+
+def _mean_first_passage(
+    matrix: Array,
+    origin: Sequence[float] | None,
+    target: Sequence[float] | None,
+    lag: int,
+    dt: float,
+) -> float:
+    """Return the mean first-passage time to the target states, from the origin in its stationary weights."""
+    times = MarkovChain(matrix).first_passage_times_to('mean', _get_indices(target))
+    if times is None:
+        error_msg = 'passage needs a transition matrix with one stationary law, not a reducible one.'
+        raise AnalysisError(error_msg)
+    start = _get_indices(origin)
+    weights = _stationary_distribution(matrix)[start]
+    return float(weights @ times[start] / weights.sum() * lag * dt)
+
+
+def _rows(paths: npt.ArrayLike) -> Array:
+    """Return paths as one row per path."""
+    array = np.asarray(paths, dtype=float)
+    return array.reshape(1, -1) if array.ndim == 1 else array
+
+
+def _first_hits(hits: npt.NDArray[np.bool_]) -> npt.NDArray[np.int64]:
+    """Return the first step at which every row hits, or -1 for rows that never hit."""
+    first = hits.argmax(axis=1)
+    return np.where(hits.any(axis=1), first, -1)
