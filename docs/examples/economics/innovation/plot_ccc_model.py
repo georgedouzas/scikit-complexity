@@ -13,13 +13,14 @@ composition and then reorganises in bursts, the punctuated equilibria of combina
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.economics.innovation import CccModelSystem
 
 SYSTEM = 'ccc_model'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run(until=1000)
+trajectory = simulate(CccModelSystem(), observers=[observer])
 
 # %%
 # Punctuated equilibria
@@ -27,7 +28,6 @@ simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare(
 # The states of the entities over time should show horizontal stripes of quasi-equilibria broken by bursts of change,
 # as in Fig. 5.14 of Thurner et al., and the changes per step should be zero most of the time with rare large values.
 
-trajectory = simulation.trajectory_
 states = np.array([trajectory.agents('entities', frame).values['exists'] for frame in range(len(trajectory.times))])
 changes = trajectory.values('update.changes')[1:]
 fig, (raster, sizes) = plt.subplots(1, 2, figsize=(10, 4))

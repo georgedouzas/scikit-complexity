@@ -9,7 +9,7 @@ from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.biology.ecology import generalized_lotka_volterra, lotka_volterra
 from skcomplex.systems.biology.epidemiology import sir
 from skcomplex.systems.biology.systems_biology import repressilator
-from skcomplex.systems.economics.innovation import bass_diffusion
+from skcomplex.systems.economics.innovation import BassDiffusionSystem
 from skcomplex.systems.mathematics.dynamical_systems import logistic_map
 from skcomplex.systems.physics.mechanics import harmonic_oscillator
 
@@ -26,7 +26,7 @@ def _found(analysis):
 
 def test_stock_and_flow_loops_pass_through_their_flows():
     """Test that adoption closes a reinforcing loop through adopters and a balancing one through potential adopters."""
-    analysis = _loops(bass_diffusion())
+    analysis = _loops(BassDiffusionSystem().prepare().system_)
     assert _found(analysis) == {
         ('market.A', 'market.adoption'): 'reinforcing',
         ('market.P', 'market.adoption'): 'balancing',

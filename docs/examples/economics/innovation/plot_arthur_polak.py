@@ -17,9 +17,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.economics.innovation import ArthurPolakSystem
 
 SYSTEM = 'arthur_polak'
 STEPS, SEEDS = 3000, 12
@@ -37,7 +37,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=20)
-simulation = Simulation(create_system(SYSTEM), observers=[observer], random_state=0).prepare().run(until=STEPS)
+trajectory = simulate(ArthurPolakSystem(), until=STEPS, observers=[observer], random_state=0)
 
 # %%
 # Complexity and the time of invention
@@ -48,7 +48,7 @@ simulation = Simulation(create_system(SYSTEM), observers=[observer], random_stat
 
 fig, (pools, invention) = plt.subplots(1, 2, figsize=(10, 4))
 for seed in range(SEEDS):
-    trajectory = Simulation(create_system(SYSTEM), random_state=seed).prepare().run(until=STEPS).trajectory_
+    trajectory = simulate(ArthurPolakSystem(), until=STEPS, random_state=seed)
     count = trajectory.values('technologies.count')
     pools.step(trajectory.times, count, where='post', color='C0', alpha=0.4)
     costs = trajectory.agents('technologies', len(trajectory.times) - 1).values['cost']

@@ -12,11 +12,10 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class CombinatorialEntityView(AgentView):
@@ -48,6 +47,8 @@ class CombinatorialEntityElement(Element):
         >>> GroupElement('entities', element=CombinatorialEntityElement, size=3).size
         3
     """
+
+    law_classes = ()
 
     def __init__(
         self,
@@ -169,29 +170,8 @@ class CombinatorialUpdateInteraction(FeedbackInteraction[SystemView]):
         system.report('changes', float(np.sum(states != before)))
 
 
-def _random_sets(size: int, rate: float, rng: np.random.Generator) -> tuple[tuple[int, int, int], ...]:
-    """Return random sets, every entry `(i, j, k)` of the tensor present with probability `rate / size^2`."""
-    count = rng.binomial(size**3, min(1.0, rate / size**2))
-    triples = rng.integers(size, size=(count, 3))
-    return tuple((int(i), int(j), int(k)) for i, j, k in triples)
-
-
-@register_system(
-    field='economics/innovation',
-    tags=('innovation', 'combinatorial evolution', 'punctuated equilibria', 'self-organized criticality', 'agents'),
-    references=('Thurner et al. 2018',),
-    defaults={'until': 1000},
-)
-def ccc_model(
-    n_entities: int = 100,
-    *,
-    r_plus: float = 5.0,
-    r_minus: float = 10.0,
-    p: float = 0.0002,
-    initial: float = 0.5,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the co-evolving combinatorial critical model, whose diversity shows punctuated equilibria.
+class CccModelSystem(BaseSystem):
+    """The co-evolving combinatorial critical model, whose diversity shows punctuated equilibria.
 
     Every entity exists or not. Pairs of existing entities produce other entities through the production tensor `M+`
     and destroy them through the destruction tensor `M-`, random tensors with on average `r+` productive and `r-`
@@ -204,6 +184,9 @@ def ccc_model(
     leaves the initial state open, so every entity exists at the start with the probability `initial`. With the
     tensors of this implementation the setting `r+ = 10` and `r- = 15` of Fig. 5.14 restructures almost every step,
     so the defaults take `r+ = 5` and `r- = 10`, which is punctuated.
+
+    The system has the group `entities` and the update `update`, whose reporters are the number of existing entities
+    `update.diversity` and the entities that changed state in the step `update.changes`.
 
     Args:
         n_entities:
@@ -224,28 +207,60 @@ def ccc_model(
         random_state:
             The seed or generator of the tensors and the initial states.
 
-    Returns:
-        system:
-            The system, with the group `entities` and the update `update`, whose reporters are the number of existing
-            entities `update.diversity` and the entities that changed state in the step `update.changes`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.innovation import ccc_model
-        >>> ccc_model(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.economics.innovation import CccModelSystem
+        >>> CccModelSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    rng = np.random.default_rng(random_state)
-    entities = GroupElement(
-        'entities',
-        element=CombinatorialEntityElement,
-        size=n_entities,
-        values={'exists': (rng.random(n_entities) < initial).astype(float)},
-    )
-    update = CombinatorialUpdateInteraction(
-        'update',
-        entities='entities',
-        production=_random_sets(n_entities, r_plus, rng),
-        destruction=_random_sets(n_entities, r_minus, rng),
-        p=p,
-    )
-    return System(elements=[entities], interactions=[update])
+
+    field = 'economics/innovation'
+    topics = ('innovation', 'combinatorial evolution', 'punctuated equilibria', 'self-organized criticality', 'agents')
+    references = ('Thurner et al. 2018',)
+    until = 1000
+
+    def __init__(
+        self,
+        n_entities: int = 100,
+        *,
+        r_plus: float = 5.0,
+        r_minus: float = 10.0,
+        p: float = 0.0002,
+        initial: float = 0.5,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_entities = n_entities
+        self.r_plus = r_plus
+        self.r_minus = r_minus
+        self.p = p
+        self.initial = initial
+        self.random_state = random_state
+
+    @staticmethod
+    def _random_sets(size: int, rate: float, rng: np.random.Generator) -> tuple[tuple[int, int, int], ...]:
+        """Return random sets, every entry `(i, j, k)` of the tensor present with probability `rate / size^2`."""
+        count = rng.binomial(size**3, min(1.0, rate / size**2))
+        triples = rng.integers(size, size=(count, 3))
+        return tuple((int(i), int(j), int(k)) for i, j, k in triples)
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        entities = GroupElement(
+            'entities',
+            element=CombinatorialEntityElement,
+            size=self.n_entities,
+            values={'exists': (rng.random(self.n_entities) < self.initial).astype(float)},
+        )
+        update = CombinatorialUpdateInteraction(
+            'update',
+            entities='entities',
+            production=self._random_sets(self.n_entities, self.r_plus, rng),
+            destruction=self._random_sets(self.n_entities, self.r_minus, rng),
+            p=self.p,
+        )
+        return System(self.label, elements=[entities], interactions=[update])

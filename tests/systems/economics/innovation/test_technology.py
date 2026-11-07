@@ -4,8 +4,8 @@ import numpy as np
 
 from skcomplex.systems import describe
 from skcomplex.systems.economics.innovation import (
-    arthur_polak,
-    nk_technology,
+    ArthurPolakSystem,
+    NkTechnologySystem,
 )
 
 from ..conftest import _agents, _run
@@ -19,12 +19,12 @@ def _truth_table(arity, function):
 def test_nk_technology_costs_only_fall_and_fall_faster_for_modular_designs():
     """Test that the total cost never rises, and that it falls further when redesigns change fewer components."""
     modular = _run(
-        built := nk_technology(10, 1),
+        built := NkTechnologySystem(10, 1).prepare().system_,
         2000,
         observables=describe('nk_technology').observables_of(built),
     ).values('total_cost')
     coupled = _run(
-        built := nk_technology(10, 4),
+        built := NkTechnologySystem(10, 4).prepare().system_,
         2000,
         observables=describe('nk_technology').observables_of(built),
     ).values('total_cost')
@@ -35,7 +35,7 @@ def test_nk_technology_costs_only_fall_and_fall_faster_for_modular_designs():
 
 def test_arthur_polak_invents_only_wanted_functions():
     """Test that the pool grows from the primitives and holds only correct circuits of wanted functions."""
-    trajectory = _run(arthur_polak(), 1000)
+    trajectory = _run(ArthurPolakSystem(), 1000)
     pool = _agents(trajectory, 'technologies', 1000)
     wanted = {
         (1, _truth_table(1, lambda a: not a)),

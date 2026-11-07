@@ -15,11 +15,10 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class TechnologyView(AgentView):
@@ -55,6 +54,8 @@ class PartElement(Element):
         >>> GroupElement('components', element=PartElement, size=5, values={'cost': 0.5}).size
         5
     """
+
+    law_classes = ()
 
     def __init__(
         self,
@@ -135,6 +136,8 @@ class InventionInteraction(Interaction):
         >>> InventionInteraction('invention', technologies='technologies', max_components=6).max_components
         6
     """
+
+    law_classes = (RuleLaw,)
 
     def __init__(
         self,
@@ -230,6 +233,8 @@ class RedesignInteraction(Interaction):
         [[1.0]]
     """
 
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -291,15 +296,6 @@ FALSE = (0, 0)
 TRUE = (0, 1)
 
 
-def _design_structure(n_components: int, d: int, rng: np.random.Generator) -> Array:
-    """Return a design structure matrix where a change of every component changes it and `d - 1` other components."""
-    matrix = np.eye(n_components)
-    for column in range(n_components):
-        others = rng.choice([row for row in range(n_components) if row != column], d - 1, replace=False)
-        matrix[others, column] = 1.0
-    return matrix
-
-
 class TechnologyElement(Element):
     """Logic circuit in the pool of technologies, described by the truth table of the function it computes.
 
@@ -328,6 +324,8 @@ class TechnologyElement(Element):
         ... ).size
         3
     """
+
+    law_classes = ()
 
     def __init__(
         self,
@@ -362,24 +360,13 @@ class TechnologyElement(Element):
         return []
 
 
-@register_system(
-    field='economics/innovation',
-    tags=('innovation', 'technology', 'learning curve', 'agents'),
-    references=('Thurner et al. 2018', 'McNerney et al. 2011'),
-    defaults={'until': 200},
-    observables=lambda system: [ObservableSpec('total_cost', group='components', reduce='sum', variable='cost')],
-)
-def nk_technology(
-    n_components: int = 10,
-    d: int = 2,
-    *,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return McNerney's system of technological improvement, whose cost falls as a power of the cumulative production.
+class NkTechnologySystem(BaseSystem):
+    """McNerney's system of technological improvement, whose cost falls as a power of the cumulative production.
 
     Every step is one unit of production and one attempt to redesign a random component together with the components
     that depend on it. Redesigns are kept only when they cut the total cost, which falls like Wright's law, more slowly
-    for designs whose components depend on more others.
+    for designs whose components depend on more others. The system has the group `components` and the total cost
+    `total_cost`.
 
     Args:
         n_components:
@@ -391,42 +378,67 @@ def nk_technology(
         random_state:
             The seed or generator of the design structure matrix and the initial costs.
 
-    Returns:
-        system:
-            The system, with the group `components` and the total cost `total_cost`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.innovation import nk_technology
-        >>> nk_technology(5, 1).interactions[0].dependencies[0]
+        >>> from skcomplex.systems.economics.innovation import NkTechnologySystem
+        >>> NkTechnologySystem(5, 1).prepare().system_.interactions[0].dependencies[0]
         [1.0, 0.0, 0.0, 0.0, 0.0]
     """
-    rng = np.random.default_rng(random_state)
-    dependencies = _design_structure(n_components, d, rng)
-    components = GroupElement(
-        'components',
-        element=PartElement,
-        size=n_components,
-        values={'cost': rng.random(n_components)},
-    )
-    return System(
-        elements=[components],
-        interactions=[RedesignInteraction('redesign', components='components', dependencies=dependencies.tolist())],
-    )
+
+    field = 'economics/innovation'
+    topics = ('innovation', 'technology', 'learning curve', 'agents')
+    references = ('Thurner et al. 2018', 'McNerney et al. 2011')
+    until = 200
+    observables = (ObservableSpec('total_cost', group='components', reduce='sum', variable='cost'),)
+
+    def __init__(
+        self,
+        n_components: int = 10,
+        d: int = 2,
+        *,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_components = n_components
+        self.d = d
+        self.random_state = random_state
+
+    @staticmethod
+    def _design_structure(n_components: int, d: int, rng: np.random.Generator) -> Array:
+        """Return a design structure matrix where a change of a component changes it and `d - 1` other ones."""
+        matrix = np.eye(n_components)
+        for column in range(n_components):
+            others = rng.choice([row for row in range(n_components) if row != column], d - 1, replace=False)
+            matrix[others, column] = 1.0
+        return matrix
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        dependencies = self._design_structure(self.n_components, self.d, rng)
+        components = GroupElement(
+            'components',
+            element=PartElement,
+            size=self.n_components,
+            values={'cost': rng.random(self.n_components)},
+        )
+        return System(
+            self.label,
+            elements=[components],
+            interactions=[RedesignInteraction('redesign', components='components', dependencies=dependencies.tolist())],
+        )
 
 
-@register_system(
-    field='economics/innovation',
-    tags=('innovation', 'technology', 'combinatorial evolution', 'agents'),
-    references=('Thurner et al. 2018', 'Arthur and Polak 2006'),
-    defaults={'until': 200},
-)
-def arthur_polak(*, max_components: int = 12, max_inputs: int = 3) -> System:
-    """Return Arthur and Polak's evolution of technology, which builds logic functions from NAND gates.
+class ArthurPolakSystem(BaseSystem):
+    """Arthur and Polak's evolution of technology, which builds logic functions from NAND gates.
 
     The pool starts with the NAND gate and the constants 0 and 1. Every step wires a random circuit from the pool and
     keeps it when it computes a wanted function, negation, two-input and, or, exclusive or, nor, equivalence, and
     implication, or three-input and, or, parity, and majority, so simple inventions become the building blocks of
-    complex ones.
+    complex ones. The system has the pool `technologies`, whose size is the reporter `technologies.count`.
 
     Args:
         max_components:
@@ -435,31 +447,49 @@ def arthur_polak(*, max_components: int = 12, max_inputs: int = 3) -> System:
         max_inputs:
             The largest number of inputs of a circuit.
 
-    Returns:
-        system:
-            The system, with the pool `technologies`, whose size is the reporter `technologies.count`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.innovation import arthur_polak
-        >>> arthur_polak().elements[0].prepare().size_
+        >>> from skcomplex.systems.economics.innovation import ArthurPolakSystem
+        >>> ArthurPolakSystem().prepare().system_.elements[0].prepare().size_
         3
     """
-    primitives = (NAND, FALSE, TRUE)
-    technologies = GroupElement(
-        'technologies',
-        element=TechnologyElement,
-        size=len(primitives),
-        values={
-            'arity': [float(arity) for arity, _ in primitives],
-            'table': [float(table) for _, table in primitives],
-            'cost': [1.0, 0.0, 0.0],
-        },
-        variable=True,
-    )
-    invention = InventionInteraction(
-        'invention',
-        technologies='technologies',
-        max_components=float(max_components),
-        max_inputs=float(max_inputs),
-    )
-    return System(elements=[technologies], interactions=[invention])
+
+    field = 'economics/innovation'
+    topics = ('innovation', 'technology', 'combinatorial evolution', 'agents')
+    references = ('Thurner et al. 2018', 'Arthur and Polak 2006')
+    until = 200
+
+    def __init__(
+        self,
+        *,
+        max_components: int = 12,
+        max_inputs: int = 3,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.max_components = max_components
+        self.max_inputs = max_inputs
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        primitives = (NAND, FALSE, TRUE)
+        technologies = GroupElement(
+            'technologies',
+            element=TechnologyElement,
+            size=len(primitives),
+            values={
+                'arity': [float(arity) for arity, _ in primitives],
+                'table': [float(table) for _, table in primitives],
+                'cost': [1.0, 0.0, 0.0],
+            },
+            variable=True,
+        )
+        invention = InventionInteraction(
+            'invention',
+            technologies='technologies',
+            max_components=float(self.max_components),
+            max_inputs=float(self.max_inputs),
+        )
+        return System(self.label, elements=[technologies], interactions=[invention])

@@ -11,15 +11,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
-
-
-def _adoption(s: SimpleNamespace) -> Expression:
-    """Return the adoption rate `(p + q A / (P + A)) P` of the market a transfer moves people within."""
-    market = s.source
-    return (market.p + market.q * market.A / (market.P + market.A)) * market.P
 
 
 class BassMarketElement(Element):
@@ -69,14 +62,8 @@ class BassMarketElement(Element):
         self.q = q
 
 
-@register_system(
-    field='economics/innovation',
-    tags=('diffusion', 'marketing', 'stocks and flows', 'system dynamics', 'ode'),
-    references=('Bass 1969',),
-    defaults={'until': 20.0, 'dt': 0.25},
-)
-def bass_diffusion(market: float = 1000.0, *, adopters: float = 0.0, p: float = 0.03, q: float = 0.38) -> System:
-    """Return the Bass diffusion system, people who adopt a new product through advertising and word of mouth.
+class BassDiffusionSystem(BaseSystem):
+    """The Bass diffusion system, people who adopt a new product through advertising and word of mouth.
 
     A market of `N` people splits into potential adopters `P` and adopters `A`. Potential adopters adopt at the rate
     `(p + q A / N) P`, where the coefficient of innovation `p` captures adoption from external influence, such as
@@ -85,6 +72,9 @@ def bass_diffusion(market: float = 1000.0, *, adopters: float = 0.0, p: float = 
     `log(q / p) / (p + q)` and the adopters follow an S-shaped curve. Starting without adopters, the closed form is
     `A(t) = N (1 - exp(-(p + q) t)) / (1 + (q / p) exp(-(p + q) t))`. The defaults are the mean coefficients that
     Sultan, Farley and Lehmann (1990) estimated over many products, with time in years.
+
+    The system has the potential adopters `market.P`, the adopters `market.A`, and the adoption flow `market.adoption`
+    in people per year, over years.
 
     Args:
         market:
@@ -99,26 +89,55 @@ def bass_diffusion(market: float = 1000.0, *, adopters: float = 0.0, p: float = 
         q:
             The coefficient of imitation, per year.
 
-    Returns:
-        system:
-            The system, with the potential adopters `market.P`, the adopters `market.A`, and the adoption flow
-            `market.adoption` in people per year, over years.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.innovation import bass_diffusion
-        >>> bass_diffusion(market=500.0, adopters=10.0).elements[0].P
+        >>> from skcomplex.systems.economics.innovation import BassDiffusionSystem
+        >>> BassDiffusionSystem(market=500.0, adopters=10.0).prepare().system_.elements[0].P
         490.0
     """
-    adoption = TransferInteraction(
-        'adoption',
-        source='market',
-        target='market',
-        state='P',
-        into='A',
-        amount=_adoption,
-        flow='adoption',
-    )
-    return System(
-        elements=[BassMarketElement('market', P=market - adopters, A=adopters, p=p, q=q)],
-        interactions=[adoption],
-    )
+
+    field = 'economics/innovation'
+    topics = ('diffusion', 'marketing', 'stocks and flows', 'system dynamics', 'ode')
+    references = ('Bass 1969',)
+    until = 20.0
+    dt = 0.25
+
+    def __init__(
+        self,
+        market: float = 1000.0,
+        *,
+        adopters: float = 0.0,
+        p: float = 0.03,
+        q: float = 0.38,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.market = market
+        self.adopters = adopters
+        self.p = p
+        self.q = q
+
+    @staticmethod
+    def _adoption(s: SimpleNamespace) -> Expression:
+        """Return the adoption rate `(p + q A / (P + A)) P` of the market a transfer moves people within."""
+        market = s.source
+        return (market.p + market.q * market.A / (market.P + market.A)) * market.P
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        adoption = TransferInteraction(
+            'adoption',
+            source='market',
+            target='market',
+            state='P',
+            into='A',
+            amount=self._adoption,
+            flow='adoption',
+        )
+        return System(
+            self.label,
+            elements=[BassMarketElement('market', P=self.market - self.adopters, A=self.adopters, p=self.p, q=self.q)],
+            interactions=[adoption],
+        )

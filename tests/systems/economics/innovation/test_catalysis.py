@@ -4,12 +4,17 @@ import numpy as np
 
 from skcomplex.core.analysis import autocatalytic_sets
 from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems.economics.innovation import tap_catalysis
+from skcomplex.systems.economics.innovation import TapCatalysisSystem
 
 
 def _final(seed, **arguments):
     """Return the network of the last frame of a TAP run."""
-    trajectory = Simulation(tap_catalysis(**arguments), random_state=seed).prepare().run(until=400).trajectory_
+    trajectory = (
+        Simulation(TapCatalysisSystem(**arguments).prepare().system_, random_state=seed)
+        .prepare()
+        .run(until=400)
+        .trajectory_
+    )
     return trajectory.network(-1)
 
 

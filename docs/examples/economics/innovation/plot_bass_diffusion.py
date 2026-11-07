@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.economics.innovation import BassDiffusionSystem
 
 SYSTEM = 'bass_diffusion'
 
@@ -33,7 +33,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create_system(SYSTEM), dt=0.25, observers=[observer]).prepare().run(20)
+trajectory = simulate(BassDiffusionSystem(), observers=[observer])
 
 # %%
 # The closed-form Bass curve
@@ -42,7 +42,6 @@ simulation = Simulation(create_system(SYSTEM), dt=0.25, observers=[observer]).pr
 # adoption peaks at `log(q / p) / (p + q)`, about 6.2 years.
 
 p, q, market = 0.03, 0.38, 1000.0
-trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
 decay = np.exp(-(p + q) * times)
 fig, (adopters, adoption) = plt.subplots(1, 2, figsize=(10, 4))
