@@ -3,16 +3,251 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import numpy as np
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.components.elements import GroupElement
+import numpy as np
+import numpy.typing as npt
+from sage.all__sagemath_symbolics import SR, cos, oo, pi, sin, sqrt, vector
+from sage.sets.real_set import RealSet
+
+from ....core.components.elements import Element, GroupElement
+from ....core.components.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.system import System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.errors import ParameterError
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._anisotropic_particle import AnisotropicParticleElement
-from ._dimer import DimerElement
+
+AXES = ('x', 'y', 'z')
+"""The names of the coordinates of the position."""
+
+DIRECTIONS = ('ux', 'uy', 'uz')
+"""The names of the components of the unit vector along the axis."""
+
+
+class AnisotropicParticleElement(Element):
+    """Axisymmetric Brownian particle in three dimensions, whose diffusion tensor turns with its axis.
+
+    The position `r = (x, y, z)` diffuses with `D_par` along the unit axis `u = (ux, uy, uz)` and with `D_perp` across
+    it, `dr = (sqrt(2 D_par) u u + sqrt(2 D_perp) (I - u u)) dW`. The axis diffuses on the unit sphere,
+    `du = -2 D_r u dt + sqrt(2 D_r) (I - u u) dW_r` in the Itô form, and a boundary rescales it to unit length after
+    every step against the drift of the discrete steps. The spin `psi` about the axis diffuses with `D_spin`, and its
+    noise is correlated with the displacement along the axis through the coupling `D_c` of a chiral body, so that
+    `<dr_par dpsi> = 2 D_c dt`, which needs `D_c² <= D_par D_spin`.
+
+    Args:
+        label:
+            The label of the particle or the group.
+
+        visual:
+            How the particle is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        z:
+            The initial third coordinate.
+
+        ux:
+            The initial first component of the axis.
+
+        uy:
+            The initial second component of the axis.
+
+        uz:
+            The initial third component of the axis.
+
+        psi:
+            The initial spin angle about the axis.
+
+        D_par:
+            The translational diffusion coefficient along the axis.
+
+        D_perp:
+            The translational diffusion coefficient across the axis.
+
+        D_r:
+            The rotational diffusion coefficient of the axis.
+
+        D_spin:
+            The rotational diffusion coefficient about the axis.
+
+        D_c:
+            The coupling of the translation along the axis and the rotation about it.
+
+    Attributes:
+        default_visual_:
+            The visual of the particle when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import AnisotropicParticleElement
+        >>> AnisotropicParticleElement('janus').uz
+        1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 0.0,
+        y: Annotated[float, StateSpec()] = 0.0,
+        z: Annotated[float, StateSpec()] = 0.0,
+        ux: Annotated[float, StateSpec()] = 0.0,
+        uy: Annotated[float, StateSpec()] = 0.0,
+        uz: Annotated[float, StateSpec()] = 1.0,
+        psi: Annotated[float, StateSpec()] = 0.0,
+        D_par: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        D_perp: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        D_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.75,
+        D_spin: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.75,
+        D_c: Annotated[float, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.ux = ux
+        self.uy = uy
+        self.uz = uz
+        self.psi = psi
+        self.D_par = D_par
+        self.D_perp = D_perp
+        self.D_r = D_r
+        self.D_spin = D_spin
+        self.D_c = D_c
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the translation and the rotation with their correlated noises, and the boundary of the axis.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        axis = [getattr(s, name) for name in DIRECTIONS]
+        position = [getattr(s, name) for name in AXES]
+        length = sqrt(sum(component**2 for component in axis))
+        laws: list[BaseLaw] = []
+        for i, (coordinate, component) in enumerate(zip(position, axis, strict=True)):
+            laws.append(RateLaw(component, -2 * s.D_r * component))
+            for j, other in enumerate(axis):
+                projector = (1 if i == j else 0) - component * other
+                laws.append(NoiseLaw(coordinate, sqrt(2 * s.D_perp) * projector, process=f'translation_{j}'))
+                laws.append(NoiseLaw(coordinate, sqrt(2 * s.D_par) * component * other, process=f'translation_{j}'))
+                laws.append(NoiseLaw(component, sqrt(2 * s.D_r) * projector, process=f'rotation_{j}'))
+            laws.append(BoundaryLaw(component, component / length))
+        coupling = s.D_c / sqrt(s.D_par)
+        for j, other in enumerate(axis):
+            laws.append(NoiseLaw(s.psi, sqrt(2) * coupling * other, process=f'translation_{j}'))
+        laws.append(NoiseLaw(s.psi, sqrt(2 * (s.D_spin - coupling**2)), process='spin'))
+        return laws
+
+
+class DimerElement(Element):
+    """Two Brownian or active spheres joined by a rigid rod, described by the centre and the angle of the rod.
+
+    Each sphere diffuses with `D_t` and swims at the speed `v0` along its own orientation, `theta1` or `theta2`, which
+    diffuse with `D_r`, and the rod keeps them at the distance `L`. Moving both spheres freely and then restoring
+    their distance moves the centre `c` by the mean of their displacements and turns the rod by the part of their
+    relative displacement across it, so in the limit of small steps `dc = v0 (n1 + n2) / 2 dt + sqrt(D_t) dW` and
+    `dphi = v0 (n1 - n2) . e / L dt + 2 sqrt(D_t) / L dW`, with `e = (-sin phi, cos phi)` across the rod.
+
+    Args:
+        label:
+            The label of the dimer or the group.
+
+        visual:
+            How the dimer is drawn, or `None` for `default_visual_`.
+
+        c:
+            The initial centre.
+
+        phi:
+            The initial angle of the rod.
+
+        theta1:
+            The initial orientation of the first sphere.
+
+        theta2:
+            The initial orientation of the second sphere.
+
+        L:
+            The length of the rod.
+
+        v0:
+            The swimming speed of each sphere, 0 for Brownian spheres.
+
+        D_t:
+            The translational diffusion coefficient of each sphere.
+
+        D_r:
+            The rotational diffusion coefficient of the orientation of each sphere.
+
+    Attributes:
+        default_visual_:
+            The visual of the dimer when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import DimerElement
+        >>> DimerElement('molecule').L
+        1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        c: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
+        phi: Annotated[float, StateSpec(role='direction')] = 0.0,
+        theta1: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
+        theta2: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
+        L: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        v0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        D_t: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        D_r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.c = c
+        self.phi = phi
+        self.theta1 = theta1
+        self.theta2 = theta2
+        self.L = L
+        self.v0 = v0
+        self.D_t = D_t
+        self.D_r = D_r
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the motion of the centre and the turning of the rod, and the diffusion of the orientations.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        first = vector(SR, [cos(s.theta1), sin(s.theta1)])
+        second = vector(SR, [cos(s.theta2), sin(s.theta2)])
+        across = vector(SR, [-sin(s.phi), cos(s.phi)])
+        return [
+            RateLaw(s.c, s.v0 * (first + second) / 2),
+            NoiseLaw(s.c, sqrt(s.D_t)),
+            RateLaw(s.phi, s.v0 * (first - second).dot_product(across) / s.L),
+            NoiseLaw(s.phi, 2 * sqrt(s.D_t) / s.L),
+            NoiseLaw(s.theta1, sqrt(2 * s.D_r)),
+            NoiseLaw(s.theta2, sqrt(2 * s.D_r)),
+        ]
 
 
 @register_system(

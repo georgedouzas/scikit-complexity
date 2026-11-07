@@ -5,25 +5,279 @@
 
 import math
 from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import sqrt
+import numpy.typing as npt
+from sage.all__sagemath_symbolics import SR, Expression, exp, oo, sin, sqrt, vector
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement
-from ....core.components.interactions import RateInteraction
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import GradientInteraction, RateInteraction
+from ....core.components.laws import BaseLaw, BoundaryLaw
+from ....core.components.laws.utils import pulse_train, where
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.system import System
 from ....core.engine.solvers import EulerMaruyamaSolver
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
 from ..common.particles import LangevinThermostatInteraction, MassPointElement
 from ._brownian import _get_double_well_interactions
 from ._brownian_particle import POINTS, BrownianParticleElement
 from ._double_well import DoubleWellElement
-from ._modulated_particle import ModulatedParticleElement
-from ._optical_trap import OpticalTrapInteraction
-from ._scaled_walker import ScaledWalkerElement
-from ._speckle_field import SpeckleFieldInteraction
 from ._thermal_noise import ThermalNoiseInteraction
+
+
+class ModulatedParticleElement(Element):
+    """Particle at the position `x` in a box `[0, L]` whose walls reflect it.
+
+    The noise amplitude `sigma = s0 + ds (x / L - 1/2)` grows across the box. The walls reflect the particle at every
+    frame, so frames must be short against the time to cross the box.
+
+    Args:
+        label:
+            The label of the particle or the group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial position.
+
+        s0:
+            The noise amplitude at the middle of the box.
+
+        ds:
+            The change of the noise amplitude across the box.
+
+        L:
+            The length of the box.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import ModulatedParticleElement
+        >>> ModulatedParticleElement('bead').ds
+        1.8
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(role='position')] = 50.0,
+        s0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        ds: Annotated[float, ParameterSpec()] = 1.8,
+        L: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 100.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.s0 = s0
+        self.ds = ds
+        self.L = L
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the reflection of the particle at the walls of the box.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The boundary law of the position.
+        """
+        return [BoundaryLaw(s.x, where(s.x < 0, -s.x, where(s.x > s.L, 2 * s.L - s.x, s.x)))]
+
+
+class ScaledWalkerElement(Element):
+    """Walker at the position `x` whose diffusion coefficient `K alpha (t + t0)^(alpha - 1)` changes in time.
+
+    Args:
+        label:
+            The label of the walker or the group.
+
+        visual:
+            How the walker is drawn, or `None` for none.
+
+        x:
+            The initial position.
+
+        K:
+            The generalized diffusion coefficient.
+
+        alpha:
+            The anomalous diffusion exponent.
+
+        t0:
+            The time offset of the diffusion coefficient.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import ScaledWalkerElement
+        >>> ScaledWalkerElement('walker', alpha=1.5).alpha
+        1.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(role='position')] = 0.0,
+        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        t0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.K = K
+        self.alpha = alpha
+        self.t0 = t0
+
+
+class OpticalTrapInteraction(GradientInteraction):
+    """Harmonic optical trap on overdamped particles, the potential `sum_d k_d (x_d - c_d(t))^2 / 2` of every axis.
+
+    The center oscillates as `c(t) = amplitude sin(2 pi frequency t)`, and a blinking trap is on for the first
+    `duty` fraction of every `blink_period` and off for the rest. The force divides by the friction `gamma` of the
+    target.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the particle or the group.
+
+        k:
+            The stiffness along every axis.
+
+        amplitude:
+            The amplitude of the oscillation of the center along every axis.
+
+        frequency:
+            The frequency of the oscillation of the center.
+
+        blink_period:
+            The period of a blinking trap, or `None` for a trap that is always on.
+
+        duty:
+            The fraction of every blinking period during which the trap is on.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import OpticalTrapInteraction
+        >>> OpticalTrapInteraction('tweezers', target='bead', k=[1.0, 0.25]).k
+        [1.0, 0.25]
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        k: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 1.0,
+        amplitude: Annotated[npt.ArrayLike, ParameterSpec(vector=True)] = 0.0,
+        frequency: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        blink_period: float | None = None,
+        duty: float = 0.5,
+    ) -> None:
+        super().__init__(label, target=target, states='x', divisor='gamma')
+        self.k = k
+        self.amplitude = amplitude
+        self.frequency = frequency
+        self.blink_period = blink_period
+        self.duty = duty
+
+    def _get_potential(self, namespace: SimpleNamespace) -> Expression:
+        """Return the potential of the trap, switched by the blinking.
+
+        Args:
+            namespace:
+                The namespace of the symbols the potential can use.
+
+        Returns:
+            potential:
+                The potential.
+        """
+        s = namespace
+        center = s.amplitude * sin(2 * math.pi * s.frequency * s.t)
+        on = 1 if self.blink_period is None else pulse_train(s.t, self.blink_period, self.duty * self.blink_period)
+        energy = sum(
+            (
+                stiffness * (item - middle) ** 2 / 2
+                for stiffness, item, middle in zip(s.k, s.target.x, center, strict=True)
+            ),
+            SR(0),
+        )
+        return on * energy
+
+
+class SpeckleFieldInteraction(GradientInteraction):
+    """Random optical speckle field of Gaussian hotspots, which drags particles up its gradient at `u grad(I)`.
+
+    The potential is `-u I(x)`, with the intensity `I(x) = sum_i I_i exp(-|x - c_i|^2 / d_i^2)` of hotspots whose
+    centers, intensities relative to `strength`, and decay lengths are fixed when the field is created.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the particle or the group.
+
+        strength:
+            The product `u I0` of the polarizability constant and the reference intensity.
+
+        centers:
+            The centers of the hotspots.
+
+        intensities:
+            The intensities of the hotspots in units of the reference intensity.
+
+        lengths:
+            The decay lengths of the hotspots.
+
+    Examples:
+        >>> from skcomplex.systems.physics.soft_matter import SpeckleFieldInteraction
+        >>> SpeckleFieldInteraction(
+        ...     'speckle', target='bead', centers=((0.0, 0.0),), intensities=(1.0,), lengths=(1.0,)
+        ... ).strength
+        1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        strength: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        centers: tuple[tuple[float, float], ...] = (),
+        intensities: tuple[float, ...] = (),
+        lengths: tuple[float, ...] = (),
+    ) -> None:
+        super().__init__(label, target=target, states='x')
+        self.strength = strength
+        self.centers = centers
+        self.intensities = intensities
+        self.lengths = lengths
+
+    def _get_potential(self, namespace: SimpleNamespace) -> Expression:
+        """Return the potential `-u I(x)` of the speckle field.
+
+        Args:
+            namespace:
+                The namespace of the symbols the potential can use.
+
+        Returns:
+            potential:
+                The potential.
+        """
+        position = namespace.target.x
+        intensity = SR(0)
+        for center, height, length in zip(self.centers, self.intensities, self.lengths, strict=True):
+            offset = position - vector(SR, center)
+            intensity += height * exp(-offset.dot_product(offset) / length**2)
+        return -namespace.strength * intensity
 
 
 @register_system(
