@@ -4,7 +4,18 @@
 # License: MIT
 
 
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import Expression, log, oo
+from sage.sets.real_set import RealSet
+
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction, RateInteraction
+from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws.utils import minimum, pulse_train
 from ....core.components.system import System
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
 from ..common.populations import (
     ExponentialGrowthInteraction,
@@ -14,12 +25,214 @@ from ..common.populations import (
     PopulationElement,
     PowerLawGrowthInteraction,
 )
-from ._exponential_linear_growth import ExponentialLinearGrowthInteraction
-from ._log_kill import LogKillInteraction
-from ._vascular_support import VascularSupportInteraction
-from ._vasculature import VasculatureElement
 
 GROWTH_REFERENCES = ('Padmanabhan, Meskin, and Al Moustafa 2021', 'Benzekry et al. 2014')
+
+
+class VasculatureElement(Element):
+    """Vasculature of a tumour, which sets its carrying capacity.
+
+    Args:
+        label:
+            The label of the vasculature.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        K:
+            The initial carrying capacity.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import VasculatureElement
+        >>> VasculatureElement('vessels', K=12.7).K
+        12.7
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        K: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.K = K
+
+
+class ExponentialLinearGrowthInteraction(RateInteraction):
+    """Growth that is exponential, `dn/dt = r0 n`, until it reaches the linear rate `r`, and linear after.
+
+    The switch happens at `tau = log(r / (r0 n0)) / r0`, where the two rates meet, so the solution is continuously
+    differentiable.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the tumour.
+
+        r0:
+            The exponential growth rate.
+
+        r:
+            The linear growth rate.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import ExponentialLinearGrowthInteraction
+        >>> ExponentialLinearGrowthInteraction('growth', target='tumour', r=67.8).r
+        67.8
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        r0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.31,
+        r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 67.8,
+    ) -> None:
+        super().__init__(label, target=target, state='n')
+        self.r0 = r0
+        self.r = r
+
+    def _get_rate(self, s: SimpleNamespace) -> Expression:
+        """Return the rate `min(r0 n, r)`.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            rate:
+                The rate of the size of the tumour.
+        """
+        exponential = s.r0 * s.target.n
+        return minimum(exponential, s.r)
+
+
+class LogKillInteraction(RateInteraction):
+    """Cell kill proportional to the tumour and to a drug exposure given in a train of rectangular doses.
+
+    The kill is `dn/dt = -a n U(t)`, where the exposure `U` is `dose` for `width` time units every `period`, from
+    `start` on. Without growth, every dose lowers `log n` by `a dose width`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the tumour.
+
+        a:
+            The kill rate per unit of exposure.
+
+        dose:
+            The exposure during a dose.
+
+        period:
+            The time between the starts of doses.
+
+        width:
+            The duration of a dose.
+
+        start:
+            The time of the first dose.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import LogKillInteraction
+        >>> LogKillInteraction('kill', target='tumour', period=21.0).period
+        21.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        a: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        dose: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        period: float = 7.0,
+        width: float = 1.0,
+        start: float = 0.0,
+    ) -> None:
+        super().__init__(label, target=target, state='n')
+        self.a = a
+        self.dose = dose
+        self.period = period
+        self.width = width
+        self.start = start
+
+    def _get_rate(self, s: SimpleNamespace) -> Expression:
+        """Return the rate `-a n U(t)`.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            rate:
+                The rate of the size of the tumour.
+        """
+        exposure = pulse_train(s.t, self.period, self.width, start=self.start)
+        return -s.a * s.dose * exposure * s.target.n
+
+
+class VascularSupportInteraction(Interaction):
+    """Gompertz growth under a carrying capacity that the vessels on the tumour surface raise.
+
+    The tumour follows `dn/dt = r n log(K / n)` and the capacity `dK/dt = d n^(2/3)`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        tumour:
+            The path of the tumour.
+
+        vasculature:
+            The path of the vasculature.
+
+        r:
+            The rate at which the growth slows.
+
+        d:
+            The rate at which the surface of the tumour raises the capacity.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import VascularSupportInteraction
+        >>> VascularSupportInteraction('support', tumour='tumour', vasculature='vessels').d
+        0.829
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        tumour: Annotated[str, RoleSpec()],
+        vasculature: Annotated[str, RoleSpec()],
+        r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.63,
+        d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.829,
+    ) -> None:
+        super().__init__(label)
+        self.tumour = tumour
+        self.vasculature = vasculature
+        self.r = r
+        self.d = d
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the Gompertz growth of the tumour and the growth of the capacity.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        n, K = s.tumour.n, s.vasculature.K
+        return [RateLaw(n, s.r * n * log(K / n)), RateLaw(K, s.d * n ** (2 / 3))]
 
 
 @register_system(

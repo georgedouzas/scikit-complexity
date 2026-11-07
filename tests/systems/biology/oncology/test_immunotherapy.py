@@ -5,6 +5,7 @@ import numpy as np
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.systems.biology.oncology import (
+    KirschnerPanettaTumourElement,
     anti_pd1_checkpoint,
     delayed_dc_vaccine,
     dendritic_cell_vaccine,
@@ -72,3 +73,8 @@ def test_tumour_immune_suppression_escapes_only_when_weakly_antigenic():
     strong = _run(tumour_immune_suppression(alpha_a=100.0), until=200.0, dt=1.0)
     assert weak.values('site.A')[-1] > 1e8
     assert strong.values('site.A')[-1] < 1.0
+
+
+def test_kirschner_panetta_is_not_registered_twice():
+    """Test that the scaled tumour of the immunotherapy system is a new element, not the book's dimensional one."""
+    assert KirschnerPanettaTumourElement('site').alpha1 == 2e7

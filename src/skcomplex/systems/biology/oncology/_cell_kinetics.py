@@ -4,17 +4,292 @@
 # License: MIT
 
 
-from sage.all__sagemath_symbolics import exp
+from typing import Annotated
 
+from sage.all__sagemath_symbolics import exp, oo
+from sage.sets.real_set import RealSet
+
+from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, ReactionInteraction
 from ....core.components.laws.utils import delayed
 from ....core.components.system import System
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._cell_cycle import CellCycleElement
-from ._dormant_cell_cycle import DormantCellCycleElement
-from ._erythropoiesis import ErythropoiesisElement
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
+
+
+class CellCycleElement(Element):
+    """Tumour cells in three phases of the cell cycle under a killing and a blocking agent.
+
+    The compartments hold the cells in G0 and G1 `A1`, in S `A2`, and in G2 and M `A3`, and follow
+    `dA1/dt = -l1 A1 + 2 (1 - u1) l3 A3`, `dA2/dt = l1 A1 - (1 - u2) l2 A2`, and `dA3/dt = (1 - u2) l2 A2 - l3 A3`.
+    The killing agent kills the fraction `u1` of the cells that divide, and the blocking agent slows the transit
+    through S by the fraction `u2`.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `cell_cycle_chemotherapy` read its parameters.
+
+    Args:
+        label:
+            The label of the tumour.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        A1:
+            The initial cells in G0 and G1.
+
+        A2:
+            The initial cells in S.
+
+        A3:
+            The initial cells in G2 and M.
+
+        l1:
+            The rate of exit from G0 and G1.
+
+        l2:
+            The rate of exit from S.
+
+        l3:
+            The rate of exit from G2 and M.
+
+        u1:
+            The fraction of dividing cells the killing agent kills.
+
+        u2:
+            The fraction by which the blocking agent slows the transit through S.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import CellCycleElement
+        >>> CellCycleElement('tumour').l2
+        0.395
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        A1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 15.0,
+        A2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 3.8,
+        A3: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+        l1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.197,
+        l2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.395,
+        l3: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.107,
+        u1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        u2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.A1 = A1
+        self.A2 = A2
+        self.A3 = A3
+        self.l1 = l1
+        self.l2 = l2
+        self.l3 = l3
+        self.u1 = u1
+        self.u2 = u2
+
+
+class DormantCellCycleElement(Element):
+    """Tumour cells in a dormant phase and two cycling phases under a killing and a recruiting agent.
+
+    The compartments hold the dormant cells in G0 `A0`, the cells in G1 and S `A1`, and the cells in G2 and M `A2`.
+    A fraction `b0` of the daughters enters G0 and `b1` enters G1, so `dA0/dt = -l0 (1 + v) A0 + 2 b0 (1 - u) l2 A2`,
+    `dA1/dt = l0 (1 + v) A0 - l1 A1 + 2 b1 (1 - u) l2 A2`, and `dA2/dt = l1 A1 - l2 A2`. The killing agent kills the
+    fraction `u` of the cells that divide, and the recruiting agent speeds the exit from G0 by the factor `1 + v`.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `cell_cycle_chemotherapy` read its parameters.
+
+    Args:
+        label:
+            The label of the tumour.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        A0:
+            The initial dormant cells.
+
+        A1:
+            The initial cells in G1 and S.
+
+        A2:
+            The initial cells in G2 and M.
+
+        l0:
+            The rate of exit from G0.
+
+        l1:
+            The rate of exit from G1 and S.
+
+        l2:
+            The rate of exit from G2 and M.
+
+        b0:
+            The fraction of daughters that enters G0.
+
+        b1:
+            The fraction of daughters that enters G1.
+
+        u:
+            The fraction of dividing cells the killing agent kills.
+
+        v:
+            The relative increase of the exit from G0 the recruiting agent causes.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import DormantCellCycleElement
+        >>> DormantCellCycleElement('tumour').b0
+        0.9
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        A0: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 6.5,
+        A1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        A2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        l0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05,
+        l1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        l2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        b0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.9,
+        b1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        v: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.A0 = A0
+        self.A1 = A1
+        self.A2 = A2
+        self.l0 = l0
+        self.l1 = l1
+        self.l2 = l2
+        self.b0 = b0
+        self.b1 = b1
+        self.u = u
+        self.v = v
+
+
+class ErythropoiesisElement(Element):
+    """Quiescent, proliferating, and mature red cells and their mean volume under a constant 6-mercaptopurine level.
+
+    The drug sets the death rate of proliferating cells `a1 = a0 U` and the cell-cycle time
+    `tau = (g1 U + MCV0) tau_h / MCV_h`. Quiescent cells enter the cycle at the rate
+    `m(Q) = m0 Q50^n / (Q50^n + Q^n)`, of which the fraction `exp(-a1 tau)` survives to give two daughters, and leave
+    to mature at the rate `r1`, so `dQ/dt = -r1 Q + (2 exp(-a1 tau) - 1) m(Q) Q`. The proliferating cells follow
+    `dP/dt = -a1 P + (1 - exp(-a1 tau)) m(Q) Q`, the mature cells, which live `lifespan` days,
+    `dL/dt = r1 Q - d1 L(t - lifespan)`, and their mean corpuscular volume
+    `dMCV/dt = ((g1 U + MCV0) r1 Q - 0.85 MCV(t - lifespan) d1 L(t - lifespan) - 0.15 MCV d1 L) / L`. Before the start
+    the mature cells and their volume keep their initial values.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `erythropoiesis_mercaptopurine` read its parameters.
+
+    Args:
+        label:
+            The label of the patient.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        L:
+            The initial mature red cells.
+
+        Q:
+            The initial quiescent cells.
+
+        P:
+            The initial proliferating cells.
+
+        MCV:
+            The initial mean corpuscular volume.
+
+        r1:
+            The rate of differentiation of quiescent cells.
+
+        d1:
+            The death rate of mature cells.
+
+        a0:
+            The death rate of proliferating cells per unit of drug.
+
+        tau_h:
+            The cell-cycle time of healthy cells.
+
+        MCV_h:
+            The healthy mean corpuscular volume.
+
+        MCV0:
+            The volume of new cells without the drug.
+
+        g1:
+            The increase of the volume of new cells per unit of drug.
+
+        m0:
+            The maximum rate at which quiescent cells enter the cycle.
+
+        Q50:
+            The quiescent cells at which the rate of entry is half its maximum.
+
+        n:
+            The sensitivity of the rate of entry to the quiescent cells.
+
+        lifespan:
+            The life span of mature cells.
+
+        U:
+            The concentration of the drug.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import ErythropoiesisElement
+        >>> ErythropoiesisElement('patient').lifespan
+        120.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        L: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 3.84,
+        Q: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 19.6,
+        P: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 2.16,
+        MCV: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 85.0,
+        r1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.00139,
+        d1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.0071,
+        a0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.00022,
+        tau_h: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.68,
+        MCV_h: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 85.0,
+        MCV0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 85.0,
+        g1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0317,
+        m0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.01,
+        Q50: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.027,
+        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        lifespan: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 120.0,
+        U: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.L = L
+        self.Q = Q
+        self.P = P
+        self.MCV = MCV
+        self.r1 = r1
+        self.d1 = d1
+        self.a0 = a0
+        self.tau_h = tau_h
+        self.MCV_h = MCV_h
+        self.MCV0 = MCV0
+        self.g1 = g1
+        self.m0 = m0
+        self.Q50 = Q50
+        self.n = n
+        self.lifespan = lifespan
+        self.U = U
 
 
 @register_system(
