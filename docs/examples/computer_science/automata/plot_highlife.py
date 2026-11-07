@@ -13,15 +13,14 @@ The extra birth rule shows on special patterns, such as the replicator, which co
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.automata import HighlifeSystem
 
 SYSTEM = 'highlife'
 
-system = create_system(SYSTEM, shape=(100, 100), density=0.3, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=200)
+trajectory = simulate(HighlifeSystem(shape=(100, 100), density=0.3, random_state=0), until=200, observers=[observer])
 
 # %%
 # Soup decay and the replicator
@@ -31,25 +30,19 @@ simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=
 # live cells rising in bursts as the copies multiply on the small torus, while the same pattern under Life's rule
 # `B3/S23` should settle into a few still lifes within about 25 generations.
 
-life = (
-    Simulation(create_system(SYSTEM, shape=(100, 100), rule='B3/S23', density=0.3, random_state=0), dt=1)
-    .prepare()
-    .run(until=200)
-)
+life = simulate(HighlifeSystem(shape=(100, 100), rule='B3/S23', density=0.3, random_state=0), until=200)
 replicator = np.zeros((64, 64))
 replicator[30:35, 30:35] = [[0, 0, 1, 1, 1], [0, 1, 0, 0, 1], [1, 0, 0, 0, 1], [1, 0, 0, 1, 0], [1, 1, 1, 0, 0]]
 grown = {
-    rule: Simulation(create_system(SYSTEM, shape=(64, 64), rule=rule, initial=replicator), dt=1)
-    .prepare()
-    .run(until=90)
-    .trajectory_.lattice('cells.alive')
+    rule: simulate(HighlifeSystem(shape=(64, 64), rule=rule, initial=replicator), until=90)
+    .lattice('cells.alive')
     .sum(axis=(1, 2))
     for rule in ('B36/S23', 'B3/S23')
 }
 fig, (soup, copies) = plt.subplots(1, 2, figsize=(11, 4))
-times = simulation.trajectory_.times
-soup.plot(times, simulation.trajectory_.lattice('cells.alive').mean(axis=(1, 2)), label='HighLife B36/S23')
-soup.plot(times, life.trajectory_.lattice('cells.alive').mean(axis=(1, 2)), label='Life B3/S23')
+times = trajectory.times
+soup.plot(times, trajectory.lattice('cells.alive').mean(axis=(1, 2)), label='HighLife B36/S23')
+soup.plot(times, life.lattice('cells.alive').mean(axis=(1, 2)), label='Life B3/S23')
 soup.set_xlabel('generation')
 soup.set_ylabel('density of live cells')
 soup.set_title('Random soups decay alike')

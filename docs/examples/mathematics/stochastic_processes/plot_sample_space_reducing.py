@@ -15,9 +15,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.stochastic_processes import SampleSpaceReducingSystem
 
 SYSTEM = 'sample_space_reducing'
 
@@ -35,11 +35,11 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer], random_state=0).prepare().run(until=40)
-path = levels(simulation.trajectory_)
+trajectory = simulate(SampleSpaceReducingSystem(), until=40, dt=1, observers=[observer], random_state=0)
+path = levels(trajectory)
 observer.recording_.send_columns(
     'levels/ball_0',
-    indexes=[rr.TimeColumn('sim_time', duration=simulation.trajectory_.times)],
+    indexes=[rr.TimeColumn('sim_time', duration=trajectory.times)],
     columns=rr.Scalars.columns(scalars=path[:, 0]),
 )
 observer.recording_.flush()
@@ -54,12 +54,8 @@ observer.recording_.flush()
 fig, ax = plt.subplots(figsize=(6.5, 4.5))
 states = np.arange(1, 100)
 for lam in (1.0, 0.7, 0.4, 0.0):
-    run = (
-        Simulation(create_system(SYSTEM, n_balls=200, n_states=100, lam=lam), dt=1, random_state=1)
-        .prepare()
-        .run(until=1000)
-    )
-    visits = np.bincount(levels(run.trajectory_)[100:].astype(int).ravel(), minlength=101)[1:100]
+    run = simulate(SampleSpaceReducingSystem(n_balls=200, n_states=100, lam=lam), until=1000, dt=1, random_state=1)
+    visits = np.bincount(levels(run)[100:].astype(int).ravel(), minlength=101)[1:100]
     (line,) = ax.loglog(states, visits / visits.sum(), '.', label=f'lam = {lam}')
     reference = states ** (-lam)
     ax.loglog(states, reference / reference.sum(), color=line.get_color(), linewidth=0.8)

@@ -16,9 +16,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.fractional_dynamics import FractionalOscillatorSystem
 
 SYSTEM = 'fractional_oscillator'
 
@@ -41,11 +41,11 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(create_system(SYSTEM, order=0.8), dt=0.1, observers=[observer]).prepare().run(until=30)
-harmonic = Simulation(create_system(SYSTEM, order=1.0), dt=0.1).prepare().run(until=2 * np.pi).trajectory_
+trajectory = simulate(FractionalOscillatorSystem(order=0.8), observers=[observer])
+harmonic = simulate(FractionalOscillatorSystem(order=1.0), until=2 * np.pi)
 strips = [
     np.column_stack([100 * run.values('oscillator.x'), -100 * run.values('oscillator.v')])
-    for run in (harmonic, simulation.trajectory_)
+    for run in (harmonic, trajectory)
 ]
 observer.recording_.log(
     'phase_plane',
@@ -73,7 +73,7 @@ def mittag_leffler_series(alpha: float, values: np.ndarray, terms: int = 400) ->
 
 fig, ax = plt.subplots(figsize=(7, 4.5))
 for order, color in ((1.0, 'tab:blue'), (0.9, 'tab:green'), (0.8, 'tab:orange'), (0.6, 'tab:red')):
-    run = Simulation(create_system(SYSTEM, order=order), dt=0.1).prepare().run(until=30).trajectory_
+    run = simulate(FractionalOscillatorSystem(order=order))
     exact = mittag_leffler_series(2 * order, -(run.times ** (2 * order)))
     ax.plot(run.times, run.values('oscillator.x'), 'o', markersize=1.5, color=color, label=f'order {order}')
     ax.plot(run.times, exact, '-', linewidth=0.8, color='black')

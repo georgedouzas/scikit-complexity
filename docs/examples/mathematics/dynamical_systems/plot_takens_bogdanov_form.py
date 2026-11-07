@@ -17,9 +17,9 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.signal import find_peaks
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.dynamical_systems import TakensBogdanovFormSystem
 
 SYSTEM = 'takens_bogdanov_form'
 
@@ -47,17 +47,12 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, x=focus(-0.1) + 0.02, y=0.0, beta1=-0.1)
+system = TakensBogdanovFormSystem(x=focus(-0.1) + 0.02, y=0.0, beta1=-0.1)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=8)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=200)
+trajectory = simulate(system, until=200, observers=[observer])
 saddle = (1 + np.sqrt(1 + 0.4)) / 2
-outside = (
-    Simulation(create_system(SYSTEM, x=saddle - 0.01, y=0.0, beta1=-0.1), dt=0.1).prepare().run(until=60).trajectory_
-)
-strips = [
-    np.column_stack([100 * run.values('form.x'), -100 * run.values('form.y')])
-    for run in (simulation.trajectory_, outside)
-]
+outside = simulate(TakensBogdanovFormSystem(x=saddle - 0.01, y=0.0, beta1=-0.1), until=60)
+strips = [np.column_stack([100 * run.values('form.x'), -100 * run.values('form.y')]) for run in (trajectory, outside)]
 observer.recording_.log(
     'phase_plane',
     rr.LineStrips2D(strips, radii=0.6, colors=[[255, 170, 40], [90, 170, 255]]),
@@ -81,12 +76,7 @@ observer.recording_.flush()
 values = -np.linspace(0.005, 0.21, 21)
 amplitudes, periods = [], []
 for beta1 in values:
-    run = (
-        Simulation(create_system(SYSTEM, x=focus(beta1) + 0.02, y=0.0, beta1=beta1), dt=0.05)
-        .prepare()
-        .run(until=600)
-        .trajectory_
-    )
+    run = simulate(TakensBogdanovFormSystem(x=focus(beta1) + 0.02, y=0.0, beta1=beta1), until=600, dt=0.05)
     x = run.values('form.x')[len(run.times) // 2 :]
     peaks = find_peaks(x)[0]
     amplitudes.append((x.max() - x.min()) / 2)

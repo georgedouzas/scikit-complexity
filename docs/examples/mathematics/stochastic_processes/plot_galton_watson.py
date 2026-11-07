@@ -16,9 +16,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.stochastic_processes import GaltonWatsonSystem
 
 SYSTEM = 'galton_watson'
 
@@ -36,14 +36,9 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = (
-    Simulation(create_system(SYSTEM, n_individuals=10), dt=1, observers=[observer], random_state=0)
-    .prepare()
-    .run(until=40)
-)
-runs = [simulation.trajectory_] + [
-    Simulation(create_system(SYSTEM, n_individuals=10), dt=1, random_state=seed).prepare().run(until=40).trajectory_
-    for seed in range(1, 8)
+trajectory = simulate(GaltonWatsonSystem(n_individuals=10), until=40, dt=1, observers=[observer], random_state=0)
+runs = [trajectory] + [
+    simulate(GaltonWatsonSystem(n_individuals=10), until=40, dt=1, random_state=seed) for seed in range(1, 8)
 ]
 for index, run in enumerate(runs):
     observer.recording_.send_columns(
@@ -66,10 +61,8 @@ extinct = [
     np.mean(
         [
             len(
-                Simulation(create_system(SYSTEM, n_individuals=1, m=m), dt=1, random_state=seed)
-                .prepare()
-                .run(until=12)
-                .trajectory_.agents('population', 12)
+                simulate(GaltonWatsonSystem(n_individuals=1, m=m), until=12, dt=1, random_state=seed)
+                .agents('population', 12)
                 .ids,
             )
             == 0

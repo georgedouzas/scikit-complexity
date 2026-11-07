@@ -7,23 +7,23 @@ stops. The escape times draw bands that wrap ever closer around the set as the r
 """
 
 # %%
-# The system is created by name from the catalog on a lattice of 240 by 300 points that covers the set. The map runs
+# The system is built from its class on a lattice of 240 by 300 points that covers the set. The map runs
 # for 100 steps, and the observer saves every fifth frame with the default blueprint, whose primary view is the image
 # of the escape counts.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.fractals import MandelbrotSystem
 
 SYSTEM = 'mandelbrot'
 WINDOW = (-2.2, 0.8, -1.2, 1.2)
 
-system = create_system(SYSTEM, shape=(240, 300), window=WINDOW)
+system = MandelbrotSystem(shape=(240, 300), window=WINDOW)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=5)
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=100)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Escape times and the area of the set
@@ -31,9 +31,9 @@ simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=
 # The points still bounded after `k` steps cover a region that shrinks towards the set as `k` grows. Its area should
 # fall quickly at first and then level off near the area of the Mandelbrot set, about 1.506.
 
-counts = simulation.trajectory_.lattice('plane.n')
+counts = trajectory.lattice('plane.n')
 cell = (WINDOW[1] - WINDOW[0]) / (counts.shape[2] - 1) * (WINDOW[3] - WINDOW[2]) / (counts.shape[1] - 1)
-steps = simulation.trajectory_.times
+steps = trajectory.times
 bounded = (counts == steps[:, np.newaxis, np.newaxis]).sum(axis=(1, 2)) * cell
 fig, (image, area) = plt.subplots(1, 2, figsize=(11, 4))
 image.imshow(np.log1p(counts[-1]), extent=WINDOW, cmap='magma')

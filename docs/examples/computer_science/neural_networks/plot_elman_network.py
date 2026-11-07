@@ -16,17 +16,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.engine.backends import NumpyBackend
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import Simulation, simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import ObservableSpec
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.neural_networks import ElmanNetworkSystem
 
 SYSTEM = 'elman_network'
 EPOCHS = 200
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-system = create_system(SYSTEM)
-trajectory = Simulation(system, observers=[observer], random_state=0).prepare().run(until=EPOCHS).trajectory_
+system = ElmanNetworkSystem()
+trajectory = simulate(system, until=EPOCHS, observers=[observer], random_state=0)
 
 # %%
 # Error at each position of the bit triple
@@ -43,7 +43,7 @@ def squared_error(member):
 
 def errors_by_position(frame, bits):
     """Return the mean squared error of the predictions at each position of the triple, with the weights of a frame."""
-    net = create_system(SYSTEM).systems[0]
+    net = ElmanNetworkSystem().prepare().system_.systems[0]
     for interaction, name in zip(net.interactions, ('D', 'A', 'W'), strict=True):
         interaction.set_params(**{name: trajectory.values(f'net/{interaction.label}.{name}')[frame]})
     net.elements[1].set_params(values={'b': trajectory.values('net/hidden.b')[frame]})

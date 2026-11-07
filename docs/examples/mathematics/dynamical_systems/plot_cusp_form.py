@@ -16,7 +16,7 @@ import numpy as np
 
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.dynamical_systems import CuspFormSystem
 
 SYSTEM = 'cusp_form'
 PERIOD = 600.0
@@ -28,7 +28,7 @@ def beta1_at(time):
     return -0.6 + 2.4 * phase if phase < 0.5 else 1.8 - 2.4 * phase
 
 
-system = create_system(SYSTEM, x=-1.0, beta1=-0.6, beta2=1.0)
+system = CuspFormSystem(x=-1.0, beta1=-0.6, beta2=1.0)
 observer = RerunObserver(
     SYSTEM,
     save_path=f'{SYSTEM}.rrd',
@@ -36,9 +36,8 @@ observer = RerunObserver(
     parameters=True,
     interval=3,
 )
-simulation = (
-    Simulation(system, dt=1.0, observers=[observer], schedule={'form.beta1': beta1_at}).prepare().run(until=PERIOD)
-)
+simulation = Simulation(system.prepare().system_, dt=1.0, observers=[observer], schedule={'form.beta1': beta1_at})
+trajectory = simulation.prepare().run(until=PERIOD).trajectory_
 
 # %%
 # Hysteresis loop
@@ -47,9 +46,8 @@ simulation = (
 # up near the fold at `beta1 = +0.385` and down near `beta1 = -0.385`, a little past the folds, a delay of slow passage
 # that shrinks with the sweep rate, and never visit the unstable middle branch.
 
-trajectory = simulation.trajectory_
 fine = Simulation(
-    create_system(SYSTEM, x=-1.0, beta1=-0.6, beta2=1.0),
+    CuspFormSystem(x=-1.0, beta1=-0.6, beta2=1.0).prepare().system_,
     dt=0.1,
     schedule={'form.beta1': beta1_at},
 ).prepare()

@@ -15,15 +15,14 @@ import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.automata import NilpotentAutomatonSystem
 
 SYSTEM = 'nilpotent_automaton'
 
-system = create_system(SYSTEM, n=4, size=80, density=0.7, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer]).prepare().run(until=6)
+trajectory = simulate(NilpotentAutomatonSystem(n=4, size=80, density=0.7, random_state=0), observers=[observer])
 
 # %%
 # Nilpotency class
@@ -37,12 +36,12 @@ largest = []
 for n in classes:
     steps = []
     for configuration in configurations[::41]:
-        values = Simulation(create_system(SYSTEM, n=n, initial=configuration)).prepare().run(until=n).trajectory_
+        values = simulate(NilpotentAutomatonSystem(n=n, initial=configuration), until=n)
         alive = values.values('cells.alive').any(axis=1)
         steps.append(int(np.argmin(alive)) if not alive[-1] else n + 1)
     largest.append(max(steps))
 fig, (image, check) = plt.subplots(1, 2, figsize=(10, 4))
-image.imshow(simulation.trajectory_.values('cells.alive'), aspect='auto', cmap='Greys', interpolation='nearest')
+image.imshow(trajectory.values('cells.alive'), aspect='auto', cmap='Greys', interpolation='nearest')
 image.set_xlabel('cell n')
 image.set_ylabel('step')
 image.set_title('Runs of ones lose their left ends')

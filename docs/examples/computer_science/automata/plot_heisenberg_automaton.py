@@ -12,15 +12,15 @@ neighbours inside the ball, so the random start freezes within a few steps into 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.automata import HeisenbergAutomatonSystem
 
 SYSTEM = 'heisenberg_automaton'
 
-system = create_system(SYSTEM, radius=5, density=0.5, random_state=0)
+system = HeisenbergAutomatonSystem(radius=5, density=0.5, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer]).prepare().run(until=20)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Polynomial growth and freezing
@@ -29,9 +29,9 @@ simulation = Simulation(system, observers=[observer]).prepare().run(until=20)
 # formula. The local log-log slope of the ball sizes should rise towards 4 from below, and the fraction of cells that
 # change at each step should fall to 0 as the majority rule freezes.
 
-space = system.elements[0].space
+space = system.prepare().system_.elements[0].space
 sizes = np.asarray(space.ball_sizes_, dtype=float)
-alive = simulation.trajectory_.values('cells.alive')
+alive = trajectory.values('cells.alive')
 changed = (np.diff(alive, axis=0) != 0).mean(axis=1)
 fig, (left, right) = plt.subplots(1, 2, figsize=(9, 4))
 left.loglog(np.arange(1, sizes.size), sizes[1:], 'o-', label='ball size')

@@ -7,7 +7,7 @@ parabola that bend sharply onto it and run together toward the origin.
 """
 
 # %%
-# The system is created by name from the catalog with `mu = -0.05` and `lam = -1`, starting from `(1, -1)`. Six more
+# The system is built from its class with `mu = -0.05` and `lam = -1`, starting from `(1, -1)`. Six more
 # runs from other starting points share the phase plane. After the runs, every orbit is logged once as a line in the
 # phase plane together with the parabola `x2 = b x1^2`, `b = lam / (lam - 2 mu)`, in dark blue, and the blueprint puts
 # this view first, as the primary view. The vertical axis of the plane points up.
@@ -17,9 +17,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.dynamical_systems import KoopmanSlowManifoldSystem
 
 SYSTEM = 'koopman_slow_manifold'
 MU, LAM = -0.05, -1.0
@@ -44,11 +44,9 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(create_system(SYSTEM), dt=0.1, observers=[observer]).prepare().run(until=40)
+trajectory = simulate(KoopmanSlowManifoldSystem(), observers=[observer])
 starts = [(-1.0, -1.0), (1.5, 0.0), (-1.5, 0.0), (0.5, 1.5), (-0.5, 1.5), (1.2, 1.5)]
-orbits = [simulation.trajectory_] + [
-    Simulation(create_system(SYSTEM, x1=x1, x2=x2), dt=0.1).prepare().run(until=40).trajectory_ for x1, x2 in starts
-]
+orbits = [trajectory] + [simulate(KoopmanSlowManifoldSystem(x1=x1, x2=x2)) for x1, x2 in starts]
 b = LAM / (LAM - 2 * MU)
 parabola = np.linspace(-1.6, 1.6, 101)
 strips = [np.column_stack([SCALE * orbit.values('flow.x1'), -SCALE * orbit.values('flow.x2')]) for orbit in orbits]
@@ -67,7 +65,7 @@ observer.recording_.flush()
 # `2 mu`. The Koopman eigenfunctions `x1` and `x2 - b x1^2` should therefore decay exactly as `exp(mu t)` and
 # `exp(lam t)` along every orbit, straight lines on a logarithmic scale.
 
-times = simulation.trajectory_.times
+times = trajectory.times
 fig, (plane, eigen) = plt.subplots(1, 2, figsize=(10, 4))
 for orbit in orbits:
     plane.plot(orbit.values('flow.x1'), orbit.values('flow.x2'), color='tab:orange', linewidth=1)

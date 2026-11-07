@@ -13,23 +13,22 @@ with a small probability `new`. Deaths and births balance, and the number of lin
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.networks import DuplicationDeletionSystem
 
 SYSTEM = 'duplication_deletion'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(create_system(SYSTEM), dt=20.0, observers=[observer], random_state=0).prepare()
-simulation.run(until=4000)
+trajectory = simulate(DuplicationDeletionSystem(), until=4000, dt=20.0, observers=[observer], random_state=0)
 
 
 def connectance(inherit, n_nodes=100, until=4000):
     """Return every 40th step and the connectance of the network then, the share of its pairs that are linked."""
-    system = create_system(SYSTEM, n_nodes=n_nodes, inherit=inherit)
-    run = Simulation(system, random_state=0).prepare().run(until=until)
+    system = DuplicationDeletionSystem(n_nodes=n_nodes, inherit=inherit)
+    run = simulate(system, until=until, random_state=0)
     steps = np.arange(0, until + 1, 40)
-    links = np.array([len(run.trajectory_.network(int(step)).sources) for step in steps])
+    links = np.array([len(run.network(int(step)).sources) for step in steps])
     return steps, links / (n_nodes * (n_nodes - 1) / 2)
 
 

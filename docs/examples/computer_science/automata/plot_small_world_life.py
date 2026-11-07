@@ -14,13 +14,14 @@ fraction of rewired links.
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.computer_science.automata import SmallWorldLifeSystem
 
 SYSTEM = 'small_world_life'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run()
+trajectory = simulate(SmallWorldLifeSystem(), observers=[observer], random_state=0)
 
 # %%
 # Density against the rewiring probability
@@ -33,10 +34,8 @@ probabilities = [0.0, 0.01, 0.03, 0.1, 0.3, 1.0]
 densities = [
     np.mean(
         [
-            create_simulation(SYSTEM, p=p, random_state=seed)
-            .prepare()
-            .run(until=150)
-            .trajectory_.values('cells.alive')[-50:]
+            simulate(SmallWorldLifeSystem(p=p, random_state=seed), until=150, random_state=0)
+            .values('cells.alive')[-50:]
             .mean()
             for seed in range(3)
         ],

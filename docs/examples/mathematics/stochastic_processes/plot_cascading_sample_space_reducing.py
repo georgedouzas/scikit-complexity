@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.stochastic_processes import CascadingSampleSpaceReducingSystem
 
 SYSTEM = 'cascading_sample_space_reducing'
 
@@ -37,7 +37,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer], random_state=0).prepare().run(until=100)
+trajectory = simulate(CascadingSampleSpaceReducingSystem(), dt=1, observers=[observer], random_state=0)
 
 # %%
 # Any exponent
@@ -49,8 +49,8 @@ simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer], rando
 fig, ax = plt.subplots(figsize=(6.5, 4.5))
 states = np.arange(1, 51)
 for mu, n_cascades in ((0.5, 3000), (1.0, 1000), (1.5, 200), (2.0, 50)):
-    run = Simulation(create_system(SYSTEM, n_cascades=n_cascades, mu=mu), dt=1, random_state=1).prepare().run(100)
-    counts = visits(run.trajectory_, 100)[:50]
+    run = simulate(CascadingSampleSpaceReducingSystem(n_cascades=n_cascades, mu=mu), dt=1, random_state=1)
+    counts = visits(run, 100)[:50]
     (line,) = ax.loglog(states, counts / counts[0], '.', label=f'mu = {mu}')
     ax.loglog(states, states ** (-mu), color=line.get_color(), linewidth=0.8)
 ax.set_xlabel('state i')
