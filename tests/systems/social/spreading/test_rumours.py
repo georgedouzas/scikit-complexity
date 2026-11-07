@@ -4,14 +4,14 @@ import numpy as np
 import pytest
 
 from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems.social.spreading import maki_thompson
+from skcomplex.systems.social.spreading import MakiThompsonSystem
 
 
 def test_maki_thompson_leaves_a_fifth_ignorant():
     """Test that a rumour stops with about 20% of the population never hearing it."""
     finals = [
         (
-            Simulation(maki_thompson(1000), dt=0.5, random_state=seed)
+            Simulation(MakiThompsonSystem(1000).prepare().system_, dt=0.5, random_state=seed)
             .prepare()
             .run(until=40)
             .trajectory_.values('ignorants.n')[-1]

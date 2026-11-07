@@ -6,21 +6,21 @@ at once or sets off a global cascade that sweeps almost the whole network, and w
 """
 
 # %%
-# The system is created by name from the catalog with the default random network, the threshold 0.18 for every node,
+# The system is built from its class with the default random network, the threshold 0.18 for every node,
 # and one random seed, and runs for 30 steps. The default blueprint draws the network, where the adopters are yellow.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.spreading import WattsCascadesSystem
 
 SYSTEM = 'watts_cascades'
 
-system = create_system(SYSTEM, random_state=0)
+system = WattsCascadesSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=30)
+trajectory = simulate(system, dt=1, observers=[observer])
 
 # %%
 # The cascade window
@@ -34,12 +34,7 @@ probabilities, shares = [], []
 for threshold in thresholds:
     finals = []
     for seed in range(30):
-        run = (
-            Simulation(create_system(SYSTEM, threshold=float(threshold), random_state=seed), dt=1)
-            .prepare()
-            .run(until=30)
-            .trajectory_
-        )
+        run = simulate(WattsCascadesSystem(threshold=float(threshold), random_state=seed), dt=1)
         finals.append(run.agents('nodes', len(run.times) - 1).values['active'].mean())
     shares.extend(finals)
     probabilities.append(np.mean(np.array(finals) > 0.5))

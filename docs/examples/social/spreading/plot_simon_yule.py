@@ -7,22 +7,22 @@ the number of distinct words grows in proportion to the length of the text.
 """
 
 # %%
-# The system is created by name from the catalog with the innovation probability 0.1 and 100 words written per step, and
+# The system is built from its class with the innovation probability 0.1 and 100 words written per step, and
 # runs for 100 steps, a text of 10,000 words. The default blueprint shows the number of distinct words, which grows
 # linearly.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.spreading import SimonYuleSystem
 
 SYSTEM = 'simon_yule'
 
-system = create_system(SYSTEM)
+system = SimonYuleSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=100)
+trajectory = simulate(system, until=100, dt=1, observers=[observer], random_state=0)
 
 # %%
 # Zipf's law and vocabulary growth
@@ -31,7 +31,6 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 # away from the first word, which has been repeated since the start, and the number of distinct words should be close
 # to `innovation` times the length of the text.
 
-trajectory = simulation.trajectory_
 counts = np.sort(trajectory.agents('words', len(trajectory.times) - 1).values['count'])[::-1]
 ranks = np.arange(1, len(counts) + 1)
 lengths = trajectory.times * 100

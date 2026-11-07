@@ -5,20 +5,20 @@ import pytest
 
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems.social.spreading import hypergraph_exposure_sis
+from skcomplex.systems.social.spreading import HypergraphExposureSisSystem
 
 from ..conftest import _run
 
 
 def _prevalence(**settings) -> np.ndarray:
     """Return the share of infected participants at every frame of a run of 400 steps."""
-    return _run(hypergraph_exposure_sis(**settings), 400, dt=1).values('participants.infected').mean(axis=1)
+    return _run(HypergraphExposureSisSystem(**settings), 400, dt=1).values('participants.infected').mean(axis=1)
 
 
 @pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 def test_hypergraph_exposure_sis_infects_with_the_probability_of_the_doses(backend):
     """Test that the share of runs in which a participant is infected after a step follows its doses."""
-    system = hypergraph_exposure_sis(60, share=0.4, rate=0.3, exponent=1.5, seed=2)
+    system = HypergraphExposureSisSystem(60, share=0.4, rate=0.3, exponent=1.5, seed=2).prepare().system_
     participants = system.elements[0]
     infected = participants.values['infected']
     doses = np.zeros(60)

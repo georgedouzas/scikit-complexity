@@ -13,10 +13,9 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class GrowingWordView(AgentView):
@@ -90,6 +89,8 @@ class WritingInteraction(Interaction):
         100
     """
 
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -139,17 +140,11 @@ class WritingInteraction(Interaction):
             system.create(self.target, count=float(count))
 
 
-@register_system(
-    field='social/spreading',
-    tags=('agents', 'growth', 'power law', 'language'),
-    references=('Simon 1955', 'Yule 1925', 'Thurner, Hanel, and Klimek 2018'),
-    defaults={'until': 20},
-)
-def simon_yule(*, innovation: float = 0.1, words_per_step: int = 100) -> System:
-    """Return the Simon system of a text that grows from one word, whose word counts follow a power law.
+class SimonYuleSystem(BaseSystem):
+    """The Simon system of a text that grows from one word, whose word counts follow a power law.
 
-    The rank-frequency exponent is `1 / (1 - innovation)`, and the number of distinct words grows as `innovation`
-    times the length of the text.
+    The rank-frequency exponent is `1 / (1 - innovation)`, and the number of distinct words grows as `innovation` times
+    the length of the text. The system has the group `words`.
 
     Args:
         innovation:
@@ -158,23 +153,42 @@ def simon_yule(*, innovation: float = 0.1, words_per_step: int = 100) -> System:
         words_per_step:
             The number of words written per step.
 
-    Returns:
-        system:
-            The system, with the group `words`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.spreading import simon_yule
-        >>> simon_yule().elements[0].prepare().size_
+        >>> from skcomplex.systems.social.spreading import SimonYuleSystem
+        >>> SimonYuleSystem().prepare().system_.elements[0].prepare().size_
         1
     """
-    words = GroupElement(
-        'words',
-        element=GrowingWordElement,
-        size=1,
-        values={'count': 1.0, 'innovation': innovation},
-        variable=True,
-    )
-    return System(
-        elements=[words],
-        interactions=[WritingInteraction('writing', target='words', words_per_step=words_per_step)],
-    )
+
+    field = 'social/spreading'
+    topics = ('agents', 'growth', 'power law', 'language')
+    references = ('Simon 1955', 'Yule 1925', 'Thurner, Hanel, and Klimek 2018')
+    until = 20
+
+    def __init__(
+        self,
+        *,
+        innovation: float = 0.1,
+        words_per_step: int = 100,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.innovation = innovation
+        self.words_per_step = words_per_step
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        words = GroupElement(
+            'words',
+            element=GrowingWordElement,
+            size=1,
+            values={'count': 1.0, 'innovation': self.innovation},
+            variable=True,
+        )
+        return System(
+            self.label,
+            elements=[words],
+            interactions=[WritingInteraction('writing', target='words', words_per_step=self.words_per_step)],
+        )
