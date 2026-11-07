@@ -7,7 +7,7 @@ speed.
 """
 
 # %%
-# The system is created by name from the catalog with 20 cars of length 5 on a ring of 500 m, the desired speed 30 m/s,
+# The system is built from its class with 20 cars of length 5 on a ring of 500 m, the desired speed 30 m/s,
 # and the time gap 1.5 s, and runs for 100 s. The blueprint shows the speeds of all cars in one time series view,
 # without a legend.
 
@@ -16,9 +16,9 @@ import numpy as np
 import rerun.blueprint as rrb
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.traffic import IntelligentDriverSystemSystem
 
 SYSTEM = 'intelligent_driver_system'
 
@@ -36,9 +36,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM)
+system = IntelligentDriverSystemSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=100)
+trajectory = simulate(system, dt=0.5, observers=[observer])
 
 # %%
 # The equilibrium speed of the ring
@@ -56,14 +56,7 @@ def equilibrium(gap):
 
 
 counts = np.arange(10, 61, 5)
-finals = [
-    Simulation(create_system(SYSTEM, n_cars=int(n)), dt=1.0)
-    .prepare()
-    .run(until=200)
-    .trajectory_.values('cars.v')[-1]
-    .mean()
-    for n in counts
-]
+finals = [simulate(IntelligentDriverSystemSystem(n_cars=int(n)), until=200).values('cars.v')[-1].mean() for n in counts]
 grid = np.arange(10, 61)
 fig, ax = plt.subplots(figsize=(6, 4.5))
 ax.plot(grid, [equilibrium(length / n - car_length) for n in grid], color='black', label='equilibrium of the IDM')

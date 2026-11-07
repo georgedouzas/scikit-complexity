@@ -6,23 +6,23 @@ Greenshields law and the anticipation of drivers smooth it out, so the road retu
 """
 
 # %%
-# The system is created by name from the catalog on a ring of 200 cells at density 0.3 with a bump of 0.2, the
+# The system is built from its class on a ring of 200 cells at density 0.3 with a bump of 0.2, the
 # relaxation time `tau = 0.5`, and is integrated with SSPRK for one time unit. The default blueprint puts the history of
 # the density first.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import SSPRKSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.traffic import PayneSystem
 
 SYSTEM = 'payne'
 
-system = create_system(SYSTEM)
+system = PayneSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, dt=0.01, solver=SSPRKSolver(), observers=[observer]).prepare().run(until=1.0)
+trajectory = simulate(system, dt=0.01, solver=SSPRKSolver(), observers=[observer])
 
 # %%
 # Conservation and smoothing
@@ -30,7 +30,6 @@ simulation = Simulation(system, dt=0.01, solver=SSPRKSolver(), observers=[observ
 # The density obeys a conservation law on a ring, so the number of cars should stay exactly constant, while the peak of
 # the bump should fall as it spreads.
 
-trajectory = simulation.trajectory_
 rho = trajectory.lattice('road.rho')
 x = (np.arange(rho.shape[1]) + 0.5) / rho.shape[1]
 cars = rho.sum(axis=1) / rho.shape[1]

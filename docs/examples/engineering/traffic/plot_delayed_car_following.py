@@ -6,7 +6,7 @@ amplifies the oscillation from car to car, so the last cars of the chain swing t
 """
 
 # %%
-# The system is created by name from the catalog with eight cars, a lead car oscillating by 10% around speed 1 at
+# The system is built from its class with eight cars, a lead car oscillating by 10% around speed 1 at
 # `omega = 0.5`, and the reaction time `T = 1`, and runs for 60 time units. The blueprint shows the speeds of all cars
 # in one time series view.
 
@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.traffic import DelayedCarFollowingSystem
 
 SYSTEM = 'delayed_car_following'
 
@@ -34,9 +34,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM)
+system = DelayedCarFollowingSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=60)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Growth along the chain
@@ -47,7 +47,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 
 fig, ax = plt.subplots(figsize=(6, 4.5))
 for delay, label in [(1.0, 'T = 1, unstable chain'), (0.2, 'T = 0.2, stable chain')]:
-    run = Simulation(create_system(SYSTEM, T=delay), dt=0.5).prepare().run(until=120).trajectory_
+    run = simulate(DelayedCarFollowingSystem(T=delay), until=120)
     late = run.times > 60
     amplitudes = [np.ptp(run.values(f'car_{car}.v')[late]) / 2 for car in range(8)]
     ax.semilogy(range(8), amplitudes, 'o-', label=label)

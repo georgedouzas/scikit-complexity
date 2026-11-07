@@ -17,9 +17,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.engineering.traffic import RidesharingSystem
 
 SYSTEM = 'ridesharing'
 STEPS = 200
@@ -41,18 +41,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, demand=1.2, random_state=0)
+system = RidesharingSystem(demand=1.2, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = (
-    Simulation(
-        system,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=STEPS)
-)
+trajectory = simulate(system, until=STEPS, observers=[observer], random_state=0)
 
 # %%
 # Waiting near saturation
@@ -66,14 +57,10 @@ simulation = (
 demands = np.array([0.2, 0.4, 0.6, 0.8, 1.0, 1.2])
 waits, utilisations = [], []
 for demand in demands:
-    system = create_system(SYSTEM, demand=demand, random_state=0)
-    run = (
-        Simulation(system, random_state=0, observables=describe(SYSTEM).observables_of(system))
-        .prepare()
-        .run(until=STEPS)
-    )
-    waits.append(np.nanmean(run.trajectory_.values('mean_wait')[STEPS // 2 :]))
-    utilisations.append(run.trajectory_.values('utilisation')[STEPS // 2 :].mean())
+    system = RidesharingSystem(demand=demand, random_state=0)
+    run = simulate(system, until=STEPS, random_state=0)
+    waits.append(np.nanmean(run.values('mean_wait')[STEPS // 2 :]))
+    utilisations.append(run.values('utilisation')[STEPS // 2 :].mean())
 fig, (wait, busy) = plt.subplots(1, 2, figsize=(11, 4))
 wait.plot(demands, waits, marker='o')
 wait.set_xlabel('new riders per step')

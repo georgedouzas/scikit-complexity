@@ -14,11 +14,10 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import SimulationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class MotoristView(AgentView):
@@ -70,6 +69,8 @@ class MotoristElement(Element):
         >>> GroupElement('cars', element=MotoristElement, size=3, values={'x': [0.0, 10.0, 20.0]}).size
         3
     """
+
+    law_classes = (RuleLaw,)
 
     def __init__(
         self,
@@ -188,6 +189,8 @@ class DriverElement(Element):
         2
     """
 
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -293,6 +296,8 @@ class CarelessBrakingInteraction(Interaction):
         0.1
     """
 
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -342,25 +347,13 @@ class CarelessBrakingInteraction(Interaction):
 ROAD_WIDTH = 1.0
 
 
-@register_system(
-    field='engineering/traffic',
-    tags=('traffic', 'jams', 'agents', 'avalanches', 'stochastic'),
-    references=('Charbonneau 2017',),
-    defaults={'until': 100},
-)
-def charbonneau_traffic(
-    n_cars: int = 100,
-    *,
-    probability: float = 0.1,
-    safe_distance: float = 5.0,
-    speed_limit: float = 10.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Charbonneau's traffic system, where random braking of single drivers sets off traffic jams.
+class CharbonneauTrafficSystem(BaseSystem):
+    """Charbonneau's traffic system, where random braking of single drivers sets off traffic jams.
 
-    Cars on a one-way road start at rest with random spacings between 3 and 17. Every step, each driver brakes by 3
-    when the car ahead is closer than the safe distance and accelerates by 1 otherwise, within the speed limit. A random
-    driver brakes with a probability every step, and then every car moves by its speed.
+    Cars on a one-way road start at rest with random spacings between 3 and 17. Every step, each driver brakes by 3 when
+    the car ahead is closer than the safe distance and accelerates by 1 otherwise, within the speed limit. A random
+    driver brakes with a probability every step, and then every car moves by its speed. The system has the group `cars`
+    of positions `x`, speeds `v`, and ranks `rank`.
 
     Args:
         n_cars:
@@ -378,52 +371,66 @@ def charbonneau_traffic(
         random_state:
             The seed or generator of the initial spacings.
 
-    Returns:
-        system:
-            The system, with the group `cars` of positions `x`, speeds `v`, and ranks `rank`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.traffic import charbonneau_traffic
-        >>> charbonneau_traffic(5).elements[0].prepare().size_
+        >>> from skcomplex.systems.engineering.traffic import CharbonneauTrafficSystem
+        >>> CharbonneauTrafficSystem(5).prepare().system_.elements[0].prepare().size_
         5
     """
-    rng = np.random.default_rng(random_state)
-    positions = np.cumsum(rng.uniform(3.0, 17.0, n_cars))
-    cars = GroupElement(
-        'cars',
-        element=MotoristElement,
-        size=n_cars,
-        values={
-            'x': positions,
-            'v': np.zeros(n_cars),
-            'rank': np.arange(n_cars, dtype=float),
-            'safe_distance': safe_distance,
-            'speed_limit': speed_limit,
-        },
-    )
-    return System(
-        elements=[cars],
-        interactions=[CarelessBrakingInteraction('braking', cars='cars', probability=probability)],
-    )
+
+    field = 'engineering/traffic'
+    topics = ('traffic', 'jams', 'agents', 'avalanches', 'stochastic')
+    references = ('Charbonneau 2017',)
+    until = 100
+
+    def __init__(
+        self,
+        n_cars: int = 100,
+        *,
+        probability: float = 0.1,
+        safe_distance: float = 5.0,
+        speed_limit: float = 10.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_cars = n_cars
+        self.probability = probability
+        self.safe_distance = safe_distance
+        self.speed_limit = speed_limit
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        positions = np.cumsum(rng.uniform(3.0, 17.0, self.n_cars))
+        cars = GroupElement(
+            'cars',
+            element=MotoristElement,
+            size=self.n_cars,
+            values={
+                'x': positions,
+                'v': np.zeros(self.n_cars),
+                'rank': np.arange(self.n_cars, dtype=float),
+                'safe_distance': self.safe_distance,
+                'speed_limit': self.speed_limit,
+            },
+        )
+        return System(
+            self.label,
+            elements=[cars],
+            interactions=[CarelessBrakingInteraction('braking', cars='cars', probability=self.probability)],
+        )
 
 
-@register_system(
-    field='engineering/traffic',
-    tags=('traffic', 'jams', 'agents', 'stochastic'),
-    references=('Downey 2018', 'Resnick 1994'),
-    defaults={'until': 100},
-)
-def ring_road_drivers(
-    n_cars: int = 30,
-    length: float = 1000.0,
-    *,
-    eps: float = 0.02,
-    speed_limit: float = 40.0,
-) -> System:
-    """Return drivers on a circular highway, where small random errors of speed set off traffic jams.
+class RingRoadDriversSystem(BaseSystem):
+    """Drivers on a circular highway, where small random errors of speed set off traffic jams.
 
     The cars start at rest, equally spaced. Every driver accelerates by 1 per step up to the speed limit, the speed
-    takes a random relative error of up to `eps`, and a speed that would reach the car ahead becomes 0.
+    takes a random relative error of up to `eps`, and a speed that would reach the car ahead becomes 0. The system has
+    the group `drivers` of speeds `speed` on a ring road of length `length`.
 
     Args:
         n_cars:
@@ -438,21 +445,47 @@ def ring_road_drivers(
         speed_limit:
             The largest speed.
 
-    Returns:
-        system:
-            The system, with the group `drivers` of speeds `speed` on a ring road of length `length`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.traffic import ring_road_drivers
-        >>> ring_road_drivers(10).space.prepare().extent_[0]
+        >>> from skcomplex.systems.engineering.traffic import RingRoadDriversSystem
+        >>> RingRoadDriversSystem(10).prepare().system_.space.prepare().extent_[0]
         1000.0
     """
-    positions = np.linspace(0.0, length, n_cars, endpoint=False)
-    drivers = GroupElement(
-        'drivers',
-        element=DriverElement,
-        size=n_cars,
-        values={'rank': np.arange(n_cars, dtype=float), 'eps': eps, 'speed_limit': speed_limit},
-        location=[(float(position), ROAD_WIDTH / 2) for position in positions],
-    )
-    return System(elements=[drivers], space=ContinuousSpace(extent=(length, ROAD_WIDTH), boundary='periodic'))
+
+    field = 'engineering/traffic'
+    topics = ('traffic', 'jams', 'agents', 'stochastic')
+    references = ('Downey 2018', 'Resnick 1994')
+    until = 100
+
+    def __init__(
+        self,
+        n_cars: int = 30,
+        length: float = 1000.0,
+        *,
+        eps: float = 0.02,
+        speed_limit: float = 40.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_cars = n_cars
+        self.length = length
+        self.eps = eps
+        self.speed_limit = speed_limit
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        positions = np.linspace(0.0, self.length, self.n_cars, endpoint=False)
+        drivers = GroupElement(
+            'drivers',
+            element=DriverElement,
+            size=self.n_cars,
+            values={'rank': np.arange(self.n_cars, dtype=float), 'eps': self.eps, 'speed_limit': self.speed_limit},
+            location=[(float(position), ROAD_WIDTH / 2) for position in positions],
+        )
+        return System(
+            self.label,
+            elements=[drivers],
+            space=ContinuousSpace(extent=(self.length, ROAD_WIDTH), boundary='periodic'),
+        )

@@ -14,15 +14,16 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed, shift_member
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common._car import CarElement
 from ..common._optimal_velocity import OptimalVelocityInteraction
 
 
 class LeadCarElement(Element):
     """Lead car whose speed swings about a cruising speed `u` with an amplitude and a frequency."""
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -180,27 +181,14 @@ def _ring_positions(n_cars: int, length: float, perturbation: float) -> list[flo
     return [float(position) for position in positions]
 
 
-@register_system(
-    field='engineering/traffic',
-    tags=('traffic', 'jams', 'ode', 'car following'),
-    references=('Bando et al. 1995', 'Chowdhury, Santen, and Schadschneider 2000'),
-    defaults={'until': 200.0, 'dt': 1.0},
-)
-def optimal_velocity(
-    n_cars: int = 20,
-    length: float = 40.0,
-    *,
-    a: float = 1.0,
-    V0: float = 1.0,
-    hc: float = 2.0,
-    perturbation: float = 0.1,
-) -> System:
-    """Return the optimal velocity system of cars on a ring road, where uniform flow breaks into stop-and-go waves.
+class OptimalVelocitySystem(BaseSystem):
+    """The optimal velocity system of cars on a ring road, where uniform flow breaks into stop-and-go waves.
 
-    Car `i` relaxes its speed towards the optimal velocity of its headway `h`, `v_i' = a (V(h) - v_i)` with
-    `V(h) = V0 (tanh(h - hc) + tanh(hc))`. Uniform flow with headway `b = length / n_cars` is unstable when
-    `V'(b) > a / 2`, and then a jam forms that moves against the direction of travel. The cars are one group, and the
-    headway of car `i` is the distance along the ring to member `i + 1`.
+    Car `i` relaxes its speed towards the optimal velocity of its headway `h`, `v_i' = a (V(h) - v_i)` with `V(h) = V0
+    (tanh(h - hc) + tanh(hc))`. Uniform flow with headway `b = length / n_cars` is unstable when `V'(b) > a / 2`, and
+    then a jam forms that moves against the direction of travel. The cars are one group, and the headway of car `i` is
+    the distance along the ring to member `i + 1`. The system has the group `cars` of positions `cars.x` and speeds
+    `cars.v`, car `i + 1` ahead of car `i`.
 
     Args:
         n_cars:
@@ -221,52 +209,69 @@ def optimal_velocity(
         perturbation:
             The forward shift of the first car from uniform spacing.
 
-    Returns:
-        system:
-            The system, with the group `cars` of positions `cars.x` and speeds `cars.v`, car `i + 1` ahead of car `i`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.traffic import optimal_velocity
-        >>> system = optimal_velocity(n_cars=5)
+        >>> from skcomplex.systems.engineering.traffic import OptimalVelocitySystem
+        >>> system = OptimalVelocitySystem(n_cars=5).prepare().system_
         >>> system.elements[0].size, len(system.interactions)
         (5, 1)
     """
-    headway = length / n_cars
-    speed = V0 * (np.tanh(headway - hc) + np.tanh(hc))
-    cars = GroupElement(
-        'cars',
-        element=CarElement,
-        size=n_cars,
-        values={'x': _ring_positions(n_cars, length, perturbation), 'v': float(speed)},
-    )
-    following = OptimalVelocityInteraction('follow', target='cars', a=a, V0=V0, hc=hc, road_length=length)
-    return System(elements=[cars], interactions=[following])
+
+    field = 'engineering/traffic'
+    topics = ('traffic', 'jams', 'ode', 'car following')
+    references = ('Bando et al. 1995', 'Chowdhury, Santen, and Schadschneider 2000')
+    until = 200.0
+    dt = 1.0
+
+    def __init__(
+        self,
+        n_cars: int = 20,
+        length: float = 40.0,
+        *,
+        a: float = 1.0,
+        V0: float = 1.0,
+        hc: float = 2.0,
+        perturbation: float = 0.1,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_cars = n_cars
+        self.length = length
+        self.a = a
+        self.V0 = V0
+        self.hc = hc
+        self.perturbation = perturbation
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        headway = self.length / self.n_cars
+        speed = self.V0 * (np.tanh(headway - self.hc) + np.tanh(self.hc))
+        cars = GroupElement(
+            'cars',
+            element=CarElement,
+            size=self.n_cars,
+            values={'x': _ring_positions(self.n_cars, self.length, self.perturbation), 'v': float(speed)},
+        )
+        following = OptimalVelocityInteraction(
+            'follow',
+            target='cars',
+            a=self.a,
+            V0=self.V0,
+            hc=self.hc,
+            road_length=self.length,
+        )
+        return System(self.label, elements=[cars], interactions=[following])
 
 
-@register_system(
-    field='engineering/traffic',
-    tags=('traffic', 'jams', 'ode', 'car following'),
-    references=('Treiber, Hennecke, and Helbing 2000', 'Chowdhury, Santen, and Schadschneider 2000'),
-    defaults={'until': 100.0, 'dt': 1.0},
-)
-def intelligent_driver_system(
-    n_cars: int = 20,
-    length: float = 500.0,
-    *,
-    v0: float = 30.0,
-    T: float = 1.5,
-    a: float = 1.0,
-    b: float = 1.5,
-    s0: float = 2.0,
-    delta: float = 4.0,
-    car_length: float = 5.0,
-    perturbation: float = 1.0,
-) -> System:
-    """Return the intelligent driver system of cars on a ring road.
+class IntelligentDriverSystemSystem(BaseSystem):
+    """The intelligent driver system of cars on a ring road.
 
-    Car `i` accelerates as `v' = a (1 - (v / v0)^δ - (s* / s)^2)` with the gap `s` to the car ahead and the desired
-    gap `s* = s0 + v T + v Δv / (2 sqrt(a b))`, where `Δv` is the speed difference to the car ahead. Cars start at rest.
-    The cars are one group, and the car ahead of car `i` is member `i + 1` along the ring.
+    Car `i` accelerates as `v' = a (1 - (v / v0)^δ - (s* / s)^2)` with the gap `s` to the car ahead and the desired gap
+    `s* = s0 + v T + v Δv / (2 sqrt(a b))`, where `Δv` is the speed difference to the car ahead. Cars start at rest. The
+    cars are one group, and the car ahead of car `i` is member `i + 1` along the ring. The system has the group `cars`
+    of positions `cars.x` and speeds `cars.v`, car `i + 1` ahead of car `i`.
 
     Args:
         n_cars:
@@ -299,58 +304,78 @@ def intelligent_driver_system(
         perturbation:
             The forward shift of the first car from uniform spacing.
 
-    Returns:
-        system:
-            The system, with the group `cars` of positions `cars.x` and speeds `cars.v`, car `i + 1` ahead of car `i`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.traffic import intelligent_driver_system
-        >>> intelligent_driver_system(n_cars=4).interactions[0].road_length
+        >>> from skcomplex.systems.engineering.traffic import IntelligentDriverSystemSystem
+        >>> IntelligentDriverSystemSystem(n_cars=4).prepare().system_.interactions[0].road_length
         500.0
     """
-    cars = GroupElement(
-        'cars',
-        element=CarElement,
-        size=n_cars,
-        values={'x': _ring_positions(n_cars, length, perturbation), 'v': 0.0},
-    )
-    following = IntelligentDriverInteraction(
-        'follow',
-        target='cars',
-        v0=v0,
-        T=T,
-        a=a,
-        b=b,
-        s0=s0,
-        delta=delta,
-        length=car_length,
-        road_length=length,
-    )
-    return System(elements=[cars], interactions=[following])
+
+    field = 'engineering/traffic'
+    topics = ('traffic', 'jams', 'ode', 'car following')
+    references = ('Treiber, Hennecke, and Helbing 2000', 'Chowdhury, Santen, and Schadschneider 2000')
+    until = 100.0
+    dt = 1.0
+
+    def __init__(
+        self,
+        n_cars: int = 20,
+        length: float = 500.0,
+        *,
+        v0: float = 30.0,
+        T: float = 1.5,
+        a: float = 1.0,
+        b: float = 1.5,
+        s0: float = 2.0,
+        delta: float = 4.0,
+        car_length: float = 5.0,
+        perturbation: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_cars = n_cars
+        self.length = length
+        self.v0 = v0
+        self.T = T
+        self.a = a
+        self.b = b
+        self.s0 = s0
+        self.delta = delta
+        self.car_length = car_length
+        self.perturbation = perturbation
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        cars = GroupElement(
+            'cars',
+            element=CarElement,
+            size=self.n_cars,
+            values={'x': _ring_positions(self.n_cars, self.length, self.perturbation), 'v': 0.0},
+        )
+        following = IntelligentDriverInteraction(
+            'follow',
+            target='cars',
+            v0=self.v0,
+            T=self.T,
+            a=self.a,
+            b=self.b,
+            s0=self.s0,
+            delta=self.delta,
+            length=self.car_length,
+            road_length=self.length,
+        )
+        return System(self.label, elements=[cars], interactions=[following])
 
 
-@register_system(
-    field='engineering/traffic',
-    tags=('traffic', 'delay', 'car following', 'instability'),
-    references=('Gros 2015', 'Chandler, Herman, and Montroll 1958'),
-    defaults={'until': 60.0, 'dt': 0.5},
-)
-def delayed_car_following(
-    n_cars: int = 8,
-    *,
-    spacing: float = 10.0,
-    u: float = 1.0,
-    amplitude: float = 0.1,
-    omega: float = 0.5,
-    reaction: float = 1.0,
-    T: float = 1.0,
-    power: float = 0.0,
-) -> System:
-    """Return a chain of cars that react to the speed difference to the car ahead after a reaction time.
+class DelayedCarFollowingSystem(BaseSystem):
+    """A chain of cars that react to the speed difference to the car ahead after a reaction time.
 
-    Car `j + 1` follows car `j` as `x''_{j+1}(t) = λ Δv(t - T) / Δx(t - T)^power`, where `Δv` and `Δx` are the speed
-    and position differences to the car ahead. The lead car drives at `u (1 - amplitude sin(ω t))`. Oscillations grow
-    along the chain when `ω < 2 λ sin(ω T)` for the linear system, `power = 0`.
+    Car `j + 1` follows car `j` as `x''_{j+1}(t) = λ Δv(t - T) / Δx(t - T)^power`, where `Δv` and `Δx` are the speed and
+    position differences to the car ahead. The lead car drives at `u (1 - amplitude sin(ω t))`. Oscillations grow along
+    the chain when `ω < 2 λ sin(ω T)` for the linear system, `power = 0`. The system has the lead car `car_0` and the
+    cars `car_<j>` behind it, with positions `x` and speeds `v`.
 
     Args:
         n_cars:
@@ -377,26 +402,57 @@ def delayed_car_following(
         power:
             The power of the distance in the reaction, 0 for the linear system.
 
-    Returns:
-        system:
-            The system, with the lead car `car_0` and the cars `car_<j>` behind it, with positions `x` and speeds `v`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.traffic import delayed_car_following
-        >>> delayed_car_following(n_cars=3).elements[2].x
+        >>> from skcomplex.systems.engineering.traffic import DelayedCarFollowingSystem
+        >>> DelayedCarFollowingSystem(n_cars=3).prepare().system_.elements[2].x
         -20.0
     """
-    lead = LeadCarElement('car_0', x=0.0, v=u, u=u, amplitude=amplitude, omega=omega)
-    followers = [CarElement(f'car_{index}', x=-index * spacing, v=u) for index in range(1, n_cars)]
-    interactions = [
-        DelayedFollowingInteraction(
-            f'follow_{index}',
-            target=f'car_{index}',
-            leader=f'car_{index - 1}',
-            reaction=reaction,
-            T=T,
-            power=power,
-        )
-        for index in range(1, n_cars)
-    ]
-    return System(elements=[lead, *followers], interactions=interactions)
+
+    field = 'engineering/traffic'
+    topics = ('traffic', 'delay', 'car following', 'instability')
+    references = ('Gros 2015', 'Chandler, Herman, and Montroll 1958')
+    until = 60.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        n_cars: int = 8,
+        *,
+        spacing: float = 10.0,
+        u: float = 1.0,
+        amplitude: float = 0.1,
+        omega: float = 0.5,
+        reaction: float = 1.0,
+        T: float = 1.0,
+        power: float = 0.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_cars = n_cars
+        self.spacing = spacing
+        self.u = u
+        self.amplitude = amplitude
+        self.omega = omega
+        self.reaction = reaction
+        self.T = T
+        self.power = power
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        lead = LeadCarElement('car_0', x=0.0, v=self.u, u=self.u, amplitude=self.amplitude, omega=self.omega)
+        followers = [CarElement(f'car_{index}', x=-index * self.spacing, v=self.u) for index in range(1, self.n_cars)]
+        interactions = [
+            DelayedFollowingInteraction(
+                f'follow_{index}',
+                target=f'car_{index}',
+                leader=f'car_{index - 1}',
+                reaction=self.reaction,
+                T=self.T,
+                power=self.power,
+            )
+            for index in range(1, self.n_cars)
+        ]
+        return System(self.label, elements=[lead, *followers], interactions=interactions)

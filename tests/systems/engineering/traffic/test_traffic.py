@@ -3,7 +3,7 @@
 import numpy as np
 
 from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems.engineering.traffic import nagel_schreckenberg
+from skcomplex.systems.engineering.traffic import NagelSchreckenbergSystem
 
 
 def test_traffic_jams_lower_flow_and_move_backward():
@@ -11,7 +11,10 @@ def test_traffic_jams_lower_flow_and_move_backward():
     flows, velocities = {}, {}
     for density in (0.15, 0.5):
         trajectory = (
-            Simulation(nagel_schreckenberg(1000, density=density), dt=1, random_state=0).prepare().run(600).trajectory_
+            Simulation(NagelSchreckenbergSystem(1000, density=density).prepare().system_, dt=1, random_state=0)
+            .prepare()
+            .run(600)
+            .trajectory_
         )
         velocities[density] = trajectory.values('road.velocity')[100:]
         flows[density] = np.where(velocities[density] >= 0, velocities[density], 0).sum(axis=1).mean() / 1000
@@ -24,5 +27,10 @@ def test_traffic_jams_lower_flow_and_move_backward():
 
 def test_traffic_conserves_cars():
     """Test that the number of cars on the ring never changes."""
-    trajectory = Simulation(nagel_schreckenberg(200, density=0.3), dt=1, random_state=1).prepare().run(100).trajectory_
+    trajectory = (
+        Simulation(NagelSchreckenbergSystem(200, density=0.3).prepare().system_, dt=1, random_state=1)
+        .prepare()
+        .run(100)
+        .trajectory_
+    )
     assert np.all((trajectory.values('road.velocity') >= 0).sum(axis=1) == 60)

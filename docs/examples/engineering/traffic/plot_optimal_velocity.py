@@ -6,7 +6,7 @@ small disturbance grows into a stop-and-go wave, where cars alternately crawl th
 """
 
 # %%
-# The system is created by name from the catalog with 20 cars on a ring of length 40, the sensitivity `a = 1`, and the
+# The system is built from its class with 20 cars on a ring of length 40, the sensitivity `a = 1`, and the
 # safety distance `hc = 2`, so that the uniform headway 2 is unstable, and runs for 200 time units. The blueprint shows
 # the speeds of all cars in one time series view, without a legend.
 
@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.traffic import OptimalVelocitySystem
 
 SYSTEM = 'optimal_velocity'
 
@@ -34,9 +34,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM)
+system = OptimalVelocitySystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=200)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Instability of uniform flow
@@ -45,8 +45,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(unti
 # `b = hc = 2`, `V'(b) = V0 = 1 > 0.5`, so the spread of speeds should grow from the initial disturbance and saturate
 # in a stop-and-go wave. A ring with a larger headway, where `V'(b) < a / 2`, should instead return to uniform flow.
 
-trajectory = simulation.trajectory_
-stable = Simulation(create_system(SYSTEM, length=80.0), dt=1.0).prepare().run(until=200).trajectory_
+stable = simulate(OptimalVelocitySystem(length=80.0))
 fig, (spread, cycle) = plt.subplots(1, 2, figsize=(10, 4))
 spread.semilogy(trajectory.times, trajectory.values('cars.v').std(axis=1) + 1e-12, label='headway 2, unstable')
 spread.semilogy(stable.times, stable.values('cars.v').std(axis=1) + 1e-12, label='headway 4, stable')
