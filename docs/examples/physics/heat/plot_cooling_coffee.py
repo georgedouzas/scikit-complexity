@@ -12,15 +12,15 @@ exponentially, Newton's law of cooling, and it approaches the room temperature w
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.heat import CoolingCoffeeSystem
 
 SYSTEM = 'cooling_coffee'
 
-system = create_system(SYSTEM, T=90.0, room=20.0, k=0.1)
+system = CoolingCoffeeSystem(T=90.0, room=20.0, k=0.1)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=60)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Exponential relaxation
@@ -28,11 +28,11 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 # The solution is `T(t) = T_room + (T0 - T_room) exp(-k t)`, so the excess temperature `T - T_room` should fall on a
 # straight line of slope `-k` on a logarithmic axis, for every starting temperature.
 
-times = np.asarray(simulation.trajectory_.times)
+times = np.asarray(trajectory.times)
 fig, ax = plt.subplots(figsize=(6, 4))
 for start in [90.0, 60.0, 40.0]:
-    run = Simulation(create_system(SYSTEM, T=start, room=20.0, k=0.1), dt=0.5).prepare().run(until=60)
-    line = ax.semilogy(times, np.ravel(run.trajectory_.values('coffee.T')) - 20.0, label=f'T0 = {start:.0f}')[0]
+    run = simulate(CoolingCoffeeSystem(T=start, room=20.0, k=0.1))
+    line = ax.semilogy(times, np.ravel(run.values('coffee.T')) - 20.0, label=f'T0 = {start:.0f}')[0]
     ax.semilogy(times, (start - 20.0) * np.exp(-0.1 * times), '--', color=line.get_color())
 ax.set_xlabel('time (minutes)')
 ax.set_ylabel('T - T_room')
