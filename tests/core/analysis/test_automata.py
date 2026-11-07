@@ -11,7 +11,7 @@ from sage.all__sagemath_symbolics import GF, matrix, var
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from scipy.linalg import circulant
 
-from skcomplex.core.analysis import AutomatonAnalysis, EntropyAnalysis
+from skcomplex.core.analysis import AutomatonAnalysis, entropy
 from skcomplex.core.components.elements import DeclaredElement, Element, LatticeElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.laws import LocalRuleLaw
@@ -201,7 +201,7 @@ def test_spatial_entropy_rate_does_not_increase():
     rows = [np.random.default_rng(0).integers(2, size=20000)]
     for _ in range(20):
         rows.append(_step(rule, rows[-1]))
-    rates = EntropyAnalysis('rate', dimension=6).prepare(np.stack(rows).T).run().entropy_
+    rates = entropy(np.stack(rows).T, kind='rate', dimension=6).entropy
     assert np.diff(rates).max() < 0.03
     assert rates[-1] < rates[0] - 0.2
 

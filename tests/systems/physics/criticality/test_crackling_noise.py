@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import EventAnalysis, FitAnalysis
+from skcomplex.core.analysis import FitAnalysis, events
 from skcomplex.core.errors import AnalysisError
-from skcomplex.systems.physics.criticality import CracklingNoiseAnalysis
+from skcomplex.systems.physics.criticality import crackling_noise
 
 DURATIONS = (20, 40, 80)
 MAX_GENERATIONS = 5000
@@ -39,27 +39,27 @@ def _galton_watson(rng: np.random.Generator, trees: int) -> np.ndarray:
 def test_crackling_noise_finds_the_excursions():
     """Test that the avalanches of the crackling-noise analysis are the excursions of the activity."""
     activity = _galton_watson(np.random.default_rng(0), 1000)
-    crackling = CracklingNoiseAnalysis(min_count=1).prepare(activity).run()
-    excursions = EventAnalysis('excursions').prepare(activity).run()
-    np.testing.assert_array_equal(crackling.sizes_, excursions.sizes_)
-    np.testing.assert_array_equal(crackling.durations_, excursions.durations_)
+    crackling = crackling_noise(activity, min_count=1)
+    excursions = events(activity, kind='excursions')
+    np.testing.assert_array_equal(crackling.sizes, excursions.sizes)
+    np.testing.assert_array_equal(crackling.durations, excursions.durations)
 
 
 def test_crackling_noise_branching_process_scaling():
     """Test that the mean size grows as the squared duration, agrees with the laws, and the shapes collapse."""
-    found = EventAnalysis('excursions').prepare(_galton_watson(np.random.default_rng(1), 100_000)).run()
-    crackling = CracklingNoiseAnalysis(
+    found = events(_galton_watson(np.random.default_rng(1), 100_000), kind='excursions')
+    crackling = crackling_noise(
+        _galton_watson(np.random.default_rng(2), 1_000_000),
         durations=DURATIONS,
         min_duration=10,
-        size_exponent=_exponent(found.sizes_, 10).exponent_,
-        duration_exponent=_exponent(found.durations_, 10).exponent_,
+        size_exponent=_exponent(found.sizes, 10).exponent_,
+        duration_exponent=_exponent(found.durations, 10).exponent_,
     )
-    crackling.prepare(_galton_watson(np.random.default_rng(2), 1_000_000)).run()
-    assert crackling.exponent_ == pytest.approx(2, abs=0.1)
-    assert crackling.exponent_ == pytest.approx(crackling.predicted_, abs=0.15)
-    assert crackling.shape_spread_ < 0.1
-    assert sorted(crackling.mean_shapes_) == list(DURATIONS)
+    assert crackling.exponent == pytest.approx(2, abs=0.1)
+    assert crackling.exponent == pytest.approx(crackling.predicted, abs=0.15)
+    assert crackling.shape_spread < 0.1
+    assert sorted(crackling.mean_shapes) == list(DURATIONS)
     with pytest.raises(AnalysisError, match='Fewer than 2 durations'):
-        CracklingNoiseAnalysis().prepare([0, 1, 0, 1, 0, 1, 0]).run()
+        crackling_noise([0, 1, 0, 1, 0, 1, 0])
     with pytest.raises(AnalysisError, match='min_count=0'):
-        CracklingNoiseAnalysis(min_count=0).prepare()
+        crackling_noise([0, 1, 0, 1], min_count=0)

@@ -6,7 +6,7 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import CorrelationAnalysis, IrreversibilityAnalysis
+from skcomplex.core.analysis import CorrelationAnalysis, irreversibility
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import JumpLaw
 from skcomplex.core.components.system import System
@@ -19,9 +19,9 @@ RUNS = 20_000
 STEP = 0.1
 
 
-def _irreversibility(kind: str, source: object, **settings: object) -> IrreversibilityAnalysis:
+def _irreversibility(kind: str, source: object, **settings: object) -> irreversibility:
     """Return the irreversibility analysis of a source for one kind, run."""
-    return IrreversibilityAnalysis(kind, **settings).prepare(source).run()
+    return irreversibility(source, kind=kind, **settings)
 
 
 def _chain(matrix: np.ndarray, steps: int, rng: np.random.Generator) -> np.ndarray:
@@ -67,11 +67,11 @@ def test_entropy_production_same_on_two_domains():
     rng = np.random.default_rng(0)
     paths = _driven_particles(rng, 500, 20.0, 0.01)
     particle = _irreversibility('langevin-entropy-production', paths, drive=1.0, intensity=1.0, dt=0.01)
-    assert particle.entropy_production_ == pytest.approx(1, rel=0.05)
+    assert particle.entropy_production == pytest.approx(1, rel=0.05)
     states, duration = _ring_jumps(rng, 2.0, 1.0, 300_000)
     jumps = _irreversibility('jump-entropy-production', states, rates=RING, duration=duration)
-    assert jumps.entropy_production_ == pytest.approx(math.log(2), rel=0.05)
-    assert _irreversibility('entropy-production', RING).entropy_production_ == pytest.approx(math.log(2), rel=1e-12)
+    assert jumps.entropy_production == pytest.approx(math.log(2), rel=0.05)
+    assert _irreversibility('entropy-production', RING).entropy_production == pytest.approx(math.log(2), rel=1e-12)
 
 
 def test_count_entropy_production_from_counts_alone():
@@ -79,24 +79,24 @@ def test_count_entropy_production_from_counts_alone():
     rng = np.random.default_rng(1)
     states, duration = _ring_jumps(rng, 2.0, 1.0, 300_000)
     driven = _irreversibility('count-entropy-production', states, dt=duration / (states.size - 1))
-    assert driven.entropy_production_ == pytest.approx(math.log(2), rel=0.05)
+    assert driven.entropy_production == pytest.approx(math.log(2), rel=0.05)
     balanced, balanced_duration = _ring_jumps(rng, 1.0, 1.0, 300_000)
     reversible = _irreversibility('count-entropy-production', balanced, dt=balanced_duration / (balanced.size - 1))
-    assert reversible.entropy_production_ < 0.01
-    assert _irreversibility('count-entropy-production', [0, 1, 0, 1, 0]).entropy_production_ == 0.0
+    assert reversible.entropy_production < 0.01
+    assert _irreversibility('count-entropy-production', [0, 1, 0, 1, 0]).entropy_production == 0.0
 
 
 def test_fluctuation_theorem_of_a_driven_particle():
     """Test that 10,000 runs of the driven particle over time 1 give a slope of ln P(s) / P(-s) near 1."""
     paths = _driven_particles(np.random.default_rng(2), 10_000, 1.0, 0.01)
-    entropies = _irreversibility('langevin-entropy-production', paths, drive=np.ones_like, dt=0.01).entropies_
-    assert _irreversibility('fluctuation-theorem', entropies, bins=30).slope_ == pytest.approx(1, abs=0.1)
+    entropies = _irreversibility('langevin-entropy-production', paths, drive=np.ones_like, dt=0.01).entropies
+    assert _irreversibility('fluctuation-theorem', entropies, bins=30).slope == pytest.approx(1, abs=0.1)
 
 
 def test_intensity_scales_the_entropy_and_the_response():
     """Test that the intensity multiplies the entropy of Langevin paths and divides the response in the ratio."""
     paths = [[0.0, 1.0, 3.0]]
-    entropies = _irreversibility('langevin-entropy-production', paths, drive=2.0, intensity=0.5).entropies_
+    entropies = _irreversibility('langevin-entropy-production', paths, drive=2.0, intensity=0.5).entropies
     assert entropies.tolist() == [3.0]
     ratios = [
         _irreversibility(
@@ -105,7 +105,7 @@ def test_intensity_scales_the_entropy_and_the_response():
             unperturbed=[[0.0, 0.0, 0.0]],
             correlation=[2.0, 1.0, 0.0],
             intensity=intensity,
-        ).fluctuation_dissipation_ratio_
+        ).fluctuation_dissipation_ratio
         for intensity in (1.0, 2.0)
     ]
     assert ratios == pytest.approx([1.0, 0.5])
@@ -118,9 +118,9 @@ def test_entropy_production_rejects_one_way_jumps():
     with pytest.raises(AnalysisError, match='Fewer than 3 bins'):
         _irreversibility('fluctuation-theorem', [1.0, 2.0])
     with pytest.raises(AnalysisError, match='needs rates'):
-        IrreversibilityAnalysis('jump-entropy-production').prepare()
+        irreversibility([0, 1, 0, 1], kind='jump-entropy-production')
     with pytest.raises(AnalysisError, match='does not read bins'):
-        IrreversibilityAnalysis('entropy-production', bins=10).prepare()
+        irreversibility([0, 1, 0, 1], kind='entropy-production', bins=10)
     with pytest.raises(AnalysisError, match='duration'):
         _irreversibility('jump-entropy-production', [0, 1, 0], rates=[[0, 2], [1, 0]])
 
@@ -164,9 +164,9 @@ def test_uncertainty_relation_of_a_biased_random_walk():
     entropy = (forward - backward) * np.log(forward / backward) * duration
     relation = _irreversibility('uncertainty-relation', currents, entropy=entropy, random_state=0)
     exact = (forward + backward) / (forward - backward) * np.log(forward / backward)
-    assert relation.holds_
-    assert relation.product_ == pytest.approx(exact, abs=3 * relation.error_)
-    assert relation.product_ + 2 * relation.error_ >= 2
+    assert relation.holds
+    assert relation.product == pytest.approx(exact, abs=3 * relation.error)
+    assert relation.product + 2 * relation.error >= 2
 
 
 def test_uncertainty_relation_rejects_a_current_that_does_not_flow():
@@ -191,9 +191,9 @@ def test_detailed_balance_of_reversible_and_driven_chains():
     cycle = np.asarray([[0.2, 0.6, 0.2], [0.2, 0.2, 0.6], [0.6, 0.2, 0.2]])
     reversible = _irreversibility('detailed-balance', _chain(birth_death, 50_000, rng))
     driven = _irreversibility('detailed-balance', _chain(cycle, 50_000, rng))
-    assert reversible.balanced_
-    assert not driven.balanced_
-    assert driven.currents_[0, 1] == pytest.approx(0.4 / 3, abs=0.01)
+    assert reversible.balanced
+    assert not driven.balanced
+    assert driven.currents[0, 1] == pytest.approx(0.4 / 3, abs=0.01)
 
 
 def test_fluctuation_dissipation_ratio_in_equilibrium():
@@ -212,6 +212,6 @@ def test_fluctuation_dissipation_ratio_in_equilibrium():
         correlation=correlation[1],
         intensity=1.0,
     )
-    assert ratio.fluctuation_dissipation_ratio_ == pytest.approx(1, abs=0.1)
-    response = _irreversibility('response', [[1.0, 2.0]], unperturbed=[[1.0, 1.0]], field=0.5).response_
+    assert ratio.fluctuation_dissipation_ratio == pytest.approx(1, abs=0.1)
+    response = _irreversibility('response', [[1.0, 2.0]], unperturbed=[[1.0, 1.0]], field=0.5).response
     assert response.tolist() == [0.0, 2.0]

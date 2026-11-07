@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import EmergenceAnalysis, MarkovAnalysis
+from skcomplex.core.analysis import emergence, markov
 from skcomplex.core.errors import AnalysisError, UnobservedStatesWarning
 
 BLOCKS = np.asarray([[0.3, 0.7], [0.6, 0.4]])
@@ -26,9 +26,9 @@ NOT_LUMPABLE = np.array(
 )
 
 
-def _emergence(kind: str, source: object, **settings: object) -> EmergenceAnalysis:
+def _emergence(kind: str, source: object, **settings: object) -> emergence:
     """Return the run emergence analysis of a source for one kind."""
-    return EmergenceAnalysis(kind, **settings).prepare(source).run()
+    return emergence(source, kind=kind, **settings)
 
 
 def _lumpable() -> np.ndarray:
@@ -80,7 +80,7 @@ def _parity(micro: np.ndarray) -> np.ndarray:
 @pytest.mark.parametrize('weighting', ['uniform', 'stationary'])
 def test_partition_coarse_grain_lumpable_chain(weighting):
     """Test that a lumpable four-state chain coarse-grains to its block matrix with either weighting."""
-    macro = _emergence('causal', _lumpable(), partition=[0, 0, 1, 1], weighting=weighting).macro_matrix_
+    macro = _emergence('causal', _lumpable(), partition=[0, 0, 1, 1], weighting=weighting).macro_matrix
     np.testing.assert_allclose(macro, BLOCKS, atol=1e-12)
     np.testing.assert_allclose(macro.sum(axis=1), 1.0, atol=1e-12)
 
@@ -90,9 +90,9 @@ def test_partition_coarse_grain_by_function_matches_the_macro_path():
     micro = _lumpable()
     path = _chain(micro, 40_000, np.random.default_rng(0))
     found = _emergence('causal', micro, partition=lambda states: states // 2, weighting='stationary')
-    assert found.partition_.tolist() == [0, 0, 1, 1]
-    estimated = MarkovAnalysis().prepare(path // 2).run().transition_matrix_
-    np.testing.assert_allclose(estimated, found.macro_matrix_, atol=0.02)
+    assert found.partition.tolist() == [0, 0, 1, 1]
+    estimated = markov(path // 2).transition_matrix
+    np.testing.assert_allclose(estimated, found.macro_matrix, atol=0.02)
 
 
 def test_partition_coarse_grain_rejects_missing_labels():
@@ -108,16 +108,16 @@ def test_effective_information_permutation(n_states):
     """Test that a permutation of n states has effective information and determinism log2 n and no degeneracy."""
     permutation = np.eye(n_states)[np.random.default_rng(n_states).permutation(n_states)]
     found = _emergence('effective-information', permutation)
-    assert found.information_ == pytest.approx(np.log2(n_states), abs=1e-12)
-    assert found.determinism_ == pytest.approx(np.log2(n_states), abs=1e-12)
-    assert found.degeneracy_ == pytest.approx(0.0, abs=1e-12)
+    assert found.information == pytest.approx(np.log2(n_states), abs=1e-12)
+    assert found.determinism == pytest.approx(np.log2(n_states), abs=1e-12)
+    assert found.degeneracy == pytest.approx(0.0, abs=1e-12)
 
 
 def test_effective_information_fully_noisy_chain():
     """Test that uniform rows carry no effective information, with equal determinism and degeneracy."""
     found = _emergence('effective-information', np.full((6, 6), 1 / 6))
-    assert found.information_ == pytest.approx(0.0, abs=1e-12)
-    assert found.determinism_ == pytest.approx(found.degeneracy_, abs=1e-12)
+    assert found.information == pytest.approx(0.0, abs=1e-12)
+    assert found.determinism == pytest.approx(found.degeneracy, abs=1e-12)
 
 
 def test_effective_information_warns_on_unobserved_states():
@@ -125,14 +125,14 @@ def test_effective_information_warns_on_unobserved_states():
     counts = np.asarray([[0, 4, 0], [0, 0, 0], [3, 0, 0]])
     with pytest.warns(UnobservedStatesWarning, match=r'\[1\]'):
         found = _emergence('effective-information', counts)
-    assert found.information_ == pytest.approx(1.0, abs=1e-12)
-    assert found.states_.tolist() == [0, 2]
+    assert found.information == pytest.approx(1.0, abs=1e-12)
+    assert found.states.tolist() == [0, 2]
 
 
 def test_effective_information_ignores_a_partition():
     """Test that the effective information rejects a partition, which only the other kinds read."""
     with pytest.raises(AnalysisError, match='does not read partition'):
-        EmergenceAnalysis('effective-information', partition=[0, 1]).prepare()
+        emergence([0, 1, 0, 1], kind='effective-information', partition=[0, 1])
 
 
 def test_causal_emergence_noisy_micro_states():
@@ -140,18 +140,18 @@ def test_causal_emergence_noisy_micro_states():
     matrix = _noisy_chain()
     merged = [0] * NOISY_STATES + [1]
     given = _emergence('causal', matrix, partition=merged)
-    assert given.micro_information_ == pytest.approx(3 - 7 / 8 * np.log2(7), abs=1e-12)
-    assert given.macro_information_ == pytest.approx(1.0, abs=1e-12)
-    assert given.gain_ == pytest.approx(1 - 3 + 7 / 8 * np.log2(7), abs=1e-12)
+    assert given.micro_information == pytest.approx(3 - 7 / 8 * np.log2(7), abs=1e-12)
+    assert given.macro_information == pytest.approx(1.0, abs=1e-12)
+    assert given.gain == pytest.approx(1 - 3 + 7 / 8 * np.log2(7), abs=1e-12)
     found = _emergence('causal', matrix)
-    assert found.partition_.tolist() == merged
-    assert found.gain_ == pytest.approx(given.gain_, abs=1e-12)
+    assert found.partition.tolist() == merged
+    assert found.gain == pytest.approx(given.gain, abs=1e-12)
 
 
 def test_causal_emergence_exhaustive_agrees_on_small_chain():
     """Test that the exhaustive search finds the merged partition and is refused above its state count."""
     found = _emergence('causal', _noisy_chain(), search='exhaustive')
-    assert found.partition_.tolist() == [0] * NOISY_STATES + [1]
+    assert found.partition.tolist() == [0] * NOISY_STATES + [1]
     with pytest.raises(AnalysisError, match='exhaustive'):
         _emergence('causal', np.full((12, 12), 1 / 12), search='exhaustive')
 
@@ -160,8 +160,8 @@ def test_causal_emergence_permutation_has_no_gain():
     """Test that the greedy search on a permutation returns the identity partition with zero gain."""
     permutation = np.eye(6)[[1, 2, 3, 4, 5, 0]]
     found = _emergence('causal', permutation)
-    assert found.partition_.tolist() == list(range(6))
-    assert found.gain_ == pytest.approx(0.0, abs=1e-12)
+    assert found.partition.tolist() == list(range(6))
+    assert found.gain == pytest.approx(0.0, abs=1e-12)
 
 
 def test_emergence_criteria_parity_is_emergent():
@@ -169,16 +169,16 @@ def test_emergence_criteria_parity_is_emergent():
     micro = _persistent_parity(20_000, 4, 0.05, 0)
     criteria = _emergence('criteria', micro, partition=_parity)
     expected = 1 + 0.05 * np.log2(0.05) + 0.95 * np.log2(0.95)
-    assert criteria.psi_ == pytest.approx(expected, abs=0.02)
-    assert criteria.psi_ > 0
-    assert criteria.gamma_ == pytest.approx(0.0, abs=0.01)
-    assert criteria.delta_ <= 0.01
+    assert criteria.psi == pytest.approx(expected, abs=0.02)
+    assert criteria.psi > 0
+    assert criteria.gamma == pytest.approx(0.0, abs=0.01)
+    assert criteria.delta <= 0.01
 
 
 def test_emergence_criteria_micro_variable_is_not_emergent():
     """Test that one micro bit of the persistent parity system has no positive Ψ."""
     micro = _persistent_parity(20_000, 4, 0.05, 1)
-    assert _emergence('criteria', micro, partition=lambda values: values[:, 0]).psi_ <= 0.01
+    assert _emergence('criteria', micro, partition=lambda values: values[:, 0]).psi <= 0.01
 
 
 def test_emergence_criteria_gaussian_difference_hides_common_noise():
@@ -190,33 +190,33 @@ def test_emergence_criteria_gaussian_difference_hides_common_noise():
     noise = 10.0 * rng.normal(size=slow.size)
     micro = np.column_stack([slow + noise, noise])
     criteria = _emergence('criteria', micro, partition=lambda values: values[:, 0] - values[:, 1], estimator='gaussian')
-    assert criteria.psi_ > 1.0
+    assert criteria.psi > 1.0
 
 
 def test_emergence_criteria_unknown_estimator():
     """Test that an unknown estimator raises an error naming the known ones."""
     with pytest.raises(AnalysisError, match='plugin'):
-        EmergenceAnalysis('criteria', partition=_parity, estimator='binned').prepare()
+        emergence([0, 1, 0, 1], kind='criteria', partition=_parity, estimator='binned')
 
 
 def test_emergence_criteria_needs_a_partition():
     """Test that the criteria without a macro feature raise an error asking for the partition."""
     with pytest.raises(AnalysisError, match='partition'):
-        EmergenceAnalysis('criteria').prepare()
+        emergence([0, 1, 0, 1], kind='criteria')
 
 
 def test_closure_lumpable_chain_is_closed():
     """Test that the block coarse-graining of a lumpable chain is closed within the estimator error."""
     micro = _chain(LUMPABLE, 50_000, np.random.default_rng(3))
     result = _emergence('closure', micro, partition=[0, 0, 1, 1])
-    assert result.gap_ == pytest.approx(0.0, abs=0.002)
-    assert result.macro_uncertainty_ == pytest.approx(-0.8 * np.log2(0.8) - 0.2 * np.log2(0.2), abs=0.01)
+    assert result.gap == pytest.approx(0.0, abs=0.002)
+    assert result.macro_uncertainty == pytest.approx(-0.8 * np.log2(0.8) - 0.2 * np.log2(0.2), abs=0.01)
 
 
 def test_closure_not_lumpable_chain_is_not_closed():
     """Test that the block coarse-graining of a chain that is not lumpable leaves a gap."""
     micro = _chain(NOT_LUMPABLE, 50_000, np.random.default_rng(4))
-    assert _emergence('closure', micro, partition=[0, 0, 1, 1]).gap_ > 0.02
+    assert _emergence('closure', micro, partition=[0, 0, 1, 1]).gap > 0.02
 
 
 def test_closure_partition_as_function():
@@ -224,8 +224,8 @@ def test_closure_partition_as_function():
     micro = _chain(NOT_LUMPABLE, 5000, np.random.default_rng(5))
     by_labels = _emergence('closure', micro, partition=[0, 0, 1, 1], history=2)
     by_function = _emergence('closure', micro, partition=lambda states: states // 2, history=2)
-    assert by_function.macro_uncertainty_ == by_labels.macro_uncertainty_
-    assert by_function.micro_uncertainty_ == by_labels.micro_uncertainty_
+    assert by_function.macro_uncertainty == by_labels.macro_uncertainty
+    assert by_function.micro_uncertainty == by_labels.micro_uncertainty
 
 
 def test_emergence_criteria_knn_agrees_with_gaussian():
@@ -242,4 +242,4 @@ def test_emergence_criteria_knn_agrees_with_gaussian():
         partition=lambda values: np.column_stack([values[:, 0] - values[:, 1], values[:, 1]]),
         estimator='knn',
     )
-    assert criteria.psi_ > 0.5
+    assert criteria.psi > 0.5

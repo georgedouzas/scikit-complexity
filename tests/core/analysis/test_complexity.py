@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import ComplexityAnalysis
+from skcomplex.core.analysis import complexity
 from skcomplex.core.errors import AnalysisError
 
 
@@ -21,20 +21,20 @@ def test_complexity_entropy_plane():
     series = np.column_stack(
         [np.random.default_rng(5).standard_normal(200_000), _logistic(4.0, 200_000), np.sin(np.arange(200_000) * 0.05)],
     )
-    plane = ComplexityAnalysis(dimension=6).prepare(series).run()
-    complexity = plane.complexity_
-    assert plane.entropy_[0] > 0.99
-    assert complexity[0] < 0.02
-    assert complexity[1] > 0.3
-    for entropy, value in zip(plane.entropy_, complexity, strict=True):
-        low = np.interp(entropy, *plane.minimum_[np.argsort(plane.minimum_[:, 0])].T)
-        high = np.interp(entropy, *plane.maximum_[np.argsort(plane.maximum_[:, 0])].T)
+    plane = complexity(series, dimension=6)
+    measures = plane.complexity
+    assert plane.entropy[0] > 0.99
+    assert measures[0] < 0.02
+    assert measures[1] > 0.3
+    for entropy, value in zip(plane.entropy, measures, strict=True):
+        low = np.interp(entropy, *plane.minimum[np.argsort(plane.minimum[:, 0])].T)
+        high = np.interp(entropy, *plane.maximum[np.argsort(plane.maximum[:, 0])].T)
         assert low - 1e-6 <= value <= high + 1e-6
 
 
 def test_complexity_entropy_plane_of_a_field_and_its_checks():
     """Test that a window reads the frames of a field, and that a pattern length below 1 is rejected."""
     field = np.random.default_rng(0).standard_normal((2, 64, 64))
-    assert ComplexityAnalysis(dimension=(2, 2)).prepare(field).run().entropy_.shape == (2,)
+    assert complexity(field, dimension=(2, 2)).entropy.shape == (2,)
     with pytest.raises(AnalysisError, match='Use 1 or more'):
-        ComplexityAnalysis(dimension=0).prepare()
+        complexity([0, 1, 0, 1], dimension=0)

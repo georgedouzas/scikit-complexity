@@ -2,7 +2,7 @@
 
 from ..common import SandpileCellElement
 from ._absorbing import ActiveFieldElement, directed_percolation_langevin
-from ._crackling_noise import CracklingNoiseAnalysis
+from ._crackling_noise import CracklingNoiseResult, crackling_noise
 from ._criticality import (
     AvalancheInteraction,
     FireInteraction,
@@ -27,7 +27,7 @@ __all__: list[str] = [
     'ActiveFieldElement',
     'AvalancheInteraction',
     'BranchingTreeElement',
-    'CracklingNoiseAnalysis',
+    'CracklingNoiseResult',
     'EnergySiteElement',
     'FireInteraction',
     'ForestElement',
@@ -35,6 +35,7 @@ __all__: list[str] = [
     'LearningAgentElement',
     'SandpileCellElement',
     'ToppleInteraction',
+    'crackling_noise',
     'directed_percolation_langevin',
     'evolutionary_sk_game',
     'fixed_energy_sandpile',

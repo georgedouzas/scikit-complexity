@@ -15,7 +15,7 @@ the whole lattice. The view shows the heights of a 48 x 48 pile, from zero (dark
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import DistributionAnalysis, EventAnalysis
+from skcomplex.core.analysis import DistributionAnalysis, events
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -35,12 +35,11 @@ simulation = Simulation(system, dt=50, observers=[observer], random_state=0).pre
 # to a cutoff set by the size of the lattice where it falls off steeply.
 
 heights = simulation.trajectory_.values('pile.height').mean(axis=1)
-found = (
-    EventAnalysis('excursions')
-    .prepare([record for record in simulation.trajectory_.events if record.time > 5000 and record.size > 0])
-    .run()
+found = events(
+    [record for record in simulation.trajectory_.events if record.time > 5000 and record.size > 0],
+    kind='excursions',
 )
-histogram = DistributionAnalysis('histogram', bins=20, log=True).prepare(found.sizes_).run()
+histogram = DistributionAnalysis('histogram', bins=20, log=True).prepare(found.sizes).run()
 edges, density = histogram.edges_, histogram.density_
 centers = np.sqrt(edges[1:] * edges[:-1])
 shown = density > 0
@@ -50,7 +49,7 @@ pile.plot(np.arange(len(heights)) * 50, heights)
 pile.set_xlabel('grains dropped')
 pile.set_ylabel('mean height')
 pile.set_title('The pile drives itself to the critical state')
-laws.loglog(centers[shown], density[shown], 'o', label=f'{len(found.sizes_)} avalanches')
+laws.loglog(centers[shown], density[shown], 'o', label=f'{len(found.sizes)} avalanches')
 guide = np.logspace(0, 2.5, 50)
 reference = density[shown][0] * (centers[shown][0] / guide) ** 1.2
 laws.loglog(guide, reference, color='black', label='s^-1.2')
