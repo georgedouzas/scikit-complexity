@@ -247,7 +247,7 @@ Field realizations, which call the core functions with fixed settings or replace
 - **Listing imports only what it returns.** `all_systems` selects by field and topics statically and imports only the
   modules of the systems it returns, as `all_estimators` imports what it lists. The zero-import listing of `catalog()`
   goes with the registry in the removal wave.
-- **Run settings through one hook.** `simulate` reads the tuned run settings through `BaseSystem._get_run_settings()`,
+- **Run settings through one hook.** `simulate` reads the tuned run settings through `BaseSystem.get_run_settings()`,
   which returns the class attributes `until`, `dt`, `solver`, `observables`, and `initial_state` by default. A system
   whose settings depend on its parameters or its built system, such as `active_gels`, `gauge_fields`, or
   `dynamic_fba`, overrides the hook. Class attributes stay the plain case.

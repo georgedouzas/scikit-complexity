@@ -14,7 +14,7 @@
 ## 3. Simulate
 
 - [x] 3.1 Add `simulate`, which chooses default solvers from the tags and rejects mismatched solvers and backends
-- [ ] 3.2 Remove `create_simulation`, and read tuned run settings in `simulate` through `BaseSystem._get_run_settings()`
+- [ ] 3.2 Remove `create_simulation`, and read tuned run settings in `simulate` through `BaseSystem.get_run_settings()`
 - [ ] 3.3 Remove `Simulation`, and make compilers and problem classes private, with one hook for system packages
 
 ## 4. Analyses and experiments
