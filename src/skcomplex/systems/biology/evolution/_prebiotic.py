@@ -4,21 +4,191 @@
 # License: MIT
 
 import itertools
+from collections.abc import Sequence
 from functools import partial
 from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
+from ....core.components.laws.utils import total
 from ....core.components.system import System
 from ....core.errors import ValidationError
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._catalysis import CatalysisInteraction
-from ._genotype_class import GenotypeClassElement
-from ._master_sequence import MasterSequenceElement
-from ._molecule import MoleculeElement
+from ._replicator import ReplicatorInteraction
+
+
+class GenotypeClassElement(Element):
+    """Share of a population whose genomes lie a given number of point mutations away from the master sequence.
+
+    Args:
+        label:
+            The label of the class.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial share.
+
+    Examples:
+        >>> from skcomplex.systems.biology.evolution import GenotypeClassElement
+        >>> GenotypeClassElement('k1', x=0.1).x
+        0.1
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+
+
+class MasterSequenceElement(GenotypeClassElement):
+    """Share of the population with the fittest genome, in a sharp-peak landscape where every other genome is less fit.
+
+    The master sequence has fitness 1 and every other genome `1 - sigma`. A genome mutates at one locus with
+    probability `u` per generation. The master sequence holds the parameters of the landscape that the maps of every
+    class read.
+
+    Args:
+        label:
+            The label of the class.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial share.
+
+        u:
+            The mutation rate per genome and generation.
+
+        sigma:
+            The selective disadvantage of the other genomes.
+
+    Examples:
+        >>> from skcomplex.systems.biology.evolution import MasterSequenceElement
+        >>> MasterSequenceElement('master', u=0.2).u
+        0.2
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: float = 0.0,
+        u: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual, x=x)
+        self.u = u
+        self.sigma = sigma
+
+
+class MoleculeElement(Element):
+    """Self-replicating molecule of a prebiotic soup, with its concentration `x` and its own growth rate.
+
+    Args:
+        label:
+            The label of the molecule or of the group of molecules.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial concentration.
+
+        growth:
+            The rate of replication without catalysis.
+
+    Examples:
+        >>> from skcomplex.systems.biology.evolution import MoleculeElement
+        >>> MoleculeElement('molecule', growth=0.1).growth
+        0.1
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        growth: Annotated[object, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.growth = growth
+
+
+class CatalysisInteraction(ReplicatorInteraction):
+    """Catalysed replication of the molecules of a group, with a common outflow that keeps the total at 1.
+
+    Molecule `i` replicates at the rate `f_i = lambda_i + omega sum_j T_ij x_j`, with its own growth `lambda_i` and the
+    0 or 1 topology `T` of the catalytic links read as the weights of a total over the molecules. The outflow is the
+    total replication, so the concentrations follow the replicator equation `dx_i/dt = x_i (f_i - sum_j x_j f_j)`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of molecules.
+
+        omega:
+            The catalytic rate of a link.
+
+        topology:
+            The catalytic links, 1 where molecule `j` catalyses molecule `i`.
+
+    Examples:
+        >>> from skcomplex.systems.biology.evolution import CatalysisInteraction
+        >>> CatalysisInteraction('catalysis', target='soup', topology=((0, 1), (1, 0))).topology
+        ((0, 1), (1, 0))
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        omega: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        topology: Sequence[Sequence[float]] = ((0.0, 1.0), (1.0, 0.0)),
+    ) -> None:
+        super().__init__(label, target=target)
+        self.omega = omega
+        self.topology = topology
+
+    def _check_fitness(self) -> None:
+        """Leave the fitness unchecked, since the catalysis derives it from its topology."""
+
+    def _get_fitness(self, namespace: SimpleNamespace) -> Expression:
+        """Return the catalysed growth `lambda_i + omega sum_j T_ij x_j` of a molecule.
+
+        Args:
+            namespace:
+                The namespace of the symbols the fitness can use, with the namespace of the target.
+
+        Returns:
+            fitness:
+                The fitness of the molecule.
+        """
+        molecule = namespace.target
+        fitness: Expression = molecule.growth + namespace.omega * total(
+            molecule.x,
+            weights=np.asarray(self.topology, dtype=float),
+        )
+        return fitness
 
 
 def _mean_fitness(master: SimpleNamespace) -> Expression:
