@@ -13,19 +13,15 @@ content stays exactly the same.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.automata import DiffusionAutomatonSystem
 
 SYSTEM = 'diffusion_automaton'
 R = 0.1
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(create_system(SYSTEM, shape=(80, 80), r=R, width=10), dt=1, observers=[observer])
-    .prepare()
-    .run(until=200)
-)
+trajectory = simulate(DiffusionAutomatonSystem(shape=(80, 80), r=R, width=10), until=200, observers=[observer])
 
 # %%
 # Spreading and conservation
@@ -34,8 +30,8 @@ simulation = (
 # `(10² - 1) / 12 + 2 r t` from the square's start, the profile through the centre should approach a Gaussian of that
 # variance, and the total content should stay 100 to rounding error.
 
-levels = simulation.trajectory_.lattice('cells.level')
-times = simulation.trajectory_.times
+levels = trajectory.lattice('cells.level')
+times = trajectory.times
 coordinates = np.arange(80) - 39.5
 total = levels.sum(axis=(1, 2))
 variance = (levels.sum(axis=2) * coordinates**2).sum(axis=1) / total

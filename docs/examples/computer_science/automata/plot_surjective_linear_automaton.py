@@ -13,15 +13,15 @@ Eden theorem on the free group.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.automata import SurjectiveLinearAutomatonSystem
 
 SYSTEM = 'surjective_linear_automaton'
 
-system = create_system(SYSTEM, radius=5, modulus=2, random_state=0)
+system = SurjectiveLinearAutomatonSystem(radius=5, modulus=2, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer]).prepare().run(until=10)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # A vanishing vector and a preimage
@@ -30,11 +30,11 @@ simulation = Simulation(system, observers=[observer]).prepare().run(until=10)
 # share their image. A preimage of a random target on the ball of radius 3 is built cell by cell from the identity
 # outwards, as in the proof, and its image should equal the target there.
 
-space = system.elements[0].space.prepare()
+space = system.prepare().system_.elements[0].space.prepare()
 table = space.generator_table_
 kernel = np.zeros((space.size_, 2))
 kernel[0, 1] = 1
-vanishing = Simulation(create_system(SYSTEM, radius=5, initial=kernel)).prepare().run(until=1).trajectory_
+vanishing = simulate(SurjectiveLinearAutomatonSystem(radius=5, initial=kernel), until=1)
 rng = np.random.default_rng(1)
 target = rng.integers(0, 2, (space.size_, 2))
 preimage = np.zeros((space.size_, 2))
@@ -50,7 +50,7 @@ for site in np.argsort(space.lengths_, kind='stable'):
         if fresh.size:
             preimage[fresh[0], 0] = (target[site, axis] - known) % 2
             assigned[fresh] = True
-image = Simulation(create_system(SYSTEM, radius=5, initial=preimage)).prepare().run(until=1).trajectory_
+image = simulate(SurjectiveLinearAutomatonSystem(radius=5, initial=preimage), until=1)
 inner = space.lengths_ <= 3
 hits = (image.values('cells.first')[-1][inner] == target[inner, 0]) & (
     image.values('cells.second')[-1][inner] == target[inner, 1]

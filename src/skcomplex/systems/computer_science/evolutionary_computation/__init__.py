@@ -3,31 +3,31 @@
 from ._genetic_algorithms import (
     AgedStrategyElement,
     CircumstanceInteraction,
+    RobbyGASystem,
     RoomCleaningInteraction,
     StrategyElement,
-    robby_ga,
 )
-from ._landscapes import BitStringElement, ReproductionInteraction, bit_string_evolution
+from ._landscapes import BitStringElement, BitStringEvolutionSystem, ReproductionInteraction
 from ._optimisers import (
     AnnealedCandidateElement,
+    EvolutionaryOptimisersSystem,
     RunningBestElement,
     RunningBestInteraction,
     SearchCandidateElement,
-    evolutionary_optimisers,
 )
 
 __all__: list[str] = [
     'AgedStrategyElement',
     'AnnealedCandidateElement',
     'BitStringElement',
+    'BitStringEvolutionSystem',
     'CircumstanceInteraction',
+    'EvolutionaryOptimisersSystem',
     'ReproductionInteraction',
+    'RobbyGASystem',
     'RoomCleaningInteraction',
     'RunningBestElement',
     'RunningBestInteraction',
     'SearchCandidateElement',
     'StrategyElement',
-    'bit_string_evolution',
-    'evolutionary_optimisers',
-    'robby_ga',
 ]

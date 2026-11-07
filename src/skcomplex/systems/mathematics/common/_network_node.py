@@ -45,6 +45,8 @@ class NetworkNodeElement(Element):
         ('nodes', 'NetworkNodeElement', 3)
     """
 
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,

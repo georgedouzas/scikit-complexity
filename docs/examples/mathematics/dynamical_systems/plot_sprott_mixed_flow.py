@@ -15,9 +15,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.dynamical_systems import SprottMixedFlowSystem
 
 SYSTEM = 'sprott_mixed_flow'
 STARTS = {'torus': (1.0, [80, 160, 240]), 'attractor': (2.0, [230, 80, 80])}
@@ -37,10 +37,10 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=20)
-simulation = Simulation(create_system(SYSTEM), dt=0.05, observers=[observer]).prepare().run(until=200)
+trajectory = simulate(SprottMixedFlowSystem(), observers=[observer])
 runs = {}
 for name, (x, color) in STARTS.items():
-    runs[name] = Simulation(create_system(SYSTEM, x=x), dt=0.05).prepare().run(until=1000).trajectory_
+    runs[name] = simulate(SprottMixedFlowSystem(x=x), until=1000)
     points = np.column_stack([runs[name].values(f'flow.{state}') for state in 'xyz'])[:4000]
     observer.recording_.log(f'orbits/{name}', rr.LineStrips3D([points], radii=0.005, colors=color), static=True)
 observer.recording_.flush()

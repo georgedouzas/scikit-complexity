@@ -5,12 +5,12 @@ import pytest
 
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import OrbitDiagramExperiment
-from skcomplex.systems.mathematics.dynamical_systems import logistic_map
+from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
 
 
 def _orbit_diagram(rates, **settings):
     """Return the orbit diagram of `map.x` of the logistic map over growth rates, run."""
-    experiment = OrbitDiagramExperiment(logistic_map, 'map.r', rates, 'map.x', dt=1, **settings)
+    experiment = OrbitDiagramExperiment(LogisticMapSystem, 'map.r', rates, 'map.x', dt=1, **settings)
     return experiment.prepare().run()
 
 
@@ -40,4 +40,4 @@ def test_vectorised_orbit_diagram_matches_the_serial_sweep():
 def test_orbit_diagram_needs_kept_frames():
     """Test that keeping no frame raises an error naming keep."""
     with pytest.raises(ValidationError, match='keep = 0'):
-        OrbitDiagramExperiment(logistic_map, 'map.r', [3.0], 'map.x', transient=10, keep=0).prepare()
+        OrbitDiagramExperiment(LogisticMapSystem, 'map.r', [3.0], 'map.x', transient=10, keep=0).prepare()

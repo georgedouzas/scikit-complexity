@@ -4,7 +4,8 @@ import numpy as np
 import pytest
 from scipy import integrate
 
-from ...conftest import _series
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.computer_science.neural_networks import DilutedHopfieldSystem
 
 
 def _hopfield_map(m, connectivity, n_patterns, beta):
@@ -19,7 +20,7 @@ def _hopfield_map(m, connectivity, n_patterns, beta):
 
 def test_diluted_hopfield_reaches_the_annealed_fixed_point():
     """Test that the overlap settles at the fixed point of the annealed map of Bertin within 0.05."""
-    overlap = _series('diluted_hopfield', 20).values('overlap')
+    overlap = simulate(DilutedHopfieldSystem(), until=20, dt=1, random_state=0).values('overlap')
     m = 0.3
     for _ in range(50):
         m = _hopfield_map(m, 50.0, 10, 0.06)

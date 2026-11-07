@@ -16,9 +16,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.dynamical_systems import HopfFormSystem
 
 SYSTEM = 'hopf_form'
 
@@ -41,12 +41,9 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(create_system(SYSTEM, x=0.1), dt=0.1, observers=[observer]).prepare().run(until=50)
-outside = Simulation(create_system(SYSTEM, x=1.0), dt=0.1).prepare().run(until=50).trajectory_
-strips = [
-    np.column_stack([100 * run.values('form.x'), -100 * run.values('form.y')])
-    for run in (simulation.trajectory_, outside)
-]
+trajectory = simulate(HopfFormSystem(x=0.1), observers=[observer])
+outside = simulate(HopfFormSystem(x=1.0))
+strips = [np.column_stack([100 * run.values('form.x'), -100 * run.values('form.y')]) for run in (trajectory, outside)]
 observer.recording_.log(
     'phase_plane',
     rr.LineStrips2D(strips, radii=0.8, colors=[[255, 170, 40], [90, 170, 255]]),
@@ -61,9 +58,7 @@ observer.recording_.flush()
 # with `a = -1`.
 
 rates = np.linspace(-0.2, 0.5, 15)
-amplitudes = [
-    np.hypot(*Simulation(create_system(SYSTEM, x=0.3, mu=mu), dt=0.1).prepare().run(until=300).state_) for mu in rates
-]
+amplitudes = [np.hypot(*simulate(HopfFormSystem(x=0.3, mu=mu), until=300).states[-1]) for mu in rates]
 fig, (plane, amplitude) = plt.subplots(1, 2, figsize=(10, 4.5))
 for strip, label in zip(strips, ('from inside', 'from outside'), strict=True):
     plane.plot(strip[:, 0] / 100, -strip[:, 1] / 100, label=label)

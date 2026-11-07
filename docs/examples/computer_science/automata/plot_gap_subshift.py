@@ -13,15 +13,14 @@ shifts the window by one cell, with the cell that enters drawn from the gap sinc
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.automata import GapSubshiftSystem
 
 SYSTEM = 'gap_subshift'
 
-system = create_system(SYSTEM, size=120, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=2000)
+trajectory = simulate(GapSubshiftSystem(size=120, random_state=0), until=2000, observers=[observer], random_state=0)
 
 # %%
 # Gaps and entropy
@@ -30,14 +29,14 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 # by `φ^2` per allowed length. The entropy of the even subshift is `log φ`, and the gap set `{1, 4}` gives another
 # S-gap subshift whose gaps take only those lengths.
 
-alive = simulation.trajectory_.values('cells.alive')
+alive = trajectory.values('cells.alive')
 stream = np.concatenate([alive[0], alive[1:, -1]])
 ones = np.flatnonzero(stream)
 gaps = np.diff(ones) - 1
 golden = (1 + 5**0.5) / 2
 lengths = np.arange(0, 12, 2)
-other = create_system(SYSTEM, size=120, gaps=(1, 4), random_state=0)
-other_alive = Simulation(other, random_state=0).prepare().run(until=500).trajectory_.values('cells.alive')
+other = GapSubshiftSystem(size=120, gaps=(1, 4), random_state=0)
+other_alive = simulate(other, until=500, random_state=0).values('cells.alive')
 other_ones = np.flatnonzero(np.concatenate([other_alive[0], other_alive[1:, -1]]))
 fig, (histogram, other_ax) = plt.subplots(1, 2, figsize=(10, 4))
 histogram.bar(*np.unique(gaps, return_counts=True), label='gaps of the stream')

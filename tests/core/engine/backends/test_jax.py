@@ -6,23 +6,23 @@ import pytest
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import JaxBackend, NumpyBackend
 from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import BackendError, SolverError
 from skcomplex.systems.biology.ecology import lotka_volterra
-from skcomplex.systems.mathematics.dynamical_systems import logistic_map
+from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
 
 from ....conftest import CallableGrowthInteraction, HoldingElement, _correlated, _weighted
 
 
 def _final(system, backend, until):
     """Return the last recorded state of a run of a system on a backend."""
-    trajectory = Simulation(system, backend=backend, random_state=0).prepare().run(until=until).trajectory_
+    trajectory = simulate(system, until=until, backend=backend, random_state=0)
     return np.array([trajectory.values(name)[-1] for name in trajectory.names])
 
 
-@pytest.mark.parametrize(('factory', 'until'), [(logistic_map, 50), (lotka_volterra, 20.0)])
+@pytest.mark.parametrize(('factory', 'until'), [(LogisticMapSystem, 50), (lotka_volterra, 20.0)])
 def test_jax_agrees_with_numpy(factory, until):
-    """Test that the JAX backend runs `logistic_map` and `lotka_volterra` as NumPy does, within 1e-10."""
+    """Test that the JAX backend runs `LogisticMapSystem` and `lotka_volterra` as NumPy does, within 1e-10."""
     expected = _final(factory(), NumpyBackend(), until)
     np.testing.assert_allclose(_final(factory(), JaxBackend(), until), expected, atol=1e-10)
 

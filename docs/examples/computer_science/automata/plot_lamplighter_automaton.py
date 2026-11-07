@@ -16,17 +16,15 @@ from skcomplex.core.components.elements import LatticeElement
 from skcomplex.core.components.interactions import LocalRuleInteraction
 from skcomplex.core.components.spaces import CayleySpace, MemoryNeighborhood
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import LinearRuleSpec
-from skcomplex.systems import create_system
-from skcomplex.systems.computer_science.automata import BinaryCellElement, lamplighter
+from skcomplex.systems.computer_science.automata import BinaryCellElement, LamplighterAutomatonSystem, lamplighter
 
 SYSTEM = 'lamplighter_automaton'
 
-system = create_system(SYSTEM, radius=7, density=0.1, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer]).prepare().run(until=20)
+trajectory = simulate(LamplighterAutomatonSystem(radius=7, density=0.1, random_state=0), observers=[observer])
 
 # %%
 # Ones over time and invertibility on a quotient
@@ -36,7 +34,7 @@ simulation = Simulation(system, observers=[observer]).prepare().run(until=20)
 # the group ring element `1 + a + b` is a matrix over GF(2), and its rank decides whether the automaton is invertible
 # there.
 
-alive = simulation.trajectory_.values('cells.alive')
+alive = trajectory.values('cells.alive')
 quotient = CayleySpace(lamplighter().PermGroupOnLevel(3)).prepare()
 parity = System(
     elements=[LatticeElement('cells', element=BinaryCellElement, space=quotient)],
@@ -52,7 +50,7 @@ parity = System(
 )
 invertible = automaton(parity, kind='injective').injective
 fig, ax = plt.subplots(figsize=(6, 4))
-ax.plot(simulation.trajectory_.times, alive.sum(axis=1), 'o-')
+ax.plot(trajectory.times, alive.sum(axis=1), 'o-')
 ax.set_xlabel('step')
 ax.set_ylabel('number of ones')
 ax.set_title(f'Invertible on the quotient of {quotient.size_} elements: {invertible}')

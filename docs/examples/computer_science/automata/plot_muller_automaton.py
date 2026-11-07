@@ -13,15 +13,15 @@ forbids on amenable groups such as the integers.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.automata import MullerAutomatonSystem
 
 SYSTEM = 'muller_automaton'
 
-system = create_system(SYSTEM, radius=5, modulus=2, random_state=0)
+system = MullerAutomatonSystem(radius=5, modulus=2, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer]).prepare().run(until=10)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Image and pre-injectivity
@@ -30,8 +30,8 @@ simulation = Simulation(system, observers=[observer]).prepare().run(until=10)
 # an image. A nonzero configuration supported inside the ball of radius 3 should never map to 0: its element of
 # largest length leaves a nonzero value one step further out, which the proof of the theorem reads.
 
-second = simulation.trajectory_.values('cells.second')
-space = system.elements[0].space.prepare()
+second = trajectory.values('cells.second')
+space = system.prepare().system_.elements[0].space.prepare()
 interior = np.flatnonzero(space.lengths_ <= 3)
 rng = np.random.default_rng(1)
 supports, images = [], []
@@ -40,14 +40,14 @@ for _ in range(40):
     chosen = rng.choice(interior, size=rng.integers(1, 6), replace=False)
     pairs[chosen] = rng.integers(0, 2, (chosen.size, 2))
     pairs[chosen[0], 0] = 1
-    image = Simulation(create_system(SYSTEM, radius=5, initial=pairs)).prepare().run(until=1).trajectory_
+    image = simulate(MullerAutomatonSystem(radius=5, initial=pairs), until=1)
     supports.append(int(pairs.any(axis=1).sum()))
     images.append(int(image.values('cells.first')[-1].astype(bool).sum()))
 fig, (coordinates, check) = plt.subplots(1, 2, figsize=(10, 4))
-coordinates.plot(simulation.trajectory_.times, (second != 0).mean(axis=1), 'o-', label='second coordinate')
+coordinates.plot(trajectory.times, (second != 0).mean(axis=1), 'o-', label='second coordinate')
 coordinates.plot(
-    simulation.trajectory_.times,
-    (simulation.trajectory_.values('cells.first') != 0).mean(axis=1),
+    trajectory.times,
+    (trajectory.values('cells.first') != 0).mean(axis=1),
     's-',
     label='first coordinate',
 )

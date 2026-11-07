@@ -13,9 +13,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.dynamical_systems import IkedaSystem
 
 SYSTEM = 'ikeda'
 
@@ -30,7 +30,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=5)
-simulation = Simulation(create_system(SYSTEM), dt=0.1, observers=[observer]).prepare().run(until=100)
+trajectory = simulate(IkedaSystem(), observers=[observer])
 
 # %%
 # Bifurcation diagram
@@ -41,11 +41,11 @@ simulation = Simulation(create_system(SYSTEM), dt=0.1, observers=[observer]).pre
 gains = np.linspace(0.2, 2.0, 37)
 low, high = [], []
 for a in gains:
-    x = Simulation(create_system(SYSTEM, a=a), dt=0.1).prepare().run(until=300).trajectory_.values('ikeda.x')[-500:]
+    x = simulate(IkedaSystem(a=a), until=300).values('ikeda.x')[-500:]
     low.append(x.min())
     high.append(x.max())
 fig, (series, diagram) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(simulation.trajectory_.times, simulation.trajectory_.values('ikeda.x'))
+series.plot(trajectory.times, trajectory.values('ikeda.x'))
 series.axhline(np.pi, color='black', linestyle=':')
 series.set_xlabel('time')
 series.set_ylabel('x')

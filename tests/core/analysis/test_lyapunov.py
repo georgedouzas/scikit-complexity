@@ -9,7 +9,12 @@ from scipy.integrate import solve_ivp
 
 from skcomplex.core.analysis import lyapunov
 from skcomplex.core.errors import AnalysisError
-from skcomplex.systems.mathematics.dynamical_systems import henon_map, logistic_map, lorenz, sprott_jerk
+from skcomplex.systems.mathematics.dynamical_systems import (
+    HenonMapSystem,
+    LogisticMapSystem,
+    LorenzSystem,
+    SprottJerkSystem,
+)
 from skcomplex.systems.physics.nonlinear_oscillators import van_der_pol
 
 
@@ -41,7 +46,7 @@ def _logistic(r: float, size: int) -> np.ndarray:
 
 def test_lorenz_largest_exponent():
     """Test that the largest exponent of Lorenz-63 with the standard parameters is within 0.05 of 0.906."""
-    exponents = _spectrum(lorenz())
+    exponents = _spectrum(LorenzSystem())
     assert exponents[0] == pytest.approx(0.906, abs=0.05)
     assert exponents[1] == pytest.approx(0.0, abs=0.02)
     assert exponents.sum() == pytest.approx(-(10 + 1 + 8 / 3), abs=0.05)
@@ -49,12 +54,12 @@ def test_lorenz_largest_exponent():
 
 def test_logistic_map_at_four():
     """Test that the logistic map at r = 4 has exponent ln 2 within 0.01."""
-    assert _spectrum(logistic_map(r=4.0), until=100_000)[0] == pytest.approx(np.log(2), abs=0.01)
+    assert _spectrum(LogisticMapSystem(r=4.0), until=100_000)[0] == pytest.approx(np.log(2), abs=0.01)
 
 
 def test_henon_map_spectrum():
     """Test that the Hénon map's exponents match the published 0.419 and -1.62."""
-    exponents = _spectrum(henon_map(), until=100_000)
+    exponents = _spectrum(HenonMapSystem(), until=100_000)
     assert exponents == pytest.approx([0.419, -1.623], abs=0.01)
 
 
@@ -65,17 +70,17 @@ def test_limit_cycle_is_not_chaotic():
 
 def test_sweep_of_a_map_reuses_its_compiled_tangent_dynamics():
     """Test that ten spectra of the logistic map after a first call take under a second and match fresh values."""
-    _spectrum(logistic_map(r=3.9), until=2000)
+    _spectrum(LogisticMapSystem(r=3.9), until=2000)
     rates = np.linspace(3.5, 4.0, 10)
     start = time.perf_counter()
-    exponents = [_spectrum(logistic_map(r=r), until=2000)[0] for r in rates]
+    exponents = [_spectrum(LogisticMapSystem(r=r), until=2000)[0] for r in rates]
     assert time.perf_counter() - start < 1.0
-    assert exponents[-1] == pytest.approx(_spectrum(logistic_map(r=4.0), until=2000)[0])
+    assert exponents[-1] == pytest.approx(_spectrum(LogisticMapSystem(r=4.0), until=2000)[0])
 
 
 def test_laws_with_absolute_values_have_a_spectrum():
     """Test that the Sprott jerk system, whose law has an absolute value, has three finite exponents of negative sum."""
-    exponents = _spectrum(sprott_jerk(), until=200)
+    exponents = _spectrum(SprottJerkSystem(), until=200)
     assert exponents.shape == (3,)
     assert np.all(np.isfinite(exponents))
     assert exponents.sum() < 0
@@ -83,16 +88,16 @@ def test_laws_with_absolute_values_have_a_spectrum():
 
 def test_kolmogorov_sinai_entropy_of_a_map_and_a_flow():
     """Test that the logistic map at r = 4 gives ln 2 and the Lorenz flow 0.906."""
-    logistic = lyapunov(logistic_map(r=4.0, x=0.3), until=20_000, dt=1)
-    flow = lyapunov(lorenz(), until=500)
+    logistic = lyapunov(LogisticMapSystem(r=4.0, x=0.3), until=20_000, dt=1)
+    flow = lyapunov(LorenzSystem(), until=500)
     assert logistic.kolmogorov_sinai_entropy == pytest.approx(math.log(2), abs=0.01)
     assert flow.kolmogorov_sinai_entropy == pytest.approx(0.906, abs=0.05)
 
 
 def test_kaplan_yorke_dimension_of_a_map_and_a_flow():
     """Test that the Hénon map gives 1.26 and the Lorenz flow 2.06, and that exponents pass through as a spectrum."""
-    henon = lyapunov(henon_map(), until=20_000, dt=1)
-    flow = lyapunov(lorenz(), until=500)
+    henon = lyapunov(HenonMapSystem(), until=20_000, dt=1)
+    flow = lyapunov(LorenzSystem(), until=500)
     assert henon.kaplan_yorke_dimension == pytest.approx(1.26, abs=0.02)
     assert flow.kaplan_yorke_dimension == pytest.approx(2.06, abs=0.03)
     assert lyapunov([-1.0, -2.0]).kaplan_yorke_dimension == 0

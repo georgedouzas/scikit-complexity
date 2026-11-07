@@ -17,13 +17,12 @@ from ....core.components.elements import DeclaredElement, Element
 from ....core.components.interactions import MapInteraction, RateInteraction
 from ....core.components.laws.utils import lag
 from ....core.components.spaces import ContinuousTime, DiscreteTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.runtime import Simulation
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ValidationError
 from ....core.specs import DeclaredVariableSpec, StateSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 LORENZ_START = (-8.0, 8.0, 27.0)
 LORENZ_TRANSIENT = 5.0
@@ -68,108 +67,8 @@ class LorenzFlowElement(Element):
         self.z = z
 
 
-def _lorenz_series(samples: int, step: float, sigma: float = 10.0, rho: float = 28.0, beta: float = 8.0 / 3.0) -> Array:
-    """Return samples of the Lorenz flow on its attractor, one row per sample and one column per variable."""
-    rates: dict[str, Callable[[SimpleNamespace], Expression]] = {
-        'x': lambda s: sigma * (s.target.y - s.target.x),
-        'y': lambda s: s.target.x * (rho - s.target.z) - s.target.y,
-        'z': lambda s: s.target.x * s.target.y - beta * s.target.z,
-    }
-    system = System(
-        elements=[LorenzFlowElement('flow')],
-        interactions=[RateInteraction(name, target='flow', state=name, rate=rate) for name, rate in rates.items()],
-        time=ContinuousTime(),
-    )
-    solver = ScipyODESolver(method='RK23', rtol=LORENZ_RTOL, atol=LORENZ_ATOL)
-    simulation = Simulation(system, solver=solver, dt=step).prepare()
-    trajectory = simulation.run(until=LORENZ_TRANSIENT + step * (samples - 1)).trajectory_
-    values: Array = np.column_stack(
-        [np.asarray(trajectory.values(f'flow.{name}'), dtype=np.float64) for name in LORENZ_VARIABLES],
-    )
-    return values[-samples:]
-
-
-def _reservoir_element(initial: Mapping[str, Sequence[float]]) -> DeclaredElement:
-    """Return the element of scalar states with lags, from the values of every state and of its lags."""
-    variables = {
-        name: DeclaredVariableSpec(
-            float(values[0]),
-            StateSpec(lags=len(values) - 1, initial=tuple(float(value) for value in values[1:])),
-        )
-        for name, values in initial.items()
-    }
-    return DeclaredElement('reservoir', variables=variables)
-
-
-def _increment(
-    s: SimpleNamespace,
-    *,
-    names: Sequence[str],
-    delay: int,
-    powers: npt.NDArray[np.int_],
-    weights: Array,
-    bias: float,
-    mean: Array,
-    scale: Array,
-    spread: float,
-) -> Expression:
-    """Return the increment of a variable, the ridge readout of the monomials of the rescaled lagged variables."""
-    linear = [
-        (lag(getattr(s.target, name), steps) - mean[index]) / scale[index]
-        for steps in range(delay)
-        for index, name in enumerate(names)
-    ]
-    monomials = [np.prod([linear[int(column)] for column in row]) for row in powers]
-    features = [*linear, *monomials]
-    readout = sum(float(weight) * feature for weight, feature in zip(weights, features, strict=True) if weight)
-    return spread * (readout + bias)
-
-
-def _fit_reservoir(
-    series: Array | None,
-    variables: Sequence[str],
-    *,
-    delay: int,
-    order: int,
-    ridge: float,
-    standardize: bool,
-    samples: int,
-    step: float,
-) -> ReservoirResult:
-    """Return the next-generation reservoir fitted to a series, or to samples of the Lorenz flow."""
-    values = _lorenz_series(samples, step) if series is None else series
-    return reservoir(
-        values,
-        variables=list(variables),
-        kind=REQUIRED_KIND,
-        delay=delay,
-        order=order,
-        ridge=ridge,
-        standardize=standardize,
-        validation=0.0,
-        dt=step,
-    )
-
-
-@register_system(
-    field='computer_science/neural_networks',
-    tags=('neural network', 'reservoir computing', 'next generation', 'lags', 'discrete map'),
-    references=('Gauthier et al. 2021', 'Cestnik and Martens 2025'),
-    defaults={'until': 200, 'dt': 1},
-)
-def next_generation_reservoir(
-    series: Array | None = None,
-    *,
-    result: ReservoirResult | None = None,
-    variables: Sequence[str] = LORENZ_VARIABLES,
-    delay: int = 2,
-    order: int = 2,
-    ridge: float = 2.5e-6,
-    standardize: bool = False,
-    samples: int = 403,
-    step: float = 0.025,
-) -> System:
-    """Return a next-generation reservoir computer whose variables follow the ridge readout of their monomials.
+class NextGenerationReservoirSystem(BaseSystem):
+    """A next-generation reservoir computer whose variables follow the ridge readout of their monomials.
 
     Every variable keeps `delay - 1` lags, and one map in the increment mode adds to it the readout of the constant, the
     variables with their lags, and the monomials of degree `order` of those. The readout comes from the result of
@@ -178,7 +77,8 @@ def next_generation_reservoir(
     of Gauthier et al. (2021) for the Lorenz flow: 400 training samples after a warmup of 2, one sample every 0.025 from
     an explicit Runge-Kutta 3(2) integrator, and the ridge 2.5e-6 on features that are not standardized. A ridge this
     small on these features diverges within one Lyapunov time when a series comes from a much more accurate integrator,
-    and such a series needs `standardize=True`.
+    and such a series needs `standardize=True`. The system has the variables `reservoir.x` and their lags
+    `reservoir.x_lag1` for the Lorenz flow.
 
     Args:
         series:
@@ -209,9 +109,8 @@ def next_generation_reservoir(
         step:
             The time between the samples of the Lorenz flow.
 
-    Returns:
-        system:
-            The system, with the variables `reservoir.x` and their lags `reservoir.x_lag1` for the Lorenz flow.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
@@ -219,51 +118,174 @@ def next_generation_reservoir(
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.systems.computer_science.neural_networks import next_generation_reservoir
+        >>> from skcomplex.systems.computer_science.neural_networks import NextGenerationReservoirSystem
         >>> values = np.sin(0.1 * np.arange(200.0))[:, None]
-        >>> system = next_generation_reservoir(values, variables=['v'])
+        >>> system = NextGenerationReservoirSystem(values, variables=['v']).prepare().system_
         >>> [interaction.mode for interaction in system.interactions]
         ['increment']
     """
-    fitted = result or _fit_reservoir(
-        series,
-        variables,
-        delay=delay,
-        order=order,
-        ridge=ridge,
-        standardize=standardize,
-        samples=samples,
-        step=step,
-    )
-    if fitted.step.kind != REQUIRED_KIND:
-        error_msg = f'The readout comes from a {REQUIRED_KIND!r} reservoir, not from a {fitted.step.kind!r} one.'
-        raise ValidationError(error_msg)
-    names = fitted.states[: len(fitted.labels)]
-    readout = fitted.step
-    delay = (len(fitted.states) - len(names)) // len(names)
-    memory = fitted.samples.series[-1][-delay:][::-1]
-    initial = {name: memory[:, index].tolist() for index, name in enumerate(names)}
-    element = _reservoir_element(initial)
-    weights = np.asarray(readout.readout.Wout, dtype=float)
-    bias = np.ravel(np.asarray(readout.readout.bias, dtype=float))
-    maps = [
-        MapInteraction(
-            name,
-            target='reservoir',
-            state=name,
-            mode='increment',
-            function=functools.partial(
-                _increment,
-                names=names,
-                delay=delay,
-                powers=readout.monomials(),
-                weights=weights[:, index],
-                bias=float(bias[index]),
-                mean=readout.mean,
-                scale=readout.scale,
-                spread=float(readout.scale[index]),
-            ),
+
+    field = 'computer_science/neural_networks'
+    topics = ('neural network', 'reservoir computing', 'next generation', 'lags', 'discrete map')
+    references = ('Gauthier et al. 2021', 'Cestnik and Martens 2025')
+    until = 200
+    dt = 1
+
+    def __init__(
+        self,
+        series: Array | None = None,
+        *,
+        result: ReservoirResult | None = None,
+        variables: Sequence[str] = LORENZ_VARIABLES,
+        delay: int = 2,
+        order: int = 2,
+        ridge: float = 2.5e-6,
+        standardize: bool = False,
+        samples: int = 403,
+        step: float = 0.025,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.series = series
+        self.result = result
+        self.variables = variables
+        self.delay = delay
+        self.order = order
+        self.ridge = ridge
+        self.standardize = standardize
+        self.samples = samples
+        self.step = step
+
+    @staticmethod
+    def _lorenz_series(
+        samples: int,
+        step: float,
+        sigma: float = 10.0,
+        rho: float = 28.0,
+        beta: float = 8.0 / 3.0,
+    ) -> Array:
+        """Return samples of the Lorenz flow on its attractor, one row per sample and one column per variable."""
+        rates: dict[str, Callable[[SimpleNamespace], Expression]] = {
+            'x': lambda s: sigma * (s.target.y - s.target.x),
+            'y': lambda s: s.target.x * (rho - s.target.z) - s.target.y,
+            'z': lambda s: s.target.x * s.target.y - beta * s.target.z,
+        }
+        system = System(
+            elements=[LorenzFlowElement('flow')],
+            interactions=[RateInteraction(name, target='flow', state=name, rate=rate) for name, rate in rates.items()],
+            time=ContinuousTime(),
         )
-        for index, name in enumerate(names)
-    ]
-    return System(elements=[element], interactions=maps, time=DiscreteTime())
+        solver = ScipyODESolver(method='RK23', rtol=LORENZ_RTOL, atol=LORENZ_ATOL)
+        simulation = Simulation(system, solver=solver, dt=step).prepare()
+        trajectory = simulation.run(until=LORENZ_TRANSIENT + step * (samples - 1)).trajectory_
+        values: Array = np.column_stack(
+            [np.asarray(trajectory.values(f'flow.{name}'), dtype=np.float64) for name in LORENZ_VARIABLES],
+        )
+        return values[-samples:]
+
+    @staticmethod
+    def _reservoir_element(initial: Mapping[str, Sequence[float]]) -> DeclaredElement:
+        """Return the element of scalar states with lags, from the values of every state and of its lags."""
+        variables = {
+            name: DeclaredVariableSpec(
+                float(values[0]),
+                StateSpec(lags=len(values) - 1, initial=tuple(float(value) for value in values[1:])),
+            )
+            for name, values in initial.items()
+        }
+        return DeclaredElement('reservoir', variables=variables)
+
+    @staticmethod
+    def _increment(
+        s: SimpleNamespace,
+        *,
+        names: Sequence[str],
+        delay: int,
+        powers: npt.NDArray[np.int_],
+        weights: Array,
+        bias: float,
+        mean: Array,
+        scale: Array,
+        spread: float,
+    ) -> Expression:
+        """Return the increment of a variable, the ridge readout of the monomials of the rescaled lagged variables."""
+        linear = [
+            (lag(getattr(s.target, name), steps) - mean[index]) / scale[index]
+            for steps in range(delay)
+            for index, name in enumerate(names)
+        ]
+        monomials = [np.prod([linear[int(column)] for column in row]) for row in powers]
+        features = [*linear, *monomials]
+        readout = sum(float(weight) * feature for weight, feature in zip(weights, features, strict=True) if weight)
+        return spread * (readout + bias)
+
+    @staticmethod
+    def _fit_reservoir(
+        series: Array | None,
+        variables: Sequence[str],
+        *,
+        delay: int,
+        order: int,
+        ridge: float,
+        standardize: bool,
+        samples: int,
+        step: float,
+    ) -> ReservoirResult:
+        """Return the next-generation reservoir fitted to a series, or to samples of the Lorenz flow."""
+        values = NextGenerationReservoirSystem._lorenz_series(samples, step) if series is None else series
+        return reservoir(
+            values,
+            variables=list(variables),
+            kind=REQUIRED_KIND,
+            delay=delay,
+            order=order,
+            ridge=ridge,
+            standardize=standardize,
+            validation=0.0,
+            dt=step,
+        )
+
+    def _build_system(self) -> System:
+        """Return a next-generation reservoir computer whose variables follow the ridge readout of their monomials."""
+        fitted = self.result or self._fit_reservoir(
+            self.series,
+            self.variables,
+            delay=self.delay,
+            order=self.order,
+            ridge=self.ridge,
+            standardize=self.standardize,
+            samples=self.samples,
+            step=self.step,
+        )
+        if fitted.step.kind != REQUIRED_KIND:
+            error_msg = f'The readout comes from a {REQUIRED_KIND!r} reservoir, not from a {fitted.step.kind!r} one.'
+            raise ValidationError(error_msg)
+        names = fitted.states[: len(fitted.labels)]
+        readout = fitted.step
+        delay = (len(fitted.states) - len(names)) // len(names)
+        memory = fitted.samples.series[-1][-delay:][::-1]
+        initial = {name: memory[:, index].tolist() for index, name in enumerate(names)}
+        element = self._reservoir_element(initial)
+        weights = np.asarray(readout.readout.Wout, dtype=float)
+        bias = np.ravel(np.asarray(readout.readout.bias, dtype=float))
+        maps = [
+            MapInteraction(
+                name,
+                target='reservoir',
+                state=name,
+                mode='increment',
+                function=functools.partial(
+                    self._increment,
+                    names=names,
+                    delay=delay,
+                    powers=readout.monomials(),
+                    weights=weights[:, index],
+                    bias=float(bias[index]),
+                    mean=readout.mean,
+                    scale=readout.scale,
+                    spread=float(readout.scale[index]),
+                ),
+            )
+            for index, name in enumerate(names)
+        ]
+        return System(self.label, elements=[element], interactions=maps, time=DiscreteTime())

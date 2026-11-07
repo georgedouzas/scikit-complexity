@@ -5,8 +5,8 @@ import pytest
 
 from skcomplex.core.components.spaces import NetworkSpace
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems.mathematics.networks import spatial_triadic_percolation
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.mathematics.networks import SpatialTriadicPercolationSystem
 
 BACKENDS = pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 
@@ -20,7 +20,7 @@ def _correlation(first: np.ndarray, second: np.ndarray) -> float:
 
 def test_spatial_triadic_percolation_lists_signed_regulators_after_the_ends_of_every_link():
     """Test that every hyperedge starts with its link and holds as many regulators as the link counts."""
-    system = spatial_triadic_percolation(1.5, random_state=1)
+    system = SpatialTriadicPercolationSystem(1.5, random_state=1).prepare().system_
     nodes, links = system.elements
     assert isinstance(nodes.space, NetworkSpace)
     space = nodes.space.prepare()
@@ -34,10 +34,10 @@ def test_spatial_triadic_percolation_lists_signed_regulators_after_the_ends_of_e
 @BACKENDS
 def test_spatial_triadic_percolation_regulates_links_by_their_signed_regulators(backend):
     """Test that a link is active when no negative and some positive regulator is active, on both backends."""
-    system = spatial_triadic_percolation(1.0, p=1.0)
+    system = SpatialTriadicPercolationSystem(1.0, p=1.0).prepare().system_
     nodes, links = system.elements
     space = nodes.space.prepare()
-    trajectory = Simulation(system, backend=backend, random_state=0).prepare().run(until=2).trajectory_
+    trajectory = simulate(system, until=2, backend=backend, random_state=0)
     before, after = trajectory.values('nodes.active')[1], trajectory.values('links.active')[2]
     negatives, positives = (np.asarray(links.values[name], dtype=int) for name in ('negatives', 'positives'))
     expected = [
@@ -50,8 +50,8 @@ def test_spatial_triadic_percolation_regulates_links_by_their_signed_regulators(
 
 def test_spatial_triadic_percolation_forms_blinking_patterns():
     """Test that the giant component keeps changing, blinks between steps, and is local in space."""
-    system = spatial_triadic_percolation(4.0)
-    trajectory = Simulation(system, random_state=0).prepare().run(until=80).trajectory_
+    system = SpatialTriadicPercolationSystem(4.0).prepare().system_
+    trajectory = simulate(system, until=80, random_state=0)
     active = trajectory.values('nodes.active').astype(float)[20:]
     space = system.elements[0].space.prepare()
     offsets = np.abs(space.positions_[:, None, :] - space.positions_[None, :, :])

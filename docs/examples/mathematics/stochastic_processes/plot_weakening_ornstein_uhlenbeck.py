@@ -14,18 +14,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import integrate, stats
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.stochastic_processes import WeakeningOrnsteinUhlenbeckSystem
 
 SYSTEM = 'weakening_ornstein_uhlenbeck'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=16)
-simulation = (
-    Simulation(create_system(SYSTEM, n_particles=4), dt=0.05, observers=[observer], random_state=0)
-    .prepare()
-    .run(until=200)
-)
+trajectory = simulate(WeakeningOrnsteinUhlenbeckSystem(n_particles=4), until=200, observers=[observer], random_state=0)
 
 # %%
 # Power-law tails
@@ -35,9 +31,7 @@ simulation = (
 # `|x|` near 5, beyond which the run is too short to fill the slowly relaxing tail, far above the Gaussian of an
 # Ornstein-Uhlenbeck process with the same stiffness near the origin, of variance `D / k = 0.25`.
 
-ensemble = (
-    Simulation(create_system(SYSTEM, n_particles=500), dt=0.05, random_state=1).prepare().run(until=200).trajectory_
-)
+ensemble = simulate(WeakeningOrnsteinUhlenbeckSystem(n_particles=500), until=200, random_state=1)
 positions = np.abs(ensemble.values('particles.x')[2000:].ravel())
 edges = np.geomspace(0.05, 30, 40)
 density, _ = np.histogram(positions, bins=edges, density=True)

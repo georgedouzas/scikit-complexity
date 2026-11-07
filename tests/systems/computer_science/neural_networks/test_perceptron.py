@@ -5,7 +5,7 @@ import pytest
 
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import Experiment, GridDesign
-from skcomplex.systems.computer_science.neural_networks import perceptron_satisfiability
+from skcomplex.systems.computer_science.neural_networks import PerceptronSatisfiabilitySystem
 
 STEPS = 26
 
@@ -14,7 +14,7 @@ def _satisfiable_shares(n_weights: int) -> np.ndarray:
     """Return the share of 20 seeds that are satisfiable at every number of patterns."""
     bounds = {'n_weights': [n_weights], 'random_state': list(range(20))}
     outputs = ['decide.satisfiable']
-    experiment = Experiment(perceptron_satisfiability, GridDesign(), bounds, until=STEPS, outputs=outputs)
+    experiment = Experiment(PerceptronSatisfiabilitySystem, GridDesign(), bounds, until=STEPS, outputs=outputs)
     return experiment.prepare().run().result_.series('decide.satisfiable').mean(axis=0)
 
 
@@ -29,4 +29,4 @@ def test_perceptron_satisfiability_satisfiable_fraction(n_weights: int) -> None:
 def test_perceptron_satisfiability_even_weights() -> None:
     """Test that an even number of weights, whose patterns can tie, is refused."""
     with pytest.raises(ValidationError, match='n_weights'):
-        perceptron_satisfiability(20)
+        PerceptronSatisfiabilitySystem(20).prepare()

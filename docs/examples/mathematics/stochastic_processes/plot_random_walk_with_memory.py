@@ -13,13 +13,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.stochastic_processes import RandomWalkWithMemorySystem
 
 SYSTEM = 'random_walk_with_memory'
 
-system = create_system(SYSTEM, n_walkers=300, alpha=0.5, sigma=1.0)
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
 blueprint = rrb.Blueprint(
     rrb.TimeSeriesView(
@@ -33,7 +32,11 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=200)
+trajectory = simulate(
+    RandomWalkWithMemorySystem(n_walkers=300, alpha=0.5, sigma=1.0),
+    observers=[observer],
+    random_state=0,
+)
 
 # %%
 # Mean squared displacement
@@ -42,7 +45,6 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 # match the simulation and grow at long times with the slope `sigma^2 / (1 - alpha)^2 = 4`, larger than the slope
 # `sigma^2 / (1 - alpha^2)` that steps of the same variance would give without correlation.
 
-trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
 moments, exact = np.zeros(3), []
 for _ in times:

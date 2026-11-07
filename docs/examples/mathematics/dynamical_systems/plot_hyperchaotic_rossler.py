@@ -15,9 +15,9 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import lyapunov
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.dynamical_systems import HyperchaoticRosslerSystem
 
 SYSTEM = 'hyperchaotic_rossler'
 
@@ -36,8 +36,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=20)
-simulation = Simulation(create_system(SYSTEM), dt=0.05, observers=[observer]).prepare().run(until=300)
-points = np.column_stack([simulation.trajectory_.values(f'rossler.{state}') for state in 'xyw'])[400:]
+trajectory = simulate(HyperchaoticRosslerSystem(), observers=[observer])
+points = np.column_stack([trajectory.values(f'rossler.{state}') for state in 'xyw'])[400:]
 observer.recording_.log('attractor', rr.LineStrips3D([points], radii=0.05, colors=[200, 90, 200]), static=True)
 observer.recording_.flush()
 
@@ -49,7 +49,7 @@ observer.recording_.flush()
 
 times = np.array([250, 500, 1000, 2000, 4000])
 spectra = np.array(
-    [lyapunov(simulation.system, until=until).exponents[:3] for until in times],
+    [lyapunov(HyperchaoticRosslerSystem(), until=until).exponents[:3] for until in times],
 )
 fig, (orbit, spectrum) = plt.subplots(1, 2, figsize=(10, 4))
 orbit.plot(points[:, 0], points[:, 2], linewidth=0.3)

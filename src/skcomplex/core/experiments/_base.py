@@ -25,7 +25,7 @@ from ..components.laws import (
     TransitionLaw,
     UpdateLaw,
 )
-from ..components.system import System
+from ..components.system import BaseSystem, System
 from ..engine._utils import declared_variables
 from ..engine.compile import PassCompiler
 from ..engine.compile._probe import probe_laws
@@ -197,6 +197,11 @@ class BaseExperiment(BaseConfig[None, None], ABC):
         raise ExperimentError(error_msg)
 
     @staticmethod
+    def _composite(system: BaseSystem) -> System:
+        """Return a system as the composite of its parts, preparing a system class that builds them."""
+        return system if isinstance(system, System) else system.prepare().system_
+
+    @staticmethod
     def _run_replicated(
         source: Source,
         values: Mapping[str, npt.ArrayLike],
@@ -206,7 +211,7 @@ class BaseExperiment(BaseConfig[None, None], ABC):
     ) -> tuple[Trajectory, System]:
         """Return one run of a source's system replicated once per value of every path, and the original system."""
         factory = BaseExperiment._check_source(source)
-        system = factory if isinstance(factory, System) else factory()
+        system = factory if isinstance(factory, System) else BaseExperiment._composite(factory())
         size = len(np.asarray(next(iter(values.values()))))
         step = dt if dt is not None else 1.0
         end = until if until is not None else 10.0
@@ -238,7 +243,7 @@ class BaseExperiment(BaseConfig[None, None], ABC):
             built = None
         key = (*key, tuple(map(id, observables or ())))
         if key not in _PROBLEMS:
-            built = built if built is not None else source(**arguments)
+            built = built if built is not None else BaseExperiment._composite(source(**arguments))
             _PROBLEMS[key] = PassCompiler(observables=list(observables or ())).prepare(built).run().problem_
         return _PROBLEMS[key]
 
@@ -351,8 +356,9 @@ class BaseExperiment(BaseConfig[None, None], ABC):
         Examples:
             >>> import numpy as np
             >>> from skcomplex.core.experiments import BaseExperiment
-            >>> from skcomplex.systems.mathematics.dynamical_systems import logistic_map
-            >>> ensemble = BaseExperiment._replicate(logistic_map(r=3.7), 4, {'map.x': np.linspace(0.1, 0.4, 4)})
+            >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
+            >>> system = LogisticMapSystem(r=3.7).prepare().system_
+            >>> ensemble = BaseExperiment._replicate(system, 4, {'map.x': np.linspace(0.1, 0.4, 4)})
             >>> group = ensemble.elements[0]
             >>> group.label, group.element.__name__, group.size
             ('map', 'LogisticMapElement', 4)

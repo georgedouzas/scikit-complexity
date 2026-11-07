@@ -14,17 +14,17 @@ that move and blink instead of settling.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.networks import SpatialTriadicPercolationSystem
 
 SYSTEM = 'spatial_triadic_percolation'
 
-system = create_system(SYSTEM)
+system = SpatialTriadicPercolationSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=100)
-active = simulation.trajectory_.values('nodes.active').astype(float)
-positions = system.elements[0].space.prepare().positions_
+trajectory = simulate(system, observers=[observer], random_state=0)
+active = trajectory.values('nodes.active').astype(float)
+positions = system.prepare().system_.elements[0].space.prepare().positions_
 
 # %%
 # Size of the giant component

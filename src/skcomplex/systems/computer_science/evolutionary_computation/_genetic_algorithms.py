@@ -12,12 +12,11 @@ from sage.all__sagemath_symbolics import NN
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import EvolutionInteraction, Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ParameterError
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, IntArray
-from ..._catalog import register_system
 
 N_SITUATIONS = 243
 
@@ -125,6 +124,8 @@ class RoomCleaningInteraction(Interaction):
         >>> RoomCleaningInteraction('scoring', target='strategies').sessions
         10
     """
+
+    law_classes = (RuleLaw,)
 
     def __init__(
         self,
@@ -317,6 +318,8 @@ class CircumstanceInteraction(Interaction):
         7
     """
 
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -380,37 +383,21 @@ class CircumstanceInteraction(Interaction):
         return np.where(mutated, (child + shifts) % N_ACTIONS, child)
 
 
-@register_system(
-    field='computer_science/evolutionary_computation',
-    tags=('genetic algorithm', 'agents', 'evolution', 'robot'),
-    references=('Mitchell 2009', 'Gooding 2019'),
-    defaults={'until': 20},
-)
-def robby_ga(
-    n_strategies: int = 50,
-    *,
-    mutation: float = 0.005,
-    sessions: int = 10,
-    n_actions: int = 100,
-    regime: str = 'generational',
-    lifespan: int = 7,
-    starvation: float = 0.3,
-    switch: int | None = None,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Mitchell's genetic algorithm that evolves strategies for Robby, a robot that collects cans in a room.
+class RobbyGASystem(BaseSystem):
+    """Mitchell's genetic algorithm that evolves strategies for Robby, a robot that collects cans in a room.
 
     Each step is one generation. Parents are selected with probabilities proportional to their rank, every pair of
     parents exchanges the tails of their strategies after a random cut, and every action of a child mutates to another
     action with probability `mutation`. Then every child is scored in random rooms. Random strategies score far below
     zero because they bump into walls, and evolution finds strategies that avoid walls and collect cans.
 
-    Gooding's evolution by circumstance, the regime `'circumstance'`, replaces the selection with deaths: every
-    strategy starts at a random age, dies at the age `lifespan`, and the fraction `starvation` with the lowest scores
-    starves every generation. Random pairs of survivors, whatever their scores, breed children in the places of the
-    dead. The starvation is the only selection, so with it the scores rise as under the genetic algorithm, and without
-    it they drift. With a `switch` period the starvation switches on and off every `switch` generations, as in
-    Gooding's runs that switch it every 3000 iterations.
+    Gooding's evolution by circumstance, the regime `'circumstance'`, replaces the selection with deaths: every strategy
+    starts at a random age, dies at the age `lifespan`, and the fraction `starvation` with the lowest scores starves
+    every generation. Random pairs of survivors, whatever their scores, breed children in the places of the dead. The
+    starvation is the only selection, so with it the scores rise as under the genetic algorithm, and without it they
+    drift. With a `switch` period the starvation switches on and off every `switch` generations, as in Gooding's runs
+    that switch it every 3000 iterations. The system has the group `strategies` of states `actions` and `score`, and
+    `age` in the evolution by circumstance.
 
     Args:
         n_strategies:
@@ -442,62 +429,99 @@ def robby_ga(
         random_state:
             The seed or generator of the random first generation and of its scores.
 
-    Returns:
-        system:
-            The system, with the group `strategies` of states `actions` and `score`, and `age` in the evolution by
-            circumstance.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ParameterError:
             The regime is unknown.
 
     Examples:
-        >>> from skcomplex.systems.computer_science.evolutionary_computation import robby_ga
-        >>> robby_ga(5).elements[0].values['actions'].shape
+        >>> from skcomplex.systems.computer_science.evolutionary_computation import RobbyGASystem
+        >>> RobbyGASystem(5).prepare().system_.elements[0].values['actions'].shape
         (5, 243)
     """
-    if regime not in REGIMES:
-        error_msg = f'Unknown regime {regime!r}. Use one of {", ".join(REGIMES)}.'
-        raise ParameterError(error_msg)
-    rng = np.random.default_rng(random_state)
-    evolution = EvolutionInteraction(
-        'evolution',
-        target='strategies',
-        strategy='actions',
-        fitness='score',
-        selection='rank',
-        crossover=1.0,
-        mutation=mutation,
-        alphabet=N_ACTIONS,
-    )
-    scoring = RoomCleaningInteraction('scoring', target='strategies', sessions=sessions, n_actions=n_actions)
-    actions = rng.integers(0, N_ACTIONS, size=(n_strategies, N_SITUATIONS))
-    scores = scoring.score(actions, rng)
-    if regime == 'circumstance':
-        circumstance = CircumstanceInteraction(
-            'circumstance',
+
+    field = 'computer_science/evolutionary_computation'
+    topics = ('genetic algorithm', 'agents', 'evolution', 'robot')
+    references = ('Mitchell 2009', 'Gooding 2019')
+    until = 20
+
+    def __init__(
+        self,
+        n_strategies: int = 50,
+        *,
+        mutation: float = 0.005,
+        sessions: int = 10,
+        n_actions: int = 100,
+        regime: str = 'generational',
+        lifespan: int = 7,
+        starvation: float = 0.3,
+        switch: int | None = None,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_strategies = n_strategies
+        self.mutation = mutation
+        self.sessions = sessions
+        self.n_actions = n_actions
+        self.regime = regime
+        self.lifespan = lifespan
+        self.starvation = starvation
+        self.switch = switch
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        if self.regime not in REGIMES:
+            error_msg = f'Unknown regime {self.regime!r}. Use one of {", ".join(REGIMES)}.'
+            raise ParameterError(error_msg)
+        rng = np.random.default_rng(self.random_state)
+        evolution = EvolutionInteraction(
+            'evolution',
             target='strategies',
-            lifespan=lifespan,
-            starvation=starvation,
-            mutation=mutation,
-            switch=switch,
+            strategy='actions',
+            fitness='score',
+            selection='rank',
+            crossover=1.0,
+            mutation=self.mutation,
+            alphabet=N_ACTIONS,
         )
-        ages = rng.integers(0, lifespan, size=n_strategies).astype(float)
-        strategies = GroupElement(
-            'strategies',
-            element=AgedStrategyElement,
-            size=n_strategies,
-            values={'actions': actions, 'score': scores, 'age': ages},
+        scoring = RoomCleaningInteraction(
+            'scoring',
+            target='strategies',
+            sessions=self.sessions,
+            n_actions=self.n_actions,
         )
-        return System(elements=[strategies], interactions=[circumstance, scoring])
-    return System(
-        elements=[
-            GroupElement(
+        actions = rng.integers(0, N_ACTIONS, size=(self.n_strategies, N_SITUATIONS))
+        scores = scoring.score(actions, rng)
+        if self.regime == 'circumstance':
+            circumstance = CircumstanceInteraction(
+                'circumstance',
+                target='strategies',
+                lifespan=self.lifespan,
+                starvation=self.starvation,
+                mutation=self.mutation,
+                switch=self.switch,
+            )
+            ages = rng.integers(0, self.lifespan, size=self.n_strategies).astype(float)
+            strategies = GroupElement(
                 'strategies',
-                element=StrategyElement,
-                size=n_strategies,
-                values={'actions': actions, 'score': scores},
-            ),
-        ],
-        interactions=[evolution, scoring],
-    )
+                element=AgedStrategyElement,
+                size=self.n_strategies,
+                values={'actions': actions, 'score': scores, 'age': ages},
+            )
+            return System(self.label, elements=[strategies], interactions=[circumstance, scoring])
+        return System(
+            self.label,
+            elements=[
+                GroupElement(
+                    'strategies',
+                    element=StrategyElement,
+                    size=self.n_strategies,
+                    values={'actions': actions, 'score': scores},
+                ),
+            ],
+            interactions=[evolution, scoring],
+        )

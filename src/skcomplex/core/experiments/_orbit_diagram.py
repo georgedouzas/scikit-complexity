@@ -65,8 +65,8 @@ class OrbitDiagramExperiment(BaseExperiment):
 
     Examples:
         >>> from skcomplex.core.experiments import OrbitDiagramExperiment
-        >>> from skcomplex.systems.mathematics.dynamical_systems import logistic_map
-        >>> diagram = OrbitDiagramExperiment(logistic_map, 'map.r', [2.9, 3.2], 'map.x', transient=1000, keep=20)
+        >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
+        >>> diagram = OrbitDiagramExperiment(LogisticMapSystem, 'map.r', [2.9, 3.2], 'map.x', transient=1000, keep=20)
         >>> diagram.prepare().run().periods_.tolist()
         [1, 2]
     """

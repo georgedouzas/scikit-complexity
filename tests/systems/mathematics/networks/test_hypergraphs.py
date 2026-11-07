@@ -9,9 +9,9 @@ import xgi
 from skcomplex.core.analysis import fit_law
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import Simulation, simulate
 from skcomplex.systems import create_system
-from skcomplex.systems.mathematics.networks import growing_simplicial_complex, hypergraph_random_walk
+from skcomplex.systems.mathematics.networks import GrowingSimplicialComplexSystem, HypergraphRandomWalkSystem
 
 from .conftest import _final_graph
 
@@ -29,7 +29,9 @@ def _transitions(hypergraph: xgi.Hypergraph) -> np.ndarray:
 def test_hypergraph_random_walk_drift_follows_the_master_equation(backend):
     """Test that the drift equals `p T - p` for the size-biased transition matrix of the incidence matrix."""
     hypergraph = xgi.fast_random_hypergraph(12, [0.2, 0.05, 0.01], seed=2)
-    problem = PassCompiler(backend=backend).prepare(hypergraph_random_walk(hypergraph)).run().problem_
+    problem = (
+        PassCompiler(backend=backend).prepare(HypergraphRandomWalkSystem(hypergraph).prepare().system_).run().problem_
+    )
     state = problem.initial_state.copy()
     state[:] = np.random.default_rng(0).dirichlet(np.ones(state.size))
     drift = problem.states.read(problem.drift(0.0, state, problem.initial_parameters), 'nodes.p')
@@ -40,8 +42,8 @@ def test_hypergraph_random_walk_drift_follows_the_master_equation(backend):
 
 def test_hypergraph_random_walk_settles_on_the_hyperedge_weights():
     """Test that the probability keeps its sum and settles on the weights of the hyperedges of every node."""
-    system = hypergraph_random_walk(seed=0)
-    trajectory = Simulation(system, dt=1.0).prepare().run(until=60.0).trajectory_
+    system = HypergraphRandomWalkSystem(seed=0).prepare().system_
+    trajectory = simulate(system, until=60.0, dt=1.0)
     probabilities = np.asarray(trajectory.values('nodes.p'))
     weights = np.asarray(system.elements[0].values['D'])
     assert np.allclose(probabilities.sum(axis=1), 1.0, atol=1e-9)
@@ -51,7 +53,11 @@ def test_hypergraph_random_walk_settles_on_the_hyperedge_weights():
 @pytest.mark.parametrize('backend', [NumpyBackend(), NumbaBackend()], ids=['numpy', 'numba'])
 def test_growing_simplicial_complex_attaches_one_triangle_per_step(backend):
     """Test that 50 steps from one triangle give 51 triangles along edges, each with its age in steps."""
-    simulation = Simulation(growing_simplicial_complex(60), backend=backend, random_state=0).prepare()
+    simulation = Simulation(
+        GrowingSimplicialComplexSystem(60).prepare().system_,
+        backend=backend,
+        random_state=0,
+    ).prepare()
     trajectory = simulation.run(until=50).trajectory_
     network = trajectory.network(-1)
     graph = network.graph()
@@ -65,7 +71,7 @@ def test_growing_simplicial_complex_attaches_one_triangle_per_step(backend):
 
 def test_growing_simplicial_complex_degrees_follow_preferential_attachment():
     """Test that gluing triangles along uniform edges gives a degree tail exponent near 3."""
-    graph, _ = _final_graph(growing_simplicial_complex(2003), 2000)
+    graph, _ = _final_graph(GrowingSimplicialComplexSystem(2003).prepare().system_, 2000)
     assert graph.number_of_edges() == 3 + 2 * 2000
     degrees = np.array([degree for _, degree in graph.degree])
     fit = fit_law(degrees, minimum=8, discrete=True, bootstrap=0)

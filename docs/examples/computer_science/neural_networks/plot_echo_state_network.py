@@ -16,9 +16,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.computer_science.neural_networks import EchoStateNetworkSystem
 
 SYSTEM = 'echo_state_network'
 UNITS = (0, 2, 4)
@@ -32,10 +32,10 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-system = create_system(SYSTEM, n_units=200, spectral_radius=0.9, leak=0.3)
-first = Simulation(system, dt=1, observers=[observer]).prepare().run(until=100).trajectory_
+system = EchoStateNetworkSystem(n_units=200, spectral_radius=0.9, leak=0.3)
+first = simulate(system, until=100, observers=[observer])
 start = np.random.default_rng(1).uniform(-1.0, 1.0, 200)
-second = Simulation(system, dt=1, initial_state={'units.r': start}).prepare().run(until=100).trajectory_
+second = simulate(system, until=100, initial_state={'units.r': start})
 time = [rr.TimeColumn('sim_time', duration=first.times)]
 for copy, trajectory in (('first', first), ('second', second)):
     for unit, color in zip(UNITS, COLORS, strict=True):
@@ -67,14 +67,9 @@ activity.set_ylabel('activity r')
 activity.set_title('Two copies, solid and dashed')
 activity.legend()
 for radius in (0.5, 0.9, 2.0):
-    copies = create_system(SYSTEM, n_units=200, spectral_radius=radius, leak=0.3)
-    one = Simulation(copies, dt=1).prepare().run(until=300).trajectory_.values('units.r')
-    two = (
-        Simulation(copies, dt=1, initial_state={'units.r': start})
-        .prepare()
-        .run(until=300)
-        .trajectory_.values('units.r')
-    )
+    copies = EchoStateNetworkSystem(n_units=200, spectral_radius=radius, leak=0.3)
+    one = simulate(copies, until=300, dt=1).values('units.r')
+    two = simulate(copies, until=300, dt=1, initial_state={'units.r': start}).values('units.r')
     distance.semilogy(np.arange(301), np.linalg.norm(one - two, axis=1) + 1e-16, label=f'spectral radius {radius}')
 distance.set_xlabel('step t')
 distance.set_ylabel('distance between the copies')

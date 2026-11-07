@@ -45,6 +45,8 @@ class RosslerElement(Element):
         4.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,

@@ -16,9 +16,8 @@ from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli, where
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from .types import Window
 
 
@@ -49,6 +48,8 @@ class InverseJuliaPointElement(Element):
         >>> InverseJuliaPointElement('point', p=0.3).p
         0.3
     """
+
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
@@ -111,6 +112,8 @@ class QuadraticMapElement(Element):
         0.25
     """
 
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -153,32 +156,23 @@ def _plane(shape: Sequence[int], window: Window) -> npt.NDArray[np.complex128]:
     return real[np.newaxis, :] + 1j * imaginary[:, np.newaxis]
 
 
-def _escape_field(shape: Sequence[int], z: object, c: object, radius: float) -> System:
+def _escape_field(label: str, shape: Sequence[int], z: object, c: object, radius: float) -> System:
     """Return the field of the quadratic map over a lattice from the initial points and the constants."""
     space = LatticeSpace(tuple(int(item) for item in shape))
     values = {'z': z, 'c': c, 'radius': radius}
     return System(
+        label,
         elements=[FieldElement('plane', element=QuadraticMapElement, space=space, values=values, visual=ESCAPE_IMAGE)],
     )
 
 
-@register_system(
-    field='mathematics/fractals',
-    tags=('fractal', 'complex', 'map', 'lattice', 'escape time'),
-    references=('Dilão 2023',),
-    defaults={'until': 100, 'dt': 1},
-)
-def mandelbrot(
-    shape: Sequence[int] = (240, 300),
-    *,
-    window: Window = MANDELBROT_WINDOW,
-    radius: float = 2.0,
-) -> System:
-    """Return the Mandelbrot set, the points `c` whose orbit of `z -> z^2 + c` from 0 stays bounded (Dilão 2023 §5.5).
+class MandelbrotSystem(BaseSystem):
+    """The Mandelbrot set, the points `c` whose orbit of `z -> z^2 + c` from 0 stays bounded (Dilão 2023 §5.5).
 
     Every site holds one point `c` of the window and iterates the map, and `n` counts the steps the orbit stays within
     the escape radius. The points of the set never escape, so their count grows with every step, while the count of an
-    escaped point stops at its escape time and colors the bands around the set.
+    escaped point stops at its escape time and colors the bands around the set. The system has the field `plane`, its
+    orbits `plane.z`, and its escape times `plane.n`.
 
     Args:
         shape:
@@ -190,37 +184,47 @@ def mandelbrot(
         radius:
             The escape radius, 2 for the quadratic map.
 
-    Returns:
-        system:
-            The system, with the field `plane`, its orbits `plane.z`, and its escape times `plane.n`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.fractals import mandelbrot
-        >>> mandelbrot((3, 3), window=(-1, 1, -1, 1)).elements[0].values['c'][1].tolist()
+        >>> from skcomplex.systems.mathematics.fractals import MandelbrotSystem
+        >>> MandelbrotSystem((3, 3), window=(-1, 1, -1, 1)).prepare().system_.elements[0].values['c'][1].tolist()
         [(-1+0j), 0j, (1+0j)]
     """
-    points = _plane(shape, window)
-    return _escape_field(shape, np.zeros_like(points), points, radius)
+
+    field = 'mathematics/fractals'
+    topics = ('fractal', 'complex', 'map', 'lattice', 'escape time')
+    references = ('Dilão 2023',)
+    until = 100
+    dt = 1
+
+    def __init__(
+        self,
+        shape: Sequence[int] = (240, 300),
+        *,
+        window: Window = MANDELBROT_WINDOW,
+        radius: float = 2.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.window = window
+        self.radius = radius
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        points = _plane(self.shape, self.window)
+        return _escape_field(self.label, self.shape, np.zeros_like(points), points, self.radius)
 
 
-@register_system(
-    field='mathematics/fractals',
-    tags=('fractal', 'complex', 'map', 'lattice', 'escape time'),
-    references=('Dilão 2023',),
-    defaults={'until': 100, 'dt': 1},
-)
-def julia(
-    c: complex = -0.8 + 0.156j,
-    shape: Sequence[int] = (240, 320),
-    *,
-    window: Window = JULIA_WINDOW,
-    radius: float = 2.0,
-) -> System:
-    """Return the filled Julia set of `z -> z^2 + c`, the starting points whose orbit stays bounded (Dilão 2023 §5.5).
+class JuliaSystem(BaseSystem):
+    """The filled Julia set of `z -> z^2 + c`, the starting points whose orbit stays bounded (Dilão 2023 §5.5).
 
     Every site holds one starting point `z` of the window and iterates the map with the same constant `c`, and `n`
     counts the steps the orbit stays within the escape radius. For `c` in the Mandelbrot set the filled Julia set is
-    connected, and outside it the set breaks into dust.
+    connected, and outside it the set breaks into dust. The system has the field `plane`, its orbits `plane.z`, and its
+    escape times `plane.n`.
 
     Args:
         c:
@@ -235,38 +239,50 @@ def julia(
         radius:
             The escape radius, at least 2 and at least `|c|`, so escaped orbits never return.
 
-    Returns:
-        system:
-            The system, with the field `plane`, its orbits `plane.z`, and its escape times `plane.n`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.fractals import julia
-        >>> julia(0.0, (3, 3), window=(-1, 1, -1, 1)).elements[0].values['z'][0].tolist()
+        >>> from skcomplex.systems.mathematics.fractals import JuliaSystem
+        >>> JuliaSystem(0.0, (3, 3), window=(-1, 1, -1, 1)).prepare().system_.elements[0].values['z'][0].tolist()
         [(-1+1j), 1j, (1+1j)]
     """
-    points = _plane(shape, window)
-    return _escape_field(shape, points, complex(c), radius)
+
+    field = 'mathematics/fractals'
+    topics = ('fractal', 'complex', 'map', 'lattice', 'escape time')
+    references = ('Dilão 2023',)
+    until = 100
+    dt = 1
+
+    def __init__(
+        self,
+        c: complex = -0.8 + 0.156j,
+        shape: Sequence[int] = (240, 320),
+        *,
+        window: Window = JULIA_WINDOW,
+        radius: float = 2.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.c = c
+        self.shape = shape
+        self.window = window
+        self.radius = radius
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        points = _plane(self.shape, self.window)
+        return _escape_field(self.label, self.shape, points, complex(self.c), self.radius)
 
 
-@register_system(
-    field='mathematics/fractals',
-    tags=('fractal', 'complex', 'iterated function system', 'random map', 'julia set'),
-    references=('Barnsley 1988', 'Dilão 2023'),
-    defaults={'until': 30, 'dt': 1},
-)
-def inverse_julia(
-    omega: complex = -0.123 + 0.745j,
-    *,
-    p: float = 0.5,
-    n_points: int = 5000,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the random function system `z -> ±√(z - omega)`, whose points settle on the Julia set of `z² + omega`.
+class InverseJuliaSystem(BaseSystem):
+    """The random function system `z -> ±√(z - omega)`, whose points settle on the Julia set of `z² + omega`.
 
-    At every step each point moves to the positive square root of `z - omega` with probability `p` and to the
-    negative one otherwise (Dilão 2023, Exercise 5.8). Both branches invert the quadratic map `z -> z² + omega`, which
-    repels its Julia set, so the inverse branches attract the points onto the Julia set, drawn by the chaos game with
-    weights `p` and `1 - p`. For `omega = 0` the Julia set is the unit circle, and the default is Douady's rabbit.
+    At every step each point moves to the positive square root of `z - omega` with probability `p` and to the negative
+    one otherwise (Dilão 2023, Exercise 5.8). Both branches invert the quadratic map `z -> z² + omega`, which repels its
+    Julia set, so the inverse branches attract the points onto the Julia set, drawn by the chaos game with weights `p`
+    and `1 - p`. For `omega = 0` the Julia set is the unit circle, and the default is Douady's rabbit. The system has
+    the points `points.z`.
 
     Args:
         omega:
@@ -281,16 +297,42 @@ def inverse_julia(
         random_state:
             The seed or generator of the initial points.
 
-    Returns:
-        system:
-            The system, with the points `points.z`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.fractals import inverse_julia
-        >>> inverse_julia(0.0, n_points=10).elements[0].prepare().size_
+        >>> from skcomplex.systems.mathematics.fractals import InverseJuliaSystem
+        >>> InverseJuliaSystem(0.0, n_points=10).prepare().system_.elements[0].prepare().size_
         10
     """
-    rng = np.random.default_rng(random_state)
-    start = rng.uniform(-1.0, 1.0, n_points) + 1j * rng.uniform(-1.0, 1.0, n_points)
-    values = {'z': start, 'omega': complex(omega), 'p': p}
-    return System(elements=[GroupElement('points', element=InverseJuliaPointElement, size=n_points, values=values)])
+
+    field = 'mathematics/fractals'
+    topics = ('fractal', 'complex', 'iterated function system', 'random map', 'julia set')
+    references = ('Barnsley 1988', 'Dilão 2023')
+    until = 30
+    dt = 1
+
+    def __init__(
+        self,
+        omega: complex = -0.123 + 0.745j,
+        *,
+        p: float = 0.5,
+        n_points: int = 5000,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.omega = omega
+        self.p = p
+        self.n_points = n_points
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        start = rng.uniform(-1.0, 1.0, self.n_points) + 1j * rng.uniform(-1.0, 1.0, self.n_points)
+        values = {'z': start, 'omega': complex(self.omega), 'p': self.p}
+        return System(
+            self.label,
+            elements=[GroupElement('points', element=InverseJuliaPointElement, size=self.n_points, values=values)],
+        )

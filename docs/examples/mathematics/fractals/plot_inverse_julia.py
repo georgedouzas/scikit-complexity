@@ -15,9 +15,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.fractals import InverseJuliaSystem
 
 SYSTEM = 'inverse_julia'
 
@@ -32,8 +32,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=30)
-simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer]).prepare().run(until=30)
-z = simulation.trajectory_.values('points.z')[-1]
+trajectory = simulate(InverseJuliaSystem(), observers=[observer])
+z = trajectory.values('points.z')[-1]
 observer.recording_.log(
     'julia',
     rr.Points2D(100 * np.column_stack([z.real, -z.imag]), radii=0.4, colors=[90, 170, 255]),
@@ -52,8 +52,8 @@ observer.recording_.flush()
 cases = [(0.0, 0.5), (-1.0, 0.5), (-0.123 + 0.745j, 0.5), (-0.123 + 0.745j, 0.9), (0.3, 0.5), (-0.8 + 0.2j, 0.5)]
 fig, axes = plt.subplots(2, 3, figsize=(12, 8))
 for axis, (omega, p) in zip(axes.ravel(), cases, strict=True):
-    run = Simulation(create_system(SYSTEM, omega=omega, p=p, n_points=8000), dt=1).prepare().run(until=40)
-    points = run.trajectory_.values('points.z')[-1]
+    run = simulate(InverseJuliaSystem(omega=omega, p=p, n_points=8000), until=40)
+    points = run.values('points.z')[-1]
     axis.plot(points.real, points.imag, ',', color='C0')
     axis.set_aspect('equal')
     axis.set_title(f'omega = {omega:g}, p = {p}')

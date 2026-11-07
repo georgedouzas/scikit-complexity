@@ -16,9 +16,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.dynamical_systems import FermiUlamMapSystem
 
 SYSTEM = 'fermi_ulam_map'
 
@@ -41,11 +41,11 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=5)
-simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer]).prepare().run(until=1000)
+trajectory = simulate(FermiUlamMapSystem(), observers=[observer])
 orbits = []
 for u in np.linspace(0.1, 1.5, 12):
     for theta in np.linspace(0.0, 2 * np.pi, 4, endpoint=False):
-        trajectory = Simulation(create_system(SYSTEM, u=u, theta=theta), dt=1).prepare().run(until=400).trajectory_
+        trajectory = simulate(FermiUlamMapSystem(u=u, theta=theta), until=400)
         orbits.append(np.column_stack([trajectory.values('map.theta'), trajectory.values('map.u')]))
 points = np.concatenate(orbits)
 points = points[points[:, 1] < 1.6]
@@ -65,8 +65,8 @@ observer.recording_.flush()
 fig, axes = plt.subplots(1, 3, figsize=(12, 4), sharey=True)
 for axis, epsilon in zip(axes, (0.05, 0.1, 0.2), strict=True):
     for u in np.linspace(0.05, 1.5, 15):
-        trajectory = Simulation(create_system(SYSTEM, u=u, theta=1.0, epsilon=epsilon), dt=1).prepare().run(until=500)
-        axis.plot(trajectory.trajectory_.values('map.theta'), trajectory.trajectory_.values('map.u'), ',')
+        trajectory = simulate(FermiUlamMapSystem(u=u, theta=1.0, epsilon=epsilon), until=500)
+        axis.plot(trajectory.values('map.theta'), trajectory.values('map.u'), ',')
     axis.set_ylim(0, 1.6)
     axis.set_xlabel('phase θ')
     axis.set_title(f'ε = {epsilon}')

@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.engine.runtime import Simulation, Trajectory
-from skcomplex.systems.mathematics.networks import davidsen_ebel_bornholdt
+from skcomplex.systems.mathematics.networks import DavidsenEbelBornholdtSystem
 
 
 def _graph(trajectory: Trajectory, frame: int) -> nx.Graph:
@@ -19,7 +19,11 @@ def _graph(trajectory: Trajectory, frame: int) -> nx.Graph:
 
 def test_davidsen_ebel_bornholdt_settles_at_the_mean_degree_of_its_turnover_with_high_clustering():
     """Test that the steady mean degree is `1 + 1 / gamma` and that triadic closure keeps the clustering high."""
-    trajectory = Simulation(davidsen_ebel_bornholdt(200, turnover=0.2), random_state=0).prepare().run(until=8000)
+    trajectory = (
+        Simulation(DavidsenEbelBornholdtSystem(200, turnover=0.2).prepare().system_, random_state=0)
+        .prepare()
+        .run(until=8000)
+    )
     graphs = [_graph(trajectory.trajectory_, frame) for frame in range(2000, 8001, 100)]
     degrees = [2 * graph.number_of_edges() / graph.number_of_nodes() for graph in graphs]
     assert {graph.number_of_nodes() for graph in graphs} == {200}

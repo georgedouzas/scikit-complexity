@@ -205,8 +205,8 @@ def lyapunov(
 
     Examples:
         >>> from skcomplex.core.analysis import lyapunov
-        >>> from skcomplex.systems.mathematics.dynamical_systems import logistic_map
-        >>> float(lyapunov(logistic_map(r=4.0), until=20000).exponents[0].round(2))
+        >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
+        >>> float(lyapunov(LogisticMapSystem(r=4.0), until=20000).exponents[0].round(2))
         0.69
         >>> round(lyapunov([0.906, 0.0, -14.572]).kaplan_yorke_dimension, 2)
         2.06

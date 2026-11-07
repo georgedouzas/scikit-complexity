@@ -6,7 +6,7 @@ planted blocks, and the edges packed inside the blocks close far more triangles 
 """
 
 # %%
-# The system is created by name from the catalog with its default network, a stochastic block system of four blocks of
+# The system is built from its class with its default network, a stochastic block system of four blocks of
 # 100 nodes with mean in-block degree 16 and out-block degree 2. Every node is an agent that carries its degree,
 # clustering, betweenness, and detected community, and the default blueprint draws the graph with the nodes colored by
 # community.
@@ -15,25 +15,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import distribution, motifs, network_measures
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.mathematics.networks import NetworkStructureAnalysisSystem
 
 SYSTEM = 'network_structure_analysis'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-system_system = create_system(SYSTEM, null_samples=0, random_state=0)
-simulation = (
-    Simulation(
-        system_system,
-        dt=1,
-        observers=[observer],
-        observables=describe(SYSTEM).observables_of(system_system),
-    )
-    .prepare()
-    .run(until=1)
-)
-trajectory = simulation.trajectory_
+trajectory = simulate(NetworkStructureAnalysisSystem(null_samples=0, random_state=0), until=1, observers=[observer])
 
 # %%
 # Degrees and motifs

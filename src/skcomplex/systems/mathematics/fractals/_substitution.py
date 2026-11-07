@@ -54,6 +54,8 @@ class CantorElement(PatchElement):
         0.25
     """
 
+    law_classes = (SubstitutionLaw,)
+
     def __init__(
         self,
         label: str,
@@ -114,6 +116,8 @@ class KochElement(WordElement):
         'F+F--F+F'
     """
 
+    law_classes = (ProductionLaw,)
+
     def _get_laws(self, s: SimpleNamespace) -> list[ProductionLaw]:
         """Return the production of the Koch curve.
 
@@ -165,6 +169,8 @@ class SierpinskiElement(PatchElement):
         >>> len(SierpinskiElement('sierpinski', shape='carpet')._get_laws(None)[0].pieces)
         8
     """
+
+    law_classes = (SubstitutionLaw,)
 
     def __init__(
         self,

@@ -13,13 +13,14 @@ as four translated copies, and in between the copies multiply into more intricat
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.computer_science.automata import FredkinReplicatorSystem
 
 SYSTEM = 'fredkin_replicator'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run()
+trajectory = simulate(FredkinReplicatorSystem(), observers=[observer], random_state=0)
 
 # %%
 # Copies at the powers of two
@@ -27,7 +28,7 @@ simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare(
 # The snapshots should show the circle at step 0, a crowded pattern at steps 13 and 26, and exactly four circles at
 # steps 16 and 32, each shifted by that many cells in one of the four directions.
 
-cells = simulation.trajectory_.lattice('cells.alive')
+cells = trajectory.lattice('cells.alive')
 fig, axes = plt.subplots(1, 5, figsize=(14, 3))
 for ax, step in zip(axes, (0, 13, 16, 26, 32), strict=True):
     ax.imshow(np.asarray(cells[step]), cmap='viridis')

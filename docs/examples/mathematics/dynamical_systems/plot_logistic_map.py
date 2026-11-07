@@ -17,10 +17,10 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import lyapunov
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import OrbitDiagramExperiment
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
 
 SYSTEM = 'logistic_map'
 
@@ -43,11 +43,11 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create_system(SYSTEM, r=3.7), dt=1, observers=[observer]).prepare().run(until=200)
+trajectory = simulate(LogisticMapSystem(r=3.7), observers=[observer])
 rates = np.linspace(2.8, 4.0, 400)
 diagram = (
     OrbitDiagramExperiment(
-        describe(SYSTEM).factory,
+        LogisticMapSystem,
         'map.r',
         rates,
         'map.x',
@@ -71,7 +71,7 @@ observer.recording_.flush()
 # the periodic windows, and turn positive where the orbit diagram fills bands, reaching `ln 2` at `r = 4`.
 
 sample = np.linspace(2.8, 4.0, 41)
-exponents = [lyapunov(simulation.system, until=1000, parameters={'map.r': r}).exponents[0] for r in sample]
+exponents = [lyapunov(LogisticMapSystem(r=3.7), until=1000, parameters={'map.r': r}).exponents[0] for r in sample]
 fig, (orbits, exponent_axes) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
 orbits.plot(points[:, 0] / 100, -points[:, 1] / 100, ',', color='C0')
 orbits.set_ylabel('long-run x')

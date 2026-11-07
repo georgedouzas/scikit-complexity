@@ -30,7 +30,7 @@ from skcomplex.core.specs import StateSpec, TopologyRequestSpec, VisualSpec
 from skcomplex.systems import create_system, describe
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.systems.biology.ecology import higher_order_random_lotka_volterra
-from skcomplex.systems.computer_science.automata import game_of_life
+from skcomplex.systems.computer_science.automata import GameOfLifeSystem
 from skcomplex.systems.physics.common.particles import ConstantForceInteraction, MassPointElement
 from skcomplex.systems.physics.statistical_mechanics import ideal_gas
 from skcomplex.systems.social.opinion_dynamics import VoterSystemSystem
@@ -527,7 +527,7 @@ def test_large_game_of_life_runs_in_real_time(tmp_path):
     """Test that a 1000 x 1000 Game of Life on Numba sustains 30 steps per second while streaming images."""
     observer = RerunObserver('life', save_path=tmp_path / 'life.rrd')
     simulation = Simulation(
-        game_of_life((1000, 1000)),
+        GameOfLifeSystem((1000, 1000)).prepare().system_,
         dt=1,
         backend=NumbaBackend(),
         record=False,

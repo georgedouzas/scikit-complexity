@@ -14,9 +14,8 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import StateSpec, VisualSpec
-from ..._catalog import register_system
 
 DEGREE_VISUAL = VisualSpec('sites', {'states': ['degree']})
 
@@ -53,31 +52,8 @@ class DuplicatingNodeElement(Element):
         self.degree = degree
 
 
-def _system(capacity: int, space: NetworkSpace, links: int, changes: list[TopologyInteraction]) -> System:
-    """Return the network of variable groups on its nodes and links, its changes, and the map of the degrees."""
-    nodes = GroupElement('nodes', element=DuplicatingNodeElement, on='sites', variable=True, capacity=capacity)
-    edges = GroupElement('links', element=Element, on='edges', variable=True, capacity=links)
-    degree = MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))
-    return System(elements=[nodes, edges], interactions=[*changes, degree], space=space, time=DiscreteTime())
-
-
-@register_system(
-    field='mathematics/networks',
-    tags=('network', 'duplication', 'deletion', 'evolution', 'protein interaction network', 'connectance'),
-    references=('Jensen 2023', 'Sole et al. 2002'),
-    defaults={'until': 4000},
-)
-def duplication_deletion(
-    n_nodes: int = 100,
-    *,
-    kill: float = 1.0,
-    inherit: float = 0.5,
-    parent: float = 0.5,
-    new: float = 0.01,
-    density: float = 0.05,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the steady-state duplication-deletion network of Jensen, whose connectance settles at Eq. 8.84.
+class DuplicationDeletionSystem(BaseSystem):
+    """The steady-state duplication-deletion network of Jensen, whose connectance settles at Eq. 8.84.
 
     The network starts as an Erdős-Rényi graph of `n_nodes` nodes and the link probability `density`. Every step a node
     drawn uniformly leaves with its links with probability `kill`, and a parent drawn uniformly among the nodes left is
@@ -87,6 +63,8 @@ def duplication_deletion(
     `C = (new (N - 2) + parent) / (N - 1 + (new - inherit) (N - 2))`, Eq. 8.84. Accurate duplication, with `inherit`
     near 1 and `new` near 0, turns the binomial degrees of noisy duplication into a cut-off power law. With `kill < 1`
     the network grows by `1 - kill` nodes per step on average, up to twice its initial size.
+
+    The system has the groups `nodes` and `links`, the deletion `death`, and the duplication `birth`.
 
     Args:
         n_nodes:
@@ -110,28 +88,70 @@ def duplication_deletion(
         random_state:
             The seed or generator of the initial graph.
 
-    Returns:
-        system:
-            The system, with the groups `nodes` and `links`, the deletion `death`, and the duplication `birth`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import Simulation
-        >>> from skcomplex.systems.mathematics.networks import duplication_deletion
-        >>> trajectory = Simulation(duplication_deletion(30), random_state=0).prepare().run(until=20).trajectory_
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.mathematics.networks import DuplicationDeletionSystem
+        >>> trajectory = simulate(DuplicationDeletionSystem(30), until=20, random_state=0)
         >>> len(trajectory.network(-1).nodes)
         30
     """
-    graph = nx.gnp_random_graph(n_nodes, density, seed=np.random.default_rng(random_state))
-    death = TopologyInteraction('death', target='nodes', action='remove-node', one=True, probability=kill)
-    birth = TopologyInteraction(
-        'birth',
-        target='nodes',
-        action='duplicate-node',
-        one=True,
-        inherit=inherit,
-        parent=parent,
-        independent=True,
-        toward=lambda node: new,
-    )
-    capacity = n_nodes * (2 * n_nodes - 1)
-    return _system(2 * n_nodes, NetworkSpace(graph), capacity, [death, birth])
+
+    field = 'mathematics/networks'
+    topics = ('network', 'duplication', 'deletion', 'evolution', 'protein interaction network', 'connectance')
+    references = ('Jensen 2023', 'Sole et al. 2002')
+    until = 4000
+
+    def __init__(
+        self,
+        n_nodes: int = 100,
+        *,
+        kill: float = 1.0,
+        inherit: float = 0.5,
+        parent: float = 0.5,
+        new: float = 0.01,
+        density: float = 0.05,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_nodes = n_nodes
+        self.kill = kill
+        self.inherit = inherit
+        self.parent = parent
+        self.new = new
+        self.density = density
+        self.random_state = random_state
+
+    @staticmethod
+    def _system(
+        label: str,
+        capacity: int,
+        space: NetworkSpace,
+        links: int,
+        changes: list[TopologyInteraction],
+    ) -> System:
+        """Return the network of variable groups on its nodes and links, its changes, and the map of the degrees."""
+        nodes = GroupElement('nodes', element=DuplicatingNodeElement, on='sites', variable=True, capacity=capacity)
+        edges = GroupElement('links', element=Element, on='edges', variable=True, capacity=links)
+        degree = MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))
+        return System(label, elements=[nodes, edges], interactions=[*changes, degree], space=space, time=DiscreteTime())
+
+    def _build_system(self) -> System:
+        """Return the steady-state duplication-deletion network of Jensen."""
+        graph = nx.gnp_random_graph(self.n_nodes, self.density, seed=np.random.default_rng(self.random_state))
+        death = TopologyInteraction('death', target='nodes', action='remove-node', one=True, probability=self.kill)
+        birth = TopologyInteraction(
+            'birth',
+            target='nodes',
+            action='duplicate-node',
+            one=True,
+            inherit=self.inherit,
+            parent=self.parent,
+            independent=True,
+            toward=lambda node: self.new,
+        )
+        capacity = self.n_nodes * (2 * self.n_nodes - 1)
+        return self._system(self.label, 2 * self.n_nodes, NetworkSpace(graph), capacity, [death, birth])

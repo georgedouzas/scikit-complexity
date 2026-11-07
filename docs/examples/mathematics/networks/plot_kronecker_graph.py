@@ -15,9 +15,9 @@ import networkx as nx
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.mathematics.networks import KroneckerGraphSystem
 
 SYSTEM = 'kronecker_graph'
 
@@ -35,9 +35,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=1)
+trajectory = simulate(KroneckerGraphSystem(), observers=[observer])
 
 # %%
 # Degrees multiply
@@ -46,7 +45,7 @@ simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=
 # the product is the distribution of products of the degrees of the factors (Gros, chapter 1).
 
 first, second = nx.barabasi_albert_graph(30, 2, seed=1), nx.barabasi_albert_graph(20, 1, seed=2)
-product = create_system(SYSTEM, first=first, second=second).space.graph
+product = KroneckerGraphSystem(first=first, second=second).prepare().system_.space.graph
 expected = [first.degree(pair[0]) * second.degree(pair[1]) for _, pair in product.nodes(data='pair')]
 observed = [product.degree(node) for node in product.nodes]
 fig, (scatter, tail) = plt.subplots(1, 2, figsize=(10, 4))
