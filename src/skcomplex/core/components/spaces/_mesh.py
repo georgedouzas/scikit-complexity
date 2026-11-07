@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -45,6 +46,8 @@ class MeshSpace(BaseSpace):
         >>> mesh.size_, mesh.n_dim_, mesh.positions_.shape
         (20, 2, (20, 2))
     """
+
+    space_tags: ClassVar[tuple[str, ...]] = ('continuous',)
 
     def __init__(self, points: npt.ArrayLike, cells: npt.ArrayLike, *, label: str = 'space') -> None:
         super().__init__(label)

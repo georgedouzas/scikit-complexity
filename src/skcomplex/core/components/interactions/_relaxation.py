@@ -11,6 +11,7 @@ from ...errors import ValidationError
 from ...specs import RoleSpec
 from ...types import ElementKind
 from ..laws import BaseLaw, FractionalNoiseLaw, NoiseLaw, RateLaw
+from ._base import RATE_DOMAINS
 from ._rate import RateInteraction
 
 
@@ -64,7 +65,7 @@ class RelaxationInteraction(RateInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',), domains=RATE_DOMAINS)],
         state: str = 'x',
         goal: Callable[[SimpleNamespace], object] | float = 0.0,
         time: Callable[[SimpleNamespace], object] | float = 1.0,

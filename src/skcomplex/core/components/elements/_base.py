@@ -4,9 +4,10 @@
 # License: MIT
 
 from collections.abc import Sequence
+from dataclasses import replace
 from types import SimpleNamespace
 
-from ...specs import StateSpec, VisualSpec
+from ...specs import StateSpec, Tags, VisualSpec
 from ..base import BasePart
 from ..spaces import BaseSpace
 
@@ -82,6 +83,15 @@ class BaseElement(BasePart[BaseSpace, SimpleNamespace]):
                 The space the element inherits from its system, which an element does not read.
         """
         self.default_visual_ = VisualSpec()
+
+    def _get_domain_tags(self) -> frozenset[str]:
+        """Return the domain tags of the states of the element."""
+        domains = {spec._get_domain_tag() for spec in self.get_states().values()}
+        return frozenset(domain for domain in domains if domain is not None)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the element: the domains of its states and the laws its class lists."""
+        return replace(self._get_law_tags(self._get_declared_laws()), domains=self._get_domain_tags())
 
     def get_states(self) -> dict[str, StateSpec]:
         """Return the states the element carries with their specs, those of its class and those it declares from data.

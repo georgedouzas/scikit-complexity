@@ -14,6 +14,7 @@ from ...errors import ValidationError
 from ...specs import RoleSpec
 from ...types import ElementKind
 from ..laws import BaseLaw, FluxLaw, RateLaw
+from ._base import RATE_DOMAINS
 from ._conservation import ConservationInteraction
 
 
@@ -88,7 +89,7 @@ class AdvectionInteraction(ConservationInteraction):
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',), domains=RATE_DOMAINS)],
         state: str = 'u',
         drift: Callable[[SimpleNamespace], object] | None = None,
         source: Callable[[SimpleNamespace], object] | None = None,

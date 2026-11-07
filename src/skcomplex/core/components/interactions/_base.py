@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 
 from ...errors import SpaceError, ValidationError
-from ...specs import InteractionRequirementSpec, ParameterSpec, PartnerSpec, RoleSpec, StateSpec
+from ...specs import InteractionRequirementSpec, ParameterSpec, PartnerSpec, RoleSpec, StateSpec, Tags
 from ..base import BasePart
 from ..laws import BaseLaw
 from ..spaces import BaseSpace, ContinuousSpace
@@ -20,6 +20,7 @@ from ..types import AgentViewProtocol, SystemViewProtocol
 
 SCHEDULES = ('synchronous', 'sequential', 'random-sequential', 'member')
 GRID_CANDIDATES = ('neighbors', 'cell', 'local')
+RATE_DOMAINS = ('real', 'integer', 'complex', 'vector')
 
 
 class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
@@ -36,7 +37,9 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
     reads the plain attribute, so a subclass renames a parameter or fixes its value by setting the attribute.
 
     A role states what it needs in its `RoleSpec`, and the class lists the laws it may return in `law_classes`, which
-    `get_requirements` reads.
+    `get_requirements` reads. Its capability tags come from the laws it returns for its arguments: a class whose
+    arguments choose among its laws overrides `_get_tags` and passes the chosen classes to `_get_variant_tags`. A
+    subclass that writes its laws in `_get_laws` without listing them leaves its law kinds unknown.
 
     Args:
         label:
@@ -66,6 +69,51 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = ()
     laws_: Sequence[BasePart]
+
+    def _get_argument(self, name: str) -> object:
+        """Return the value of an argument of the general interaction under its subclass name, or `None` without one.
+
+        Args:
+            name:
+                The name of the argument in the general interaction, such as `'noise'`.
+
+        Returns:
+            value:
+                The value of the argument, or `None` when the interaction has no such attribute.
+        """
+        return getattr(self, self._get_parameter(name), None)
+
+    def _get_variant_tags(
+        self,
+        classes: Sequence[type[BaseLaw]],
+        *,
+        stochastic: bool = False,
+        structure: frozenset[str] = frozenset(),
+    ) -> Tags:
+        """Return the tags of the laws an interaction returns for its arguments, unknown below its own `_get_laws`.
+
+        Args:
+            classes:
+                The law classes the arguments choose.
+
+            stochastic:
+                Whether the arguments make laws of deterministic kinds draw, such as an update with a probability.
+
+            structure:
+                How the laws change the structure of the system, such as `'changing topology'`.
+
+        Returns:
+            tags:
+                The tags of the chosen laws, or unknown law kinds when a subclass writes laws it does not list.
+        """
+        if self._get_declared_laws() is None:
+            return replace(self._get_law_tags(None), structure=structure)
+        tags = self._get_law_tags(classes)
+        return replace(tags, randomness='stochastic' if stochastic else tags.randomness, structure=structure)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the laws the class lists, or unknown law kinds when it writes laws it does not list."""
+        return self._get_law_tags(self._get_declared_laws())
 
     def _run(self, inputs: SimpleNamespace | None) -> None:
         """Set `laws_`, the laws of the interaction for a namespace of symbols.

@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import ClassVar
 
 from ...errors import ValidationError
 from ...specs import RequirementSpec
@@ -49,6 +50,8 @@ class FluxLaw(BaseLaw):
         >>> FluxLaw(u, u**2 / 2, riemann='godunov').prepare().run({'u': 2.0}).value_
         2.0
     """
+
+    law_tag: ClassVar[str] = 'rate'
 
     def __init__(
         self,

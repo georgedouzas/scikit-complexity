@@ -13,7 +13,7 @@ from sage.all__sagemath_symbolics import SR, Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ...errors import ValidationError
-from ...specs import BaseSpec, ParameterSpec, RoleSpec
+from ...specs import BaseSpec, ParameterSpec, RoleSpec, Tags
 from ...types import ElementKind
 from ..laws import BaseLaw, JumpLaw, RuleLaw, UpdateLaw
 from ..laws.utils import categorical, neighbors, uniform, where
@@ -109,6 +109,15 @@ class ImitationInteraction(NeighborInteraction):
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (JumpLaw, RuleLaw, UpdateLaw)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the rules, the updates that draw with a probability, or the jumps of the rate form."""
+        form = self._get_argument('form')
+        if form == 'agent':
+            return self._get_variant_tags((RuleLaw,))
+        if form == 'probability':
+            return self._get_variant_tags((UpdateLaw,), stochastic=True)
+        return self._get_variant_tags((JumpLaw,))
 
     def __init__(
         self,

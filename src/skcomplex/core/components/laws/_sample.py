@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import ClassVar
 
 from ...specs import MoveSpec, ObjectiveSpec, RequirementSpec, SamplerSpec
 from ..spaces import DiscreteTime, LatticeSpace, NetworkSpace
@@ -36,6 +37,8 @@ class SampleLaw(BaseLaw):
         >>> law.prepare().targets_
         (spin,)
     """
+
+    law_tag: ClassVar[str] = 'sampling'
 
     def __init__(
         self,

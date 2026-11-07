@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
+from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -38,6 +39,8 @@ class TransitionLaw(BaseLaw):
         >>> TransitionLaw(x, [[q, 1 - q], [0.4, 0.6]]).prepare().run({'q': 0.1}).value_[0]
         [0.1, 0.9]
     """
+
+    law_tag: ClassVar[str] = 'jump'
 
     def __init__(
         self,

@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
+from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -39,6 +40,8 @@ class EmissionLaw(BaseLaw):
         >>> EmissionLaw(observed, hidden, [[0.7, 0.3], [0.2, 0.8]]).prepare().targets_
         (observed,)
     """
+
+    law_tag: ClassVar[str] = 'jump'
 
     def __init__(
         self,

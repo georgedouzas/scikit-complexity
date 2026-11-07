@@ -12,7 +12,7 @@ from sage.all__sagemath_symbolics import Expression
 from sage.sets.real_set import RealSet
 
 from ...errors import ValidationError
-from ...specs import ParameterSpec, RoleSpec
+from ...specs import ParameterSpec, RoleSpec, Tags
 from ...types import Array, ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, RuleLaw, UpdateLaw
@@ -102,6 +102,10 @@ class ReinforcementInteraction(Interaction):
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw, UpdateLaw)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the rules of the agent form or of the updates of the symbolic reinforcement."""
+        return self._get_variant_tags((RuleLaw,) if self._get_argument('form') == 'agent' else (UpdateLaw,))
 
     def __init__(
         self,

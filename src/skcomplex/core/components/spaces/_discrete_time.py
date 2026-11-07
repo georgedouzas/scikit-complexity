@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import ClassVar
+
 import numpy as np
 import numpy.typing as npt
 
@@ -30,6 +32,8 @@ class DiscreteTime(BaseTime):
         >>> DiscreteTime(schedule='random-sequential').prepare().schedule_
         'random-sequential'
     """
+
+    time_tag: ClassVar[str] = 'discrete'
 
     def __init__(self, schedule: str | ScheduleSpec = 'synchronous', *, label: str = 'time') -> None:
         super().__init__(label)

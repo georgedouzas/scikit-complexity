@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
+from typing import ClassVar
 
 from ...errors import RewritingError
 from ...specs import AffineSpec, RequirementSpec
@@ -38,6 +39,8 @@ class SubstitutionLaw(BaseLaw):
         >>> len(SubstitutionLaw('interval', [('interval', AffineSpec(scale=1 / 3))]).pieces)
         1
     """
+
+    law_tag: ClassVar[str] = 'update'
 
     value_: list[tuple[str, object]]
 

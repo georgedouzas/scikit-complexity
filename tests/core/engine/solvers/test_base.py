@@ -6,7 +6,7 @@ from sage.all__sagemath_symbolics import RR
 
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.problems import BaseProblemSpec
-from skcomplex.core.engine.solvers import BaseSolver
+from skcomplex.core.engine.solvers import BaseSolver, GillespieSolver, LatticeSolver, ScipyODESolver
 from skcomplex.core.errors import SolverError
 from skcomplex.core.specs import EntrySpec, LayoutSpec, StepSpec
 from skcomplex.core.types import FormKind
@@ -97,3 +97,13 @@ def test_solver_speaks_only_the_estimator_verbs():
     """Test that the solver base has none of the former verbs."""
     for name in ('initialize', 'advance', 'plan', 'initial_state', 'drain_events', 'snapshot', 'agents_of'):
         assert not hasattr(BaseSolver, name)
+
+
+def test_solvers_support_the_tags_of_the_classes_they_support():
+    """Test that a solver supports the tags of its supported classes and of their subclasses, and no other law kind."""
+    ode = ScipyODESolver.get_supported_tags()
+    assert ode.time == {'continuous'}
+    assert 'jump' not in ode.laws
+    assert {'none', 'lattice', 'phase space', 'hypergraph'} <= ode.space
+    assert GillespieSolver.get_supported_tags().laws == {'jump', 'update'}
+    assert 'none' not in LatticeSolver.get_supported_tags().space

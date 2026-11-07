@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Sequence
+from typing import ClassVar
 
 from ...specs import DatasetSpec, ObservableSpec, RequirementSpec
 from ..spaces import DiscreteTime
@@ -55,6 +56,8 @@ class GradientStepLaw(BaseLaw):
         >>> law.prepare('training').targets_
         ()
     """
+
+    law_tag: ClassVar[str] = 'update'
 
     def __init__(
         self,

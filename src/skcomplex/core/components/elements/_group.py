@@ -4,13 +4,14 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from types import SimpleNamespace
 
 import numpy as np
 from sage.all__sagemath_symbolics import ZZ
 
 from ...errors import SpaceError, ValidationError
-from ...specs import RoleSpec, Spec, StateSpec, VisualSpec
+from ...specs import RoleSpec, Spec, StateSpec, Tags, VisualSpec
 from ..base import BasePart
 from ..spaces import BaseSpace
 from ._base import BaseElement
@@ -188,6 +189,13 @@ class GroupElement(BaseElement):
             ['x']
         """
         return {name: spec for name, spec in self._get_member_specs().items() if isinstance(spec, StateSpec)}
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the group: those of its members, on its own space, with a variable membership or not."""
+        tags = replace(self._get_law_tags(self.element._get_declared_laws()), domains=self._get_domain_tags())
+        space = frozenset() if self.space is None else self.space.get_tags().space
+        structure = frozenset({'variable membership'}) if self.variable else frozenset()
+        return replace(tags, space=space, structure=structure)
 
     def _get_member_location(self, index: int, size: int) -> object:
         """Return the initial location of one of `size` members, from per-member locations or one shared location."""

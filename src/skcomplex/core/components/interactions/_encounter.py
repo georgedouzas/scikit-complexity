@@ -11,7 +11,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression
 
 from ...errors import ValidationError
-from ...specs import RoleSpec
+from ...specs import RoleSpec, Tags
 from ...types import ElementKind
 from ..laws import BaseLaw, BilinearLaw, EncounterLaw, RateLaw
 from ..laws.utils import collision
@@ -94,6 +94,15 @@ class EncounterInteraction(Interaction):
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (BilinearLaw, EncounterLaw, RateLaw)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of a collision rate, a linear or bilinear encounter, as the arguments choose."""
+        if self._get_argument('cross_section') is not None:
+            return self._get_variant_tags((RateLaw,))
+        bilinear = self._get_argument('outcome') in ('destructive', 'proliferative')
+        if self._get_argument('field') is not None and bilinear:
+            return self._get_variant_tags((BilinearLaw,))
+        return self._get_variant_tags((EncounterLaw,))
 
     def __init__(
         self,

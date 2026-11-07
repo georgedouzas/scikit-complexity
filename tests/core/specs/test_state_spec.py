@@ -4,7 +4,8 @@ from typing import Annotated, ClassVar
 
 import numpy as np
 import pytest
-from sage.all__sagemath_symbolics import SR
+from sage.all__sagemath_symbolics import CC, SR, ZZ
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
@@ -100,3 +101,21 @@ def test_matrix_group_state_holds_its_matrices_alone(arguments):
     """Test that a matrix group state that is also a vector, a tensor, or of another order or with lags is refused."""
     with pytest.raises(ValidationError, match='holds its matrices alone'):
         StateSpec(group=COLOR, **arguments).prepare()
+
+
+@pytest.mark.parametrize(
+    ('arguments', 'tag'),
+    [
+        ({}, 'real'),
+        ({'domain': ZZ}, 'integer'),
+        ({'domain': FiniteEnumeratedSet([0, 1])}, 'boolean'),
+        ({'domain': FiniteEnumeratedSet(['S', 'I'])}, 'categorical'),
+        ({'domain': CC}, 'complex'),
+        ({'vector': True}, 'vector'),
+        ({'group': COLOR}, 'matrix group'),
+        ({'domain': None}, None),
+    ],
+)
+def test_state_gives_its_domain_tag(arguments, tag):
+    """Test that a state spec gives the domain tag of its values."""
+    assert StateSpec(**arguments)._get_domain_tag() == tag

@@ -3,8 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 from collections.abc import Iterator, Sequence
+from typing import ClassVar
 
 import numpy as np
 
@@ -50,6 +50,8 @@ class MatchLaw(BaseLaw):
         >>> MatchLaw('buyers', 'sellers', label='trades').capacity
         1
     """
+
+    law_tag: ClassVar[str] = 'update'
 
     def __init__(
         self,

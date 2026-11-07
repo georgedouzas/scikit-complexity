@@ -9,7 +9,9 @@ import inspect
 import numbers
 from abc import abstractmethod
 from collections.abc import Collection, Mapping
+from dataclasses import replace
 from types import SimpleNamespace
+from typing import ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
@@ -17,7 +19,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.structure.element import Matrix
 
 from ...errors import ValidationError
-from ...specs import CallSpec, RequirementSpec
+from ...specs import CallSpec, RequirementSpec, Tags
 from ..base import BasePart
 
 
@@ -57,6 +59,8 @@ class BaseLaw(BasePart[str, object]):
         -1.0
     """
 
+    law_tag: ClassVar[str] = ''
+
     value_: object
 
     @abstractmethod
@@ -71,6 +75,11 @@ class BaseLaw(BasePart[str, object]):
     def _get_law_requirements(self) -> RequirementSpec:
         """Return what this law requires of a system, which its arguments may narrow."""
         return self._get_requirements()
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the law: its kind, its randomness, and the times its arguments let it run in."""
+        times = frozenset(getattr(time, 'time_tag', '') for time in self._get_law_requirements().time) - {''}
+        return replace(self._get_law_tags([type(self)]), time=times)
 
     @classmethod
     def get_requirements(cls) -> RequirementSpec:

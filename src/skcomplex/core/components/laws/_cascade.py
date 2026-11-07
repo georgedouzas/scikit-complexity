@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Callable, Sequence
+from typing import ClassVar
 
 from ...specs import RequirementSpec
 from ..spaces import DiscreteTime, LatticeSpace, NetworkSpace
@@ -47,6 +48,8 @@ class CascadeLaw(BaseLaw):
         >>> CascadeLaw([], [topple], lambda z: bool((z < 4).all())).prepare().targets_
         (height,)
     """
+
+    law_tag: ClassVar[str] = 'update'
 
     def __init__(
         self,

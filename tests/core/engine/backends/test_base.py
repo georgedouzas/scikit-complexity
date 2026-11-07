@@ -15,7 +15,7 @@ from skcomplex.core.components.laws import JumpLaw, NoiseLaw, RateLaw, UpdateLaw
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine._utils import vector
-from skcomplex.core.engine.backends import BaseBackend, NumbaBackend, NumpyBackend, _numba
+from skcomplex.core.engine.backends import BaseBackend, JaxBackend, NumbaBackend, NumpyBackend, _numba
 from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.problems import LoweredKernelsSpec
 from skcomplex.core.engine.runtime import Simulation
@@ -511,3 +511,10 @@ def test_backends_derive_from_the_backend_base():
     """Test that the code backends of the engine derive from the backend base of the core."""
     assert issubclass(NumbaBackend, BaseBackend)
     assert issubclass(NumpyBackend, BaseBackend)
+
+
+def test_backends_support_the_tags_of_the_classes_they_support():
+    """Test that a backend supports the tags of the classes it supports."""
+    assert JaxBackend.get_supported_tags().space == {'none'}
+    assert 'noise' not in JaxBackend.get_supported_tags().laws
+    assert 'noise' in NumpyBackend.get_supported_tags().laws

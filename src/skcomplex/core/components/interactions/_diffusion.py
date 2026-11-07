@@ -8,11 +8,12 @@ from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 from ...errors import ValidationError
-from ...specs import RoleSpec
+from ...specs import RoleSpec, Tags
 from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, FluxLaw, RateLaw
 from ..laws.utils import laplacian
+from ._base import RATE_DOMAINS
 from ._conservation import ConservationInteraction
 
 
@@ -63,11 +64,15 @@ class DiffusionInteraction(ConservationInteraction):
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (FluxLaw, RateLaw)
 
+    def _get_tags(self) -> Tags:
+        """Return the tags of the rate of diffusion."""
+        return self._get_variant_tags((RateLaw,))
+
     def __init__(
         self,
         label: str,
         *,
-        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',))],
+        target: Annotated[str, RoleSpec(elements=(ElementKind.ANY,), states=('state',), domains=RATE_DOMAINS)],
         state: str = 'u',
         coefficient: Callable[[SimpleNamespace], object] | float = 1.0,
     ) -> None:

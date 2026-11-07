@@ -27,6 +27,7 @@ from ...specs import (
     RoleSpec,
     RowScoreSpec,
     SamplerSpec,
+    Tags,
 )
 from ...types import Array, ComplexArray, ElementKind, Indices
 from ..laws import BaseLaw, DriveLaw, SampleLaw
@@ -303,6 +304,11 @@ class SamplingInteraction(Interaction):
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (DriveLaw, SampleLaw)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of a Monte Carlo sweep of a function, or of the drives of a declared score, which draw."""
+        sweep = callable(self._get_argument('objective'))
+        return self._get_variant_tags((SampleLaw,) if sweep else (DriveLaw,), stochastic=True)
 
     def __init__(
         self,

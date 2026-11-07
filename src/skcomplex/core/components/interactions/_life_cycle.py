@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
 from ...errors import ValidationError
-from ...specs import RoleSpec
+from ...specs import RoleSpec, Tags
 from ...types import ElementKind
 from ..laws import BaseLaw, RuleLaw
 from ..spaces import BaseSpace
@@ -158,6 +158,10 @@ class LifeCycleInteraction(Interaction):
     reports: ClassVar[tuple[str, ...]] = ('births', 'deaths', 'arrivals')
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the rules of births and deaths, which change the membership of groups."""
+        return self._get_variant_tags((RuleLaw,), structure=frozenset({'variable membership'}))
 
     def __init__(
         self,

@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import ClassVar
 
 from ...specs import RequirementSpec
 from ..types import Target
@@ -31,6 +32,8 @@ class BoundaryLaw(BaseLaw):
         >>> BoundaryLaw(x, x - floor(x)).prepare().run({'x': 2.25}).value_
         0.25
     """
+
+    law_tag: ClassVar[str] = 'update'
 
     def __init__(self, target: Target, value: object, *, label: str = '') -> None:
         super().__init__(label)

@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import ClassVar
 
 from sage.all__sagemath_symbolics import Expression
 
@@ -31,6 +32,8 @@ class GeneratorLaw(BaseLaw):
         >>> GeneratorLaw(var('h') * z).prepare().run({'h': 0.5}).value_
         0.5*local_operator(q, z)
     """
+
+    law_tag: ClassVar[str] = 'rate'
 
     def __init__(self, operator: object, *, label: str = '') -> None:
         super().__init__(label)

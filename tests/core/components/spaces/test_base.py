@@ -2,10 +2,21 @@
 
 from types import SimpleNamespace
 
+import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.components.spaces import BaseNeighborhood, BaseSpace, BaseTime
+from skcomplex.core.components.spaces import (
+    BaseNeighborhood,
+    BaseSpace,
+    BaseTime,
+    CellComplexSpace,
+    ContinuousTime,
+    LatticeSpace,
+    NetworkSpace,
+    PhaseSpace,
+    StaticTime,
+)
 from skcomplex.core.errors import SpaceError
 
 
@@ -111,3 +122,15 @@ def test_base_time_runs_into_no_laws_and_frames_its_ends():
     assert time.schedule_ is None
     assert not hasattr(time.run(SimpleNamespace()), 'laws_')
     assert time._get_frames(2.0).tolist() == [0.0, 2.0]
+
+
+def test_spaces_and_times_give_their_tags():
+    """Test that a space gives its space tag, a network with hyperedges is a hypergraph, and a time its time tag."""
+    ring = nx.cycle_graph(4)
+    assert LatticeSpace((3,)).get_tags().space == {'lattice'}
+    assert NetworkSpace(ring).get_tags().space == {'network'}
+    assert NetworkSpace(ring, hyperedges=[[0, 1, 2]]).get_tags().space == {'hypergraph'}
+    assert CellComplexSpace(NetworkSpace(ring)).get_tags().space == {'cell complex'}
+    assert PhaseSpace.space_tags == ('phase space',)
+    assert ContinuousTime().get_tags().time == {'continuous'}
+    assert StaticTime().get_tags().laws == frozenset()

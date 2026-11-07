@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -70,6 +71,8 @@ class LatticeSpace(BaseSpace):
         >>> LatticeSpace((2, 2), geometry='triangular').prepare().positions_.round(3).tolist()
         [[0.0, 0.0], [1.0, 0.0], [0.5, 0.866], [1.5, 0.866]]
     """
+
+    space_tags: ClassVar[tuple[str, ...]] = ('lattice',)
 
     def __init__(
         self,

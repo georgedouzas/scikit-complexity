@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import ClassVar
+
 import numpy as np
 import numpy.typing as npt
 
@@ -21,6 +23,8 @@ class StaticTime(BaseTime):
         >>> StaticTime().prepare().schedule_ is None
         True
     """
+
+    time_tag: ClassVar[str] = 'static'
 
     def __init__(self, *, label: str = 'time') -> None:
         super().__init__(label)

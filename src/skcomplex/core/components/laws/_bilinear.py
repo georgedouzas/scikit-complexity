@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression
@@ -47,6 +48,8 @@ class BilinearLaw(BaseLaw):
         >>> BilinearLaw(f, f, g, -0.5).prepare().run({}).value_
         (-0.5, None)
     """
+
+    law_tag: ClassVar[str] = 'rate'
 
     def __init__(
         self,

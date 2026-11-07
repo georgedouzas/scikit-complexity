@@ -15,7 +15,7 @@ from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
 from ...errors import ValidationError
-from ...specs import BaseSpec, ClampSpec, ParameterSpec, RadiusSpec, RoleSpec
+from ...specs import BaseSpec, ClampSpec, ParameterSpec, RadiusSpec, RoleSpec, Tags
 from ...types import Array, ElementKind
 from ..laws import BaseLaw, RateLaw, RuleLaw, UpdateLaw
 from ..laws.utils import count, delayed, hyperedges, maximum, minimum, neighbors, shift_member, total
@@ -171,6 +171,11 @@ class CouplingInteraction(NeighborInteraction):
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RateLaw, RuleLaw, UpdateLaw)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the rules of the agent form, the updates of the map form, or the rates otherwise."""
+        forms: dict[object, tuple[type[BaseLaw], ...]] = {'agent': (RuleLaw,), 'map': (UpdateLaw,)}
+        return self._get_variant_tags(forms.get(self._get_argument('form'), (RateLaw,)))
 
     def __init__(
         self,

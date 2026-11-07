@@ -14,7 +14,7 @@ from sage.sets.real_set import RealSet
 from scipy.special import expit, softmax
 
 from ...errors import ValidationError
-from ...specs import BaseSpec, ParameterSpec, RoleSpec
+from ...specs import BaseSpec, ParameterSpec, RoleSpec, Tags
 from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, RuleLaw, UpdateLaw
@@ -121,6 +121,10 @@ class ChoiceInteraction(Interaction):
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw, UpdateLaw)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the rules of the agent form or of the updates of the symbolic choice."""
+        return self._get_variant_tags((RuleLaw,) if self._get_argument('form') == 'agent' else (UpdateLaw,))
 
     def __init__(
         self,

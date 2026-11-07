@@ -13,7 +13,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import SR, Expression, exp, log
 
 from ...errors import ValidationError
-from ...specs import RoleSpec
+from ...specs import RoleSpec, Tags
 from ...types import ElementKind
 from ..base import BasePart
 from ..laws import BaseLaw, EmissionLaw, JumpLaw, RuleLaw, TransitionLaw, UpdateLaw
@@ -143,6 +143,17 @@ class TransitionInteraction(Interaction):
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (JumpLaw, UpdateLaw, RuleLaw, TransitionLaw, EmissionLaw)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the rules, the Markov chain steps, the jumps, or the updates the arguments choose."""
+        if self._get_argument('form') == 'agent':
+            return self._get_variant_tags((RuleLaw,))
+        if self._get_argument('matrix') is not None:
+            observed = self._get_argument('emission') is not None and self._get_argument('observed') is not None
+            return self._get_variant_tags((TransitionLaw, *((EmissionLaw,) if observed else ())))
+        if self._get_argument('rate') is not None:
+            return self._get_variant_tags((JumpLaw,))
+        return self._get_variant_tags((UpdateLaw,), stochastic=self._get_argument('probability') is not None)
 
     def __init__(
         self,

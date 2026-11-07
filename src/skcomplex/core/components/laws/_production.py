@@ -4,6 +4,7 @@
 # License: MIT
 
 import numbers
+from typing import ClassVar
 
 from ...errors import RewritingError
 from ...specs import Letters, ModuleSpec, RequirementSpec
@@ -52,6 +53,8 @@ class ProductionLaw(BaseLaw):
         >>> [module.name for module in ProductionLaw('F', 'F+F--F+F').prepare().run({}).value_]
         ['F', '+', 'F', '-', '-', 'F', '+', 'F']
     """
+
+    law_tag: ClassVar[str] = 'update'
 
     value_: list[ModuleSpec]
 

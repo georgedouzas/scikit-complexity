@@ -10,7 +10,7 @@ import numpy as np
 
 from ...base import BaseConfig
 from ...errors import SolverError, ValidationError
-from ...specs import StepSpec, SupportSpec
+from ...specs import StepSpec, SupportSpec, Tags
 from ...specs._base_record_spec import BaseRecordSpec
 from ...types import Array, FormKind
 from ..problems import BaseProblemSpec, ProblemSpec
@@ -120,6 +120,21 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
                 The subclass does not implement the hook.
         """
         raise NotImplementedError
+
+    @classmethod
+    def get_supported_tags(cls) -> Tags:
+        """Return the capability tags the solver supports, from the classes of time, space, and laws it supports.
+
+        Returns:
+            tags:
+                The supported times, spaces, and law kinds, where an empty field supports any value.
+
+        Examples:
+            >>> from skcomplex.core.engine.solvers import GillespieSolver
+            >>> sorted(GillespieSolver.get_supported_tags().laws)
+            ['jump', 'update']
+        """
+        return cls._get_support().get_tags()
 
     @classmethod
     def _is_stepwise(cls) -> bool:

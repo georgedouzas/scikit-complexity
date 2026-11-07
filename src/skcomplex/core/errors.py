@@ -52,6 +52,10 @@ class RoleElementError(RoleError):
     """A role of an interaction is bound to an element of a kind it does not accept, or without a state it reads."""
 
 
+class TagError(ValidationError):
+    """The parts of a system disagree on a capability tag, or a solver or a backend does not support the tags."""
+
+
 class SpaceError(ValidationError):
     """A part needs a kind of space the system lacks, a vector has no space, or a location does not fit its space."""
 

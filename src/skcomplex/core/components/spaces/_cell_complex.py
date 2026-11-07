@@ -5,6 +5,7 @@
 
 import itertools
 from collections.abc import Sequence
+from typing import ClassVar
 
 import networkx as nx
 import numpy as np
@@ -13,6 +14,7 @@ import scipy.sparse
 import xgi
 
 from ...errors import SpaceError, ValidationError
+from ...specs import Tags
 from ...types import Array, Indices
 from ._lattice import LatticeSpace
 from ._network import NetworkSpace
@@ -105,6 +107,12 @@ class CellComplexSpace(NetworkSpace):
         >>> square.boundaries_[0].tolist(), square.boundary_signs_[0].tolist()
         ([0, 72, 1, 64], [1.0, 1.0, -1.0, -1.0])
     """
+
+    space_tags: ClassVar[tuple[str, ...]] = ('cell complex',)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the cell complex, and no laws."""
+        return Tags(space=frozenset(self.space_tags))
 
     def __init__(
         self,

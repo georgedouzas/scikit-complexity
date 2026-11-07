@@ -4,6 +4,7 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
+from typing import ClassVar
 
 import numpy as np
 import numpy.typing as npt
@@ -67,6 +68,8 @@ class ContinuousSpace(BaseSpace):
         >>> space.regions_['parks'].query(Point(2.5, 2.5), predicate='intersects').tolist()
         [1]
     """
+
+    space_tags: ClassVar[tuple[str, ...]] = ('continuous',)
 
     def __init__(
         self,

@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import ClassVar
+
 from ._base import BaseTime
 
 
@@ -18,6 +20,8 @@ class ContinuousTime(BaseTime):
         >>> ContinuousTime().prepare().schedule_ is None
         True
     """
+
+    time_tag: ClassVar[str] = 'continuous'
 
     def __init__(self, *, label: str = 'time') -> None:
         super().__init__(label)
