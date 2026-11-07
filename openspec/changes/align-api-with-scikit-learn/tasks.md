@@ -26,8 +26,8 @@
 
 ## 5. Ready-made systems
 
-- [ ] 5.1 Turn every factory function into a system class with model parameters and class attributes, by field
-- [ ] 5.2 Update every system's tests and gallery example to the class, `simulate`, and the analysis functions
+- [x] 5.1 Turn every factory function into a system class with model parameters and class attributes, by field
+- [x] 5.2 Update every system's tests and gallery example to the class, `simulate`, and the analysis functions
 - [ ] 5.3 Extract general systems of the core where two fields share a structure, starting with mass-action compartments
 
 ## 6. Documentation
