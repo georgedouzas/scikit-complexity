@@ -3,14 +3,232 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import cos, oo, pi
+from sage.sets.real_set import RealSet
+
+from ....core.components.elements import Element
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.system import System
 from ....core.errors import ValidationError
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._neural_mass import NeuralMassElement
-from ._synaptic_drive import SynapticDriveInteraction
-from ._theta_forcing import ThetaForcingInteraction
+
+FIELDS = ('r', 's')
 
 SETUPS = ('ping', 'ing')
+
+
+class NeuralMassElement(Element):
+    """Population of quadratic integrate-and-fire neurons in the exact mean field of Montbrió, Pazó, and Roxin.
+
+    The excitabilities of the neurons follow a Lorentzian distribution of median `H` and half-width `delta`, so the
+    firing rate `r` and the mean membrane potential `v` of the population follow `dr/dt = delta / (tau^2 pi) + 2 r v
+    / tau` and `dv/dt = (v^2 + H) / tau - tau (pi r)^2` exactly, with the membrane time constant `tau`. The synaptic
+    field `s` filters the rate with exponential synapses, `ds/dt = (r - s) / tau_d`. Couplings and inputs add to the
+    rate of `v`.
+
+    Args:
+        label:
+            The label of the population.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        r:
+            The initial firing rate, in spikes per millisecond.
+
+        v:
+            The initial mean membrane potential.
+
+        s:
+            The initial synaptic field.
+
+        tau:
+            The membrane time constant, in milliseconds.
+
+        delta:
+            The half-width of the Lorentzian excitabilities.
+
+        H:
+            The median of the Lorentzian excitabilities.
+
+        tau_d:
+            The decay time of the synapses, in milliseconds.
+
+    Examples:
+        >>> from skcomplex.systems.biology.neuroscience import NeuralMassElement
+        >>> NeuralMassElement('excitatory', tau=20.0).tau
+        20.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        r: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        v: Annotated[float, StateSpec()] = -1.0,
+        s: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 20.0,
+        delta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        H: Annotated[float, ParameterSpec()] = -5.0,
+        tau_d: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.r = r
+        self.v = v
+        self.s = s
+        self.tau = tau
+        self.delta = delta
+        self.H = H
+        self.tau_d = tau_d
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the mean-field rate, potential, and synaptic field.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return [
+            RateLaw(s.r, s.delta / (s.tau**2 * pi) + 2 * s.r * s.v / s.tau),
+            RateLaw(s.v, (s.v**2 + s.H) / s.tau - s.tau * (pi * s.r) ** 2),
+            RateLaw(s.s, (s.r - s.s) / s.tau_d),
+        ]
+
+
+class SynapticDriveInteraction(Interaction):
+    """Synaptic drive of a population by the rate or the synaptic field of another, `dv/dt += J x`.
+
+    Instantaneous synapses pass the firing rate `r` of the source, and exponential synapses its synaptic field `s`. A
+    negative strength `J` is inhibition.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the driven population.
+
+        source:
+            The path of the driving population, which may be the target.
+
+        J:
+            The strength of the synapses, negative for inhibition.
+
+        field:
+            `'r'` for instantaneous synapses or `'s'` for exponential synapses.
+
+    Raises:
+        ValidationError:
+            The field is unknown.
+
+    Examples:
+        >>> from skcomplex.systems.biology.neuroscience import SynapticDriveInteraction
+        >>> SynapticDriveInteraction('ie', target='e', source='i', J=-10.0).J
+        -10.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        source: Annotated[str, RoleSpec()],
+        J: Annotated[float, ParameterSpec()] = 1.0,
+        field: str = 'r',
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.source = source
+        self.J = J
+        self.field = field
+
+    def _check(self) -> None:
+        """Check the field.
+
+        Raises:
+            ValidationError:
+                The field is unknown.
+        """
+        super()._check()
+        if self.field not in FIELDS:
+            error_msg = f'The field must be one of {", ".join(FIELDS)}, not {self.field!r}.'
+            raise ValidationError(error_msg)
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the drive of the potential of the target.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return [RateLaw(s.target.v, s.J * getattr(s.source, self.field))]
+
+
+class ThetaForcingInteraction(Interaction):
+    """Theta forcing of a population by the current `I0 (1 - cos(2 pi nu t)) / 2`, as in optogenetic stimulation.
+
+    The current enters the potential of the population as its excitabilities do, `dv/dt += I(t) / tau`. Time is in
+    milliseconds and the frequency `nu` in hertz.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the forced population.
+
+        I0:
+            The peak current.
+
+        nu:
+            The frequency of the forcing, in hertz.
+
+    Examples:
+        >>> from skcomplex.systems.biology.neuroscience import ThetaForcingInteraction
+        >>> ThetaForcingInteraction('theta', target='e', nu=8.0).nu
+        8.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        I0: Annotated[float, ParameterSpec()] = 10.0,
+        nu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.I0 = I0
+        self.nu = nu
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the forcing current of the potential.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        current = s.I0 / 2 * (1 - cos(2 * pi * s.nu * s.t / 1000))
+        return [RateLaw(s.target.v, current / s.target.tau)]
 
 
 @register_system(
