@@ -17,9 +17,9 @@ import rerun as rr
 import rerun.blueprint as rrb
 
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.physics.active_matter import NonreciprocalVicsekSystem
 
 SYSTEM = 'nonreciprocal_vicsek'
 
@@ -36,22 +36,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM)
+system = NonreciprocalVicsekSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = (
-    Simulation(
-        system,
-        dt=1.0,
-        backend=NumbaBackend(),
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(
-        until=250,
-    )
-)
+trajectory = simulate(system, until=250, backend=NumbaBackend(), observers=[observer], random_state=0)
 
 # %%
 # Chasing against flocking
@@ -63,19 +50,9 @@ simulation = (
 
 def headings(coupling):
     """Return the times and the mean headings of both species for a coupling `(J_ab, J_ba)`."""
-    system_system = create_system(SYSTEM, J_ab=coupling[0], J_ba=coupling[1])
-    run = (
-        Simulation(
-            system_system,
-            dt=1.0,
-            backend=NumbaBackend(),
-            random_state=0,
-            observables=describe(SYSTEM).observables_of(system_system),
-        )
-        .prepare()
-        .run(until=300)
-    )
-    return run.trajectory_.times, run.trajectory_.values('heading_a'), run.trajectory_.values('heading_b')
+    system_system = NonreciprocalVicsekSystem(J_ab=coupling[0], J_ba=coupling[1])
+    run = simulate(system_system, backend=NumbaBackend(), random_state=0)
+    return run.times, run.values('heading_a'), run.values('heading_b')
 
 
 fig, (relative, turning) = plt.subplots(1, 2, figsize=(10, 4))

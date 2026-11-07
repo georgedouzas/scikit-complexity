@@ -17,9 +17,8 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MobilityInteraction
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 POINTS = VisualSpec('points', {'position': 'x', 'radius': 1.0})
 
@@ -153,32 +152,12 @@ class SquirmerSlipInteraction(MobilityInteraction):
         return 4 * s.epsilon * (ratio**12 - ratio**6) + s.epsilon
 
 
-@register_system(
-    field='physics/active_matter',
-    tags=('active matter', 'microswimmers', 'squirmers', 'hydrodynamics', 'stokes flow', 'pushers', 'pullers'),
-    references=(
-        'Lighthill 1952',
-        'Blake 1971',
-        'Ishikawa, Simmonds, and Pedley 2006',
-        'te Vrugt and Wittkowski 2024',
-    ),
-    defaults={'until': 40.0, 'dt': 0.5},
-)
-def squirmers(
-    n_squirmers: int = 27,
-    *,
-    B1: float = 1.5,
-    beta: float = -3.0,
-    radius: float = 1.0,
-    viscosity: float = 1.0,
-    spacing: float = 5.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return spherical squirmers that swim at `2 B1 / 3` and stir each other as pushers or pullers.
+class SquirmersSystem(BaseSystem):
+    """Spherical squirmers that swim at `2 B1 / 3` and stir each other as pushers or pullers.
 
     The squirmers start on a jittered cubic lattice of the spacing in an unbounded fluid, with random orientations.
-    `beta = B2 / B1` sets the stresslet: pushers (`beta < 0`) draw their neighbours in from the sides and pullers
-    (`beta > 0`) push them away.
+    `beta = B2 / B1` sets the stresslet: pushers (`beta < 0`) draw their neighbours in from the sides and pullers (`beta
+    > 0`) push them away. The system has the positions `squirmers.x` and orientations `squirmers.p`.
 
     Args:
         n_squirmers:
@@ -202,33 +181,67 @@ def squirmers(
         random_state:
             The seed or generator of the starting jitter and orientations.
 
-    Returns:
-        system:
-            The system, with the positions `squirmers.x` and orientations `squirmers.p`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import squirmers
-        >>> squirmers(8, beta=2.0).interactions[0].B2
+        >>> from skcomplex.systems.physics.active_matter import SquirmersSystem
+        >>> SquirmersSystem(8, beta=2.0).prepare().system_.interactions[0].B2
         3.0
     """
-    rng = np.random.default_rng(random_state)
-    side = math.ceil(n_squirmers ** (1 / 3) - 1e-9)
-    grid = np.stack(np.meshgrid(*[np.arange(side)] * 3, indexing='ij'), axis=-1).reshape(-1, 3)[:n_squirmers]
-    positions = spacing * grid + rng.uniform(-0.1, 0.1, size=(n_squirmers, 3)) * spacing
-    orientations = rng.standard_normal((n_squirmers, 3))
-    orientations /= np.linalg.norm(orientations, axis=1, keepdims=True)
-    group = GroupElement(
-        'squirmers',
-        element=SquirmerElement,
-        size=n_squirmers,
-        values={'x': positions, 'p': orientations},
+
+    field = 'physics/active_matter'
+    topics = ('active matter', 'microswimmers', 'squirmers', 'hydrodynamics', 'stokes flow', 'pushers', 'pullers')
+    references = (
+        'Lighthill 1952',
+        'Blake 1971',
+        'Ishikawa, Simmonds, and Pedley 2006',
+        'te Vrugt and Wittkowski 2024',
     )
-    slip = SquirmerSlipInteraction(
-        'slip',
-        target='squirmers',
-        B1=B1,
-        B2=beta * B1,
-        radius=radius,
-        viscosity=viscosity,
-    )
-    return System(elements=[group], interactions=[slip], space=ContinuousSpace(n_dim=3))
+    until = 40.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        n_squirmers: int = 27,
+        *,
+        B1: float = 1.5,
+        beta: float = -3.0,
+        radius: float = 1.0,
+        viscosity: float = 1.0,
+        spacing: float = 5.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_squirmers = n_squirmers
+        self.B1 = B1
+        self.beta = beta
+        self.radius = radius
+        self.viscosity = viscosity
+        self.spacing = spacing
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return spherical squirmers that swim at `2 B1 / 3` and stir each other as pushers or pullers."""
+        rng = np.random.default_rng(self.random_state)
+        side = math.ceil(self.n_squirmers ** (1 / 3) - 1e-9)
+        grid = np.stack(np.meshgrid(*[np.arange(side)] * 3, indexing='ij'), axis=-1).reshape(-1, 3)[: self.n_squirmers]
+        positions = self.spacing * grid + rng.uniform(-0.1, 0.1, size=(self.n_squirmers, 3)) * self.spacing
+        orientations = rng.standard_normal((self.n_squirmers, 3))
+        orientations /= np.linalg.norm(orientations, axis=1, keepdims=True)
+        group = GroupElement(
+            'squirmers',
+            element=SquirmerElement,
+            size=self.n_squirmers,
+            values={'x': positions, 'p': orientations},
+        )
+        slip = SquirmerSlipInteraction(
+            'slip',
+            target='squirmers',
+            B1=self.B1,
+            B2=self.beta * self.B1,
+            radius=self.radius,
+            viscosity=self.viscosity,
+        )
+        return System(self.label, elements=[group], interactions=[slip], space=ContinuousSpace(n_dim=3))

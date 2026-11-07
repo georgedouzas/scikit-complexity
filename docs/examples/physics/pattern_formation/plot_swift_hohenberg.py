@@ -14,13 +14,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import domains, spectrum
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.physics.pattern_formation import SwiftHohenbergSystem
 
 SYSTEM = 'swift_hohenberg'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = create_simulation(SYSTEM, random_state=0).set_params(observers=[observer]).prepare().run()
+trajectory = simulate(SwiftHohenbergSystem(random_state=0), observers=[observer], random_state=0)
 
 # %%
 # Selected wavelength
@@ -28,7 +29,7 @@ simulation = create_simulation(SYSTEM, random_state=0).set_params(observers=[obs
 # The linear growth rate `r - (1 - k^2)^2` is largest at the wavenumber `k = 1`. The structure factor of the final
 # field should peak there, and the dominant wavelength measured from the pattern should be close to `2π`.
 
-field = simulation.trajectory_.lattice('cells.u')[-1]
+field = trajectory.lattice('cells.u')[-1]
 spacing = 16 * np.pi / field.shape[0]
 factor = spectrum(field, kind='structure-factor', spacing=spacing)
 wavelength = domains(field, kind='wavelength', spacing=spacing).wavelength[0]

@@ -19,13 +19,11 @@ from ....core.components.elements import GroupElement, PointElement
 from ....core.components.interactions import PairCouplingInteraction, RateInteraction
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
-from ....core.components.system import System
-from ....core.engine.backends import NumbaBackend
+from ....core.components.system import BaseSystem, RunSettings, System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 SOFTENING = 1e-12
 SMALLEST_GROUP = 2
@@ -71,38 +69,6 @@ class FlockingAgentElement(PointElement):
         self.active = active
 
 
-def _repulsion_energy(
-    s: SimpleNamespace,
-    r: Expression,
-    *,
-    epsilon: float,
-    radius: float,
-    exponent: float,
-) -> Expression:
-    """Return the energy whose force at the distance `r` is the repulsion `epsilon (1 - r / (2 r_0))^exponent`."""
-    del s
-    overlap = 1 - r / (2 * radius)
-    return epsilon * 2 * radius * overlap ** (exponent + 1) / (exponent + 1)
-
-
-def _propulsion(s: SimpleNamespace, *, mu: float, v0: float) -> FreeModuleElement:
-    """Return the force `mu (v_t - |v|) v / |v|`, with the target speed `v0` when active and 0 when passive."""
-    velocity = s.target.x_d1
-    speed = sqrt(velocity.dot_product(velocity) + SOFTENING)
-    return velocity * (mu * (s.target.active * v0 - speed) / speed)
-
-
-def _flocking(s: SimpleNamespace, *, alpha: float, reach: float) -> FreeModuleElement:
-    """Return the force of size `alpha` on an active agent along the summed velocities of the others within a reach."""
-    summed = neighbors(s.target.other.x_d1, over=RadiusNeighborhood(reach))
-    return summed * (s.target.active * alpha / sqrt(summed.dot_product(summed) + SOFTENING))
-
-
-def _random_force(s: SimpleNamespace, *, amplitude: float) -> Expression:
-    """Return the amplitude of the noise of an agent, 0 when passive."""
-    return s.target.active * amplitude
-
-
 def _velocity_x(member: SimpleNamespace) -> Expression:
     """Return the first component of the velocity of a member when active, and 0 otherwise."""
     return member.active * member.x_d1[0]
@@ -136,55 +102,18 @@ def _mean_distance(t: float, values: Mapping[str, object], *, mark: float, size:
     return float(distances.sum() / (count * (count - 1)))
 
 
-def _observables(system: System) -> list[ObservableSpec]:
-    """Return the velocity of the active agents, their polarization, and the mean distance within each kind of agent."""
-    if not isinstance(system.space, ContinuousSpace):
-        error_msg = 'The observables of `active_passive_flocking` read the periodic box of its continuous space.'
-        raise ValidationError(error_msg)
-    size = float(system.space.extent[0])
-    return [
-        ObservableSpec('velocity_x', _velocity_x, group='agents'),
-        ObservableSpec('velocity_y', _velocity_y, group='agents'),
-        ObservableSpec('mean_speed', _speed, group='agents'),
-        ObservableSpec('polarization', _polarization),
-        ObservableSpec('active_distance', function=functools.partial(_mean_distance, mark=ACTIVE_AGENT, size=size)),
-        ObservableSpec('passive_distance', function=functools.partial(_mean_distance, mark=PASSIVE_AGENT, size=size)),
-    ]
-
-
-@register_system(
-    field='physics/active_matter',
-    tags=('active matter', 'sde', 'flocking', 'phase separation', 'pair interaction'),
-    references=('Charbonneau 2017', 'Silverberg et al. 2013'),
-    defaults={'until': 50.0, 'dt': 0.5, 'solver': EulerMaruyamaSolver(dt=TIME_STEP), 'backend': NumbaBackend()},
-    observables=_observables,
-)
-def active_passive_flocking(
-    n_agents: int = 342,
-    *,
-    n_active: int = 45,
-    size: float = 1.0,
-    radius: float = 0.025,
-    epsilon: float = 25.0,
-    exponent: float = 1.5,
-    flocking_radius: float = 0.1,
-    alpha: float = 1.0,
-    v0: float = 0.02,
-    mu: float = 10.0,
-    eta: float = 0.1,
-    time_step: float = TIME_STEP,
-    initial_speed: float = 1.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the active and passive agents of Charbonneau (2017, section 10.4) in a periodic box.
+class ActivePassiveFlockingSystem(BaseSystem):
+    """The active and passive agents of Charbonneau (2017, section 10.4) in a periodic box.
 
     All agents repel each other within `2 r_0` with the force `epsilon (1 - r / (2 r_0))^exponent`, and all feel the
     force `mu (v_t - |v|) v / |v|`, with the target speed `v_t = v0` for an active agent and 0 for a passive one. An
     active agent also feels the flocking force `alpha V / |V|`, with `V` the sum of the velocities of the agents of both
-    kinds within the flocking radius, itself excluded, and a random force. Agents start at uniform random positions
-    with velocity components uniform up to `initial_speed`. The defaults are those of figure 10.7 at the compactness
-    `C = pi N r_0^2 / size^2 = 0.672`. The values `exponent=2.5`, `epsilon=100`, `mu=0.05`, `radius=1`,
-    `flocking_radius=4`, and `v0=1` are those of Silverberg et al. (2013).
+    kinds within the flocking radius, itself excluded, and a random force. Agents start at uniform random positions with
+    velocity components uniform up to `initial_speed`. The defaults are those of figure 10.7 at the compactness `C = pi
+    N r_0^2 / size^2 = 0.672`. The values `exponent=2.5`, `epsilon=100`, `mu=0.05`, `radius=1`, `flocking_radius=4`, and
+    `v0=1` are those of Silverberg et al. (2013). The system has the group `agents` that holds the active agents first,
+    the positions `agents.x`, the velocities `agents.x_d1`, the marks `agents.active`, and the observables
+    `polarization`, `active_distance`, and `passive_distance`.
 
     Args:
         n_agents:
@@ -230,55 +159,172 @@ def active_passive_flocking(
         random_state:
             The seed or generator of the initial positions and velocities.
 
-    Returns:
-        system:
-            The system, with the group `agents` that holds the active agents first, the positions `agents.x`, the
-            velocities `agents.x_d1`, the marks `agents.active`, and the observables `polarization`, `active_distance`,
-            and `passive_distance`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The number of active agents is not between 1 and `n_agents`.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import active_passive_flocking
-        >>> [element.label for element in active_passive_flocking(114).elements]
+        >>> from skcomplex.systems.physics.active_matter import ActivePassiveFlockingSystem
+        >>> [element.label for element in ActivePassiveFlockingSystem(114).prepare().system_.elements]
         ['agents']
     """
-    if not 1 <= n_active <= n_agents:
-        error_msg = f'The system has {n_active} active agents among {n_agents}. Give at least one, and at most all.'
-        raise ValidationError(error_msg)
-    rng = np.random.default_rng(random_state)
-    agents = GroupElement(
-        'agents',
-        element=FlockingAgentElement,
-        size=n_agents,
-        values={
-            'x': rng.uniform(0.0, size, (n_agents, 2)),
-            'x_d1': rng.uniform(-initial_speed, initial_speed, (n_agents, 2)),
-            'active': np.where(np.arange(n_agents) < n_active, ACTIVE_AGENT, PASSIVE_AGENT),
-        },
-        visual=VisualSpec(
-            'points',
-            {'position': 'x', 'radius': radius, 'color_by': 'active', 'color_range': (0.0, 1.0)},
-        ),
-    )
-    energy = functools.partial(_repulsion_energy, epsilon=epsilon, radius=radius, exponent=exponent)
-    return System(
-        elements=[agents],
-        interactions=[
-            PairCouplingInteraction('repulsion', 'agents', 'agents', cutoff=2 * radius, potential=energy, period=size),
-            RateInteraction(
-                'propulsion',
-                target='agents',
-                rate=functools.partial(_propulsion, mu=mu, v0=v0),
-                noise=functools.partial(_random_force, amplitude=eta * math.sqrt(time_step / 3)),
+
+    field = 'physics/active_matter'
+    topics = ('active matter', 'sde', 'flocking', 'phase separation', 'pair interaction')
+    references = ('Charbonneau 2017', 'Silverberg et al. 2013')
+    until = 50.0
+    dt = 0.5
+    solver = EulerMaruyamaSolver(dt=TIME_STEP)
+
+    def __init__(
+        self,
+        n_agents: int = 342,
+        *,
+        n_active: int = 45,
+        size: float = 1.0,
+        radius: float = 0.025,
+        epsilon: float = 25.0,
+        exponent: float = 1.5,
+        flocking_radius: float = 0.1,
+        alpha: float = 1.0,
+        v0: float = 0.02,
+        mu: float = 10.0,
+        eta: float = 0.1,
+        time_step: float = TIME_STEP,
+        initial_speed: float = 1.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+        self.n_active = n_active
+        self.size = size
+        self.radius = radius
+        self.epsilon = epsilon
+        self.exponent = exponent
+        self.flocking_radius = flocking_radius
+        self.alpha = alpha
+        self.v0 = v0
+        self.mu = mu
+        self.eta = eta
+        self.time_step = time_step
+        self.initial_speed = initial_speed
+        self.random_state = random_state
+
+    @staticmethod
+    def _repulsion_energy(
+        s: SimpleNamespace,
+        r: Expression,
+        *,
+        epsilon: float,
+        radius: float,
+        exponent: float,
+    ) -> Expression:
+        """Return the energy whose force at the distance `r` is the repulsion `epsilon (1 - r / (2 r_0))^exponent`."""
+        del s
+        overlap = 1 - r / (2 * radius)
+        return epsilon * 2 * radius * overlap ** (exponent + 1) / (exponent + 1)
+
+    @staticmethod
+    def _propulsion(s: SimpleNamespace, *, mu: float, v0: float) -> FreeModuleElement:
+        """Return the force `mu (v_t - |v|) v / |v|`, with the target speed `v0` when active and 0 when passive."""
+        velocity = s.target.x_d1
+        speed = sqrt(velocity.dot_product(velocity) + SOFTENING)
+        return velocity * (mu * (s.target.active * v0 - speed) / speed)
+
+    @staticmethod
+    def _flocking(s: SimpleNamespace, *, alpha: float, reach: float) -> FreeModuleElement:
+        """Return the force of size `alpha` on an active agent along the summed velocities of the others in reach."""
+        summed = neighbors(s.target.other.x_d1, over=RadiusNeighborhood(reach))
+        return summed * (s.target.active * alpha / sqrt(summed.dot_product(summed) + SOFTENING))
+
+    @staticmethod
+    def _random_force(s: SimpleNamespace, *, amplitude: float) -> Expression:
+        """Return the amplitude of the noise of an agent, 0 when passive."""
+        return s.target.active * amplitude
+
+    @staticmethod
+    def _observables(system: System) -> list[ObservableSpec]:
+        """Return the velocity of the active agents, their polarization, and the mean distance within each kind."""
+        if not isinstance(system.space, ContinuousSpace):
+            error_msg = (
+                'The observables of `ActivePassiveFlockingSystem` read the periodic box of its continuous space.'
+            )
+            raise ValidationError(error_msg)
+        size = float(system.space.extent[0])
+        return [
+            ObservableSpec('velocity_x', _velocity_x, group='agents'),
+            ObservableSpec('velocity_y', _velocity_y, group='agents'),
+            ObservableSpec('mean_speed', _speed, group='agents'),
+            ObservableSpec('polarization', _polarization),
+            ObservableSpec('active_distance', function=functools.partial(_mean_distance, mark=ACTIVE_AGENT, size=size)),
+            ObservableSpec(
+                'passive_distance',
+                function=functools.partial(_mean_distance, mark=PASSIVE_AGENT, size=size),
             ),
-            RateInteraction(
-                'flocking',
-                target='agents',
-                rate=functools.partial(_flocking, alpha=alpha, reach=flocking_radius),
+        ]
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings, with the observables of the parts built from the model parameters."""
+        settings = super().get_run_settings()
+        settings['observables'] = tuple(self._observables(self._build_system()))
+        return settings
+
+    def _build_system(self) -> System:
+        """Return the active and passive agents of Charbonneau (2017, section 10.4) in a periodic box."""
+        if not 1 <= self.n_active <= self.n_agents:
+            error_msg = (
+                f'The system has {self.n_active} active agents among {self.n_agents}. Give at least one, and at most '
+                'all.'
+            )
+            raise ValidationError(error_msg)
+        rng = np.random.default_rng(self.random_state)
+        agents = GroupElement(
+            'agents',
+            element=FlockingAgentElement,
+            size=self.n_agents,
+            values={
+                'x': rng.uniform(0.0, self.size, (self.n_agents, 2)),
+                'x_d1': rng.uniform(-self.initial_speed, self.initial_speed, (self.n_agents, 2)),
+                'active': np.where(np.arange(self.n_agents) < self.n_active, ACTIVE_AGENT, PASSIVE_AGENT),
+            },
+            visual=VisualSpec(
+                'points',
+                {'position': 'x', 'radius': self.radius, 'color_by': 'active', 'color_range': (0.0, 1.0)},
             ),
-        ],
-        space=ContinuousSpace(extent=(size, size), boundary='periodic'),
-    )
+        )
+        energy = functools.partial(
+            self._repulsion_energy,
+            epsilon=self.epsilon,
+            radius=self.radius,
+            exponent=self.exponent,
+        )
+        return System(
+            self.label,
+            elements=[agents],
+            interactions=[
+                PairCouplingInteraction(
+                    'repulsion',
+                    'agents',
+                    'agents',
+                    cutoff=2 * self.radius,
+                    potential=energy,
+                    period=self.size,
+                ),
+                RateInteraction(
+                    'propulsion',
+                    target='agents',
+                    rate=functools.partial(self._propulsion, mu=self.mu, v0=self.v0),
+                    noise=functools.partial(self._random_force, amplitude=self.eta * math.sqrt(self.time_step / 3)),
+                ),
+                RateInteraction(
+                    'flocking',
+                    target='agents',
+                    rate=functools.partial(self._flocking, alpha=self.alpha, reach=self.flocking_radius),
+                ),
+            ],
+            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
+        )

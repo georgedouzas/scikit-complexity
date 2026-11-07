@@ -16,9 +16,8 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import draw, uniform
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class TrapWalkerElement(Element):
@@ -52,6 +51,8 @@ class TrapWalkerElement(Element):
         0.5
     """
 
+    law_classes = (JumpLaw,)
+
     def __init__(
         self,
         label: str,
@@ -84,24 +85,13 @@ class TrapWalkerElement(Element):
         return [JumpLaw(waiting=waiting, reset={**reset, s.E: draw('depth', 'expon')}, label='escapes')]
 
 
-@register_system(
-    field='physics/statistical_mechanics',
-    tags=('trap system', 'renewal process', 'aging', 'glass'),
-    references=('Bouchaud 1992', 'Monthus and Bouchaud 1996', 'Bertin 2021'),
-    defaults={'until': 10000.0, 'dt': 50.0},
-)
-def trap_system(
-    n_walkers: int = 500,
-    *,
-    T: float = 0.5,
-    tau0: float = 1.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Bouchaud trap system, walkers that escape from traps of exponentially distributed depths.
+class TrapSystemSystem(BaseSystem):
+    """The Bouchaud trap system, walkers that escape from traps of exponentially distributed depths.
 
     The escape times `tau0 exp(E / T)` of depths with the density `exp(-E)` have the tail `tau^(-1 - T)`. Below the
     glass temperature `T = 1` their mean diverges, so the walkers fall into ever deeper traps, the number of escapes
-    grows as `t^T` instead of linearly, and the system ages without reaching equilibrium.
+    grows as `t^T` instead of linearly, and the system ages without reaching equilibrium. The system has the places
+    `walkers.x`, the depths `walkers.E`, and the escape count `escapes.renewals`.
 
     Args:
         n_walkers:
@@ -116,20 +106,48 @@ def trap_system(
         random_state:
             The seed or generator of the first traps.
 
-    Returns:
-        system:
-            The system, with the places `walkers.x`, the depths `walkers.E`, and the escape count `escapes.renewals`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics import trap_system
-        >>> trap_system(10, T=0.8).elements[0].values['T']
+        >>> from skcomplex.systems.physics.statistical_mechanics import TrapSystemSystem
+        >>> TrapSystemSystem(10, T=0.8).prepare().system_.elements[0].values['T']
         0.8
     """
-    rng = np.random.default_rng(random_state)
-    walkers = GroupElement(
-        'walkers',
-        element=TrapWalkerElement,
-        size=n_walkers,
-        values={'x': rng.random((n_walkers, 2)), 'E': rng.exponential(1.0, n_walkers), 'T': T, 'tau0': tau0},
-    )
-    return System(elements=[walkers], space=ContinuousSpace(n_dim=2))
+
+    field = 'physics/statistical_mechanics'
+    topics = ('trap system', 'renewal process', 'aging', 'glass')
+    references = ('Bouchaud 1992', 'Monthus and Bouchaud 1996', 'Bertin 2021')
+    until = 10000.0
+    dt = 50.0
+
+    def __init__(
+        self,
+        n_walkers: int = 500,
+        *,
+        T: float = 0.5,
+        tau0: float = 1.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_walkers = n_walkers
+        self.T = T
+        self.tau0 = tau0
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the Bouchaud trap system, walkers that escape from traps of exponentially distributed depths."""
+        rng = np.random.default_rng(self.random_state)
+        walkers = GroupElement(
+            'walkers',
+            element=TrapWalkerElement,
+            size=self.n_walkers,
+            values={
+                'x': rng.random((self.n_walkers, 2)),
+                'E': rng.exponential(1.0, self.n_walkers),
+                'T': self.T,
+                'tau0': self.tau0,
+            },
+        )
+        return System(self.label, elements=[walkers], space=ContinuousSpace(n_dim=2))

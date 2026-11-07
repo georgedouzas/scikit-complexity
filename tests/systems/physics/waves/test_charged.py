@@ -2,13 +2,13 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems.physics.waves import charged_schrodinger
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.physics.waves import ChargedSchrodingerSystem
 
 
 def _packet_centres(**potential):
     """Return the times and the centres of the charged packet over a run."""
-    trajectory = Simulation(charged_schrodinger(256, **potential), dt=0.5).prepare().run(until=6).trajectory_
+    trajectory = simulate(ChargedSchrodingerSystem(256, **potential), until=6, dt=0.5)
     density = trajectory.values('packet.u') ** 2 + trajectory.values('packet.w') ** 2
     positions = 80 / 256 * np.arange(256) - 40
     return trajectory.times, density @ positions / density.sum(axis=1)

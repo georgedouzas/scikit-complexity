@@ -8,22 +8,22 @@ stuck ones bright, with the aggregate branching out from the centre.
 """
 
 # %%
-# The system is created by name from the catalog with 800 walkers, the seed included, scattered over a periodic grid
+# The system is built from its class with 800 walkers, the seed included, scattered over a periodic grid
 # of side 101. The observer saves every tenth step with the default blueprint, whose primary view shows the walkers
 # colored by whether they are stuck.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.statistical_mechanics import DiffusionLimitedAggregationSystem
 
 SYSTEM = 'diffusion_limited_aggregation'
 
-system = create_system(SYSTEM, n_walkers=800, size=101, random_state=0)
+system = DiffusionLimitedAggregationSystem(n_walkers=800, size=101, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=10, observers=[observer], random_state=0).prepare().run(until=2990)
+trajectory = simulate(system, until=2990, dt=10, observers=[observer], random_state=0)
 
 # %%
 # Fractal dimension from the mass-radius relation
@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=10, observers=[observer], random_state=0).pre
 # The counts of the final aggregate, fitted over the inner half of its radii, should follow a power law with a slope
 # near this value and well below 2, and level off beyond the tips of the aggregate.
 
-final = simulation.trajectory_.agents('walkers', len(simulation.trajectory_.times) - 1)
+final = trajectory.agents('walkers', len(trajectory.times) - 1)
 stuck = final.locations[final.values['stuck'] > 0].astype(float)
 distances = np.linalg.norm(stuck - 50, axis=1)
 radii = np.arange(2, int(distances.max()) + 1)

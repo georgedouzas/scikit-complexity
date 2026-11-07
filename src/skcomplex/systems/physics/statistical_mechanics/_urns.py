@@ -12,9 +12,8 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import bernoulli
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class EhrenfestUrnElement(Element):
@@ -45,6 +44,8 @@ class EhrenfestUrnElement(Element):
         40
     """
 
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -72,20 +73,15 @@ class EhrenfestUrnElement(Element):
         return [UpdateLaw(s.n, s.n + 1 - 2 * bernoulli('pick', s.n / s.N))]
 
 
-@register_system(
-    field='physics/statistical_mechanics',
-    tags=('markov chain', 'irreversibility', 'entropy', 'discrete map'),
-    references=('Ehrenfest and Ehrenfest 1907', 'Barsky 2020', 'Kac 1947'),
-    defaults={'until': 200, 'dt': 1},
-)
-def ehrenfest_urn(n_balls: int = 40, *, in_first: int | None = None) -> System:
-    """Return the Ehrenfest urn system, balls moved one at a time between two boxes, which relaxes to equal counts.
+class EhrenfestUrnSystem(BaseSystem):
+    """The Ehrenfest urn system, balls moved one at a time between two boxes, which relaxes to equal counts.
 
     At every step one of the `N` numbered balls is drawn at random and moved to the other box, so the count `n` of the
-    first box falls by one with probability `n / N` and rises by one otherwise. Started with all balls in the first
-    box, the count relaxes to `N / 2` with the exponential mean `N / 2 + (n_0 - N / 2) (1 - 2 / N)^t`, and then
-    fluctuates around it: the chain is reversible, yet the relaxation looks irreversible. Its stationary distribution
-    is the binomial distribution of `N` balls with probability one half.
+    first box falls by one with probability `n / N` and rises by one otherwise. Started with all balls in the first box,
+    the count relaxes to `N / 2` with the exponential mean `N / 2 + (n_0 - N / 2) (1 - 2 / N)^t`, and then fluctuates
+    around it: the chain is reversible, yet the relaxation looks irreversible. Its stationary distribution is the
+    binomial distribution of `N` balls with probability one half. The system has the count `urn.n` of balls in the first
+    box.
 
     Args:
         n_balls:
@@ -94,14 +90,33 @@ def ehrenfest_urn(n_balls: int = 40, *, in_first: int | None = None) -> System:
         in_first:
             The initial number of balls in the first box, or `None` for all of them.
 
-    Returns:
-        system:
-            The system, with the count `urn.n` of balls in the first box.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics import ehrenfest_urn
-        >>> ehrenfest_urn(10).elements[0].n
+        >>> from skcomplex.systems.physics.statistical_mechanics import EhrenfestUrnSystem
+        >>> EhrenfestUrnSystem(10).prepare().system_.elements[0].n
         10
     """
-    n = n_balls if in_first is None else in_first
-    return System(elements=[EhrenfestUrnElement('urn', n=n, N=n_balls)])
+
+    field = 'physics/statistical_mechanics'
+    topics = ('markov chain', 'irreversibility', 'entropy', 'discrete map')
+    references = ('Ehrenfest and Ehrenfest 1907', 'Barsky 2020', 'Kac 1947')
+    until = 200
+    dt = 1
+
+    def __init__(
+        self,
+        n_balls: int = 40,
+        *,
+        in_first: int | None = None,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_balls = n_balls
+        self.in_first = in_first
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        n = self.n_balls if self.in_first is None else self.in_first
+        return System(self.label, elements=[EhrenfestUrnElement('urn', n=n, N=self.n_balls)])

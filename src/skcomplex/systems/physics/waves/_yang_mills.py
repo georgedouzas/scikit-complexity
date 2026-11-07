@@ -14,12 +14,11 @@ import numpy.typing as npt
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, RunSettings, System
 from ....core.engine.runtime import Trajectory
 from ....core.errors import AnalysisError, ValidationError
 from ....core.specs import MatrixGroupSpec, ObservableSpec, StateSpec, VisualSpec
 from ....core.types import Array, Indices
-from ..._catalog import register_system
 from ..common.fields import WilsonSamplingInteraction
 
 COLOR = MatrixGroupSpec('SU', 3)
@@ -335,37 +334,8 @@ def _polyakov_loop(space: CellComplexSpace, group: MatrixGroupSpec, t: float, va
     return float(gauge_observables(links, kind='polyakov', space=space, group=group).value[0])
 
 
-def _yang_mills_observables(system: System) -> list[ObservableSpec]:
-    """Return the mean plaquette and the Polyakov loop of the links."""
-    links = next(element for element in system.elements if element.label == 'links')
-    space = links.space.prepare()
-    group = next(group for element, group in LINKS.values() if links.element is element)
-    return [
-        ObservableSpec('mean_plaquette', function=partial(_mean_plaquette, space, group)),
-        ObservableSpec('polyakov_loop', function=partial(_polyakov_loop, space, group)),
-    ]
-
-
-@register_system(
-    field='physics/waves',
-    tags=('gauge', 'lattice', 'monte carlo', 'yang-mills', 'qcd', 'cell complex'),
-    references=('Satz 2022', 'Schwichtenberg 2020', 'Wilson 1974', 'Creutz 1980'),
-    defaults={'until': 100, 'dt': 1},
-    observables=_yang_mills_observables,
-)
-def lattice_yang_mills(
-    size: int = 6,
-    *,
-    dimension: int = 4,
-    extent: int | None = None,
-    colors: int = 2,
-    beta: float = 2.3,
-    width: float = 0.5,
-    hits: int = 4,
-    links: npt.ArrayLike | None = None,
-    seed: int = 0,
-) -> System:
-    """Return SU(2) or SU(3) matrices on the links of a periodic lattice, sampled by the Wilson action.
+class LatticeYangMillsSystem(BaseSystem):
+    """SU(2) or SU(3) matrices on the links of a periodic lattice, sampled by the Wilson action.
 
     The link matrices sample the Wilson action `-(beta / N) sum_p Re tr U_p` under discrete time, where `U_p` is the
     ordered product of the link matrices around the plaquette `p`, with the inverse of a link traversed against its
@@ -404,52 +374,105 @@ def lattice_yang_mills(
         seed:
             The seed of the initial link matrices.
 
-    Returns:
-        system:
-            The system.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The number of colors is not 2 or 3, or the initial links do not hold one matrix of the group per link.
 
     Examples:
-        >>> from skcomplex.systems.physics.waves import lattice_yang_mills
-        >>> [element.label for element in lattice_yang_mills(2, dimension=2).elements]
+        >>> from skcomplex.systems.physics.waves import LatticeYangMillsSystem
+        >>> [element.label for element in LatticeYangMillsSystem(2, dimension=2).prepare().system_.elements]
         ['links']
-        >>> lattice_yang_mills(2, dimension=2, colors=3).elements[0].element.__name__
+        >>> LatticeYangMillsSystem(2, dimension=2, colors=3).prepare().system_.elements[0].element.__name__
         'ColorLinkElement'
     """
-    if colors not in LINKS:
-        error_msg = f'The lattice gauge group is SU(2) or SU(3), so colors is 2 or 3, but got {colors!r}.'
-        raise ValidationError(error_msg)
-    element, group = LINKS[colors]
-    shape = (size,) * (dimension - 1) + (size if extent is None else extent,)
-    space = CellComplexSpace(LatticeSpace(shape)).prepare()
-    count = space.incidences_[0].shape[0]
-    if links is None:
-        matrices = group.uniform_of(np.random.default_rng(seed), count)
-    else:
-        matrices = np.asarray(links, dtype=complex)
-    if matrices.shape != (count, colors, colors) or not np.allclose(group.projection_of(matrices), matrices):
-        error_msg = (
-            f'The initial links are {matrices.shape[0]} matrices of the shape {matrices.shape[1:]}, but the lattice '
-            f'takes {count} matrices of SU({colors}), one per link.'
+
+    field = 'physics/waves'
+    topics = ('gauge', 'lattice', 'monte carlo', 'yang-mills', 'qcd', 'cell complex')
+    references = ('Satz 2022', 'Schwichtenberg 2020', 'Wilson 1974', 'Creutz 1980')
+    until = 100
+    dt = 1
+
+    def __init__(
+        self,
+        size: int = 6,
+        *,
+        dimension: int = 4,
+        extent: int | None = None,
+        colors: int = 2,
+        beta: float = 2.3,
+        width: float = 0.5,
+        hits: int = 4,
+        links: npt.ArrayLike | None = None,
+        seed: int = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.size = size
+        self.dimension = dimension
+        self.extent = extent
+        self.colors = colors
+        self.beta = beta
+        self.width = width
+        self.hits = hits
+        self.links = links
+        self.seed = seed
+
+    @staticmethod
+    def _yang_mills_observables(system: System) -> list[ObservableSpec]:
+        """Return the mean plaquette and the Polyakov loop of the links."""
+        links = next(element for element in system.elements if element.label == 'links')
+        space = links.space.prepare()
+        group = next(group for element, group in LINKS.values() if links.element is element)
+        return [
+            ObservableSpec('mean_plaquette', function=partial(_mean_plaquette, space, group)),
+            ObservableSpec('polyakov_loop', function=partial(_polyakov_loop, space, group)),
+        ]
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings, with the observables of the parts built from the model parameters."""
+        settings = super().get_run_settings()
+        settings['observables'] = tuple(self._yang_mills_observables(self._build_system()))
+        return settings
+
+    def _build_system(self) -> System:
+        """Return SU(2) or SU(3) matrices on the links of a periodic lattice, sampled by the Wilson action."""
+        if self.colors not in LINKS:
+            error_msg = f'The lattice gauge group is SU(2) or SU(3), so colors is 2 or 3, but got {self.colors!r}.'
+            raise ValidationError(error_msg)
+        element, group = LINKS[self.colors]
+        shape = (self.size,) * (self.dimension - 1) + (self.size if self.extent is None else self.extent,)
+        space = CellComplexSpace(LatticeSpace(shape)).prepare()
+        count = space.incidences_[0].shape[0]
+        if self.links is None:
+            matrices = group.uniform_of(np.random.default_rng(self.seed), count)
+        else:
+            matrices = np.asarray(self.links, dtype=complex)
+        if matrices.shape != (count, self.colors, self.colors) or not np.allclose(
+            group.projection_of(matrices),
+            matrices,
+        ):
+            error_msg = (
+                f'The initial links are {matrices.shape[0]} matrices of the shape {matrices.shape[1:]}, but the '
+                f'lattice takes {count} matrices of SU({self.colors}), one per link.'
+            )
+            raise ValidationError(error_msg)
+        group_links = GroupElement(
+            'links',
+            element=element,
+            space=space,
+            on='edges',
+            values={'U': group.components_of(matrices)},
         )
-        raise ValidationError(error_msg)
-    group_links = GroupElement(
-        'links',
-        element=element,
-        space=space,
-        on='edges',
-        values={'U': group.components_of(matrices)},
-    )
-    sampling = WilsonSamplingInteraction(
-        'wilson',
-        target='links',
-        beta=beta,
-        state='U',
-        width=width,
-        group=group,
-        hits=hits,
-    )
-    return System(elements=[group_links], interactions=[sampling], time=DiscreteTime())
+        sampling = WilsonSamplingInteraction(
+            'wilson',
+            target='links',
+            beta=self.beta,
+            state='U',
+            width=self.width,
+            group=group,
+            hits=self.hits,
+        )
+        return System(self.label, elements=[group_links], interactions=[sampling], time=DiscreteTime())

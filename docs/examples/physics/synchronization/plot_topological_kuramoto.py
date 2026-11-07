@@ -11,16 +11,15 @@ projections on the nodes and on the triangles, and the two layers scale each oth
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.physics.synchronization import TopologicalKuramotoSystem
 
 SYSTEM = 'topological_kuramoto'
 
-system = create_system(SYSTEM, coupling=8.0)
-observables = describe(SYSTEM).observables_of(system)
+system = TopologicalKuramotoSystem(coupling=8.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-Simulation(system, dt=0.5, observers=[observer], observables=observables).prepare().run(until=20)
+simulate(system, until=20, dt=0.5, observers=[observer])
 
 # %%
 # Synchronization against the coupling
@@ -30,13 +29,9 @@ Simulation(system, dt=0.5, observers=[observer], observables=observables).prepar
 couplings = np.linspace(0.0, 8.0, 5)
 orders = []
 for coupling in couplings:
-    system_system = create_system(SYSTEM, coupling=coupling)
-    run = (
-        Simulation(system_system, dt=0.5, observables=describe(SYSTEM).observables_of(system_system))
-        .prepare()
-        .run(until=20)
-    )
-    orders.append(np.mean(run.trajectory_.values('link_order')[-10:]))
+    system_system = TopologicalKuramotoSystem(coupling=coupling)
+    run = simulate(system_system, until=20, dt=0.5)
+    orders.append(np.mean(run.values('link_order')[-10:]))
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(couplings, orders, 'o-')
 ax.set_xlabel('coupling K')
@@ -56,13 +51,9 @@ fig, ax = plt.subplots(figsize=(6, 4))
 for model in ('NL', 'NLT'):
     orders = []
     for coupling in weak:
-        system_system = create_system(SYSTEM, coupling=coupling, model=model)
-        run = (
-            Simulation(system_system, dt=0.5, observables=describe(SYSTEM).observables_of(system_system))
-            .prepare()
-            .run(until=20)
-        )
-        orders.append(np.mean(run.trajectory_.values('node_order')[-10:]))
+        system_system = TopologicalKuramotoSystem(coupling=coupling, model=model)
+        run = simulate(system_system, until=20, dt=0.5)
+        orders.append(np.mean(run.values('node_order')[-10:]))
     ax.plot(weak, orders, 'o-', label=model)
 ax.set_xlabel('coupling K')
 ax.set_ylabel('order parameter of the node phases')

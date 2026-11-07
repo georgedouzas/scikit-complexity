@@ -9,22 +9,22 @@ majority as ragged clusters. The view shows the spins of a 128 x 128 torus.
 """
 
 # %%
-# The system is created by name from the catalog with an initial fraction `up = 0.1` of spins up. One step updates one
+# The system is built from its class with an initial fraction `up = 0.1` of spins up. One step updates one
 # sublattice. The observer saves every step with the default blueprint, whose primary view is the image of the spins.
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import ellipk
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.statistical_mechanics import Q2rSystem
 
 SYSTEM = 'q2r'
 
-system = create_system(SYSTEM, shape=(128, 128), up=0.1, random_state=0)
+system = Q2rSystem(shape=(128, 128), up=0.1, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=200)
+trajectory = simulate(system, until=200, observers=[observer], random_state=0)
 
 # %%
 # Microcanonical Ising magnetization
@@ -37,8 +37,8 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 
 def energy_and_magnetization(up):
     """Return the energy per site and the late mean absolute magnetization of a run of the automaton."""
-    run = Simulation(create_system(SYSTEM, shape=(64, 64), up=up, random_state=1), dt=1).prepare().run(until=3000)
-    spins = run.trajectory_.values('spins.spin').reshape(-1, 64, 64)
+    run = simulate(Q2rSystem(shape=(64, 64), up=up, random_state=1), until=3000)
+    spins = run.values('spins.spin').reshape(-1, 64, 64)
     bonds = spins * np.roll(spins, 1, axis=1) + spins * np.roll(spins, 1, axis=2)
     return -bonds.mean(axis=(1, 2))[-1], np.abs(spins[1000:].mean(axis=(1, 2))).mean()
 

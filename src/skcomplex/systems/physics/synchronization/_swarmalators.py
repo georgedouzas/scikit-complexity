@@ -14,11 +14,10 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import PairCouplingInteraction
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import Target
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.oscillators import SitedOscillatorElement
 
 
@@ -146,29 +145,15 @@ class SwarmalatorCouplingInteraction(PairCouplingInteraction):
         return move, s.K * sin(difference) / (self.n_units * r)
 
 
-@register_system(
-    field='physics/synchronization',
-    tags=('swarmalators', 'synchronization', 'swarming', 'pair interaction', 'ode'),
-    references=("O'Keeffe, Ceron, and Petersen 2017", 'te Vrugt and Wittkowski 2024'),
-    defaults={'until': 100.0, 'dt': 1.0, 'solver': RK4Solver(dt=0.1)},
-)
-def swarmalators(
-    n_units: int = 100,
-    *,
-    J: float = 1.0,
-    K: float = 0.0,
-    A: float = 1.0,
-    B: float = 1.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return swarmalators, identical oscillators whose phases set their attraction and whose positions their coupling.
+class SwarmalatorsSystem(BaseSystem):
+    """Swarmalators, identical oscillators whose phases set their attraction and whose positions their coupling.
 
-    Every swarmalator `i` moves by `(1 / N) sum_j [(x_j - x_i) / |x_j - x_i| (A + J cos(theta_j - theta_i)) -
-    B (x_j - x_i) / |x_j - x_i|^2]` and turns by `(K / N) sum_j sin(theta_j - theta_i) / |x_j - x_i|`. With `J > 0`
-    like phases attract. With `K = 0` and `J = 1` the swarm settles into a static phase wave, a disk whose phase winds
-    once around its center, so one of the order parameters `S± = |mean(exp(i (phi ± theta)))|` of the spatial angle
-    `phi` and the phase approaches 1. With `K > 0` the phases synchronize into a uniform disk, and with `K < 0` and
-    small `J` they stay asynchronous.
+    Every swarmalator `i` moves by `(1 / N) sum_j [(x_j - x_i) / |x_j - x_i| (A + J cos(theta_j - theta_i)) - B (x_j -
+    x_i) / |x_j - x_i|^2]` and turns by `(K / N) sum_j sin(theta_j - theta_i) / |x_j - x_i|`. With `J > 0` like phases
+    attract. With `K = 0` and `J = 1` the swarm settles into a static phase wave, a disk whose phase winds once around
+    its center, so one of the order parameters `S± = |mean(exp(i (phi ± theta)))|` of the spatial angle `phi` and the
+    phase approaches 1. With `K > 0` the phases synchronize into a uniform disk, and with `K < 0` and small `J` they
+    stay asynchronous. The system has the positions `units.x` and the phases `units.theta`.
 
     Args:
         n_units:
@@ -189,31 +174,63 @@ def swarmalators(
         random_state:
             The seed or generator of the initial positions in the square of side 2 and of the initial phases.
 
-    Returns:
-        system:
-            The system, with the positions `units.x` and the phases `units.theta`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.synchronization import swarmalators
-        >>> swarmalators(10, K=-0.1).interactions[0].K
+        >>> from skcomplex.systems.physics.synchronization import SwarmalatorsSystem
+        >>> SwarmalatorsSystem(10, K=-0.1).prepare().system_.interactions[0].K
         -0.1
     """
-    rng = np.random.default_rng(random_state)
-    units = GroupElement(
-        'units',
-        element=SwarmalatorElement,
-        size=n_units,
-        values={'x': rng.uniform(-1.0, 1.0, (n_units, 2)), 'theta': rng.uniform(-np.pi, np.pi, n_units), 'omega': 0.0},
-        visual=VisualSpec('points', {'position': 'x', 'color_by': 'theta', 'radius': 0.03}),
-    )
-    coupling = SwarmalatorCouplingInteraction(
-        'coupling',
-        first='units',
-        second='units',
-        A=A,
-        B=B,
-        J=J,
-        K=K,
-        n_units=n_units,
-    )
-    return System(elements=[units], interactions=[coupling], space=ContinuousSpace(n_dim=2))
+
+    field = 'physics/synchronization'
+    topics = ('swarmalators', 'synchronization', 'swarming', 'pair interaction', 'ode')
+    references = ("O'Keeffe, Ceron, and Petersen 2017", 'te Vrugt and Wittkowski 2024')
+    until = 100.0
+    dt = 1.0
+    solver = RK4Solver(dt=0.1)
+
+    def __init__(
+        self,
+        n_units: int = 100,
+        *,
+        J: float = 1.0,
+        K: float = 0.0,
+        A: float = 1.0,
+        B: float = 1.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_units = n_units
+        self.J = J
+        self.K = K
+        self.A = A
+        self.B = B
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        units = GroupElement(
+            'units',
+            element=SwarmalatorElement,
+            size=self.n_units,
+            values={
+                'x': rng.uniform(-1.0, 1.0, (self.n_units, 2)),
+                'theta': rng.uniform(-np.pi, np.pi, self.n_units),
+                'omega': 0.0,
+            },
+            visual=VisualSpec('points', {'position': 'x', 'color_by': 'theta', 'radius': 0.03}),
+        )
+        coupling = SwarmalatorCouplingInteraction(
+            'coupling',
+            first='units',
+            second='units',
+            A=self.A,
+            B=self.B,
+            J=self.J,
+            K=self.K,
+            n_units=self.n_units,
+        )
+        return System(self.label, elements=[units], interactions=[coupling], space=ContinuousSpace(n_dim=2))

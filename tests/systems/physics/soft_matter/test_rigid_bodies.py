@@ -7,7 +7,7 @@ import pytest
 
 from skcomplex.core.errors import ParameterError
 from skcomplex.systems import create_simulation
-from skcomplex.systems.physics.soft_matter import anisotropic_brownian_particles
+from skcomplex.systems.physics.soft_matter import AnisotropicBrownianParticlesSystem
 
 
 def _bodies(n_particles=400, **settings):
@@ -45,7 +45,7 @@ def test_ellipsoid_and_chiral_particles_follow_their_body_frame_diffusion_tensor
 def test_anisotropic_particles_refuse_a_coupling_beyond_the_positive_tensor():
     """Test that a coupling larger than `sqrt(D_par D_spin)` is refused."""
     with pytest.raises(ParameterError):
-        anisotropic_brownian_particles(D_par=1.0, D_spin=0.25, D_c=0.6)
+        AnisotropicBrownianParticlesSystem(D_par=1.0, D_spin=0.25, D_c=0.6).prepare()
 
 
 @pytest.mark.parametrize(('v0', 'expected'), [(0.0, 0.05), (2.0, 0.05 + 4.0 / 4)])

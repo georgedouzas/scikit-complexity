@@ -1,4 +1,4 @@
-"""Cells of Szabó et al. (2006): self-propelled discs whose headings turn towards the velocities the forces give."""
+"""Cells of the Szabó (2006) system: self-propelled discs whose headings turn towards the velocities the forces give."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,11 +18,9 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import clip, neighbors, where
 from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
-from ....core.components.system import System
-from ....core.engine.backends import NumbaBackend
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 SOFTENING = 1e-12
 
@@ -121,20 +119,6 @@ def _velocity(s: SimpleNamespace, *, reach: float) -> FreeModuleElement:
     return vector([cos(cell.theta), sin(cell.theta)]) * cell.v0 + force * cell.mu
 
 
-def _turning(s: SimpleNamespace, *, reach: float) -> Expression:
-    """Return the rate `arcsin((n x v / |v|) . e_z) / tau` that turns a heading towards the velocity."""
-    cell = s.target
-    velocity = _velocity(s, reach=reach)
-    speed = sqrt(velocity[0] ** 2 + velocity[1] ** 2 + SOFTENING)
-    cross = (cos(cell.theta) * velocity[1] - sin(cell.theta) * velocity[0]) / speed
-    return arcsin(clip(cross, -1, 1)) / cell.tau
-
-
-def _angular_noise(s: SimpleNamespace) -> Expression:
-    """Return the amplitude `eta / sqrt(12)` of the angular noise."""
-    return s.target.eta / sqrt(12)
-
-
 def _heading(member: SimpleNamespace) -> Expression:
     """Return the unit vector `exp(i theta)` of a member's heading in the complex plane."""
     return exp(I * member.theta)
@@ -145,36 +129,14 @@ def _polarization(s: SimpleNamespace) -> Expression:
     return abs(s.mean_heading)
 
 
-@register_system(
-    field='physics/active_matter',
-    tags=('active matter', 'sde', 'flocking', 'tissue', 'neighbours'),
-    references=('Szabó et al. 2006', 'Vicsek and Zafeiris 2012'),
-    defaults={'until': 60.0, 'dt': 0.5, 'solver': EulerMaruyamaSolver(dt=0.01), 'backend': NumbaBackend()},
-    observables=lambda system: [
-        ObservableSpec('mean_heading', _heading, group='cells'),
-        ObservableSpec('polarization', _polarization),
-    ],
-)
-def szabo_cells(
-    n_cells: int = 200,
-    *,
-    density: float = 1.0,
-    eta: float = 0.6,
-    v0: float = 1.0,
-    mu: float = 1.0,
-    tau: float = 1.0,
-    R_eq: float = 5.0 / 6.0,
-    R_0: float = 1.0,
-    F_rep: float = 30.0,
-    F_adh: float = 0.75,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the cells of Szabó et al. (2006) in a periodic box, which move together above a critical density.
+class SzaboCellsSystem(BaseSystem):
+    """The cells of Szabó et al. (2006) in a periodic box, which move together above a critical density.
 
     A cell moves at `x' = v0 n + mu F`, where `F` sums the pair forces of the neighbours within `R_0`, the diameter of a
     cell, and its heading turns towards its velocity, `theta' = arcsin((n x v / |v|) . e_z) / tau + xi`. No cell reads
     the headings of the others, and adhesion alone orders them. With `eta = 0.6` the transition lies at the number
-    density `rho_c = 0.18 / R_0^2`.
+    density `rho_c = 0.18 / R_0^2`. The system has the positions `cells.x`, the headings `cells.theta`, and the
+    observables `mean_heading` and `polarization`.
 
     Args:
         n_cells:
@@ -210,46 +172,102 @@ def szabo_cells(
         random_state:
             The seed or generator of the initial positions and headings.
 
-    Returns:
-        system:
-            The system, with the positions `cells.x`, the headings `cells.theta`, and the observables `mean_heading` and
-            `polarization`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import szabo_cells
-        >>> szabo_cells(16, density=0.5).space.extent
+        >>> from skcomplex.systems.physics.active_matter import SzaboCellsSystem
+        >>> SzaboCellsSystem(16, density=0.5).prepare().system_.space.extent
         (5.656854249492381, 5.656854249492381)
     """
-    size = math.sqrt(n_cells / density)
-    rng = np.random.default_rng(random_state)
-    cells = GroupElement(
-        'cells',
-        element=MotileCellElement,
-        size=n_cells,
-        values={
-            'x': rng.uniform(0.0, size, (n_cells, 2)),
-            'theta': rng.uniform(0.0, 2 * math.pi, n_cells),
-            'v0': v0,
-            'mu': mu,
-            'tau': tau,
-            'eta': eta,
-            'R_eq': R_eq,
-            'R_0': R_0,
-            'F_rep': F_rep,
-            'F_adh': F_adh,
-        },
-        visual=VisualSpec('points', {'position': 'x', 'radius': R_0 / 2, 'color_by': 'theta'}),
+
+    field = 'physics/active_matter'
+    topics = ('active matter', 'sde', 'flocking', 'tissue', 'neighbours')
+    references = ('Szabó et al. 2006', 'Vicsek and Zafeiris 2012')
+    until = 60.0
+    dt = 0.5
+    solver = EulerMaruyamaSolver(dt=0.01)
+    observables = (
+        ObservableSpec('mean_heading', _heading, group='cells'),
+        ObservableSpec('polarization', _polarization),
     )
-    motion = RateInteraction('motion', target='cells', state='x', rate=functools.partial(_velocity, reach=R_0))
-    turning = RateInteraction(
-        'turning',
-        target='cells',
-        state='theta',
-        rate=functools.partial(_turning, reach=R_0),
-        noise=_angular_noise,
-    )
-    return System(
-        elements=[cells],
-        interactions=[motion, turning],
-        space=ContinuousSpace(extent=(size, size), boundary='periodic'),
-    )
+
+    def __init__(
+        self,
+        n_cells: int = 200,
+        *,
+        density: float = 1.0,
+        eta: float = 0.6,
+        v0: float = 1.0,
+        mu: float = 1.0,
+        tau: float = 1.0,
+        R_eq: float = 5.0 / 6.0,
+        R_0: float = 1.0,
+        F_rep: float = 30.0,
+        F_adh: float = 0.75,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_cells = n_cells
+        self.density = density
+        self.eta = eta
+        self.v0 = v0
+        self.mu = mu
+        self.tau = tau
+        self.R_eq = R_eq
+        self.R_0 = R_0
+        self.F_rep = F_rep
+        self.F_adh = F_adh
+        self.random_state = random_state
+
+    @staticmethod
+    def _turning(s: SimpleNamespace, *, reach: float) -> Expression:
+        """Return the rate `arcsin((n x v / |v|)_z) / tau` that turns a heading towards the velocity."""
+        cell = s.target
+        velocity = _velocity(s, reach=reach)
+        speed = sqrt(velocity[0] ** 2 + velocity[1] ** 2 + SOFTENING)
+        cross = (cos(cell.theta) * velocity[1] - sin(cell.theta) * velocity[0]) / speed
+        return arcsin(clip(cross, -1, 1)) / cell.tau
+
+    @staticmethod
+    def _angular_noise(s: SimpleNamespace) -> Expression:
+        """Return the amplitude `eta / sqrt(12)` of the angular noise."""
+        return s.target.eta / sqrt(12)
+
+    def _build_system(self) -> System:
+        """Return the cells in a periodic box, which move together above a critical density."""
+        size = math.sqrt(self.n_cells / self.density)
+        rng = np.random.default_rng(self.random_state)
+        cells = GroupElement(
+            'cells',
+            element=MotileCellElement,
+            size=self.n_cells,
+            values={
+                'x': rng.uniform(0.0, size, (self.n_cells, 2)),
+                'theta': rng.uniform(0.0, 2 * math.pi, self.n_cells),
+                'v0': self.v0,
+                'mu': self.mu,
+                'tau': self.tau,
+                'eta': self.eta,
+                'R_eq': self.R_eq,
+                'R_0': self.R_0,
+                'F_rep': self.F_rep,
+                'F_adh': self.F_adh,
+            },
+            visual=VisualSpec('points', {'position': 'x', 'radius': self.R_0 / 2, 'color_by': 'theta'}),
+        )
+        motion = RateInteraction('motion', target='cells', state='x', rate=functools.partial(_velocity, reach=self.R_0))
+        turning = RateInteraction(
+            'turning',
+            target='cells',
+            state='theta',
+            rate=functools.partial(self._turning, reach=self.R_0),
+            noise=self._angular_noise,
+        )
+        return System(
+            self.label,
+            elements=[cells],
+            interactions=[motion, turning],
+            space=ContinuousSpace(extent=(size, size), boundary='periodic'),
+        )

@@ -7,7 +7,7 @@ fluid at large scales. The view shows the number of particles of every hexagonal
 """
 
 # %%
-# The system is created by name from the catalog on a periodic 64 x 64 triangular lattice, where every channel is
+# The system is built from its class on a periodic 64 x 64 triangular lattice, where every channel is
 # occupied with probability 0.2, or 0.6 inside a disc at the centre. The observer saves every step with the default
 # blueprint, whose primary view shows the particle number of every cell.
 
@@ -15,15 +15,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.components.spaces import LatticeSpace
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.fluids import FHPLatticeGasSystem
 
 SYSTEM = 'fhp_lattice_gas'
 
-system = create_system(SYSTEM, shape=(64, 64))
+system = FHPLatticeGasSystem(shape=(64, 64))
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=120)
+trajectory = simulate(system, until=120, observers=[observer], random_state=0)
 
 # %%
 # Conservation and the spreading disc
@@ -33,7 +33,6 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 # the centre and spread over the lattice, so the mean particle number within the disc should fall towards the mean of
 # the whole gas.
 
-trajectory = simulation.trajectory_
 channels = np.stack([trajectory.values(f'gas.n{direction}').astype(float) for direction in range(6)])
 angles = np.arange(6) * np.pi / 3
 totals = channels.sum(axis=2)

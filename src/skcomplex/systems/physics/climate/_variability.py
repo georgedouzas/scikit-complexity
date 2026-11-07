@@ -13,17 +13,16 @@ from ....core.components.elements import Element
 from ....core.components.interactions import RelaxationInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class ClimateAnomalyElement(Element):
     """Slow temperature anomaly of Hasselmann's stochastic climate, with its feedback rate and weather noise.
 
-    The relaxation of `hasselmann` damps the anomaly at the rate `lam` and drives it with weather noise of amplitude
-    `sigma`.
+    The relaxation of `HasselmannSystem` damps the anomaly at the rate `lam` and drives it with weather noise of
+    amplitude `sigma`.
 
     Args:
         label:
@@ -90,6 +89,8 @@ class DelayedOscillatorElement(Element):
         6.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -118,27 +119,11 @@ class DelayedOscillatorElement(Element):
         return [RateLaw(s.T, s.T - s.T**3 - s.alpha * delayed(s.T, s.delta))]
 
 
-def _get_damping_time(s: SimpleNamespace) -> Expression:
-    """Return the damping time `1 / lam` of the temperature anomaly."""
-    return 1 / s.target.lam
-
-
-def _get_weather(s: SimpleNamespace) -> Expression:
-    """Return the amplitude `sigma` of the weather noise."""
-    return s.target.sigma
-
-
-@register_system(
-    field='physics/climate',
-    tags=('sde', 'Ornstein-Uhlenbeck', 'red noise', 'stochastic climate'),
-    references=('Hasselmann 1976', 'Ghil and Lucarini 2020'),
-    defaults={'until': 100.0, 'dt': 0.1, 'solver': EulerMaruyamaSolver(dt=0.01)},
-)
-def hasselmann(T: float = 0.0, *, lam: float = 0.5, sigma: float = 0.3) -> System:
-    """Return Hasselmann's stochastic climate, where fast weather noise drives a slow, damped temperature anomaly.
+class HasselmannSystem(BaseSystem):
+    """Hasselmann's stochastic climate, where fast weather noise drives a slow, damped temperature anomaly.
 
     The anomaly follows `dT = -lam T dt + sigma dW`, an Ornstein-Uhlenbeck process whose red spectrum integrates white
-    weather noise, with the stationary variance `sigma^2 / (2 lam)`.
+    weather noise, with the stationary variance `sigma^2 / (2 lam)`. The system has the anomaly `ocean.T`.
 
     Args:
         T:
@@ -150,39 +135,69 @@ def hasselmann(T: float = 0.0, *, lam: float = 0.5, sigma: float = 0.3) -> Syste
         sigma:
             The amplitude of the weather noise.
 
-    Returns:
-        system:
-            The system, with the anomaly `ocean.T`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.climate import hasselmann
-        >>> hasselmann(lam=0.1).elements[0].lam
+        >>> from skcomplex.systems.physics.climate import HasselmannSystem
+        >>> HasselmannSystem(lam=0.1).prepare().system_.elements[0].lam
         0.1
     """
-    feedback = RelaxationInteraction(
-        'feedback',
-        target='ocean',
-        state='T',
-        goal=0.0,
-        time=_get_damping_time,
-        noise=_get_weather,
-    )
-    return System(elements=[ClimateAnomalyElement('ocean', T=T, lam=lam, sigma=sigma)], interactions=[feedback])
+
+    field = 'physics/climate'
+    topics = ('sde', 'Ornstein-Uhlenbeck', 'red noise', 'stochastic climate')
+    references = ('Hasselmann 1976', 'Ghil and Lucarini 2020')
+    until = 100.0
+    dt = 0.1
+    solver = EulerMaruyamaSolver(dt=0.01)
+
+    def __init__(
+        self,
+        T: float = 0.0,
+        *,
+        lam: float = 0.5,
+        sigma: float = 0.3,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.T = T
+        self.lam = lam
+        self.sigma = sigma
+
+    @staticmethod
+    def _get_damping_time(s: SimpleNamespace) -> Expression:
+        """Return the damping time `1 / lam` of the temperature anomaly."""
+        return 1 / s.target.lam
+
+    @staticmethod
+    def _get_weather(s: SimpleNamespace) -> Expression:
+        """Return the amplitude `sigma` of the weather noise."""
+        return s.target.sigma
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        feedback = RelaxationInteraction(
+            'feedback',
+            target='ocean',
+            state='T',
+            goal=0.0,
+            time=self._get_damping_time,
+            noise=self._get_weather,
+        )
+        return System(
+            self.label,
+            elements=[ClimateAnomalyElement('ocean', T=self.T, lam=self.lam, sigma=self.sigma)],
+            interactions=[feedback],
+        )
 
 
-@register_system(
-    field='physics/climate',
-    tags=('delay', 'oscillation', 'El Niño', 'ENSO'),
-    references=('Suarez and Schopf 1988', 'Battisti and Hirst 1989', 'Ghil and Lucarini 2020'),
-    defaults={'until': 200.0, 'dt': 0.5},
-)
-def enso(T: float = 0.1, *, alpha: float = 0.75, delta: float = 6.0) -> System:
-    """Return the delayed oscillator of El Niño of Suarez and Schopf, `dT/dt = T - T^3 - alpha T(t - delta)`.
+class ENSOSystem(BaseSystem):
+    """The delayed oscillator of El Niño of Suarez and Schopf, `dT/dt = T - T^3 - alpha T(t - delta)`.
 
     The sea surface temperature anomaly of the eastern Pacific grows by local feedback and is damped by the delayed
     return of oceanic waves reflected at the western boundary. For `alpha < 1` and a long enough delay the warm and cold
     states lose stability to an oscillation between El Niño and La Niña. The history before the start is the initial
-    anomaly.
+    anomaly. The system has the anomaly `pacific.T`.
 
     Args:
         T:
@@ -194,13 +209,37 @@ def enso(T: float = 0.1, *, alpha: float = 0.75, delta: float = 6.0) -> System:
         delta:
             The delay of the wave transit.
 
-    Returns:
-        system:
-            The system, with the anomaly `pacific.T`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.climate import enso
-        >>> enso(delta=4.0).elements[0].delta
+        >>> from skcomplex.systems.physics.climate import ENSOSystem
+        >>> ENSOSystem(delta=4.0).prepare().system_.elements[0].delta
         4.0
     """
-    return System(elements=[DelayedOscillatorElement('pacific', T=T, alpha=alpha, delta=delta)])
+
+    field = 'physics/climate'
+    topics = ('delay', 'oscillation', 'El Niño', 'ENSO')
+    references = ('Suarez and Schopf 1988', 'Battisti and Hirst 1989', 'Ghil and Lucarini 2020')
+    until = 200.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        T: float = 0.1,
+        *,
+        alpha: float = 0.75,
+        delta: float = 6.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.T = T
+        self.alpha = alpha
+        self.delta = delta
+
+    def _build_system(self) -> System:
+        """Return the delayed oscillator of El Niño of Suarez and Schopf, `dT/dt = T - T^3 - alpha T(t - delta)`."""
+        return System(
+            self.label,
+            elements=[DelayedOscillatorElement('pacific', T=self.T, alpha=self.alpha, delta=self.delta)],
+        )

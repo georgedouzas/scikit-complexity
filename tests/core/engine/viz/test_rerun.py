@@ -32,7 +32,7 @@ from skcomplex.systems.biology.common.populations import ExponentialGrowthIntera
 from skcomplex.systems.biology.ecology import HigherOrderRandomLotkaVolterraSystem
 from skcomplex.systems.computer_science.automata import GameOfLifeSystem
 from skcomplex.systems.physics.common.particles import ConstantForceInteraction, MassPointElement
-from skcomplex.systems.physics.statistical_mechanics import ideal_gas
+from skcomplex.systems.physics.statistical_mechanics import IdealGasSystem
 from skcomplex.systems.social.opinion_dynamics import VoterSystem
 from skcomplex.systems.social.segregation import SchellingSystem
 
@@ -253,7 +253,9 @@ def test_group_is_logged_as_one_batch(monkeypatch, tmp_path):
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
     observer = RerunObserver('test', save_path=tmp_path / 'gas.rrd')
-    Simulation(ideal_gas(10_000, random_state=0), dt=0.01, observers=[observer]).prepare().run(until=0.02)
+    Simulation(IdealGasSystem(10_000, random_state=0).prepare().system_, dt=0.01, observers=[observer]).prepare().run(
+        until=0.02,
+    )
     batches = [entry for entry in logged if entry[0] == 'gas']
     assert len(batches) == 3
     assert all(name == 'Points2D' and len(positions) == 10_000 for _, name, positions in batches)

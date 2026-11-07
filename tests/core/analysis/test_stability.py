@@ -20,7 +20,7 @@ from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.chemistry.common.kinetics import CubicAutocatalysisInteraction
 from skcomplex.systems.chemistry.pattern_formation import BrusselatorElement
 from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem, LorenzSystem
-from skcomplex.systems.physics.mechanics import harmonic_oscillator
+from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
 
 
 def _stability(source, **settings):
@@ -78,7 +78,7 @@ def test_parameters_substitute_before_solving():
 
 def test_volume_preservation():
     """Test that the frictionless harmonic oscillator has divergence 0 and Lorenz contracts volumes."""
-    assert _stability(harmonic_oscillator()).divergence == 0
+    assert _stability(HarmonicOscillatorSystem().prepare().system_).divergence == 0
     sigma, beta = SR.var('sigma_lorenz'), SR.var('beta_lorenz')
     assert bool(_stability(LorenzSystem()).divergence == -sigma - beta - 1)
 

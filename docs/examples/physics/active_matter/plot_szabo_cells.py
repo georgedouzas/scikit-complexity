@@ -17,9 +17,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.backends import NumbaBackend
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation, create_system, describe
+from skcomplex.systems.physics.active_matter import SzaboCellsSystem
 
 SYSTEM = 'szabo_cells'
 SIZE = float(np.sqrt(200.0))
@@ -36,22 +37,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM)
-entry = describe(SYSTEM)
+system = SzaboCellsSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = (
-    Simulation(
-        system,
-        dt=entry.defaults['dt'],
-        solver=entry.defaults['solver'],
-        backend=entry.defaults['backend'],
-        observers=[observer],
-        random_state=1,
-        observables=entry.observables_of(system),
-    )
-    .prepare()
-    .run(until=entry.defaults['until'])
-)
+trajectory = simulate(system, backend=NumbaBackend(), observers=[observer], random_state=1)
 
 
 # %%
@@ -75,14 +63,11 @@ CELLS = 100
 curves = {}
 for density in DENSITIES:
     settings = {'until': 40.0, 'random_state': 1}
-    trajectory = (
-        create_simulation(SYSTEM, n_cells=CELLS, density=density).set_params(**settings).prepare().run().trajectory_
-    )
+    trajectory = simulate(SzaboCellsSystem(n_cells=CELLS, density=density), **settings)
     curves[density] = order_of(trajectory, np.sqrt(CELLS / density))
 finals = [curve[-20:].mean() for curve in curves.values()]
 
 fig, (growth, transition) = plt.subplots(1, 2, figsize=(10, 4))
-trajectory = simulation.trajectory_
 growth.plot(trajectory.times[1:], order_of(trajectory, SIZE), label='200 cells at density 1')
 growth.plot(0.5 * np.arange(1, 81), curves[0.05], label='100 cells at density 0.05')
 growth.axhline(0.8, color='0.6', linestyle='--', label='0.8')

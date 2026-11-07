@@ -7,7 +7,7 @@ light cone whose edges move at the largest group velocity of the chain.
 """
 
 # %%
-# The system is created by name from the catalog with the isotropic exchange `J = Δ = 1`, from one flipped spin at
+# The system is built from its class with the isotropic exchange `J = Δ = 1`, from one flipped spin at
 # site 6. The state is a vector of `2^12 = 4096` complex amplitudes that QuTiP evolves by the Schrödinger equation.
 # The observer saves every frame with the default blueprint, whose primary view is the space-time image of `S^z`.
 
@@ -20,26 +20,19 @@ from skcomplex.core.engine.compile import OperatorCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import SectorSpec
-from skcomplex.systems import create_simulation, create_system, describe
-from skcomplex.systems.physics.statistical_mechanics import total_magnetization
+from skcomplex.systems.physics.statistical_mechanics import QuantumHeisenbergSystem, total_magnetization
 
 SYSTEM = 'quantum_heisenberg'
 
-system = create_system(SYSTEM)
+system = QuantumHeisenbergSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(
-        system,
-        compiler=OperatorCompiler(),
-        dt=0.05,
-        observers=[observer],
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(
-        until=8.0,
-    )
-)
+Simulation(
+    system.prepare().system_,
+    compiler=OperatorCompiler(),
+    dt=0.05,
+    observers=[observer],
+    observables=QuantumHeisenbergSystem.observables,
+).prepare().run(until=8.0)
 
 # %%
 # Magnon and ground-state energy
@@ -50,13 +43,25 @@ simulation = (
 # antiferromagnetic rings from exact diagonalisation in the sector of zero magnetisation. It approaches the Bethe
 # ansatz value `1/4 - ln 2` of the infinite chain as the ring grows.
 
-magnon = create_simulation(SYSTEM, delta=0.0).set_params(dt=0.05).prepare().run(until=4.0).trajectory_
+magnon = (
+    Simulation(
+        QuantumHeisenbergSystem(delta=0.0).prepare().system_,
+        compiler=OperatorCompiler(),
+        dt=0.05,
+        observables=QuantumHeisenbergSystem.observables,
+    )
+    .prepare()
+    .run(until=4.0)
+    .trajectory_
+)
 
 
 sizes = np.arange(4, 15, 2)
 sector = SectorSpec(total_magnetization, 0.0)
 energies = [
-    operator_measures(create_system(SYSTEM, n_sites=int(n)), n_states=1, sector=sector).energies[0] / n for n in sizes
+    operator_measures(QuantumHeisenbergSystem(n_sites=int(n)).prepare().system_, n_states=1, sector=sector).energies[0]
+    / n
+    for n in sizes
 ]
 fig, (spread, ground) = plt.subplots(1, 2, figsize=(10, 4))
 for distance in (0, 1, 3):

@@ -18,9 +18,9 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.physics.active_matter import BinaryCollisionFlockingSystem
 
 SYSTEM = 'binary_collision_flocking'
 
@@ -37,19 +37,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, sigma=0.3, random_state=0)
+system = BinaryCollisionFlockingSystem(sigma=0.3, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = (
-    Simulation(
-        system,
-        dt=1,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=200)
-)
+trajectory = simulate(system, observers=[observer], random_state=0)
 
 # %%
 # The order-disorder transition in noise
@@ -70,22 +60,11 @@ threshold = brentq(lambda sigma: threshold_density(sigma) - 1.0, 0.05, 0.89)
 noises = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0])
 polarizations = []
 for sigma in noises:
-    system_system = create_system(SYSTEM, sigma=float(sigma), random_state=1)
-    run = (
-        Simulation(
-            system_system,
-            dt=1,
-            random_state=1,
-            observables=describe(SYSTEM).observables_of(system_system),
-        )
-        .prepare()
-        .run(
-            until=150,
-        )
-    )
-    polarizations.append(np.mean(run.trajectory_.values('polarization')[75:]))
+    system_system = BinaryCollisionFlockingSystem(sigma=float(sigma), random_state=1)
+    run = simulate(system_system, until=150, random_state=1)
+    polarizations.append(np.mean(run.values('polarization')[75:]))
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(simulation.trajectory_.times, simulation.trajectory_.values('polarization'))
+series.plot(trajectory.times, trajectory.values('polarization'))
 series.set_ylim(0, 1)
 series.set_xlabel('time')
 series.set_ylabel('polarization')

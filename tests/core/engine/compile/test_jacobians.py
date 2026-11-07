@@ -36,8 +36,8 @@ from skcomplex.core.specs import ParameterSpec, RunStateSpec, StateSpec, VisualS
 from skcomplex.systems.biology.ecology import FisherKPPElement
 from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
 from skcomplex.systems.physics.common.oscillators import SitedOscillatorElement
-from skcomplex.systems.physics.fluids import kuramoto_sivashinsky
-from skcomplex.systems.physics.heat import heat_diffusion, heat_l_shape
+from skcomplex.systems.physics.fluids import KuramotoSivashinskySystem
+from skcomplex.systems.physics.heat import HeatDiffusionSystem, HeatLShapeSystem
 
 RNG = np.random.default_rng(1)
 PAYOFF = RNG.normal(size=(20, 20))
@@ -224,7 +224,11 @@ def test_mesh_pattern():
     np.testing.assert_array_equal(pattern[free], expected[free])
 
 
-@pytest.mark.parametrize('system', [heat_diffusion((12, 12)), heat_l_shape(2)], ids=['lattice', 'mesh'])
+@pytest.mark.parametrize(
+    'system',
+    [HeatDiffusionSystem((12, 12)).prepare().system_, HeatLShapeSystem(2).prepare().system_],
+    ids=['lattice', 'mesh'],
+)
 def test_pattern_agrees_with_split_solver(system):
     """Test that the pattern holds every entry of the sparse linear part of linear lattice and mesh fields."""
     problem = PassCompiler().prepare(system).run().problem_
@@ -237,7 +241,7 @@ def test_pattern_agrees_with_split_solver(system):
 
 @pytest.mark.parametrize(
     ('system', 'block'),
-    [(_pair_ring(12), 12), (kuramoto_sivashinsky(16), 16)],
+    [(_pair_ring(12), 12), (KuramotoSivashinskySystem(16).prepare().system_, 16)],
     ids=['pairs', 'spectral'],
 )
 def test_run_time_couplings_are_dense(system, block):

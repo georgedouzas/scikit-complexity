@@ -8,7 +8,7 @@ from scipy.optimize import brentq
 
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.errors import ValidationError
-from skcomplex.systems.physics.cosmology import flrw_cosmology, oppenheimer_snyder_collapse
+from skcomplex.systems.physics.cosmology import FLRWCosmologySystem, OppenheimerSnyderCollapseSystem
 
 from ..conftest import _run, _series
 
@@ -26,7 +26,7 @@ ACCURATE = ScipyODESolver(method='DOP853', rtol=1e-11, atol=1e-12)
 )
 def test_scale_factor_follows_the_analytic_friedmann_solutions(kwargs, exact):
     """Test the scale factor of dust `t^(2/3)`, radiation `t^(1/2)`, vacuum `e^(H t)`, and the empty Milne universe."""
-    trajectory = _run(flrw_cosmology(0.5, **kwargs), 2.0, 0.1, ACCURATE)
+    trajectory = _run(FLRWCosmologySystem(0.5, **kwargs), 2.0, 0.1, ACCURATE)
     (a,) = _series(trajectory, 'universe.a')
     assert np.ravel(a) == pytest.approx(exact(np.asarray(trajectory.times)), rel=1e-8)
 
@@ -34,7 +34,7 @@ def test_scale_factor_follows_the_analytic_friedmann_solutions(kwargs, exact):
 def test_mixed_universe_keeps_the_friedmann_constraint_and_accelerates_late():
     """Test that matter, radiation, vacuum, and curvature keep `(a'/a)² = H0² Σ Ω a^-n` and accelerate at late times."""
     trajectory = _run(
-        flrw_cosmology(0.3, omega_matter=0.3, omega_radiation=0.01, omega_lambda=0.8),
+        FLRWCosmologySystem(0.3, omega_matter=0.3, omega_radiation=0.01, omega_lambda=0.8),
         3.0,
         0.05,
         ACCURATE,
@@ -49,13 +49,13 @@ def test_mixed_universe_keeps_the_friedmann_constraint_and_accelerates_late():
 def test_flrw_cosmology_rejects_a_universe_that_cannot_expand():
     """Test that a closed universe beyond its turning point is rejected."""
     with pytest.raises(ValidationError, match='negative squared expansion rate'):
-        flrw_cosmology(3.0, omega_matter=3.0, omega_lambda=0.0)
+        FLRWCosmologySystem(3.0, omega_matter=3.0, omega_lambda=0.0).prepare()
 
 
 @pytest.fixture(scope='module')
 def collapse():
     """Return the times and radii of a collapsing ball of eight shells."""
-    trajectory = _run(oppenheimer_snyder_collapse(8), 34.5, 0.5, ACCURATE)
+    trajectory = _run(OppenheimerSnyderCollapseSystem(8), 34.5, 0.5, ACCURATE)
     (radii,) = _series(trajectory, 'ball.R')
     return np.asarray(trajectory.times), radii
 
@@ -85,4 +85,4 @@ def test_dust_ball_surface_crosses_its_schwarzschild_radius(collapse):
 def test_oppenheimer_snyder_collapse_rejects_a_ball_inside_its_horizon():
     """Test that a ball that starts inside its Schwarzschild radius is rejected."""
     with pytest.raises(ValidationError, match='inside the Schwarzschild radius'):
-        oppenheimer_snyder_collapse(radius=1.5)
+        OppenheimerSnyderCollapseSystem(radius=1.5).prepare()

@@ -6,7 +6,7 @@ are huge, so the cloud has a dense core and walkers scattered far away by single
 """
 
 # %%
-# The system is created by name from the catalog with 500 walkers in the plane, whose jump lengths have the tail
+# The system is built from its class with 500 walkers in the plane, whose jump lengths have the tail
 # `l^(-2.2)`, and iterated for 200 steps. Every step draws the jump lengths from SciPy's Pareto distribution and the
 # directions from normal draws. The observer saves every frame with the default blueprint, whose primary view shows
 # the walkers.
@@ -14,15 +14,15 @@ are huge, so the cloud has a dense core and walkers scattered far away by single
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.soft_matter import LevyFlightSystem
 
 SYSTEM = 'levy_flight'
 
-system = create_system(SYSTEM, n_walkers=500, mu=1.2)
+system = LevyFlightSystem(n_walkers=500, mu=1.2)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=200)
+trajectory = simulate(system, observers=[observer], random_state=0)
 
 # %%
 # Superdiffusive spreading
@@ -31,7 +31,6 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 # theorem. The median distance from the origin should follow the dashed line of slope `1 / mu = 0.83`, above the slope
 # 1/2 of a random walk. The distribution of the jump lengths should follow the power law `l^(-1 - mu)`.
 
-trajectory = simulation.trajectory_
 steps = trajectory.times[1:]
 positions = trajectory.values('walkers.x')
 distance = np.median(np.linalg.norm(positions[1:], axis=-1), axis=1)
@@ -41,7 +40,7 @@ edges = np.logspace(0, np.log10(lengths.max()), 30)
 density, _ = np.histogram(lengths, bins=edges, density=True)
 centers = np.sqrt(edges[1:] * edges[:-1])
 fig, (spreading, tail) = plt.subplots(1, 2, figsize=(10, 4))
-spreading.loglog(steps, distance, label=f'simulation, slope {slope:.2f}')
+spreading.loglog(steps, distance, label=f'trajectory, slope {slope:.2f}')
 spreading.loglog(steps, distance[-1] * (steps / steps[-1]) ** (1 / 1.2), '--', color='black', label='slope 1 / mu')
 spreading.loglog(steps, distance[-1] * (steps / steps[-1]) ** 0.5, ':', color='gray', label='random walk, slope 1/2')
 spreading.set_xlabel('step n')

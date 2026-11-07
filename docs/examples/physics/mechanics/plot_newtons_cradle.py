@@ -13,15 +13,15 @@ almost still: elastic collisions between equal masses pass the whole momentum an
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.mechanics import NewtonsCradleSystem
 
 SYSTEM = 'newtons_cradle'
 
-system = create_system(SYSTEM, n_balls=5, speed=0.5)
+system = NewtonsCradleSystem(n_balls=5, speed=0.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.01, observers=[observer]).prepare().run(until=5)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Momentum passed down the row
@@ -30,8 +30,8 @@ simulation = Simulation(system, dt=0.01, observers=[observer]).prepare().run(unt
 # within an instant, keeping the speed 0.5, and come back to the first ball half a swing later, while the middle balls
 # stay almost at rest.
 
-times = np.asarray(simulation.trajectory_.times)
-velocities = np.stack([np.ravel(simulation.trajectory_.values(f'ball_{index}.x_d1')) for index in range(5)], axis=1)
+times = np.asarray(trajectory.times)
+velocities = np.stack([np.ravel(trajectory.values(f'ball_{index}.x_d1')) for index in range(5)], axis=1)
 fig, ax = plt.subplots(figsize=(8, 4))
 for index in range(5):
     ax.plot(times, velocities[:, index], label=f'ball {index}')

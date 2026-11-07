@@ -12,15 +12,15 @@ natural frequency: the delay shifts the collective frequency, and several locked
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.synchronization import DelayedKuramotoSystem
 
 SYSTEM = 'delayed_kuramoto'
 
-system = create_system(SYSTEM, n_oscillators=5, K=2.0, tau=1.0, spread=0.2, seed=0)
+system = DelayedKuramotoSystem(n_oscillators=5, K=2.0, tau=1.0, spread=0.2, seed=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=50)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Collective frequency against the delay
@@ -35,12 +35,8 @@ effective = 2.0 * 4 / 5
 delays = np.linspace(0.1, 3.0, 30)
 measured = []
 for delay in delays:
-    run = (
-        Simulation(create_system(SYSTEM, n_oscillators=5, K=2.0, tau=delay, spread=0.2, seed=0), dt=0.1)
-        .prepare()
-        .run(until=150)
-    )
-    times, phase = np.asarray(run.trajectory_.times), np.ravel(run.trajectory_.values('oscillator_0.theta'))
+    run = simulate(DelayedKuramotoSystem(n_oscillators=5, K=2.0, tau=delay, spread=0.2, seed=0), until=150)
+    times, phase = np.asarray(run.times), np.ravel(run.values('oscillator_0.theta'))
     late = times > 100
     measured.append(np.polyfit(times[late], phase[late], 1)[0])
 omegas = np.linspace(-1.0, 3.0, 4000)

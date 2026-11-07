@@ -7,7 +7,7 @@ orientation wins. The view shows the spins of a 256 x 256 torus 100 sweeps after
 """
 
 # %%
-# The system is created by name from the catalog at `T = 2.0 J`, below `T_c`. One unit of time is one sweep of
+# The system is built from its class at `T = 2.0 J`, below `T_c`. One unit of time is one sweep of
 # checkerboard Metropolis updates. The observer saves every frame with the default blueprint, whose primary view is
 # the image of the spins.
 
@@ -15,15 +15,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import information
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.statistical_mechanics import IsingSystem
 
 SYSTEM = 'ising'
 
-system = create_system(SYSTEM, size=256, temperature=2.0, random_state=0)
+system = IsingSystem(size=256, temperature=2.0, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=100)
+trajectory = simulate(system, until=100, observers=[observer], random_state=0)
 
 # %%
 # Spontaneous magnetization against Onsager's solution
@@ -36,9 +36,9 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 temperatures = np.linspace(1.5, 3.5, 17)
 measured = []
 for temperature in temperatures:
-    system_t = create_system(SYSTEM, size=48, temperature=temperature, initial='up')
-    run = Simulation(system_t, dt=1, random_state=1).prepare().run(until=1500)
-    measured.append(np.abs(run.trajectory_.values('spins.spin')[300:].mean(axis=1)).mean())
+    system_t = IsingSystem(size=48, temperature=temperature, initial='up')
+    run = simulate(system_t, until=1500, random_state=1)
+    measured.append(np.abs(run.values('spins.spin')[300:].mean(axis=1)).mean())
 grid = np.linspace(1.5, 2 / np.log(1 + np.sqrt(2)), 300)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(temperatures, measured, 'o', label='simulation, 48 x 48')
@@ -63,9 +63,9 @@ plt.show()
 
 redundancies = []
 for temperature in temperatures:
-    system_t = create_system(SYSTEM, size=48, temperature=temperature, initial='up')
-    run = Simulation(system_t, dt=1, random_state=1).prepare().run(until=600)
-    frames = np.asarray(run.trajectory_.values('spins.spin')[300::10]).reshape(-1, 48, 48)
+    system_t = IsingSystem(size=48, temperature=temperature, initial='up')
+    run = simulate(system_t, until=600, random_state=1)
+    frames = np.asarray(run.values('spins.spin')[300::10]).reshape(-1, 48, 48)
     blocks = frames.reshape(-1, 24, 2, 24, 2).transpose(0, 1, 3, 2, 4).reshape(-1, 4)
     redundancies.append(information((blocks > 0).astype(int), kind='o-information').information)
 fig, ax = plt.subplots(figsize=(7, 4))

@@ -15,29 +15,16 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import total, uniform, where
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, RunSettings, System
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 def _reward(actions: Array, couplings: Array) -> float:
     """Return the mean reward per agent, `sum_ij J_ij sigma_i sigma_j / N`."""
     actions = np.asarray(actions, dtype=float)
     return float(actions @ couplings @ actions / actions.size)
-
-
-def _observables(system: System) -> list[ObservableSpec]:
-    """Return the observable of the mean reward per agent of the SK game."""
-    agents = system.elements[0]
-    if not isinstance(agents, GroupElement) or agents.values is None:
-        error_msg = 'The SK game needs its first element to be the group of agents with their couplings.'
-        raise ValidationError(error_msg)
-    couplings = np.asarray(agents.values['couplings'], dtype=float)
-    return [
-        ObservableSpec('reward', group='agents', variable='sigma', reduce=partial(_reward, couplings=couplings)),
-    ]
 
 
 class LearningAgentElement(Element):
@@ -73,6 +60,8 @@ class LearningAgentElement(Element):
         >>> LearningAgentElement('agent').alpha
         0.5
     """
+
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
@@ -111,28 +100,16 @@ class LearningAgentElement(Element):
         ]
 
 
-@register_system(
-    field='physics/criticality',
-    tags=('spin glass', 'reinforcement learning', 'game', 'disorder', 'discrete map'),
-    references=('Lesmana et al. 2026', 'Sherrington and Kirkpatrick 1975', 'Watkins and Dayan 1992'),
-    defaults={'until': 200, 'dt': 1},
-    observables=_observables,
-)
-def sk_game(
-    n_agents: int = 256,
-    *,
-    alpha: float = 0.5,
-    temperature: float = 0.5,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the SK game, reinforcement learners whose rewards come from quenched Sherrington-Kirkpatrick couplings.
+class SKGameSystem(BaseSystem):
+    """The SK game, reinforcement learners whose rewards come from quenched Sherrington-Kirkpatrick couplings.
 
     Every agent plays `sigma_i = ±1` and earns `sigma_i sum_j J_ij sigma_j`, with symmetric Gaussian couplings of mean
     0, variance `1 / N`, and zero diagonal. It discounts its rewards with the memory `alpha` into the incentive `Q_i`
     and plays from a softmax policy at the temperature `T` (Lesmana et al., Eqs. 1-3). All agents start with zero
-    incentives, so their first actions are random, and update in parallel. At low temperature the agents freeze into
-    one of many ordered states with a high collective reward, and at high temperature they explore noisily with a low
-    one.
+    incentives, so their first actions are random, and update in parallel. At low temperature the agents freeze into one
+    of many ordered states with a high collective reward, and at high temperature they explore noisily with a low one.
+    The system has the actions `agents.sigma`, the incentives `agents.Q`, and the coupling matrix in the values of the
+    group. Its standard observable `reward` is the mean reward per agent.
 
     Args:
         n_agents:
@@ -147,29 +124,69 @@ def sk_game(
         random_state:
             The seed or generator of the couplings and of the initial actions.
 
-    Returns:
-        system:
-            The system, with the actions `agents.sigma`, the incentives `agents.Q`, and the coupling matrix in the
-            values of the group. Its standard observable `reward` is the mean reward per agent.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.criticality import sk_game
-        >>> couplings = sk_game(10).elements[0].values['couplings']
+        >>> from skcomplex.systems.physics.criticality import SKGameSystem
+        >>> couplings = SKGameSystem(10).prepare().system_.elements[0].values['couplings']
         >>> bool((couplings == couplings.T).all())
         True
     """
-    rng = np.random.default_rng(random_state)
-    upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(n_agents), (n_agents, n_agents)), 1)
-    agents = GroupElement(
-        'agents',
-        element=LearningAgentElement,
-        size=n_agents,
-        values={
-            'sigma': rng.choice([-1.0, 1.0], size=n_agents),
-            'Q': 0.0,
-            'alpha': alpha,
-            'temperature': temperature,
-            'couplings': upper + upper.T,
-        },
-    )
-    return System(elements=[agents])
+
+    field = 'physics/criticality'
+    topics = ('spin glass', 'reinforcement learning', 'game', 'disorder', 'discrete map')
+    references = ('Lesmana et al. 2026', 'Sherrington and Kirkpatrick 1975', 'Watkins and Dayan 1992')
+    until = 200
+    dt = 1
+
+    def __init__(
+        self,
+        n_agents: int = 256,
+        *,
+        alpha: float = 0.5,
+        temperature: float = 0.5,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+        self.alpha = alpha
+        self.temperature = temperature
+        self.random_state = random_state
+
+    @staticmethod
+    def _observables(system: System) -> list[ObservableSpec]:
+        """Return the observable of the mean reward per agent of the SK game."""
+        agents = system.elements[0]
+        if not isinstance(agents, GroupElement) or agents.values is None:
+            error_msg = 'The SK game needs its first element to be the group of agents with their couplings.'
+            raise ValidationError(error_msg)
+        couplings = np.asarray(agents.values['couplings'], dtype=float)
+        return [
+            ObservableSpec('reward', group='agents', variable='sigma', reduce=partial(_reward, couplings=couplings)),
+        ]
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings, with the observables of the parts built from the model parameters."""
+        settings = super().get_run_settings()
+        settings['observables'] = tuple(self._observables(self._build_system()))
+        return settings
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(self.n_agents), (self.n_agents, self.n_agents)), 1)
+        agents = GroupElement(
+            'agents',
+            element=LearningAgentElement,
+            size=self.n_agents,
+            values={
+                'sigma': rng.choice([-1.0, 1.0], size=self.n_agents),
+                'Q': 0.0,
+                'alpha': self.alpha,
+                'temperature': self.temperature,
+                'couplings': upper + upper.T,
+            },
+        )
+        return System(self.label, elements=[agents])

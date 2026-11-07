@@ -4,10 +4,10 @@ import numpy as np
 import pytest
 
 from skcomplex.core.engine.problems import FrameSpec
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import Simulation, simulate
 from skcomplex.core.engine.viz import ImageVisual, RerunObserver
 from skcomplex.core.experiments import Experiment, GridDesign
-from skcomplex.systems.physics.statistical_mechanics import ising, potts, xy
+from skcomplex.systems.physics.statistical_mechanics import IsingSystem, PottsSystem, XYSystem
 from skcomplex.systems.physics.statistical_mechanics._spins import PottsSamplingInteraction, XYSamplingInteraction
 
 from ..common.spins.conftest import _run
@@ -49,7 +49,7 @@ def test_ising_transition():
     temperatures = [1.5, 2.0, 2.2, 2.4, 3.0, 3.5]
     result = (
         Experiment(
-            lambda temperature: ising(64, temperature=temperature, initial='up'),
+            lambda temperature: IsingSystem(64, temperature=temperature, initial='up').prepare().system_,
             GridDesign(),
             {'temperature': temperatures},
             replicates=4,
@@ -70,12 +70,14 @@ def test_ising_transition():
     assert 2.2 < CRITICAL_TEMPERATURE < 2.4
 
 
-@pytest.mark.parametrize('factory', [potts, xy])
+@pytest.mark.parametrize('factory', [PottsSystem, XYSystem])
 def test_cold_spin_systems_order(factory):
     """Test that the Potts and XY systems order at low temperature."""
-    simulation = Simulation(factory(16, temperature=0.2), dt=100, random_state=0).prepare().run(until=300)
+    simulation = (
+        Simulation(factory(16, temperature=0.2).prepare().system_, dt=100, random_state=0).prepare().run(until=300)
+    )
     values = simulation.state_
-    if factory is potts:
+    if factory is PottsSystem:
         assert np.bincount(values.astype(int)).max() > 0.8 * values.size
     else:
         assert np.abs(np.exp(1j * values).mean()) > 0.8
@@ -84,7 +86,7 @@ def test_cold_spin_systems_order(factory):
 def test_lattices_log_images():
     """Test that a lattice state is logged as an image of the lattice shape."""
     recording = Images()
-    simulation = Simulation(ising(8, initial='up'), dt=1).prepare().run(until=1)
+    simulation = Simulation(IsingSystem(8, initial='up').prepare().system_, dt=1).prepare().run(until=1)
     frame = FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
     (
         ImageVisual(low=-1, high=1, path=simulation.problem_.elements[0].path, recording=recording)
@@ -99,6 +101,6 @@ def test_lattices_log_images():
 def test_lattice_recording_is_saved(tmp_path):
     """Test that a lattice system streams to a recording with one image per frame."""
     observer = RerunObserver('ising', save_path=tmp_path / 'ising.rrd')
-    Simulation(ising(16), dt=1, observers=[observer]).prepare().run(until=5)
+    simulate(IsingSystem(16), until=5, observers=[observer])
     assert observer.logged_frames_ == 6
     assert (tmp_path / 'ising.rrd').stat().st_size > 0

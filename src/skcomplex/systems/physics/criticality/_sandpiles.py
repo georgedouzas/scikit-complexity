@@ -16,10 +16,9 @@ from ....core.components.elements import Element, LatticeElement
 from ....core.components.interactions import CascadeInteraction, LocalRuleInteraction, MapInteraction
 from ....core.components.laws.utils import draw, either, where
 from ....core.components.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 from ..common import SandpileCellElement
 
 
@@ -154,56 +153,20 @@ def _active(site: SimpleNamespace) -> Expression:
     return where(site.height >= THRESHOLD, 1, 0)
 
 
-def _load(packet: float, energies: Array, *, random: np.random.Generator) -> Array:
-    """Return the energies with a packet of uniform size in `[0, packet]` added on a random site."""
-    rng = random
-    following = energies.copy()
-    following[tuple(rng.integers(size) for size in energies.shape)] += rng.uniform(0.0, packet)
-    return following
-
-
 def _ends(tree: SimpleNamespace, generations: int) -> Expression:
     """Return whether the avalanche of a tree ends this step, at the last generation or with no active site."""
     return either(tree.g >= generations, tree.z == 0)
 
 
-def _branch(generations: int, s: SimpleNamespace) -> Expression:
-    """Return the active sites of the next generation, or the one site of a new avalanche."""
-    return where(_ends(s.target, generations), 1, 2 * draw('children', 'binom', n=s.target.z, p=s.target.p))
+class FixedEnergySandpileSystem(BaseSystem):
+    """The fixed-energy sandpile, a Bak-Tang-Wiesenfeld pile with no drive and no loss on a periodic lattice.
 
-
-def _advance(generations: int, s: SimpleNamespace) -> Expression:
-    """Return the next generation, or 0 for a new avalanche."""
-    return where(_ends(s.target, generations), 0, s.target.g + 1)
-
-
-def _tune(generations: int, s: SimpleNamespace) -> Expression:
-    """Return the branching probability, changed by `(1 - sigma) / N` at the end of an avalanche."""
-    sites = 2 ** (generations + 1) - 1
-    dissipated = where(s.target.g >= generations, s.target.z, 0)
-    return where(_ends(s.target, generations), s.target.p + (1 - dissipated) / sites, s.target.p)
-
-
-@register_system(
-    field='physics/criticality',
-    tags=('lattice', 'absorbing states', 'phase transition', 'conservation', 'sandpile'),
-    references=('Dickman, Vespignani, and Zapperi 1998', 'Vespignani et al. 2000', 'Gros 2015'),
-    defaults={'until': 500, 'dt': 1},
-    observables=lambda system: [ObservableSpec('activity', _active, group='pile')],
-)
-def fixed_energy_sandpile(
-    shape: Sequence[int] = (32, 32),
-    *,
-    density: float = 2.3,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the fixed-energy sandpile, a Bak-Tang-Wiesenfeld pile with no drive and no loss on a periodic lattice.
-
-    Every step, every site with at least four grains gives one grain to each of its four neighbours, all at once.
-    The lattice is periodic, so the density of grains `density` is conserved, and it controls an absorbing phase
-    transition. Below the critical density, about 2.125 on the square lattice, the topplings stop in an absorbing
-    configuration, and above it the pile stays active forever. The density of active sites, the observable `activity`,
-    is the order parameter. The grains start scattered uniformly at random over the sites.
+    Every step, every site with at least four grains gives one grain to each of its four neighbours, all at once. The
+    lattice is periodic, so the density of grains `density` is conserved, and it controls an absorbing phase transition.
+    Below the critical density, about 2.125 on the square lattice, the topplings stop in an absorbing configuration, and
+    above it the pile stays active forever. The density of active sites, the observable `activity`, is the order
+    parameter. The grains start scattered uniformly at random over the sites. The system has the heights `pile.height`
+    and the observable `activity`, the density of active sites.
 
     Args:
         shape:
@@ -215,46 +178,58 @@ def fixed_energy_sandpile(
         random_state:
             The seed or generator of the initial grains.
 
-    Returns:
-        system:
-            The system, with the heights `pile.height` and the observable `activity`, the density of active sites.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.criticality import fixed_energy_sandpile
-        >>> fixed_energy_sandpile((8, 8), density=2.0).elements[0].prepare().size_
+        >>> from skcomplex.systems.physics.criticality import FixedEnergySandpileSystem
+        >>> FixedEnergySandpileSystem((8, 8), density=2.0).prepare().system_.elements[0].prepare().size_
         64
     """
-    size = int(np.prod(shape))
-    rng = np.random.default_rng(random_state)
-    grains = rng.integers(size, size=round(density * size))
-    heights = np.bincount(grains, minlength=size).reshape(tuple(shape)).astype(float)
-    space = LatticeSpace(tuple(shape), boundary='periodic')
-    return System(
-        elements=[LatticeElement('pile', element=SandpileCellElement, space=space, values={'height': heights})],
-        interactions=[ToppleInteraction('topple', target='pile', threshold=THRESHOLD)],
-    )
+
+    field = 'physics/criticality'
+    topics = ('lattice', 'absorbing states', 'phase transition', 'conservation', 'sandpile')
+    references = ('Dickman, Vespignani, and Zapperi 1998', 'Vespignani et al. 2000', 'Gros 2015')
+    until = 500
+    dt = 1
+    observables = (ObservableSpec('activity', _active, group='pile'),)
+
+    def __init__(
+        self,
+        shape: Sequence[int] = (32, 32),
+        *,
+        density: float = 2.3,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.density = density
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        size = int(np.prod(self.shape))
+        rng = np.random.default_rng(self.random_state)
+        grains = rng.integers(size, size=round(self.density * size))
+        heights = np.bincount(grains, minlength=size).reshape(tuple(self.shape)).astype(float)
+        space = LatticeSpace(tuple(self.shape), boundary='periodic')
+        return System(
+            self.label,
+            elements=[LatticeElement('pile', element=SandpileCellElement, space=space, values={'height': heights})],
+            interactions=[ToppleInteraction('topple', target='pile', threshold=THRESHOLD)],
+        )
 
 
-@register_system(
-    field='physics/criticality',
-    tags=('lattice', 'avalanches', 'power law', 'continuous energy', 'sandpile'),
-    references=('Zhang 1989', 'Jensen 2023'),
-    defaults={'until': 10000, 'dt': 100},
-)
-def zhang_sandpile(
-    shape: Sequence[int] = (32, 32),
-    *,
-    threshold: float = 1.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Zhang sandpile, a continuous sandpile whose unstable sites give away all their energy.
+class ZhangSandpileSystem(BaseSystem):
+    """The Zhang sandpile, a continuous sandpile whose unstable sites give away all their energy.
 
     Every step loads a site chosen at random with a packet of energy of uniform size in `[0, threshold]`. A site whose
     energy reaches the threshold relaxes: its energy falls to 0 and each of its four neighbours gains a quarter of it,
     all at once, until no site is unstable. Energy that would go beyond the open edges is lost. The pile organizes
     itself into a critical state with avalanches of every size, recorded as `avalanche` events with their sizes,
     durations, and areas, and the energies of the sites cluster near a few values. The energies start uniformly at
-    random below the threshold.
+    random below the threshold. The system has the energies `pile.energy`.
 
     Args:
         shape:
@@ -266,49 +241,74 @@ def zhang_sandpile(
         random_state:
             The seed or generator of the initial energies.
 
-    Returns:
-        system:
-            The system, with the energies `pile.energy`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.criticality import zhang_sandpile
-        >>> zhang_sandpile((8, 8)).interactions[0].mode
+        >>> from skcomplex.systems.physics.criticality import ZhangSandpileSystem
+        >>> ZhangSandpileSystem((8, 8)).prepare().system_.interactions[0].mode
         'reset'
     """
-    energies = np.random.default_rng(random_state).uniform(0.0, threshold, size=tuple(shape))
-    space = LatticeSpace(tuple(shape), boundary='fixed')
-    avalanche = CascadeInteraction(
-        'avalanche',
-        target='pile',
-        state='energy',
-        threshold=threshold,
-        share=1 / 4,
-        mode='reset',
-        drive=partial(_load, threshold),
-    )
-    return System(
-        elements=[LatticeElement('pile', element=EnergySiteElement, space=space, values={'energy': energies})],
-        interactions=[avalanche],
-    )
+
+    field = 'physics/criticality'
+    topics = ('lattice', 'avalanches', 'power law', 'continuous energy', 'sandpile')
+    references = ('Zhang 1989', 'Jensen 2023')
+    until = 10000
+    dt = 100
+
+    def __init__(
+        self,
+        shape: Sequence[int] = (32, 32),
+        *,
+        threshold: float = 1.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.threshold = threshold
+        self.random_state = random_state
+
+    @staticmethod
+    def _load(packet: float, energies: Array, *, random: np.random.Generator) -> Array:
+        """Return the energies with a packet of uniform size in `[0, packet]` added on a random site."""
+        rng = random
+        following = energies.copy()
+        following[tuple(rng.integers(size) for size in energies.shape)] += rng.uniform(0.0, packet)
+        return following
+
+    def _build_system(self) -> System:
+        """Return the Zhang sandpile, a continuous sandpile whose unstable sites give away all their energy."""
+        energies = np.random.default_rng(self.random_state).uniform(0.0, self.threshold, size=tuple(self.shape))
+        space = LatticeSpace(tuple(self.shape), boundary='fixed')
+        avalanche = CascadeInteraction(
+            'avalanche',
+            target='pile',
+            state='energy',
+            threshold=self.threshold,
+            share=1 / 4,
+            mode='reset',
+            drive=partial(self._load, self.threshold),
+        )
+        return System(
+            self.label,
+            elements=[LatticeElement('pile', element=EnergySiteElement, space=space, values={'energy': energies})],
+            interactions=[avalanche],
+        )
 
 
-@register_system(
-    field='physics/criticality',
-    tags=('branching process', 'avalanches', 'mean field', 'self-organized criticality', 'stochastic'),
-    references=('Zapperi, Lauritsen, and Stanley 1995', 'Jensen 2023'),
-    defaults={'until': 30000, 'dt': 1},
-)
-def self_organized_branching(p: float = 0.3, *, generations: int = 10) -> System:
-    """Return the self-organized branching process of Zapperi, Lauritsen, and Stanley, a mean-field sandpile.
+class SelfOrganizedBranchingSystem(BaseSystem):
+    """The self-organized branching process of Zapperi, Lauritsen, and Stanley, a mean-field sandpile.
 
-    An avalanche starts from one active site at the top of a binary tree of `generations` generations. Every active
-    site relaxes with the probability `p` into two active sites of the next generation, and stays still otherwise, so
-    every generation has `2 Binomial(z, p)` active sites. The `sigma` active sites that reach the last generation leave
-    the system as dissipation. After every avalanche one unit of energy has entered and `sigma` have left, so the
+    An avalanche starts from one active site at the top of a binary tree of `generations` generations. Every active site
+    relaxes with the probability `p` into two active sites of the next generation, and stays still otherwise, so every
+    generation has `2 Binomial(z, p)` active sites. The `sigma` active sites that reach the last generation leave the
+    system as dissipation. After every avalanche one unit of energy has entered and `sigma` have left, so the
     probability changes by `(1 - sigma) / N` with `N = 2^(generations + 1) - 1` sites. A supercritical `p` makes large
     dissipating avalanches that lower it, and a subcritical one lets energy accumulate, so `p` organizes itself to the
-    critical value `p_c = 1 / 2`, where the branching ratio `2 p` is 1. The process advances one generation per step,
-    so a step is a time of the avalanche and avalanches follow each other without pause.
+    critical value `p_c = 1 / 2`, where the branching ratio `2 p` is 1. The process advances one generation per step, so
+    a step is a time of the avalanche and avalanches follow each other without pause. The system has the probability
+    `tree.p`, the active sites `tree.z`, and the generation `tree.g`.
 
     Args:
         p:
@@ -317,21 +317,63 @@ def self_organized_branching(p: float = 0.3, *, generations: int = 10) -> System
         generations:
             The number of generations of the tree, at least 1.
 
-    Returns:
-        system:
-            The system, with the probability `tree.p`, the active sites `tree.z`, and the generation `tree.g`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.criticality import self_organized_branching
-        >>> self_organized_branching(0.4).elements[0].p
+        >>> from skcomplex.systems.physics.criticality import SelfOrganizedBranchingSystem
+        >>> SelfOrganizedBranchingSystem(0.4).prepare().system_.elements[0].p
         0.4
     """
-    return System(
-        elements=[BranchingTreeElement('tree', p=p)],
-        interactions=[
-            MapInteraction('branching', target='tree', state='z', function=partial(_branch, generations)),
-            MapInteraction('generation', target='tree', state='g', function=partial(_advance, generations)),
-            MapInteraction('tuning', target='tree', state='p', function=partial(_tune, generations)),
-        ],
-        time=DiscreteTime(),
-    )
+
+    field = 'physics/criticality'
+    topics = ('branching process', 'avalanches', 'mean field', 'self-organized criticality', 'stochastic')
+    references = ('Zapperi, Lauritsen, and Stanley 1995', 'Jensen 2023')
+    until = 30000
+    dt = 1
+
+    def __init__(
+        self,
+        p: float = 0.3,
+        *,
+        generations: int = 10,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.p = p
+        self.generations = generations
+
+    @staticmethod
+    def _branch(generations: int, s: SimpleNamespace) -> Expression:
+        """Return the active sites of the next generation, or the one site of a new avalanche."""
+        return where(_ends(s.target, generations), 1, 2 * draw('children', 'binom', n=s.target.z, p=s.target.p))
+
+    @staticmethod
+    def _advance(generations: int, s: SimpleNamespace) -> Expression:
+        """Return the next generation, or 0 for a new avalanche."""
+        return where(_ends(s.target, generations), 0, s.target.g + 1)
+
+    @staticmethod
+    def _tune(generations: int, s: SimpleNamespace) -> Expression:
+        """Return the branching probability, changed by `(1 - sigma) / N` at the end of an avalanche."""
+        sites = 2 ** (generations + 1) - 1
+        dissipated = where(s.target.g >= generations, s.target.z, 0)
+        return where(_ends(s.target, generations), s.target.p + (1 - dissipated) / sites, s.target.p)
+
+    def _build_system(self) -> System:
+        """Return the self-organized branching process of Zapperi, Lauritsen, and Stanley, a mean-field sandpile."""
+        return System(
+            self.label,
+            elements=[BranchingTreeElement('tree', p=self.p)],
+            interactions=[
+                MapInteraction('branching', target='tree', state='z', function=partial(self._branch, self.generations)),
+                MapInteraction(
+                    'generation',
+                    target='tree',
+                    state='g',
+                    function=partial(self._advance, self.generations),
+                ),
+                MapInteraction('tuning', target='tree', state='p', function=partial(self._tune, self.generations)),
+            ],
+            time=DiscreteTime(),
+        )

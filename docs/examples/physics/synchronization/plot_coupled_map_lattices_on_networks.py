@@ -14,16 +14,16 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.physics.synchronization import CoupledMapLatticesOnNetworksSystem
 
 SYSTEM = 'coupled_map_lattices_on_networks'
 
-system = create_system(SYSTEM, n_nodes=100, degree=20, epsilon=0.9, seed=0)
-observables = describe(SYSTEM).observables_of(system)
+system = CoupledMapLatticesOnNetworksSystem(n_nodes=100, degree=20, epsilon=0.9, seed=0)
+observables = CoupledMapLatticesOnNetworksSystem.observables
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='maps/x', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer], observables=observables).prepare().run(until=60)
+trajectory = simulate(system, until=60, observers=[observer], observables=observables)
 
 # %%
 # Synchronization window
@@ -33,19 +33,15 @@ simulation = Simulation(system, dt=1.0, observers=[observer], observables=observ
 # synchronize exactly where `|1 - epsilon lambda_k| < 1 / 2` for every nonzero eigenvalue, the window between the dashed
 # lines, and the late variance of the states should vanish inside it only.
 
-space = system.elements[0].space
+space = system.prepare().system_.elements[0].space
 eigenvalues = np.sort(nx.normalized_laplacian_spectrum(space.graph))
 low, high = 0.5 / eigenvalues[1], 1.5 / eigenvalues[-1]
 couplings = np.linspace(0.05, 1.0, 20)
 variances = []
 for coupling in couplings:
-    system_system = create_system(SYSTEM, n_nodes=100, degree=20, epsilon=coupling, seed=0)
-    run = (
-        Simulation(system_system, dt=1.0, observables=describe(SYSTEM).observables_of(system_system))
-        .prepare()
-        .run(until=200)
-    )
-    variances.append(np.mean(np.asarray(run.trajectory_.values('spread'))[-20:]))
+    system_system = CoupledMapLatticesOnNetworksSystem(n_nodes=100, degree=20, epsilon=coupling, seed=0)
+    run = simulate(system_system, until=200)
+    variances.append(np.mean(np.asarray(run.values('spread'))[-20:]))
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.semilogy(couplings, np.maximum(variances, 1e-32), 'o-', label='late variance of the states')
 for bound in (low, high):

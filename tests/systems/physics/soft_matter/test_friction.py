@@ -4,9 +4,7 @@ import numpy as np
 
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
-from skcomplex.systems.physics.soft_matter import (
-    shaken_spring_block,
-)
+from skcomplex.systems.physics.soft_matter import ShakenSpringBlockSystem
 
 
 def _elongation_statistics(positions):
@@ -25,7 +23,7 @@ def test_shaken_spring_block_blocked_configurations():
     statistics = []
     for amplitude, relax_time in ((1.0, 10.0), (3.0, 38.0)):
         period = 2.0 + relax_time
-        system = shaken_spring_block(50, amplitude=amplitude, relax_time=relax_time)
+        system = ShakenSpringBlockSystem(50, amplitude=amplitude, relax_time=relax_time).prepare().system_
         simulation = Simulation(system, dt=period, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).prepare()
         trajectory = simulation.run(until=12 * period).trajectory_
         positions, velocities = trajectory.values('chain.x')[1:], trajectory.values('chain.v')[1:]
@@ -39,9 +37,11 @@ def test_shaken_spring_block_blocked_configurations():
 
 def test_shaken_spring_block_independent_anchored_blocks():
     """Test that independent blocks held by springs stop inside the blocked interval |x| < mu_s / anchor."""
-    system = shaken_spring_block(100, k=0.0, anchor=2.0, amplitude=2.0, relax_time=20.0)
+    system = ShakenSpringBlockSystem(100, k=0.0, anchor=2.0, amplitude=2.0, relax_time=20.0)
     simulation = (
-        Simulation(system, dt=22.0, solver=EulerMaruyamaSolver(dt=0.01), random_state=0).prepare().run(until=110)
+        Simulation(system.prepare().system_, dt=22.0, solver=EulerMaruyamaSolver(dt=0.01), random_state=0)
+        .prepare()
+        .run(until=110)
     )
     positions = simulation.trajectory_.values('chain.x')[1:]
     assert np.all(np.abs(positions) < 0.5)

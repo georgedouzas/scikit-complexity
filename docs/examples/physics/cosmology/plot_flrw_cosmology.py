@@ -14,17 +14,17 @@ expansion of the universe follows from the metric and what fills it.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.cosmology import FLRWCosmologySystem
 
 SYSTEM = 'flrw_cosmology'
 
-system = create_system(SYSTEM, a=0.3, omega_matter=0.3, omega_lambda=0.7)
+system = FLRWCosmologySystem(a=0.3, omega_matter=0.3, omega_lambda=0.7)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
-simulation = Simulation(system, dt=0.02, solver=solver, observers=[observer]).prepare().run(until=2.0)
+trajectory = simulate(system, solver=solver, observers=[observer])
 
 # %%
 # Matter, radiation, and vacuum
@@ -38,14 +38,14 @@ cases = {
     'vacuum': ({'omega_matter': 0.0, 'omega_lambda': 1.0}, lambda t: 0.5 * np.exp(t)),
 }
 fig, (mixture, single) = plt.subplots(1, 2, figsize=(10, 4))
-mixture.plot(simulation.trajectory_.times, np.ravel(simulation.trajectory_.values('universe.a')))
+mixture.plot(trajectory.times, np.ravel(trajectory.values('universe.a')))
 mixture.set_xlabel('time')
 mixture.set_ylabel('scale factor a')
 mixture.set_title('Matter, then dark energy')
 for name, (densities, exact) in cases.items():
-    run = Simulation(create_system(SYSTEM, a=0.5, **densities), dt=0.05, solver=solver).prepare().run(until=1.5)
-    times = np.asarray(run.trajectory_.times)
-    single.plot(times, np.ravel(run.trajectory_.values('universe.a')), label=name)
+    run = simulate(FLRWCosmologySystem(a=0.5, **densities), until=1.5, dt=0.05, solver=solver)
+    times = np.asarray(run.times)
+    single.plot(times, np.ravel(run.values('universe.a')), label=name)
     single.plot(times, exact(times), '--', color='black')
 single.set_xlabel('time')
 single.set_title('Exact solutions (dashed)')

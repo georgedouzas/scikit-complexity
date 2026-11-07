@@ -27,8 +27,8 @@ from skcomplex.core.specs import ParameterSpec, RoleSpec, RunStateSpec, StateSpe
 from skcomplex.systems import create_simulation, create_system
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
 from skcomplex.systems.biology.ecology import FisherKPPElement, FisherKPPSystem
-from skcomplex.systems.physics.heat import heat_diffusion
-from skcomplex.systems.physics.mechanics import harmonic_oscillator
+from skcomplex.systems.physics.heat import HeatDiffusionSystem
+from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
 
 
 def _growth_problem():
@@ -88,7 +88,7 @@ def test_simulation_runs_stiff_system_with_default_solver():
 
 def test_simulation_default_solver_keeps_accuracy_of_non_stiff_system():
     """Test that a harmonic oscillator run with the default solver matches the analytic solution within 1e-5."""
-    simulation = Simulation(harmonic_oscillator()).prepare().run(until=10)
+    simulation = Simulation(HarmonicOscillatorSystem().prepare().system_).prepare().run(until=10)
     np.testing.assert_allclose(simulation.state_, [np.cos(10), -np.sin(10)], rtol=1e-5)
 
 
@@ -124,7 +124,7 @@ def test_default_solver_leaves_lsoda_for_states_its_dense_matrix_cannot_hold():
     start = np.linspace(0.0, 1.0, 10_000)
     np.testing.assert_allclose(simulation.state_, 0.5 + (start - 0.5) * np.exp(-1), atol=1e-5)
     assert Simulation(_relaxing_group(10), dt=0.5).prepare().run(until=1).stepper_.method_ == 'LSODA'
-    banded = Simulation(heat_diffusion(shape=(80, 80)), dt=0.1).prepare().run(until=0.2)
+    banded = Simulation(HeatDiffusionSystem(shape=(80, 80)).prepare().system_, dt=0.1).prepare().run(until=0.2)
     assert banded.stepper_.method_ == 'LSODA'
     assert 'lband' in banded.stepper_.jacobian_options_
     with pytest.raises(SolverError, match='dense 10000 x 10000 matrix'):

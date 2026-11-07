@@ -12,9 +12,9 @@ never repeating path, and two releases that differ by a hair soon move in comple
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.mechanics import DoublePendulumSystem
 
 SYSTEM = 'double_pendulum'
 
@@ -25,9 +25,9 @@ def bobs(theta1, theta2):
     return first, first + np.array([np.sin(theta2), np.cos(theta2)])
 
 
-system = create_system(SYSTEM, theta1=2.0, theta2=2.5)
+system = DoublePendulumSystem(theta1=2.0, theta2=2.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
-simulation = Simulation(system, dt=0.005, observers=[observer]).prepare().run(until=12)
+trajectory = simulate(system, until=12, dt=0.005, observers=[observer])
 
 # %%
 # Sensitive dependence on the initial angle
@@ -36,16 +36,10 @@ simulation = Simulation(system, dt=0.005, observers=[observer]).prepare().run(un
 # of the two pendulums should grow exponentially, a straight line on the logarithmic axis, until it is as large as the
 # pendulum itself.
 
-runs = [
-    Simulation(create_system(SYSTEM, theta1=np.pi / 2 + shift, theta2=np.pi / 2), dt=0.005).prepare().run(until=20)
-    for shift in [0.0, 1e-8]
-]
-lower = [
-    bobs(np.ravel(run.trajectory_.values('pendulum.theta1')), np.ravel(run.trajectory_.values('pendulum.theta2')))[1]
-    for run in runs
-]
+runs = [simulate(DoublePendulumSystem(theta1=np.pi / 2 + shift, theta2=np.pi / 2), dt=0.005) for shift in [0.0, 1e-8]]
+lower = [bobs(np.ravel(run.values('pendulum.theta1')), np.ravel(run.values('pendulum.theta2')))[1] for run in runs]
 fig, ax = plt.subplots(figsize=(6, 4))
-ax.semilogy(runs[0].trajectory_.times, np.linalg.norm(lower[0] - lower[1], axis=0))
+ax.semilogy(runs[0].times, np.linalg.norm(lower[0] - lower[1], axis=0))
 ax.set_xlabel('time')
 ax.set_ylabel('distance between the lower bobs')
 ax.set_title('Two releases 1e-8 radians apart')

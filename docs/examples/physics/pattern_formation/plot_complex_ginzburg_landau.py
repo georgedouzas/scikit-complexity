@@ -15,10 +15,9 @@ phase winds by a full turn around each of them.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import ETDRK4Solver
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.pattern_formation import ComplexGinzburgLandauSystem
 
 
 def wrap_angle(angles):
@@ -28,9 +27,9 @@ def wrap_angle(angles):
 
 SYSTEM = 'complex_ginzburg_landau'
 
-system = create_system(SYSTEM, random_state=0)
+system = ComplexGinzburgLandauSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, solver=ETDRK4Solver(dt=0.1), observers=[observer]).prepare().run(until=150)
+trajectory = simulate(system, until=150, observers=[observer])
 
 # %%
 # Defects and amplitude
@@ -39,7 +38,6 @@ simulation = Simulation(system, dt=1.0, solver=ETDRK4Solver(dt=0.1), observers=[
 # cycle, the number of defects should settle to fluctuate around a steady value, the signature of defect turbulence,
 # while the mean amplitude `|A|` stays a little below 1, held down by the defects and the phase gradients.
 
-trajectory = simulation.trajectory_
 real = np.asarray(trajectory.lattice('medium.u'))
 imaginary = np.asarray(trajectory.lattice('medium.v'))
 phase = np.angle(real + 1j * imaginary)

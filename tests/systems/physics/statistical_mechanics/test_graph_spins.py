@@ -3,7 +3,7 @@
 import networkx as nx
 
 from skcomplex.core.experiments import Experiment, GridDesign
-from skcomplex.systems.physics.statistical_mechanics import graph_ising
+from skcomplex.systems.physics.statistical_mechanics import GraphIsingSystem
 
 from .conftest import magnetization
 
@@ -13,7 +13,7 @@ def test_graph_ising_orders_at_low_temperature():
     graph = nx.random_regular_graph(4, 1000, seed=0)
     result = (
         Experiment(
-            lambda temperature: graph_ising(graph, temperature=temperature, initial='up'),
+            lambda temperature: GraphIsingSystem(graph, temperature=temperature, initial='up').prepare().system_,
             GridDesign(),
             {'temperature': [1.0, 6.0]},
             replicates=4,

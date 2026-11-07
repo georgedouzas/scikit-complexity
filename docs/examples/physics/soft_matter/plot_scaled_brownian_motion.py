@@ -7,24 +7,24 @@ with ever smaller steps, and the spread grows as `t^0.5` instead of `t`. The vie
 """
 
 # %%
-# The system is created by name from the catalog with eight walkers, `alpha = 0.5`, `K = 1`, and `t0 = 0.01`. The
+# The system is built from its class with eight walkers, `alpha = 0.5`, `K = 1`, and `t0 = 0.01`. The
 # Euler-Maruyama stepper takes steps of 0.01 and the observer saves every frame of 0.05 with the default blueprint,
 # whose primary view is the time series of the positions.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.soft_matter import ScaledBrownianMotionSystem
 
 SYSTEM = 'scaled_brownian_motion'
 
-system = create_system(SYSTEM, n_particles=8, alpha=0.5)
+system = ScaledBrownianMotionSystem(n_particles=8, alpha=0.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer], random_state=0).prepare().run(until=10)
+trajectory = simulate(system, solver=solver, dt=0.05, observers=[observer], random_state=0)
 
 # %%
 # Anomalous mean squared displacement
@@ -35,13 +35,9 @@ simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer], ra
 
 fig, ax = plt.subplots(figsize=(7, 4))
 for alpha, color in ((0.5, 'tab:blue'), (1.5, 'tab:orange')):
-    run = (
-        Simulation(create_system(SYSTEM, n_particles=2000, alpha=alpha), solver=solver, dt=0.05, random_state=1)
-        .prepare()
-        .run(10)
-    )
-    times = run.trajectory_.times[1:]
-    squared = np.mean(run.trajectory_.values('walkers.x')[1:] ** 2, axis=1)
+    run = simulate(ScaledBrownianMotionSystem(n_particles=2000, alpha=alpha), solver=solver, dt=0.05, random_state=1)
+    times = run.times[1:]
+    squared = np.mean(run.values('walkers.x')[1:] ** 2, axis=1)
     ax.loglog(times, squared, 'o', markersize=3, color=color, label=f'simulation, alpha = {alpha}')
     exact = 2 * ((times + 0.01) ** alpha - 0.01**alpha)
     ax.loglog(times, exact, color=color, label=f'2 K ((t + t0)^{alpha} - t0^{alpha})')

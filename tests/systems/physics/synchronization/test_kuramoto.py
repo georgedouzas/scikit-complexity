@@ -6,15 +6,14 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.interactions import PairInteraction
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
-from skcomplex.systems import describe
 from skcomplex.systems.physics.synchronization import (
-    delayed_kuramoto,
-    kuramoto,
-    kuramoto_sakaguchi_chimera,
-    nonlocal_ring_chimera,
-    ott_antonsen,
+    DelayedKuramotoSystem,
+    KuramotoSakaguchiChimeraSystem,
+    KuramotoSystem,
+    NonlocalRingChimeraSystem,
+    OttAntonsenSystem,
 )
 
 from ..conftest import _run, _series
@@ -23,7 +22,7 @@ from .conftest import _random_drift
 
 def test_delayed_kuramoto_synchronizes():
     """Test that strongly coupled delayed oscillators lock their phases."""
-    trajectory = Simulation(delayed_kuramoto(K=2.0, tau=1.0), dt=0.1).prepare().run(until=50).trajectory_
+    trajectory = simulate(DelayedKuramotoSystem(K=2.0, tau=1.0))
     order = np.abs(np.exp(1j * trajectory.states).mean(axis=1))
     assert order[0] < 0.1
     assert order[-1] > 0.99
@@ -33,11 +32,10 @@ def test_delayed_kuramoto_synchronizes():
 def test_kuramoto_synchronizes_above_the_critical_coupling(K, synchronized):
     """Test that the Kuramoto order parameter grows above the critical coupling and stays small below it."""
     trajectory = _run(
-        built := kuramoto(100, K=K),
+        KuramotoSystem(100, K=K),
         40.0,
         1.0,
         solver=ScipyODESolver(),
-        observables=describe('kuramoto').observables_of(built),
     )
     order = _series(trajectory, 'order')[0]
     assert (order[-10:].mean() > 0.8) == synchronized
@@ -46,7 +44,7 @@ def test_kuramoto_synchronizes_above_the_critical_coupling(K, synchronized):
 
 def test_kuramoto_in_linear_time():
     """Test that Kuramoto has no space and no pair interaction, and its drift is the all-to-all sum."""
-    system = kuramoto(50)
+    system = KuramotoSystem(50).prepare().system_
     assert system.space is None
     assert not any(isinstance(interaction, PairInteraction) for interaction in system.interactions)
     problem, theta, rates = _random_drift(system)
@@ -59,17 +57,7 @@ def test_kuramoto_in_linear_time():
 def test_kuramoto_transition(factor, synchronized):
     """Test that 2000 oscillators stay incoherent at half the critical coupling and synchronize at twice it."""
     critical = 2 * math.sqrt(2 / math.pi)
-    trajectory = (
-        Simulation(
-            built := kuramoto(2000, K=factor * critical),
-            dt=0.5,
-            solver=ScipyODESolver(method='RK45'),
-            observables=describe('kuramoto').observables_of(built),
-        )
-        .prepare()
-        .run(until=100)
-        .trajectory_
-    )
+    trajectory = simulate(KuramotoSystem(2000, K=factor * critical), until=100, solver=ScipyODESolver(method='RK45'))
     order = _series(trajectory, 'order')[0][trajectory.times >= 50].mean()
     assert (order > 0.6) == synchronized
     assert (order < 0.1) == (not synchronized)
@@ -77,7 +65,7 @@ def test_kuramoto_transition(factor, synchronized):
 
 def test_kuramoto_sakaguchi_populations_form_a_chimera():
     """Test that every population reads both populations and that one synchronizes while the other drifts."""
-    system = kuramoto_sakaguchi_chimera()
+    system = KuramotoSakaguchiChimeraSystem().prepare().system_
     assert {(item.target, item.source) for item in system.interactions} == {
         (target, source) for target in ('first', 'second') for source in ('first', 'second')
     }
@@ -86,7 +74,7 @@ def test_kuramoto_sakaguchi_populations_form_a_chimera():
         200.0,
         5.0,
         solver=ScipyODESolver(),
-        observables=describe('kuramoto_sakaguchi_chimera').observables_of(system),
+        observables=KuramotoSakaguchiChimeraSystem.observables,
     )
     first, second = _series(trajectory, 'first_order', 'second_order')
     coherent, incoherent = max(first[-1], second[-1]), min(first[-1], second[-1])
@@ -96,9 +84,9 @@ def test_kuramoto_sakaguchi_populations_form_a_chimera():
 
 def test_nonlocal_ring_rotates_rigidly_when_synchronized():
     """Test that a synchronized ring turns at `omega - (2R + 1) sin(alpha) / (2R)`, counting every neighbour once."""
-    system = nonlocal_ring_chimera(30, R=4, omega=1.0)
+    system = NonlocalRingChimeraSystem(30, R=4, omega=1.0).prepare().system_
     system.elements[0].values['theta'] = np.zeros(30)
-    trajectory = _run(system, 2.0, 0.5, observables=describe('nonlocal_ring_chimera').observables_of(system))
+    trajectory = _run(system, 2.0, 0.5, observables=NonlocalRingChimeraSystem.observables)
     theta = _series(trajectory, 'ring.theta')[0]
     assert np.allclose(theta[-1], theta[-1][0])
     assert theta[-1][0] == pytest.approx(2.0 * (1.0 - 9 * math.sin(1.46) / 8), rel=1e-6)
@@ -107,6 +95,6 @@ def test_nonlocal_ring_rotates_rigidly_when_synchronized():
 @pytest.mark.parametrize(('K', 'expected'), [(2.0, math.sqrt(0.5)), (0.8, 0.0)])
 def test_ott_antonsen_order_parameter_reaches_its_fixed_point(K, expected):
     """Test that the order parameter settles at `sqrt(1 - 2 Delta / K)` above `K_c = 2 Delta` and at 0 below."""
-    trajectory = _run(ott_antonsen(K=K), 80.0, 1.0)
+    trajectory = _run(OttAntonsenSystem(K=K), 80.0, 1.0)
     x, y = _series(trajectory, 'field.x', 'field.y')
     assert math.hypot(x[-1], y[-1]) == pytest.approx(expected, abs=1e-4)

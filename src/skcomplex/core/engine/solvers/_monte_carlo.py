@@ -17,10 +17,10 @@ class MonteCarloSolver(LatticeSolver):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.engine.compile import PassCompiler
-        >>> from skcomplex.systems.physics.statistical_mechanics import ising
+        >>> from skcomplex.systems.physics.statistical_mechanics import IsingSystem
         >>> from skcomplex.core.engine.solvers import MonteCarloSolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> problem = PassCompiler().prepare(ising(size=8, temperature=1.0)).run().problem_
+        >>> problem = PassCompiler().prepare(IsingSystem(size=8, temperature=1.0).prepare().system_).run().problem_
         >>> stepper = MonteCarloSolver(random_state=0).prepare(problem)
         >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 50.0)).state_
         >>> bool(abs(state.mean()) > 0.9)

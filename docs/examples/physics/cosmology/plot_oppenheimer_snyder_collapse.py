@@ -14,17 +14,17 @@ Schwarzschild radius, and the ball becomes a black hole.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.cosmology import OppenheimerSnyderCollapseSystem
 
 SYSTEM = 'oppenheimer_snyder_collapse'
 
-system = create_system(SYSTEM, n_shells=16, radius=10.0, mass=1.0)
+system = OppenheimerSnyderCollapseSystem(n_shells=16, radius=10.0, mass=1.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
 solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
-simulation = Simulation(system, dt=0.1, solver=solver, observers=[observer]).prepare().run(until=34.5)
+trajectory = simulate(system, solver=solver, observers=[observer])
 
 # %%
 # The cycloid of every shell
@@ -32,8 +32,8 @@ simulation = Simulation(system, dt=0.1, solver=solver, observers=[observer]).pre
 # A uniform ball stays uniform: every shell keeps `R = r a(t)` with the cycloid `a = (1 + cos η) / 2`,
 # `t = (η + sin η) / (2 √k)` and `k = 2 M / R₀³`. The surface crosses `2 M`, where light can no longer leave it.
 
-times = np.asarray(simulation.trajectory_.times)
-radii = np.asarray(simulation.trajectory_.values('ball.R'))
+times = np.asarray(trajectory.times)
+radii = np.asarray(trajectory.values('ball.R'))
 k = 2 / 10.0**3
 eta = np.linspace(0, 0.99 * np.pi, 400)
 fig, (shells, ratio) = plt.subplots(1, 2, figsize=(10, 4))

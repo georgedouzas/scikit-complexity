@@ -16,11 +16,9 @@ from ....core.components.interactions import BaseInteraction, TransferInteractio
 from ....core.components.laws import Source
 from ....core.components.laws.utils import where
 from ....core.components.spaces import ContinuousSpace, LatticeSpace
-from ....core.components.system import System
-from ....core.engine.backends import NumbaBackend
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class ParticleSiteElement(Element):
@@ -361,49 +359,13 @@ class ZeroRangeHopsInteraction(TransferInteraction):
 TREE_ASPECT = 0.7
 
 
-def _scatter(n_particles: int, n_sites: int, random_state: int | np.random.Generator | None) -> Array:
-    """Return the occupations of sites that received a number of particles one at a time on random sites."""
-    sites = np.random.default_rng(random_state).integers(0, n_sites, n_particles)
-    return np.bincount(sites, minlength=n_sites).astype(float)
+class ZeroRangeProcessSystem(BaseSystem):
+    """The zero-range process on a ring, which condenses above the critical density `1 / (b - 2)` for `b > 2`.
 
-
-def _level_start(level: int, branches: int) -> int:
-    """Return the index of the first node of a level of a tree, counted from level 1, in breadth-first order."""
-    return (branches ** (level - 1) - 1) // (branches - 1)
-
-
-def _tree_layout(n_levels: int, branches: int) -> Array:
-    """Return the drawing positions of the nodes of a tree in breadth-first order, on ellipses around the root."""
-    rings = []
-    for level in range(1, n_levels + 1):
-        width = branches ** (level - 1)
-        radius = (level - 1) / max(n_levels - 1, 1)
-        angles = 2 * np.pi * (np.arange(width) + 0.5) / width
-        rings.append(radius * np.column_stack([np.cos(angles), TREE_ASPECT * np.sin(angles)]))
-    return np.concatenate(rings)
-
-
-@register_system(
-    field='physics/statistical_mechanics',
-    tags=('zero-range process', 'condensation', 'nonequilibrium', 'jump process'),
-    references=('Evans and Hanney 2005', 'Bertin 2021'),
-    defaults={'until': 2000.0, 'dt': 10.0, 'backend': NumbaBackend()},
-)
-def zero_range_process(
-    n_sites: int = 50,
-    *,
-    density: float = 3.0,
-    b: float = 4.0,
-    p: float = 1.0,
-    q: float = 0.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the zero-range process on a ring, which condenses above the critical density `1 / (b - 2)` for `b > 2`.
-
-    A particle leaves a site with `n` particles at rate `u(n) = 1 + b / n`, to the right with weight `p` and to the
-    left with weight `q`. The stationary distribution factorizes with the weights `f(n) = prod_k 1 / u(k)`, which
-    decay as `n^-b`. Above the critical density a fluid at density `1 / (b - 2)` coexists with one site that holds the
-    excess particles.
+    A particle leaves a site with `n` particles at rate `u(n) = 1 + b / n`, to the right with weight `p` and to the left
+    with weight `q`. The stationary distribution factorizes with the weights `f(n) = prod_k 1 / u(k)`, which decay as
+    `n^-b`. Above the critical density a fluid at density `1 / (b - 2)` coexists with one site that holds the excess
+    particles. The system has the occupations `sites.n`.
 
     Args:
         n_sites:
@@ -424,46 +386,74 @@ def zero_range_process(
         random_state:
             The seed or generator of the initial sites of the particles.
 
-    Returns:
-        system:
-            The system, with the occupations `sites.n`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics import zero_range_process
-        >>> system = zero_range_process(10, density=2.0)
+        >>> from skcomplex.systems.physics.statistical_mechanics import ZeroRangeProcessSystem
+        >>> system = ZeroRangeProcessSystem(10, density=2.0).prepare().system_
         >>> float(system.elements[0].values['n'].sum()), len(system.interactions)
         (20.0, 1)
     """
-    occupations = _scatter(round(density * n_sites), n_sites, random_state)
-    sites = LatticeElement('sites', element=ParticleSiteElement, space=LatticeSpace(n_sites), values={'n': occupations})
-    return System(elements=[sites], interactions=[ZeroRangeHopsInteraction('hops', sites='sites', p=p, q=q, b=b)])
+
+    field = 'physics/statistical_mechanics'
+    topics = ('zero-range process', 'condensation', 'nonequilibrium', 'jump process')
+    references = ('Evans and Hanney 2005', 'Bertin 2021')
+    until = 2000.0
+    dt = 10.0
+
+    def __init__(
+        self,
+        n_sites: int = 50,
+        *,
+        density: float = 3.0,
+        b: float = 4.0,
+        p: float = 1.0,
+        q: float = 0.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_sites = n_sites
+        self.density = density
+        self.b = b
+        self.p = p
+        self.q = q
+        self.random_state = random_state
+
+    @staticmethod
+    def _scatter(n_particles: int, n_sites: int, random_state: int | np.random.Generator | None) -> Array:
+        """Return the occupations of sites that received a number of particles one at a time on random sites."""
+        sites = np.random.default_rng(random_state).integers(0, n_sites, n_particles)
+        return np.bincount(sites, minlength=n_sites).astype(float)
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        occupations = self._scatter(round(self.density * self.n_sites), self.n_sites, self.random_state)
+        sites = LatticeElement(
+            'sites',
+            element=ParticleSiteElement,
+            space=LatticeSpace(self.n_sites),
+            values={'n': occupations},
+        )
+        return System(
+            self.label,
+            elements=[sites],
+            interactions=[ZeroRangeHopsInteraction('hops', sites='sites', p=self.p, q=self.q, b=self.b)],
+        )
 
 
-@register_system(
-    field='physics/statistical_mechanics',
-    tags=('zero-range process', 'energy cascade', 'nonequilibrium', 'tree', 'jump process'),
-    references=('Bertin 2021', 'Bertin 2005'),
-    defaults={'until': 200.0, 'dt': 1.0, 'backend': NumbaBackend()},
-)
-def dissipative_zero_range(
-    n_levels: int = 5,
-    *,
-    branches: int = 2,
-    nu: float = 1.0,
-    alpha: float = 0.5,
-    beta_ext: float = 1.0,
-    epsilon0: float = 1.0,
-    dissipation: float = 1.0,
-) -> System:
-    """Return the dissipative zero-range process on a tree, with energy injected at the root and lost at the leaves.
+class DissipativeZeroRangeSystem(BaseSystem):
+    """The dissipative zero-range process on a tree, with energy injected at the root and lost at the leaves.
 
     Level `j` of the tree has `m^(j - 1)` nodes, each with `m` branches to the next level. A quantum `epsilon0` of
     energy crosses a branch between levels `j` and `j + 1` at rate `nu_j = nu k_j^alpha`, `k_j = m^(j - 1)`, in either
     direction from an occupied node. A reservoir at the inverse temperature `beta_ext` exchanges quanta with the root,
     adding one at rate `nu exp(-beta_ext epsilon0)` and removing one at rate `nu`, and every leaf loses a quantum at the
     rate `dissipation`. The stationary distribution is a product of geometric laws `z_j^n`, with `z_j` the solution of
-    the linear balance of the currents `nu_j (z_j - z_(j + 1))` at every level, and the injected flux is
-    `nu (exp(-beta_ext epsilon0) - z_1)`.
+    the linear balance of the currents `nu_j (z_j - z_(j + 1))` at every level, and the injected flux is `nu
+    (exp(-beta_ext epsilon0) - z_1)`. The system has the quanta `nodes.n` of the nodes in breadth-first order, from the
+    root to the leaves.
 
     Args:
         n_levels:
@@ -487,60 +477,100 @@ def dissipative_zero_range(
         dissipation:
             The rate at which every leaf loses a quantum.
 
-    Returns:
-        system:
-            The system, with the quanta `nodes.n` of the nodes in breadth-first order, from the root to the leaves.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics import dissipative_zero_range
-        >>> system = dissipative_zero_range(3, branches=3)
+        >>> from skcomplex.systems.physics.statistical_mechanics import DissipativeZeroRangeSystem
+        >>> system = DissipativeZeroRangeSystem(3, branches=3).prepare().system_
         >>> system.elements[0].size, len(system.interactions)
         (13, 14)
     """
-    n_nodes = _level_start(n_levels + 1, branches)
-    nodes = GroupElement('nodes', element=TreeNodeElement, size=n_nodes, values={'x': _tree_layout(n_levels, branches)})
-    interactions: list[BaseInteraction] = []
-    for level in range(1, n_levels):
-        rate = nu * float(branches ** (level - 1)) ** alpha
-        start, below = _level_start(level, branches), _level_start(level + 1, branches)
-        for index in range(branches ** (level - 1)):
-            for branch in range(branches):
-                child = below + branches * index + branch
-                link = [f'nodes[{start + index}]', f'nodes[{child}]']
-                interactions.append(
-                    ZeroRangeHopInteraction(f'transfer_{start + index}_{child}', link=link, p=rate, q=rate, b=0.0),
-                )
-    leaves = [f'nodes[{index}]' for index in range(_level_start(n_levels, branches), n_nodes)]
-    interactions += [
-        ReservoirInteraction('injection', sites=['nodes[0]'], inflow=nu * np.exp(-beta_ext * epsilon0), outflow=nu),
-        ReservoirInteraction('dissipation', sites=leaves, outflow=dissipation),
-    ]
-    return System(elements=[nodes], interactions=interactions, space=ContinuousSpace(n_dim=2))
+
+    field = 'physics/statistical_mechanics'
+    topics = ('zero-range process', 'energy cascade', 'nonequilibrium', 'tree', 'jump process')
+    references = ('Bertin 2021', 'Bertin 2005')
+    until = 200.0
+    dt = 1.0
+
+    def __init__(
+        self,
+        n_levels: int = 5,
+        *,
+        branches: int = 2,
+        nu: float = 1.0,
+        alpha: float = 0.5,
+        beta_ext: float = 1.0,
+        epsilon0: float = 1.0,
+        dissipation: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_levels = n_levels
+        self.branches = branches
+        self.nu = nu
+        self.alpha = alpha
+        self.beta_ext = beta_ext
+        self.epsilon0 = epsilon0
+        self.dissipation = dissipation
+
+    @staticmethod
+    def _level_start(level: int, branches: int) -> int:
+        """Return the index of the first node of a level of a tree, counted from level 1, in breadth-first order."""
+        return (branches ** (level - 1) - 1) // (branches - 1)
+
+    @staticmethod
+    def _tree_layout(n_levels: int, branches: int) -> Array:
+        """Return the drawing positions of the nodes of a tree in breadth-first order, on ellipses around the root."""
+        rings = []
+        for level in range(1, n_levels + 1):
+            width = branches ** (level - 1)
+            radius = (level - 1) / max(n_levels - 1, 1)
+            angles = 2 * np.pi * (np.arange(width) + 0.5) / width
+            rings.append(radius * np.column_stack([np.cos(angles), TREE_ASPECT * np.sin(angles)]))
+        return np.concatenate(rings)
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        n_nodes = self._level_start(self.n_levels + 1, self.branches)
+        nodes = GroupElement(
+            'nodes',
+            element=TreeNodeElement,
+            size=n_nodes,
+            values={'x': self._tree_layout(self.n_levels, self.branches)},
+        )
+        interactions: list[BaseInteraction] = []
+        for level in range(1, self.n_levels):
+            rate = self.nu * float(self.branches ** (level - 1)) ** self.alpha
+            start, below = self._level_start(level, self.branches), self._level_start(level + 1, self.branches)
+            for index in range(self.branches ** (level - 1)):
+                for branch in range(self.branches):
+                    child = below + self.branches * index + branch
+                    link = [f'nodes[{start + index}]', f'nodes[{child}]']
+                    interactions.append(
+                        ZeroRangeHopInteraction(f'transfer_{start + index}_{child}', link=link, p=rate, q=rate, b=0.0),
+                    )
+        leaves = [f'nodes[{index}]' for index in range(self._level_start(self.n_levels, self.branches), n_nodes)]
+        interactions += [
+            ReservoirInteraction(
+                'injection',
+                sites=['nodes[0]'],
+                inflow=self.nu * np.exp(-self.beta_ext * self.epsilon0),
+                outflow=self.nu,
+            ),
+            ReservoirInteraction('dissipation', sites=leaves, outflow=self.dissipation),
+        ]
+        return System(self.label, elements=[nodes], interactions=interactions, space=ContinuousSpace(n_dim=2))
 
 
-@register_system(
-    field='physics/statistical_mechanics',
-    tags=('exclusion', 'nonequilibrium', 'phase transition', 'traffic', 'jump process'),
-    references=('Derrida, Evans, Hakim, and Pasquier 1993', 'Bertin 2021'),
-    defaults={'until': 500.0, 'dt': 2.0, 'backend': NumbaBackend()},
-)
-def asep(
-    n_sites: int = 100,
-    *,
-    alpha: float = 0.3,
-    gamma: float = 0.7,
-    p: float = 1.0,
-    q: float = 0.0,
-    density: float = 0.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the asymmetric simple exclusion process on an open line, in continuous time.
+class ASEPSystem(BaseSystem):
+    """The asymmetric simple exclusion process on an open line, in continuous time.
 
     A particle hops to the empty right neighbour at rate `p` and to the empty left neighbour at rate `q`, enters the
-    empty first site at rate `alpha`, and leaves the last site at rate `gamma`, the exit rate that Bertin writes
-    `gamma` and others write `beta`. For `p = 1` and `q = 0` the current is `alpha (1 - alpha)` in the low-density
-    phase `alpha < 1/2, gamma > alpha`, `gamma (1 - gamma)` in the high-density phase `gamma < 1/2, gamma < alpha`, and
-    `1/4` in the maximal-current phase `alpha, gamma > 1/2`.
+    empty first site at rate `alpha`, and leaves the last site at rate `gamma`, the exit rate that Bertin writes `gamma`
+    and others write `beta`. For `p = 1` and `q = 0` the current is `alpha (1 - alpha)` in the low-density phase `alpha
+    < 1/2, gamma > alpha`, `gamma (1 - gamma)` in the high-density phase `gamma < 1/2, gamma < alpha`, and `1/4` in the
+    maximal-current phase `alpha, gamma > 1/2`. The system has the occupations `lane.n`.
 
     Args:
         n_sites:
@@ -564,25 +594,54 @@ def asep(
         random_state:
             The seed or generator of the initial occupations.
 
-    Returns:
-        system:
-            The system, with the occupations `lane.n`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics import asep
-        >>> len(asep(10).interactions)
+        >>> from skcomplex.systems.physics.statistical_mechanics import ASEPSystem
+        >>> len(ASEPSystem(10).prepare().system_.interactions)
         3
     """
-    occupied = (np.random.default_rng(random_state).random(n_sites) < density).astype(float)
-    lane = LatticeElement(
-        'lane',
-        element=ParticleSiteElement,
-        space=LatticeSpace(n_sites, boundary='fixed'),
-        values={'n': occupied},
-    )
-    interactions = [
-        ExclusionHopsInteraction('hops', sites='lane', p=p, q=q),
-        ReservoirInteraction('entry', sites=['lane[0]'], inflow=alpha, exclusion=True),
-        ReservoirInteraction('exit', sites=[f'lane[{n_sites - 1}]'], outflow=gamma, exclusion=True),
-    ]
-    return System(elements=[lane], interactions=interactions)
+
+    field = 'physics/statistical_mechanics'
+    topics = ('exclusion', 'nonequilibrium', 'phase transition', 'traffic', 'jump process')
+    references = ('Derrida, Evans, Hakim, and Pasquier 1993', 'Bertin 2021')
+    until = 500.0
+    dt = 2.0
+
+    def __init__(
+        self,
+        n_sites: int = 100,
+        *,
+        alpha: float = 0.3,
+        gamma: float = 0.7,
+        p: float = 1.0,
+        q: float = 0.0,
+        density: float = 0.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_sites = n_sites
+        self.alpha = alpha
+        self.gamma = gamma
+        self.p = p
+        self.q = q
+        self.density = density
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the asymmetric simple exclusion process on an open line, in continuous time."""
+        occupied = (np.random.default_rng(self.random_state).random(self.n_sites) < self.density).astype(float)
+        lane = LatticeElement(
+            'lane',
+            element=ParticleSiteElement,
+            space=LatticeSpace(self.n_sites, boundary='fixed'),
+            values={'n': occupied},
+        )
+        interactions = [
+            ExclusionHopsInteraction('hops', sites='lane', p=self.p, q=self.q),
+            ReservoirInteraction('entry', sites=['lane[0]'], inflow=self.alpha, exclusion=True),
+            ReservoirInteraction('exit', sites=[f'lane[{self.n_sites - 1}]'], outflow=self.gamma, exclusion=True),
+        ]
+        return System(self.label, elements=[lane], interactions=interactions)

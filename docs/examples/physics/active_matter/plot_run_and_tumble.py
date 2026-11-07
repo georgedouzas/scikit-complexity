@@ -8,21 +8,21 @@ square, each heading in its own direction.
 """
 
 # %%
-# The system is created by name from the catalog with speed `0.1` per step and tumble rate `0.1` in a square of side
+# The system is built from its class with speed `0.1` per step and tumble rate `0.1` in a square of side
 # 10. The observer saves every step with the default blueprint, whose primary view shows the bacteria.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import Simulation, simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.active_matter import RunAndTumbleSystem
 
 SYSTEM = 'run_and_tumble'
 
-system = create_system(SYSTEM, random_state=0)
+system = RunAndTumbleSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=299)
+trajectory = simulate(system, until=299, observers=[observer], random_state=0)
 
 # %%
 # Persistent random walk
@@ -37,7 +37,7 @@ fig, ax = plt.subplots(figsize=(7, 4))
 steps = np.arange(1, 301)
 for rate, color in ((0.1, 'tab:blue'), (1.0, 'tab:orange')):
     run = Simulation(
-        create_system(SYSTEM, n_agents=500, tumble_rate=rate, size=1e5, random_state=1),
+        RunAndTumbleSystem(n_agents=500, tumble_rate=rate, size=1e5, random_state=1).prepare().system_,
         dt=1,
         random_state=1,
     ).prepare()

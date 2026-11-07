@@ -12,13 +12,14 @@ organizes itself into a critical state with avalanches of all sizes.
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.physics.criticality import ZhangSandpileSystem
 
 SYSTEM = 'zhang_sandpile'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run(until=10000)
+trajectory = simulate(ZhangSandpileSystem(), until=10000, observers=[observer], random_state=0)
 
 # %%
 # Avalanches and energies
@@ -26,7 +27,6 @@ simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare(
 # In the critical state the sizes of the avalanches should spread over two decades with a heavy tail, and the energies
 # of the sites, unlike their uniform start, should pile up near a few values, the quasi-units of the Zhang pile.
 
-trajectory = simulation.trajectory_
 sizes = np.array([event.size for event in trajectory.events if event.time > 3000])
 energies = np.ravel(np.asarray(trajectory.values('pile.energy'))[-1])
 bins = np.logspace(0, np.log10(sizes.max()), 20)

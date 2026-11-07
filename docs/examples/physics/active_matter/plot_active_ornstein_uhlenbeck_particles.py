@@ -8,7 +8,7 @@ view shows 200 particles spread over a periodic square.
 """
 
 # %%
-# The system is created by name from the catalog with persistence time `tau = 1`, active diffusion `D = 1`, and no
+# The system is built from its class with persistence time `tau = 1`, active diffusion `D = 1`, and no
 # thermal diffusion, in a square of side 50. The Euler-Maruyama stepper takes steps of 0.01 and the observer saves
 # every frame of 0.1. The blueprint shows the square with the particles drawn larger than the system's visual does, so
 # they read in the gallery thumbnail.
@@ -18,14 +18,14 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.active_matter import ActiveOrnsteinUhlenbeckParticlesSystem
 
 SYSTEM = 'active_ornstein_uhlenbeck_particles'
 
-system = create_system(SYSTEM, random_state=0)
+system = ActiveOrnsteinUhlenbeckParticlesSystem(random_state=0)
 view = rrb.Spatial2DView(
     origin='/swimmers',
     name='swimmers',
@@ -41,7 +41,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).prepare().run(until=20)
+trajectory = simulate(system, solver=solver, dt=0.1, observers=[observer], random_state=0)
 
 # %%
 # Persistent motion and long-time diffusion
@@ -52,10 +52,10 @@ simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], ran
 
 fig, ax = plt.subplots(figsize=(7, 4))
 for tau, color in ((1.0, 'tab:blue'), (10.0, 'tab:orange')):
-    system_t = create_system(SYSTEM, n_particles=500, tau=tau, size=1e5, random_state=1)
-    run = Simulation(system_t, solver=solver, dt=0.1, random_state=1).prepare().run(until=40)
-    positions = run.trajectory_.values('swimmers.x')
-    times = run.trajectory_.times[1:]
+    system_t = ActiveOrnsteinUhlenbeckParticlesSystem(n_particles=500, tau=tau, size=1e5, random_state=1)
+    run = simulate(system_t, until=40, solver=solver, dt=0.1, random_state=1)
+    positions = run.values('swimmers.x')
+    times = run.times[1:]
     squared = np.mean(np.sum((positions[1:] - positions[0]) ** 2, axis=-1), axis=1)
     exact = 4 * (times - tau * (1 - np.exp(-times / tau)))
     ax.loglog(times, squared, 'o', markersize=3, color=color, label=f'simulation, tau = {tau:.0f}')

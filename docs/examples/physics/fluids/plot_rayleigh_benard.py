@@ -9,7 +9,7 @@ warm and cold plumes side by side.
 """
 
 # %%
-# The system is created by name from the catalog at `Ra = 2000` and `Pr = 1` on a 32 x 32 lattice, which holds the
+# The system is built from its class at `Ra = 2000` and `Pr = 1` on a 32 x 32 lattice, which holds the
 # layer and its mirror image for the free-slip walls. The catalog registers the fourth-order exponential time
 # differencing stepper for this spectral system, so it is passed explicitly with steps of 0.005. The observer saves
 # every frame of 0.05 with the default blueprint, here with the temperature as the primary view.
@@ -17,17 +17,17 @@ warm and cold plumes side by side.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ETDRK4Solver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.fluids import RayleighBenardSystem
 
 SYSTEM = 'rayleigh_benard'
 
-system = create_system(SYSTEM, Ra=2000.0)
+system = RayleighBenardSystem(Ra=2000.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='flow/theta', interval=1)
 solver = ETDRK4Solver(dt=0.005)
-simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer]).prepare().run(until=10)
+trajectory = simulate(system, solver=solver, dt=0.05, observers=[observer])
 
 # %%
 # Onset of convection
@@ -40,8 +40,8 @@ simulation = Simulation(system, solver=solver, dt=0.05, observers=[observer]).pr
 rayleighs = np.array([500.0, 700.0, 900.0, 1300.0, 2000.0])
 amplitudes = []
 for rayleigh in rayleighs:
-    run = Simulation(create_system(SYSTEM, Ra=rayleigh, shape=(16, 16)), solver=solver, dt=0.5).prepare().run(until=10)
-    amplitudes.append(np.abs(run.trajectory_.values('flow.theta')[-1]).max())
+    run = simulate(RayleighBenardSystem(Ra=rayleigh, shape=(16, 16)), solver=solver)
+    amplitudes.append(np.abs(run.values('flow.theta')[-1]).max())
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(rayleighs, amplitudes, 'o-', label='largest temperature departure at t = 10')
 ax.axvline(27 * np.pi**4 / 4, color='gray', linestyle='--', label='Ra_c = 657.5')

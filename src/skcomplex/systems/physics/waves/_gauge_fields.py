@@ -17,12 +17,11 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import codifferential, exterior_derivative
 from ....core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, RunSettings, System
 from ....core.engine.solvers import VelocityVerletSolver
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 from ..common.fields import WilsonSamplingInteraction
 
 
@@ -160,18 +159,6 @@ def _field_energy(faces: scipy.sparse.csr_array, t: float, values: Mapping[str, 
     return float((velocity @ velocity + magnetic @ magnetic) / 2)
 
 
-def _gauge_observables(system: System) -> list[ObservableSpec]:
-    """Return the mean plaquette of a sampled system, or the Gauss residual and the field energy of a Maxwell one."""
-    links = next(element for element in system.elements if element.label == 'links')
-    space = links.space.prepare()
-    if links.element is GaugeLinkElement:
-        return [ObservableSpec('mean_plaquette', function=partial(_mean_plaquette, space.incidences_[1]))]
-    return [
-        ObservableSpec('gauss_residual', function=partial(_gauss_residual, space.incidences_[0])),
-        ObservableSpec('field_energy', function=partial(_field_energy, space.incidences_[1])),
-    ]
-
-
 def _electric_field(space: CellComplexSpace, charges: Array) -> Array:
     """Return the electric field of the smallest norm whose codifferential is the charge of every site."""
     field = scipy.sparse.linalg.lsqr(
@@ -190,84 +177,8 @@ def _curl_of_curl(namespace: SimpleNamespace) -> Expression:
     return -codifferential(exterior_derivative(namespace.target.A))
 
 
-def _maxwell_system(space: CellComplexSpace, charges: Sequence[float] | None, amplitude: float) -> System:
-    """Return a lattice Maxwell field on the links from static charges and a transverse wave."""
-    density = np.zeros(space.size_) if charges is None else np.asarray(charges, dtype=float)
-    if density.size != space.size_ or abs(density.sum()) > NEUTRAL_TOTAL:
-        error_msg = (
-            f'The charges are {density.size} values of total {density.sum()}, but a periodic lattice takes one charge '
-            f'per site of its {space.size_} sites, of total 0.'
-        )
-        raise ValidationError(error_msg)
-    place = space.space
-    sources = space.edges_[None][0]
-    along_last = space.link_axes_ == place.n_dim_ - 1
-    first = np.unravel_index(sources, place.shape_)[0]
-    wave = amplitude * np.cos(2 * np.pi * first / place.shape_[0]) * along_last
-    links = GroupElement(
-        'links',
-        element=MaxwellLinkElement,
-        space=space,
-        on='edges',
-        values={'A': wave, 'A_d1': -_electric_field(space, density)},
-        visual=VisualSpec('cell', {'state': 'A'}),
-    )
-    sites = GroupElement('charges', element=StaticChargeElement, space=space, on='sites', values={'q': density})
-    rate = RateInteraction('maxwell', target='links', state='A', rate=_curl_of_curl)
-    return System(elements=[links, sites], interactions=[rate])
-
-
-def _monte_carlo_system(
-    space: CellComplexSpace,
-    n: int | None,
-    beta: float,
-    angles: Sequence[float] | None,
-    seed: int,
-) -> System:
-    """Return U(1) or Z_N link angles sampled by the Wilson action under discrete time."""
-    rng = np.random.default_rng(seed)
-    size = space.incidences_[0].shape[0]
-    values = () if n is None else tuple(2 * np.pi * np.arange(n) / n)
-    drawn = rng.uniform(-np.pi, np.pi, size) if n is None else rng.choice(values, size)
-    links = GroupElement(
-        'links',
-        element=GaugeLinkElement,
-        space=space,
-        on='edges',
-        values={'theta': drawn if angles is None else np.asarray(angles, dtype=float)},
-        visual=VisualSpec('cell', {'state': 'theta'}),
-    )
-    move = {'move': 'rotate'} if n is None else {'move': 'random-value', 'values': values, 'rule': 'heat-bath'}
-    sampling = WilsonSamplingInteraction('wilson', target='links', beta=beta, **move)
-    return System(elements=[links], interactions=[sampling], time=DiscreteTime())
-
-
-def _gauge_settings(dynamics: str = 'monte-carlo', **_parameters: object) -> dict[str, object]:
-    """Return the run settings of the Maxwell dynamics, and none for Monte Carlo, the catalog defaults."""
-    return {'until': 50.0, 'dt': 0.5, 'solver': VelocityVerletSolver(dt=0.02)} if dynamics == 'hamiltonian' else {}
-
-
-@register_system(
-    field='physics/waves',
-    tags=('gauge', 'lattice', 'monte carlo', 'maxwell', 'cell complex'),
-    references=('Schwichtenberg 2020', 'Wilson 1974'),
-    defaults={'until': 5000, 'dt': 1},
-    settings=_gauge_settings,
-    observables=_gauge_observables,
-)
-def lattice_gauge_fields(
-    size: int = 32,
-    *,
-    dimension: int = 2,
-    n: int | None = None,
-    beta: float = 2.0,
-    dynamics: str = 'monte-carlo',
-    charges: Sequence[float] | None = None,
-    angles: Sequence[float] | None = None,
-    amplitude: float = 0.1,
-    seed: int = 0,
-) -> System:
-    """Return link variables on the cell complex of a periodic lattice, sampled or evolved in real time.
+class LatticeGaugeFieldsSystem(BaseSystem):
+    """Link variables on the cell complex of a periodic lattice, sampled or evolved in real time.
 
     With Monte Carlo dynamics, link angles sample the Wilson action `-beta sum_p cos(theta_p)` under discrete time, as
     U(1) angles or as the angles `2 pi k / n` of Z_n. With Hamiltonian dynamics, a potential on the links follows the
@@ -302,25 +213,134 @@ def lattice_gauge_fields(
         seed:
             The seed of the initial link angles.
 
-    Returns:
-        system:
-            The system.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The dynamics are unknown, or the charges do not hold one value per site of total 0.
 
     Examples:
-        >>> from skcomplex.systems.physics.waves import lattice_gauge_fields
-        >>> [element.label for element in lattice_gauge_fields(4).elements]
+        >>> from skcomplex.systems.physics.waves import LatticeGaugeFieldsSystem
+        >>> [element.label for element in LatticeGaugeFieldsSystem(4).prepare().system_.elements]
         ['links']
-        >>> [element.label for element in lattice_gauge_fields(4, dynamics='hamiltonian').elements]
+        >>> system = LatticeGaugeFieldsSystem(4, dynamics='hamiltonian').prepare().system_
+        >>> [element.label for element in system.elements]
         ['links', 'charges']
     """
-    if dynamics not in DYNAMICS:
-        error_msg = f'Unknown dynamics {dynamics!r}. Use one of {", ".join(DYNAMICS)}.'
-        raise ValidationError(error_msg)
-    space = CellComplexSpace(LatticeSpace((size,) * dimension)).prepare()
-    if dynamics == 'hamiltonian':
-        return _maxwell_system(space, charges, amplitude)
-    return _monte_carlo_system(space, n, beta, angles, seed)
+
+    field = 'physics/waves'
+    topics = ('gauge', 'lattice', 'monte carlo', 'maxwell', 'cell complex')
+    references = ('Schwichtenberg 2020', 'Wilson 1974')
+    until = 5000
+    dt = 1
+
+    def __init__(
+        self,
+        size: int = 32,
+        *,
+        dimension: int = 2,
+        n: int | None = None,
+        beta: float = 2.0,
+        dynamics: str = 'monte-carlo',
+        charges: Sequence[float] | None = None,
+        angles: Sequence[float] | None = None,
+        amplitude: float = 0.1,
+        seed: int = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.size = size
+        self.dimension = dimension
+        self.n = n
+        self.beta = beta
+        self.dynamics = dynamics
+        self.charges = charges
+        self.angles = angles
+        self.amplitude = amplitude
+        self.seed = seed
+
+    def _maxwell_system(self, space: CellComplexSpace) -> System:
+        """Return a lattice Maxwell field on the links from static charges and a transverse wave."""
+        density = np.zeros(space.size_) if self.charges is None else np.asarray(self.charges, dtype=float)
+        if density.size != space.size_ or abs(density.sum()) > NEUTRAL_TOTAL:
+            error_msg = (
+                f'The charges are {density.size} values of total {density.sum()}, but a periodic lattice takes one '
+                f'charge per site of its {space.size_} sites, of total 0.'
+            )
+            raise ValidationError(error_msg)
+        place = space.space
+        sources = space.edges_[None][0]
+        along_last = space.link_axes_ == place.n_dim_ - 1
+        first = np.unravel_index(sources, place.shape_)[0]
+        wave = self.amplitude * np.cos(2 * np.pi * first / place.shape_[0]) * along_last
+        links = GroupElement(
+            'links',
+            element=MaxwellLinkElement,
+            space=space,
+            on='edges',
+            values={'A': wave, 'A_d1': -_electric_field(space, density)},
+            visual=VisualSpec('cell', {'state': 'A'}),
+        )
+        sites = GroupElement('charges', element=StaticChargeElement, space=space, on='sites', values={'q': density})
+        rate = RateInteraction('maxwell', target='links', state='A', rate=_curl_of_curl)
+        return System(self.label, elements=[links, sites], interactions=[rate])
+
+    def _monte_carlo_system(self, space: CellComplexSpace) -> System:
+        """Return U(1) or Z_N link angles sampled by the Wilson action under discrete time."""
+        rng = np.random.default_rng(self.seed)
+        size = space.incidences_[0].shape[0]
+        values = () if self.n is None else tuple(2 * np.pi * np.arange(self.n) / self.n)
+        drawn = rng.uniform(-np.pi, np.pi, size) if self.n is None else rng.choice(values, size)
+        links = GroupElement(
+            'links',
+            element=GaugeLinkElement,
+            space=space,
+            on='edges',
+            values={'theta': drawn if self.angles is None else np.asarray(self.angles, dtype=float)},
+            visual=VisualSpec('cell', {'state': 'theta'}),
+        )
+        move = {'move': 'rotate'} if self.n is None else {'move': 'random-value', 'values': values, 'rule': 'heat-bath'}
+        sampling = WilsonSamplingInteraction('wilson', target='links', beta=self.beta, **move)
+        return System(self.label, elements=[links], interactions=[sampling], time=DiscreteTime())
+
+    @staticmethod
+    def _gauge_observables(system: System) -> list[ObservableSpec]:
+        """Return the mean plaquette of a sampled system, or the Gauss residual and the field energy of a Maxwell one.
+
+        Args:
+            system:
+                The parts of the system.
+
+        Returns:
+            observables:
+                The observables.
+        """
+        links = next(element for element in system.elements if element.label == 'links')
+        space = links.space.prepare()
+        if links.element is GaugeLinkElement:
+            return [ObservableSpec('mean_plaquette', function=partial(_mean_plaquette, space.incidences_[1]))]
+        return [
+            ObservableSpec('gauss_residual', function=partial(_gauss_residual, space.incidences_[0])),
+            ObservableSpec('field_energy', function=partial(_field_energy, space.incidences_[1])),
+        ]
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings, with the observables of the dynamics, and velocity Verlet for Maxwell."""
+        settings = super().get_run_settings()
+        settings['observables'] = tuple(self._gauge_observables(self._build_system()))
+        if self.dynamics == 'hamiltonian':
+            settings['until'] = 50.0
+            settings['dt'] = 0.5
+            settings['solver'] = VelocityVerletSolver(dt=0.02)
+        return settings
+
+    def _build_system(self) -> System:
+        """Return link variables on the cell complex of a periodic lattice, sampled or evolved in real time."""
+        if self.dynamics not in DYNAMICS:
+            error_msg = f'Unknown dynamics {self.dynamics!r}. Use one of {", ".join(DYNAMICS)}.'
+            raise ValidationError(error_msg)
+        space = CellComplexSpace(LatticeSpace((self.size,) * self.dimension)).prepare()
+        if self.dynamics == 'hamiltonian':
+            return self._maxwell_system(space)
+        return self._monte_carlo_system(space)

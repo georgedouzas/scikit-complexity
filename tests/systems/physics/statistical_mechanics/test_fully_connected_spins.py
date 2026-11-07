@@ -5,11 +5,7 @@ import pytest
 from scipy.optimize import brentq
 
 from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems import describe
-from skcomplex.systems.physics.statistical_mechanics import (
-    curie_weiss,
-    sherrington_kirkpatrick,
-)
+from skcomplex.systems.physics.statistical_mechanics import CurieWeissSystem, SherringtonKirkpatrickSystem
 
 
 def spontaneous_magnetization(temperature):
@@ -20,9 +16,9 @@ def spontaneous_magnetization(temperature):
 @pytest.mark.parametrize('temperature', [0.5, 2.0])
 def test_curie_weiss_magnetization(temperature):
     """Test that 2000 spins order at `T = 0.5 J` as `m = tanh(m J / T)` predicts and stay disordered at `T = 2 J`."""
-    system = curie_weiss(2000, temperature=temperature, random_state=1)
+    system = CurieWeissSystem(2000, temperature=temperature, random_state=1).prepare().system_
     trajectory = (
-        Simulation(system, dt=1.0, random_state=0, observables=describe('curie_weiss').observables_of(system))
+        Simulation(system, dt=1.0, random_state=0, observables=CurieWeissSystem.observables)
         .prepare()
         .run(until=30)
         .trajectory_
@@ -38,14 +34,14 @@ def test_sherrington_kirkpatrick_energy_and_freezing():
     """Test that the energy above `T_c` is `-1 / (2 T)` and that below `T_c` the spins freeze with no magnetization."""
     frozen = []
     for temperature in (2.0, 0.3):
-        system = sherrington_kirkpatrick(200, temperature=temperature, random_state=0)
+        system = SherringtonKirkpatrickSystem(200, temperature=temperature, random_state=0).prepare().system_
         couplings = system.elements[0].values['couplings']
         trajectory = (
             Simulation(
                 system,
                 dt=1.0,
                 random_state=0,
-                observables=describe('sherrington_kirkpatrick').observables_of(system),
+                observables=SherringtonKirkpatrickSystem.observables,
             )
             .prepare()
             .run(until=100)

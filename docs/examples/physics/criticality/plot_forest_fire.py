@@ -8,20 +8,20 @@ tree, or burning, with fire fronts sweeping through the older, denser stands.
 """
 
 # %%
-# The system is created by name from the catalog with growth probability `0.02` and lightning probability `1e-5`
+# The system is built from its class with growth probability `0.02` and lightning probability `1e-5`
 # per step. The observer saves every second step with the default blueprint, whose primary view shows the cells.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.criticality import ForestFireSystem
 
 SYSTEM = 'forest_fire'
 
-system = create_system(SYSTEM, shape=(200, 200), growth=0.02, lightning=1e-5, random_state=0)
+system = ForestFireSystem(shape=(200, 200), growth=0.02, lightning=1e-5, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=598)
+trajectory = simulate(system, until=598, observers=[observer], random_state=0)
 
 # %%
 # Steady density of trees
@@ -30,12 +30,8 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 # down, so after a transient of large boom-and-bust cycles the density of trees should hover around a steady value
 # well below that threshold, held there by the balance of growth and burning, with fluctuations from the fires.
 
-steady = (
-    Simulation(create_system(SYSTEM, shape=(128, 128), growth=0.02, lightning=1e-5), dt=1, random_state=1)
-    .prepare()
-    .run(5000)
-)
-trees = (steady.trajectory_.values('forest.cover') == 1).mean(axis=1)
+steady = simulate(ForestFireSystem(shape=(128, 128), growth=0.02, lightning=1e-5), until=5000, random_state=1)
+trees = (steady.values('forest.cover') == 1).mean(axis=1)
 
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(trees, label='simulation, 128 x 128')

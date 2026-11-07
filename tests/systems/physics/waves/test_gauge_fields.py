@@ -9,10 +9,9 @@ import skcomplex.core.components.interactions
 import skcomplex.core.components.laws.utils
 import skcomplex.core.components.spaces
 from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import AnalysisError, ValidationError
-from skcomplex.systems import create_simulation, describe
-from skcomplex.systems.physics.waves import gauge_observables, lattice_gauge_fields
+from skcomplex.systems.physics.waves import LatticeGaugeFieldsSystem, gauge_observables
 
 SIDE = 32
 
@@ -41,7 +40,7 @@ def _charge_pair():
 
 def test_plaquette_of_the_defaults_is_the_exact_result():
     """Test that the default run after its transient is within 0.01 of `I_1(2) / I_0(2)`."""
-    series = create_simulation('lattice_gauge_fields').prepare().run().trajectory_.values('mean_plaquette')
+    series = simulate(LatticeGaugeFieldsSystem(), random_state=0).values('mean_plaquette')
     assert abs(series[1001:].mean() - iv(1, 2) / iv(0, 2)) < 0.01
 
 
@@ -51,28 +50,21 @@ def test_gauge_transformation_of_the_initial_links_keeps_the_plaquette_series():
     angles = _random_angles(space)
     series = []
     for initial in (angles, _gauge_transform(angles, space)):
-        system = lattice_gauge_fields(16, angles=initial)
-        observables = describe('lattice_gauge_fields').observables_of(system)
-        simulation = Simulation(system, dt=1, observables=observables, random_state=2).prepare().run(until=200)
-        series.append(simulation.trajectory_.values('mean_plaquette'))
+        trajectory = simulate(LatticeGaugeFieldsSystem(16, angles=initial), until=200, dt=1, random_state=2)
+        series.append(trajectory.values('mean_plaquette'))
     assert np.abs(series[0] - series[1]).max() < 1e-12
 
 
 def test_z_n_links_stay_on_the_angles_of_the_group():
     """Test that Z_3 links sampled by heat bath keep the angles of the group."""
-    system = lattice_gauge_fields(6, n=3)
-    states = Simulation(system, dt=1, random_state=0).prepare().run(until=5).trajectory_.values('links.theta')
+    system = LatticeGaugeFieldsSystem(6, n=3)
+    states = simulate(system, until=5, dt=1, random_state=0).values('links.theta')
     assert set(np.round(np.mod(states[-1], 2 * np.pi) / (2 * np.pi / 3), 6)) <= {0.0, 1.0, 2.0}
 
 
 def test_maxwell_dynamics_conserve_the_gauss_law_and_the_energy():
     """Test the Gauss residual below 1e-10 at every frame and the energy within 1e-3 from a static charge pair."""
-    trajectory = (
-        create_simulation('lattice_gauge_fields', dynamics='hamiltonian', charges=_charge_pair())
-        .prepare()
-        .run()
-        .trajectory_
-    )
+    trajectory = simulate(LatticeGaugeFieldsSystem(dynamics='hamiltonian', charges=_charge_pair()), random_state=0)
     assert trajectory.values('gauss_residual').max() < 1e-10
     energy = trajectory.values('field_energy')
     assert np.abs(energy - energy[0]).max() / energy[0] < 1e-3
@@ -83,13 +75,13 @@ def test_maxwell_dynamics_conserve_the_gauss_law_and_the_energy():
 def test_maxwell_dynamics_reject_charges_that_a_periodic_lattice_cannot_hold(charges):
     """Test that charges of a total other than 0, or not one per site, raise an error."""
     with pytest.raises(ValidationError, match='total 0'):
-        lattice_gauge_fields(4, dynamics='hamiltonian', charges=charges)
+        LatticeGaugeFieldsSystem(4, dynamics='hamiltonian', charges=charges).prepare()
 
 
 def test_unknown_dynamics_raise_an_error():
     """Test that an unknown dynamics raises an error."""
     with pytest.raises(ValidationError, match='Unknown dynamics'):
-        lattice_gauge_fields(4, dynamics='quantum')
+        LatticeGaugeFieldsSystem(4, dynamics='quantum').prepare()
 
 
 @pytest.mark.parametrize('extents', [(1, 1), (2, 2)])
@@ -145,8 +137,8 @@ def test_gauss_residual_reads_the_charges():
 
 def test_gauge_observables_reads_a_trajectory():
     """Test that a trajectory gives one value per frame."""
-    system = lattice_gauge_fields(4)
-    trajectory = Simulation(system, dt=1, random_state=0).prepare().run(until=3).trajectory_
+    system = LatticeGaugeFieldsSystem(4)
+    trajectory = simulate(system, until=3, dt=1, random_state=0)
     result = gauge_observables(trajectory, kind='wilson', space=_space(4), variables='links.theta')
     assert result.value.shape == (4,)
 

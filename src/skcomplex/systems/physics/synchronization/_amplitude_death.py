@@ -14,10 +14,9 @@ from scipy import stats
 
 from ....core.components.elements import GroupElement
 from ....core.components.interactions import CouplingInteraction
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
-from ..._catalog import register_system
 from ..common.oscillators import StuartLandauElement
 
 QUANTILE_GRID_SIZE = 20001
@@ -107,52 +106,22 @@ def _quartic_cumulative(t: np.ndarray) -> np.ndarray:
     return 1 / 2 + antiderivative / (4 * math.pi)
 
 
-def _frequency_quantiles(size: int, width: float, distribution: str) -> np.ndarray:
-    """Return the midpoint quantiles of a Lorentzian or quartic density of frequencies of a given width."""
-    levels = (np.arange(size) + 1 / 2) / size
-    if distribution == 'lorentzian':
-        return width * stats.cauchy.ppf(levels)
-    if distribution == 'quartic':
-        grid = np.tan(np.linspace(-math.pi / 2, math.pi / 2, QUANTILE_GRID_SIZE)[1:-1])
-        return width * np.interp(levels, _quartic_cumulative(grid), grid)
-    message = f'The distribution must be one of {DISTRIBUTIONS}, got {distribution!r}.'
-    raise ValidationError(message)
-
-
 def _spread_on_circle(size: int, random_state: int | np.random.Generator | None) -> tuple[np.ndarray, np.ndarray]:
     """Return points of the unit circle at phases drawn uniformly."""
     phases = np.random.default_rng(random_state).uniform(0, 2 * math.pi, size)
     return np.cos(phases), np.sin(phases)
 
 
-@register_system(
-    field='physics/synchronization',
-    tags=('synchronization', 'oscillators', 'amplitude death', 'mean field', 'ode'),
-    references=('Ermentrout 1990', 'Mirollo and Strogatz 1990', 'Bertin 2021'),
-    defaults={'until': 20.0, 'dt': 0.2},
-    observables=lambda system: [
-        ObservableSpec('amplitude', _amplitude, group='oscillators'),
-        ObservableSpec('X', group='oscillators', variable='x'),
-        ObservableSpec('Y', group='oscillators', variable='y'),
-        ObservableSpec('order', _order),
-    ],
-)
-def oscillator_death(
-    n_oscillators: int = 100,
-    *,
-    K: float = 3.0,
-    width: float = 1.5,
-    distribution: str = 'lorentzian',
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return globally coupled Stuart-Landau oscillators, whose oscillations all die for strong coupling and spread.
+class OscillatorDeathSystem(BaseSystem):
+    """Globally coupled Stuart-Landau oscillators, whose oscillations all die for strong coupling and spread.
 
-    Oscillator `j` follows `z_j' = (1 + iω_j) z_j - |z_j|² z_j + (K / N) Σ_k (z_k - z_j)` for `z_j = x_j + i y_j`.
-    Alone it settles on the unit circle. The frequencies are the midpoint quantiles of a density of width `ω0`, the
-    Lorentzian `ω0 / (π (ω² + ω0²))` or the quartic `g0 / (ω⁴ + ω0⁴)`. For many oscillators, the common fixed point
-    `z = 0` is stable for `K > 1` and `ω0` above a critical width, 1 for the Lorentzian and
-    `(1 + √(2K - 1)) / √2` for the quartic density, and every amplitude then decays to zero. For the Lorentzian, the
-    slowest perturbation decays at the rate `ω0 - 1`.
+    Oscillator `j` follows `z_j' = (1 + iω_j) z_j - |z_j|² z_j + (K / N) Σ_k (z_k - z_j)` for `z_j = x_j + i y_j`. Alone
+    it settles on the unit circle. The frequencies are the midpoint quantiles of a density of width `ω0`, the Lorentzian
+    `ω0 / (π (ω² + ω0²))` or the quartic `g0 / (ω⁴ + ω0⁴)`. For many oscillators, the common fixed point `z = 0` is
+    stable for `K > 1` and `ω0` above a critical width, 1 for the Lorentzian and `(1 + √(2K - 1)) / √2` for the quartic
+    density, and every amplitude then decays to zero. For the Lorentzian, the slowest perturbation decays at the rate
+    `ω0 - 1`. The system has the states `oscillators.x` and `oscillators.y` and the observables `amplitude`, the mean
+    amplitude, `X` and `Y`, the mean field, and `order`, its modulus.
 
     Args:
         n_oscillators:
@@ -170,67 +139,91 @@ def oscillator_death(
         random_state:
             The seed or generator of the initial phases.
 
-    Returns:
-        system:
-            The system, with the states `oscillators.x` and `oscillators.y` and the observables `amplitude`, the mean
-            amplitude, `X` and `Y`, the mean field, and `order`, its modulus.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The distribution is neither `'lorentzian'` nor `'quartic'`.
 
     Examples:
-        >>> from skcomplex.systems.physics.synchronization import oscillator_death
-        >>> oscillator_death(4, distribution='quartic').elements[0].prepare().size_
+        >>> from skcomplex.systems.physics.synchronization import OscillatorDeathSystem
+        >>> OscillatorDeathSystem(4, distribution='quartic').prepare().system_.elements[0].prepare().size_
         4
     """
-    omegas = _frequency_quantiles(n_oscillators, width, distribution)
-    x, y = _spread_on_circle(n_oscillators, random_state)
-    oscillators = GroupElement(
-        'oscillators',
-        element=StuartLandauElement,
-        size=n_oscillators,
-        values={'x': x, 'y': y, 'mu': 1.0, 'omega': omegas, 'tau': 1.0},
-    )
-    return System(
-        elements=[oscillators],
-        interactions=[
-            GlobalCouplingInteraction(f'coupling_{state}', target='oscillators', state=state, K=K) for state in 'xy'
-        ],
+
+    field = 'physics/synchronization'
+    topics = ('synchronization', 'oscillators', 'amplitude death', 'mean field', 'ode')
+    references = ('Ermentrout 1990', 'Mirollo and Strogatz 1990', 'Bertin 2021')
+    until = 20.0
+    dt = 0.2
+    observables = (
+        ObservableSpec('amplitude', _amplitude, group='oscillators'),
+        ObservableSpec('X', group='oscillators', variable='x'),
+        ObservableSpec('Y', group='oscillators', variable='y'),
+        ObservableSpec('order', _order),
     )
 
+    def __init__(
+        self,
+        n_oscillators: int = 100,
+        *,
+        K: float = 3.0,
+        width: float = 1.5,
+        distribution: str = 'lorentzian',
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_oscillators = n_oscillators
+        self.K = K
+        self.width = width
+        self.distribution = distribution
+        self.random_state = random_state
 
-@register_system(
-    field='physics/synchronization',
-    tags=('synchronization', 'oscillators', 'amplitude death', 'mean field', 'heterogeneity', 'ode'),
-    references=("De Monte, d'Ovidio, and Mosekilde 2003", 'Bertin 2021'),
-    defaults={'until': 40.0, 'dt': 0.2},
-    observables=lambda system: [
-        ObservableSpec('amplitude', _amplitude, group='systems'),
-        ObservableSpec('X', group='systems', variable='x'),
-        ObservableSpec('Y', group='systems', variable='y'),
-        ObservableSpec('V', _time_scale_deviation_x, group='systems'),
-        ObservableSpec('W', _time_scale_deviation_y, group='systems'),
-    ],
-)
-def heterogeneous_global_coupling(
-    n_systems: int = 100,
-    *,
-    k: float = 2.0,
-    beta: float = 0.1,
-    gamma: float = 2.0,
-    heterogeneity: float = 0.8,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return globally coupled oscillators with heterogeneous time scales, whose fixed point the coupling restabilizes.
+    @staticmethod
+    def _frequency_quantiles(size: int, width: float, distribution: str) -> np.ndarray:
+        """Return the midpoint quantiles of a Lorentzian or quartic density of frequencies of a given width."""
+        levels = (np.arange(size) + 1 / 2) / size
+        if distribution == 'lorentzian':
+            return width * stats.cauchy.ppf(levels)
+        if distribution == 'quartic':
+            grid = np.tan(np.linspace(-math.pi / 2, math.pi / 2, QUANTILE_GRID_SIZE)[1:-1])
+            return width * np.interp(levels, _quartic_cumulative(grid), grid)
+        message = f'The distribution must be one of {DISTRIBUTIONS}, got {distribution!r}.'
+        raise ValidationError(message)
 
-    System `j` follows `x_j' = τ_j g(x_j, y_j) + k (X - x_j)` and `y_j' = τ_j h(x_j, y_j) + k (Y - y_j)`, where `X`
-    and `Y` are the population means and `g + ih = (beta + i gamma) z - |z|² z` is the Hopf normal form of
-    `z = x + iy`. Its fixed point 0 is an unstable focus with eigenvalues `beta ± i gamma`. The time scales `τ_j` are
-    spread evenly over `[1 - heterogeneity, 1 + heterogeneity]`, with mean 1 and variance `sigma²`. The order
-    parameters `X`, `Y`, `V = <δτ δx>`, and `W = <δτ δy>` close on four equations. The global fixed point is stable
-    when their eigenvalues `nu - k / 2 ± √(k² / 4 + sigma² nu²)`, for `nu = beta ± i gamma`, have negative real parts,
-    which holds roughly for `2 beta (1 + sigma) < k < (gamma² - beta²) sigma² / beta`.
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        omegas = self._frequency_quantiles(self.n_oscillators, self.width, self.distribution)
+        x, y = _spread_on_circle(self.n_oscillators, self.random_state)
+        oscillators = GroupElement(
+            'oscillators',
+            element=StuartLandauElement,
+            size=self.n_oscillators,
+            values={'x': x, 'y': y, 'mu': 1.0, 'omega': omegas, 'tau': 1.0},
+        )
+        return System(
+            self.label,
+            elements=[oscillators],
+            interactions=[
+                GlobalCouplingInteraction(f'coupling_{state}', target='oscillators', state=state, K=self.K)
+                for state in 'xy'
+            ],
+        )
+
+
+class HeterogeneousGlobalCouplingSystem(BaseSystem):
+    """Globally coupled oscillators with heterogeneous time scales, whose fixed point the coupling restabilizes.
+
+    System `j` follows `x_j' = τ_j g(x_j, y_j) + k (X - x_j)` and `y_j' = τ_j h(x_j, y_j) + k (Y - y_j)`, where `X` and
+    `Y` are the population means and `g + ih = (beta + i gamma) z - |z|² z` is the Hopf normal form of `z = x + iy`. Its
+    fixed point 0 is an unstable focus with eigenvalues `beta ± i gamma`. The time scales `τ_j` are spread evenly over
+    `[1 - heterogeneity, 1 + heterogeneity]`, with mean 1 and variance `sigma²`. The order parameters `X`, `Y`, `V = <δτ
+    δx>`, and `W = <δτ δy>` close on four equations. The global fixed point is stable when their eigenvalues `nu - k / 2
+    ± √(k² / 4 + sigma² nu²)`, for `nu = beta ± i gamma`, have negative real parts, which holds roughly for `2 beta (1 +
+    sigma) < k < (gamma² - beta²) sigma² / beta`. The system has the states `systems.x` and `systems.y` and the
+    observables `amplitude`, the mean amplitude, and the order parameters `X`, `Y`, `V`, and `W`.
 
     Args:
         n_systems:
@@ -251,28 +244,63 @@ def heterogeneous_global_coupling(
         random_state:
             The seed or generator of the initial phases.
 
-    Returns:
-        system:
-            The system, with the states `systems.x` and `systems.y` and the observables `amplitude`, the mean amplitude,
-            and the order parameters `X`, `Y`, `V`, and `W`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.synchronization import heterogeneous_global_coupling
-        >>> heterogeneous_global_coupling(4).elements[0].values['tau']
+        >>> from skcomplex.systems.physics.synchronization import HeterogeneousGlobalCouplingSystem
+        >>> HeterogeneousGlobalCouplingSystem(4).prepare().system_.elements[0].values['tau']
         array([0.4, 0.8, 1.2, 1.6])
     """
-    taus = 1 + heterogeneity * (2 * (np.arange(n_systems) + 1 / 2) / n_systems - 1)
-    x, y = _spread_on_circle(n_systems, random_state)
-    radius = math.sqrt(abs(beta))
-    systems = GroupElement(
-        'systems',
-        element=StuartLandauElement,
-        size=n_systems,
-        values={'x': radius * x, 'y': radius * y, 'mu': beta, 'omega': gamma, 'tau': taus},
+
+    field = 'physics/synchronization'
+    topics = ('synchronization', 'oscillators', 'amplitude death', 'mean field', 'heterogeneity', 'ode')
+    references = ("De Monte, d'Ovidio, and Mosekilde 2003", 'Bertin 2021')
+    until = 40.0
+    dt = 0.2
+    observables = (
+        ObservableSpec('amplitude', _amplitude, group='systems'),
+        ObservableSpec('X', group='systems', variable='x'),
+        ObservableSpec('Y', group='systems', variable='y'),
+        ObservableSpec('V', _time_scale_deviation_x, group='systems'),
+        ObservableSpec('W', _time_scale_deviation_y, group='systems'),
     )
-    return System(
-        elements=[systems],
-        interactions=[
-            GlobalCouplingInteraction(f'coupling_{state}', target='systems', state=state, K=k) for state in 'xy'
-        ],
-    )
+
+    def __init__(
+        self,
+        n_systems: int = 100,
+        *,
+        k: float = 2.0,
+        beta: float = 0.1,
+        gamma: float = 2.0,
+        heterogeneity: float = 0.8,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_systems = n_systems
+        self.k = k
+        self.beta = beta
+        self.gamma = gamma
+        self.heterogeneity = heterogeneity
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        taus = 1 + self.heterogeneity * (2 * (np.arange(self.n_systems) + 1 / 2) / self.n_systems - 1)
+        x, y = _spread_on_circle(self.n_systems, self.random_state)
+        radius = math.sqrt(abs(self.beta))
+        systems = GroupElement(
+            'systems',
+            element=StuartLandauElement,
+            size=self.n_systems,
+            values={'x': radius * x, 'y': radius * y, 'mu': self.beta, 'omega': self.gamma, 'tau': taus},
+        )
+        return System(
+            self.label,
+            elements=[systems],
+            interactions=[
+                GlobalCouplingInteraction(f'coupling_{state}', target='systems', state=state, K=self.k)
+                for state in 'xy'
+            ],
+        )

@@ -7,7 +7,7 @@ from collections.abc import Callable, Sequence
 from types import SimpleNamespace
 from typing import Annotated
 
-from .....core.components.laws import BaseLaw
+from .....core.components.laws import BaseLaw, DriveLaw, SampleLaw
 from .....core.components.spaces import BaseNeighborhood
 from .....core.specs import RoleSpec
 from ._thermal_sampling import ThermalSamplingInteraction
@@ -58,6 +58,8 @@ class SpinSamplingInteraction(ThermalSamplingInteraction):
         >>> SpinSamplingInteraction('ising', target='spins', state='spin', energy=energy).rule
         'metropolis'
     """
+
+    law_classes = (DriveLaw, SampleLaw)
 
     def __init__(
         self,

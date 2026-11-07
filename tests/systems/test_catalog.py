@@ -14,7 +14,7 @@ from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.problems import ProblemSpec
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import Simulation, simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import RegistryError, ValidationError
 from skcomplex.systems import (
@@ -33,6 +33,7 @@ from skcomplex.systems.biology.common.populations import (
 )
 from skcomplex.systems.biology.ecology import PredationInteraction
 from skcomplex.systems.chemistry.kinetics import BrusselatorODESystem
+from skcomplex.systems.physics.active_matter import ActiveGelsSystem
 from skcomplex.systems.social.opinion_dynamics import AxelrodSystem
 
 
@@ -68,15 +69,11 @@ def test_listings_reject_computed_registration_argument(tmp_path: Path):
         SystemCatalog(tmp_path).listings()
 
 
-def test_create_simulation_takes_settings_that_depend_on_the_factory_arguments():
-    """Test that a function of the factory arguments replaces the default run settings for these arguments."""
-    entry = describe('active_gels')
-    assert entry.settings_of()['until'] == entry.defaults['until']
-    assert entry.settings_of(order='polar')['until'] == 200.0
-    assert (
-        create_simulation('active_gels', order='polar', shape=(4, 4)).prepare().run(until=2.0).trajectory_.times[-1]
-        == 2.0
-    )
+def test_run_settings_depend_on_the_model_parameters():
+    """Test that a system class whose tuned run settings depend on its model parameters gives them for these."""
+    assert ActiveGelsSystem().get_run_settings()['until'] == ActiveGelsSystem.until
+    assert ActiveGelsSystem(order='polar').get_run_settings()['until'] == 200.0
+    assert simulate(ActiveGelsSystem(order='polar', shape=(4, 4)), until=2.0).times[-1] == 2.0
 
 
 def test_class_entries_read_the_run_settings_of_an_instance():

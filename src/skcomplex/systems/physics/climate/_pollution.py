@@ -12,9 +12,8 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import lookup
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 ABSORPTION_TIME = ((0.0, 0.6), (10.0, 2.5), (20.0, 5.0), (30.0, 8.0), (40.0, 11.5), (50.0, 15.5), (60.0, 20.0))
 BIRTHS_FROM_FOOD = ((0.0, 0.0), (1.0, 1.0), (2.0, 1.6), (3.0, 1.9), (4.0, 2.0))
@@ -90,6 +89,8 @@ class PollutedRegionElement(Element):
         0.04
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -158,34 +159,17 @@ class PollutedRegionElement(Element):
         ]
 
 
-@register_system(
-    field='physics/climate',
-    tags=('pollution', 'population', 'stocks and flows', 'system dynamics', 'lookup tables', 'ode'),
-    references=('Bala et al. 2017',),
-    defaults={'until': 50.0, 'dt': 0.25},
-    observables=lambda system: [
-        ObservableSpec('food_per_capita', PollutedRegionElement._food_per_capita, element='region'),
-        ObservableSpec('quality_of_life', PollutedRegionElement._quality_of_life, element='region'),
-    ],
-)
-def population_pollution(
-    population: float = 1e8,
-    pollution: float = 1e7,
-    *,
-    pollution_normal: float = 0.25,
-    pollution_standard: float = 1.5e7,
-    birth_normal: float = 0.04,
-    death_normal: float = 0.028,
-) -> System:
-    """Return the pollution model of Bala, Arshad, and Noh, a population that degrades its environment.
+class PopulationPollutionSystem(BaseSystem):
+    """The pollution model of Bala, Arshad, and Noh, a population that degrades its environment.
 
     The population generates pollution at `pollution_normal` per person per year, and the environment absorbs the
-    pollution over a time that lengthens from 0.6 to 20 years as the pollution ratio, pollution over its standard,
-    rises from 0 to 60. This makes the absorption saturate, so a growing population can drive the pollution up
-    steeply. Pollution lowers births, food, and the quality of life, and raises deaths, through table multipliers,
-    while food per capita over the subsistence food raises births and lowers deaths. The cropping intensity rises
-    from 1.75 to 2.5 crops per year over 50 years. The model follows Section 4.11.9 of Bala et al. (2017), with its
-    tables and parameters, and time in years.
+    pollution over a time that lengthens from 0.6 to 20 years as the pollution ratio, pollution over its standard, rises
+    from 0 to 60. This makes the absorption saturate, so a growing population can drive the pollution up steeply.
+    Pollution lowers births, food, and the quality of life, and raises deaths, through table multipliers, while food per
+    capita over the subsistence food raises births and lowers deaths. The cropping intensity rises from 1.75 to 2.5
+    crops per year over 50 years. The model follows Section 4.11.9 of Bala et al. (2017), with its tables and
+    parameters, and time in years. The system has the stocks `region.population` and `region.pollution`, and the
+    observables `region.food_per_capita` and `region.quality_of_life`.
 
     Args:
         population:
@@ -206,23 +190,53 @@ def population_pollution(
         death_normal:
             The normal death rate per year.
 
-    Returns:
-        system:
-            The system, with the stocks `region.population` and `region.pollution`, and the observables
-            `region.food_per_capita` and `region.quality_of_life`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.climate import population_pollution
-        >>> population_pollution(pollution_normal=0.5).elements[0].pollution_normal
+        >>> from skcomplex.systems.physics.climate import PopulationPollutionSystem
+        >>> PopulationPollutionSystem(pollution_normal=0.5).prepare().system_.elements[0].pollution_normal
         0.5
     """
-    region = PollutedRegionElement(
-        'region',
-        population=population,
-        pollution=pollution,
-        pollution_normal=pollution_normal,
-        pollution_standard=pollution_standard,
-        birth_normal=birth_normal,
-        death_normal=death_normal,
+
+    field = 'physics/climate'
+    topics = ('pollution', 'population', 'stocks and flows', 'system dynamics', 'lookup tables', 'ode')
+    references = ('Bala et al. 2017',)
+    until = 50.0
+    dt = 0.25
+    observables = (
+        ObservableSpec('food_per_capita', PollutedRegionElement._food_per_capita, element='region'),
+        ObservableSpec('quality_of_life', PollutedRegionElement._quality_of_life, element='region'),
     )
-    return System(elements=[region])
+
+    def __init__(
+        self,
+        population: float = 1e8,
+        pollution: float = 1e7,
+        *,
+        pollution_normal: float = 0.25,
+        pollution_standard: float = 1.5e7,
+        birth_normal: float = 0.04,
+        death_normal: float = 0.028,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.population = population
+        self.pollution = pollution
+        self.pollution_normal = pollution_normal
+        self.pollution_standard = pollution_standard
+        self.birth_normal = birth_normal
+        self.death_normal = death_normal
+
+    def _build_system(self) -> System:
+        """Return the pollution model of Bala, Arshad, and Noh, a population that degrades its environment."""
+        region = PollutedRegionElement(
+            'region',
+            population=self.population,
+            pollution=self.pollution,
+            pollution_normal=self.pollution_normal,
+            pollution_standard=self.pollution_standard,
+            birth_normal=self.birth_normal,
+            death_normal=self.death_normal,
+        )
+        return System(self.label, elements=[region])

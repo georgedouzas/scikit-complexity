@@ -44,8 +44,8 @@ from skcomplex.core.specs import (
     TotalisticSpec,
     VisualSpec,
 )
-from skcomplex.systems.physics.criticality import hexagonal_forest_fire
-from skcomplex.systems.physics.statistical_mechanics import graph_ising
+from skcomplex.systems.physics.criticality import HexagonalForestFireSystem
+from skcomplex.systems.physics.statistical_mechanics import GraphIsingSystem
 
 
 class BurnElement(Element):
@@ -368,7 +368,7 @@ def test_ising_on_grid_graph_has_transition():
     temperatures = [1.5, 2.2, 2.4, 3.5]
     result = (
         Experiment(
-            lambda temperature: graph_ising(graph, temperature=temperature, initial='up'),
+            lambda temperature: GraphIsingSystem(graph, temperature=temperature, initial='up').prepare().system_,
             GridDesign(),
             {'temperature': temperatures},
             replicates=4,
@@ -558,7 +558,7 @@ def test_extremal_runs_are_reproducible_across_backends():
 
 def test_triangular_forest_fire_streams_hexagonal_cells(tmp_path):
     """Test that a triangular forest fire logs one colored cell per site at its position at every logged step."""
-    simulation = Simulation(hexagonal_forest_fire((12, 10)), dt=1).prepare().run(until=1)
+    simulation = Simulation(HexagonalForestFireSystem((12, 10)).prepare().system_, dt=1).prepare().run(until=1)
     frame = FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
     recording = Recording()
     (SiteVisual(path=simulation.problem_.elements[0].path, recording=recording).prepare(simulation.problem_).run(frame))
@@ -569,14 +569,14 @@ def test_triangular_forest_fire_streams_hexagonal_cells(tmp_path):
     assert np.allclose(positions, LatticeSpace((12, 10), geometry='triangular').prepare().positions_)
     assert len(points.colors.as_arrow_array()) == 120
     observer = RerunObserver('forest', save_path=tmp_path / 'forest.rrd')
-    Simulation(hexagonal_forest_fire((12, 10)), dt=1, observers=[observer]).prepare().run(until=3)
+    Simulation(HexagonalForestFireSystem((12, 10)).prepare().system_, dt=1, observers=[observer]).prepare().run(until=3)
     assert observer.logged_frames_ == 4
     assert (tmp_path / 'forest.rrd').stat().st_size > 0
 
 
 def test_graph_lattices_stream_nodes_and_static_edges():
     """Test that a lattice group on a graph logs its edges once and its nodes at every frame."""
-    simulation = Simulation(graph_ising(nx.cycle_graph(8)), dt=1).prepare().run(until=1)
+    simulation = Simulation(GraphIsingSystem(nx.cycle_graph(8)).prepare().system_, dt=1).prepare().run(until=1)
     frame = FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, simulation.problem_)
     recording = Recording()
     visual = SiteVisual(low=-1, high=1, path=simulation.problem_.elements[0].path, recording=recording)

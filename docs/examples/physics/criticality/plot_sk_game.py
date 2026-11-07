@@ -8,7 +8,7 @@ actions to a plateau once the agents freeze.
 """
 
 # %%
-# The system is created by name from the catalog with 256 agents, the memory `alpha = 0.5`, and the temperature
+# The system is built from its class with 256 agents, the memory `alpha = 0.5`, and the temperature
 # `T = 0.2`. Every agent starts with a zero incentive and a random action. The blueprint shows the standard observable
 # `reward` over the whole run of 200 steps.
 
@@ -16,9 +16,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.physics.criticality import SKGameSystem
 
 SYSTEM = 'sk_game'
 
@@ -32,19 +32,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, temperature=0.2)
+system = SKGameSystem(temperature=0.2)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = (
-    Simulation(
-        system,
-        dt=1,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(200)
-)
+trajectory = simulate(system, until=200, dt=1, observers=[observer], random_state=0)
 
 # %%
 # Freezing and exploration
@@ -56,17 +46,10 @@ simulation = (
 temperatures = np.geomspace(0.05, 5.0, 12)
 rewards, flips = [], []
 for temperature in temperatures:
-    run = create_system(SYSTEM, temperature=temperature)
-    couplings = run.elements[0].values['couplings']
+    run = SKGameSystem(temperature=temperature)
+    couplings = run.prepare().system_.elements[0].values['couplings']
     actions = np.asarray(
-        Simulation(
-            run,
-            dt=1,
-            random_state=0,
-        )
-        .prepare()
-        .run(150)
-        .trajectory_.values('agents.sigma'),
+        simulate(run, until=150, dt=1, random_state=0).values('agents.sigma'),
     )[-50:]
     rewards.append(np.einsum('ti,ij,tj->t', actions, couplings, actions).mean() / actions.shape[1])
     flips.append((actions[1:] != actions[:-1]).mean())
