@@ -5,7 +5,7 @@
 
 import math
 
-from sage.all__sagemath_symbolics import pi, sin
+from sage.all__sagemath_symbolics import abs_symbolic, cos, exp, pi, sin
 
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import mod, where
@@ -14,9 +14,13 @@ from ..._catalog import register_system
 from ._baker_map import BakerMapElement
 from ._cat_map import CatMapElement
 from ._circle_map import CircleMapElement
+from ._conservative_henon_map import ConservativeHenonMapElement
+from ._fermi_ulam_map import FermiUlamMapElement
+from ._gaussian_map import GaussianMapElement
 from ._henon_map import HenonMapElement
 from ._intermittency_map import IntermittencyMapElement
 from ._logistic_map import LogisticMapElement
+from ._lozi_map import LoziMapElement
 from ._newton_map import NewtonMapElement
 from ._standard_map import GOLDEN_MEAN, StandardMapElement
 from ._tent_map import TentMapElement
@@ -463,3 +467,189 @@ def cat_map(x: float = 0.1, y: float = 0.3) -> System:
     first = MapInteraction('x_map', target='map', state='x', function=lambda s: mod(2 * s.target.x + s.target.y, 1))
     second = MapInteraction('y_map', target='map', state='y', function=lambda s: mod(s.target.x + s.target.y, 1))
     return System(elements=[CatMapElement('map', x=x, y=y)], interactions=[first, second])
+
+
+@register_system(
+    field='mathematics/dynamical_systems',
+    tags=('chaos', 'discrete map', 'strange attractor', 'piecewise linear'),
+    references=('Lozi 1978', 'Dilão 2023'),
+    defaults={'until': 1000, 'dt': 1},
+)
+def lozi_map(x: float = 0.0, y: float = 0.0, *, a: float = 1.7, b: float = 0.5) -> System:
+    """Return the Lozi map `x' = 1 + y - a |x|`, `y' = b x`, the piecewise linear Hénon map with a strange attractor.
+
+    The fold of the Hénon map becomes a corner, so the attractor is made of straight segments, and for the defaults of
+    Lozi (1978) the orbit is chaotic (Dilão 2023, Exercise 3.16).
+
+    Args:
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        a:
+            The slope of the fold.
+
+        b:
+            The contraction.
+
+    Returns:
+        system:
+            The system, with the states `map.x` and `map.y`.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import lozi_map
+        >>> lozi_map(a=1.5).elements[0].a
+        1.5
+    """
+    first = MapInteraction(
+        'x_map',
+        target='map',
+        state='x',
+        function=lambda s: 1 + s.target.y - s.target.a * abs_symbolic(s.target.x),
+    )
+    second = MapInteraction('y_map', target='map', state='y', function=lambda s: s.target.b * s.target.x)
+    return System(elements=[LoziMapElement('map', x=x, y=y, a=a, b=b)], interactions=[first, second])
+
+
+@register_system(
+    field='mathematics/dynamical_systems',
+    tags=('discrete map', 'area preserving', 'hamiltonian', 'kam', 'dynamic aperture'),
+    references=('Hénon 1969', 'Dilão 2023'),
+    defaults={'until': 1000, 'dt': 1},
+)
+def conservative_henon_map(x: float = 0.1, y: float = 0.0, *, nu: float = 0.2114) -> System:
+    """Return Hénon's area-preserving quadratic map, a rotation by `2π nu` with a quadratic kick.
+
+    The map is `x' = a x + b y + b x²`, `y' = -b x + a y + a x²` with `a = cos 2π nu` and `b = sin 2π nu` (Dilão
+    2023, Example 3.17 and Exercise 2.8). For `nu` in `(0, 1/2)` the origin is a centre surrounded by invariant curves,
+    and `(2 tan(π nu), -2 tan²(π nu))` is a saddle whose manifolds bound the region of bounded orbits, the dynamic
+    aperture of accelerator physics. The default `nu` gives `cos 2π nu = 0.24`, the case of Hénon (1969).
+
+    Args:
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        nu:
+            The rotation number of the linear part, in turns.
+
+    Returns:
+        system:
+            The system, with the states `map.x` and `map.y`.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import conservative_henon_map
+        >>> conservative_henon_map(nu=0.25).elements[0].nu
+        0.25
+    """
+    first = MapInteraction(
+        'x_map',
+        target='map',
+        state='x',
+        function=lambda s: cos(2 * pi * s.target.nu) * s.target.x
+        + sin(2 * pi * s.target.nu) * (s.target.y + s.target.x**2),
+    )
+    second = MapInteraction(
+        'y_map',
+        target='map',
+        state='y',
+        function=lambda s: -sin(2 * pi * s.target.nu) * s.target.x
+        + cos(2 * pi * s.target.nu) * (s.target.y + s.target.x**2),
+    )
+    return System(elements=[ConservativeHenonMapElement('map', x=x, y=y, nu=nu)], interactions=[first, second])
+
+
+@register_system(
+    field='mathematics/dynamical_systems',
+    tags=('discrete map', 'area preserving', 'billiard', 'fermi acceleration'),
+    references=('Ulam 1961', 'Lichtenberg and Lieberman 1992', 'Datseris and Parlitz 2022'),
+    defaults={'until': 1000, 'dt': 1},
+)
+def fermi_ulam_map(u: float = 0.5, theta: float = 1.0, *, epsilon: float = 0.1) -> System:
+    """Return the Fermi-Ulam map of a ball bouncing between a fixed wall and a wall that oscillates in time.
+
+    The speed and the phase of the wall at a bounce follow `u' = |u + ε sin θ|`, `θ' = θ + 2π / u' (mod 2π)`, an
+    area-preserving map with a mixed state space like the standard map (Datseris and Parlitz 2022, Exercise 1.11).
+    The points `θ = 0` and `θ = π` at the speeds `u = 1 / m` are its fixed points.
+
+    Args:
+        u:
+            The initial speed of the ball, positive.
+
+        theta:
+            The initial phase of the oscillating wall.
+
+        epsilon:
+            The amplitude of the speed the oscillating wall gives the ball.
+
+    Returns:
+        system:
+            The system, with the states `map.u` and `map.theta`.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import fermi_ulam_map
+        >>> fermi_ulam_map(epsilon=0.2).elements[0].epsilon
+        0.2
+    """
+    speed = MapInteraction(
+        'u_map',
+        target='map',
+        state='u',
+        function=lambda s: abs_symbolic(s.target.u + s.target.epsilon * sin(s.target.theta)),
+    )
+    phase = MapInteraction(
+        'theta_map',
+        target='map',
+        state='theta',
+        function=lambda s: mod(
+            s.target.theta + 2 * pi / abs_symbolic(s.target.u + s.target.epsilon * sin(s.target.theta)),
+            2 * pi,
+        ),
+    )
+    return System(elements=[FermiUlamMapElement('map', u=u, theta=theta, epsilon=epsilon)], interactions=[speed, phase])
+
+
+@register_system(
+    field='mathematics/dynamical_systems',
+    tags=('chaos', 'discrete map', 'interval map', 'period doubling', 'reverse bifurcations'),
+    references=('Cascais, Dilão, and Noronha da Costa 1983', 'Dilão 2023'),
+    defaults={'until': 200, 'dt': 1},
+)
+def cdn_map(x: float = 0.1, *, alpha: float = 2.8, beta: float = -0.5) -> System:
+    """Return the Cascais-Dilão-Noronha Gaussian map `x' = exp(-alpha² x²) + β` of an interval.
+
+    For `alpha = 2.8` the map is chaotic over most of `β` between about -0.8 and -0.25, with periodic windows, and its
+    complexity rises and falls again with `β` through period doubling and reverse period doubling, as in the
+    bifurcation diagram and the topological entropy of Dilão (2023, Fig. 3.17). Dilão's Exercises 3.4 and 3.5 write
+    the exponent as `-alpha² x² / 2π`, the same family with `alpha` scaled by `√(2π)`.
+
+    Args:
+        x:
+            The initial value.
+
+        alpha:
+            The steepness of the Gaussian.
+
+        beta:
+            The shift of the Gaussian.
+
+    Returns:
+        system:
+            The system, with the state `map.x`.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import cdn_map
+        >>> cdn_map(beta=-0.3).elements[0].beta
+        -0.3
+    """
+    gaussian = MapInteraction(
+        'x_map',
+        target='map',
+        state='x',
+        function=lambda s: exp(-(s.target.alpha**2) * s.target.x**2) + s.target.beta,
+    )
+    return System(elements=[GaussianMapElement('map', x=x, alpha=alpha, beta=beta)], interactions=[gaussian])

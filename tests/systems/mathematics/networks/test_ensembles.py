@@ -7,10 +7,14 @@ import pytest
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.mathematics.networks import (
+    configuration_model,
+    interdependent_network_cascade,
+    kronecker_graph,
     network_attack,
     random_graph_ensembles,
 )
 
+from ..conftest import _run
 from .conftest import _final_graph
 
 
@@ -68,3 +72,43 @@ def test_random_graph_ensembles_reject_an_unknown_ensemble():
     """Test that an unknown ensemble raises an error that lists the ensembles."""
     with pytest.raises(ValidationError, match='watts_strogatz'):
         random_graph_ensembles(ensemble='lattice')
+
+
+def test_kronecker_graph_multiplies_the_degrees():
+    """Test that the degree of the node `(i, j)` of a Kronecker graph is the product of the degrees of `i` and `j`."""
+    first, second = nx.barabasi_albert_graph(12, 2, seed=1), nx.cycle_graph(5)
+    graph = kronecker_graph(first, second).space.graph
+    assert graph.number_of_nodes() == 60
+    for node, pair in graph.nodes(data='pair'):
+        assert graph.degree(node) == first.degree(pair[0]) * second.degree(pair[1])
+    degrees = [degree for _, degree in graph.degree]
+    assert np.mean(degrees) == pytest.approx(np.mean([d for _, d in first.degree]) * 2)
+
+
+def test_configuration_model_keeps_the_degree_sequence_in_a_simple_graph():
+    """Test that rewiring removes every self-loop and multilink while every node keeps its degree."""
+    degrees = [6, 5, 5, 4, 4, 3, 3, 2, 2, 2, 1, 1]
+    graph = configuration_model(degrees, random_state=3).space.graph
+    assert sorted(dict(graph.degree).values(), reverse=True) == degrees
+    assert nx.number_of_selfloops(graph) == 0
+
+
+def test_configuration_model_shows_the_friendship_paradox():
+    """Test that the end of a random link has the mean degree `<k²> / <k>`, above the mean degree `<k>`."""
+    graph = configuration_model(n_nodes=3000).space.graph
+    degrees = np.array([degree for _, degree in graph.degree])
+    ends = np.array([graph.degree(end) for edge in graph.edges for end in edge])
+    assert ends.mean() == pytest.approx(np.mean(degrees**2) / degrees.mean(), rel=1e-9)
+    assert ends.mean() > 1.3 * degrees.mean()
+
+
+def test_interdependent_networks_keep_a_mutual_giant_component_above_the_threshold_only():
+    """Test that the cascade stops at `S = p (1 - exp(-k S))²` above `p_c = 2.4554 / k` and collapses below it."""
+    survived = _run(interdependent_network_cascade(2000, p=0.85), 40).values('nodes.active')
+    share = 0.85
+    for _ in range(500):
+        share = 0.85 * (1 - np.exp(-4 * share)) ** 2
+    assert survived[-1].mean() == pytest.approx(share, abs=0.04)
+    collapsed = _run(interdependent_network_cascade(2000, p=0.55), 40).values('nodes.active')
+    assert collapsed[-1].sum() == 0
+    assert collapsed[1].mean() > 0.4

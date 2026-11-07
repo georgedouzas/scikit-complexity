@@ -1,11 +1,19 @@
 """Networks: growth, ensembles, robustness, overload cascades, walks, diffusion, PageRank, structure, percolation."""
 
 from ._copying_vertex import CopyingVertexElement
+from ._dependent_node import DependentNodeElement
 from ._ensemble_node import EnsembleNodeElement
-from ._ensembles import network_attack, random_graph_ensembles
+from ._ensembles import (
+    configuration_model,
+    interdependent_network_cascade,
+    kronecker_graph,
+    network_attack,
+    random_graph_ensembles,
+)
 from ._failing import FailingElement
+from ._fitness_vertex import FitnessVertexElement
 from ._giant_component import GiantComponentInteraction
-from ._growth import barabasi_albert, holme_kim, popularity_similarity_network, vertex_copying
+from ._growth import barabasi_albert, graphlet_arrival, holme_kim, popularity_similarity_network, vertex_copying
 from ._hypergraphs import growing_simplicial_complex, hypergraph_random_walk
 from ._link import LinkElement
 from ._loaded_node import LoadedNodeElement
@@ -31,8 +39,10 @@ from ._walker_density import WalkerDensityElement
 
 __all__: list[str] = [
     'CopyingVertexElement',
+    'DependentNodeElement',
     'EnsembleNodeElement',
     'FailingElement',
+    'FitnessVertexElement',
     'GiantComponentInteraction',
     'LinkElement',
     'LoadedNodeElement',
@@ -52,9 +62,13 @@ __all__: list[str] = [
     'VertexElement',
     'WalkerDensityElement',
     'barabasi_albert',
+    'configuration_model',
+    'graphlet_arrival',
     'growing_simplicial_complex',
     'holme_kim',
     'hypergraph_random_walk',
+    'interdependent_network_cascade',
+    'kronecker_graph',
     'motter_lai_overload',
     'network_attack',
     'network_diffusion',

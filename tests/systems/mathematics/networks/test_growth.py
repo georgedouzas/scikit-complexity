@@ -10,6 +10,7 @@ from skcomplex.core.errors import ValidationError
 from skcomplex.systems import create_system
 from skcomplex.systems.mathematics.networks import (
     barabasi_albert,
+    graphlet_arrival,
     holme_kim,
     popularity_similarity_network,
     vertex_copying,
@@ -108,3 +109,25 @@ def test_popularity_similarity_network_rejects_invalid_settings(settings: dict[s
     """Test that an exponent not above 2 and a temperature outside the unit interval raise an error."""
     with pytest.raises(ValidationError, match=message):
         popularity_similarity_network(20, **settings)
+
+
+def test_bianconi_barabasi_fitness_lets_fit_nodes_win_edges():
+    """Test that with fitness the degree of the older nodes rises with their fitness, and every step adds two edges."""
+    graph, trajectory = _final_graph(barabasi_albert(1003, fitness=True), 1000)
+    assert graph.number_of_edges() == 3 + 2 * 1000
+    fitness, age, degree = (trajectory.values(f'nodes.{state}')[-1] for state in ('fitness', 'age', 'degree'))
+    old = age > 500
+    assert np.corrcoef(np.argsort(np.argsort(fitness[old])), np.argsort(np.argsort(degree[old])))[0, 1] > 0.4
+    assert fitness.min() >= 0
+    assert fitness.max() <= 1
+
+
+@pytest.mark.parametrize('alpha', [0.0, 0.3, 1.0])
+def test_graphlet_arrival_grows_a_tree_with_the_degree_shares_of_filkov(alpha):
+    """Test that graphlets grow a tree with the degree shares `2 (2 - alpha) / 5` and `alpha (7 - alpha) / 15`."""
+    graph, _ = _final_graph(graphlet_arrival(2002, alpha=alpha), 1000)
+    assert nx.is_tree(graph)
+    assert graph.number_of_nodes() == 2002
+    degrees = np.array([degree for _, degree in graph.degree])
+    assert np.mean(degrees == 1) == pytest.approx(2 * (2 - alpha) / 5, abs=0.03)
+    assert np.mean(degrees == 2) == pytest.approx(alpha * (7 - alpha) / 15, abs=0.03)
