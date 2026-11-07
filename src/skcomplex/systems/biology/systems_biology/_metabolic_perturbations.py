@@ -20,9 +20,9 @@ from ..common.metabolism import load_network
 def metabolic_perturbations(genes: Sequence[str] = ()) -> System:
     """Return the E. coli core system with some genes knocked out, which needs the extra `metabolism`.
 
-    A gene that is off closes the reactions whose rules need it (Raman 2021, Section 9.1). `CobraAnalysis` scans the
-    deletions and adjusts the fluxes by MoMA and ROOM, `StrainDesignAnalysis` finds OptKnock designs, and
-    `ProductionScanAnalysis` scans fluxes with an enforced product.
+    A gene that is off closes the reactions whose rules need it (Raman 2021, Section 9.1). `cobra_measures` scans the
+    deletions and adjusts the fluxes by MoMA and ROOM, `strain_design` finds OptKnock designs, and
+    `production_scan` scans fluxes with an enforced product.
 
     Args:
         genes:

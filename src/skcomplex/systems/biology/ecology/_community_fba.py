@@ -33,7 +33,7 @@ def community_fba(
     The programs of the members merge through a medium whose law holds the growth weighted by the abundances (Raman
     2021, Section 11.1.3). By default one member lacks isocitrate dehydrogenase and takes up 2-oxoglutarate, and the
     other lacks ammonium transport and takes up glutamate, each from what the other secretes, so neither grows alone,
-    and together both grow. `CommunityAnalysis` gives SteadyCom and the cooperative trade-off of the same members. The
+    and together both grow. `community_growth` gives SteadyCom and the cooperative trade-off of the same members. The
     pair is an illustration found on the E. coli core system: the consortium of Raman (Section 11.1.3.6) has four
     mutants that need amino acids, whose synthesis the core system does not hold.
 

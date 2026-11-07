@@ -209,7 +209,7 @@ def rna_neutral_networks(
     In the `'neutral'` regime a mutation is accepted when the minimum free energy fold of the sequence stays on the
     target. In the `'adaptive'` regime a mutation is accepted when the base-pair distance between the fold and the
     target does not grow. The neighbours of the visited sequences give the robustness and evolvability of
-    Raman (2021 §13.3) through `NeutralNetworkAnalysis`. The folds come from ViennaRNA at 37 °C with its default energy
+    Raman (2021 §13.3) through `neutral_network`. The folds come from ViennaRNA at 37 °C with its default energy
     parameters. Every walker records its score as `walk.score`.
 
     Args:

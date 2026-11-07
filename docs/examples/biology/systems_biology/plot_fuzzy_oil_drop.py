@@ -18,7 +18,7 @@ from skcomplex.core.analysis import chain_shape
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system, describe
-from skcomplex.systems.biology.systems_biology import BackboneGeometry, FuzzyOilDropAnalysis, read_structure
+from skcomplex.systems.biology.systems_biology import BackboneGeometry, fuzzy_oil_drop_measures, read_structure
 
 SYSTEM = 'fuzzy_oil_drop'
 
@@ -42,12 +42,12 @@ trajectory = simulation.prepare().run(until=37).trajectory_
 # its values.
 
 structure = read_structure('1L2Y')
-profile = FuzzyOilDropAnalysis(structure, 'profile').prepare().run()
+profile = fuzzy_oil_drop_measures(structure=structure, kind='profile')
 residues = np.arange(1, 21)
 fig, (distributions, ensemble) = plt.subplots(1, 2, figsize=(11, 4))
-distributions.plot(residues, profile.theoretical_[0], marker='o', label='T')
-distributions.plot(residues, profile.observed_[0], marker='o', label='O')
-distributions.plot(residues, profile.uniform_, color='0.5', label='R')
+distributions.plot(residues, profile.theoretical[0], marker='o', label='T')
+distributions.plot(residues, profile.observed[0], marker='o', label='O')
+distributions.plot(residues, profile.uniform, color='0.5', label='R')
 distributions.set_xlabel('residue')
 distributions.set_ylabel('share of hydrophobicity')
 distributions.legend()

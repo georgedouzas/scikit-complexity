@@ -5,6 +5,7 @@
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from functools import partial
 
 import numpy as np
 import numpy.typing as npt
@@ -13,7 +14,7 @@ from scipy.optimize import least_squares
 from scipy.sparse.linalg import splu
 from scipy.stats import chi2
 
-from ....core.analysis import BaseAnalysis
+from ....core.analysis import bind_analysis
 from ....core.analysis.types import Source
 from ....core.components.spaces import StaticTime
 from ....core.components.system import System
@@ -21,7 +22,7 @@ from ....core.engine.compile import PassCompiler
 from ....core.engine.problems import ProblemSpec
 from ....core.errors import AnalysisError, ValidationError
 from ....core.specs import BaseSpec, DeclaredVariableSpec, RunStateSpec, VisualSpec
-from ....core.types import Array, DataKind
+from ....core.types import Array
 from ..._catalog import register_system
 from ..common.metabolism import MetabolicNetworkElement, ReactionSpec
 
@@ -377,10 +378,97 @@ class _TermSpec(BaseSpec):
     substrates: tuple[_Unit, ...]
 
 
-class LabellingAnalysis(BaseAnalysis):
-    """Isotope labelling of a metabolic network at metabolic and isotopic steady state, of one kind.
+@dataclass(frozen=True)
+class _LabellingSpec(BaseSpec):
+    """Units of a labelling problem: the network, the settings that read it, and the units of its fragments."""
 
-    The analysis takes a system that holds a metabolic network. It walks the atom maps backward from the fragments to
+    network: MetabolicNetworkElement
+    reactions: list[str]
+    tracers: Mapping[str, Sequence[TracerSpec]]
+    fragments: Sequence[FragmentSpec]
+    terms: dict[_Unit, list[_TermSpec]]
+    leaves: set[_Unit]
+    sizes: list[int]
+
+
+@dataclass(frozen=True)
+class _FitSpec(BaseSpec):
+    """Parametrization of the net fluxes over a null space basis of the balances, with one exchange per reversible one.
+
+    It also holds the data the residuals read.
+    """
+
+    units: _LabellingSpec
+    measurements: Sequence[LabelMeasurementSpec]
+    measured_fluxes: Mapping[str, tuple[float, float]]
+    particular: Array
+    basis: Array
+    exchanges: list[str]
+    lower: Array
+    upper: Array
+    exchange_limit: Array
+
+
+@dataclass(frozen=True)
+class LabellingResult:
+    """Isotope labelling of a metabolic network: simulated distributions, or estimated fluxes with their test.
+
+    Args:
+        network:
+            The metabolic network.
+
+        distributions:
+            The distribution of every fragment of every experiment.
+
+        fluxes:
+            The estimated net flux of every reaction, and the exchange `<reaction>.exchange` of a reversible one, for
+            `'estimation'`, or `None`.
+
+        intervals:
+            The 95% interval of every estimated flux, for `'estimation'`, or `None`.
+
+        identifiable:
+            Whether the data identify every estimated flux, false for an interval that reaches a bound, for
+            `'estimation'`, or `None`.
+
+        residual:
+            The sum of the squares of the weighted residuals at the optimum, for `'estimation'`, or `None`.
+
+        chi2:
+            The range of the sum of squares that the test accepts at the 5% level, for `'estimation'`, or `None`.
+
+        accepted:
+            Whether the residual lies in that range, for `'estimation'`, or `None`.
+    """
+
+    network: MetabolicNetworkElement
+    distributions: dict[str, dict[str, Array]]
+    fluxes: dict[str, float] | None = None
+    intervals: dict[str, tuple[float, float]] | None = None
+    identifiable: dict[str, bool] | None = None
+    residual: float | None = None
+    chi2: tuple[float, float] | None = None
+    accepted: bool | None = None
+
+
+def labelling(
+    source: Source,
+    *,
+    kind: str = 'simulation',
+    atoms: Sequence[AtomMapSpec] = (),
+    tracers: Mapping[str, Sequence[TracerSpec]] | None = None,
+    fragments: Sequence[FragmentSpec] = (),
+    measurements: Sequence[LabelMeasurementSpec] = (),
+    fluxes: Mapping[str, float | tuple[float, float]] | None = None,
+    measured_fluxes: Mapping[str, tuple[float, float]] | None = None,
+    symmetric: Sequence[str] = (),
+    starts: int = 5,
+    intervals: str = 'linear',
+    random_state: int | np.random.Generator | None = None,
+) -> LabellingResult:
+    """Return the isotope labelling of a metabolic network at metabolic and isotopic steady state, of one kind.
+
+    The function takes a system that holds a metabolic network. It walks the atom maps backward from the fragments to
     collect the elementary metabolite units (Antoniewicz et al. 2007), and solves per unit size one sparse linear system
     with `scipy.sparse.linalg.splu`.
 
@@ -391,6 +479,9 @@ class LabellingAnalysis(BaseAnalysis):
       chi-square test of the fit follow.
 
     Args:
+        source:
+            The system that holds the metabolic network.
+
         kind:
             `'simulation'` or `'estimation'`.
 
@@ -426,34 +517,17 @@ class LabellingAnalysis(BaseAnalysis):
         random_state:
             The seed or generator of the starts.
 
-    Attributes:
-        distributions_:
-            The distribution of every fragment of every experiment.
-
-        fluxes_:
-            The estimated net flux of every reaction, and the exchange `<reaction>.exchange` of a reversible one.
-
-        intervals_:
-            The 95% interval of every estimated flux.
-
-        identifiable_:
-            Whether the data identify every estimated flux, false for an interval that reaches a bound.
-
-        residual_:
-            The sum of the squares of the weighted residuals at the optimum.
-
-        chi2_:
-            The range of the sum of squares that the test accepts at the 5% level.
-
-        accepted_:
-            Whether the residual lies in that range.
+    Returns:
+        result:
+            The distributions, and for `'estimation'` the fluxes, their intervals, and the test of the fit.
 
     Raises:
         AnalysisError:
-            A setting is unknown or a metabolite has no source of labels, raised by `prepare`.
+            A setting is unknown, the source is not a system with a metabolic network, or a metabolite has no source of
+            labels.
 
         ValidationError:
-            An atom map is not valid, or two maps give one metabolite different numbers of atoms, raised by `prepare`.
+            An atom map is not valid, or two maps give one metabolite different numbers of atoms.
 
     Examples:
         >>> from skcomplex.core.components.spaces import StaticTime
@@ -462,505 +536,501 @@ class LabellingAnalysis(BaseAnalysis):
         >>> from skcomplex.systems.biology.systems_biology import (
         ...     AtomMapSpec,
         ...     FragmentSpec,
-        ...     LabellingAnalysis,
         ...     TracerSpec,
+        ...     labelling,
         ... )
         >>> reactions = {'in': ReactionSpec({'B': 1.0}), 'out': ReactionSpec({'B': -1.0})}
         >>> network = metabolic_network_type('ChainElement', reactions)('net')
-        >>> analysis = LabellingAnalysis(
+        >>> system = System(elements=[network], time=StaticTime())
+        >>> result = labelling(
+        ...     system,
         ...     atoms=[AtomMapSpec('in', [('A', 'ab')], [('B', 'ba')])],
         ...     tracers={'first': [TracerSpec('A', {'00': 0.5, '01': 0.5})]},
         ...     fragments=[FragmentSpec('B', (1, 2))],
         ...     fluxes={'in': 1.0, 'out': 1.0},
         ... )
-        >>> system = System(elements=[network], time=StaticTime())
-        >>> analysis.prepare(system).run().distributions_['first']['B'].tolist()
+        >>> result.distributions['first']['B'].tolist()
         [0.5, 0.5, 0.0]
     """
+    _check_choice('kind', kind, KINDS)
+    _check_choice('intervals', intervals, INTERVALS)
+    atom_counts = _atom_counts(atoms)
+    if not isinstance(source, System):
+        error_msg = f'labelling reads a system, not a {type(source).__name__}.'
+        raise AnalysisError(error_msg)
+    units = _collect_units(
+        _network_of(source),
+        atoms,
+        tracers=tracers or {},
+        fragments=fragments,
+        symmetric=symmetric,
+        atom_counts=atom_counts,
+    )
+    if kind == 'simulation':
+        flows = _directed_given(units, fluxes)
+        distributions = {experiment: _simulated(units, flows, found) for experiment, found in units.tracers.items()}
+        return LabellingResult(units.network, distributions)
+    fit = _parametrization(units, measurements, measured_fluxes or {})
+    rng = np.random.default_rng(random_state)
+    fits = [_fit(fit, _start(fit, rng)) for _ in range(int(starts))]
+    parameters, best = min(fits, key=lambda item: item[1])
+    return _estimates(fit, parameters, best, intervals)
 
-    def __init__(
-        self,
-        kind: str = 'simulation',
-        *,
-        atoms: Sequence[AtomMapSpec] = (),
-        tracers: Mapping[str, Sequence[TracerSpec]] | None = None,
-        fragments: Sequence[FragmentSpec] = (),
-        measurements: Sequence[LabelMeasurementSpec] = (),
-        fluxes: Mapping[str, float | tuple[float, float]] | None = None,
-        measured_fluxes: Mapping[str, tuple[float, float]] | None = None,
-        symmetric: Sequence[str] = (),
-        starts: int = 5,
-        intervals: str = 'linear',
-        random_state: int | np.random.Generator | None = None,
-    ) -> None:
-        self.kind = kind
-        self.atoms = atoms
-        self.tracers = tracers
-        self.fragments = fragments
-        self.measurements = measurements
-        self.fluxes = fluxes
-        self.measured_fluxes = measured_fluxes
-        self.symmetric = symmetric
-        self.starts = starts
-        self.intervals = intervals
-        self.random_state = random_state
 
-    def _get_data_kind(self) -> DataKind:
-        """Return the kind of data the analysis reads, the network of a system."""
-        return DataKind.SERIES
-
-    def _check(self) -> None:
-        """Raise an error for an unknown setting, an invalid atom map, or inconsistent atom counts.
-
-        Raises:
-            AnalysisError:
-                The kind or the intervals are unknown.
-
-            ValidationError:
-                An atom map is not valid, or two reactions give one metabolite different numbers of atoms.
-        """
-        self._check_choice('kind', self.kind, KINDS)
-        self._check_choice('intervals', self.intervals, INTERVALS)
-        counts: dict[str, tuple[int, str]] = {}
-        for item in self.atoms:
-            item._validated()
-            for metabolite, letters in (*item.reactants, *item.products):
-                known = counts.setdefault(metabolite, (len(letters), item.reaction))
-                if known[0] != len(letters):
-                    error_msg = (
-                        f'The reaction {known[1]} gives {metabolite} {known[0]} atoms, but the reaction '
-                        f'{item.reaction} gives it {len(letters)}.'
-                    )
-                    raise ValidationError(error_msg)
-        self._atom_counts = {metabolite: count for metabolite, (count, _) in counts.items()}
-
-    def _network_of(self, system: System) -> MetabolicNetworkElement:
-        """Return the metabolic network of a system."""
-        for element in system.elements:
-            if isinstance(element, MetabolicNetworkElement):
-                return element
-        error_msg = 'The analysis reads a system that holds a metabolic network element.'
+def _check_choice(name: str, value: object, choices: tuple[object, ...]) -> None:
+    """Raise an error for a setting of the labelling that is not one of its choices."""
+    if value not in choices:
+        error_msg = f'labelling has {name}={value!r}. Use one of {", ".join(map(str, choices))}.'
         raise AnalysisError(error_msg)
 
-    def _directed_maps(self) -> list[tuple[int, AtomMapSpec]]:
-        """Return the maps in both directions, each with the position of its directed flux."""
-        reactions = list(self.network_.reactions)
-        count = len(reactions)
-        directed = []
-        for item in self.atoms:
-            if item.reaction not in reactions:
-                error_msg = f'An atom map names the reaction {item.reaction}, which the network does not hold.'
-                raise AnalysisError(error_msg)
-            position = reactions.index(item.reaction)
-            directed.append((position, item))
-            if self._reversible(item.reaction):
-                reverse = AtomMapSpec(item.reaction, item.products, item.reactants)
-                directed.append((position + count, reverse))
-        return directed
 
-    def _bounds_of(self, reaction: str) -> tuple[float, float]:
-        """Return the bounds of a reaction, from the parameters of the network."""
-        identifier = self.network_._identifier(reaction)
-        return self.network_.get_number(f'lower_{identifier}'), self.network_.get_number(f'upper_{identifier}')
+def _atom_counts(atoms: Sequence[AtomMapSpec]) -> dict[str, int]:
+    """Return the number of atoms of every metabolite, after checking that every atom map agrees on it.
 
-    def _reversible(self, reaction: str) -> bool:
-        """Check whether a reaction may run backward."""
-        return self._bounds_of(reaction)[0] < 0
+    Args:
+        atoms:
+            The atom maps.
 
-    def _sources(self) -> set[str]:
-        """Return the metabolites that tracers label in any experiment."""
-        return {item.metabolite for tracers in (self.tracers or {}).values() for item in tracers}
+    Returns:
+        counts:
+            The number of atoms by metabolite.
 
-    def _terms_of(self, unit: _Unit, maps: Sequence[tuple[int, AtomMapSpec]]) -> list[_TermSpec]:
-        """Return the inflows to a unit from every reaction that produces its metabolite."""
-        metabolite, atoms = unit
-        size = self._atom_counts.get(metabolite, max(atoms))
-        scrambled = tuple(sorted(size + 1 - atom for atom in atoms))
-        choices = [(atoms, 0.5), (scrambled, 0.5)] if metabolite in self.symmetric else [(atoms, 1.0)]
-        terms = []
-        for flux, item in maps:
-            places = {
-                letter: (name, position + 1)
-                for name, letters in item.reactants
-                for position, letter in enumerate(letters)
-            }
-            for name, letters in item.products:
-                if name != metabolite:
-                    continue
-                for chosen, weight in choices:
-                    grouped: dict[str, list[int]] = {}
-                    for atom in chosen:
-                        origin, place = places[letters[atom - 1]]
-                        grouped.setdefault(origin, []).append(place)
-                    substrates = tuple(sorted((origin, tuple(sorted(found))) for origin, found in grouped.items()))
-                    terms.append(_TermSpec(flux, weight, substrates))
-        return terms
-
-    def _collect_units(self) -> None:
-        """Walk the atom maps backward from the fragments, and set the terms and the sizes of the units."""
-        maps = self._directed_maps()
-        sources = self._sources()
-        terms: dict[_Unit, list[_TermSpec]] = {}
-        leaves: set[_Unit] = set()
-        stack: list[_Unit] = [(item.metabolite, tuple(sorted(item.atoms))) for item in self.fragments]
-        while stack:
-            unit = stack.pop()
-            if unit in terms or unit in leaves:
-                continue
-            if unit[0] in sources:
-                leaves.add(unit)
-                continue
-            found = self._terms_of(unit, maps)
-            if not found:
+    Raises:
+        ValidationError:
+            An atom map is not valid, or two reactions give one metabolite different numbers of atoms.
+    """
+    counts: dict[str, tuple[int, str]] = {}
+    for item in atoms:
+        item._validated()
+        for metabolite, letters in (*item.reactants, *item.products):
+            known = counts.setdefault(metabolite, (len(letters), item.reaction))
+            if known[0] != len(letters):
                 error_msg = (
-                    f'No reaction produces {unit[0]} and no tracer labels it. Give it a tracer, even an unlabelled one.'
+                    f'The reaction {known[1]} gives {metabolite} {known[0]} atoms, but the reaction '
+                    f'{item.reaction} gives it {len(letters)}.'
                 )
-                raise AnalysisError(error_msg)
-            terms[unit] = found
-            stack += [substrate for term in found for substrate in term.substrates]
-        self._terms = terms
-        self._leaves = leaves
-        self._sizes = sorted({len(unit[1]) for unit in terms})
+                raise ValidationError(error_msg)
+    return {metabolite: count for metabolite, (count, _) in counts.items()}
 
-    def _prepare(self, context: Source) -> None:
-        """Read the network of a system and collect the elementary metabolite units of the fragments.
 
-        Args:
-            context:
-                The system.
+def _network_of(system: System) -> MetabolicNetworkElement:
+    """Return the metabolic network of a system."""
+    for element in system.elements:
+        if isinstance(element, MetabolicNetworkElement):
+            return element
+    error_msg = 'labelling reads a system that holds a metabolic network element.'
+    raise AnalysisError(error_msg)
 
-        Raises:
-            AnalysisError:
-                The source is not a system with a metabolic network, or a metabolite has no source of labels.
-        """
-        if not isinstance(context, System):
-            error_msg = f'The analysis reads a system, not a {type(context).__name__}.'
+
+def _bounds_of(network: MetabolicNetworkElement, reaction: str) -> tuple[float, float]:
+    """Return the bounds of a reaction, from the parameters of the network."""
+    identifier = network._identifier(reaction)
+    return network.get_number(f'lower_{identifier}'), network.get_number(f'upper_{identifier}')
+
+
+def _reversible(network: MetabolicNetworkElement, reaction: str) -> bool:
+    """Check whether a reaction may run backward."""
+    return _bounds_of(network, reaction)[0] < 0
+
+
+def _directed_maps(network: MetabolicNetworkElement, atoms: Sequence[AtomMapSpec]) -> list[tuple[int, AtomMapSpec]]:
+    """Return the maps in both directions, each with the position of its directed flux."""
+    reactions = list(network.reactions)
+    count = len(reactions)
+    directed = []
+    for item in atoms:
+        if item.reaction not in reactions:
+            error_msg = f'An atom map names the reaction {item.reaction}, which the network does not hold.'
             raise AnalysisError(error_msg)
-        self.network_ = self._network_of(context)
-        self._reactions = list(self.network_.reactions)
-        self._collect_units()
+        position = reactions.index(item.reaction)
+        directed.append((position, item))
+        if _reversible(network, item.reaction):
+            reverse = AtomMapSpec(item.reaction, item.products, item.reactants)
+            directed.append((position + count, reverse))
+    return directed
 
-    @staticmethod
-    def _source_distribution(tracer: TracerSpec, atoms: Sequence[int]) -> Array:
-        """Return the distribution of the labelled atoms of a tracer among some atoms."""
-        distribution = np.zeros(len(atoms) + 1)
-        for isotopomer, fraction in tracer.fractions.items():
-            distribution[sum(isotopomer[atom - 1] == '1' for atom in atoms)] += fraction
-        return distribution
 
-    def _source_units(self, tracers: Sequence[TracerSpec]) -> dict[_Unit, Array]:
-        """Return the distribution of every leaf unit in one experiment."""
-        found = {item.metabolite: item for item in tracers}
-        known = {}
-        for unit in self._leaves:
-            tracer = found.get(unit[0])
-            unlabelled = np.zeros(len(unit[1]) + 1)
-            unlabelled[0] = 1.0
-            known[unit] = unlabelled if tracer is None else self._source_distribution(tracer, unit[1])
-        return known
-
-    def _solve_size(self, size: int, flows: Array, known: dict[_Unit, Array]) -> None:
-        """Solve the units of one size, `A X = B`, and add their distributions to the known ones."""
-        units = [unit for unit in self._terms if len(unit[1]) == size]
-        positions = {unit: position for position, unit in enumerate(units)}
-        rows, columns, values = [], [], []
-        right = np.zeros((len(units), size + 1))
-        totals = np.zeros(len(units))
-        for unit, position in positions.items():
-            for term in self._terms[unit]:
-                rate = term.weight * flows[term.flux]
-                totals[position] += rate
-                if len(term.substrates) == 1 and term.substrates[0] in positions:
-                    rows.append(position)
-                    columns.append(positions[term.substrates[0]])
-                    values.append(-rate)
-                    continue
-                combined = np.ones(1)
-                for substrate in term.substrates:
-                    combined = np.convolve(combined, known[substrate])
-                right[position] += rate * combined
-        closed = totals <= 0
-        totals[closed] = 1.0
-        right[closed, 0] = 1.0
-        matrix = sparse.coo_array((values, (rows, columns)), shape=(len(units), len(units))).tocsc()
-        matrix = (matrix + sparse.diags_array(totals, format='csc')).tocsc()
-        solution = splu(matrix).solve(right)
-        known.update({unit: solution[position] for unit, position in positions.items()})
-
-    def _simulated(self, flows: Array, tracers: Sequence[TracerSpec]) -> dict[str, Array]:
-        """Return the distribution of every fragment at directed fluxes in one experiment."""
-        known = self._source_units(tracers)
-        for size in self._sizes:
-            self._solve_size(size, flows, known)
-        return {item.label: known[(item.metabolite, tuple(sorted(item.atoms)))] for item in self.fragments}
-
-    def _directed_given(self) -> Array:
-        """Return the directed fluxes that the `fluxes` setting gives."""
-        count = len(self._reactions)
-        flows = np.zeros(2 * count)
-        for reaction, value in (self.fluxes or {}).items():
-            position = self._reactions.index(reaction)
-            forward, backward = value if isinstance(value, tuple) else (value, 0.0)
-            flows[position], flows[position + count] = forward, backward
-        return flows
-
-    def _run_simulation(self) -> None:
-        """Set the distributions at the given fluxes."""
-        flows = self._directed_given()
-        self.distributions_ = {
-            experiment: self._simulated(flows, tracers) for experiment, tracers in (self.tracers or {}).items()
+def _terms_of(
+    unit: _Unit,
+    maps: Sequence[tuple[int, AtomMapSpec]],
+    symmetric: Sequence[str],
+    atom_counts: Mapping[str, int],
+) -> list[_TermSpec]:
+    """Return the inflows to a unit from every reaction that produces its metabolite."""
+    metabolite, atoms = unit
+    size = atom_counts.get(metabolite, max(atoms))
+    scrambled = tuple(sorted(size + 1 - atom for atom in atoms))
+    choices = [(atoms, 0.5), (scrambled, 0.5)] if metabolite in symmetric else [(atoms, 1.0)]
+    terms = []
+    for flux, item in maps:
+        places = {
+            letter: (name, position + 1) for name, letters in item.reactants for position, letter in enumerate(letters)
         }
+        for name, letters in item.products:
+            if name != metabolite:
+                continue
+            for chosen, weight in choices:
+                grouped: dict[str, list[int]] = {}
+                for atom in chosen:
+                    origin, place = places[letters[atom - 1]]
+                    grouped.setdefault(origin, []).append(place)
+                substrates = tuple(sorted((origin, tuple(sorted(found))) for origin, found in grouped.items()))
+                terms.append(_TermSpec(flux, weight, substrates))
+    return terms
 
-    def _balances(self) -> Array:
-        """Return the matrix of the balances of the network over its net fluxes."""
-        metabolites = list(
-            dict.fromkeys(name for spec in self.network_.reactions.values() for name in spec.coefficients),
-        )
-        matrix = np.zeros((len(metabolites), len(self._reactions)))
-        for column, spec in enumerate(self.network_.reactions.values()):
-            for name, value in spec.coefficients.items():
-                matrix[metabolites.index(name), column] = value
-        return matrix
 
-    def _set_parametrization(self) -> None:
-        """Set a particular solution, the null space basis of the net fluxes, and the exchanges."""
-        balances = self._balances()
-        fixed = {name: value for name, (value, deviation) in (self.measured_fluxes or {}).items() if deviation == 0}
-        rows = np.zeros((len(fixed), len(self._reactions)))
-        for row, name in enumerate(fixed):
-            rows[row, self._reactions.index(name)] = 1.0
-        system = np.vstack([balances, rows])
-        right = np.concatenate([np.zeros(balances.shape[0]), np.fromiter(fixed.values(), dtype=float)])
-        self._particular = linalg.lstsq(system, right)[0]
-        self._basis = linalg.null_space(system)
-        self._exchanges = [name for name in self._reactions if self._reversible(name)]
-        self._lower = np.asarray([self._bounds_of(name)[0] for name in self._reactions], dtype=float)
-        self._upper = np.asarray([self._bounds_of(name)[1] for name in self._reactions], dtype=float)
-        self._exchange_limit = np.asarray([self._bounds_of(name)[1] for name in self._exchanges], dtype=float)
-
-    def _net_of(self, parameters: Array) -> Array:
-        """Return the net fluxes of parameters."""
-        return self._particular + self._basis @ parameters[: self._basis.shape[1]]
-
-    def _flows_of(self, parameters: Array) -> Array:
-        """Return the directed fluxes of parameters, the exchanges added in both directions."""
-        net = self._net_of(parameters)
-        count = len(self._reactions)
-        flows = np.concatenate([np.maximum(net, 0.0), np.maximum(-net, 0.0)])
-        exchanges = parameters[self._basis.shape[1] :]
-        for name, exchange in zip(self._exchanges, exchanges, strict=True):
-            position = self._reactions.index(name)
-            flows[position] += exchange
-            flows[position + count] += exchange
-        return flows
-
-    def _residuals(self, parameters: Array) -> Array:
-        """Return the weighted residuals of the measurements and the measured fluxes, and the penalties of bounds."""
-        flows = self._flows_of(parameters)
-        simulated = {
-            experiment: self._simulated(flows, tracers) for experiment, tracers in (self.tracers or {}).items()
-        }
-        terms = [
-            (simulated[item.experiment][item.fragment] - item.distribution) / item.deviation
-            for item in self.measurements
-        ]
-        net = self._net_of(parameters)
-        measured = [
-            (net[self._reactions.index(name)] - value) / deviation
-            for name, (value, deviation) in (self.measured_fluxes or {}).items()
-            if deviation > 0
-        ]
-        penalties = PENALTY * np.concatenate([np.minimum(net - self._lower, 0.0), np.maximum(net - self._upper, 0.0)])
-        return np.concatenate([*terms, np.asarray(measured, dtype=float), penalties])
-
-    def _drawn_vertices(self, rng: np.random.Generator) -> Array:
-        """Return a feasible net flux, a random combination of vertices that the core solve finds."""
-        fixed = {name: value for name, (value, deviation) in (self.measured_fluxes or {}).items() if deviation == 0}
-        identifiers = {
-            **{f'lower_{self.network_._identifier(name)}': value for name, value in fixed.items()},
-            **{f'upper_{self.network_._identifier(name)}': value for name, value in fixed.items()},
-        }
-        vertices = []
-        for _ in range(VERTEX_DRAWS):
-            weights = {
-                name: float(value)
-                for name, value in zip(self._reactions, rng.normal(size=len(self._reactions)), strict=True)
-            }
-            element = type(self.network_)(
-                self.network_.label,
-                objective=weights,
-                reactions=self.network_.reactions,
-                default_objective=self.network_.default_objective,
-            ).set_params(**identifiers)
-            problem = PassCompiler().prepare(System(elements=[element], time=StaticTime())).run().problem_
-            if not isinstance(problem, ProblemSpec):
-                error_msg = f'The network compiles to a {type(problem).__name__}, not a linear program.'
-                raise AnalysisError(error_msg)
-            state = RunStateSpec(0.0, problem.initial_state, problem.initial_parameters)
-            solved = problem.programs[0].run(state).values_
-            vertices.append(
-                [
-                    float(
-                        np.real(np.ravel(problem.states.read(solved, f'{element.label}.{element.flux_name(name)}'))[0]),
-                    )
-                    for name in self._reactions
-                ],
+def _collect_units(
+    network: MetabolicNetworkElement,
+    atoms: Sequence[AtomMapSpec],
+    *,
+    tracers: Mapping[str, Sequence[TracerSpec]],
+    fragments: Sequence[FragmentSpec],
+    symmetric: Sequence[str],
+    atom_counts: Mapping[str, int],
+) -> _LabellingSpec:
+    """Walk the atom maps backward from the fragments, and return the terms and the sizes of the units."""
+    maps = _directed_maps(network, atoms)
+    sources = {item.metabolite for found in tracers.values() for item in found}
+    terms: dict[_Unit, list[_TermSpec]] = {}
+    leaves: set[_Unit] = set()
+    stack: list[_Unit] = [(item.metabolite, tuple(sorted(item.atoms))) for item in fragments]
+    while stack:
+        unit = stack.pop()
+        if unit in terms or unit in leaves:
+            continue
+        if unit[0] in sources:
+            leaves.add(unit)
+            continue
+        found = _terms_of(unit, maps, symmetric, atom_counts)
+        if not found:
+            error_msg = (
+                f'No reaction produces {unit[0]} and no tracer labels it. Give it a tracer, even an unlabelled one.'
             )
-        shares = rng.dirichlet(np.ones(VERTEX_DRAWS))
-        return shares @ np.asarray(vertices, dtype=float)
+            raise AnalysisError(error_msg)
+        terms[unit] = found
+        stack += [substrate for term in found for substrate in term.substrates]
+    sizes = sorted({len(unit[1]) for unit in terms})
+    return _LabellingSpec(network, list(network.reactions), tracers, fragments, terms, leaves, sizes)
 
-    def _start(self, rng: np.random.Generator) -> Array:
-        """Return a feasible start: the coordinates of a drawn flux and random exchanges."""
-        net = self._drawn_vertices(rng)
-        coordinates = self._basis.T @ (net - self._particular)
-        return np.concatenate([coordinates, rng.uniform(0.0, self._exchange_limit / 2.0)])
 
-    def _fit(self, start: Array, extra: tuple[int, float] | None = None) -> tuple[Array, float]:
-        """Return the parameters that minimise the residuals from a start, and the sum of squares of the residuals."""
-        count = self._basis.shape[1]
-        lower = np.concatenate([np.full(count, -np.inf), np.zeros(len(self._exchanges))])
-        upper = np.concatenate([np.full(count, np.inf), self._exchange_limit])
+def _source_distribution(tracer: TracerSpec, atoms: Sequence[int]) -> Array:
+    """Return the distribution of the labelled atoms of a tracer among some atoms."""
+    distribution = np.zeros(len(atoms) + 1)
+    for isotopomer, fraction in tracer.fractions.items():
+        distribution[sum(isotopomer[atom - 1] == '1' for atom in atoms)] += fraction
+    return distribution
 
-        def residuals(parameters: Array) -> Array:
-            found = self._residuals(parameters)
-            if extra is None:
-                return found
-            target = self._estimate_of(parameters)[extra[0]]
-            return np.concatenate([found, [PROFILE_WEIGHT * (target - extra[1])]])
 
-        tolerance = FIT_TOLERANCE if extra is None else PROFILE_TOLERANCE
-        result = least_squares(
-            residuals,
-            np.clip(start, lower, upper),
-            bounds=(lower, upper),
-            xtol=tolerance,
-            ftol=tolerance,
-            gtol=tolerance,
-            max_nfev=MAXIMUM_EVALUATIONS,
+def _source_units(units: _LabellingSpec, tracers: Sequence[TracerSpec]) -> dict[_Unit, Array]:
+    """Return the distribution of every leaf unit in one experiment."""
+    found = {item.metabolite: item for item in tracers}
+    known = {}
+    for unit in units.leaves:
+        tracer = found.get(unit[0])
+        unlabelled = np.zeros(len(unit[1]) + 1)
+        unlabelled[0] = 1.0
+        known[unit] = unlabelled if tracer is None else _source_distribution(tracer, unit[1])
+    return known
+
+
+def _solve_size(units: _LabellingSpec, size: int, flows: Array, known: dict[_Unit, Array]) -> None:
+    """Solve the units of one size, `A X = B`, and add their distributions to the known ones."""
+    chosen = [unit for unit in units.terms if len(unit[1]) == size]
+    positions = {unit: position for position, unit in enumerate(chosen)}
+    rows, columns, values = [], [], []
+    right = np.zeros((len(chosen), size + 1))
+    totals = np.zeros(len(chosen))
+    for unit, position in positions.items():
+        for term in units.terms[unit]:
+            rate = term.weight * flows[term.flux]
+            totals[position] += rate
+            if len(term.substrates) == 1 and term.substrates[0] in positions:
+                rows.append(position)
+                columns.append(positions[term.substrates[0]])
+                values.append(-rate)
+                continue
+            combined = np.ones(1)
+            for substrate in term.substrates:
+                combined = np.convolve(combined, known[substrate])
+            right[position] += rate * combined
+    closed = totals <= 0
+    totals[closed] = 1.0
+    right[closed, 0] = 1.0
+    matrix = sparse.coo_array((values, (rows, columns)), shape=(len(chosen), len(chosen))).tocsc()
+    matrix = (matrix + sparse.diags_array(totals, format='csc')).tocsc()
+    solution = splu(matrix).solve(right)
+    known.update({unit: solution[position] for unit, position in positions.items()})
+
+
+def _simulated(units: _LabellingSpec, flows: Array, tracers: Sequence[TracerSpec]) -> dict[str, Array]:
+    """Return the distribution of every fragment at directed fluxes in one experiment."""
+    known = _source_units(units, tracers)
+    for size in units.sizes:
+        _solve_size(units, size, flows, known)
+    return {item.label: known[(item.metabolite, tuple(sorted(item.atoms)))] for item in units.fragments}
+
+
+def _directed_given(units: _LabellingSpec, fluxes: Mapping[str, float | tuple[float, float]] | None) -> Array:
+    """Return the directed fluxes that the `fluxes` setting gives."""
+    count = len(units.reactions)
+    flows = np.zeros(2 * count)
+    for reaction, value in (fluxes or {}).items():
+        position = units.reactions.index(reaction)
+        forward, backward = value if isinstance(value, tuple) else (value, 0.0)
+        flows[position], flows[position + count] = forward, backward
+    return flows
+
+
+def _balances(units: _LabellingSpec) -> Array:
+    """Return the matrix of the balances of the network over its net fluxes."""
+    network = units.network
+    metabolites = list(dict.fromkeys(name for spec in network.reactions.values() for name in spec.coefficients))
+    matrix = np.zeros((len(metabolites), len(units.reactions)))
+    for column, spec in enumerate(network.reactions.values()):
+        for name, value in spec.coefficients.items():
+            matrix[metabolites.index(name), column] = value
+    return matrix
+
+
+def _parametrization(
+    units: _LabellingSpec,
+    measurements: Sequence[LabelMeasurementSpec],
+    measured_fluxes: Mapping[str, tuple[float, float]],
+) -> _FitSpec:
+    """Return a particular solution, the null space basis of the net fluxes, and the exchanges."""
+    balances = _balances(units)
+    reactions = units.reactions
+    network = units.network
+    fixed = {name: value for name, (value, deviation) in measured_fluxes.items() if deviation == 0}
+    rows = np.zeros((len(fixed), len(reactions)))
+    for row, name in enumerate(fixed):
+        rows[row, reactions.index(name)] = 1.0
+    system = np.vstack([balances, rows])
+    right = np.concatenate([np.zeros(balances.shape[0]), np.fromiter(fixed.values(), dtype=float)])
+    exchanges = [name for name in reactions if _reversible(network, name)]
+    return _FitSpec(
+        units,
+        measurements,
+        measured_fluxes,
+        linalg.lstsq(system, right)[0],
+        linalg.null_space(system),
+        exchanges,
+        np.asarray([_bounds_of(network, name)[0] for name in reactions], dtype=float),
+        np.asarray([_bounds_of(network, name)[1] for name in reactions], dtype=float),
+        np.asarray([_bounds_of(network, name)[1] for name in exchanges], dtype=float),
+    )
+
+
+def _net_of(fit: _FitSpec, parameters: Array) -> Array:
+    """Return the net fluxes of parameters."""
+    return fit.particular + fit.basis @ parameters[: fit.basis.shape[1]]
+
+
+def _flows_of(fit: _FitSpec, parameters: Array) -> Array:
+    """Return the directed fluxes of parameters, the exchanges added in both directions."""
+    net = _net_of(fit, parameters)
+    reactions = fit.units.reactions
+    count = len(reactions)
+    flows = np.concatenate([np.maximum(net, 0.0), np.maximum(-net, 0.0)])
+    exchanges = parameters[fit.basis.shape[1] :]
+    for name, exchange in zip(fit.exchanges, exchanges, strict=True):
+        position = reactions.index(name)
+        flows[position] += exchange
+        flows[position + count] += exchange
+    return flows
+
+
+def _residuals(fit: _FitSpec, parameters: Array) -> Array:
+    """Return the weighted residuals of the measurements and the measured fluxes, and the penalties of bounds."""
+    flows = _flows_of(fit, parameters)
+    units = fit.units
+    simulated = {experiment: _simulated(units, flows, tracers) for experiment, tracers in units.tracers.items()}
+    terms = [
+        (simulated[item.experiment][item.fragment] - item.distribution) / item.deviation for item in fit.measurements
+    ]
+    net = _net_of(fit, parameters)
+    measured = [
+        (net[units.reactions.index(name)] - value) / deviation
+        for name, (value, deviation) in fit.measured_fluxes.items()
+        if deviation > 0
+    ]
+    penalties = PENALTY * np.concatenate([np.minimum(net - fit.lower, 0.0), np.maximum(net - fit.upper, 0.0)])
+    return np.concatenate([*terms, np.asarray(measured, dtype=float), penalties])
+
+
+def _drawn_vertices(fit: _FitSpec, rng: np.random.Generator) -> Array:
+    """Return a feasible net flux, a random combination of vertices that the core solve finds."""
+    network = fit.units.network
+    reactions = fit.units.reactions
+    fixed = {name: value for name, (value, deviation) in fit.measured_fluxes.items() if deviation == 0}
+    identifiers = {
+        **{f'lower_{network._identifier(name)}': value for name, value in fixed.items()},
+        **{f'upper_{network._identifier(name)}': value for name, value in fixed.items()},
+    }
+    vertices = []
+    for _ in range(VERTEX_DRAWS):
+        weights = {name: float(value) for name, value in zip(reactions, rng.normal(size=len(reactions)), strict=True)}
+        element = type(network)(
+            network.label,
+            objective=weights,
+            reactions=network.reactions,
+            default_objective=network.default_objective,
+        ).set_params(**identifiers)
+        problem = PassCompiler().prepare(System(elements=[element], time=StaticTime())).run().problem_
+        if not isinstance(problem, ProblemSpec):
+            error_msg = f'The network compiles to a {type(problem).__name__}, not a linear program.'
+            raise AnalysisError(error_msg)
+        state = RunStateSpec(0.0, problem.initial_state, problem.initial_parameters)
+        solved = problem.programs[0].run(state).values_
+        vertices.append(
+            [
+                float(np.real(np.ravel(problem.states.read(solved, f'{element.label}.{element.flux_name(name)}'))[0]))
+                for name in reactions
+            ],
         )
-        return result.x, float(np.sum(self._residuals(result.x) ** 2))
+    shares = rng.dirichlet(np.ones(VERTEX_DRAWS))
+    return shares @ np.asarray(vertices, dtype=float)
 
-    def _estimate_of(self, parameters: Array) -> Array:
-        """Return the net fluxes and the exchanges of parameters."""
-        return np.concatenate([self._net_of(parameters), parameters[self._basis.shape[1] :]])
 
-    def _estimate_names(self) -> list[str]:
-        """Return the names of the net fluxes and the exchanges."""
-        return [*self._reactions, *(f'{name}.exchange' for name in self._exchanges)]
+def _start(fit: _FitSpec, rng: np.random.Generator) -> Array:
+    """Return a feasible start: the coordinates of a drawn flux and random exchanges."""
+    net = _drawn_vertices(fit, rng)
+    coordinates = fit.basis.T @ (net - fit.particular)
+    return np.concatenate([coordinates, rng.uniform(0.0, fit.exchange_limit / 2.0)])
 
-    def _bounds_of_estimate(self) -> tuple[Array, Array]:
-        """Return the bounds of the net fluxes and the exchanges."""
-        count = len(self._exchanges)
-        return (
-            np.concatenate([self._lower, np.zeros(count)]),
-            np.concatenate([self._upper, self._exchange_limit]),
-        )
 
-    def _linear_intervals(self, parameters: Array) -> tuple[Array, Array]:
-        """Return the intervals of the linearised fit."""
-        steps = 1e-6 * np.maximum(1.0, np.abs(parameters))
-        center = self._residuals(parameters)
-        jacobian = np.zeros((center.size, parameters.size))
-        for column, step in enumerate(steps):
-            shifted = parameters.copy()
-            shifted[column] += step
-            jacobian[:, column] = (self._residuals(shifted) - center) / step
-        covariance = np.linalg.pinv(jacobian.T @ jacobian)
-        mapping = np.zeros((len(self._estimate_names()), parameters.size))
-        count = self._basis.shape[1]
-        mapping[: self._basis.shape[0], :count] = self._basis
-        mapping[self._basis.shape[0] :, count:] = np.eye(parameters.size - count)
-        deviations = np.sqrt(np.maximum(np.diag(mapping @ covariance @ mapping.T), 0.0))
-        estimate = self._estimate_of(parameters)
-        lower, upper = self._bounds_of_estimate()
-        return (
-            np.maximum(estimate - NORMAL_QUANTILE * deviations, lower),
-            np.minimum(estimate + NORMAL_QUANTILE * deviations, upper),
-        )
+def _fit(fit: _FitSpec, start: Array, extra: tuple[int, float] | None = None) -> tuple[Array, float]:
+    """Return the parameters that minimise the residuals from a start, and the sum of squares of the residuals."""
+    count = fit.basis.shape[1]
+    lower = np.concatenate([np.full(count, -np.inf), np.zeros(len(fit.exchanges))])
+    upper = np.concatenate([np.full(count, np.inf), fit.exchange_limit])
 
-    def _profile_side(self, parameters: Array, position: int, best: float, limit: float) -> float:
-        """Return where the sum of squares rises by the threshold on the way from the optimum to a bound."""
-        estimate = float(self._estimate_of(parameters)[position])
-        step = max(PROFILE_RELATIVE_STEP * abs(estimate), 1.0)
-        direction = 1.0 if limit > estimate else -1.0
-        inner, inner_start = estimate, parameters
-        outer = estimate
-        while True:
-            outer = min(outer + step, limit) if direction > 0 else max(outer - step, limit)
-            fitted, value = self._fit(inner_start, (position, outer))
-            if value - best >= INTERVAL_THRESHOLD:
-                break
-            inner, inner_start = outer, fitted
-            if outer == limit:
-                return limit
-            step *= 2.0
-        for _ in range(PROFILE_ITERATIONS):
-            middle = 0.5 * (inner + outer)
-            fitted, value = self._fit(inner_start, (position, middle))
-            if value - best >= INTERVAL_THRESHOLD:
-                outer = middle
-            else:
-                inner, inner_start = middle, fitted
-            if abs(outer - inner) <= PROFILE_WIDTH * max(1.0, abs(inner)):
-                break
-        return inner
+    def residuals(parameters: Array) -> Array:
+        found = _residuals(fit, parameters)
+        if extra is None:
+            return found
+        target = _estimate_of(fit, parameters)[extra[0]]
+        return np.concatenate([found, [PROFILE_WEIGHT * (target - extra[1])]])
 
-    def _profile_intervals(self, parameters: Array, best: float) -> tuple[Array, Array]:
-        """Return the intervals where the sum of squares stays within the threshold of its optimum."""
-        lower, upper = self._bounds_of_estimate()
-        low = np.empty_like(lower)
-        high = np.empty_like(upper)
-        for position in range(low.size):
-            low[position] = self._profile_side(parameters, position, best, float(lower[position]))
-            high[position] = self._profile_side(parameters, position, best, float(upper[position]))
-        return low, high
+    tolerance = FIT_TOLERANCE if extra is None else PROFILE_TOLERANCE
+    result = least_squares(
+        residuals,
+        np.clip(start, lower, upper),
+        bounds=(lower, upper),
+        xtol=tolerance,
+        ftol=tolerance,
+        gtol=tolerance,
+        max_nfev=MAXIMUM_EVALUATIONS,
+    )
+    return result.x, float(np.sum(_residuals(fit, result.x) ** 2))
 
-    def _set_estimates(self, parameters: Array, best: float) -> None:
-        """Set the estimates, their intervals, the test of the fit, and the distributions at the optimum."""
-        names = self._estimate_names()
-        low, high = (
-            self._profile_intervals(parameters, best)
-            if self.intervals == 'profile'
-            else self._linear_intervals(parameters)
-        )
-        estimate = self._estimate_of(parameters)
-        lower, upper = self._bounds_of_estimate()
-        self.fluxes_ = dict(zip(names, estimate.tolist(), strict=True))
-        self.intervals_ = {name: (float(a), float(b)) for name, a, b in zip(names, low, high, strict=True)}
-        self.identifiable_ = {
-            name: bool(a > bottom + BOUND_TOLERANCE and b < top - BOUND_TOLERANCE) or bottom == top
-            for name, a, b, bottom, top in zip(names, low, high, lower, upper, strict=True)
-        }
-        self.residual_ = best
-        size = sum(item.distribution.size for item in self.measurements)
-        size += sum(1 for _, deviation in (self.measured_fluxes or {}).values() if deviation > 0)
-        freedom = max(size - parameters.size, 1)
-        self.chi2_ = (float(chi2.ppf(0.025, freedom)), float(chi2.ppf(0.975, freedom)))
-        self.accepted_ = bool(self.chi2_[0] <= best <= self.chi2_[1])
-        flows = self._flows_of(parameters)
-        self.distributions_ = {
-            experiment: self._simulated(flows, tracers) for experiment, tracers in (self.tracers or {}).items()
-        }
 
-    def _run_estimation(self) -> None:
-        """Fit the fluxes from seeded feasible starts and set the estimates of the best fit."""
-        self._set_parametrization()
-        rng = np.random.default_rng(self.random_state)
-        fits = [self._fit(self._start(rng)) for _ in range(int(self.starts))]
-        parameters, best = min(fits, key=lambda item: item[1])
-        self._set_estimates(parameters, best)
+def _estimate_of(fit: _FitSpec, parameters: Array) -> Array:
+    """Return the net fluxes and the exchanges of parameters."""
+    return np.concatenate([_net_of(fit, parameters), parameters[fit.basis.shape[1] :]])
 
-    def _run(self, inputs: object = None) -> None:
-        """Run the kind of the analysis.
 
-        Args:
-            inputs:
-                Not read.
-        """
-        if self.kind == 'simulation':
-            self._run_simulation()
+def _estimate_names(fit: _FitSpec) -> list[str]:
+    """Return the names of the net fluxes and the exchanges."""
+    return [*fit.units.reactions, *(f'{name}.exchange' for name in fit.exchanges)]
+
+
+def _bounds_of_estimate(fit: _FitSpec) -> tuple[Array, Array]:
+    """Return the bounds of the net fluxes and the exchanges."""
+    count = len(fit.exchanges)
+    return np.concatenate([fit.lower, np.zeros(count)]), np.concatenate([fit.upper, fit.exchange_limit])
+
+
+def _linear_intervals(fit: _FitSpec, parameters: Array) -> tuple[Array, Array]:
+    """Return the intervals of the linearised fit."""
+    steps = 1e-6 * np.maximum(1.0, np.abs(parameters))
+    center = _residuals(fit, parameters)
+    jacobian = np.zeros((center.size, parameters.size))
+    for column, step in enumerate(steps):
+        shifted = parameters.copy()
+        shifted[column] += step
+        jacobian[:, column] = (_residuals(fit, shifted) - center) / step
+    covariance = np.linalg.pinv(jacobian.T @ jacobian)
+    mapping = np.zeros((len(_estimate_names(fit)), parameters.size))
+    count = fit.basis.shape[1]
+    mapping[: fit.basis.shape[0], :count] = fit.basis
+    mapping[fit.basis.shape[0] :, count:] = np.eye(parameters.size - count)
+    deviations = np.sqrt(np.maximum(np.diag(mapping @ covariance @ mapping.T), 0.0))
+    estimate = _estimate_of(fit, parameters)
+    lower, upper = _bounds_of_estimate(fit)
+    return (
+        np.maximum(estimate - NORMAL_QUANTILE * deviations, lower),
+        np.minimum(estimate + NORMAL_QUANTILE * deviations, upper),
+    )
+
+
+def _profile_side(fit: _FitSpec, parameters: Array, position: int, best: float, limit: float) -> float:
+    """Return where the sum of squares rises by the threshold on the way from the optimum to a bound."""
+    estimate = float(_estimate_of(fit, parameters)[position])
+    step = max(PROFILE_RELATIVE_STEP * abs(estimate), 1.0)
+    direction = 1.0 if limit > estimate else -1.0
+    inner, inner_start = estimate, parameters
+    outer = estimate
+    while True:
+        outer = min(outer + step, limit) if direction > 0 else max(outer - step, limit)
+        fitted, value = _fit(fit, inner_start, (position, outer))
+        if value - best >= INTERVAL_THRESHOLD:
+            break
+        inner, inner_start = outer, fitted
+        if outer == limit:
+            return limit
+        step *= 2.0
+    for _ in range(PROFILE_ITERATIONS):
+        middle = 0.5 * (inner + outer)
+        fitted, value = _fit(fit, inner_start, (position, middle))
+        if value - best >= INTERVAL_THRESHOLD:
+            outer = middle
         else:
-            self._run_estimation()
+            inner, inner_start = middle, fitted
+        if abs(outer - inner) <= PROFILE_WIDTH * max(1.0, abs(inner)):
+            break
+    return inner
+
+
+def _profile_intervals(fit: _FitSpec, parameters: Array, best: float) -> tuple[Array, Array]:
+    """Return the intervals where the sum of squares stays within the threshold of its optimum."""
+    lower, upper = _bounds_of_estimate(fit)
+    low = np.empty_like(lower)
+    high = np.empty_like(upper)
+    for position in range(low.size):
+        low[position] = _profile_side(fit, parameters, position, best, float(lower[position]))
+        high[position] = _profile_side(fit, parameters, position, best, float(upper[position]))
+    return low, high
+
+
+def _estimates(fit: _FitSpec, parameters: Array, best: float, intervals: str) -> LabellingResult:
+    """Return the estimates, their intervals, the test of the fit, and the distributions at the optimum."""
+    names = _estimate_names(fit)
+    low, high = (
+        _profile_intervals(fit, parameters, best) if intervals == 'profile' else _linear_intervals(fit, parameters)
+    )
+    estimate = _estimate_of(fit, parameters)
+    lower, upper = _bounds_of_estimate(fit)
+    identifiable = {
+        name: bool(a > bottom + BOUND_TOLERANCE and b < top - BOUND_TOLERANCE) or bottom == top
+        for name, a, b, bottom, top in zip(names, low, high, lower, upper, strict=True)
+    }
+    size = sum(item.distribution.size for item in fit.measurements)
+    size += sum(1 for _, deviation in fit.measured_fluxes.values() if deviation > 0)
+    freedom = max(size - parameters.size, 1)
+    accepted_range = (float(chi2.ppf(0.025, freedom)), float(chi2.ppf(0.975, freedom)))
+    flows = _flows_of(fit, parameters)
+    units = fit.units
+    return LabellingResult(
+        units.network,
+        {experiment: _simulated(units, flows, tracers) for experiment, tracers in units.tracers.items()},
+        fluxes=dict(zip(names, estimate.tolist(), strict=True)),
+        intervals={name: (float(a), float(b)) for name, a, b in zip(names, low, high, strict=True)},
+        identifiable=identifiable,
+        residual=best,
+        chi2=accepted_range,
+        accepted=bool(accepted_range[0] <= best <= accepted_range[1]),
+    )
 
 
 def tca_labelling_analysis(
@@ -970,8 +1040,10 @@ def tca_labelling_analysis(
     random_state: int = 0,
     starts: int = 5,
     intervals: str = 'linear',
-) -> LabellingAnalysis:
-    """Return the labelling analysis of the TCA example, with data simulated from its known fluxes plus seeded noise.
+) -> partial[LabellingResult]:
+    """Return the labelling of the TCA example bound to its settings, with data simulated from its known fluxes.
+
+    The data of the estimation are simulated from the known fluxes plus seeded noise.
 
     Args:
         kind:
@@ -992,40 +1064,42 @@ def tca_labelling_analysis(
 
     Returns:
         analysis:
-            The analysis, not checked yet.
+            The function `labelling` bound to the settings, which takes the system.
 
     Examples:
         >>> from skcomplex.systems.biology.systems_biology import carbon_13_mfa, tca_labelling_analysis
-        >>> analysis = tca_labelling_analysis('simulation').prepare(carbon_13_mfa()).run()
-        >>> [round(float(item), 4) for item in analysis.distributions_['published']['Glu']]
+        >>> result = tca_labelling_analysis('simulation')(carbon_13_mfa())
+        >>> [round(float(item), 4) for item in result.distributions['published']['Glu']]
         [0.3464, 0.2695, 0.2708, 0.0807, 0.0286, 0.0039]
     """
     if kind == 'simulation':
-        return LabellingAnalysis(
-            'simulation',
+        return bind_analysis(
+            labelling,
+            kind='simulation',
             atoms=TCA_ATOMS,
             tracers={'published': PUBLISHED_TRACERS},
             fragments=(GLUTAMATE,),
             fluxes=TCA_TRUE_FLUXES,
             symmetric=TCA_SYMMETRIC,
         )
-    truth = LabellingAnalysis(
-        'simulation',
+    simulated = labelling(
+        carbon_13_mfa(),
+        kind='simulation',
         atoms=TCA_ATOMS,
         tracers=PARALLEL_TRACERS,
         fragments=(GLUTAMATE,),
         fluxes=TCA_TRUE_FLUXES,
         symmetric=TCA_SYMMETRIC,
-    )
-    simulated = truth.prepare(carbon_13_mfa()).run().distributions_
+    ).distributions
     rng = np.random.default_rng(random_state)
     measurements = []
     for experiment, values in simulated.items():
         clean = values[GLUTAMATE.label]
         noisy = clean + rng.normal(0.0, noise, clean.size) if noise else clean
         measurements.append(LabelMeasurementSpec(experiment, GLUTAMATE.label, noisy, DEVIATION))
-    return LabellingAnalysis(
-        'estimation',
+    return bind_analysis(
+        labelling,
+        kind='estimation',
         atoms=TCA_ATOMS,
         tracers=PARALLEL_TRACERS,
         fragments=(GLUTAMATE,),
@@ -1045,11 +1119,11 @@ def tca_labelling_analysis(
     defaults={'until': 0.0},
 )
 def carbon_13_mfa(network: MetabolicNetworkElement | None = None) -> System:
-    """Return a metabolic network that `LabellingAnalysis` fits to labelling data, the TCA example by default.
+    """Return a metabolic network that `labelling` fits to labelling data, the TCA example by default.
 
     Labelled atoms of a tracer spread through the network along its atom transitions, so the measured mass isotopomer
     distributions of its products carry the fluxes (Raman 2021, Section 9.7). `tca_labelling_analysis` gives the
-    analysis of the TCA example of Antoniewicz et al. (2007) with data simulated from its known fluxes.
+    labelling of the TCA example of Antoniewicz et al. (2007) with data simulated from its known fluxes.
 
     Args:
         network:

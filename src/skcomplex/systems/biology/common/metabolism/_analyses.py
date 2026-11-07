@@ -4,12 +4,11 @@
 # License: MIT
 
 from collections.abc import Mapping, Sequence
-from dataclasses import replace
+from dataclasses import dataclass, replace
 
 import numpy as np
 import pandas as pd
 
-from .....core.analysis import BaseAnalysis
 from .....core.analysis.types import Source
 from .....core.components.spaces import StaticTime
 from .....core.components.system import System
@@ -17,7 +16,7 @@ from .....core.engine.compile import PassCompiler
 from .....core.engine.problems import LinearProgramKernel, ProblemSpec
 from .....core.errors import AnalysisError
 from .....core.specs import RunStateSpec
-from .....core.types import Array, DataKind
+from .....core.types import Array
 from ...._extras import import_extra
 from ._cobra_io import load_extra, to_cobra
 from ._culture import ObjectiveFloorInteraction
@@ -30,153 +29,60 @@ LETHAL_GROWTH = 1e-6
 PAIR_SIZE = 2
 
 
-class BaseNetworkAnalysis(BaseAnalysis):
-    """Base of the analyses of a system that holds a metabolic network.
+@dataclass(frozen=True)
+class FluxVariabilityResult:
+    """Range of every flux of a metabolic network at a fraction of its optimum.
 
     Args:
         network:
-            The label of the network, or `None` for the first network of the system.
-
-    Attributes:
-        network_:
             The metabolic network.
+
+        system:
+            The system that holds the network.
+
+        optimum:
+            The optimum of the objective.
+
+        ranges:
+            The columns `minimum` and `maximum` of every reaction.
     """
 
-    network: str | None
-
-    def __init__(self, *, network: str | None = None) -> None:
-        self.network = network
-
-    def _get_data_kind(self) -> DataKind:
-        """Return the kind of data the analysis reads, the network of a system."""
-        return DataKind.SERIES
-
-    def _networks_of(self, system: System) -> list[MetabolicNetworkElement]:
-        """Return the metabolic networks of a system and its nested systems."""
-        found = [item for item in system.elements if isinstance(item, MetabolicNetworkElement)]
-        for nested in system.systems:
-            found += self._networks_of(nested)
-        return found
-
-    def _prepare(self, context: Source) -> None:
-        """Read the network of a system.
-
-        Args:
-            context:
-                The system.
-
-        Raises:
-            AnalysisError:
-                The source is not a system with the network.
-        """
-        networks = self._networks_of(context) if isinstance(context, System) else []
-        chosen = [item for item in networks if self.network is None or item.label == self.network]
-        if not chosen:
-            error_msg = f'{type(self).__name__} reads a system that holds a metabolic network element.'
-            raise AnalysisError(error_msg)
-        self.network_ = chosen[0]
-        self.system_ = context
-
-    def _compiled_network(self, *, parsimonious: bool = False, floor: float | None = None) -> None:
-        """Compile the network under static time, with its objective kept above a floor if one is given."""
-        element = type(self.network_)(
-            **{**self.network_.get_params(deep=False), 'parsimonious': parsimonious, 'infeasible': 'raise'},
-        )
-        weights = self.network_.default_objective if self.network_.objective is None else self.network_.objective
-        kept = (
-            []
-            if floor is None
-            else [ObjectiveFloorInteraction('kept', cell=element.label, weights=weights, floor=floor)]
-        )
-        problem = (
-            PassCompiler().prepare(System(elements=[element], interactions=kept, time=StaticTime())).run().problem_
-        )
-        if not isinstance(problem, ProblemSpec):
-            error_msg = f'The network compiles to a {type(problem).__name__}, not a linear program.'
-            raise AnalysisError(error_msg)
-        self._problem = problem
-
-    def _parameter_values(self, bounds: Mapping[str, tuple[float, float]]) -> Array:
-        """Return the parameters with the bounds of some reactions replaced."""
-        problem = self._problem
-        values = problem.initial_parameters.copy()
-        names = problem.parameters.names
-        label = self.network_.label
-        for reaction, (lower, upper) in bounds.items():
-            identifier = self.network_._identifier(reaction)
-            values[names.index(f'{label}.lower_{identifier}')] = lower
-            values[names.index(f'{label}.upper_{identifier}')] = upper
-        return values
-
-    def _solved(
-        self,
-        weights: Mapping[str, float] | None = None,
-        bounds: Mapping[str, tuple[float, float]] | None = None,
-        *,
-        sense: float = -1.0,
-    ) -> tuple[float, Array]:
-        """Return the optimum of the first objective with its weights and bounds replaced, and the fluxes.
-
-        Args:
-            weights:
-                The coefficient of every reaction in the objective, or `None` for the objective of the network.
-
-            bounds:
-                The bounds to replace, by reaction.
-
-            sense:
-                `-1` to maximise and `1` to minimise.
-
-        Returns:
-            optimum:
-                The value of the objective.
-
-            fluxes:
-                The flux of every reaction.
-        """
-        problem = self._problem
-        kernel = problem.programs[0]
-        program = kernel.program
-        if weights is not None:
-            costs = program.costs.copy()
-            costs[0] = 0.0
-            for reaction, weight in weights.items():
-                column = list(self.network_.reactions).index(reaction)
-                costs[0, column] = sense * float(weight)
-            kernel = LinearProgramKernel(replace(program, costs=costs, signs=(sense, *program.signs[1:])))._validated()
-            kernel.prepare()
-        state = RunStateSpec(0.0, problem.initial_state, self._parameter_values(bounds or {}))
-        solved = kernel.run(state).values_
-        fluxes = np.asarray([solved[item[0]] for item in program.variables], dtype=float)
-        return float(solved[program.objectives[0][0]]), fluxes
+    network: MetabolicNetworkElement
+    system: System
+    optimum: float
+    ranges: pd.DataFrame
 
 
-class FluxVariabilityAnalysis(BaseNetworkAnalysis):
-    """Range of every flux at an optimum, from the solve of the core, which runs without the extra.
+def flux_variability(source: Source, *, fraction: float = 1.0, network: str | None = None) -> FluxVariabilityResult:
+    """Return the range of every flux at an optimum, from the solve of the core, which runs without the extra.
 
     Every flux is maximised and minimised with the objective kept at a fraction of its optimum, `c' v >= f` (Raman 2021,
-    Eq. 8.11d). A network of a genome's size is faster with `CobraAnalysis(kind='variability')`.
+    Eq. 8.11d). A network of a genome's size is faster with `cobra_measures(system, kind='variability')`.
 
     Args:
+        source:
+            The system that holds the metabolic network.
+
         fraction:
             The fraction of the optimum to keep.
 
         network:
             The label of the network, or `None` for the first network of the system.
 
-    Attributes:
-        optimum_:
-            The optimum of the objective.
+    Returns:
+        result:
+            The network, the optimum, and the range of every flux.
 
-        ranges_:
-            The columns `minimum` and `maximum` of every reaction.
+    Raises:
+        AnalysisError:
+            The source is not a system with the network.
 
     Examples:
         >>> from skcomplex.core.components.spaces import StaticTime
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.metabolism import (
-        ...     FluxVariabilityAnalysis,
         ...     ReactionSpec,
+        ...     flux_variability,
         ...     metabolic_network_type,
         ... )
         >>> reactions = {
@@ -186,40 +92,71 @@ class FluxVariabilityAnalysis(BaseNetworkAnalysis):
         ... }
         >>> network = metabolic_network_type('TwoWaysElement', reactions, {'in': 1.0})('net')
         >>> system = System(elements=[network], time=StaticTime())
-        >>> FluxVariabilityAnalysis().prepare(system).run().ranges_.loc['one'].tolist()
+        >>> flux_variability(system).ranges.loc['one'].tolist()
         [0.0, 4.0]
     """
-
-    def __init__(self, fraction: float = 1.0, *, network: str | None = None) -> None:
-        super().__init__(network=network)
-        self.fraction = fraction
-
-    def _run(self, inputs: object = None) -> None:
-        """Set the optimum and the range of every flux.
-
-        Args:
-            inputs:
-                Not read.
-        """
-        self._compiled_network()
-        self.optimum_, _ = self._solved()
-        self._compiled_network(floor=self.fraction * self.optimum_)
-        rows = {}
-        for reaction in self.network_.reactions:
-            low = self._solved({reaction: 1.0}, sense=1.0)[0]
-            high = self._solved({reaction: 1.0}, sense=-1.0)[0]
-            rows[reaction] = (low, high)
-        self.ranges_ = pd.DataFrame.from_dict(rows, orient='index', columns=['minimum', 'maximum'])
+    system, element = _read_network(source, network, 'flux_variability')
+    problem = _compiled_network(element)
+    optimum, _ = _solved(problem, element)
+    problem = _compiled_network(element, floor=fraction * optimum)
+    rows = {}
+    for reaction in element.reactions:
+        low = _solved(problem, element, {reaction: 1.0}, sense=1.0)[0]
+        high = _solved(problem, element, {reaction: 1.0}, sense=-1.0)[0]
+        rows[reaction] = (low, high)
+    ranges = pd.DataFrame.from_dict(rows, orient='index', columns=['minimum', 'maximum'])
+    return FluxVariabilityResult(element, system, optimum, ranges)
 
 
-class ProductionScanAnalysis(BaseNetworkAnalysis):
-    """Scan of fluxes with enforced objective flux (FSEOF), from the solve of the core, which runs without the extra.
+@dataclass(frozen=True)
+class ProductionScanResult:
+    """Fluxes of a metabolic network at increasing levels of an enforced target flux.
+
+    Args:
+        network:
+            The metabolic network.
+
+        system:
+            The system that holds the network.
+
+        levels:
+            The enforced flux of every level.
+
+        objectives:
+            The optimum of the objective at every level.
+
+        fluxes:
+            The fluxes by reaction, one row per reaction and one column per level.
+
+        reactions:
+            The reactions whose absolute flux rises with every level.
+    """
+
+    network: MetabolicNetworkElement
+    system: System
+    levels: Array
+    objectives: Array
+    fluxes: pd.DataFrame
+    reactions: list[str]
+
+
+def production_scan(
+    source: Source,
+    *,
+    target: str = '',
+    steps: int = 10,
+    network: str | None = None,
+) -> ProductionScanResult:
+    """Return the scan of fluxes with enforced objective flux (FSEOF), from the solve of the core, without the extra.
 
     The target flux is enforced at increasing levels from its value at the optimum to its maximum, and every level
-    maximises the objective, with the total absolute flux minimised after it. The analysis reports the reactions whose
+    maximises the objective, with the total absolute flux minimised after it. The scan reports the reactions whose
     absolute flux rises with every level.
 
     Args:
+        source:
+            The system that holds the metabolic network.
+
         target:
             The reaction whose flux the scan enforces.
 
@@ -229,26 +166,21 @@ class ProductionScanAnalysis(BaseNetworkAnalysis):
         network:
             The label of the network, or `None` for the first network of the system.
 
-    Attributes:
-        levels_:
-            The enforced flux of every level.
+    Returns:
+        result:
+            The levels, the objective and the fluxes of every level, and the reactions whose flux rises.
 
-        objectives_:
-            The optimum of the objective at every level.
-
-        fluxes_:
-            The fluxes by reaction, one row per reaction and one column per level.
-
-        reactions_:
-            The reactions whose absolute flux rises with every level.
+    Raises:
+        AnalysisError:
+            The source is not a system with the network, or the network holds no target reaction.
 
     Examples:
         >>> from skcomplex.core.components.spaces import StaticTime
         >>> from skcomplex.core.components.system import System
         >>> from skcomplex.systems.biology.common.metabolism import (
-        ...     ProductionScanAnalysis,
         ...     ReactionSpec,
         ...     metabolic_network_type,
+        ...     production_scan,
         ... )
         >>> reactions = {
         ...     'in': ReactionSpec({'A': 1.0}, upper=4.0),
@@ -258,44 +190,76 @@ class ProductionScanAnalysis(BaseNetworkAnalysis):
         ... }
         >>> network = metabolic_network_type('ScanElement', reactions, {'grow': 1.0})('net')
         >>> system = System(elements=[network], time=StaticTime())
-        >>> ProductionScanAnalysis('out', steps=2).prepare(system).run().reactions_
+        >>> production_scan(system, target='out', steps=2).reactions
         ['make', 'out']
     """
-
-    def __init__(self, target: str = '', *, steps: int = 10, network: str | None = None) -> None:
-        super().__init__(network=network)
-        self.target = target
-        self.steps = steps
-
-    def _run(self, inputs: object = None) -> None:
-        """Set the levels, the objective and the fluxes of every level, and the reactions whose flux rises.
-
-        Args:
-            inputs:
-                Not read.
-
-        Raises:
-            AnalysisError:
-                The network holds no target reaction.
-        """
-        reactions = list(self.network_.reactions)
-        if self.target not in reactions:
-            error_msg = f'The network holds no reaction {self.target!r}, the target of the scan.'
-            raise AnalysisError(error_msg)
-        self._compiled_network(parsimonious=True)
-        start = self._solved()[1][reactions.index(self.target)]
-        maximum = self._solved({self.target: 1.0})[0]
-        self.levels_ = start + (maximum - start) * np.arange(int(self.steps) + 1) / int(self.steps)
-        solved = [self._solved(None, {self.target: (float(level), float(level))}) for level in self.levels_[:-1]]
-        self.objectives_ = np.asarray([item[0] for item in solved], dtype=float)
-        amounts = np.stack([item[1] for item in solved], axis=1)
-        self.fluxes_ = pd.DataFrame(amounts, index=reactions)
-        rising = np.all(np.diff(np.abs(amounts), axis=1) > LETHAL_GROWTH, axis=1)
-        self.reactions_ = [name for name, rises in zip(reactions, rising, strict=True) if rises]
+    system, element = _read_network(source, network, 'production_scan')
+    reactions = list(element.reactions)
+    if target not in reactions:
+        error_msg = f'The network holds no reaction {target!r}, the target of the scan.'
+        raise AnalysisError(error_msg)
+    problem = _compiled_network(element, parsimonious=True)
+    start = _solved(problem, element)[1][reactions.index(target)]
+    maximum = _solved(problem, element, {target: 1.0})[0]
+    levels = start + (maximum - start) * np.arange(int(steps) + 1) / int(steps)
+    solved = [_solved(problem, element, None, {target: (float(level), float(level))}) for level in levels[:-1]]
+    objectives = np.asarray([item[0] for item in solved], dtype=float)
+    amounts = np.stack([item[1] for item in solved], axis=1)
+    fluxes = pd.DataFrame(amounts, index=reactions)
+    rising = np.all(np.diff(np.abs(amounts), axis=1) > LETHAL_GROWTH, axis=1)
+    found = [name for name, rises in zip(reactions, rising, strict=True) if rises]
+    return ProductionScanResult(element, system, levels, objectives, fluxes, found)
 
 
-class CobraAnalysis(BaseNetworkAnalysis):
-    """Analysis of a metabolic network with COBRApy, which needs the extra `metabolism`.
+@dataclass(frozen=True)
+class CobraMeasuresResult:
+    """Result of a COBRApy method on a metabolic network.
+
+    Args:
+        network:
+            The metabolic network.
+
+        system:
+            The `cobra.Model` of the network.
+
+        ranges:
+            The columns `minimum` and `maximum` of every reaction, for `'variability'`, or `None`.
+
+        fluxes:
+            The flux of every reaction, for `'parsimonious'`, `'moma'`, and `'room'`, or `None`.
+
+        total:
+            The total absolute flux, for `'parsimonious'`, or `None`.
+
+        growth:
+            The growth of every deletion, by the name of the gene or reaction or by a pair of names, for `'deletions'`,
+            and the adjusted growth for `'moma'` and `'room'`, or `None`.
+
+        pairs:
+            The lethal pairs, for `'synthetic-lethals'`, or `None`.
+    """
+
+    network: MetabolicNetworkElement
+    system: object
+    ranges: pd.DataFrame | None = None
+    fluxes: pd.Series | None = None
+    total: float | None = None
+    growth: pd.Series | float | None = None
+    pairs: list[tuple[str, ...]] | None = None
+
+
+def cobra_measures(
+    source: Source,
+    *,
+    kind: str = 'variability',
+    fraction: float = 1.0,
+    target: str = 'gene',
+    order: int = 1,
+    knockouts: Sequence[str] = (),
+    linear: bool = False,
+    network: str | None = None,
+) -> CobraMeasuresResult:
+    """Return the analysis of a metabolic network with COBRApy, which needs the extra `metabolism`.
 
     - `'variability'`: the range of every flux at a fraction of the optimum.
     - `'parsimonious'`: the fluxes of the smallest total flux at the optimum.
@@ -304,6 +268,9 @@ class CobraAnalysis(BaseNetworkAnalysis):
     - `'synthetic-lethals'`: the pairs of genes or reactions lethal together, but not alone.
 
     Args:
+        source:
+            The system that holds the metabolic network.
+
         kind:
             The analysis, one of the kinds above.
 
@@ -326,173 +293,102 @@ class CobraAnalysis(BaseNetworkAnalysis):
         network:
             The label of the network, or `None` for the first network of the system.
 
-    Attributes:
-        system_:
-            The `cobra.Model` of the network.
-
-        ranges_:
-            The columns `minimum` and `maximum` of every reaction, for `'variability'`.
-
-        fluxes_:
-            The flux of every reaction, for `'parsimonious'`, `'moma'`, and `'room'`.
-
-        total_:
-            The total absolute flux, for `'parsimonious'`.
-
-        growth_:
-            The growth of every deletion, by the name of the gene or reaction or by a pair of names, for `'deletions'`,
-            and the adjusted growth for `'moma'` and `'room'`.
-
-        pairs_:
-            The lethal pairs, for `'synthetic-lethals'`.
+    Returns:
+        result:
+            The network, its `cobra.Model`, and the values of the kind.
 
     Raises:
         AnalysisError:
-            The kind is unknown, raised by `prepare`.
+            The kind or the target is unknown, or the source is not a system with the network.
 
         MissingExtraError:
-            The extra is not installed, raised by `prepare`.
+            The extra is not installed.
 
     Examples:
         >>> from skcomplex.core.components.spaces import StaticTime
         >>> from skcomplex.core.components.system import System
-        >>> from skcomplex.systems.biology.common.metabolism import CobraAnalysis, load_network
+        >>> from skcomplex.systems.biology.common.metabolism import cobra_measures, load_network
         >>> system = System(elements=[load_network('textbook', 'cell')], time=StaticTime())
-        >>> analysis = CobraAnalysis('parsimonious').prepare(system).run()
-        >>> round(float(analysis.total_), 3)
+        >>> round(float(cobra_measures(system, kind='parsimonious').total), 3)
         518.422
     """
-
-    def __init__(
-        self,
-        kind: str = 'variability',
-        *,
-        fraction: float = 1.0,
-        target: str = 'gene',
-        order: int = 1,
-        knockouts: Sequence[str] = (),
-        linear: bool = False,
-        network: str | None = None,
-    ) -> None:
-        super().__init__(network=network)
-        self.kind = kind
-        self.fraction = fraction
-        self.target = target
-        self.order = order
-        self.knockouts = knockouts
-        self.linear = linear
-
-    def _check(self) -> None:
-        """Raise an error for an unknown kind or a missing extra.
-
-        Raises:
-            AnalysisError:
-                The kind is unknown.
-
-            MissingExtraError:
-                The extra is not installed.
-        """
-        self._check_choice('kind', self.kind, COBRA_KINDS)
-        self._check_choice('target', self.target, ('gene', 'reaction'))
-        load_extra(f'{type(self).__name__}(kind={self.kind!r})')
-
-    def _prepare(self, context: Source) -> None:
-        """Read the network of a system and convert it to a COBRApy model.
-
-        Args:
-            context:
-                The system.
-        """
-        super()._prepare(context)
-        self.system_ = to_cobra(self.network_, needed_by=type(self).__name__)
-
-    def _deletions(self, order: int) -> pd.Series:
-        """Return the growth of every deletion of some size, by the name or the pair of names."""
-        cobra = load_extra(type(self).__name__)
-        functions = {
-            ('gene', 1): cobra.flux_analysis.single_gene_deletion,
-            ('gene', PAIR_SIZE): cobra.flux_analysis.double_gene_deletion,
-            ('reaction', 1): cobra.flux_analysis.single_reaction_deletion,
-            ('reaction', PAIR_SIZE): cobra.flux_analysis.double_reaction_deletion,
-        }
-        table = functions[self.target, order](self.system_, processes=1)
-        keys = [next(iter(ids)) if order == 1 else tuple(sorted(ids)) for ids in table['ids']]
-        return pd.Series(table['growth'].fillna(0.0).to_numpy(dtype=float), index=keys)
-
-    def _run_variability(self) -> None:
-        """Set the range of every flux."""
-        cobra = load_extra(type(self).__name__)
-        table = cobra.flux_analysis.flux_variability_analysis(
-            self.system_,
-            fraction_of_optimum=self.fraction,
-            processes=1,
+    _check_choice('cobra_measures', 'kind', kind, COBRA_KINDS)
+    _check_choice('cobra_measures', 'target', target, ('gene', 'reaction'))
+    load_extra(f'cobra_measures(kind={kind!r})')
+    _, element = _read_network(source, network, 'cobra_measures')
+    model = to_cobra(element, needed_by='cobra_measures')
+    cobra = load_extra('cobra_measures')
+    if kind == 'variability':
+        table = cobra.flux_analysis.flux_variability_analysis(model, fraction_of_optimum=fraction, processes=1)
+        ranges = pd.DataFrame({'minimum': table['minimum'], 'maximum': table['maximum']})
+        return CobraMeasuresResult(element, model, ranges=ranges)
+    if kind == 'parsimonious':
+        solution = cobra.flux_analysis.pfba(model)
+        return CobraMeasuresResult(
+            element,
+            model,
+            fluxes=solution.fluxes,
+            total=float(solution.fluxes.abs().sum()),
         )
-        self.ranges_ = pd.DataFrame({'minimum': table['minimum'], 'maximum': table['maximum']})
-
-    def _run_parsimonious(self) -> None:
-        """Set the fluxes of the smallest total flux."""
-        cobra = load_extra(type(self).__name__)
-        solution = cobra.flux_analysis.pfba(self.system_)
-        self.fluxes_ = solution.fluxes
-        self.total_ = float(solution.fluxes.abs().sum())
-
-    def _run_adjustment(self) -> None:
-        """Set the fluxes and the growth of a knock-out adjusted against the wild-type solution."""
-        cobra = load_extra(type(self).__name__)
-        system = self.system_
-        if not isinstance(system, cobra.Model):
-            error_msg = f'{type(self).__name__} adjusts a `cobra.Model`, not a {type(system).__name__}.'
-            raise AnalysisError(error_msg)
-        reference = system.optimize()
-        function = cobra.flux_analysis.moma if self.kind == 'moma' else cobra.flux_analysis.room
-        objective = next(reaction for reaction in system.reactions if reaction.objective_coefficient != 0)
-        with system:
-            for gene in self.knockouts:
-                system.genes.get_by_id(gene).knock_out()
-            solution = function(system, solution=reference, linear=self.linear)
-        self.fluxes_ = solution.fluxes
-        self.growth_ = float(solution.fluxes[objective.id])
-
-    def _run_lethals(self) -> None:
-        """Set the pairs lethal together but not alone."""
-        alone = self._deletions(1)
-        essential = set(alone.index[alone < LETHAL_GROWTH])
-        together = self._deletions(PAIR_SIZE)
-        self.pairs_ = [
-            pair
-            for pair, growth in together.items()
-            if isinstance(pair, tuple)
-            and len(pair) == PAIR_SIZE
-            and growth < LETHAL_GROWTH
-            and not essential.intersection(pair)
-        ]
-
-    def _run(self, inputs: object = None) -> None:
-        """Run the kind of the analysis.
-
-        Args:
-            inputs:
-                Not read.
-        """
-        if self.kind == 'variability':
-            self._run_variability()
-        elif self.kind == 'parsimonious':
-            self._run_parsimonious()
-        elif self.kind == 'deletions':
-            self.growth_ = self._deletions(int(self.order))
-        elif self.kind in {'moma', 'room'}:
-            self._run_adjustment()
-        else:
-            self._run_lethals()
+    if kind == 'deletions':
+        return CobraMeasuresResult(element, model, growth=_deletions(model, target, int(order)))
+    if kind in {'moma', 'room'}:
+        fluxes, growth = _adjusted(model, kind, knockouts, linear=linear)
+        return CobraMeasuresResult(element, model, fluxes=fluxes, growth=growth)
+    alone = _deletions(model, target, 1)
+    essential = set(alone.index[alone < LETHAL_GROWTH])
+    together = _deletions(model, target, PAIR_SIZE)
+    pairs = [
+        pair
+        for pair, growth in together.items()
+        if isinstance(pair, tuple)
+        and len(pair) == PAIR_SIZE
+        and growth < LETHAL_GROWTH
+        and not essential.intersection(pair)
+    ]
+    return CobraMeasuresResult(element, model, pairs=pairs)
 
 
-class StrainDesignAnalysis(BaseNetworkAnalysis):
-    """Strain designs of a metabolic network with StrainDesign, which needs the extra `metabolism`.
+@dataclass(frozen=True)
+class StrainDesignResult:
+    """Strain designs of a metabolic network.
+
+    Args:
+        network:
+            The metabolic network.
+
+        system:
+            The `cobra.Model` of the network.
+
+        designs:
+            Every design as a set of reaction names.
+    """
+
+    network: MetabolicNetworkElement
+    system: object
+    designs: list[set[str]]
+
+
+def strain_design(
+    source: Source,
+    *,
+    kind: str = 'optknock',
+    product: str = '',
+    growth: str | None = None,
+    constraints: str = '',
+    interventions: int = 3,
+    solutions: int = 1,
+    network: str | None = None,
+) -> StrainDesignResult:
+    """Return the strain designs of a metabolic network with StrainDesign, which needs the extra `metabolism`.
 
     - `'optknock'`, `'robustknock'`, and `'optcouple'`: the knock-outs that couple a product to growth.
     - `'mcs'`: the minimal cut sets that suppress the flux states of a constraint.
 
     Args:
+        source:
+            The system that holds the metabolic network.
+
         kind:
             The design, one of the kinds above.
 
@@ -514,92 +410,209 @@ class StrainDesignAnalysis(BaseNetworkAnalysis):
         network:
             The label of the network, or `None` for the first network of the system.
 
-    Attributes:
-        designs_:
-            Every design as a set of reaction names.
+    Returns:
+        result:
+            The network, its `cobra.Model`, and the designs.
 
     Raises:
         AnalysisError:
-            The kind is unknown, raised by `prepare`.
+            The kind is unknown, or the source is not a system with the network.
 
         MissingExtraError:
-            The extra is not installed, raised by `prepare`.
+            The extra is not installed.
 
     Examples:
-        >>> from skcomplex.systems.biology.common.metabolism import StrainDesignAnalysis
-        >>> StrainDesignAnalysis('optknock', product='EX_succ_e').interventions
-        3
+        >>> from skcomplex.core.errors import AnalysisError
+        >>> from skcomplex.systems.biology.common.metabolism import strain_design
+        >>> try:
+        ...     strain_design(None, kind='minimal', product='EX_succ_e')
+        ... except AnalysisError as error:
+        ...     print(str(error).split('. ')[0])
+        strain_design has kind='minimal'
     """
+    _check_choice('strain_design', 'kind', kind, DESIGN_KINDS)
+    load_extra(f'strain_design(kind={kind!r})')
+    _, element = _read_network(source, network, 'strain_design')
+    model = to_cobra(element, needed_by='strain_design')
+    straindesign = import_extra('straindesign', 'strain_design', 'metabolism')
+    weights = element.default_objective if element.objective is None else element.objective
+    inner = growth or next(iter(weights))
+    module_kind = getattr(straindesign.names, DESIGN_NAMES[kind])
+    options: dict[str, object] = {'constraints': constraints}
+    if kind == 'optcouple':
+        options |= {'inner_objective': inner, 'prod_id': product}
+    elif kind != 'mcs':
+        options |= {'inner_objective': inner, 'outer_objective': product}
+    module = straindesign.SDModule(model, module_kind, **options)
+    found = straindesign.compute_strain_designs(
+        model,
+        sd_modules=module,
+        max_solutions=int(solutions),
+        max_cost=int(interventions),
+        solution_approach=straindesign.names.BEST,
+        solver='scip',
+    )
+    return StrainDesignResult(element, model, [set(design) for design in found.reaction_sd])
 
-    def __init__(
-        self,
-        kind: str = 'optknock',
-        *,
-        product: str = '',
-        growth: str | None = None,
-        constraints: str = '',
-        interventions: int = 3,
-        solutions: int = 1,
-        network: str | None = None,
-    ) -> None:
-        super().__init__(network=network)
-        self.kind = kind
-        self.product = product
-        self.growth = growth
-        self.constraints = constraints
-        self.interventions = interventions
-        self.solutions = solutions
 
-    def _check(self) -> None:
-        """Raise an error for an unknown kind or a missing extra.
+def _check_choice(analysis: str, name: str, value: object, choices: tuple[object, ...]) -> None:
+    """Raise an error for a setting of an analysis that is not one of its choices."""
+    if value not in choices:
+        error_msg = f'{analysis} has {name}={value!r}. Use one of {", ".join(map(str, choices))}.'
+        raise AnalysisError(error_msg)
 
-        Raises:
-            AnalysisError:
-                The kind is unknown.
 
-            MissingExtraError:
-                The extra is not installed.
-        """
-        self._check_choice('kind', self.kind, DESIGN_KINDS)
-        load_extra(f'{type(self).__name__}(kind={self.kind!r})')
+def _networks_of(system: System) -> list[MetabolicNetworkElement]:
+    """Return the metabolic networks of a system and its nested systems."""
+    found = [item for item in system.elements if isinstance(item, MetabolicNetworkElement)]
+    for nested in system.systems:
+        found += _networks_of(nested)
+    return found
 
-    def _prepare(self, context: Source) -> None:
-        """Read the network of a system and convert it to a COBRApy model.
 
-        Args:
-            context:
-                The system.
-        """
-        super()._prepare(context)
-        self.system_ = to_cobra(self.network_, needed_by=type(self).__name__)
+def _read_network(source: Source, network: str | None, analysis: str) -> tuple[System, MetabolicNetworkElement]:
+    """Return a system and its metabolic network with a label, or its first one.
 
-    def _run(self, inputs: object = None) -> None:
-        """Compute the designs.
+    Args:
+        source:
+            The system.
 
-        Args:
-            inputs:
-                Not read.
+        network:
+            The label of the network, or `None` for the first network of the system.
 
-        Raises:
-            MissingExtraError:
-                StrainDesign is not installed.
-        """
-        straindesign = import_extra('straindesign', type(self).__name__, 'metabolism')
-        weights = self.network_.default_objective if self.network_.objective is None else self.network_.objective
-        growth = self.growth or next(iter(weights))
-        kind = getattr(straindesign.names, DESIGN_NAMES[self.kind])
-        options: dict[str, object] = {'constraints': self.constraints}
-        if self.kind == 'optcouple':
-            options |= {'inner_objective': growth, 'prod_id': self.product}
-        elif self.kind != 'mcs':
-            options |= {'inner_objective': growth, 'outer_objective': self.product}
-        module = straindesign.SDModule(self.system_, kind, **options)
-        found = straindesign.compute_strain_designs(
-            self.system_,
-            sd_modules=module,
-            max_solutions=int(self.solutions),
-            max_cost=int(self.interventions),
-            solution_approach=straindesign.names.BEST,
-            solver='scip',
-        )
-        self.designs_ = [set(design) for design in found.reaction_sd]
+        analysis:
+            The name of the analysis, for the error message.
+
+    Returns:
+        system:
+            The system.
+
+        network:
+            The metabolic network.
+
+    Raises:
+        AnalysisError:
+            The source is not a system with the network.
+    """
+    if not isinstance(source, System):
+        error_msg = f'{analysis} reads a system that holds a metabolic network element, not {type(source).__name__}.'
+        raise AnalysisError(error_msg)
+    chosen = [item for item in _networks_of(source) if network is None or item.label == network]
+    if not chosen:
+        error_msg = f'{analysis} reads a system that holds a metabolic network element.'
+        raise AnalysisError(error_msg)
+    return source, chosen[0]
+
+
+def _compiled_network(
+    network: MetabolicNetworkElement,
+    *,
+    parsimonious: bool = False,
+    floor: float | None = None,
+) -> ProblemSpec:
+    """Return the network compiled under static time, with its objective kept above a floor if one is given."""
+    element = type(network)(**{**network.get_params(deep=False), 'parsimonious': parsimonious, 'infeasible': 'raise'})
+    weights = network.default_objective if network.objective is None else network.objective
+    kept = (
+        [] if floor is None else [ObjectiveFloorInteraction('kept', cell=element.label, weights=weights, floor=floor)]
+    )
+    problem = PassCompiler().prepare(System(elements=[element], interactions=kept, time=StaticTime())).run().problem_
+    if not isinstance(problem, ProblemSpec):
+        error_msg = f'The network compiles to a {type(problem).__name__}, not a linear program.'
+        raise AnalysisError(error_msg)
+    return problem
+
+
+def _parameter_values(
+    problem: ProblemSpec,
+    network: MetabolicNetworkElement,
+    bounds: Mapping[str, tuple[float, float]],
+) -> Array:
+    """Return the parameters with the bounds of some reactions replaced."""
+    values = problem.initial_parameters.copy()
+    names = problem.parameters.names
+    label = network.label
+    for reaction, (lower, upper) in bounds.items():
+        identifier = network._identifier(reaction)
+        values[names.index(f'{label}.lower_{identifier}')] = lower
+        values[names.index(f'{label}.upper_{identifier}')] = upper
+    return values
+
+
+def _solved(
+    problem: ProblemSpec,
+    network: MetabolicNetworkElement,
+    weights: Mapping[str, float] | None = None,
+    bounds: Mapping[str, tuple[float, float]] | None = None,
+    *,
+    sense: float = -1.0,
+) -> tuple[float, Array]:
+    """Return the optimum of the first objective with its weights and bounds replaced, and the fluxes.
+
+    Args:
+        problem:
+            The compiled problem of the network.
+
+        network:
+            The metabolic network.
+
+        weights:
+            The coefficient of every reaction in the objective, or `None` for the objective of the network.
+
+        bounds:
+            The bounds to replace, by reaction.
+
+        sense:
+            `-1` to maximise and `1` to minimise.
+
+    Returns:
+        optimum:
+            The value of the objective.
+
+        fluxes:
+            The flux of every reaction.
+    """
+    kernel = problem.programs[0]
+    program = kernel.program
+    if weights is not None:
+        costs = program.costs.copy()
+        costs[0] = 0.0
+        for reaction, weight in weights.items():
+            column = list(network.reactions).index(reaction)
+            costs[0, column] = sense * float(weight)
+        kernel = LinearProgramKernel(replace(program, costs=costs, signs=(sense, *program.signs[1:])))._validated()
+        kernel.prepare()
+    state = RunStateSpec(0.0, problem.initial_state, _parameter_values(problem, network, bounds or {}))
+    solved = kernel.run(state).values_
+    fluxes = np.asarray([solved[item[0]] for item in program.variables], dtype=float)
+    return float(solved[program.objectives[0][0]]), fluxes
+
+
+def _deletions(model: object, target: str, order: int) -> pd.Series:
+    """Return the growth of every deletion of some size of a `cobra.Model`, by the name or the pair of names."""
+    cobra = load_extra('cobra_measures')
+    functions = {
+        ('gene', 1): cobra.flux_analysis.single_gene_deletion,
+        ('gene', PAIR_SIZE): cobra.flux_analysis.double_gene_deletion,
+        ('reaction', 1): cobra.flux_analysis.single_reaction_deletion,
+        ('reaction', PAIR_SIZE): cobra.flux_analysis.double_reaction_deletion,
+    }
+    table = functions[target, order](model, processes=1)
+    keys = [next(iter(ids)) if order == 1 else tuple(sorted(ids)) for ids in table['ids']]
+    return pd.Series(table['growth'].fillna(0.0).to_numpy(dtype=float), index=keys)
+
+
+def _adjusted(model: object, kind: str, knockouts: Sequence[str], *, linear: bool) -> tuple[pd.Series, float]:
+    """Return the fluxes and the growth of a knock-out adjusted against the wild-type solution."""
+    cobra = load_extra('cobra_measures')
+    if not isinstance(model, cobra.Model):
+        error_msg = f'cobra_measures adjusts a `cobra.Model`, not a {type(model).__name__}.'
+        raise AnalysisError(error_msg)
+    reference = model.optimize()
+    function = cobra.flux_analysis.moma if kind == 'moma' else cobra.flux_analysis.room
+    objective = next(reaction for reaction in model.reactions if reaction.objective_coefficient != 0)
+    with model:
+        for gene in knockouts:
+            model.genes.get_by_id(gene).knock_out()
+        solution = function(model, solution=reference, linear=linear)
+    return solution.fluxes, float(solution.fluxes[objective.id])

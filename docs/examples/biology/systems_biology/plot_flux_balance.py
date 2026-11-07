@@ -17,7 +17,7 @@ from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import Experiment, GridDesign
 from skcomplex.systems import create_system
-from skcomplex.systems.biology.common.metabolism import FluxVariabilityAnalysis
+from skcomplex.systems.biology.common.metabolism import flux_variability
 from skcomplex.systems.biology.systems_biology import flux_balance
 
 SYSTEM = 'flux_balance'
@@ -32,7 +32,7 @@ trajectory = Simulation(system, observers=[observer]).prepare().run(until=0.0).t
 # Flux variability should fix `v4` to `v7`, `b1`, `b2`, and growth at the optimum, and leave `v1`, `v2`, and `v3` free
 # over the range from 0 to 600, the two routes from `A` to `B`. The parsimonious solution should sit inside every range.
 
-ranges = FluxVariabilityAnalysis().prepare(system).run().ranges_
+ranges = flux_variability(system).ranges
 parsimonious = Simulation(flux_balance(parsimonious=True)).prepare().run(until=0.0).trajectory_
 fluxes = [float(parsimonious.values(f'cell.v_{name}')[0]) for name in ranges.index]
 fig, ax = plt.subplots(figsize=(9, 4))

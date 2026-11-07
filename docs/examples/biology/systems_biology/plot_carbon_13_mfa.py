@@ -25,9 +25,10 @@ SYSTEM = 'carbon_13_mfa'
 TRUE = {'v1': 100.0, 'v2': 100.0, 'v3': 50.0, 'v4': 50.0, 'v5': 50.0, 'v6': 50.0, 'v8': 50.0, 'v9': 50.0}
 
 system = create_system(SYSTEM)
-analysis = tca_labelling_analysis(noise=0.002, random_state=0).prepare(system).run()
+labelling = tca_labelling_analysis(noise=0.002, random_state=0)
+result = labelling(system)
 network = system.elements[0]
-fixed = {f'{bound}_{name}': analysis.fluxes_[name] for name in TRUE for bound in ('lower', 'upper')}
+fixed = {f'{bound}_{name}': result.fluxes[name] for name in TRUE for bound in ('lower', 'upper')}
 estimated = System(elements=[type(network)(network.label).set_params(**fixed)], time=StaticTime())
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='tca/graph')
 Simulation(estimated, observers=[observer]).prepare().run(until=0.0)
@@ -39,9 +40,9 @@ Simulation(estimated, observers=[observer]).prepare().run(until=0.0)
 # accept it at the 5% level.
 
 names = list(TRUE)
-values = np.array([analysis.fluxes_[name] for name in names])
-lower = np.array([analysis.intervals_[name][0] for name in names])
-upper = np.array([analysis.intervals_[name][1] for name in names])
+values = np.array([result.fluxes[name] for name in names])
+lower = np.array([result.intervals[name][0] for name in names])
+upper = np.array([result.intervals[name][1] for name in names])
 truth = np.array([TRUE[name] for name in names])
 fig, ax = plt.subplots(figsize=(9, 4))
 positions = np.arange(len(names))
@@ -57,8 +58,8 @@ ax.plot(positions, truth, 'x', color='tab:red', label='true flux')
 ax.set_xticks(positions, names)
 ax.set_ylabel('net flux')
 ax.legend()
-verdict = 'accepts' if analysis.accepted_ else 'rejects'
-ax.set_title(f'v3 {analysis.fluxes_["v3"]:.1f} and v4 {analysis.fluxes_["v4"]:.1f}; the test {verdict} the fit')
+verdict = 'accepts' if result.accepted else 'rejects'
+ax.set_title(f'v3 {result.fluxes["v3"]:.1f} and v4 {result.fluxes["v4"]:.1f}; the test {verdict} the fit')
 fig.tight_layout()
 plt.show()
 
@@ -68,8 +69,8 @@ plt.show()
 # The simulated distributions of glutamate at the estimate should lie on the measured ones in both experiments.
 
 fig, axes = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
-measured = {item.experiment: item.distribution for item in analysis.measurements}
-for ax, (experiment, labels) in zip(axes, analysis.distributions_.items(), strict=True):
+measured = {item.experiment: item.distribution for item in labelling.keywords['measurements']}
+for ax, (experiment, labels) in zip(axes, result.distributions.items(), strict=True):
     atoms = np.arange(labels['Glu'].size)
     ax.bar(atoms - 0.2, measured[experiment], width=0.4, label='measured')
     ax.bar(atoms + 0.2, labels['Glu'], width=0.4, label='simulated')
@@ -77,7 +78,7 @@ for ax, (experiment, labels) in zip(axes, analysis.distributions_.items(), stric
     ax.set_title(f'experiment {experiment}')
 axes[0].set_ylabel('fraction of glutamate')
 axes[0].legend()
-gap = max(np.max(np.abs(measured[name] - labels['Glu'])) for name, labels in analysis.distributions_.items())
+gap = max(np.max(np.abs(measured[name] - labels['Glu'])) for name, labels in result.distributions.items())
 fig.suptitle(f'The largest gap between measured and simulated fractions is {gap:.4f}')
 fig.tight_layout()
 plt.show()

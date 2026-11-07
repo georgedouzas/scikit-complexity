@@ -12,9 +12,9 @@ from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import AnalysisError, ValidationError
 from skcomplex.systems import create_system
 from skcomplex.systems.biology.evolution import (
-    NeutralNetworkAnalysis,
     fold_sequence,
     mutate_point,
+    neutral_network,
     read_base_pair_distance,
     read_plane_layout,
     read_sequence,
@@ -119,28 +119,28 @@ def test_adaptive_walk_approaches_the_target():
 def test_robustness_against_evolvability_of_a_neutral_run():
     """Test that genotype robustness and evolvability pooled over walkers and frames correlate below -0.4."""
     frames = np.array(_sequences(_run()), dtype=object)[::10]
-    robustness = NeutralNetworkAnalysis(_fold_of, 'genotype-robustness').prepare(frames).run().values_
-    evolvability = NeutralNetworkAnalysis(_fold_of, 'genotype-evolvability').prepare(frames).run().values_
+    robustness = neutral_network(frames, phenotype_of=_fold_of, kind='genotype-robustness').values
+    evolvability = neutral_network(frames, phenotype_of=_fold_of, kind='genotype-evolvability').values
     assert spearmanr(robustness.ravel(), evolvability.ravel()).statistic < -0.4
 
 
 def test_neutral_network_analysis_reads_a_trajectory():
     """Test that the analysis reads the sequences of a trajectory by the labels of its state."""
     trajectory = _run(until=3, walkers=2)
-    analysis = NeutralNetworkAnalysis(_fold_of, 'network', state='walkers.base').prepare(trajectory).run()
-    assert list(analysis.networks_) == [TARGET]
-    assert START in analysis.networks_[TARGET]
+    analysis = neutral_network(trajectory, phenotype_of=_fold_of, kind='network', state='walkers.base')
+    assert list(analysis.networks) == [TARGET]
+    assert START in analysis.networks[TARGET]
 
 
 def _toy(kind):
-    """Return the analysis of the binary sequences of length 4 mapped to their first letter."""
+    """Return the neutral network result of the binary sequences of length 4 mapped to their first letter."""
     genotypes = [''.join(letters) for letters in itertools.product('01', repeat=4)]
-    return NeutralNetworkAnalysis(lambda sequence: sequence[0], kind, alphabet='01').prepare(genotypes).run()
+    return neutral_network(genotypes, phenotype_of=lambda sequence: sequence[0], kind=kind, alphabet='01')
 
 
 def test_toy_map_has_one_component_per_phenotype():
     """Test that each phenotype of the first letter has 8 sequences in one component."""
-    networks = _toy('network').networks_
+    networks = _toy('network').networks
     assert set(networks) == {'0', '1'}
     for graph in networks.values():
         assert graph.number_of_nodes() == 8
@@ -149,30 +149,35 @@ def test_toy_map_has_one_component_per_phenotype():
 
 def test_toy_map_has_robustness_three_and_evolvability_two():
     """Test the robustness and evolvability of the genotypes and phenotypes of the first letter."""
-    assert set(_toy('genotype-robustness').values_.tolist()) == {3.0}
-    assert set(_toy('genotype-evolvability').values_.tolist()) == {2.0}
-    assert _toy('phenotype-robustness').values_ == {'0': 3.0, '1': 3.0}
-    assert _toy('phenotype-evolvability').values_ == {'0': 2.0, '1': 2.0}
+    assert set(_toy('genotype-robustness').values.tolist()) == {3.0}
+    assert set(_toy('genotype-evolvability').values.tolist()) == {2.0}
+    assert _toy('phenotype-robustness').values == {'0': 3.0, '1': 3.0}
+    assert _toy('phenotype-evolvability').values == {'0': 2.0, '1': 2.0}
 
 
 def test_neutral_network_analysis_joins_letters_of_an_array():
     """Test that an array of letters is read as one sequence per row."""
-    analysis = NeutralNetworkAnalysis(lambda sequence: sequence[0], 'genotype-robustness', alphabet='01')
-    assert analysis.prepare(np.array([['0', '1'], ['1', '1']])).run().values_.tolist() == [1.0, 1.0]
+    result = neutral_network(
+        np.array([['0', '1'], ['1', '1']]),
+        phenotype_of=lambda sequence: sequence[0],
+        kind='genotype-robustness',
+        alphabet='01',
+    )
+    assert result.values.tolist() == [1.0, 1.0]
 
 
 def test_neutral_network_analysis_rejects_foreign_letters():
     """Test that a letter outside the alphabet raises an error that names it."""
     with pytest.raises(AnalysisError, match='X'):
-        NeutralNetworkAnalysis(_fold_of).prepare(['AXGU'])
+        neutral_network(['AXGU'], phenotype_of=_fold_of)
 
 
 def test_neutral_network_analysis_rejects_bad_settings():
     """Test that an unknown kind and a map that is not callable raise errors."""
     with pytest.raises(AnalysisError, match='waist'):
-        NeutralNetworkAnalysis(_fold_of, 'waist').prepare()
+        neutral_network(['ACGU'], phenotype_of=_fold_of, kind='waist')
     with pytest.raises(AnalysisError, match='function'):
-        NeutralNetworkAnalysis('fold').prepare()
+        neutral_network(['ACGU'], phenotype_of='fold')
 
 
 def test_system_rejects_bad_settings():

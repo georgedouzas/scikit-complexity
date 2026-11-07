@@ -1,14 +1,17 @@
 """Metabolism shared by the biology packages: metabolic networks, their standard formats, and their analyses."""
 
 from ._analyses import (
-    BaseNetworkAnalysis,
-    CobraAnalysis,
-    FluxVariabilityAnalysis,
-    ProductionScanAnalysis,
-    StrainDesignAnalysis,
+    CobraMeasuresResult,
+    FluxVariabilityResult,
+    ProductionScanResult,
+    StrainDesignResult,
+    cobra_measures,
+    flux_variability,
+    production_scan,
+    strain_design,
 )
 from ._cobra_io import from_cobra, load_extra, load_network, save_network, to_cobra
-from ._community import CommunityAnalysis
+from ._community import CommunityGrowthResult, community_growth
 from ._culture import (
     BiomassElement,
     CommunityInteraction,
@@ -25,28 +28,32 @@ from ._reaction_spec import ReactionSpec
 from ._toy_network import ToyNetworkElement
 
 __all__: list[str] = [
-    'BaseNetworkAnalysis',
     'BiomassElement',
-    'CobraAnalysis',
-    'CommunityAnalysis',
+    'CobraMeasuresResult',
+    'CommunityGrowthResult',
     'CommunityInteraction',
     'CommunityMediumElement',
     'ExchangeInteraction',
-    'FluxVariabilityAnalysis',
+    'FluxVariabilityResult',
     'GrowthInteraction',
     'MetabolicNetworkElement',
     'ObjectiveFloorInteraction',
-    'ProductionScanAnalysis',
+    'ProductionScanResult',
     'ReactionSpec',
-    'StrainDesignAnalysis',
+    'StrainDesignResult',
     'SubstrateElement',
     'SwitchInteraction',
     'ToyNetworkElement',
+    'cobra_measures',
+    'community_growth',
     'community_medium_type',
+    'flux_variability',
     'from_cobra',
     'load_extra',
     'load_network',
     'metabolic_network_type',
+    'production_scan',
     'save_network',
+    'strain_design',
     'to_cobra',
 ]

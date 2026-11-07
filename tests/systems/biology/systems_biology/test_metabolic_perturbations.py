@@ -3,7 +3,7 @@
 import pytest
 
 from skcomplex.systems import create_simulation
-from skcomplex.systems.biology.common.metabolism import CobraAnalysis
+from skcomplex.systems.biology.common.metabolism import cobra_measures
 from skcomplex.systems.biology.systems_biology import metabolic_perturbations
 
 
@@ -15,5 +15,5 @@ def test_essential_gene_stops_growth():
 
 def test_single_deletion_scan_finds_seven_essential_genes():
     """Test that deleting every gene in turn leaves exactly 7 with growth below 1e-6."""
-    growth = CobraAnalysis('deletions').prepare(metabolic_perturbations()).run().growth_
+    growth = cobra_measures(metabolic_perturbations(), kind='deletions').growth
     assert int((growth < 1e-6).sum()) == 7

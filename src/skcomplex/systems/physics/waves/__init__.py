@@ -5,14 +5,20 @@ from ._charged import ChargedWaveFunctionElement, charged_schrodinger
 from ._gauge_fields import GaugeLinkElement, MaxwellLinkElement, StaticChargeElement, lattice_gauge_fields
 from ._quantum import LatticeHamiltonianInteraction, PositionDephasingInteraction, WaveFunctionElement, schrodinger
 from ._strings import DrivenAnchorInteraction, WaveStringElement, spring_chain, standing_waves
-from ._yang_mills import ColorLinkElement, GaugeAnalysis, IsospinLinkElement, lattice_yang_mills
+from ._yang_mills import (
+    ColorLinkElement,
+    GaugeObservablesResult,
+    IsospinLinkElement,
+    gauge_observables,
+    lattice_yang_mills,
+)
 
 __all__: list[str] = [
     'ChargedWaveFunctionElement',
     'ColorLinkElement',
     'DrivenAnchorInteraction',
-    'GaugeAnalysis',
     'GaugeLinkElement',
+    'GaugeObservablesResult',
     'IsospinLinkElement',
     'LatticeHamiltonianInteraction',
     'MaxwellLinkElement',
@@ -22,6 +28,7 @@ __all__: list[str] = [
     'WaveStringElement',
     'WilsonSamplingInteraction',
     'charged_schrodinger',
+    'gauge_observables',
     'lattice_gauge_fields',
     'lattice_yang_mills',
     'schrodinger',

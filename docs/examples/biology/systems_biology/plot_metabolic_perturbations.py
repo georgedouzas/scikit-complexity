@@ -16,7 +16,7 @@ import numpy as np
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
-from skcomplex.systems.biology.common.metabolism import CobraAnalysis
+from skcomplex.systems.biology.common.metabolism import cobra_measures
 
 SYSTEM = 'metabolic_perturbations'
 GROWTH = 'cell.objective_0'
@@ -31,7 +31,7 @@ knocked_out = Simulation(system, observers=[observer]).prepare().run(until=0.0).
 # Deleting every gene in turn should leave most of the growth, and exactly 7 genes should stop it.
 
 wild_type = create_system(SYSTEM)
-deletions = CobraAnalysis('deletions').prepare(wild_type).run().growth_
+deletions = cobra_measures(wild_type, kind='deletions').growth
 essential = int((deletions < 1e-6).sum())
 fig, ax = plt.subplots(figsize=(9, 4))
 ax.plot(np.sort(deletions.to_numpy())[::-1], '.')
@@ -48,8 +48,8 @@ plt.show()
 # to the wild type, should give positive growth below it.
 
 optimum = float(knocked_out.values(GROWTH)[0])
-moma = CobraAnalysis('moma', knockouts=('b4025',)).prepare(wild_type).run().growth_
-room = CobraAnalysis('room', knockouts=('b4025',)).prepare(wild_type).run().growth_
+moma = cobra_measures(wild_type, kind='moma', knockouts=('b4025',)).growth
+room = cobra_measures(wild_type, kind='room', knockouts=('b4025',)).growth
 fig, ax = plt.subplots(figsize=(9, 4))
 ax.bar(['FBA', 'MoMA', 'ROOM'], [optimum, moma, room])
 ax.set_ylabel('growth (1/h)')

@@ -32,7 +32,7 @@ from ._networks import (
     jain_krishna,
     sole_manrubia,
 )
-from ._neutral_network_analysis import NeutralNetworkAnalysis
+from ._neutral_network_analysis import NeutralNetworkResult, neutral_network
 from ._nkcs import CoevolutionaryClimbingInteraction, CoevolvingSpeciesElement, nkcs
 from ._prebiotic import (
     CatalysisInteraction,
@@ -72,7 +72,7 @@ __all__: list[str] = [
     'MasterSequenceElement',
     'MoleculeElement',
     'MoranStepInteraction',
-    'NeutralNetworkAnalysis',
+    'NeutralNetworkResult',
     'NucleotideElement',
     'PolymerElement',
     'PolymerJoiningInteraction',
@@ -93,6 +93,7 @@ __all__: list[str] = [
     'kimura_diffusion',
     'moran_process',
     'mutate_point',
+    'neutral_network',
     'nk_landscape',
     'nkcs',
     'origin_fixation_walk',

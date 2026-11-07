@@ -1,6 +1,7 @@
-"""Test the modules of structures, backbone geometry, and the fuzzy oil drop analysis of the systems biology systems."""
+"""Test the modules of structures, backbone geometry, and the fuzzy oil drop measures of the systems biology systems."""
 
 import dataclasses
+import importlib
 import warnings
 
 import numpy as np
@@ -10,8 +11,8 @@ from skcomplex.core.analysis import chain_shape
 from skcomplex.core.errors import AnalysisError, ValidationError
 from skcomplex.systems.biology.systems_biology import (
     BackboneGeometry,
-    FuzzyOilDropAnalysis,
     StructureSpec,
+    fuzzy_oil_drop_measures,
     read_kyte_doolittle_scale,
     read_structure,
     read_trajectory,
@@ -164,46 +165,49 @@ def test_kyte_doolittle_scale_is_rescaled():
 def test_relative_distance_of_the_ideal_micelle_and_of_uniform_hydrophobicity():
     """Test that `RD` is 0 for an observed distribution equal to the theoretical one, and 1 for a uniform one."""
     structure = read_structure('1L2Y')
-    analysis = FuzzyOilDropAnalysis(structure).prepare().run()
-    ideal = FuzzyOilDropAnalysis(structure, observed=analysis.theoretical_[0])
-    assert ideal.prepare(structure.effective_atoms[:1]).run().values_[0] == pytest.approx(0.0, abs=1e-12)
-    uniform = FuzzyOilDropAnalysis(structure, observed=analysis.uniform_)
-    assert uniform.prepare(structure.effective_atoms[:1]).run().values_[0] == pytest.approx(1.0, abs=1e-12)
+    result = fuzzy_oil_drop_measures(structure=structure)
+    ideal = fuzzy_oil_drop_measures(structure.effective_atoms[:1], structure=structure, observed=result.theoretical[0])
+    assert ideal.values[0] == pytest.approx(0.0, abs=1e-12)
+    uniform = fuzzy_oil_drop_measures(structure.effective_atoms[:1], structure=structure, observed=result.uniform)
+    assert uniform.values[0] == pytest.approx(1.0, abs=1e-12)
 
 
 def test_distributions_are_normalised():
     """Test that the profile sets the three distributions, each with a sum of one."""
-    analysis = FuzzyOilDropAnalysis(read_structure('1L2Y'), 'profile').prepare().run()
-    assert analysis.theoretical_.sum(axis=1) == pytest.approx(1.0)
-    assert analysis.observed_.sum(axis=1) == pytest.approx(1.0)
-    assert analysis.uniform_.sum() == pytest.approx(1.0)
+    result = fuzzy_oil_drop_measures(structure=read_structure('1L2Y'), kind='profile')
+    assert result.values is None
+    assert result.theoretical.sum(axis=1) == pytest.approx(1.0)
+    assert result.observed.sum(axis=1) == pytest.approx(1.0)
+    assert result.uniform.sum() == pytest.approx(1.0)
 
 
 def test_environment_factor_recovers_the_factor_of_a_profile():
     """Test that a distribution built by Eq. 1.9, with its complement normalised first, gives its factor back."""
     structure = read_structure('1L2Y')
-    theoretical = FuzzyOilDropAnalysis(structure).prepare().run().theoretical_[0]
+    theoretical = fuzzy_oil_drop_measures(structure=structure).theoretical[0]
     complement = (theoretical.max() - theoretical) / (theoretical.max() - theoretical).sum()
     profile = theoretical + 0.5 * complement
-    analysis = FuzzyOilDropAnalysis(structure, 'environment-factor', observed=profile / profile.sum())
-    factor = analysis.prepare(structure.effective_atoms[:1]).run().values_[0]
+    factor = fuzzy_oil_drop_measures(
+        structure.effective_atoms[:1],
+        structure=structure,
+        kind='environment-factor',
+        observed=profile / profile.sum(),
+    ).values[0]
     assert factor == pytest.approx(0.5, abs=1e-3)
 
 
-def test_curves_of_fig_1_41_give_the_values_the_book_prints_for_them():
+def test_curves_of_fig_1_41_give_the_values_the_book_prints_for_them(monkeypatch):
     """Test that the curves of Fig. 1.41 give its `K = 0.5` and, within reading error, the `RD = 0.7` of Fig. 1.40."""
-
-    class FigureAnalysis(FuzzyOilDropAnalysis):
-        def _read_theoretical(self, positions):
-            return FIGURE_THEORETICAL / FIGURE_THEORETICAL.sum()
+    module = importlib.import_module('skcomplex.systems.biology.systems_biology._fuzzy_oil_drop')
+    monkeypatch.setattr(module, '_read_theoretical', lambda positions: FIGURE_THEORETICAL / FIGURE_THEORETICAL.sum())
 
     count = len(FIGURE_THEORETICAL)
     numbers = tuple(range(count))
     structure = StructureSpec(np.zeros((1, count, 3)), ('CA',) * count, ('GLY',) * count, numbers, ('A',) * count)
     observed = FIGURE_OBSERVED / FIGURE_OBSERVED.sum()
-    factor = FigureAnalysis(structure, 'environment-factor', observed=observed).prepare().run().values_[0]
+    factor = fuzzy_oil_drop_measures(structure=structure, kind='environment-factor', observed=observed).values[0]
     assert factor == pytest.approx(0.5, abs=0.02)
-    distance = FigureAnalysis(structure, observed=observed).prepare().run().values_[0]
+    distance = fuzzy_oil_drop_measures(structure=structure, observed=observed).values[0]
     assert distance == pytest.approx(0.7, abs=0.1)
 
 
@@ -211,11 +215,11 @@ def test_native_ubiquitin_is_closer_to_the_micelle_than_its_extended_chain():
     """Test that the native `RD` of ubiquitin is lower than that of its chain with all phi -120 and psi 130."""
     structure = read_structure('1UBQ')
     geometry = BackboneGeometry(structure).prepare()
-    native = FuzzyOilDropAnalysis(structure).prepare().run().values_[0]
+    native = fuzzy_oil_drop_measures(structure=structure).values[0]
     angles = np.full(geometry.angles_.size, -120.0)
     angles[angles.size // 2 :] = 130.0
     positions = geometry.run(angles).read_effective_atoms()
-    extended = FuzzyOilDropAnalysis(structure).prepare(positions[None]).run().values_[0]
+    extended = fuzzy_oil_drop_measures(positions[None], structure=structure).values[0]
     assert native < extended
 
 
@@ -228,15 +232,15 @@ def test_unknown_residue_raises_an_error_that_names_it():
     )
     changed = dataclasses.replace(structure, residue_names=names)
     with pytest.raises(AnalysisError, match=r'SEP at number 5 of chain A is not on the Kyte-Doolittle scale'):
-        FuzzyOilDropAnalysis(changed).prepare()
+        fuzzy_oil_drop_measures(structure=changed)
 
 
-def test_analysis_rejects_bad_settings_and_positions():
+def test_fuzzy_oil_drop_measures_rejects_bad_settings_and_positions():
     """Test that an unknown kind, a cutoff of zero, and positions of another shape raise errors."""
     structure = read_structure('1L2Y')
     with pytest.raises(AnalysisError, match='waist'):
-        FuzzyOilDropAnalysis(structure, 'waist').prepare()
+        fuzzy_oil_drop_measures(structure=structure, kind='waist')
     with pytest.raises(AnalysisError, match='cutoff'):
-        FuzzyOilDropAnalysis(structure, cutoff=0.0).prepare()
+        fuzzy_oil_drop_measures(structure=structure, cutoff=0.0)
     with pytest.raises(AnalysisError, match='residues'):
-        FuzzyOilDropAnalysis(structure).prepare(np.zeros((1, 3, 3)))
+        fuzzy_oil_drop_measures(np.zeros((1, 3, 3)), structure=structure)

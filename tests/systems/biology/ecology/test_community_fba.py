@@ -3,7 +3,7 @@
 import pytest
 
 from skcomplex.systems import create_simulation
-from skcomplex.systems.biology.common.metabolism import CommunityAnalysis
+from skcomplex.systems.biology.common.metabolism import community_growth
 from skcomplex.systems.biology.ecology import community_fba
 
 GROWTH = 'v_Biomass_Ecoli_core'
@@ -35,10 +35,9 @@ def test_identical_members_grow_at_the_rate_of_one():
     community, members = _growth(knockouts=('', ''), exchanges=exchanges)
     assert members == pytest.approx([0.8739, 0.8739], abs=1e-4)
     assert community == pytest.approx(0.8739, abs=1e-4)
-    analysis = CommunityAnalysis(medium={'EX_glc__D_e': -10.0})
-    analysis = analysis.prepare(community_fba(knockouts=('', ''), exchanges=exchanges)).run()
-    assert analysis.growth_ == pytest.approx(0.8739, abs=1e-4)
-    assert sum(analysis.abundances_.values()) == pytest.approx(1.0)
+    result = community_growth(community_fba(knockouts=('', ''), exchanges=exchanges), medium={'EX_glc__D_e': -10.0})
+    assert result.growth == pytest.approx(0.8739, abs=1e-4)
+    assert sum(result.abundances.values()) == pytest.approx(1.0)
 
 
 def test_community_fba_grows_the_members_at_one_rate():

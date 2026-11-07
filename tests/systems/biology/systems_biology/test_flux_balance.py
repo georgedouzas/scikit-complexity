@@ -5,7 +5,7 @@ import pytest
 
 from skcomplex.core.experiments import Experiment, GridDesign
 from skcomplex.systems import create_simulation
-from skcomplex.systems.biology.common.metabolism import FluxVariabilityAnalysis
+from skcomplex.systems.biology.common.metabolism import flux_variability
 from skcomplex.systems.biology.systems_biology import flux_balance
 
 
@@ -18,7 +18,7 @@ def test_flux_balance_reaches_the_growth_of_raman():
 
 def test_flux_balance_variability_gives_the_ranges_of_raman():
     """Test the ranges of Raman Eq. 8.12 at the optimum of the toy network."""
-    ranges = FluxVariabilityAnalysis().prepare(flux_balance()).run().ranges_
+    ranges = flux_variability(flux_balance()).ranges
     expected = {
         'v1': (0, 600),
         'v2': (0, 600),

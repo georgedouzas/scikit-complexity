@@ -16,7 +16,7 @@ from skcomplex.systems.biology.systems_biology import (
     AMINO_ACIDS,
     BackboneGeometry,
     EllipsePath,
-    FuzzyOilDropAnalysis,
+    fuzzy_oil_drop_measures,
     read_cell_probabilities,
     read_native_pairs,
     read_structure,
@@ -57,7 +57,7 @@ def test_ensemble_of_the_trp_cage():
     recorded = trajectory.values('RD')
     assert recorded.min() >= 0
     assert recorded.max() <= 1
-    expected = FuzzyOilDropAnalysis(read_structure('1L2Y')).prepare().run().values_
+    expected = fuzzy_oil_drop_measures(structure=read_structure('1L2Y')).values
     assert recorded == pytest.approx(expected, abs=1e-12)
 
 
@@ -65,7 +65,7 @@ def test_ensemble_records_the_environment_factor():
     """Test that the recorded `K` of each frame equals the one of the analysis."""
     structure = read_structure('1L2Y')
     recorded = create_simulation('fuzzy_oil_drop').prepare().run(until=3).trajectory_.values('K')
-    expected = FuzzyOilDropAnalysis(structure, 'environment-factor').prepare().run().values_[:4]
+    expected = fuzzy_oil_drop_measures(structure=structure, kind='environment-factor').values[:4]
     assert recorded == pytest.approx(expected, abs=1e-12)
 
 
@@ -79,7 +79,7 @@ def test_analysis_reads_the_replay_of_a_trajectory():
     """Test that the analysis reads a trajectory of the replay."""
     structure = read_structure('1L2Y')
     trajectory = create_simulation('fuzzy_oil_drop').prepare().run(until=2).trajectory_
-    values = FuzzyOilDropAnalysis(structure, state='chain.x').prepare(trajectory).run().values_
+    values = fuzzy_oil_drop_measures(trajectory, structure=structure, state='chain.x').values
     assert values == pytest.approx(trajectory.values('RD'), abs=1e-12)
 
 

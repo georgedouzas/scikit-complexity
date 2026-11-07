@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
-from skcomplex.systems.biology.common.metabolism import CommunityAnalysis
+from skcomplex.systems.biology.common.metabolism import community_growth
 
 SYSTEM = 'community_fba'
 GROWTH = 'v_Biomass_Ecoli_core'
@@ -45,17 +45,17 @@ together = [float(trajectory.values(f'member_{index}.{GROWTH}')[0]) for index in
 community = float(trajectory.values('medium.objective_0')[0])
 balanced = Simulation(create_system(SYSTEM, common_rate=True)).prepare().run(until=0.0).trajectory_
 balanced_rate = float(balanced.values('medium.objective_0')[0])
-steadycom = CommunityAnalysis(medium={'EX_akg_e': 0.0, 'EX_glu__L_e': 0.0}).prepare(system).run()
-tradeoff = CommunityAnalysis('tradeoff', fraction=1.0).prepare(create_system(SYSTEM, knockouts=('', ''))).run()
+steadycom = community_growth(system, medium={'EX_akg_e': 0.0, 'EX_glu__L_e': 0.0})
+tradeoff = community_growth(create_system(SYSTEM, knockouts=('', '')), kind='tradeoff', fraction=1.0)
 fig, axes = plt.subplots(1, 2, figsize=(10, 4))
 axes[0].bar(['ΔICDHyr alone', 'ΔNH4t alone', 'ΔICDHyr together', 'ΔNH4t together'], [*alone, *together])
 axes[0].tick_params(axis='x', rotation=20)
 axes[0].set_ylabel('growth (1/h)')
 axes[1].bar(
     ['joint FBA', 'community FBA', 'SteadyCom', 'wild-type trade-off'],
-    [community, balanced_rate, steadycom.growth_, tradeoff.growth_],
+    [community, balanced_rate, steadycom.growth, tradeoff.growth],
 )
 axes[1].set_ylabel('community growth (1/h)')
-fig.suptitle(f'Alone {max(alone):.3f}, together {community:.3f} 1/h; SteadyCom common rate {steadycom.growth_:.3f} 1/h')
+fig.suptitle(f'Alone {max(alone):.3f}, together {community:.3f} 1/h; SteadyCom common rate {steadycom.growth:.3f} 1/h')
 fig.tight_layout()
 plt.show()
