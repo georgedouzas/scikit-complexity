@@ -8,7 +8,7 @@
 ## 2. Folding by field
 
 - [ ] 2.1 Biology
-- [ ] 2.2 Physics
+- [x] 2.2 Physics
 - [ ] 2.3 Economics
 - [ ] 2.4 Social
 - [ ] 2.5 Mathematics

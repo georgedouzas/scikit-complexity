@@ -45,3 +45,31 @@ or nothing. Six fields have a `common` package with 59 modules.
   per file.
 - **Lost history of moved code:** `git log --follow` does not follow a class into another file. The commit messages
   name the folded modules.
+
+## Physics
+
+- **Folded.** Every component module of a physics subfield that serves one system is folded into that system's module,
+  and the test modules of the folded components are merged into the system's test module.
+- **Moved to `physics.common`.** Components that several system modules of one subfield share, used the same way by
+  each: `ActiveParticleElement` with its `POINTS` visual, `SelfPropulsionInteraction`, `PropulsionStepInteraction`,
+  `BrownianParticleElement`, `ThermalNoiseInteraction`, and `DoubleWellElement` to `common.particles`,
+  `PendulumElement` and `PendulumInteraction` to `common.mechanics`, `IsingSpinElement` to `common.spins`,
+  `LinkElement` and the order parameter of the synchronization systems, now the public `order_parameter`, to
+  `common.oscillators`, `WilsonSamplingInteraction` to `common.fields`, and `SandpileCellElement` to a module directly
+  in `common`, since no family fits it. The subfield packages still export these names.
+- **Moved out of `physics.common`.** Modules that one system uses: `LandauEnergyInteraction` and `PhaseFieldElement`
+  into `pattern_formation._ordering`, `SwiftHohenbergEnergyInteraction` into `pattern_formation._patterns`,
+  `corotational` and `upper_convected` into `active_matter._nematics`, `GravityInteraction` into
+  `celestial_mechanics._orbits`, `SoftSphereInteraction` into `active_matter._collective`, and
+  `PottsSamplingInteraction` and `XYSamplingInteraction` into `statistical_mechanics._spins`.
+- **Kept in `physics.common` although one system uses them.** `ConstantForceInteraction` and
+  `LennardJonesInteraction`, since the LAMMPS tables of `common.particles` and core tests read them. The quantum family,
+  `SiteElement`, `SpinElement`, `site_space`, and `spin_space`, since it is one set of Hilbert-space species with
+  `ModeElement` and `QubitElement`, which no system uses but core tests do.
+- **Kept as modules of their subfield.** Analyses that no system uses: `EarlyWarningAnalysis`,
+  `CracklingNoiseAnalysis`, `KineticTemperatureAnalysis`, `MaxwellBoltzmannAnalysis`, and `SusceptibilityAnalysis`.
+- **Copied instead of shared.** `LorenzElement` of `mathematics.common.flows`, which
+  `synchronization._chaos` imported across fields, is copied into that module.
+- **Cross-field duplicates, candidates for the core.** `_noise` of `physics.pattern_formation._patterns` and
+  `chemistry.pattern_formation._reaction_diffusion`, uniform noise of a shape, has identical source. `LorenzElement` of
+  `physics.synchronization._chaos` and `mathematics.common.flows` has identical code and differs only in its docstring.
