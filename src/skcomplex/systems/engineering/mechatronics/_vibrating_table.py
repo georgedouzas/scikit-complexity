@@ -11,9 +11,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class VibratingTableElement(Element):
@@ -86,6 +85,8 @@ class VibratingTableElement(Element):
         17.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -151,28 +152,8 @@ class VibratingTableElement(Element):
         return force
 
 
-@register_system(
-    field='engineering/mechatronics',
-    tags=('mechatronics', 'electromagnet', 'vibration', 'forcing', 'ode'),
-    references=('Trzaska 2023',),
-    defaults={'until': 40.0, 'dt': 0.01},
-)
-def vibrating_table(
-    *,
-    U: float = 0.141,
-    omega: float = 1.5915,
-    R: float = 1.5,
-    L: float = 0.25,
-    C: float = 0.1,
-    K: float = 500.0,
-    m: float = 10.0,
-    B: float = 2.0,
-    k1: float = 0.5,
-    k2: float = 17.0,
-    alpha: float = 2.5,
-    linear: bool = False,
-) -> System:
-    """Return an electromagnetic vibrating table, a shaker driven by a sinusoidal supply after its switch closes.
+class VibratingTableSystem(BaseSystem):
+    """An electromagnetic vibrating table, a shaker driven by a sinusoidal supply after its switch closes.
 
     The source `u = U sin(omega t)` feeds a resistor and a capacitor, whose voltage drives the current `i2` of the coil
     of an electromagnet against the back electromotive force `k1 v` of the table. The electromagnet pulls the table,
@@ -180,6 +161,9 @@ def vibrating_table(
     is the one of Trzaska's linearized model. From rest, a transient of about 8 s dies out and the table vibrates
     steadily at the supply frequency, and the linearized model, `g(i2) = k2 i2`, gives nearly the same response since
     the current stays small.
+
+    The system has the current `shaker.i2`, the capacitor voltage `shaker.uC`, the displacement `shaker.x`, and the
+    velocity `shaker.v`.
 
     Args:
         U:
@@ -218,29 +202,67 @@ def vibrating_table(
         linear:
             Whether the force of the electromagnet is its linearization `k2 i2`.
 
-    Returns:
-        system:
-            The system, with the current `shaker.i2`, the capacitor voltage `shaker.uC`, the displacement `shaker.x`,
-            and the velocity `shaker.v`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.mechatronics import vibrating_table
-        >>> vibrating_table(linear=True).elements[0].linear
+        >>> from skcomplex.systems.engineering.mechatronics import VibratingTableSystem
+        >>> VibratingTableSystem(linear=True).prepare().system_.elements[0].linear
         True
     """
-    shaker = VibratingTableElement(
-        'shaker',
-        U=U,
-        omega=omega,
-        R=R,
-        L=L,
-        C=C,
-        K=K,
-        m=m,
-        B=B,
-        k1=k1,
-        k2=k2,
-        alpha=alpha,
-        linear=linear,
-    )
-    return System(elements=[shaker])
+
+    field = 'engineering/mechatronics'
+    topics = ('mechatronics', 'electromagnet', 'vibration', 'forcing', 'ode')
+    references = ('Trzaska 2023',)
+    until = 40.0
+    dt = 0.01
+
+    def __init__(
+        self,
+        *,
+        U: float = 0.141,
+        omega: float = 1.5915,
+        R: float = 1.5,
+        L: float = 0.25,
+        C: float = 0.1,
+        K: float = 500.0,
+        m: float = 10.0,
+        B: float = 2.0,
+        k1: float = 0.5,
+        k2: float = 17.0,
+        alpha: float = 2.5,
+        linear: bool = False,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.U = U
+        self.omega = omega
+        self.R = R
+        self.L = L
+        self.C = C
+        self.K = K
+        self.m = m
+        self.B = B
+        self.k1 = k1
+        self.k2 = k2
+        self.alpha = alpha
+        self.linear = linear
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        shaker = VibratingTableElement(
+            'shaker',
+            U=self.U,
+            omega=self.omega,
+            R=self.R,
+            L=self.L,
+            C=self.C,
+            K=self.K,
+            m=self.m,
+            B=self.B,
+            k1=self.k1,
+            k2=self.k2,
+            alpha=self.alpha,
+            linear=self.linear,
+        )
+        return System(self.label, elements=[shaker])

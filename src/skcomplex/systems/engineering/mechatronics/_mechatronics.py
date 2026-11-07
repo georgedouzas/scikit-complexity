@@ -13,9 +13,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import ConnectionInteraction, EulerLagrangeInteraction, Interaction
 from ....core.components.laws import BaseLaw, EquationLaw, RateLaw
 from ....core.components.laws.utils import derivative, step
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.electrical import GroundElement, InductorElement, ResistorElement, TwoPinElement, VoltageSourceElement
 from ..common.mechanics import SpringDamperInteraction
 
@@ -160,6 +159,8 @@ class QuarterCarElement(Element):
         0.05
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -220,6 +221,8 @@ class MotorCouplingInteraction(Interaction):
         0.5
     """
 
+    law_classes = (EquationLaw,)
+
     def __init__(
         self,
         label: str,
@@ -262,18 +265,6 @@ def _current_of_winding(s: SimpleNamespace) -> Expression:
     return current
 
 
-def _rotor_lagrangian(s: SimpleNamespace) -> Expression:
-    """Return the kinetic energy of the rotor."""
-    energy: Expression = s.target.J * derivative(s.target.phi, 1) ** 2 / 2
-    return energy
-
-
-def _rotor_dissipation(s: SimpleNamespace) -> Expression:
-    """Return the Rayleigh dissipation of the viscous friction of the rotor."""
-    dissipation: Expression = s.target.b * derivative(s.target.phi, 1) ** 2 / 2
-    return dissipation
-
-
 def _spring_energy(s: SimpleNamespace) -> Expression:
     """Return the energy of the suspension spring and of the tire on the road step."""
     road = step(s.t, s.car.at, s.car.height)
@@ -281,30 +272,13 @@ def _spring_energy(s: SimpleNamespace) -> Expression:
     return energy
 
 
-@register_system(
-    field='engineering/mechatronics',
-    tags=('mechatronics', 'circuit', 'acausal components', 'euler-lagrange', 'ode'),
-    references=('Fritzson 2015',),
-    defaults={'until': 10.0, 'dt': 0.01},
-    observables=lambda system: [
-        ObservableSpec('speed', _speed_of_rotor),
-        ObservableSpec('current', _current_of_winding),
-    ],
-)
-def dc_motor(
-    V: float = 12.0,
-    *,
-    R: float = 1.0,
-    L: float = 0.5,
-    k: float = 0.5,
-    J: float = 0.1,
-    b: float = 0.2,
-) -> System:
-    """Return a DC motor whose armature circuit of components drives an inertia on a Lagrangian coordinate.
+class DcMotorSystem(BaseSystem):
+    """A DC motor whose armature circuit of components drives an inertia on a Lagrangian coordinate.
 
     A voltage source drives a resistor, an inductor, and the armature in series. The armature has the voltage `k phi'`,
     and its current exerts the torque `k i` on the angle of an inertia with viscous friction, so the angular velocity
-    settles at `k V / (R b + k^2)`.
+    settles at `k V / (R b + k^2)`. The system has the angle `rotor.phi`, the angular velocity `rotor.phi_d1`, and the
+    current `winding.p_i`.
 
     Args:
         V:
@@ -325,62 +299,91 @@ def dc_motor(
         b:
             The coefficient of viscous friction of the rotor.
 
-    Returns:
-        system:
-            The system, with the angle `rotor.phi`, the angular velocity `rotor.phi_d1`, and the current `winding.p_i`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.mechatronics import dc_motor
-        >>> dc_motor(k=0.3).interactions[-1].k
+        >>> from skcomplex.systems.engineering.mechatronics import DcMotorSystem
+        >>> DcMotorSystem(k=0.3).prepare().system_.interactions[-1].k
         0.3
     """
-    return System(
-        elements=[
-            VoltageSourceElement('source', V=V),
-            ResistorElement('resistor', R=R),
-            InductorElement('coil', L=L),
-            ArmatureElement('winding'),
-            GroundElement('ground'),
-            InertiaElement('rotor', J=J, b=b),
-        ],
-        interactions=[
-            ConnectionInteraction('supply', members=['source', 'resistor'], ports=['p', 'p']),
-            ConnectionInteraction('series', members=['resistor', 'coil'], ports=['n', 'p']),
-            ConnectionInteraction('terminal', members=['coil', 'winding'], ports=['n', 'p']),
-            ConnectionInteraction('neutral', members=['winding', 'source', 'ground'], ports=['n', 'n', 'p']),
-            EulerLagrangeInteraction(
-                'rotation',
-                target='rotor',
-                states='phi',
-                lagrangian=_rotor_lagrangian,
-                dissipation=_rotor_dissipation,
-            ),
-            MotorCouplingInteraction('motor', armature='winding', inertia='rotor', k=k),
-        ],
+
+    field = 'engineering/mechatronics'
+    topics = ('mechatronics', 'circuit', 'acausal components', 'euler-lagrange', 'ode')
+    references = ('Fritzson 2015',)
+    until = 10.0
+    dt = 0.01
+    observables = (
+        ObservableSpec('speed', _speed_of_rotor),
+        ObservableSpec('current', _current_of_winding),
     )
 
+    def __init__(
+        self,
+        V: float = 12.0,
+        *,
+        R: float = 1.0,
+        L: float = 0.5,
+        k: float = 0.5,
+        J: float = 0.1,
+        b: float = 0.2,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.V = V
+        self.R = R
+        self.L = L
+        self.k = k
+        self.J = J
+        self.b = b
 
-@register_system(
-    field='engineering/mechatronics',
-    tags=('mechatronics', 'suspension', 'mass spring damper', 'ode', 'second order'),
-    references=('Fritzson 2015',),
-    defaults={'until': 10.0, 'dt': 0.005},
-    observables=lambda system: [ObservableSpec('energy', _spring_energy)],
-)
-def quarter_car(
-    height: float = 0.05,
-    *,
-    at: float = 0.5,
-    m1: float = 250.0,
-    m2: float = 30.0,
-    k: float = 16000.0,
-    b: float = 1000.0,
-    kt: float = 160000.0,
-) -> System:
-    """Return a quarter-car suspension driving over a road step.
+    @staticmethod
+    def _rotor_lagrangian(s: SimpleNamespace) -> Expression:
+        """Return the kinetic energy of the rotor."""
+        energy: Expression = s.target.J * derivative(s.target.phi, 1) ** 2 / 2
+        return energy
+
+    @staticmethod
+    def _rotor_dissipation(s: SimpleNamespace) -> Expression:
+        """Return the Rayleigh dissipation of the viscous friction of the rotor."""
+        dissipation: Expression = s.target.b * derivative(s.target.phi, 1) ** 2 / 2
+        return dissipation
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        return System(
+            self.label,
+            elements=[
+                VoltageSourceElement('source', V=self.V),
+                ResistorElement('resistor', R=self.R),
+                InductorElement('coil', L=self.L),
+                ArmatureElement('winding'),
+                GroundElement('ground'),
+                InertiaElement('rotor', J=self.J, b=self.b),
+            ],
+            interactions=[
+                ConnectionInteraction('supply', members=['source', 'resistor'], ports=['p', 'p']),
+                ConnectionInteraction('series', members=['resistor', 'coil'], ports=['n', 'p']),
+                ConnectionInteraction('terminal', members=['coil', 'winding'], ports=['n', 'p']),
+                ConnectionInteraction('neutral', members=['winding', 'source', 'ground'], ports=['n', 'n', 'p']),
+                EulerLagrangeInteraction(
+                    'rotation',
+                    target='rotor',
+                    states='phi',
+                    lagrangian=self._rotor_lagrangian,
+                    dissipation=self._rotor_dissipation,
+                ),
+                MotorCouplingInteraction('motor', armature='winding', inertia='rotor', k=self.k),
+            ],
+        )
+
+
+class QuarterCarSystem(BaseSystem):
+    """A quarter-car suspension driving over a road step.
 
     A body of mass `m1` rests on a spring and a damper above a wheel of mass `m2`, and a tire spring joins the wheel to
-    the road, which steps to `height` at time `at`. Both displacements settle at the height of the step.
+    the road, which steps to `height` at time `at`. Both displacements settle at the height of the step. The system has
+    the displacements `car.y1` of the body and `car.y2` of the wheel.
 
     Args:
         height:
@@ -404,22 +407,61 @@ def quarter_car(
         kt:
             The stiffness of the tire.
 
-    Returns:
-        system:
-            The system, with the displacements `car.y1` of the body and `car.y2` of the wheel.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.mechatronics import quarter_car
-        >>> quarter_car(height=0.1).elements[0].height
+        >>> from skcomplex.systems.engineering.mechatronics import QuarterCarSystem
+        >>> QuarterCarSystem(height=0.1).prepare().system_.elements[0].height
         0.1
     """
-    car = QuarterCarElement('car', m1=m1, m2=m2, k=k, b=b, kt=kt, height=height, at=at)
-    suspension = SpringDamperInteraction(
-        'suspension',
-        target='car',
-        states=('y1', 'y2'),
-        stiffness='k',
-        damping='b',
-        divisor={'y1': 'm1', 'y2': 'm2'},
-    )
-    return System(elements=[car], interactions=[suspension])
+
+    field = 'engineering/mechatronics'
+    topics = ('mechatronics', 'suspension', 'mass spring damper', 'ode', 'second order')
+    references = ('Fritzson 2015',)
+    until = 10.0
+    dt = 0.005
+    observables = (ObservableSpec('energy', _spring_energy),)
+
+    def __init__(
+        self,
+        height: float = 0.05,
+        *,
+        at: float = 0.5,
+        m1: float = 250.0,
+        m2: float = 30.0,
+        k: float = 16000.0,
+        b: float = 1000.0,
+        kt: float = 160000.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.height = height
+        self.at = at
+        self.m1 = m1
+        self.m2 = m2
+        self.k = k
+        self.b = b
+        self.kt = kt
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        car = QuarterCarElement(
+            'car',
+            m1=self.m1,
+            m2=self.m2,
+            k=self.k,
+            b=self.b,
+            kt=self.kt,
+            height=self.height,
+            at=self.at,
+        )
+        suspension = SpringDamperInteraction(
+            'suspension',
+            target='car',
+            states=('y1', 'y2'),
+            stiffness='k',
+            damping='b',
+            divisor={'y1': 'm1', 'y2': 'm2'},
+        )
+        return System(self.label, elements=[car], interactions=[suspension])

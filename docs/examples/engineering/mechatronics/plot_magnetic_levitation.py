@@ -8,19 +8,20 @@ triangular and a rectangular wave.
 """
 
 # %%
-# The system is created by name from the catalog with `b = 1` and `m = 0.2`, and starts on its periodic solution. The
+# The system is built from its class with `b = 1` and `m = 0.2`, and starts on its periodic solution. The
 # default blueprint shows the velocity.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.engineering.mechatronics import MagneticLevitationSystem
 
 SYSTEM = 'magnetic_levitation'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=5)
-simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run()
+trajectory = simulate(MagneticLevitationSystem(), observers=[observer])
 
 # %%
 # The closed-form periodic solution
@@ -30,7 +31,7 @@ simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare(
 
 fig, ax = plt.subplots(figsize=(7, 4))
 for damping in [0.5, 1.0, 2.0]:
-    trajectory = create_simulation(SYSTEM, b=damping).prepare().run(until=8).trajectory_
+    trajectory = simulate(MagneticLevitationSystem(b=damping), until=8)
     times = trajectory.times
     tau = 2 / np.pi * np.arcsin(np.sin(np.pi * times / 2))
     wave = np.sign(np.cos(np.pi * times / 2))
