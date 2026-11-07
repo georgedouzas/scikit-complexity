@@ -16,6 +16,7 @@ from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import divergence, gradient, laplacian
 from ....core.components.spaces import LatticeSpace
 from ....core.components.system import BaseSystem, System
+from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
@@ -158,6 +159,7 @@ class ActiveSystemBSystem(BaseSystem):
     until = 1500.0
     dt = 30.0
     solver = EulerMaruyamaSolver(dt=0.02)
+    backend = NumbaBackend()
 
     def __init__(
         self,

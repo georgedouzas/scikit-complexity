@@ -17,6 +17,7 @@ from ....core.components.laws import Source
 from ....core.components.laws.utils import where
 from ....core.components.spaces import ContinuousSpace, LatticeSpace
 from ....core.components.system import BaseSystem, System
+from ....core.engine.backends import NumbaBackend
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 
@@ -401,6 +402,7 @@ class ZeroRangeProcessSystem(BaseSystem):
     references = ('Evans and Hanney 2005', 'Bertin 2021')
     until = 2000.0
     dt = 10.0
+    backend = NumbaBackend()
 
     def __init__(
         self,
@@ -492,6 +494,7 @@ class DissipativeZeroRangeSystem(BaseSystem):
     references = ('Bertin 2021', 'Bertin 2005')
     until = 200.0
     dt = 1.0
+    backend = NumbaBackend()
 
     def __init__(
         self,
@@ -608,6 +611,7 @@ class ASEPSystem(BaseSystem):
     references = ('Derrida, Evans, Hakim, and Pasquier 1993', 'Bertin 2021')
     until = 500.0
     dt = 2.0
+    backend = NumbaBackend()
 
     def __init__(
         self,

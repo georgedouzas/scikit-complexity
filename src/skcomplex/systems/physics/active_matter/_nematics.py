@@ -30,6 +30,7 @@ from ....core.components.laws.utils import (
 )
 from ....core.components.spaces import LatticeSpace
 from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import RK4Solver
 from ....core.errors import TensorShapeError, ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
@@ -589,6 +590,7 @@ class DryActiveNematicsSystem(BaseSystem):
     until = 100.0
     dt = 5.0
     solver = RK4Solver(dt=0.02)
+    backend = NumbaBackend()
 
     def __init__(
         self,

@@ -3,8 +3,9 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Mapping
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import Expression, cos, exp, oo, sin, sqrt, tan
 from sage.sets.real_set import RealSet
@@ -653,6 +654,7 @@ class HenonHeilesSystem(BaseSystem):
     until = 200.0
     dt = 0.05
     solver = Yoshida4Solver(dt=0.01)
+    invariants: ClassVar[Mapping[str, float]] = {'star.energy': 1e-6}
     observables = (ObservableSpec('energy', _get_henon_heiles_energy, element='star'),)
 
     def __init__(
@@ -912,6 +914,7 @@ class NuclearQuadrupoleSystem(BaseSystem):
     until = 200.0
     dt = 0.05
     solver = Yoshida4Solver(dt=0.01)
+    invariants: ClassVar[Mapping[str, float]] = {'nucleus.energy': 1e-6}
     observables = (ObservableSpec('energy', _get_quadrupole_energy, element='nucleus'),)
 
     def __init__(

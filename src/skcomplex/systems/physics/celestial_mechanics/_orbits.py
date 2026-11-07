@@ -5,9 +5,9 @@
 
 import itertools
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import Expression, cos, oo, sqrt
@@ -325,6 +325,7 @@ class TwoBodyOrbitSystem(BaseSystem):
     until = 6.0
     dt = 0.01
     solver = Yoshida4Solver()
+    invariants: ClassVar[Mapping[str, float]] = {'planet.energy': 1e-6}
     observables = (ObservableSpec('energy', _get_kepler_energy, element='planet'),)
 
     def __init__(
@@ -502,6 +503,7 @@ class RestrictedThreeBodySystem(BaseSystem):
     until = 20.0
     dt = 0.02
     solver = RK4Solver()
+    invariants: ClassVar[Mapping[str, float]] = {'body.energy': 1e-6}
     observables = (ObservableSpec('energy', _get_rotating_frame_energy, element='body'),)
 
     def __init__(

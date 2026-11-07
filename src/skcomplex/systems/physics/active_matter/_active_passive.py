@@ -20,6 +20,7 @@ from ....core.components.interactions import PairCouplingInteraction, RateIntera
 from ....core.components.laws.utils import neighbors
 from ....core.components.spaces import ContinuousSpace, RadiusNeighborhood
 from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, StateSpec, VisualSpec
@@ -178,6 +179,7 @@ class ActivePassiveFlockingSystem(BaseSystem):
     until = 50.0
     dt = 0.5
     solver = EulerMaruyamaSolver(dt=TIME_STEP)
+    backend = NumbaBackend()
 
     def __init__(
         self,

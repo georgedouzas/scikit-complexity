@@ -4,8 +4,9 @@
 # License: MIT
 
 import math
+from collections.abc import Mapping
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from sage.all__sagemath_symbolics import Expression, cos, oo, sin, sqrt
 from sage.sets.real_set import RealSet
@@ -292,6 +293,7 @@ class KeplerianDumbbellSystem(BaseSystem):
     until = 60.0
     dt = 0.05
     solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
+    invariants: ClassVar[Mapping[str, float]] = {'dumbbell.energy': 1e-6, 'dumbbell.angular_momentum': 1e-6}
     observables = (
         ObservableSpec('energy', _get_dumbbell_energy, element='dumbbell'),
         ObservableSpec('angular_momentum', _get_dumbbell_momentum, element='dumbbell'),
