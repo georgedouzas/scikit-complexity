@@ -1,5 +1,6 @@
 """Mechanics: pendulums, oscillators, friction, projectiles, collisions, rotating bodies, wells, and beam maps."""
 
+from ..common.mechanics import PendulumElement, PendulumInteraction
 from ._accelerators import BeamElement, FrictionOscillatorElement, beam_beam_map, friction_oscillator
 from ._mechanics import (
     BouncingBallElement,
@@ -14,8 +15,6 @@ from ._mechanics import (
     pendulum,
     projectile,
 )
-from ._pendulum import PendulumElement
-from ._pendulum_interaction import PendulumInteraction
 from ._pendulums import (
     BallisticPendulumElement,
     CartPendulumElement,

@@ -9,8 +9,8 @@ import numpy as np
 from sage.all__sagemath_symbolics import oo, pi
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from .....core.components.elements import Element
+from .....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 def _pendulum_bob(theta: float, l: float, **_: float) -> list[list[float]]:
@@ -47,7 +47,7 @@ class PendulumElement(Element):
             The length of the rod.
 
     Examples:
-        >>> from skcomplex.systems.physics.mechanics import PendulumElement
+        >>> from skcomplex.systems.physics.common.mechanics import PendulumElement
         >>> PendulumElement('bob', theta=0.2, l=2.0).l
         2.0
     """

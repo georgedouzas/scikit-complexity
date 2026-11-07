@@ -1,5 +1,6 @@
 """Statistical mechanics: gases, fluids, spin systems, lattice processes, urns, master equations, and their measures."""
 
+from ..common.spins import IsingSpinElement
 from ._absorbing_processes import ReactingParticlesElement, absorbing_birth_death
 from ._driven_particles import (
     ExclusionHopsInteraction,
@@ -15,7 +16,6 @@ from ._driven_particles import (
 from ._fully_connected_spins import FullyConnectedSpinElement, curie_weiss, sherrington_kirkpatrick
 from ._gases import ideal_gas, lennard_jones_fluid
 from ._graph_spins import graph_ising
-from ._ising_spin import IsingSpinElement
 from ._kinetic_temperature import KineticTemperatureAnalysis
 from ._master_equations import (
     MicrostateElement,

@@ -1,14 +1,7 @@
-"""Field realizations shared by the physics packages: phase fields, free energies, and tensor transports."""
+"""Field realizations shared by the physics packages: Monte Carlo sampling of lattice gauge fields."""
 
-from ._landau_energy import LandauEnergyInteraction
-from ._phase_field import PhaseFieldElement
-from ._swift_hohenberg_energy import SwiftHohenbergEnergyInteraction
-from ._transports import corotational, upper_convected
+from ._wilson_sampling import WilsonSamplingInteraction
 
 __all__: list[str] = [
-    'LandauEnergyInteraction',
-    'PhaseFieldElement',
-    'SwiftHohenbergEnergyInteraction',
-    'corotational',
-    'upper_convected',
+    'WilsonSamplingInteraction',
 ]

@@ -20,8 +20,7 @@ from ....core.engine.solvers import AgentView, EulerMaruyamaSolver, SystemView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._catalog import register_system
-from ._active_particle import POINTS, ActiveParticleElement
-from ._self_propulsion import SelfPropulsionInteraction
+from ..common.particles import POINTS, ActiveParticleElement, SelfPropulsionInteraction
 
 
 class DepotParticleElement(Element):

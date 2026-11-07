@@ -1,15 +1,13 @@
-"""Spin realizations shared by the physics packages: Monte Carlo sampling of Ising, Potts, and XY spins."""
+"""Spin realizations shared by the physics packages: Ising spins and the Monte Carlo sampling of Ising spins."""
 
 from ._ising_sampling import IsingSamplingInteraction
-from ._potts_sampling import PottsSamplingInteraction
+from ._ising_spin import IsingSpinElement
 from ._spin_sampling import SpinSamplingInteraction
 from ._thermal_sampling import ThermalSamplingInteraction
-from ._xy_sampling import XYSamplingInteraction
 
 __all__: list[str] = [
     'IsingSamplingInteraction',
-    'PottsSamplingInteraction',
+    'IsingSpinElement',
     'SpinSamplingInteraction',
     'ThermalSamplingInteraction',
-    'XYSamplingInteraction',
 ]

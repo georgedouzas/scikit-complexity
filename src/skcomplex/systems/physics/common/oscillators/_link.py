@@ -8,8 +8,8 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.specs import ParameterSpec, VisualSpec
+from .....core.components.elements import Element
+from .....core.specs import ParameterSpec, VisualSpec
 
 
 class LinkElement(Element):
@@ -30,7 +30,7 @@ class LinkElement(Element):
             The visual of the edge when it sets none.
 
     Examples:
-        >>> from skcomplex.systems.physics.synchronization import LinkElement
+        >>> from skcomplex.systems.physics.common.oscillators import LinkElement
         >>> LinkElement('link', w=0.5).w
         0.5
     """

@@ -29,7 +29,7 @@ from ....core.components.types import Target
 from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._propulsion_step import PropulsionStepInteraction
+from ..common.particles import PropulsionStepInteraction
 
 CLOSE = 0.2
 

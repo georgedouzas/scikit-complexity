@@ -18,15 +18,13 @@ from ....core.components.spaces import ContinuousSpace
 from ....core.components.system import System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ..common.mechanics import ReflectionInteraction
+from ..common.mechanics import PendulumElement, PendulumInteraction, ReflectionInteraction
 from ..common.particles import (
     ConstantForceInteraction,
     DampingInteraction,
     HarmonicPotentialInteraction,
     MassPointElement,
 )
-from ._pendulum import PendulumElement
-from ._pendulum_interaction import PendulumInteraction
 from ._springs import HarmonicForceInteraction
 
 

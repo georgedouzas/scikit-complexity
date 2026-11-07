@@ -20,8 +20,7 @@ from ....core.components.system import System
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, VisualSpec
 from ..._catalog import register_system
-from ..common.oscillators import PhaseOscillatorElement
-from ._link import LinkElement
+from ..common.oscillators import LinkElement, PhaseOscillatorElement
 
 MODELS = ('NL', 'NLT')
 

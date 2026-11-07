@@ -1,5 +1,6 @@
 """Synchronization: coupled phase oscillators, pulse-coupled oscillators, swarmalators, chaos, and Kuramoto order."""
 
+from ..common.oscillators import LinkElement
 from ._adaptive import AdaptiveCouplingInteraction, AdaptiveLinkElement, adaptive_kuramoto
 from ._amplitude_death import (
     GlobalCouplingInteraction,
@@ -25,7 +26,6 @@ from ._kuramoto import (
     nonlocal_ring_chimera,
     ott_antonsen,
 )
-from ._link import LinkElement
 from ._networks import (
     EdgeCouplingInteraction,
     LogisticCouplingInteraction,

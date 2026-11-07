@@ -4,19 +4,20 @@
 # License: MIT
 
 from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import NN, oo, pi
+from sage.all__sagemath_symbolics import NN, Expression, cos, oo, pi
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, LatticeElement
-from ....core.components.spaces import LatticeSpace
+from ....core.components.laws.utils import neighbors, where
+from ....core.components.spaces import BaseNeighborhood, LatticeSpace
 from ....core.components.system import System
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ..common.spins import IsingSamplingInteraction, PottsSamplingInteraction, XYSamplingInteraction
-from ._ising_spin import IsingSpinElement
+from ..common.spins import IsingSamplingInteraction, IsingSpinElement, SpinSamplingInteraction
 
 
 class PottsSpinElement(Element):
@@ -109,6 +110,118 @@ class XYSpinElement(Element):
         self.theta = theta
         self.J = J
         self.temperature = temperature
+
+
+class PottsSamplingInteraction(SpinSamplingInteraction):
+    """Monte Carlo sweeps of Potts spins in states `0` to `q - 1`, of local energy `-J` times the like neighbours.
+
+    Every move proposes a state drawn from the `q` states. The coupling `J` and the temperature are parameters of the
+    spins.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        target:
+            The path of the group of spins.
+
+        q:
+            The number of states.
+
+        state:
+            The name of the state that holds the spin.
+
+        rule:
+            The acceptance, `'metropolis'`, `'glauber'`, or `'heat-bath'`.
+
+        neighborhood:
+            The neighbours of a spin, or `None` for the von Neumann neighbourhood.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics._spins import PottsSamplingInteraction
+        >>> PottsSamplingInteraction('potts', target='spins', q=4).values
+        (0.0, 1.0, 2.0, 3.0)
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        q: int = 3,
+        state: str = 'color',
+        rule: str = 'heat-bath',
+        neighborhood: BaseNeighborhood | None = None,
+    ) -> None:
+        super().__init__(
+            label,
+            target=target,
+            state=state,
+            energy=self._energy,
+            move='random-value',
+            rule=rule,
+            neighborhood=neighborhood,
+            values=tuple(float(value) for value in range(q)),
+        )
+        self.q = q
+
+    def _energy(self, namespace: SimpleNamespace) -> Expression:
+        """Return the local energy `-J` times the number of neighbours in the state of the spin."""
+        color, other = getattr(namespace.target, self.state), getattr(namespace.target.other, self.state)
+        return -namespace.target.J * neighbors(where(other == color, 1, 0), over=self.neighborhood)
+
+
+class XYSamplingInteraction(SpinSamplingInteraction):
+    """Monte Carlo sweeps of planar spins at angles `theta`, of local energy `-J sum_j cos(theta - theta_j)`.
+
+    Every move rotates the angle by a uniform number in `[-width, width]`, accepted by the Metropolis rule. The
+    coupling `J` and the temperature are parameters of the spins.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        target:
+            The path of the group of spins.
+
+        width:
+            The largest change of a proposed rotation.
+
+        state:
+            The name of the state that holds the angle.
+
+        neighborhood:
+            The neighbours of a spin, or `None` for the von Neumann neighbourhood.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics._spins import XYSamplingInteraction
+        >>> XYSamplingInteraction('xy', target='spins', width=0.5).move
+        'rotate'
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        width: float = 1.0,
+        state: str = 'theta',
+        neighborhood: BaseNeighborhood | None = None,
+    ) -> None:
+        super().__init__(
+            label,
+            target=target,
+            state=state,
+            energy=self._energy,
+            move='rotate',
+            neighborhood=neighborhood,
+            width=width,
+        )
+
+    def _energy(self, namespace: SimpleNamespace) -> Expression:
+        """Return the local energy `-J sum_j cos(theta - theta_j)` of a spin."""
+        angle, other = getattr(namespace.target, self.state), getattr(namespace.target.other, self.state)
+        return -namespace.target.J * neighbors(cos(angle - other), over=self.neighborhood)
 
 
 def _square(size: int | Sequence[int]) -> tuple[int, ...]:

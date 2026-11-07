@@ -10,9 +10,9 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo, pi, sqrt
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from .....core.components.elements import Element
+from .....core.components.laws import BaseLaw, NoiseLaw, RateLaw
+from .....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 POINTS = VisualSpec('points', {'position': 'x', 'radius': 0.2})
 
@@ -47,7 +47,7 @@ class ActiveParticleElement(Element):
             The angular velocity of a chiral particle.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import ActiveParticleElement
+        >>> from skcomplex.systems.physics.common.particles import ActiveParticleElement
         >>> ActiveParticleElement('swimmer', D_r=2.0).D_r
         2.0
     """

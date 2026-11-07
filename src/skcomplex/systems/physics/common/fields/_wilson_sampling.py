@@ -11,11 +11,11 @@ import numpy as np
 from sage.all__sagemath_symbolics import Expression, cos, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.interactions import SamplingInteraction
-from ....core.components.laws.utils import exterior_derivative, neighbors
-from ....core.components.spaces import CofaceNeighborhood
-from ....core.specs import HolonomyScoreSpec, MatrixGroupSpec, ParameterSpec, RoleSpec
-from ....core.types import Array, ComplexArray
+from .....core.components.interactions import SamplingInteraction
+from .....core.components.laws.utils import exterior_derivative, neighbors
+from .....core.components.spaces import CofaceNeighborhood
+from .....core.specs import HolonomyScoreSpec, MatrixGroupSpec, ParameterSpec, RoleSpec
+from .....core.types import Array, ComplexArray
 
 
 class WilsonSamplingInteraction(SamplingInteraction):
@@ -61,7 +61,7 @@ class WilsonSamplingInteraction(SamplingInteraction):
             The number of moves proposed per link and sweep of matrix links.
 
     Examples:
-        >>> from skcomplex.systems.physics.waves import WilsonSamplingInteraction
+        >>> from skcomplex.systems.physics.common.fields import WilsonSamplingInteraction
         >>> WilsonSamplingInteraction('wilson', target='links', beta=2.0).beta
         2.0
         >>> from skcomplex.core.specs import MatrixGroupSpec

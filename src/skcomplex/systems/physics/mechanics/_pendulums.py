@@ -20,14 +20,13 @@ from ....core.components.system import System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
+from ..common.mechanics import PendulumElement, PendulumInteraction
 from ..common.particles import (
     DampingInteraction,
     HarmonicPotentialInteraction,
     MassPointElement,
     PotentialEnergyInteraction,
 )
-from ._pendulum import PendulumElement
-from ._pendulum_interaction import PendulumInteraction
 
 
 class BallisticPendulumElement(Element):

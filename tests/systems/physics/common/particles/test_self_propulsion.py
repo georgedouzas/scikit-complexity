@@ -1,4 +1,4 @@
-"""Test the `_self_propulsion` module of `skcomplex.systems.physics.active_matter`."""
+"""Test the `_self_propulsion` module of `skcomplex.systems.physics.common.particles`."""
 
 import math
 
@@ -7,8 +7,8 @@ import numpy as np
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems.physics.active_matter import SelfPropulsionInteraction
 from skcomplex.systems.physics.common.oscillators import SitedOscillatorElement
+from skcomplex.systems.physics.common.particles import SelfPropulsionInteraction
 
 
 def test_position_drifts_along_a_turning_heading():

@@ -23,7 +23,7 @@ from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._catalog import register_system
-from ._wilson_sampling import WilsonSamplingInteraction
+from ..common.fields import WilsonSamplingInteraction
 
 
 class GaugeLinkElement(Element):

@@ -4,12 +4,41 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import SpectrumAnalysis
+from skcomplex.core.components.elements import FieldElement
+from skcomplex.core.components.spaces import LatticeSpace
+from skcomplex.core.components.system import System
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import ETDRK4Solver, EulerMaruyamaSolver
-from skcomplex.systems.physics.pattern_formation import (
-    allen_cahn,
-    cahn_hilliard,
-)
+from skcomplex.systems.physics.pattern_formation import allen_cahn, cahn_hilliard
+from skcomplex.systems.physics.pattern_formation._ordering import LandauEnergyInteraction, PhaseFieldElement
+
+
+def test_phase_field_holds_its_order_parameter_without_interactions():
+    """Test that a phase field without interactions keeps its order parameter."""
+    values = {'phi': np.linspace(-1.0, 1.0, 8)}
+    field = FieldElement('mixture', element=PhaseFieldElement, space=LatticeSpace((8,)), values=values)
+    trajectory = Simulation(System(elements=[field]), dt=0.5).prepare().run(until=1.0).trajectory_
+    np.testing.assert_allclose(trajectory.values('mixture.phi')[-1], values['phi'])
+
+
+def _run(conserved):
+    """Return the order parameter of a periodic line relaxing in the Landau free energy."""
+    values = {'phi': 0.1 * np.sin(2 * np.pi * np.arange(32) / 32) + 0.2}
+    field = FieldElement('mixture', element=PhaseFieldElement, space=LatticeSpace((32,), spacing=0.5), values=values)
+    energy = LandauEnergyInteraction('energy', target='mixture', kappa=0.5, conserved=conserved)
+    system = System(elements=[field], interactions=[energy])
+    return Simulation(system, dt=1.0).prepare().run(until=40.0).trajectory_.values('mixture.phi')
+
+
+def test_non_conserved_field_falls_into_the_nearer_well():
+    """Test that a non-conserved field everywhere positive relaxes to the well at 1."""
+    np.testing.assert_allclose(_run(conserved=False)[-1], 1.0, atol=1e-3)
+
+
+def test_conserved_field_keeps_its_mean():
+    """Test that a conserved field keeps the mean of the order parameter while it relaxes."""
+    phi = _run(conserved=True)
+    assert phi[-1].mean() == pytest.approx(phi[0].mean(), rel=1e-9)
 
 
 def _mean_domain_size(field):

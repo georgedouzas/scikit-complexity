@@ -20,7 +20,7 @@ from ....core.components.spaces import ContinuousSpace, DiscreteTime, RadiusNeig
 from ....core.components.system import System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._propulsion_step import PropulsionStepInteraction
+from ..common.particles import PropulsionStepInteraction
 
 SPECIES = VisualSpec('points', {'position': 'x', 'radius': 0.04, 'color_by': 'species', 'color_range': (0.0, 1.0)})
 

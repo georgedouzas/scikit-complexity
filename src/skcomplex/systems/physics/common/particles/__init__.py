@@ -1,28 +1,37 @@
-"""Particle realizations shared by the physics packages: point masses, named forces, potentials, and thermostats."""
+"""Particle realizations shared by the physics packages: point masses, active and Brownian particles, and forces."""
 
+from ._active_particle import POINTS, ActiveParticleElement
+from ._brownian_particle import BrownianParticleElement
 from ._constant_force import ConstantForceInteraction
 from ._damping import DampingInteraction
-from ._gravity import GravityInteraction
+from ._double_well import DoubleWellElement
 from ._harmonic_potential import HarmonicPotentialInteraction
 from ._lammps import LAMMPS_FIXES, LAMMPS_PAIRS
 from ._langevin_thermostat import LangevinThermostatInteraction
 from ._lennard_jones import LennardJonesInteraction
 from ._mass_point import MassPointElement
 from ._potential_energy import PotentialEnergyInteraction
-from ._soft_sphere import SoftSphereInteraction
+from ._propulsion_step import PropulsionStepInteraction
+from ._self_propulsion import SelfPropulsionInteraction
 from ._spring import SpringInteraction
+from ._thermal_noise import ThermalNoiseInteraction
 
 __all__: list[str] = [
     'LAMMPS_FIXES',
     'LAMMPS_PAIRS',
+    'POINTS',
+    'ActiveParticleElement',
+    'BrownianParticleElement',
     'ConstantForceInteraction',
     'DampingInteraction',
-    'GravityInteraction',
+    'DoubleWellElement',
     'HarmonicPotentialInteraction',
     'LangevinThermostatInteraction',
     'LennardJonesInteraction',
     'MassPointElement',
     'PotentialEnergyInteraction',
-    'SoftSphereInteraction',
+    'PropulsionStepInteraction',
+    'SelfPropulsionInteraction',
     'SpringInteraction',
+    'ThermalNoiseInteraction',
 ]

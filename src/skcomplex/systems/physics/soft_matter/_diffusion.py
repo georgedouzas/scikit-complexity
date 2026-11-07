@@ -22,11 +22,15 @@ from ....core.components.system import System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ..common.particles import LangevinThermostatInteraction, MassPointElement
+from ..common.particles import (
+    POINTS,
+    BrownianParticleElement,
+    DoubleWellElement,
+    LangevinThermostatInteraction,
+    MassPointElement,
+    ThermalNoiseInteraction,
+)
 from ._brownian import _get_double_well_interactions
-from ._brownian_particle import POINTS, BrownianParticleElement
-from ._double_well import DoubleWellElement
-from ._thermal_noise import ThermalNoiseInteraction
 
 
 class ModulatedParticleElement(Element):

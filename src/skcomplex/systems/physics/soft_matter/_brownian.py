@@ -16,7 +16,7 @@ from ....core.components.laws import BaseLaw, BoundaryLaw
 from ....core.components.system import System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._double_well import DoubleWellElement
+from ..common.particles import DoubleWellElement
 
 
 class WallParticleElement(Element):

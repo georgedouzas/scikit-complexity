@@ -17,8 +17,7 @@ from ....core.components.laws.utils import maximum, where
 from ....core.components.system import System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ..common.oscillators import PhaseOscillatorElement
-from ._utils import _order_parameter
+from ..common.oscillators import PhaseOscillatorElement, order_parameter
 
 
 class IntegrateAndFireOscillatorElement(Element):
@@ -142,7 +141,7 @@ class WinfreeMeanFieldInteraction(CouplingInteraction):
     tags=('synchronization', 'oscillators', 'phase', 'oscillator death'),
     references=('Winfree 1967', 'Ariaratnam and Strogatz 2001', 'Bick et al. 2020'),
     defaults={'until': 50.0, 'dt': 0.5},
-    observables=lambda system: _order_parameter('order', 'oscillators'),
+    observables=lambda system: order_parameter('order', 'oscillators'),
 )
 def winfree(n_oscillators: int = 50, *, K: float = 0.5, spread: float = 0.1, seed: int = 0) -> System:
     """Return the Winfree system, `theta_i' = omega_i + (K / N) sum_j P(theta_j) R(theta_i)`, with the sum over all `j`.

@@ -8,8 +8,8 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from .....core.components.elements import Element
+from .....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class DoubleWellElement(Element):
@@ -35,7 +35,7 @@ class DoubleWellElement(Element):
             The noise intensity.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import DoubleWellElement
+        >>> from skcomplex.systems.physics.common.particles import DoubleWellElement
         >>> DoubleWellElement('particle', D=0.2).D
         0.2
     """

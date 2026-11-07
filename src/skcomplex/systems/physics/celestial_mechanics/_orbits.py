@@ -19,9 +19,9 @@ from ....core.components.spaces import ContinuousSpace
 from ....core.components.system import System
 from ....core.engine.solvers import RK4Solver, Yoshida4Solver
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ..common.particles import GravityInteraction, MassPointElement
+from ..common.particles import MassPointElement, PotentialEnergyInteraction
 from .types import Preset
 
 
@@ -214,6 +214,67 @@ INNER_SOLAR_SYSTEM: Preset = (
 """Gravitational constant, masses, positions, and velocities of the Sun and the inner planets."""
 
 PRESETS = {'figure_eight': FIGURE_EIGHT, 'inner_solar_system': INNER_SOLAR_SYSTEM}
+
+
+class GravityInteraction(PotentialEnergyInteraction):
+    """Newtonian gravity between two particles.
+
+    The energy is `-G * m_first * m_second / |x_first - x_second|`, and its gradient moves both particles.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        first:
+            The path of the first particle.
+
+        second:
+            The path of the second particle.
+
+        G:
+            The gravitational constant.
+
+        states:
+            The name of the vector state that holds the positions of the particles.
+
+        divisor:
+            The name of the state or parameter that holds the masses of the particles.
+
+    Examples:
+        >>> from skcomplex.systems.physics.celestial_mechanics._orbits import GravityInteraction
+        >>> GravityInteraction('gravity', first='sun', second='earth', G=1.0).G
+        1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        first: Annotated[str, RoleSpec()],
+        second: Annotated[str, RoleSpec()],
+        G: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        states: str = 'x',
+        divisor: str = 'm',
+    ) -> None:
+        super().__init__(label, target=first, states=states, divisor=divisor)
+        self.first = first
+        self.second = second
+        self.G = G
+
+    def _get_potential(self, s: SimpleNamespace) -> Expression:
+        """Return `-G * m_first * m_second / |x_first - x_second|`.
+
+        Args:
+            s:
+                The namespace of the symbols the energy can use.
+
+        Returns:
+            energy:
+                The potential energy as a symbolic expression.
+        """
+        gap = getattr(s.first, self._get_names()[0]) - getattr(s.second, self._get_names()[0])
+        masses = getattr(s.first, str(self.divisor)) * getattr(s.second, str(self.divisor))
+        return -s.G * masses / sqrt(gap.dot_product(gap))
 
 
 def _get_kepler_energy(body: SimpleNamespace) -> Expression:

@@ -19,9 +19,7 @@ from ....core.components.system import System
 from ....core.components.types import Target
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ..common.oscillators import KuramotoCouplingInteraction, PhaseOscillatorElement
-from ._link import LinkElement
-from ._utils import _order_parameter
+from ..common.oscillators import KuramotoCouplingInteraction, LinkElement, PhaseOscillatorElement, order_parameter
 
 
 class LogisticNodeElement(Element):
@@ -198,7 +196,7 @@ def _network(name: str, n_nodes: int, degree: int, rewiring: float, seed: int) -
     tags=('synchronization', 'oscillators', 'phase', 'network'),
     references=('Arenas et al. 2008', 'Jensen 2023'),
     defaults={'until': 40.0, 'dt': 0.2},
-    observables=lambda system: _order_parameter('order', 'oscillators'),
+    observables=lambda system: order_parameter('order', 'oscillators'),
 )
 def kuramoto_on_networks(
     n_oscillators: int = 200,

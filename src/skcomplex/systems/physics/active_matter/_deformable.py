@@ -18,7 +18,7 @@ from ....core.components.system import System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._active_particle import POINTS
+from ..common.particles import POINTS
 
 
 class DeformableParticleElement(Element):

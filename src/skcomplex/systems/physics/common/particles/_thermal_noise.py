@@ -8,8 +8,8 @@ from typing import Annotated
 
 from sage.all__sagemath_symbolics import sqrt
 
-from ....core.components.interactions import RateInteraction
-from ....core.specs import RoleSpec
+from .....core.components.interactions import RateInteraction
+from .....core.specs import RoleSpec
 
 
 class ThermalNoiseInteraction(RateInteraction):
@@ -29,7 +29,7 @@ class ThermalNoiseInteraction(RateInteraction):
             The name of the state that holds the positions.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import ThermalNoiseInteraction
+        >>> from skcomplex.systems.physics.common.particles import ThermalNoiseInteraction
         >>> ThermalNoiseInteraction('bath', target='beads').divisor
         'gamma'
     """

@@ -20,7 +20,7 @@ from ....core.errors import AnalysisError, ValidationError
 from ....core.specs import MatrixGroupSpec, ObservableSpec, StateSpec, VisualSpec
 from ....core.types import Array, DataKind, Indices
 from ..._catalog import register_system
-from ._wilson_sampling import WilsonSamplingInteraction
+from ..common.fields import WilsonSamplingInteraction
 
 COLOR = MatrixGroupSpec('SU', 3)
 

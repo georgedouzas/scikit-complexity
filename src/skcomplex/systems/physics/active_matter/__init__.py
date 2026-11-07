@@ -1,6 +1,6 @@
 """Active matter: self-propelled particles, flocking, polar fluids, chemotaxis, squirmers, and Active System B+."""
 
-from ._active_particle import ActiveParticleElement
+from ..common.particles import ActiveParticleElement, PropulsionStepInteraction, SelfPropulsionInteraction
 from ._active_passive import FlockingAgentElement, active_passive_flocking
 from ._alignment import PolarAlignmentInteraction, aligning_active_brownian_particles
 from ._cells import MotileCellElement, szabo_cells
@@ -51,8 +51,6 @@ from ._particles import (
     run_and_tumble,
 )
 from ._polymers import ActiveBeadElement, active_polymer
-from ._propulsion_step import PropulsionStepInteraction
-from ._self_propulsion import SelfPropulsionInteraction
 from ._squirmers import SquirmerElement, SquirmerSlipInteraction, squirmers
 from ._system_b import ActiveScalarElement, active_system_b
 

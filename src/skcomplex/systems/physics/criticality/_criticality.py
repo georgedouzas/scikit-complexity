@@ -26,7 +26,7 @@ from ....core.components.system import System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._catalog import register_system
-from ._sandpile_cell import SandpileCellElement
+from ..common import SandpileCellElement
 
 
 class ForestElement(Element):

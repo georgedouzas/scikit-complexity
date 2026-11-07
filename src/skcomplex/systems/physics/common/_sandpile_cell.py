@@ -31,7 +31,7 @@ class SandpileCellElement(Element):
             The visual of the site when it sets none.
 
     Examples:
-        >>> from skcomplex.systems.physics.criticality import SandpileCellElement
+        >>> from skcomplex.systems.physics.common import SandpileCellElement
         >>> SandpileCellElement('site').height
         0
     """

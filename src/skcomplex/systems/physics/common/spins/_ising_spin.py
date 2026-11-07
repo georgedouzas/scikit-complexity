@@ -8,8 +8,8 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import ZZ, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from .....core.components.elements import Element
+from .....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class IsingSpinElement(Element):
@@ -41,7 +41,7 @@ class IsingSpinElement(Element):
             The visual of the spin when it sets none.
 
     Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics import IsingSpinElement
+        >>> from skcomplex.systems.physics.common.spins import IsingSpinElement
         >>> IsingSpinElement('spin').temperature
         2.0
     """

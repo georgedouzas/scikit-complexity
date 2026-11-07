@@ -9,8 +9,8 @@ import numpy.typing as npt
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import Element
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from .....core.components.elements import Element
+from .....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 POINTS = VisualSpec('points', {'position': 'x', 'radius': 0.05})
 
@@ -38,7 +38,7 @@ class BrownianParticleElement(Element):
             The thermal energy.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import BrownianParticleElement
+        >>> from skcomplex.systems.physics.common.particles import BrownianParticleElement
         >>> BrownianParticleElement('bead', temperature=2.0).temperature
         2.0
     """

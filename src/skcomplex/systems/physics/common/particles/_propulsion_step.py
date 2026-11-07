@@ -10,8 +10,8 @@ from sage.all__sagemath_symbolics import SR, cos, oo, sin, vector
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 
-from ....core.components.interactions import MapInteraction
-from ....core.specs import ParameterSpec, RoleSpec
+from .....core.components.interactions import MapInteraction
+from .....core.specs import ParameterSpec, RoleSpec
 
 
 class PropulsionStepInteraction(MapInteraction):
@@ -38,7 +38,7 @@ class PropulsionStepInteraction(MapInteraction):
     Examples:
         >>> from types import SimpleNamespace
         >>> from sage.all__sagemath_symbolics import var, vector
-        >>> from skcomplex.systems.physics.active_matter import PropulsionStepInteraction
+        >>> from skcomplex.systems.physics.common.particles import PropulsionStepInteraction
         >>> step = PropulsionStepInteraction('propulsion', target='flock').prepare()
         >>> target = SimpleNamespace(x=vector([var('x1'), var('x2')]), theta=var('theta'))
         >>> [law.value for law in step.run(SimpleNamespace(target=target, speed=var('v'))).laws_]

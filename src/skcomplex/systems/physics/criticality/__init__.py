@@ -1,5 +1,6 @@
 """Criticality: sandpiles, forest fires, absorbing-state transitions, learners at the edge, and avalanches."""
 
+from ..common import SandpileCellElement
 from ._absorbing import ActiveFieldElement, directed_percolation_langevin
 from ._crackling_noise import CracklingNoiseAnalysis
 from ._criticality import (
@@ -13,7 +14,6 @@ from ._criticality import (
 )
 from ._evolutionary_learning import LearnerElement, evolutionary_sk_game
 from ._learning import LearningAgentElement, sk_game
-from ._sandpile_cell import SandpileCellElement
 from ._sandpiles import (
     BranchingTreeElement,
     EnergySiteElement,

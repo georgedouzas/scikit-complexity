@@ -1,5 +1,6 @@
 """Soft matter: Brownian particles, optical and hydrodynamically coupled traps, anomalous diffusion, and transitions."""
 
+from ..common.particles import BrownianParticleElement, DoubleWellElement, ThermalNoiseInteraction
 from ._anomalous import (
     ContinuousTimeWalkerElement,
     FractionalWalkerElement,
@@ -13,7 +14,6 @@ from ._anomalous import (
     levy_walk,
 )
 from ._brownian import WallParticleElement, brownian_near_wall, stochastic_resonance
-from ._brownian_particle import BrownianParticleElement
 from ._colored_noise import ColoredNoiseParticleElement, colored_noise_langevin
 from ._coupled_traps import BlinkingTrapsInteraction, TrappedSphereElement, hydrodynamically_coupled_traps
 from ._diffusion import (
@@ -28,7 +28,6 @@ from ._diffusion import (
     optical_trap,
     scaled_brownian_motion,
 )
-from ._double_well import DoubleWellElement
 from ._friction import FrictionalBlockElement, shaken_spring_block
 from ._ratchets import (
     FlashingSawtoothInteraction,
@@ -37,7 +36,6 @@ from ._ratchets import (
     tilted_periodic_potential,
 )
 from ._rigid_bodies import AnisotropicParticleElement, DimerElement, anisotropic_brownian_particles, rigid_dimers
-from ._thermal_noise import ThermalNoiseInteraction
 from ._traps import TrapSiteElement, biased_trap_walk
 
 __all__: list[str] = [

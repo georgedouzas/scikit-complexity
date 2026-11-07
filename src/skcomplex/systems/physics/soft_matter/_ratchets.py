@@ -19,8 +19,7 @@ from ....core.components.system import System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, RoleSpec
 from ..._catalog import register_system
-from ._brownian_particle import BrownianParticleElement
-from ._thermal_noise import ThermalNoiseInteraction
+from ..common.particles import BrownianParticleElement, ThermalNoiseInteraction
 
 
 class FlashingSawtoothInteraction(RateInteraction):

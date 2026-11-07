@@ -9,7 +9,7 @@ from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, Expression, identity_matrix, oo
+from sage.all__sagemath_symbolics import SR, Expression, identity_matrix, oo, vector
 from sage.modules.free_module_element import FreeModuleElement
 from sage.sets.real_set import RealSet
 from sage.structure.element import Matrix
@@ -18,6 +18,8 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import ConservationInteraction, GradientInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import (
+    advection,
+    antisymmetric_part,
     gradient,
     inverse_laplacian,
     laplacian,
@@ -30,10 +32,9 @@ from ....core.components.spaces import LatticeSpace
 from ....core.components.system import System
 from ....core.engine.backends import NumbaBackend
 from ....core.engine.solvers import RK4Solver
-from ....core.errors import ValidationError
+from ....core.errors import TensorShapeError, ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ..common.fields import corotational
 
 
 class NematicDensitySiteElement(Element):
@@ -201,97 +202,6 @@ class PolarGelSiteElement(Element):
         return [RateLaw(s.p, -corotational(s.p, self._velocity(s), s.xi) + self._molecular_field(s) / s.gamma)]
 
 
-class LandauDeGennesEnergyInteraction(GradientInteraction):
-    """Gradient flow of a symmetric traceless tensor `Q` in the Landau-de Gennes free energy.
-
-    The free energy is `F = integral a tr(Q^2) / 2 + c tr(Q^2)^2 / 4 + K |grad Q|^2 / 2`. Its negative functional
-    derivative among symmetric traceless tensors is the molecular field `H = -a Q - c tr(Q^2) Q + K laplacian(Q)`, and
-    the tensor relaxes as `Q_t = H / gamma`. A uniform tensor `S (n n - I / 2)` in two dimensions with `a < 0` relaxes
-    to the scalar order `S = sqrt(-2 a / c)`.
-
-    Args:
-        label:
-            The label of the interaction, unique among the parts of its system.
-
-        target:
-            The path of the field.
-
-        state:
-            The name of the state of the field that holds the tensor.
-
-        a:
-            The coefficient of `tr(Q^2) / 2`, negative in the ordered phase.
-
-        c:
-            The coefficient of `tr(Q^2)^2 / 4`.
-
-        K:
-            The elastic constant.
-
-        gamma:
-            The rotational viscosity, which divides the molecular field.
-
-        quadratic:
-            A function of the namespace that returns the coefficient of `tr(Q^2) / 2` instead of `a`, such as an
-            expression of a density, or `None` for `a`.
-
-    Examples:
-        >>> from sage.all__sagemath_symbolics import SR, matrix, var
-        >>> from skcomplex.systems.physics.active_matter import LandauDeGennesEnergyInteraction
-        >>> q, a, c = var('q, a, c')
-        >>> tensor = matrix(SR, [[q, 0], [0, -q]])
-        >>> LandauDeGennesEnergyInteraction._molecular_field(tensor, a, c, 0)[0, 0].factor()
-        -(2*c*q^2 + a)*q
-    """
-
-    def __init__(
-        self,
-        label: str,
-        *,
-        target: Annotated[str, RoleSpec()],
-        state: str = 'Q',
-        a: Annotated[float, ParameterSpec()] = -1.0,
-        c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
-        K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
-        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
-        quadratic: Callable[[SimpleNamespace], object] | None = None,
-    ) -> None:
-        super().__init__(label, target=target, states=state, variational=True)
-        self.state = state
-        self.a = a
-        self.c = c
-        self.K = K
-        self.gamma = gamma
-        self.quadratic = quadratic
-
-    @staticmethod
-    def _density(tensor: Matrix, a: object, c: object, K: object) -> Expression:
-        """Return the density of the free energy, with the gradient term by parts."""
-        square = (tensor * tensor).trace()
-        return a * square / 2 + c * square**2 / 4 - K * (tensor * tensor.apply_map(laplacian)).trace() / 2
-
-    @classmethod
-    def _molecular_field(cls, tensor: Matrix, a: object, c: object, K: object) -> Matrix:
-        """Return the molecular field of a tensor, the negative functional derivative of the free energy."""
-        energy = cls('energy', target='field')
-        return -energy._get_matrix_derivative(cls._density(tensor, a, c, K), tensor)
-
-    def _get_potential(self, namespace: SimpleNamespace) -> Expression:
-        """Return the density of the free energy over the rotational viscosity, whose gradient is `H / gamma`.
-
-        Args:
-            namespace:
-                The namespace of the symbols the density can use.
-
-        Returns:
-            density:
-                The density that the tensor moves down.
-        """
-        quadratic = namespace.a if self.quadratic is None else self.quadratic(namespace)
-        tensor = getattr(namespace.target, self.state)
-        return self._density(tensor, quadratic, namespace.c, namespace.K) / namespace.gamma
-
-
 class NematicGelSiteElement(Element):
     """Site of an active nematic gel, a symmetric traceless tensor `Q` carried by an overdamped Stokes flow.
 
@@ -388,12 +298,209 @@ class NematicGelSiteElement(Element):
         return [RateLaw(s.Q, -corotational(s.Q, self._velocity(s), s.xi) + field / s.gamma)]
 
 
+class LandauDeGennesEnergyInteraction(GradientInteraction):
+    """Gradient flow of a symmetric traceless tensor `Q` in the Landau-de Gennes free energy.
+
+    The free energy is `F = integral a tr(Q^2) / 2 + c tr(Q^2)^2 / 4 + K |grad Q|^2 / 2`. Its negative functional
+    derivative among symmetric traceless tensors is the molecular field `H = -a Q - c tr(Q^2) Q + K laplacian(Q)`, and
+    the tensor relaxes as `Q_t = H / gamma`. A uniform tensor `S (n n - I / 2)` in two dimensions with `a < 0` relaxes
+    to the scalar order `S = sqrt(-2 a / c)`.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        target:
+            The path of the field.
+
+        state:
+            The name of the state of the field that holds the tensor.
+
+        a:
+            The coefficient of `tr(Q^2) / 2`, negative in the ordered phase.
+
+        c:
+            The coefficient of `tr(Q^2)^2 / 4`.
+
+        K:
+            The elastic constant.
+
+        gamma:
+            The rotational viscosity, which divides the molecular field.
+
+        quadratic:
+            A function of the namespace that returns the coefficient of `tr(Q^2) / 2` instead of `a`, such as an
+            expression of a density, or `None` for `a`.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import SR, matrix, var
+        >>> from skcomplex.systems.physics.active_matter import LandauDeGennesEnergyInteraction
+        >>> q, a, c = var('q, a, c')
+        >>> tensor = matrix(SR, [[q, 0], [0, -q]])
+        >>> LandauDeGennesEnergyInteraction._molecular_field(tensor, a, c, 0)[0, 0].factor()
+        -(2*c*q^2 + a)*q
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        state: str = 'Q',
+        a: Annotated[float, ParameterSpec()] = -1.0,
+        c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        K: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        quadratic: Callable[[SimpleNamespace], object] | None = None,
+    ) -> None:
+        super().__init__(label, target=target, states=state, variational=True)
+        self.state = state
+        self.a = a
+        self.c = c
+        self.K = K
+        self.gamma = gamma
+        self.quadratic = quadratic
+
+    @staticmethod
+    def _density(tensor: Matrix, a: object, c: object, K: object) -> Expression:
+        """Return the density of the free energy, with the gradient term by parts."""
+        square = (tensor * tensor).trace()
+        return a * square / 2 + c * square**2 / 4 - K * (tensor * tensor.apply_map(laplacian)).trace() / 2
+
+    @classmethod
+    def _molecular_field(cls, tensor: Matrix, a: object, c: object, K: object) -> Matrix:
+        """Return the molecular field of a tensor, the negative functional derivative of the free energy."""
+        energy = cls('energy', target='field')
+        return -energy._get_matrix_derivative(cls._density(tensor, a, c, K), tensor)
+
+    def _get_potential(self, namespace: SimpleNamespace) -> Expression:
+        """Return the density of the free energy over the rotational viscosity, whose gradient is `H / gamma`.
+
+        Args:
+            namespace:
+                The namespace of the symbols the density can use.
+
+        Returns:
+            density:
+                The density that the tensor moves down.
+        """
+        quadratic = namespace.a if self.quadratic is None else self.quadratic(namespace)
+        tensor = getattr(namespace.target, self.state)
+        return self._density(tensor, quadratic, namespace.c, namespace.K) / namespace.gamma
+
+
 GEL_ORDERS = ('nematic', 'polar')
 NEMATIC_BOX = 10.0
 NEMATIC_CRITICAL_DENSITY = 3 * np.pi / 2
 NEMATIC_DENSITY = 2 * NEMATIC_CRITICAL_DENSITY
 NEMATIC_ACTIVITY = 3.0
 NEMATIC_XI = 0.1
+
+
+def _check_matrix(utility: str, value: object) -> Matrix:
+    """Return a square matrix, or raise an error that names the utility and the value."""
+    if not isinstance(value, Matrix) or not value.is_square():
+        error_msg = f'{utility} needs a square matrix, but got {value}, which has another shape.'
+        raise TensorShapeError(error_msg)
+    return value
+
+
+def _check_vector(utility: str, value: object) -> FreeModuleElement:
+    """Return a vector, or a sequence as a vector, or raise an error that names the utility and the value."""
+    if isinstance(value, list | tuple):
+        return vector(SR, [SR(item) for item in value])
+    if not isinstance(value, FreeModuleElement):
+        error_msg = f'{utility} needs a vector, but got {value}, which has another shape.'
+        raise TensorShapeError(error_msg)
+    return value
+
+
+def _advected(expression: Expression, velocity: FreeModuleElement) -> Expression:
+    """Return the advection of an entry of a matrix, 0 for a number, whose derivatives are 0."""
+    return SR(0) if SR(expression).is_numeric() else advection(expression, velocity)
+
+
+def corotational(
+    value: Matrix | FreeModuleElement,
+    velocity: Sequence[object] | FreeModuleElement,
+    xi: object = 0,
+) -> Matrix | FreeModuleElement:
+    """Return the transport of a symmetric tensor or a vector by a flow that rotates and aligns it.
+
+    A symmetric tensor `T` gets the Beris-Edwards transport `u.grad(T) - S`, where
+    `S = (xi E + W)(T + I/d) + (T + I/d)(xi E - W) - 2 xi (T + I/d) tr(T grad(u))`, with the strain rate `E`, the
+    vorticity tensor `W`, the antisymmetric part of `vector_gradient(u)`, and the dimension `d`. A vector `p` gets
+    `u.grad(p) - W p - xi E p`, so both turn with the flow.
+
+    Args:
+        value:
+            A symmetric square matrix, or a vector.
+
+        velocity:
+            One velocity component per dimension.
+
+        xi:
+            The flow-alignment parameter.
+
+    Returns:
+        transport:
+            The matrix or the vector to subtract from the rate of the value.
+
+    Raises:
+        TensorShapeError:
+            The value is neither a square matrix nor a vector.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import SR, matrix, var
+        >>> from skcomplex.systems.physics.active_matter._nematics import corotational
+        >>> a, b = var('a, b')
+        >>> corotational(matrix(SR, [[a, b], [b, -a]]), [var('u'), 0]).dimensions()
+        (2, 2)
+    """
+    flow = _check_vector('corotational', velocity)
+    size = len(flow)
+    gradients = vector_gradient(flow)
+    strain, vorticity = symmetric_part(gradients), antisymmetric_part(gradients)
+    if isinstance(value, FreeModuleElement):
+        advected = vector(SR, [_advected(item, flow) for item in value])
+        return advected - vorticity * value - SR(xi) * (strain * value)
+    tensor = _check_matrix('corotational', value)
+    advected_tensor = tensor.apply_map(lambda item: _advected(item, flow))
+    shifted_tensor = tensor + identity_matrix(SR, size) / size
+    aligned = (SR(xi) * strain + vorticity) * shifted_tensor + shifted_tensor * (SR(xi) * strain - vorticity)
+    stretching = 2 * SR(xi) * (tensor * gradients).trace() * shifted_tensor
+    return advected_tensor - aligned + stretching
+
+
+def upper_convected(tensor: Matrix, velocity: Sequence[object] | FreeModuleElement) -> Matrix:
+    """Return the upper-convected transport of a rank-2 tensor, `u.grad(T) - grad(u)^T T - T grad(u)`.
+
+    Args:
+        tensor:
+            A square matrix of expressions.
+
+        velocity:
+            One velocity component per dimension.
+
+    Returns:
+        transport:
+            The matrix to subtract from the rate of the tensor.
+
+    Raises:
+        TensorShapeError:
+            The tensor is not a square matrix or the velocity is not a vector.
+
+    Examples:
+        >>> from sage.all__sagemath_symbolics import SR, identity_matrix, var
+        >>> from skcomplex.systems.physics.active_matter._nematics import upper_convected
+        >>> upper_convected(identity_matrix(SR, 2), [var('u'), var('v')])[0, 0]
+        -2*partial(u, 0)
+    """
+    checked = _check_matrix('upper_convected', tensor)
+    flow = _check_vector('upper_convected', velocity)
+    gradients = vector_gradient(flow)
+    advected = checked.apply_map(lambda item: _advected(item, flow))
+    return advected - gradients.transpose() * checked - checked * gradients
 
 
 def _gel_velocity(s: SimpleNamespace) -> FreeModuleElement:

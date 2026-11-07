@@ -8,11 +8,9 @@ from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression, cos
 
-from ....core.components.interactions import (
-    EulerLagrangeInteraction,
-)
-from ....core.components.laws.utils import derivative
-from ....core.specs import RoleSpec
+from .....core.components.interactions import EulerLagrangeInteraction
+from .....core.components.laws.utils import derivative
+from .....core.specs import RoleSpec
 
 
 class PendulumInteraction(EulerLagrangeInteraction):
@@ -29,7 +27,7 @@ class PendulumInteraction(EulerLagrangeInteraction):
             The path of the pendulum.
 
     Examples:
-        >>> from skcomplex.systems.physics.mechanics import PendulumInteraction
+        >>> from skcomplex.systems.physics.common.mechanics import PendulumInteraction
         >>> PendulumInteraction('swing', target='bob').states
         'theta'
     """
