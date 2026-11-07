@@ -1,6 +1,6 @@
 ## 1. Preparation
 
-- [ ] 1.1 Wait for `extend-topology-requests` and `add-audited-engineering-computing-systems` to merge
+- [x] 1.1 Wait for `extend-topology-requests` and `add-audited-engineering-computing-systems` to merge
 - [ ] 1.2 Write the census and folding script outside the repository, and run its census on `development`
 - [ ] 1.3 Add the layout test that fails on a component module serving one system, and update the import contracts to
   allow only `<field>.common`
