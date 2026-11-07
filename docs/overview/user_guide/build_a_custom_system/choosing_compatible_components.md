@@ -4,8 +4,8 @@ Find the parts that fit together before you build a system, and read why a part 
 time and space, then elements, then interactions, then the solver. Each choice narrows the next, and you can ask every
 part what it needs before you build anything.
 
-The [compatibility page](../../compatibility.md) lists every element and interaction of the core, with the kinds and states
-each needs, so start there to find candidates. Then check a candidate in code, as this section shows.
+The [parts pages](../../../parts/elements.md) list every element and interaction of the core, with the domains and law kinds
+each declares, so start there to find candidates. Then check a candidate in code, as this section shows.
 
 ## Time and space
 
@@ -160,4 +160,4 @@ Simulation(system, dt=0.1).prepare().run(until=1).trajectory_.values('rabbits.n'
 ```
 
 `RK4Solver` integrates the differential equations of `growth`, and `IterationSolver`, which iterates maps, does not.
-The compatibility page lists what every solver supports.
+The [solvers page](../../../parts/solvers.md) lists what every solver supports.

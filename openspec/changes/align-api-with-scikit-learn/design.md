@@ -65,6 +65,9 @@ estimator can do through tags.
   generator are replaced by one generated page per kind of part, under a "Parts" section of the navigation, with
   executed examples of a compatible and an incompatible combination per page. A migration page maps removed names to
   their replacements.
+  `docs/generate_parts.py` writes the pages of elements, interactions, laws, solvers, and backends, one private
+  function per page. The analyses, experiments, and systems pages come in later waves, once their functions and
+  classes declare tags, and the generator should add a function for each of them then.
 - **Release.** One breaking release, 0.7.0. No aliases for removed names, as in earlier breaking releases.
 
 - **System classes.** `BaseSystem` holds the verbs, the derived tags, nesting, and a private method that passes model
