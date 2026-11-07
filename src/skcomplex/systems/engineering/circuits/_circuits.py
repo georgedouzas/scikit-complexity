@@ -9,9 +9,12 @@ from ....core.components.system import System
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ParameterError
 from ..._catalog import register_system
+from ...physics.synchronization import DiffusiveCouplingInteraction
 from ._chua_circuit import ChuaCircuitElement
 from ._circuit import CircuitElement
+from ._colpitts_oscillator import ColpittsOscillatorElement
 from ._kicked_circuit import KickedCircuitElement
+from ._memristive_circuit import MemristiveCircuitElement
 from ._memristor_circuit import MemristorCircuitElement
 from ._mixed_mode_chua_circuit import MixedModeChuaCircuitElement
 from ._multiscroll_chua_circuit import MultiscrollChuaCircuitElement
@@ -385,3 +388,171 @@ def impulsive_circuits(
     kick = {'x_d1': lambda s: s.target.x_d1 + s.target.A / (s.target.L * s.target.C)}
     impulse = ImpulseInteraction('impulse', target='circuit', reset=kick, period=T)
     return System(elements=[circuit], interactions=[impulse])
+
+
+@register_system(
+    field='engineering/circuits',
+    tags=('circuit', 'memristor', 'mixed-mode oscillations', 'slow-fast', 'ode'),
+    references=('Trzaska 2023',),
+    defaults={'until': 150.0, 'dt': 0.02, 'solver': ScipyODESolver(method='LSODA')},
+)
+def memristive_mixed_mode_oscillator(
+    x: float = 0.0,
+    y: float = 0.0,
+    z: float = 0.0,
+    w: float = 0.0,
+    *,
+    epsilon: float = 0.01,
+    R: float = 2.0,
+    alpha: float = 1.55,
+    beta: float = 0.15,
+    e: float = -0.04,
+    a: float = -0.34,
+    b: float = 0.05,
+) -> System:
+    """Return a slow-fast circuit with a cubic flux-controlled memristor, whose oscillations mix two amplitudes.
+
+    The memristor has the charge `q = a w + b w^3` of its flux `w`, and with the voltage `x` of the memristor, the
+    current `y` of the inductor, and the voltage `z` of the second capacitor, the circuit follows
+    `epsilon x' = -y - (a + 3 b w^2) x`, `y' = alpha (x - R y - z + e)`, `z' = -β y`, and `w' = x`. Trzaska prints the
+    memductance as `a + 3 b w`, but only the derivative `a + 3 b w^2` of the characteristic gives the response he
+    reports: for the defaults, from rest, the voltage settles on the mixed-mode oscillation `2^11`, two large spikes
+    and eleven small oscillations in a period of about 7.8.
+
+    Args:
+        x:
+            The initial voltage of the memristor.
+
+        y:
+            The initial current of the inductor.
+
+        z:
+            The initial voltage of the second capacitor.
+
+        w:
+            The initial flux of the memristor.
+
+        epsilon:
+            The first capacitance, which sets the fast time scale.
+
+        R:
+            The resistance.
+
+        alpha:
+            The inverse inductance.
+
+        beta:
+            The gain of the controlled source over the second capacitance.
+
+        e:
+            The voltage of the source.
+
+        a:
+            The linear coefficient of the memristor characteristic.
+
+        b:
+            The cubic coefficient of the memristor characteristic.
+
+    Returns:
+        system:
+            The system, with the states `circuit.x`, `circuit.y`, `circuit.z`, and `circuit.w`.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.circuits import memristive_mixed_mode_oscillator
+        >>> memristive_mixed_mode_oscillator(a=-0.5).elements[0].a
+        -0.5
+    """
+    circuit = MemristiveCircuitElement(
+        'circuit',
+        x=x,
+        y=y,
+        z=z,
+        w=w,
+        epsilon=epsilon,
+        R=R,
+        alpha=alpha,
+        beta=beta,
+        e=e,
+        a=a,
+        b=b,
+    )
+    return System(elements=[circuit])
+
+
+@register_system(
+    field='engineering/circuits',
+    tags=('circuit', 'synchronization', 'chaos', 'ode'),
+    references=('Kennedy 1994', 'Datseris and Parlitz 2022'),
+    defaults={'until': 500.0, 'dt': 0.05},
+)
+def coupled_colpitts(
+    k: float = 0.4,
+    *,
+    omegas: tuple[float, float] = (1.02, 0.98),
+    a: float = 30.0,
+    b: float = 1.0,
+    c: float = 20.0,
+    d: float = 1.0,
+    epsilon: float = 1.0,
+) -> System:
+    """Return two detuned chaotic Colpitts oscillators coupled through the difference of their second variables.
+
+    Oscillator `i` follows `x' = omega_i y - a F(z)`, `y' = c - omega_i x - z - b y + k (y_j - y_i)`, and
+    `z' = epsilon (y - d)`, with the transistor characteristic `F(z) = max(0, -1 - z)`. The phase of an oscillator
+    is the angle of its orbit in the plane of `y` and `z`, around the means of both. Without coupling the two
+    oscillators run at different mean frequencies and their phases drift apart, while for `k` near 0.3 to 0.5 their
+    phases lock although their amplitudes stay irregular.
+
+    Args:
+        k:
+            The coupling strength.
+
+        omegas:
+            The natural frequencies of the two oscillators.
+
+        a:
+            The gain of the transistor.
+
+        b:
+            The damping of the second variable.
+
+        c:
+            The bias of the second variable.
+
+        d:
+            The offset of the third variable.
+
+        epsilon:
+            The time scale of the third variable.
+
+    Returns:
+        system:
+            The system, with the states `oscillator_0.x`, `oscillator_0.y`, `oscillator_0.z`, and the same states of
+            `oscillator_1`.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.circuits import coupled_colpitts
+        >>> [element.omega for element in coupled_colpitts().elements]
+        [1.02, 0.98]
+    """
+    starts = ((0.1, 0.0, 0.0), (0.0, 0.1, 0.2))
+    oscillators = [
+        ColpittsOscillatorElement(
+            f'oscillator_{index}',
+            x=start[0],
+            y=start[1],
+            z=start[2],
+            omega=omega,
+            a=a,
+            b=b,
+            c=c,
+            d=d,
+            epsilon=epsilon,
+        )
+        for index, (omega, start) in enumerate(zip(omegas, starts, strict=True))
+    ]
+    couplings = [
+        DiffusiveCouplingInteraction(f'coupling_{target}', source=source, target=target, state='y', k=k)
+        for source, target in (('oscillator_1', 'oscillator_0'), ('oscillator_0', 'oscillator_1'))
+    ]
+    return System(elements=oscillators, interactions=couplings)
