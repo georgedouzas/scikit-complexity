@@ -72,6 +72,8 @@ class FitzHughNagumoInteraction(Interaction):
         True
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,

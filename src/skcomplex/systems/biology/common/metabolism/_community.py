@@ -18,7 +18,7 @@ from .....core.analysis.types import Source
 from .....core.components.elements import DeclaredElement
 from .....core.components.laws import LinearProgramLaw
 from .....core.components.spaces import StaticTime
-from .....core.components.system import System
+from .....core.components.system import BaseSystem, System
 from .....core.engine.compile import PassCompiler
 from .....core.engine.problems import LinearProgramKernel, ProblemSpec
 from .....core.errors import AnalysisError
@@ -43,6 +43,8 @@ ELEMENT_LABEL = 'community'
 
 class _SteadyComElement(DeclaredElement):
     """Element whose program sets the abundances and the scaled fluxes of a community."""
+
+    law_classes = (LinearProgramLaw,)
 
     def __init__(
         self,
@@ -144,6 +146,8 @@ def community_growth(
     _check_choice('community_growth', 'kind', kind, COMMUNITY_KINDS)
     if kind == 'tradeoff':
         load_extra(f'community_growth(kind={kind!r})')
+    if isinstance(source, BaseSystem) and not isinstance(source, System):
+        source = source.prepare().system_
     members = _networks_of(source) if isinstance(source, System) else []
     if not members:
         error_msg = 'community_growth reads a system that holds a metabolic network element.'

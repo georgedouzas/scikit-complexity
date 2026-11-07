@@ -102,6 +102,8 @@ class GrowthInteraction(Interaction):
         'grow'
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -170,6 +172,11 @@ class ExchangeInteraction(Interaction):
         >>> ExchangeInteraction('uptake', reaction='EX_glc__D_e').vmax
         10.0
     """
+
+    law_classes = (
+        LinearProgramLaw,
+        RateLaw,
+    )
 
     def __init__(
         self,
@@ -308,6 +315,8 @@ class CommunityInteraction(Interaction):
         (0.5, 0.5)
     """
 
+    law_classes = (LinearProgramLaw,)
+
     def __init__(
         self,
         label: str,
@@ -407,6 +416,8 @@ class ObjectiveFloorInteraction(Interaction):
         0.5
     """
 
+    law_classes = (LinearProgramLaw,)
+
     def __init__(
         self,
         label: str,
@@ -457,6 +468,8 @@ class SwitchInteraction(Interaction):
         >>> SwitchInteraction('repression', node='node', cell='cell', genes=('b2296',)).genes
         ('b2296',)
     """
+
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
