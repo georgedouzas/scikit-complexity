@@ -6,7 +6,11 @@ import pytest
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
-from skcomplex.systems.social.cooperation import nonlinear_pairwise_group_conflict, trimorphic_multilevel_selection
+from skcomplex.systems.social.cooperation import (
+    nonlinear_pairwise_group_conflict,
+    trimorphic_multilevel_selection,
+    two_level_replicator,
+)
 
 
 def _final_density(system, until, dt=0.02):
@@ -53,3 +57,28 @@ def test_multilevel_selection_rejects_an_unknown_victory_probability():
         nonlinear_pairwise_group_conflict(victory='majority')
     with pytest.raises(ValidationError, match='defectors'):
         trimorphic_multilevel_selection(victory='fermi')
+
+
+@pytest.mark.parametrize(('strength', 'expected'), [(2.0, 0.75), (1.0, 0.5)])
+def test_two_level_replicator_reaches_the_mean_fraction_of_punishers(strength, expected):
+    """Test that above `lambda* = c + q - p` the mean fraction of punishers tends to `1 - (c + q - p) / lambda`."""
+    _, final = _final_density(two_level_replicator(group_strength=strength), 20.0, dt=0.01)
+    final = final.ravel()
+    centres = (np.arange(final.size) + 0.5) / final.size
+    assert np.sum(centres * final) / np.sum(final) == pytest.approx(expected, abs=0.02)
+    assert np.mean(final) == pytest.approx(1.0, rel=1e-3)
+
+
+def test_two_level_replicator_loses_the_punishers_below_the_threshold():
+    """Test that below `lambda*` the groups concentrate at the all-defector state, and at all punishers if `p > c + q`."""
+    centres = (np.arange(100) + 0.5) / 100
+    _, weak = _final_density(two_level_replicator(group_strength=0.3), 20.0, dt=0.01)
+    assert np.sum(centres * weak.ravel()) / np.sum(weak) < 0.05
+    _, strong = _final_density(two_level_replicator(punishment=1.5), 20.0, dt=0.01)
+    assert np.sum(centres * strong.ravel()) / np.sum(strong) > 0.95
+
+
+def test_two_level_replicator_rejects_a_non_additive_victory():
+    """Test that only additively separable victory probabilities reduce to a two-level replicator equation."""
+    with pytest.raises(ValidationError, match='Unknown victory'):
+        two_level_replicator(victory='fermi')

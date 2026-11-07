@@ -3,8 +3,11 @@
 import numpy as np
 import pytest
 
+from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.social.cooperation import (
+    IteratedDilemmaInteraction,
+    iterated_lattice_dilemma,
     public_goods_game,
     spatial_prisoners_dilemma,
 )
@@ -49,3 +52,40 @@ def test_public_goods_game_depends_on_synergy():
     """Test that cooperation dies out at synergy 2 and takes over at synergy 6."""
     assert _cooperation(_run(public_goods_game(synergy=2.0), 50, dt=1))[-1] == 0
     assert _cooperation(_run(public_goods_game(synergy=6.0), 50, dt=1))[-1] > 0.9
+
+
+def test_best_reply_to_a_strategy_is_to_defect_one_round_earlier():
+    """Test that against a strategy `m` the fewest years in prison come from the strategy `m - 1`."""
+    for opponent in range(1, 11):
+        years = IteratedDilemmaInteraction.years(
+            np.arange(11.0),
+            np.full(11, float(opponent)),
+            rounds=10,
+            reward=0.5,
+            sucker=1.5,
+            temptation=0.0,
+            punishment=1.0,
+        )
+        assert int(np.argmin(years)) == opponent - 1
+
+
+def test_iterated_dilemma_with_two_strategies_has_three_regimes():
+    """Test that cooperation dominates at `R = 0.82`, coexists at `R = 0.84`, and vanishes at `R = 0.86`."""
+    shares = {}
+    for reward in (0.82, 0.84, 0.86):
+        system = iterated_lattice_dilemma(reward=reward, extremes=True)
+        strategies = Simulation(system, random_state=0).prepare().run(until=100).trajectory_.values('players.strategy')
+        shares[reward] = np.mean(strategies[-20:] == 7)
+        assert set(np.unique(strategies)) <= {0.0, 7.0}
+    assert shares[0.82] > 0.8
+    assert 0.3 < shares[0.84] < 0.8
+    assert shares[0.86] < 0.2
+
+
+def test_iterated_dilemma_with_every_strategy_cycles():
+    """Test that in the coexistence regime cooperative and defecting strategies alternate in dominance."""
+    system = iterated_lattice_dilemma()
+    strategies = Simulation(system, random_state=0).prepare().run(until=200).trajectory_.values('players.strategy')
+    means = strategies.reshape(len(strategies), -1).mean(axis=1)
+    assert means[50:].max() - means[50:].min() > 2.0
+    assert len(np.unique(strategies[-1])) > 3

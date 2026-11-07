@@ -183,7 +183,8 @@ def three_state_opinion(
     opinions of its neighbours: against with the probability `f(-beta x)`, for with `f(beta x)`, and undecided
     otherwise, where `f(t) = 1 / (2 (1 + exp(-t)))` (Jensen 2023 section 11.5, Project 1). Since
     `f(t) + f(-t) = 1 / 2`, half of the draws are undecided. In mean field, with every agent seeing `q <x>`, the mean
-    opinion solves `<x> = tanh(beta q <x> / 2) / 2`, which has a non-zero solution only above `beta_c = 4 / q`.
+    opinion solves `<x> = tanh(beta q <x> / 2) / 2`, which has a non-zero solution only above `beta_c = 4 / q`. On the
+    sparse network, domains of both signs and the undecided half keep the order weaker than in mean field.
 
     Args:
         n_agents:
