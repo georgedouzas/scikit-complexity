@@ -20,8 +20,8 @@
 ## 4. Analyses and experiments
 
 - [x] 4.1 Turn every analysis class into a function with the same settings and a frozen result, and add the binding helper
-- [ ] 4.2 Declare the tags each analysis needs, and check them
-- [ ] 4.3 Turn sweeps, ensembles, scenarios, sensitivity, and basin stability into functions, keep calibration an estimator
+- [x] 4.2 Declare the tags each analysis needs, and check them
+- [x] 4.3 Turn sweeps, ensembles, scenarios, sensitivity, and basin stability into functions, keep calibration an estimator
 - [x] 4.4 Move tests to the new functions, mirroring src
 
 ## 5. Ready-made systems
