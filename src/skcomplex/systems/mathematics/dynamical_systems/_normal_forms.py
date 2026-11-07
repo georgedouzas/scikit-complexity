@@ -8,9 +8,8 @@ from typing import Annotated
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class CuspElement(Element):
@@ -37,6 +36,8 @@ class CuspElement(Element):
         >>> CuspElement('form', beta2=2.0).beta2
         2.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -97,6 +98,8 @@ class HopfElement(Element):
         0.5
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -153,6 +156,8 @@ class SaddleNodeElement(Element):
         >>> SaddleNodeElement('form', mu=-1.0).mu
         -1.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -211,6 +216,8 @@ class TakensBogdanovElement(Element):
         0.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -243,14 +250,10 @@ class TakensBogdanovElement(Element):
         return [RateLaw(s.x, s.y), RateLaw(s.y, s.beta1 + s.beta2 * s.x + s.x**2 + s.sign * s.x * s.y)]
 
 
-@register_system(
-    field='mathematics/dynamical_systems',
-    tags=('bifurcation', 'normal form', 'ode'),
-    references=('Gros 2015', 'Dilão 2023'),
-    defaults={'until': 10.0, 'dt': 0.05},
-)
-def saddle_node_form(x: float = 0.0, *, mu: float = 1.0) -> System:
-    """Return the saddle-node normal form `x' = μ - x²`, whose two equilibria `±√μ` meet and vanish at μ = 0.
+class SaddleNodeFormSystem(BaseSystem):
+    """The saddle-node normal form `x' = μ - x²`, whose two equilibria `±√μ` meet and vanish at μ = 0.
+
+    The system has the state `form.x`.
 
     Args:
         x:
@@ -259,28 +262,42 @@ def saddle_node_form(x: float = 0.0, *, mu: float = 1.0) -> System:
         mu:
             The bifurcation parameter.
 
-    Returns:
-        system:
-            The system, with the state `form.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import saddle_node_form
-        >>> saddle_node_form(mu=0.5).elements[0].mu
+        >>> from skcomplex.systems.mathematics.dynamical_systems import SaddleNodeFormSystem
+        >>> SaddleNodeFormSystem(mu=0.5).prepare().system_.elements[0].mu
         0.5
     """
-    return System(elements=[SaddleNodeElement('form', x=x, mu=mu)])
+
+    field = 'mathematics/dynamical_systems'
+    topics = ('bifurcation', 'normal form', 'ode')
+    references = ('Gros 2015', 'Dilão 2023')
+    until = 10.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        x: float = 0.0,
+        *,
+        mu: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.mu = mu
+
+    def _build_system(self) -> System:
+        """Return the saddle-node normal form `x' = μ - x²`, whose two equilibria `±√μ` meet and vanish at μ = 0."""
+        return System(self.label, elements=[SaddleNodeElement('form', x=self.x, mu=self.mu)])
 
 
-@register_system(
-    field='mathematics/dynamical_systems',
-    tags=('bifurcation', 'normal form', 'ode', 'limit cycle'),
-    references=('Gros 2015', 'Dilão 2023'),
-    defaults={'until': 50.0, 'dt': 0.1},
-)
-def hopf_form(x: float = 0.1, y: float = 0.0, *, mu: float = 0.25, omega: float = 1.0, a: float = -1.0) -> System:
-    """Return the Hopf normal form, whose focus gives birth to a limit cycle of radius `√(-μ / a)` as μ crosses 0.
+class HopfFormSystem(BaseSystem):
+    """The Hopf normal form, whose focus gives birth to a limit cycle of radius `√(-μ / a)` as μ crosses 0.
 
-    `x' = μx - ωy + a x (x² + y²)` and `y' = ωx + μy + a y (x² + y²)`, supercritical for `a < 0`.
+    `x' = μx - ωy + a x (x² + y²)` and `y' = ωx + μy + a y (x² + y²)`, supercritical for `a < 0`. The system has the
+    states `form.x` and `form.y`.
 
     Args:
         x:
@@ -298,33 +315,50 @@ def hopf_form(x: float = 0.1, y: float = 0.0, *, mu: float = 0.25, omega: float 
         a:
             The cubic coefficient, the sign of the first Lyapunov coefficient.
 
-    Returns:
-        system:
-            The system, with the states `form.x` and `form.y`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import hopf_form
-        >>> hopf_form(mu=-0.1).elements[0].mu
+        >>> from skcomplex.systems.mathematics.dynamical_systems import HopfFormSystem
+        >>> HopfFormSystem(mu=-0.1).prepare().system_.elements[0].mu
         -0.1
     """
-    return System(elements=[HopfElement('form', x=x, y=y, mu=mu, omega=omega, a=a)])
+
+    field = 'mathematics/dynamical_systems'
+    topics = ('bifurcation', 'normal form', 'ode', 'limit cycle')
+    references = ('Gros 2015', 'Dilão 2023')
+    until = 50.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        x: float = 0.1,
+        y: float = 0.0,
+        *,
+        mu: float = 0.25,
+        omega: float = 1.0,
+        a: float = -1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.y = y
+        self.mu = mu
+        self.omega = omega
+        self.a = a
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        return System(
+            self.label,
+            elements=[HopfElement('form', x=self.x, y=self.y, mu=self.mu, omega=self.omega, a=self.a)],
+        )
 
 
-@register_system(
-    field='mathematics/dynamical_systems',
-    tags=('bifurcation', 'normal form', 'ode', 'codimension two'),
-    references=('Gros 2015', 'Dilão 2023'),
-    defaults={'until': 50.0, 'dt': 0.1},
-)
-def takens_bogdanov_form(
-    x: float = 0.2,
-    y: float = 0.0,
-    *,
-    beta1: float = 0.1,
-    beta2: float = -1.0,
-    sign: float = -1.0,
-) -> System:
-    """Return the Takens-Bogdanov normal form `x' = y`, `y' = β1 + β2 x + x² + s x y`, where a saddle-node meets a Hopf.
+class TakensBogdanovFormSystem(BaseSystem):
+    """The Takens-Bogdanov normal form `x' = y`, `y' = β1 + β2 x + x² + s x y`, where a saddle-node meets a Hopf.
+
+    The system has the states `form.x` and `form.y`.
 
     Args:
         x:
@@ -342,26 +376,52 @@ def takens_bogdanov_form(
         sign:
             The sign `s` of the mixed term, `-1` or `1`.
 
-    Returns:
-        system:
-            The system, with the states `form.x` and `form.y`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import takens_bogdanov_form
-        >>> takens_bogdanov_form(beta1=0.0).elements[0].beta1
+        >>> from skcomplex.systems.mathematics.dynamical_systems import TakensBogdanovFormSystem
+        >>> TakensBogdanovFormSystem(beta1=0.0).prepare().system_.elements[0].beta1
         0.0
     """
-    return System(elements=[TakensBogdanovElement('form', x=x, y=y, beta1=beta1, beta2=beta2, sign=sign)])
+
+    field = 'mathematics/dynamical_systems'
+    topics = ('bifurcation', 'normal form', 'ode', 'codimension two')
+    references = ('Gros 2015', 'Dilão 2023')
+    until = 50.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        x: float = 0.2,
+        y: float = 0.0,
+        *,
+        beta1: float = 0.1,
+        beta2: float = -1.0,
+        sign: float = -1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.y = y
+        self.beta1 = beta1
+        self.beta2 = beta2
+        self.sign = sign
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        return System(
+            self.label,
+            elements=[
+                TakensBogdanovElement('form', x=self.x, y=self.y, beta1=self.beta1, beta2=self.beta2, sign=self.sign),
+            ],
+        )
 
 
-@register_system(
-    field='mathematics/dynamical_systems',
-    tags=('bifurcation', 'normal form', 'ode', 'bistability', 'hysteresis'),
-    references=('Gros 2015', 'Dilão 2023'),
-    defaults={'until': 20.0, 'dt': 0.1},
-)
-def cusp_form(x: float = 0.5, *, beta1: float = 0.0, beta2: float = 1.0) -> System:
-    """Return the cusp normal form `x' = β1 + β2 x - x³`, bistable inside the cusp `27 β1² < 4 β2³`.
+class CuspFormSystem(BaseSystem):
+    """The cusp normal form `x' = β1 + β2 x - x³`, bistable inside the cusp `27 β1² < 4 β2³`.
+
+    The system has the state `form.x`.
 
     Args:
         x:
@@ -373,13 +433,34 @@ def cusp_form(x: float = 0.5, *, beta1: float = 0.0, beta2: float = 1.0) -> Syst
         beta2:
             The splitting parameter.
 
-    Returns:
-        system:
-            The system, with the state `form.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.mathematics.dynamical_systems import cusp_form
-        >>> cusp_form(beta1=0.2).elements[0].beta1
+        >>> from skcomplex.systems.mathematics.dynamical_systems import CuspFormSystem
+        >>> CuspFormSystem(beta1=0.2).prepare().system_.elements[0].beta1
         0.2
     """
-    return System(elements=[CuspElement('form', x=x, beta1=beta1, beta2=beta2)])
+
+    field = 'mathematics/dynamical_systems'
+    topics = ('bifurcation', 'normal form', 'ode', 'bistability', 'hysteresis')
+    references = ('Gros 2015', 'Dilão 2023')
+    until = 20.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        x: float = 0.5,
+        *,
+        beta1: float = 0.0,
+        beta2: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.beta1 = beta1
+        self.beta2 = beta2
+
+    def _build_system(self) -> System:
+        """Return the cusp normal form `x' = β1 + β2 x - x³`, bistable inside the cusp `27 β1² < 4 β2³`."""
+        return System(self.label, elements=[CuspElement('form', x=self.x, beta1=self.beta1, beta2=self.beta2)])
