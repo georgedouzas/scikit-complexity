@@ -12,11 +12,10 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, MovementInteraction
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class DwellerView(AgentView):
@@ -40,7 +39,7 @@ class DwellerElement(Element):
             How the agent is drawn, or `None` for `default_visual_`.
 
         block:
-            The index of the agent's block, which `stochastic_schelling` sets after every move.
+            The index of the agent's block, which `StochasticSchellingSystem` sets after every move.
 
         beta:
             The inverse temperature of the moves.
@@ -93,7 +92,7 @@ class BlockMovesInteraction(MovementInteraction):
     With block densities `rho_i` before and `rho_f'` after the move, the proposal is accepted with probability
     `1 / (1 + exp(beta * dU))`, where `dU = (1 - altruism) * (u(rho_f') - u(rho_i)) + altruism * dU_global` and
     `dU_global` is the change of `M * sum_q rho_q u(rho_q)` over the blocks of `M` cells. The densities are the counts
-    of the block states of the group. In `stochastic_schelling`, a phase of visits draws as many agents with
+    of the block states of the group. In `StochasticSchellingSystem`, a phase of visits draws as many agents with
     replacement as there are agents every step, and a `MapInteraction` sets the block of an agent after its move.
 
     Args:
@@ -202,25 +201,10 @@ class BlockMovesInteraction(MovementInteraction):
 PHASE = 'default'
 
 
-@register_system(
-    field='social/segregation',
-    tags=('segregation', 'agents', 'grid', 'stochastic'),
-    references=('Grauwin et al. 2009', 'Jensen 2023'),
-    defaults={'until': 50},
-)
-def stochastic_schelling(
-    width: int = 20,
-    height: int = 20,
-    *,
-    side: int = 5,
-    density: float = 0.5,
-    beta: float = 3.0,
-    altruism: float = 0.5,
-    slope: float = -4.0 / 3.0,
-    intercept: float = 1.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the stochastic Schelling system of agents moving between blocks, which segregates above `beta = 2`.
+class StochasticSchellingSystem(BaseSystem):
+    """The stochastic Schelling system of agents moving between blocks, which segregates above `beta = 2`.
+
+    The system has the group `dwellers`.
 
     Args:
         width:
@@ -250,46 +234,90 @@ def stochastic_schelling(
         random_state:
             The seed or generator of the initial cells.
 
-    Returns:
-        system:
-            The system, with the group `dwellers`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.segregation import stochastic_schelling
-        >>> stochastic_schelling(8, 8, side=4, random_state=0).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.segregation import StochasticSchellingSystem
+        >>> StochasticSchellingSystem(8, 8, side=4, random_state=0).prepare().system_.elements[0].prepare().size_
         32
     """
-    rng = np.random.default_rng(random_state)
-    size = int(width * height * density)
-    cells = rng.permutation(width * height)[:size]
-    locations = [(int(cell % width), int(cell // width)) for cell in cells]
-    blocks = [BlockMovesInteraction._block_of(location, side, width // side) for location in locations]
-    dwellers = GroupElement(
-        'dwellers',
-        element=DwellerElement,
-        size=size,
-        values={
-            'block': np.array(blocks, dtype=float),
-            'beta': beta,
-            'altruism': altruism,
-            'slope': slope,
-            'intercept': intercept,
-        },
-        location=locations,
-    )
-    moves = BlockMovesInteraction('moves', target='dwellers', width=width, height=height, side=side, phase=PHASE)
-    block = MapInteraction(
-        'block',
-        target='dwellers',
-        state='block',
-        function=moves.get_block,
-        schedule='member',
-        form='agent',
-        phase=PHASE,
-    )
-    return System(
-        elements=[dwellers],
-        interactions=[moves, block],
-        space=LatticeSpace((width, height), boundary='fixed', capacity=1),
-        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec(PHASE, activation='visits', groups=('dwellers',))])),
-    )
+
+    field = 'social/segregation'
+    topics = ('segregation', 'agents', 'grid', 'stochastic')
+    references = ('Grauwin et al. 2009', 'Jensen 2023')
+    until = 50
+
+    def __init__(
+        self,
+        width: int = 20,
+        height: int = 20,
+        *,
+        side: int = 5,
+        density: float = 0.5,
+        beta: float = 3.0,
+        altruism: float = 0.5,
+        slope: float = -4.0 / 3.0,
+        intercept: float = 1.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.width = width
+        self.height = height
+        self.side = side
+        self.density = density
+        self.beta = beta
+        self.altruism = altruism
+        self.slope = slope
+        self.intercept = intercept
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        size = int(self.width * self.height * self.density)
+        cells = rng.permutation(self.width * self.height)[:size]
+        locations = [(int(cell % self.width), int(cell // self.width)) for cell in cells]
+        blocks = [
+            BlockMovesInteraction._block_of(location, self.side, self.width // self.side) for location in locations
+        ]
+        dwellers = GroupElement(
+            'dwellers',
+            element=DwellerElement,
+            size=size,
+            values={
+                'block': np.array(blocks, dtype=float),
+                'beta': self.beta,
+                'altruism': self.altruism,
+                'slope': self.slope,
+                'intercept': self.intercept,
+            },
+            location=locations,
+        )
+        moves = BlockMovesInteraction(
+            'moves',
+            target='dwellers',
+            width=self.width,
+            height=self.height,
+            side=self.side,
+            phase=PHASE,
+        )
+        block = MapInteraction(
+            'block',
+            target='dwellers',
+            state='block',
+            function=moves.get_block,
+            schedule='member',
+            form='agent',
+            phase=PHASE,
+        )
+        return System(
+            self.label,
+            elements=[dwellers],
+            interactions=[moves, block],
+            space=LatticeSpace((self.width, self.height), boundary='fixed', capacity=1),
+            time=DiscreteTime(
+                schedule=PhasesScheduleSpec([PhaseSpec(PHASE, activation='visits', groups=('dwellers',))]),
+            ),
+        )

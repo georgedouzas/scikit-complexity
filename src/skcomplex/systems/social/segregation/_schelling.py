@@ -12,11 +12,10 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MovementInteraction
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class ResidentView(AgentView):
@@ -155,29 +154,13 @@ class RelocationInteraction(MovementInteraction):
         return best
 
 
-@register_system(
-    field='social/segregation',
-    tags=('segregation', 'agents', 'grid'),
-    references=('Schelling 1971', 'Downey 2018'),
-    defaults={'until': 50},
-)
-def schelling(
-    width: int = 20,
-    height: int = 20,
-    *,
-    density: float = 0.8,
-    minority: float = 0.3,
-    threshold: float = 0.5,
-    choices: int | None = None,
-    moving: float = 0.1,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return a Schelling segregation system on a grid with at most one resident per cell.
+class SchellingSystem(BaseSystem):
+    """A Schelling segregation system on a grid with at most one resident per cell.
 
     Every step every resident whose share of neighbours of its own kind is below the threshold moves to a random empty
     cell. With `choices`, the Big Sort of Downey's Exercise 9-1 after Bishop's hypothesis, residents move for any
-    reason, a share `moving` of them every step, and choose among `choices` random empty cells the one with the
-    highest share of neighbours of their own kind, so the threshold plays no part.
+    reason, a share `moving` of them every step, and choose among `choices` random empty cells the one with the highest
+    share of neighbours of their own kind, so the threshold plays no part. The system has the group `residents`.
 
     Args:
         width:
@@ -205,32 +188,68 @@ def schelling(
         random_state:
             The seed or generator of the kinds.
 
-    Returns:
-        system:
-            The system, with the group `residents`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.segregation import schelling
-        >>> schelling(10, 10, density=0.5).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.segregation import SchellingSystem
+        >>> SchellingSystem(10, 10, density=0.5).prepare().system_.elements[0].prepare().size_
         50
     """
-    rng = np.random.default_rng(random_state)
-    size = int(width * height * density)
-    kinds = (rng.random(size) < minority).astype(float)
-    residents = GroupElement(
-        'residents',
-        element=ResidentElement,
-        size=size,
-        values={'kind': kinds, 'threshold': threshold},
-    )
-    return System(
-        elements=[residents],
-        interactions=[
-            (
-                RelocationInteraction('relocation', target='residents')
-                if choices is None
-                else RelocationInteraction('relocation', target='residents', probability=moving, choices=choices)
-            ),
-        ],
-        space=LatticeSpace((width, height), boundary='fixed', capacity=1),
-    )
+
+    field = 'social/segregation'
+    topics = ('segregation', 'agents', 'grid')
+    references = ('Schelling 1971', 'Downey 2018')
+    until = 50
+
+    def __init__(
+        self,
+        width: int = 20,
+        height: int = 20,
+        *,
+        density: float = 0.8,
+        minority: float = 0.3,
+        threshold: float = 0.5,
+        choices: int | None = None,
+        moving: float = 0.1,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.width = width
+        self.height = height
+        self.density = density
+        self.minority = minority
+        self.threshold = threshold
+        self.choices = choices
+        self.moving = moving
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        size = int(self.width * self.height * self.density)
+        kinds = (rng.random(size) < self.minority).astype(float)
+        residents = GroupElement(
+            'residents',
+            element=ResidentElement,
+            size=size,
+            values={'kind': kinds, 'threshold': self.threshold},
+        )
+        return System(
+            self.label,
+            elements=[residents],
+            interactions=[
+                (
+                    RelocationInteraction('relocation', target='residents')
+                    if self.choices is None
+                    else RelocationInteraction(
+                        'relocation',
+                        target='residents',
+                        probability=self.moving,
+                        choices=self.choices,
+                    )
+                ),
+            ],
+            space=LatticeSpace((self.width, self.height), boundary='fixed', capacity=1),
+        )

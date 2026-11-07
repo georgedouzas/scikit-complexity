@@ -1,7 +1,7 @@
 """Segregation: residential sorting of agents and its dissimilarity index."""
 
-from ._blocks import BlockMovesInteraction, DwellerElement, DwellerView, stochastic_schelling
-from ._schelling import RelocationInteraction, ResidentElement, ResidentView, schelling
+from ._blocks import BlockMovesInteraction, DwellerElement, DwellerView, StochasticSchellingSystem
+from ._schelling import RelocationInteraction, ResidentElement, ResidentView, SchellingSystem
 
 __all__: list[str] = [
     'BlockMovesInteraction',
@@ -10,6 +10,6 @@ __all__: list[str] = [
     'RelocationInteraction',
     'ResidentElement',
     'ResidentView',
-    'schelling',
-    'stochastic_schelling',
+    'SchellingSystem',
+    'StochasticSchellingSystem',
 ]
