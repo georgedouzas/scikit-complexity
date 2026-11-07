@@ -18,3 +18,12 @@ single compatibility page SHALL be removed.
 - **WHEN** a reader opens the solvers page
 - **THEN** it shows, for each solver, the tags it supports, and an example where a mismatched solver raises an error
   naming the tag
+
+### Requirement: The documentation explains the system hierarchy
+The documentation SHALL hold a systems page that explains `BaseSystem`, the composite `System`, general systems of the
+core, and field realizations, with an executed example of a subclass that changes a ready-made system. The catalog
+pages SHALL show, for each system, its class, its import path, its model parameters, and its capability tags.
+
+#### Scenario: A catalog page
+- **WHEN** a reader opens the page of `SIRSystem`
+- **THEN** it shows `from skcomplex.systems.biology.epidemiology import SIRSystem`, the parameters, and the tags

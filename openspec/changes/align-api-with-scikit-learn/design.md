@@ -29,7 +29,8 @@ estimator can do through tags.
 | `_parameter_constraints`, `Interval`, `StrOptions` | `ParameterSpec`, `StateSpec`, domains |
 | estimator tags, `__sklearn_tags__` | capability tags, `get_tags()` |
 | `check_estimator` | the conformance suite, selected by tags |
-| `sklearn.datasets` | the catalog: `create_system`, `describe`, `catalog`, tuned settings |
+| `LinearModel`, `Ridge`, `Lasso` | general systems of the core, field realizations such as `SIRSystem` |
+| `sklearn.utils.all_estimators()` | `all_systems()` |
 | `cross_validate` | `simulate` |
 | `cv=` splitters | `solver=` |
 | `n_jobs`, joblib backends | `backend=` |
@@ -65,6 +66,18 @@ estimator can do through tags.
   executed examples of a compatible and an incompatible combination per page. A migration page maps removed names to
   their replacements.
 - **Release.** One breaking release, 0.7.0. No aliases for removed names, as in earlier breaking releases.
+
+- **System classes.** `BaseSystem` holds the verbs, the derived tags, nesting, and a private method that passes model
+  parameters down to the parts in `prepare`. Each factory function becomes a class in the same self-contained module,
+  named after the system in CamelCase with the suffix `System`. Its class attributes give `field`, `topics`,
+  `references`, and the tuned run settings (`until`, `dt`, solver hint, observables, initial state). Model parameters
+  become constructor arguments with the factory's defaults.
+- **Discovery.** `all_systems()` reads field and topics statically from the class definitions, as the registration
+  reader does today, so listing by field or topics imports no system module. The registry, `register_system`,
+  `create_system`, `create_simulation`, and `describe` are removed. The conformance suite, the documentation generator,
+  and the inventory and gallery checks use `all_systems()`.
+- **General systems.** The cross-field duplicate scan of the consolidation lists shared structures. A general system
+  enters the core in a later task only when two fields share the structure, starting with mass-action compartments.
 
 ## Risks / Trade-offs
 

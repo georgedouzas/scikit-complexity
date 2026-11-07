@@ -6,33 +6,40 @@
 - [ ] 1.4 Declare the supported tags of every solver and backend from their current supports
 - [ ] 1.5 Generate the inventory's system vocabulary from the tags of each system, and compare them in the inventory check
 
-## 2. Simulate
+## 2. Systems
 
-- [ ] 2.1 Add `simulate`, which chooses default solvers from the tags and rejects mismatched solvers and backends
-- [ ] 2.2 Replace `create_simulation` with tuned settings of catalog entries passed to `simulate`
-- [ ] 2.3 Remove `Simulation`, and make compilers and problem classes private, with one hook for system packages
+- [ ] 2.1 Add `BaseSystem` with derived tags, nesting, and passing model parameters to parts, and make `System` its generic composite
+- [ ] 2.2 Add `all_systems()` with static listing by field and topics and filtering by tags, and remove the registry, `register_system`, `create_system`, and `describe`
 
-## 3. Analyses and experiments
+## 3. Simulate
 
-- [ ] 3.1 Turn every analysis class into a function with the same settings and a frozen result, and add the binding helper
-- [ ] 3.2 Declare the tags each analysis needs, and check them
-- [ ] 3.3 Turn sweeps, ensembles, scenarios, sensitivity, and basin stability into functions, keep calibration an estimator
-- [ ] 3.4 Move tests to the new functions, mirroring src
+- [ ] 3.1 Add `simulate`, which chooses default solvers from the tags and rejects mismatched solvers and backends
+- [ ] 3.2 Remove `create_simulation`, and read tuned run settings from system classes in `simulate`
+- [ ] 3.3 Remove `Simulation`, and make compilers and problem classes private, with one hook for system packages
 
-## 4. Systems and catalog
+## 4. Analyses and experiments
 
-- [ ] 4.1 Update every system module, its tests, and its gallery example to `simulate` and the analysis functions
-- [ ] 4.2 Show capability tags in the catalog and filter by them, apart from topical tags
+- [ ] 4.1 Turn every analysis class into a function with the same settings and a frozen result, and add the binding helper
+- [ ] 4.2 Declare the tags each analysis needs, and check them
+- [ ] 4.3 Turn sweeps, ensembles, scenarios, sensitivity, and basin stability into functions, keep calibration an estimator
+- [ ] 4.4 Move tests to the new functions, mirroring src
 
-## 5. Documentation
+## 5. Ready-made systems
 
-- [ ] 5.1 Rewrite the README and the user guide to the new API, keeping the task order
-- [ ] 5.2 Replace the compatibility page with generated pages per kind of part, each with executed compatible and incompatible examples
-- [ ] 5.3 Add the migration page from 0.6 to 0.7
-- [ ] 5.4 Update every docstring example
+- [ ] 5.1 Turn every factory function into a system class with model parameters and class attributes, by field
+- [ ] 5.2 Update every system's tests and gallery example to the class, `simulate`, and the analysis functions
+- [ ] 5.3 Extract general systems of the core where two fields share a structure, starting with mass-action compartments
 
-## 6. Verification
+## 6. Documentation
 
-- [ ] 6.1 Checks, import contracts, and layout tests pass
-- [ ] 6.2 Tests and doctests pass in batches, and the inventory and gallery checks pass
-- [ ] 6.3 The full suite and the strict docs build pass in CI
+- [ ] 6.1 Rewrite the README and the user guide to the new API, keeping the task order
+- [ ] 6.2 Replace the compatibility page with generated pages per kind of part, each with executed compatible and incompatible examples
+- [ ] 6.3 Add the migration page from 0.6 to 0.7
+- [ ] 6.4 Add the systems page, and catalog pages with class, import path, parameters, and tags
+- [ ] 6.5 Update every docstring example
+
+## 7. Verification
+
+- [ ] 7.1 Checks, import contracts, and layout tests pass
+- [ ] 7.2 Tests and doctests pass in batches, and the inventory and gallery checks pass
+- [ ] 7.3 The full suite and the strict docs build pass in CI
