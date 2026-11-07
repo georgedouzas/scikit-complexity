@@ -84,10 +84,10 @@ class TopologyFunctionsPass(BasePass):
         spec: KernelSpec,
         request: TopologyRequestSpec,
         networks: dict[int, NetworkRowsSpec],
-        weights: dict[int, LawKernel],
+        weights: dict[tuple[int, bool], LawKernel],
         declarations: DeclarationsSpec,
     ) -> CompiledRequestSpec:
-        """Return a request of a spec with its network, its rows, and the kernel of its weights."""
+        """Return a request of a spec with its network, its rows, and the kernels of its weights and its score."""
         space, rows = TopologyFunctionsPass._request_network(spec, declarations)
         network = networks.get(id(space))
         if network is None:
@@ -112,16 +112,28 @@ class TopologyFunctionsPass(BasePass):
             'rewire': 'edge',
             'add-edge': 'node',
             'remove-node': 'node',
+            'replace-node': 'node',
             'add-hyperedge': 'node',
             'remove-hyperedge': 'hyperedge',
+            'close-triangle': 'node',
+            'contract-edge': 'node',
+            'duplicate-node': 'node',
         }.get(request.kind)
-        if needs is not None and needs != rows:
+        once = request.kind == 'add-edge' and rows == 'single'
+        if needs is not None and needs != rows and not once:
             error_msg = f'{spec.owner} requests {request!r}, which runs for every {needs}, from laws of every {rows}.'
             raise ValidationError(error_msg)
         if request.kind == 'remove-hyperedge' and network.hyperedges is None:
             error_msg = f'{spec.owner} removes hyperedges of a network without a variable group on its hyperedges.'
             raise ValidationError(error_msg)
-        return CompiledRequestSpec(request, spec.owner, network, rows, toward=weights.get(id(request)))
+        return CompiledRequestSpec(
+            request,
+            spec.owner,
+            network,
+            rows,
+            toward=weights.get((id(request), False)),
+            score=weights.get((id(request), True)),
+        )
 
     @staticmethod
     def _check_hyperedge_size(
@@ -186,7 +198,7 @@ class TopologyFunctionsPass(BasePass):
             (spec, laws) for spec, laws in apart if not all(TopologyFunctionsPass._is_weight(law) for law in laws)
         ]
         weights = {
-            id(target.request): TopologyFunctionsPass._request_kernel(spec, law.value, declarations)
+            (id(target.request), target.score): TopologyFunctionsPass._request_kernel(spec, law.value, declarations)
             for spec, laws in towards
             for law in laws
             if isinstance(law, UpdateLaw) and isinstance(target := law._get_targets()[0], _WeightSpec)
@@ -208,6 +220,12 @@ class TopologyFunctionsPass(BasePass):
             for output in kernel.outputs:
                 _, law = lowered.laws[id(output)]
                 found = jumps.get(id(law))
+                if found is not None and found[1].one:
+                    error_msg = (
+                        f'{found[0].owner} fires {found[1]!r} at a rate for one drawn member. A jump channel already '
+                        'belongs to one member, so give `one=True` to a request with a probability per step.'
+                    )
+                    raise ValidationError(error_msg)
                 if found is not None:
                     channels[index] = TopologyFunctionsPass._compiled_request(*found, networks, weights, declarations)
                 index += 1

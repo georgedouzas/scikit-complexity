@@ -1,4 +1,4 @@
-"""Pass that sets apart the weight of the candidate nodes of every request, read through reductions like laws."""
+"""Pass that sets apart the weights and scores of the candidate nodes of every request, read like laws."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +19,7 @@ from ._topology_functions import TopologyFunctionsPass
 
 
 class TowardsPass(BasePass):
-    """Pass that sets apart the weight of the candidate nodes of every request, read through reductions like laws."""
+    """Pass that sets apart the weights and scores of the candidate nodes of every request, read like laws."""
 
     def _get_reads(self) -> tuple[str, ...]:
         """Return the fields of the compilation the pass reads."""
@@ -53,18 +53,22 @@ class TowardsPass(BasePass):
         specs: list[tuple[KernelSpec, list[BaseLaw]]],
         declarations: DeclarationsSpec,
     ) -> list[tuple[KernelSpec, list[BaseLaw]]]:
-        """Return the specs of the nodes of every request with a weight, each with the law of the weight to lower."""
+        """Return the specs of the nodes of every request with a weight or a score, each with the law to lower."""
         towards: list[tuple[KernelSpec, list[BaseLaw]]] = []
         for spec, laws in specs:
             for law in laws:
                 request = TopologyKernel._request_of(law)
-                if request is None or request.toward is None:
+                if request is None or (request.toward is None and request.score is None):
                     continue
                 space, _ = TopologyFunctionsPass._request_network(spec, declarations)
                 nodes = TowardsPass._node_block(space, declarations)
                 node_spec = SpecsPass._member_spec(nodes, declarations.time)
                 references = dict(node_spec.references)
                 namespace = SpecsPass._with_source(nodes, node_spec.namespace, references)
-                weight = UpdateLaw(_WeightSpec(request), SR(request.toward(namespace)))
-                towards.append((replace(node_spec, references=references), [weight]))
+                weights = [
+                    UpdateLaw(_WeightSpec(request, score=part == 'score'), SR(function(namespace)))
+                    for part, function in (('toward', request.toward), ('score', request.score))
+                    if function is not None
+                ]
+                towards.append((replace(node_spec, references=references), weights))
         return towards
