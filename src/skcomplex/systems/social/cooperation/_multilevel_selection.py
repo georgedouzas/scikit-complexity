@@ -1,4 +1,4 @@
-"""Multilevel selection of altruistic punishment: densities of group compositions under pairwise group conflict."""
+"""Multilevel selection of altruistic punishment: densities of group compositions under group-level competition."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,6 +19,7 @@ from ..._catalog import register_system
 
 PAIRWISE_VICTORIES = ('fermi', 'local', 'tullock')
 TRIMORPHIC_VICTORIES = ('defectors', 'payoff')
+ADDITIVE_VICTORIES = ('punishers', 'payoff')
 SIMPLEX_SAMPLES = 401
 REFERENCES = ('Cooney 2024',)
 SIMPLEX_VISUAL = VisualSpec('image', {'slices': {0: 0}})
@@ -66,6 +67,15 @@ def _get_pairwise_victory(
     lowest = float(np.min(np.asarray(_get_pairwise_payoff(centres, payoffs), dtype=float)))
     own_share, other_share = (own - lowest) ** (1 / exponent), (other - lowest) ** (1 / exponent)
     return own_share / (own_share + other_share)
+
+
+def _get_group_rate(z: Expression, payoffs: tuple[float, ...], victory: str) -> Expression:
+    """Return the net group-level replication rate `G(z)` of an additively separable victory probability."""
+    if victory == 'punishers':
+        return z
+    centres = np.linspace(0.0, 1.0, SIMPLEX_SAMPLES)
+    values = np.asarray(_get_pairwise_payoff(centres, payoffs), dtype=float)
+    return _get_pairwise_payoff(z, payoffs) / float(values.max() - values.min())
 
 
 def _get_payoff_range(payoffs: tuple[float, ...]) -> float:
@@ -182,6 +192,101 @@ def nonlinear_pairwise_group_conflict(
     win = _get_pairwise_victory(z, u, payoffs, victory=victory, sensitivity=sensitivity, exponent=exponent)
     loss = _get_pairwise_victory(u, z, payoffs, victory=victory, sensitivity=sensitivity, exponent=exponent)
     gain = win - loss
+    advantage = (punishment + interaction_cost) * z - (cost + fixed_cost + interaction_cost)
+    space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('z', cells, 0.0, 1.0)])
+    groups = FieldElement(
+        'groups',
+        element=DensityElement,
+        space=space,
+        values={'f': np.ones((1, cells))},
+        discretization='finite-volume',
+    )
+    within = AdvectionInteraction(
+        'within',
+        target='groups',
+        state='f',
+        drift=lambda _: [0, z * (1 - z) * advantage],
+        limiter=None,
+    )
+    between = RateInteraction(
+        'between',
+        target='groups',
+        state='f',
+        rate=lambda s: group_strength * s.target.f * integral_transform(s.target.f, gain, ('z',)),
+    )
+    return System(elements=[groups], interactions=[within, between])
+
+
+@register_system(
+    field='social/cooperation',
+    tags=('field', 'multilevel selection', 'punishment', 'two-level replicator', 'pde'),
+    references=REFERENCES,
+    defaults={'until': 40.0, 'dt': 1.0, 'solver': RK4Solver(dt=0.01)},
+)
+def two_level_replicator(
+    cells: int = 100,
+    *,
+    victory: str = 'punishers',
+    group_strength: float = 2.0,
+    benefit: float = 2.0,
+    cost: float = 1.0,
+    punishment: float = 0.5,
+    interaction_cost: float = 0.5,
+    fixed_cost: float = 0.0,
+) -> System:
+    """Return the two-level replicator equation of defectors and altruistic punishers, additive pairwise group conflict.
+
+    The density `f(z)` of groups with a fraction `z` of punishers is advected by the replicator dynamics within groups,
+    `z (1 - z) (pi_P - pi_D)`, and groups replicate at the rate `group_strength f(z) (G(z) - int G(u) f(u) du)`
+    (Cooney 2024, arXiv 2405.18419 Eq. 3.3). Pairwise group conflict with an additively separable victory probability
+    `rho(z, u) = 1/2 + (G(z) - G(u)) / 2` reduces to this equation (Eq. 3.11): `G(z) = z` for the probability of
+    Boyd and coauthors based on the fraction of punishers (`'punishers'`, Eq. 3.6 and section 5.1), or the average
+    payoff of a group normalized by its range, `G(z) / (G* - G_*)` (`'payoff'`, Eq. 3.8 and section 5.2). From a uniform
+    density with `G(z) = z` and `p < c + q`, the groups concentrate at the all-defector state below the threshold
+    `lambda* = c + q - p`, and above it the mean fraction of punishers tends to `1 - (c + q - p) / lambda` (Eq. 5.4).
+
+    Args:
+        cells:
+            The number of cells of the axis of the fraction of punishers.
+
+        victory:
+            The group-level victory probability, `'punishers'` or `'payoff'`.
+
+        group_strength:
+            The relative strength `lambda` of between-group competition.
+
+        benefit:
+            The benefit `b` of the donation game.
+
+        cost:
+            The cost `c` of cooperating.
+
+        punishment:
+            The punishment `p` of a defector by every punisher it meets.
+
+        interaction_cost:
+            The cost `k` a punisher pays per defector it meets.
+
+        fixed_cost:
+            The fixed cost `q` of being able to punish.
+
+    Returns:
+        system:
+            The system, with the density `groups.f`.
+
+    Raises:
+        ValidationError:
+            The victory probability is unknown.
+
+    Examples:
+        >>> from skcomplex.systems.social.cooperation import two_level_replicator
+        >>> two_level_replicator(40).elements[0].prepare().size_
+        40
+    """
+    _check_victory(victory, ADDITIVE_VICTORIES)
+    payoffs = (benefit, cost, punishment, interaction_cost, fixed_cost)
+    z, u = coordinate('z'), integration_variable('z')
+    gain = _get_group_rate(z, payoffs, victory) - _get_group_rate(u, payoffs, victory)
     advantage = (punishment + interaction_cost) * z - (cost + fixed_cost + interaction_cost)
     space = PhaseSpace(LatticeSpace((1,)), [AxisSpec('z', cells, 0.0, 1.0)])
     groups = FieldElement(

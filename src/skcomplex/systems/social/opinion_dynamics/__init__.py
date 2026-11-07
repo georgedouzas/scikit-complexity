@@ -24,6 +24,7 @@ from ._diffusion import influentials, threshold_adoption
 from ._discussant import DiscussantElement
 from ._discussant_view import DiscussantView
 from ._discussions import DiscussionsInteraction
+from ._echo_chambers import RadicalElement, RadicalizationInteraction, echo_chamber_radicalization
 from ._encounters import EncountersInteraction
 from ._gauge_agents import ConnectionElement, PhaseAgentElement, gauge_network_agents
 from ._hypergraph_consensus import hypergraph_consensus
@@ -46,6 +47,7 @@ from ._opinion import OpinionElement
 from ._persuader import PersuaderElement
 from ._persuader_view import PersuaderView
 from ._persuasion import PersuasionInteraction, galam_majority, social_impact, sznajd
+from ._radical_view import RadicalView
 from ._random_pairs import RandomPairsInteraction
 from ._schedule import ScheduleElement
 from ._separation import SeparationInteraction
@@ -56,6 +58,8 @@ from ._thinker_view import ThinkerView
 from ._three_body_consensus import ThreeBodyConsensusInteraction
 from ._tie import TieElement
 from ._transported_coupling import TransportedCouplingInteraction
+from ._undecided import UndecidedElement, UndecidedFlowsElement, three_state_opinion, undecided_flows
+from ._undecided_view import UndecidedView
 from ._variant_voter import VariantVoterElement
 from ._variant_voter_view import VariantVoterView
 from ._variant_voting import VariantVotingInteraction
@@ -65,6 +69,8 @@ from ._voter import VoterElement
 from ._voter_imitation import VoterImitationInteraction
 from ._voter_view import VoterView
 from ._voters import majority_rule, voter_system, voter_variants
+from ._willing_majority import WillingMajorityInteraction, WillingVoterElement, willing_majority
+from ._willing_voter_view import WillingVoterView
 
 __all__: list[str] = [
     'AdopterElement',
@@ -99,6 +105,9 @@ __all__: list[str] = [
     'PersuaderView',
     'PersuasionInteraction',
     'PhaseAgentElement',
+    'RadicalElement',
+    'RadicalView',
+    'RadicalizationInteraction',
     'RandomPairsInteraction',
     'ScheduleElement',
     'SeparationInteraction',
@@ -109,6 +118,9 @@ __all__: list[str] = [
     'ThreeBodyConsensusInteraction',
     'TieElement',
     'TransportedCouplingInteraction',
+    'UndecidedElement',
+    'UndecidedFlowsElement',
+    'UndecidedView',
     'VariantVoterElement',
     'VariantVoterView',
     'VariantVotingInteraction',
@@ -117,12 +129,16 @@ __all__: list[str] = [
     'VoterElement',
     'VoterImitationInteraction',
     'VoterView',
+    'WillingMajorityInteraction',
+    'WillingVoterElement',
+    'WillingVoterView',
     'axelrod',
     'coevolving_voter',
     'cognitive_consistency',
     'cultural_traits',
     'culture_observables',
     'deffuant',
+    'echo_chamber_radicalization',
     'galam_majority',
     'gauge_network_agents',
     'hegselmann_krause',
@@ -142,7 +158,10 @@ __all__: list[str] = [
     'social_impact',
     'standardized_agents',
     'sznajd',
+    'three_state_opinion',
     'threshold_adoption',
+    'undecided_flows',
     'voter_system',
     'voter_variants',
+    'willing_majority',
 ]
