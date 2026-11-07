@@ -3,26 +3,456 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 from types import SimpleNamespace
+from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression, cos, sqrt, tan
+from sage.all__sagemath_symbolics import Expression, cos, exp, oo, sin, sqrt, tan
+from sage.sets.real_set import RealSet
 
+from ....core.components.elements import Element
 from ....core.components.interactions import HamiltonianInteraction, ImpulseInteraction, RateInteraction
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import derivative
 from ....core.components.system import System
 from ....core.engine.solvers import ScipyODESolver, Yoshida4Solver
 from ....core.errors import ParameterError
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
 from ..common.oscillators import StuartLandauElement
-from ._adler_phase import AdlerPhaseElement
-from ._duffing import DuffingElement
-from ._henon_heiles import HenonHeilesElement
-from ._impulsive_oscillator import ImpulsiveOscillatorElement
-from ._quadrupole import QuadrupoleElement
-from ._toda import TodaElement
-from ._van_der_pol import VanDerPolElement
+
+
+class AdlerPhaseElement(Element):
+    """Phase difference of a forced oscillator, `phi' = detuning + epsilon sin(phi)`, the Adler equation.
+
+    The phase locks at a fixed point when `|detuning| <= epsilon`, and slips with the period
+    `2 pi / sqrt(detuning^2 - epsilon^2)` otherwise.
+
+    Args:
+        label:
+            The label of the phase difference.
+
+        visual:
+            How the phase difference is drawn, or `None` for `default_visual_`.
+
+        phi:
+            The initial phase difference.
+
+        detuning:
+            The detuning of the natural frequency from the forcing.
+
+        epsilon:
+            The strength of the forcing.
+
+    Attributes:
+        default_visual_:
+            The visual of the phase difference when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.nonlinear_oscillators import AdlerPhaseElement
+        >>> AdlerPhaseElement('difference').detuning
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        phi: Annotated[float, StateSpec()] = 0.0,
+        detuning: Annotated[float, ParameterSpec()] = 0.5,
+        epsilon: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.phi = phi
+        self.detuning = detuning
+        self.epsilon = epsilon
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rate of the phase difference.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rate of `phi`.
+        """
+        return [RateLaw(namespace.phi, namespace.detuning + namespace.epsilon * sin(namespace.phi))]
+
+
+class DuffingElement(Element):
+    """Displacement and parameters of the forced Duffing oscillator, whose acceleration a `RateInteraction` sets.
+
+    The acceleration is `x'' = -delta x' - alpha x - beta x^3 + gamma cos(omega t)`.
+
+    For `alpha < 0 < beta` the potential has two wells, and a strong enough forcing drives the oscillator chaotically
+    between them.
+
+    Args:
+        label:
+            The label of the oscillator.
+
+        visual:
+            How the oscillator is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial displacement.
+
+        x_d1:
+            The initial velocity.
+
+        delta:
+            The damping.
+
+        alpha:
+            The linear stiffness.
+
+        beta:
+            The cubic stiffness.
+
+        gamma:
+            The amplitude of the forcing.
+
+        omega:
+            The frequency of the forcing.
+
+    Attributes:
+        default_visual_:
+            The visual of the oscillator when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.nonlinear_oscillators import DuffingElement
+        >>> DuffingElement('duffing').alpha
+        -1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(order=2)] = 1.0,
+        x_d1: float = 0.0,
+        delta: Annotated[float, ParameterSpec()] = 0.3,
+        alpha: Annotated[float, ParameterSpec()] = -1.0,
+        beta: Annotated[float, ParameterSpec()] = 1.0,
+        gamma: Annotated[float, ParameterSpec()] = 0.5,
+        omega: Annotated[float, ParameterSpec()] = 1.2,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+        self.delta = delta
+        self.alpha = alpha
+        self.beta = beta
+        self.gamma = gamma
+        self.omega = omega
+
+
+class HenonHeilesElement(Element):
+    """Star in the Hénon-Heiles potential `V = (x^2 + y^2) / 2 + x^2 y - y^3 / 3`, with the canonical momenta `px, py`.
+
+    The coordinates and the momenta are states of order 1, which a Hamiltonian interaction moves. Below the escape
+    energy `1 / 6` the motion is regular for small energies and mostly chaotic near the escape energy.
+
+    Args:
+        label:
+            The label of the star.
+
+        visual:
+            How the star is drawn.
+
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        px:
+            The initial first momentum.
+
+        py:
+            The initial second momentum.
+
+    Examples:
+        >>> from skcomplex.systems.physics.nonlinear_oscillators import HenonHeilesElement
+        >>> HenonHeilesElement('star').px
+        0.35
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None}),
+        *,
+        x: Annotated[float, StateSpec()] = 0.0,
+        y: Annotated[float, StateSpec()] = 0.1,
+        px: Annotated[float, StateSpec()] = 0.35,
+        py: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.px = px
+        self.py = py
+
+
+class ImpulsiveOscillatorElement(Element):
+    """Displacement of an oscillator that rings freely between periodic impulses that kick its velocity.
+
+    A rate interaction gives the restoring force, and impulse interactions kick the velocity `x_d1` by multiples of the
+    amplitude `H` at their times, so the element holds the states and the parameters they read.
+
+    Args:
+        label:
+            The label of the oscillator.
+
+        visual:
+            How the oscillator is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial displacement.
+
+        x_d1:
+            The initial velocity.
+
+        H:
+            The amplitude of the impulses, half the jump of the velocity that one impulse of the symmetric train
+            causes.
+
+        omega0:
+            The natural frequency of a linear spring.
+
+    Attributes:
+        default_visual_:
+            The visual of the oscillator when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.nonlinear_oscillators import ImpulsiveOscillatorElement
+        >>> ImpulsiveOscillatorElement('oscillator').H
+        2.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(order=2)] = 0.0,
+        x_d1: float = 0.0,
+        H: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        omega0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+        self.H = H
+        self.omega0 = omega0
+
+
+class QuadrupoleElement(Element):
+    """Surface of a nucleus in the quartic quadrupole potential, with the coordinates `q1, q2` and momenta `p1, p2`.
+
+    The quadrupole deformation of the nuclear surface moves under the Hamiltonian
+    `H = (q² + p²) / 2 + B q1 (3 q2² - q1²) / √2 + q⁴ / 8`, with `q² = q1² + q2²`, which a Hamiltonian interaction
+    turns into the equations of motion. The cubic term of strength `B` breaks the rotational symmetry and makes the
+    motion chaotic at intermediate energies, while the quartic term keeps it bounded at every energy.
+
+    Args:
+        label:
+            The label of the nucleus.
+
+        visual:
+            How the nucleus is drawn.
+
+        q1:
+            The initial first coordinate.
+
+        q2:
+            The initial second coordinate.
+
+        p1:
+            The initial first momentum.
+
+        p2:
+            The initial second momentum.
+
+        B:
+            The strength of the cubic term.
+
+    Examples:
+        >>> from skcomplex.systems.physics.nonlinear_oscillators import QuadrupoleElement
+        >>> QuadrupoleElement('nucleus').B
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('bodies', {'positions': ('q1', 'q2'), 'trail': None}),
+        *,
+        q1: Annotated[float, StateSpec()] = 0.0,
+        q2: Annotated[float, StateSpec()] = 1.0,
+        p1: Annotated[float, StateSpec()] = 0.5,
+        p2: Annotated[float, StateSpec()] = 0.0,
+        B: Annotated[float, ParameterSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.q1 = q1
+        self.q2 = q2
+        self.p1 = p1
+        self.p2 = p2
+        self.B = B
+
+
+class TodaElement(Element):
+    """Displacement and parameters of the forced Toda oscillator, whose exponential spring is stiff on one side only.
+
+    The acceleration is `x'' = -d x' - (e^x - 1) + a sin(omega t)`. The restoring force `e^x - 1` grows exponentially
+    for `x > 0` and saturates at `-1` for `x < 0`, so the oscillator is passive and asymmetric, and its resonance curve
+    bends towards low frequencies.
+
+    Args:
+        label:
+            The label of the oscillator.
+
+        visual:
+            How the oscillator is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial displacement.
+
+        x_d1:
+            The initial velocity.
+
+        d:
+            The damping.
+
+        a:
+            The amplitude of the forcing.
+
+        omega:
+            The frequency of the forcing.
+
+    Attributes:
+        default_visual_:
+            The visual of the oscillator when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.nonlinear_oscillators import TodaElement
+        >>> TodaElement('toda').d
+        0.1
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(order=2)] = 0.0,
+        x_d1: float = 0.0,
+        d: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        a: Annotated[float, ParameterSpec()] = 0.88,
+        omega: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+        self.d = d
+        self.a = a
+        self.omega = omega
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the acceleration of the oscillator.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rate of the second derivative of `x`.
+        """
+        s = namespace
+        return [RateLaw(s.x, -s.d * derivative(s.x, 1) - (exp(s.x) - 1) + s.a * sin(s.omega * s.t))]
+
+
+class VanDerPolElement(Element):
+    """Van der Pol oscillator `x'' = mu (1 - x^2) x' - x + A cos(omega t)`, with an optional periodic forcing.
+
+    The damping is negative for small amplitudes and positive for large ones, so the unforced oscillator, `A = 0`,
+    settles on a limit cycle of amplitude near 2. A forcing of amplitude `A` and frequency `omega` locks it or drives it
+    quasiperiodically or chaotically.
+
+    Args:
+        label:
+            The label of the oscillator.
+
+        visual:
+            How the oscillator is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial displacement.
+
+        x_d1:
+            The initial velocity.
+
+        mu:
+            The strength of the nonlinear damping.
+
+        A:
+            The amplitude of the forcing.
+
+        omega:
+            The frequency of the forcing.
+
+    Attributes:
+        default_visual_:
+            The visual of the oscillator when it sets none.
+
+    Examples:
+        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.systems.physics.nonlinear_oscillators import VanDerPolElement
+        >>> system = System(elements=[VanDerPolElement('oscillator', x=0.1)])
+        >>> trajectory = Simulation(system, dt=0.1).prepare().run(until=50.0).trajectory_
+        >>> round(float(abs(trajectory.values('oscillator.x')[-300:]).max()), 1)
+        2.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(order=2)] = 2.0,
+        x_d1: float = 0.0,
+        mu: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        A: Annotated[float, ParameterSpec()] = 0.0,
+        omega: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+        self.mu = mu
+        self.A = A
+        self.omega = omega
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the acceleration of the oscillator.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rate of the second derivative of `x`.
+        """
+        x = namespace.x
+        damping = namespace.mu * (1 - x**2) * derivative(x, 1)
+        return [RateLaw(x, damping - x + namespace.A * cos(namespace.omega * namespace.t))]
 
 
 def _get_henon_heiles_energy(star: SimpleNamespace) -> Expression:

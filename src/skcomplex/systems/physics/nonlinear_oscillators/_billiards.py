@@ -6,14 +6,277 @@
 import math
 from collections.abc import Callable
 from types import SimpleNamespace
+from typing import Annotated
 
+import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.components.elements import Element
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.system import System
 from ....core.errors import ValidationError
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
 from ..common.mechanics import ReflectionInteraction
-from ._mushroom_billiard import MushroomBilliardElement
-from ._sinai_billiard import SinaiBilliardElement
-from ._three_disk_billiard import ANGLES, ThreeDiskBilliardElement
+
+
+class MushroomBilliardElement(Element):
+    """Free particle in a mushroom table: a half disc cap of radius `radius` on a stem of half width `width`.
+
+    The particle flies straight, and reflects specularly off the cap, the floor of the cap beside the stem, the walls of
+    the stem, and its floor at depth `height`. Its phase space mixes regular orbits that stay in the cap with chaotic
+    orbits that enter the stem.
+
+    Args:
+        label:
+            The label of the particle.
+
+        visual:
+            How the particle is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        vx:
+            The initial first velocity.
+
+        vy:
+            The initial second velocity.
+
+        radius:
+            The radius of the cap.
+
+        width:
+            The half width of the stem.
+
+        height:
+            The height of the stem.
+
+    Attributes:
+        default_visual_:
+            The visual of the particle when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.nonlinear_oscillators import MushroomBilliardElement
+        >>> MushroomBilliardElement('ball').width
+        0.4
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 0.1,
+        y: Annotated[float, StateSpec()] = 0.6,
+        vx: Annotated[float, StateSpec()] = 0.6,
+        vy: Annotated[float, StateSpec()] = 0.8,
+        radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        width: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.4,
+        height: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.vx = vx
+        self.vy = vy
+        self.radius = radius
+        self.width = width
+        self.height = height
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the free flight `x' = vx`, `y' = vy` of the particle.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rates of the position.
+        """
+        s = namespace
+        return [RateLaw(s.x, s.vx), RateLaw(s.y, s.vy)]
+
+
+def _sinai_walls(size: float, radius: float, **_: float) -> list[np.ndarray]:
+    """Return the square wall and the central disc of a Sinai table as closed polylines."""
+    square = size * np.array([[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0], [-1.0, -1.0]])
+    angles = np.linspace(0.0, 2 * np.pi, 100)
+    return [square, radius * np.column_stack([np.cos(angles), np.sin(angles)])]
+
+
+class SinaiBilliardElement(Element):
+    """Free particle in a square table of half side `size` with a central disc of radius `radius`, the Sinai billiard.
+
+    The particle flies straight, and its specular reflections off the four walls and the disc make its motion ergodic
+    and chaotic.
+
+    Args:
+        label:
+            The label of the particle.
+
+        visual:
+            How the particle is drawn.
+
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        vx:
+            The initial first velocity.
+
+        vy:
+            The initial second velocity.
+
+        size:
+            The half side of the square.
+
+        radius:
+            The radius of the disc.
+
+    Attributes:
+        default_visual_:
+            The visual of the particle when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.nonlinear_oscillators import SinaiBilliardElement
+        >>> SinaiBilliardElement('ball').radius
+        0.4
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec(
+            'bodies',
+            {'positions': ('x', 'y'), 'trail': None, 'outline': _sinai_walls},
+        ),
+        *,
+        x: Annotated[float, StateSpec()] = 0.1,
+        y: Annotated[float, StateSpec()] = 0.6,
+        vx: Annotated[float, StateSpec()] = 0.6,
+        vy: Annotated[float, StateSpec()] = 0.8,
+        size: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.4,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.vx = vx
+        self.vy = vy
+        self.size = size
+        self.radius = radius
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the free flight `x' = vx`, `y' = vy` of the particle.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rates of the position.
+        """
+        s = namespace
+        return [RateLaw(s.x, s.vx), RateLaw(s.y, s.vy)]
+
+
+ANGLES = (-math.pi / 2, math.pi / 6, 5 * math.pi / 6)
+"""The polar angles of the centers of the three discs, one below the origin and two above it."""
+
+
+def _three_disk_walls(spacing: float, radius: float, **_: float) -> list[np.ndarray]:
+    """Return the three discs of an open three-disk billiard as closed polylines."""
+    angles = np.linspace(0.0, 2 * np.pi, 100)
+    circle = radius * np.column_stack([np.cos(angles), np.sin(angles)])
+    distance = spacing / math.sqrt(3)
+    return [circle + distance * np.array([math.cos(angle), math.sin(angle)]) for angle in ANGLES]
+
+
+class ThreeDiskBilliardElement(Element):
+    """Free particle scattered by three discs of radius `radius` at the corners of a triangle of side `spacing`.
+
+    The centers of the discs lie at the distance `spacing / √3` from the origin, at the polar angles `-π / 2`,
+    `π / 6`, and `5 π / 6`. The particle flies straight and reflects specularly off the discs. The billiard is open,
+    so almost every particle leaves the scattering region after a finite number of collisions, and the number of
+    collisions depends on the incoming direction in a fractal way.
+
+    Args:
+        label:
+            The label of the particle.
+
+        visual:
+            How the particle is drawn.
+
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        vx:
+            The initial first velocity.
+
+        vy:
+            The initial second velocity.
+
+        spacing:
+            The distance between the centers of two discs.
+
+        radius:
+            The radius of the discs.
+
+    Examples:
+        >>> from skcomplex.systems.physics.nonlinear_oscillators import ThreeDiskBilliardElement
+        >>> ThreeDiskBilliardElement('ball').spacing
+        2.4
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec(
+            'bodies',
+            {'positions': ('x', 'y'), 'trail': None, 'outline': _three_disk_walls},
+        ),
+        *,
+        x: Annotated[float, StateSpec()] = 0.1,
+        y: Annotated[float, StateSpec()] = 0.6,
+        vx: Annotated[float, StateSpec()] = 0.6,
+        vy: Annotated[float, StateSpec()] = 0.8,
+        spacing: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.4,
+        radius: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.4,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.vx = vx
+        self.vy = vy
+        self.spacing = spacing
+        self.radius = radius
+
+    def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the free flight `x' = vx`, `y' = vy` of the particle.
+
+        Args:
+            namespace:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The rates of the position.
+        """
+        s = namespace
+        return [RateLaw(s.x, s.vx), RateLaw(s.y, s.vy)]
+
 
 SHAPES = ('sinai', 'mushroom', 'three_disk')
 
