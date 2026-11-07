@@ -7,7 +7,7 @@ from ._alphabets import (
     self_indexed_shift,
     subtraction_automaton,
 )
-from ._automata import AntCellElement, elementary_automaton, game_of_life, langtons_ant
+from ._automata import AntCellElement, elementary_automaton, game_of_life, langtons_ant, turing_machine
 from ._binary_cell import BinaryCellElement
 from ._codes import Wolfram, life
 from ._diffusion_cell import DiffusionCellElement
@@ -28,14 +28,22 @@ from ._group_cell import GroupCellElement
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter
 from ._line_automata import involutive_automaton, nilpotent_automaton
 from ._morse_word import MorseElement
+from ._network_automata import small_world_life
 from ._noisy_elementary_cell import NoisyElementaryCellElement
 from ._pair_cell import PairCellElement
 from ._pascal_cell import PascalCellElement
 from ._power_series_cell import PowerSeriesCellElement
 from ._real_cell import RealCellElement
 from ._shift_spaces import adding_machine, context_free_subshift, gap_subshift, morse_subshift
+from ._tape_cell import TapeCellElement
 from ._ternary_cell import TernaryCellElement
-from ._variants import diffusion_automaton, highlife, noisy_automata, unbounded_alphabet_automaton
+from ._variants import (
+    diffusion_automaton,
+    fredkin_replicator,
+    highlife,
+    noisy_automata,
+    unbounded_alphabet_automaton,
+)
 
 __all__: list[str] = [
     'AntCellElement',
@@ -51,6 +59,7 @@ __all__: list[str] = [
     'PascalCellElement',
     'PowerSeriesCellElement',
     'RealCellElement',
+    'TapeCellElement',
     'TernaryCellElement',
     'Wolfram',
     'adding_machine',
@@ -59,6 +68,7 @@ __all__: list[str] = [
     'context_free_subshift',
     'diffusion_automaton',
     'elementary_automaton',
+    'fredkin_replicator',
     'free_group',
     'free_group_automaton',
     'game_of_life',
@@ -83,8 +93,10 @@ __all__: list[str] = [
     'power_series_automaton',
     'real_quadratic_automaton',
     'self_indexed_shift',
+    'small_world_life',
     'subshifts',
     'subtraction_automaton',
     'surjective_linear_automaton',
+    'turing_machine',
     'unbounded_alphabet_automaton',
 ]

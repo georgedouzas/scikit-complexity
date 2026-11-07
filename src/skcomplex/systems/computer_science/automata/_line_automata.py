@@ -59,7 +59,10 @@ def _line_system(rule: object, offsets: range, values: Array) -> System:
     return System(
         elements=[
             LatticeElement(
-                'cells', element=BinaryCellElement, space=LatticeSpace(values.size), values={'alive': values},
+                'cells',
+                element=BinaryCellElement,
+                space=LatticeSpace(values.size),
+                values={'alive': values},
             ),
         ],
         interactions=[
