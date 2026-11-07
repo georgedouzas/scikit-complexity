@@ -3,13 +3,82 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from typing import Annotated
 
+from sage.all__sagemath_symbolics import NN
+
+from ....core.components.elements import Element
 from ....core.components.interactions import TransitionInteraction
 from ....core.components.system import System
+from ....core.specs import StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._hidden_markov_source import HiddenMarkovSourceElement
-from ._markov_source import MarkovSourceElement
 from .types import Matrix
+
+
+class HiddenMarkovSourceElement(Element):
+    """Source of symbols emitted from the states of a hidden Markov chain, one symbol per step.
+
+    Args:
+        label:
+            The label of the source.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        hidden:
+            The initial hidden state.
+
+        symbol:
+            The initial symbol.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.stochastic_processes import HiddenMarkovSourceElement
+        >>> HiddenMarkovSourceElement('source', hidden=1).hidden
+        1
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        hidden: Annotated[float, StateSpec(domain=NN)] = 0,
+        symbol: Annotated[float, StateSpec(domain=NN)] = 0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.hidden = hidden
+        self.symbol = symbol
+
+
+class MarkovSourceElement(Element):
+    """Source of symbols `0` to `n - 1`, whose symbol a transition matrix steps in discrete time.
+
+    Args:
+        label:
+            The label of the source.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        symbol:
+            The initial symbol.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.stochastic_processes import MarkovSourceElement
+        >>> MarkovSourceElement('source', symbol=1).symbol
+        1
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        symbol: Annotated[float, StateSpec(domain=NN)] = 0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.symbol = symbol
+
 
 CHAIN = ((0.9, 0.1), (0.4, 0.6))
 
