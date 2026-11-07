@@ -331,8 +331,8 @@ Solvers and backends declare the noise structures they draw.
 
 `EulerMaruyamaSolver`, `HeunSolver`, and the NumPy and Numba backends support all four. `MilsteinSolver`, whose
 derivative-free correction holds for diagonal noise only, and `LammpsSolver` support diagonal noise. Validation
-reports a system with shared, correlated, or conserved noise for them before compiling it. The compatibility page lists
-the declarations.
+reports a system with shared, correlated, or conserved noise for them before compiling it. The [solvers page](../../../parts/solvers.md)
+lists their supported tags.
 
 SciPy, RK4, Euler-Maruyama, Milstein, and Heun handle delays, events, and drivers. Velocity Verlet, Gillespie, and map
 iteration reject delays and events, with an error that names the solvers to use.
