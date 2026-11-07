@@ -1,5 +1,8 @@
 """Test the `_genetic_algorithms` module of `skcomplex.systems.computer_science.evolutionary_computation`."""
 
+import pytest
+
+from skcomplex.core.errors import ParameterError
 from skcomplex.systems.computer_science.evolutionary_computation import robby_ga
 
 from ...conftest import _run
@@ -12,3 +15,22 @@ def test_robby_ga_learns_to_collect_cans():
     assert first.mean() < -100
     assert last.mean() > first.mean() + 150
     assert last.max() > 0
+
+
+def test_robby_ga_by_circumstance_improves_only_under_starvation():
+    """Test that Gooding's evolution by circumstance raises the scores with 30% starvation and not without it."""
+    means = {}
+    for starvation in (0.3, 0.0):
+        system = robby_ga(regime='circumstance', starvation=starvation)
+        trajectory = _run(system, 40)
+        means[starvation] = trajectory.agents('strategies', 40).values['score'].mean()
+        ages = trajectory.agents('strategies', 40).values['age']
+        assert ages.max() < 7
+    assert means[0.3] > -50
+    assert means[0.0] < -150
+
+
+def test_robby_ga_rejects_an_unknown_regime():
+    """Test that an unknown regime raises a parameter error."""
+    with pytest.raises(ParameterError, match='Unknown regime'):
+        robby_ga(regime='lamarckian')

@@ -12,6 +12,8 @@ from ._binary_cell import BinaryCellElement
 from ._codes import Wolfram, life
 from ._diffusion_cell import DiffusionCellElement
 from ._digit_cell import DigitCellElement
+from ._dna_computation import LigationInteraction, StrandElement, dna_computation
+from ._fredkin_replicator import fredkin_replicator
 from ._free_group_automata import life_in_a_tree, muller_automaton, surjective_linear_automaton
 from ._golden_cell import GoldenCellElement
 from ._group_automata import (
@@ -26,6 +28,7 @@ from ._group_automata import (
 )
 from ._group_cell import GroupCellElement
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter
+from ._lenia import LeniaSiteElement, LeniaUpdateInteraction, lenia
 from ._line_automata import involutive_automaton, nilpotent_automaton
 from ._morse_word import MorseElement
 from ._noisy_elementary_cell import NoisyElementaryCellElement
@@ -34,8 +37,15 @@ from ._pascal_cell import PascalCellElement
 from ._power_series_cell import PowerSeriesCellElement
 from ._real_cell import RealCellElement
 from ._shift_spaces import adding_machine, context_free_subshift, gap_subshift, morse_subshift
+from ._small_world_life import small_world_life
 from ._ternary_cell import TernaryCellElement
-from ._variants import diffusion_automaton, highlife, noisy_automata, unbounded_alphabet_automaton
+from ._turing_machine import TapeCellElement, turing_machine
+from ._variants import (
+    diffusion_automaton,
+    highlife,
+    noisy_automata,
+    unbounded_alphabet_automaton,
+)
 
 __all__: list[str] = [
     'AntCellElement',
@@ -45,12 +55,17 @@ __all__: list[str] = [
     'GoldenCellElement',
     'GroupCellElement',
     'LaplacianCellElement',
+    'LeniaSiteElement',
+    'LeniaUpdateInteraction',
+    'LigationInteraction',
     'MorseElement',
     'NoisyElementaryCellElement',
     'PairCellElement',
     'PascalCellElement',
     'PowerSeriesCellElement',
     'RealCellElement',
+    'StrandElement',
+    'TapeCellElement',
     'TernaryCellElement',
     'Wolfram',
     'adding_machine',
@@ -58,7 +73,9 @@ __all__: list[str] = [
     'baumslag_solitar_automaton',
     'context_free_subshift',
     'diffusion_automaton',
+    'dna_computation',
     'elementary_automaton',
+    'fredkin_replicator',
     'free_group',
     'free_group_automaton',
     'game_of_life',
@@ -73,6 +90,7 @@ __all__: list[str] = [
     'lamplighter',
     'lamplighter_automaton',
     'langtons_ant',
+    'lenia',
     'life',
     'life_in_a_tree',
     'linear_ring_automaton',
@@ -83,8 +101,10 @@ __all__: list[str] = [
     'power_series_automaton',
     'real_quadratic_automaton',
     'self_indexed_shift',
+    'small_world_life',
     'subshifts',
     'subtraction_automaton',
     'surjective_linear_automaton',
+    'turing_machine',
     'unbounded_alphabet_automaton',
 ]
