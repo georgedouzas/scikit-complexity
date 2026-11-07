@@ -2,19 +2,15 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems.physics.climate import (
-    carbon_cycle,
-    saltzman_glaciation,
-    van_der_pol_ice_ages,
-)
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.physics.climate import CarbonCycleSystem, SaltzmanGlaciationSystem, VanDerPolIceAgesSystem
 
 from ..conftest import _run_default
 
 
 def test_saltzman_glaciation_has_a_100_kyr_cycle():
     """Test that the unforced glacial system oscillates with a period of about 100 kyr."""
-    trajectory = _run_default(saltzman_glaciation(), until=50.0, dt=0.05)
+    trajectory = _run_default(SaltzmanGlaciationSystem(), until=50.0, dt=0.05)
     ice = trajectory.values('climate.x')
     rising = trajectory.times[1:][(ice[:-1] < 0) & (ice[1:] >= 0)]
     periods = np.diff(rising[rising > 10.0])
@@ -24,8 +20,8 @@ def test_saltzman_glaciation_has_a_100_kyr_cycle():
 
 def test_carbon_cycle_is_excitable():
     """Test that a small loss of dissolved carbon decays while a larger one sets off a large excursion."""
-    small = _run_default(carbon_cycle(w=2150.0), until=20.0, dt=0.1)
-    large = _run_default(carbon_cycle(w=2050.0), until=20.0, dt=0.1)
+    small = _run_default(CarbonCycleSystem(w=2150.0), until=20.0, dt=0.1)
+    large = _run_default(CarbonCycleSystem(w=2050.0), until=20.0, dt=0.1)
     for trajectory in (small, large):
         assert np.allclose(
             [trajectory.values('ocean.c')[-1], trajectory.values('ocean.w')[-1]],
@@ -38,7 +34,7 @@ def test_carbon_cycle_is_excitable():
 
 def test_van_der_pol_ice_ages_cycle_every_hundred_thousand_years():
     """Test that the unforced ice-age oscillator settles on a relaxation cycle of about 100 thousand years."""
-    trajectory = Simulation(van_der_pol_ice_ages(), dt=0.5).prepare().run(until=400.0).trajectory_
+    trajectory = simulate(VanDerPolIceAgesSystem())
     climate = np.asarray(trajectory.values('climate.y'), dtype=float)
     times = np.asarray(trajectory.times)
     crossings = times[np.flatnonzero((climate[:-1] < 0) & (climate[1:] >= 0))]

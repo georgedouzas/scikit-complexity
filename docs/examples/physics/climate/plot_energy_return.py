@@ -15,8 +15,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.physics.climate import EnergyReturnSystem
 
 SYSTEM = 'energy_return'
 
@@ -34,7 +35,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = create_simulation(SYSTEM).set_params(dt=1.0, observers=[observer]).prepare().run(until=250)
+trajectory = simulate(EnergyReturnSystem(), until=250, dt=1.0, observers=[observer], random_state=0)
 
 # %%
 # Three peaks
@@ -44,7 +45,6 @@ simulation = create_simulation(SYSTEM).set_params(dt=1.0, observers=[observer]).
 # empties, so the net energy should peak a few years before the gross energy and fall faster. Dividing by a growing
 # population moves the peak of the net energy per person about fifteen years earlier.
 
-trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
 series = {
     'gross energy': trajectory.values('energy.gross_energy'),

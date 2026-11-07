@@ -13,15 +13,15 @@ feed back on each other with a delay.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.climate import SocialForestDiebackSystem
 
 SYSTEM = 'social_forest_dieback'
 
-system = create_system(SYSTEM)
+system = SocialForestDiebackSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=200)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Outcomes after 200 years
@@ -35,9 +35,9 @@ fig, axes = plt.subplots(1, 2, figsize=(9, 4), sharey=True)
 for tc in (0.25, 1.0, 2.0):
     covers, shares = [], []
     for t in temperatures:
-        run = Simulation(create_system(SYSTEM, Tv=t, Tc=tc), dt=1.0).prepare().run(until=200)
-        covers.append(np.ravel(run.trajectory_.values('forest.v'))[-1])
-        shares.append(np.ravel(run.trajectory_.values('people.x'))[-1])
+        run = simulate(SocialForestDiebackSystem(Tv=t, Tc=tc), dt=1.0)
+        covers.append(np.ravel(run.values('forest.v'))[-1])
+        shares.append(np.ravel(run.values('people.x'))[-1])
     axes[0].plot(temperatures, covers, 'o-', label=f'Tc = {tc}')
     axes[1].plot(temperatures, shares, 'o-', label=f'Tc = {tc}')
 axes[0].set_ylabel('final value')

@@ -6,22 +6,22 @@ waves turns it around, so it swings regularly between El Niño, a warm anomaly, 
 """
 
 # %%
-# The system is created by name from the catalog with the delayed feedback `alpha = 0.75` and the delay of six time
+# The system is built from its class with the delayed feedback `alpha = 0.75` and the delay of six time
 # units, starting from a small warm anomaly. The default blueprint shows the anomaly in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import spectrum
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.climate import ENSOSystem
 
 SYSTEM = 'enso'
 
-system = create_system(SYSTEM)
+system = ENSOSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=200)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # A limit cycle with one period
@@ -30,7 +30,6 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 # its power spectrum should have a sharp peak at the period of the oscillation, nearly three times the delay, with
 # harmonics at its multiples.
 
-trajectory = simulation.trajectory_
 anomaly = trajectory.values('pacific.T')
 shift = int(6.0 / 0.5)
 settled = slice(len(anomaly) // 2, None)

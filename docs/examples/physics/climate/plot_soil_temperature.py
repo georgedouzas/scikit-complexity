@@ -6,22 +6,22 @@ deeper soil `y` averages it into small, damped fluctuations.
 """
 
 # %%
-# The system is created by name from the catalog with `r = 3.8` and the coupling `epsilon = 0.1`, and iterated for 200
+# The system is built from its class with `r = 3.8` and the coupling `epsilon = 0.1`, and iterated for 200
 # steps. The default blueprint shows both temperatures in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import OrbitDiagramExperiment
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.physics.climate import SoilTemperatureSystem
 
 SYSTEM = 'soil_temperature'
 
-system = create_system(SYSTEM)
+system = SoilTemperatureSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=200)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Route to chaos
@@ -33,7 +33,7 @@ simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=
 epsilon = 0.1
 diagram = (
     OrbitDiagramExperiment(
-        describe(SYSTEM).factory,
+        lambda r: SoilTemperatureSystem(r=r).prepare().system_,
         'r',
         np.linspace(2.5, 3.95, 300),
         'soil.x',

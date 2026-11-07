@@ -6,7 +6,7 @@ travel around the latitude circle, from site to site.
 """
 
 # %%
-# The system is created by name from the catalog with 20 sites and the forcing `F = 8`, with the first site displaced by
+# The system is built from its class with 20 sites and the forcing `F = 8`, with the first site displaced by
 # 0.01 from the steady state, and runs for 30 time units. The blueprint shows three sites of the ring in one time series
 # view, hiding the other seventeen.
 
@@ -15,11 +15,11 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.climate import Lorenz96System
 
-SYSTEM = 'lorenz_96'
+SYSTEM = 'lorenz96'
 
 shown = [site in (0, 7, 14) for site in range(20)]
 sites = rrb.TimeSeriesView(
@@ -37,9 +37,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM)
+system = Lorenz96System()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=3)
-simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=30)
+trajectory = simulate(system, until=30, observers=[observer])
 
 # %%
 # Space-time diagram of the waves
@@ -48,7 +48,6 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(unt
 # tilted stripes of travelling waves. The lagged correlation between neighbouring sites should peak away from zero lag,
 # at the time a wave takes to travel from one site to the next.
 
-trajectory = simulation.trajectory_
 x = trajectory.values('ring.x')
 times = trajectory.times
 late = x[times > 10] - x[times > 10].mean()

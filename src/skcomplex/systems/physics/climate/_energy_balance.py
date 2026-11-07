@@ -14,9 +14,8 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import gradient, laplacian, where
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class DaisyworldElement(Element):
@@ -78,6 +77,8 @@ class DaisyworldElement(Element):
         >>> DaisyworldElement('planet').albedo_white
         0.75
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -205,6 +206,8 @@ class IceAlbedoClimateElement(Element):
         263.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -308,6 +311,8 @@ class LatitudeBandElement(Element):
         0.62
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -395,28 +400,13 @@ def _daisyworld_temperature(s: SimpleNamespace) -> Expression:
     return DaisyworldElement._daisyworld_emission(s.planet) ** (1 / 4)
 
 
-@register_system(
-    field='physics/climate',
-    tags=('ode', 'bistability', 'ice-albedo feedback', 'energy balance'),
-    references=('Budyko 1969', 'Sellers 1969', 'Datseris and Parlitz 2022', 'Ghil and Lucarini 2020'),
-    defaults={'until': 500.0, 'dt': 5.0},
-)
-def energy_balance(
-    T: float = 290.0,
-    *,
-    s: float = 1.0,
-    epsilon: float = 0.65,
-    sigma: float = 1.6e-10,
-    albedo: float = 0.5,
-    contrast: float = 0.2,
-    T_ice: float = 263.0,
-    width: float = 4.0,
-) -> System:
-    """Return the zero-dimensional energy balance of the Earth, bistable through the ice-albedo feedback.
+class EnergyBalanceSystem(BaseSystem):
+    """The zero-dimensional energy balance of the Earth, bistable through the ice-albedo feedback.
 
-    In units of the mean insolation, the global temperature follows `dT/dt = s (1 - a(T)) - sigma epsilon T^4`, with
-    the albedo `a(T) = albedo - contrast tanh((T - T_ice) / width)`, high on an icy planet and low on a warm one. For
-    the default parameters a warm climate near 286 K and a frozen climate near 232 K are both stable.
+    In units of the mean insolation, the global temperature follows `dT/dt = s (1 - a(T)) - sigma epsilon T^4`, with the
+    albedo `a(T) = albedo - contrast tanh((T - T_ice) / width)`, high on an icy planet and low on a warm one. For the
+    default parameters a warm climate near 286 K and a frozen climate near 232 K are both stable. The system has the
+    temperature `earth.T`.
 
     Args:
         T:
@@ -443,52 +433,68 @@ def energy_balance(
         width:
             The width of the transition in kelvin.
 
-    Returns:
-        system:
-            The system, with the temperature `earth.T`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.climate import energy_balance
-        >>> energy_balance(T=230.0).elements[0].T
+        >>> from skcomplex.systems.physics.climate import EnergyBalanceSystem
+        >>> EnergyBalanceSystem(T=230.0).prepare().system_.elements[0].T
         230.0
     """
-    climate = IceAlbedoClimateElement(
-        'earth',
-        T=T,
-        s=s,
-        epsilon=epsilon,
-        sigma=sigma,
-        albedo=albedo,
-        contrast=contrast,
-        T_ice=T_ice,
-        width=width,
-    )
-    return System(elements=[climate])
+
+    field = 'physics/climate'
+    topics = ('ode', 'bistability', 'ice-albedo feedback', 'energy balance')
+    references = ('Budyko 1969', 'Sellers 1969', 'Datseris and Parlitz 2022', 'Ghil and Lucarini 2020')
+    until = 500.0
+    dt = 5.0
+
+    def __init__(
+        self,
+        T: float = 290.0,
+        *,
+        s: float = 1.0,
+        epsilon: float = 0.65,
+        sigma: float = 1.6e-10,
+        albedo: float = 0.5,
+        contrast: float = 0.2,
+        T_ice: float = 263.0,
+        width: float = 4.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.T = T
+        self.s = s
+        self.epsilon = epsilon
+        self.sigma = sigma
+        self.albedo = albedo
+        self.contrast = contrast
+        self.T_ice = T_ice
+        self.width = width
+
+    def _build_system(self) -> System:
+        """Return the zero-dimensional energy balance of the Earth, bistable through the ice-albedo feedback."""
+        climate = IceAlbedoClimateElement(
+            'earth',
+            T=self.T,
+            s=self.s,
+            epsilon=self.epsilon,
+            sigma=self.sigma,
+            albedo=self.albedo,
+            contrast=self.contrast,
+            T_ice=self.T_ice,
+            width=self.width,
+        )
+        return System(self.label, elements=[climate])
 
 
-@register_system(
-    field='physics/climate',
-    tags=('field', 'pde', 'energy balance', 'ice-albedo feedback', 'snowball'),
-    references=('Budyko 1969', 'Sellers 1969', 'North 1975', 'Ghil and Lucarini 2020'),
-    defaults={'until': 100.0, 'dt': 2.0},
-)
-def budyko_sellers(
-    n_bands: int = 30,
-    T: float = 15.0,
-    *,
-    Q: float = 334.4,
-    A: float = 203.3,
-    B: float = 2.09,
-    D: float = 0.649,
-    C: float = 10.0,
-) -> System:
-    """Return the Budyko-Sellers energy balance of one hemisphere, resolved in the sine of latitude.
+class BudykoSellersSystem(BaseSystem):
+    """The Budyko-Sellers energy balance of one hemisphere, resolved in the sine of latitude.
 
-    The temperature of a band at `x = sin(latitude)` follows `C dT/dt = Q s(x) (1 - a(x, T)) - (A + B T) +
-    D d/dx((1 - x^2) dT/dx)`, with the annual insolation `s(x) = 1 - 0.482 P2(x)`, where `P2(x) = (3x^2 - 1) / 2`.
-    The albedo is `0.319 + 0.202 P2(x)` without ice and rises to 0.62 where the temperature falls below -10 °C.
-    Bands are centred at `x = (i + 1/2) / n_bands`, with no heat flux across the equator or the pole. Present
-    insolation keeps both a climate with polar ice caps and a snowball Earth.
+    The temperature of a band at `x = sin(latitude)` follows `C dT/dt = Q s(x) (1 - a(x, T)) - (A + B T) + D d/dx((1 -
+    x^2) dT/dx)`, with the annual insolation `s(x) = 1 - 0.482 P2(x)`, where `P2(x) = (3x^2 - 1) / 2`. The albedo is
+    `0.319 + 0.202 P2(x)` without ice and rises to 0.62 where the temperature falls below -10 °C. Bands are centred at
+    `x = (i + 1/2) / n_bands`, with no heat flux across the equator or the pole. Present insolation keeps both a climate
+    with polar ice caps and a snowball Earth. The system has the temperatures `bands.T` from the equator to the pole.
 
     Args:
         n_bands:
@@ -512,45 +518,70 @@ def budyko_sellers(
         C:
             The heat capacity in W yr m⁻² K⁻¹, so time is in years.
 
-    Returns:
-        system:
-            The system, with the temperatures `bands.T` from the equator to the pole.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.climate import budyko_sellers
-        >>> budyko_sellers(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.physics.climate import BudykoSellersSystem
+        >>> BudykoSellersSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    x = (np.arange(n_bands) + 0.5) / n_bands
-    bands = FieldElement(
-        'bands',
-        element=LatitudeBandElement,
-        space=LatticeSpace(n_bands, spacing=1 / n_bands),
-        boundary={'T': 'zero-flux'},
-        values={'T': np.full(n_bands, float(T)), 'x': x, 'Q': Q, 'A': A, 'B': B, 'D': D, 'C': C},
-    )
-    return System(elements=[bands])
+
+    field = 'physics/climate'
+    topics = ('field', 'pde', 'energy balance', 'ice-albedo feedback', 'snowball')
+    references = ('Budyko 1969', 'Sellers 1969', 'North 1975', 'Ghil and Lucarini 2020')
+    until = 100.0
+    dt = 2.0
+
+    def __init__(
+        self,
+        n_bands: int = 30,
+        T: float = 15.0,
+        *,
+        Q: float = 334.4,
+        A: float = 203.3,
+        B: float = 2.09,
+        D: float = 0.649,
+        C: float = 10.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_bands = n_bands
+        self.T = T
+        self.Q = Q
+        self.A = A
+        self.B = B
+        self.D = D
+        self.C = C
+
+    def _build_system(self) -> System:
+        """Return the Budyko-Sellers energy balance of one hemisphere, resolved in the sine of latitude."""
+        x = (np.arange(self.n_bands) + 0.5) / self.n_bands
+        bands = FieldElement(
+            'bands',
+            element=LatitudeBandElement,
+            space=LatticeSpace(self.n_bands, spacing=1 / self.n_bands),
+            boundary={'T': 'zero-flux'},
+            values={
+                'T': np.full(self.n_bands, float(self.T)),
+                'x': x,
+                'Q': self.Q,
+                'A': self.A,
+                'B': self.B,
+                'D': self.D,
+                'C': self.C,
+            },
+        )
+        return System(self.label, elements=[bands])
 
 
-@register_system(
-    field='physics/climate',
-    tags=('ode', 'regulation', 'Gaia', 'vegetation'),
-    references=('Watson and Lovelock 1983', 'Jensen 2023'),
-    defaults={'until': 100.0, 'dt': 0.5},
-    observables=lambda system: [ObservableSpec('temperature', _daisyworld_temperature)],
-)
-def daisyworld(
-    white: float = 0.2,
-    black: float = 0.2,
-    *,
-    L: float = 1.0,
-    gamma: float = 0.3,
-) -> System:
-    """Return Daisyworld, where white and black daisies regulate the temperature of their planet through its albedo.
+class DaisyworldSystem(BaseSystem):
+    """Daisyworld, where white and black daisies regulate the temperature of their planet through its albedo.
 
-    The areas covered by white and black daisies grow on the bare ground at a rate parabolic in their local
-    temperature, with an optimum at 22.5 °C, and die at the rate `gamma`. The effective temperature follows the
-    planetary albedo, `sigma T^4 = S L (1 - A)`, and is recorded as the observable `temperature`.
+    The areas covered by white and black daisies grow on the bare ground at a rate parabolic in their local temperature,
+    with an optimum at 22.5 °C, and die at the rate `gamma`. The effective temperature follows the planetary albedo,
+    `sigma T^4 = S L (1 - A)`, and is recorded as the observable `temperature`. The system has the areas `planet.white`
+    and `planet.black` and the observable `temperature`.
 
     Args:
         white:
@@ -565,15 +596,40 @@ def daisyworld(
         gamma:
             The death rate of daisies.
 
-    Returns:
-        system:
-            The system, with the areas `planet.white` and `planet.black` and the observable `temperature`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.climate import daisyworld
-        >>> daisyworld(L=1.2).elements[0].L
+        >>> from skcomplex.systems.physics.climate import DaisyworldSystem
+        >>> DaisyworldSystem(L=1.2).prepare().system_.elements[0].L
         1.2
     """
-    return System(
-        elements=[DaisyworldElement('planet', white=white, black=black, L=L, gamma=gamma)],
-    )
+
+    field = 'physics/climate'
+    topics = ('ode', 'regulation', 'Gaia', 'vegetation')
+    references = ('Watson and Lovelock 1983', 'Jensen 2023')
+    until = 100.0
+    dt = 0.5
+    observables = (ObservableSpec('temperature', _daisyworld_temperature),)
+
+    def __init__(
+        self,
+        white: float = 0.2,
+        black: float = 0.2,
+        *,
+        L: float = 1.0,
+        gamma: float = 0.3,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.white = white
+        self.black = black
+        self.L = L
+        self.gamma = gamma
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        return System(
+            self.label,
+            elements=[DaisyworldElement('planet', white=self.white, black=self.black, L=self.L, gamma=self.gamma)],
+        )

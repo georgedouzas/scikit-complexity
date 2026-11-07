@@ -6,22 +6,22 @@ Ice volume, carbon dioxide, and the deep ocean temperature drive each other arou
 """
 
 # %%
-# The system is created by name from the catalog with the default parameters and no forcing, and runs for 50 time units
+# The system is built from its class with the default parameters and no forcing, and runs for 50 time units
 # of 10 kyr, half a million years. The default blueprint shows the three anomalies in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import spectrum
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.climate import SaltzmanGlaciationSystem
 
 SYSTEM = 'saltzman_glaciation'
 
-system = create_system(SYSTEM)
+system = SaltzmanGlaciationSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=50)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # The 100 kyr cycle
@@ -29,7 +29,7 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(unt
 # On the limit cycle ice volume and carbon dioxide should trace one closed loop, and the power spectrum of a long run of
 # ice volume should peak at a period near 100 kyr.
 
-run = Simulation(create_system(SYSTEM), dt=0.05).prepare().run(until=400).trajectory_
+run = simulate(SaltzmanGlaciationSystem(), until=400)
 settled = run.times > 20
 ice, carbon = run.values('climate.x')[settled], run.values('climate.y')[settled]
 power = spectrum(ice, dt=0.05)
