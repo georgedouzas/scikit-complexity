@@ -27,10 +27,10 @@ class _TaskSpec(BaseSpec):
             The position of the run in the experiment.
 
         source:
-            The factory or system of the system.
+            The system, or the factory of systems.
 
         row:
-            The design values.
+            The values of the run, by model parameter or dotted path.
 
         scenario:
             The scenario.
@@ -42,22 +42,22 @@ class _TaskSpec(BaseSpec):
             The random stream of the run.
 
         until:
-            The simulated time to run to.
+            The end time of the run, or `None` for the tuned end time of the system.
 
         dt:
-            The time step of the simulation, or `None` for its default.
+            The time between frames, or `None` for the tuned one.
 
         solver:
-            The solver of the simulation, or `None` for its default.
+            The solver, or `None` for the tuned one.
 
         outputs:
-            The outputs to keep.
+            The outputs to keep, or `None` for every observable or state.
 
         warmup:
             The simulated time before which kept series are discarded.
 
         observables:
-            The observables of the run, or `None` for none.
+            The observables of the run, or none for the tuned ones.
 
         analyses:
             The analyses of the run, functions of its trajectory, by their column prefix.
@@ -69,10 +69,10 @@ class _TaskSpec(BaseSpec):
     scenario: ScenarioSpec
     replicate: int
     seed: np.random.SeedSequence
-    until: float
+    until: float | None
     dt: float | None
     solver: BaseSolver | None
     outputs: Sequence[Output] | None
     warmup: float
-    observables: Sequence[ObservableSpec] | None
+    observables: Sequence[ObservableSpec]
     analyses: tuple[tuple[str, Callable[[Trajectory], object]], ...]

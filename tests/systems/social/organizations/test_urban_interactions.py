@@ -6,7 +6,7 @@ import pytest
 from skcomplex.core.analysis import ScalingResult, scaling
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.experiments import Experiment, GridDesign
+from skcomplex.core.experiments import sweep
 from skcomplex.systems import describe
 from skcomplex.systems.social.organizations import UrbanScalingInteractionsSystem
 
@@ -19,16 +19,15 @@ def _fit(internal: float) -> ScalingResult:
     observables = describe('urban_scaling_interactions').observables_of(
         UrbanScalingInteractionsSystem(20).prepare().system_,
     )
-    experiment = Experiment(
+    result = sweep(
         lambda **arguments: UrbanScalingInteractionsSystem(**arguments).prepare().system_,
-        GridDesign(),
         {'population': SIZES, 'internal': [internal], 'random_state': SEEDS},
         until=float(max(SIZES)),
         outputs=['total_meetings'],
         observables=observables,
         random_state=0,
     )
-    meetings = experiment.prepare().run().result_.series('total_meetings')[:, -1]
+    meetings = result.series('total_meetings')[:, -1]
     samples = dict(zip(SIZES, meetings.reshape(len(SIZES), len(SEEDS)), strict=True))
     return scaling(samples, kind='allometric', resamples=300)
 

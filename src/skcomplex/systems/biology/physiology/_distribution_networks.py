@@ -122,7 +122,7 @@ class WestBrownEnquistSystem(BaseSystem):
     proportional to the number of capillaries, `n^depth`, and the body mass to the blood volume, which the
     area-preserving and space-filling vessels make `V = pi r_c^2 l_c n^depth (n^(depth / 3) - 1) / (n^(1 / 3) - 1)`,
     which grows as `n^(4 depth / 3)` for deep trees. So the metabolic rate scales as the mass to the power 3/4,
-    Kleiber's law, which the exponent between consecutive depths approaches from below. An `Experiment` over `depth`
+    Kleiber's law, which the exponent between consecutive depths approaches from below. A `sweep` over `depth`
     fits it. The system has the radii `vessels.r`, lengths `vessels.l`, and volumes `vessels.volume` on the edges of the
     tree and the observables `blood_volume` and `capillaries` of the catalog, which a run passes in `observables`.
 

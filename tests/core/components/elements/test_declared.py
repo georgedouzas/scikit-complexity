@@ -17,7 +17,7 @@ from skcomplex.core.components.system import System
 from skcomplex.core.engine._utils import declared_variables
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.experiments import BaseExperiment
+from skcomplex.core.experiments._replicate import _replicate
 from skcomplex.core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec
 
 GENERATED_CLASSES_ALLOWED = {'core/engine/solvers/_mesa.py': 2}
@@ -156,7 +156,7 @@ def test_declared_element_replicates_in_an_experiment():
     """Test that replicating a system keeps the declared variables and takes one value per member."""
     element = _DeclaredDecayElement('cell', variables=_variables())
     system = System(elements=[element], time=ContinuousTime())
-    ensemble = BaseExperiment._replicate(system, 2, {'cell.x': np.array([1.0, 3.0])})
+    ensemble = _replicate(system, 2, {'cell.x': np.array([1.0, 3.0])})
     last = _simulate(ensemble).values('cell.x')[-1]
     assert last == pytest.approx(np.array([1.0, 3.0]) * np.exp(-0.5), rel=1e-4)
 

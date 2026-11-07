@@ -17,7 +17,7 @@ import numpy as np
 from skcomplex.core.analysis import scaling
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.experiments import Experiment, GridDesign
+from skcomplex.core.experiments import sweep
 from skcomplex.systems.social.organizations import UrbanScalingInteractionsSystem
 
 SYSTEM = 'urban_scaling_interactions'
@@ -30,7 +30,7 @@ trajectory = simulate(system, observables=observables, observers=[observer], ran
 # %%
 # Meetings against the population
 # -------------------------------
-# An `Experiment` sweeps the size of the city at three rates of internal links, and `scaling(kind='allometric')` fits
+# A `sweep` varies the size of the city at three rates of internal links, and `scaling(kind='allometric')` fits
 # the exponent of the meetings with a confidence interval. Without internal links the exponent stays near 1, and
 # it rises with the rate of the internal links. This rate per resident is the assumption of this system, and it sets the
 # exponent. Papadopoulos et al. (2015) add a fixed number of internal links per step, which keeps the mean degree
@@ -42,16 +42,15 @@ rates = [0.0, 0.002, 0.005]
 fig, ax = plt.subplots(figsize=(7, 4))
 for rate in rates:
     bounds = {'population': sizes, 'internal': [rate], 'random_state': seeds}
-    experiment = Experiment(
-        lambda **parameters: UrbanScalingInteractionsSystem(**parameters).prepare().system_,
-        GridDesign(),
+    result = sweep(
+        UrbanScalingInteractionsSystem(),
         bounds,
         until=float(max(sizes)),
         outputs=['total_meetings'],
         observables=observables,
         random_state=0,
     )
-    meetings = experiment.prepare().run().result_.series('total_meetings')[:, -1]
+    meetings = result.series('total_meetings')[:, -1]
     samples = dict(zip(sizes, meetings.reshape(len(sizes), len(seeds)), strict=True))
     fit = scaling(samples, kind='allometric', resamples=500)
     label = f'internal {rate}: exponent {fit.exponent:.2f} [{fit.interval[0]:.2f}, {fit.interval[1]:.2f}]'

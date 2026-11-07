@@ -15,7 +15,7 @@ import numpy as np
 
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.experiments import Experiment, GridDesign
+from skcomplex.core.experiments import sweep
 from skcomplex.systems.economics.markets import OligopolyEquilibriaSystem
 
 SYSTEM = 'oligopoly_equilibria'
@@ -27,18 +27,11 @@ trajectory = simulate(system, until=1.0, observers=[observer])
 # %%
 # The distribution of prices
 # --------------------------
-# An `Experiment` sweeps the number of firms, whose rivals drive prices up, and a run of 2000 rounds of fictitious play
+# A `sweep` varies the number of firms, whose rivals drive prices up, and a run of 2000 rounds of fictitious play
 # gives the empirical distribution of the duopoly.
 
 bounds = {'n_firms': [2, 3], 'alpha': [0.2]}
-experiment = Experiment(
-    lambda **parameters: OligopolyEquilibriaSystem(**parameters).prepare().system_,
-    GridDesign(),
-    bounds,
-    until=1.0,
-    outputs=['prices.price', 'prices.distribution'],
-)
-result = experiment.prepare().run().result_
+result = sweep(OligopolyEquilibriaSystem(), bounds, until=1.0, outputs=['prices.price', 'prices.distribution'])
 prices, distributions = result.series('prices.price')[:, 0], result.series('prices.distribution')[:, 0]
 played = simulate(OligopolyEquilibriaSystem(dynamics='fictitious-play'), until=2000, random_state=0)
 charged = np.sort(np.concatenate([played.values('lower_price')[1:], played.values('higher_price')[1:]]))

@@ -16,7 +16,7 @@ import numpy as np
 from skcomplex.core.analysis import scaling
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.experiments import Experiment, GridDesign
+from skcomplex.core.experiments import sweep
 from skcomplex.systems.social.organizations import GravityUrbanScalingSystem
 
 SYSTEM = 'gravity_urban_scaling'
@@ -29,19 +29,12 @@ trajectory = simulate(system, until=1.0, observables=observables, observers=[obs
 # %%
 # Total interaction against the population
 # ----------------------------------------
-# An `Experiment` sweeps the population, and `scaling(kind='power')` fits the exponent.
+# A `sweep` varies the population, and `scaling(kind='power')` fits the exponent.
 
 populations = [100, 200, 400, 800]
 bounds = {'population': populations, 'gamma': [1.0]}
-experiment = Experiment(
-    lambda **parameters: GravityUrbanScalingSystem(**parameters).prepare().system_,
-    GridDesign(),
-    bounds,
-    until=1.0,
-    outputs=['total_contacts'],
-    observables=observables,
-)
-totals = experiment.prepare().run().result_.series('total_contacts')[:, 0]
+result = sweep(GravityUrbanScalingSystem(), bounds, until=1.0, outputs=['total_contacts'], observables=observables)
+totals = result.series('total_contacts')[:, 0]
 fit = scaling(totals, kind='power', parameters=populations, critical=0.0, above=True)
 exponent = float(np.ravel(fit.exponent)[0])
 fig, ax = plt.subplots(figsize=(7, 4))

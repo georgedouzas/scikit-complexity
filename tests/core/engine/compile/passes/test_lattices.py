@@ -30,7 +30,7 @@ from skcomplex.core.engine.problems._extremal_kernel import ExtremalKernel
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver, SiteVisual
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.experiments import Experiment, GridDesign
+from skcomplex.core.experiments import sweep
 from skcomplex.core.specs import (
     ExtremalRecordSpec,
     LinearRuleSpec,
@@ -366,21 +366,15 @@ def test_ising_on_grid_graph_has_transition():
     """Test that the ensemble magnetisation on the periodic 64 x 64 grid graph falls below one half from 2.2 to 2.4."""
     graph = nx.grid_2d_graph(64, 64, periodic=True)
     temperatures = [1.5, 2.2, 2.4, 3.5]
-    result = (
-        Experiment(
-            lambda temperature: GraphIsingSystem(graph, temperature=temperature, initial='up').prepare().system_,
-            GridDesign(),
-            {'temperature': temperatures},
-            replicates=4,
-            until=1000,
-            dt=50,
-            warmup=200,
-            outputs=[_ising_magnetization],
-            random_state=0,
-        )
-        .prepare()
-        .run()
-        .result_
+    result = sweep(
+        lambda temperature: GraphIsingSystem(graph, temperature=temperature, initial='up').prepare().system_,
+        {'temperature': temperatures},
+        replicates=4,
+        until=1000,
+        dt=50,
+        warmup=200,
+        outputs=[_ising_magnetization],
+        random_state=0,
     )
     means = {row['temperature']: row['_ising_magnetization.mean'] for row in result.summary()}
     assert means[2.2] > 0.5 > means[2.4]

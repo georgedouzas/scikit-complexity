@@ -150,7 +150,7 @@ class RandomEnergySystem(BaseSystem):
 
     The entropy per spin follows `ln 2 - 1 / (4 T^2)` above the glass temperature `T_g = 1 / (2 sqrt(ln 2))` and freezes
     below it, where the Boltzmann weight falls on the few lowest levels (Bertin 2021 §1.5.3). The energies are drawn
-    from `random_state`, so a disorder average sweeps it through `GridDesign`. The system has the states
+    from `random_state`, so a disorder average sweeps it with `sweep`. The system has the states
     `ensemble.log_partition`, `ensemble.energy`, and `ensemble.entropy`.
 
     Args:

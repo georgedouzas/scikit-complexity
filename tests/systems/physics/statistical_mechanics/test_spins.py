@@ -6,7 +6,7 @@ import pytest
 from skcomplex.core.engine.problems import FrameSpec
 from skcomplex.core.engine.runtime import Simulation, simulate
 from skcomplex.core.engine.viz import ImageVisual, RerunObserver
-from skcomplex.core.experiments import Experiment, GridDesign
+from skcomplex.core.experiments import sweep
 from skcomplex.systems.physics.statistical_mechanics import IsingSystem, PottsSystem, XYSystem
 from skcomplex.systems.physics.statistical_mechanics._spins import PottsSamplingInteraction, XYSamplingInteraction
 
@@ -47,21 +47,15 @@ class Images:
 def test_ising_transition():
     """Test that the ensemble magnetisation of a 64 x 64 Ising lattice drops below one half between 2.2 and 2.4."""
     temperatures = [1.5, 2.0, 2.2, 2.4, 3.0, 3.5]
-    result = (
-        Experiment(
-            lambda temperature: IsingSystem(64, temperature=temperature, initial='up').prepare().system_,
-            GridDesign(),
-            {'temperature': temperatures},
-            replicates=4,
-            until=1000,
-            dt=50,
-            warmup=200,
-            outputs=[magnetization],
-            random_state=0,
-        )
-        .prepare()
-        .run()
-        .result_
+    result = sweep(
+        lambda temperature: IsingSystem(64, temperature=temperature, initial='up').prepare().system_,
+        {'temperature': temperatures},
+        replicates=4,
+        until=1000,
+        dt=50,
+        warmup=200,
+        outputs=[magnetization],
+        random_state=0,
     )
     means = {row['temperature']: row['magnetization.mean'] for row in result.summary()}
     assert means[2.2] > 0.5 > means[2.4]

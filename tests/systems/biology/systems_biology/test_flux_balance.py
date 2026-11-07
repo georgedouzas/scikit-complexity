@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.experiments import Experiment, GridDesign
+from skcomplex.core.experiments import sweep
 from skcomplex.systems.biology.common.metabolism import flux_variability
 from skcomplex.systems.biology.systems_biology import FluxBalanceSystem
 
@@ -44,14 +44,8 @@ def test_flux_balance_parsimonious_uses_the_smallest_total():
 def test_flux_balance_oxygen_sweep_by_an_experiment():
     """Test that growth rises from 0.2117 without oxygen and stays at 0.8739 above the uptake of about 21.8."""
     levels = [0.0, 5.0, 10.0, 20.0, 25.0]
-    experiment = Experiment(
-        FluxBalanceSystem,
-        GridDesign(),
-        {'oxygen': levels, 'network': ['ecoli']},
-        until=0.0,
-        outputs=['cell.objective_0'],
-    )
-    rows = experiment.prepare().run().result_.rows
+    result = sweep(FluxBalanceSystem, {'oxygen': levels, 'network': ['ecoli']}, until=0.0, outputs=['cell.objective_0'])
+    rows = result.rows
     growth = [float(np.ravel(row['cell.objective_0'])[-1]) for row in rows]
     assert growth[0] == pytest.approx(0.2117, abs=1e-4)
     assert np.all(np.diff(growth) > 0)

@@ -13,7 +13,7 @@ import numpy as np
 
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.experiments import Experiment, GridDesign
+from skcomplex.core.experiments import sweep
 from skcomplex.systems.social.language import MandelbrotLeastEffortSystem
 
 SYSTEM = 'mandelbrot_least_effort'
@@ -26,18 +26,12 @@ probabilities = trajectory.values('words.probability')[0]
 # %%
 # The exponent against the vocabulary
 # -----------------------------------
-# An `Experiment` sweeps the number of words. The exponent grows towards 1.73, where the zeta function is 2, the limit
+# A `sweep` varies the number of words. The exponent grows towards 1.73, where the zeta function is 2, the limit
 # of an infinite vocabulary.
 
 sizes = [5, 10, 20, 50, 100, 200, 400]
-experiment = Experiment(
-    lambda **parameters: MandelbrotLeastEffortSystem(**parameters).prepare().system_,
-    GridDesign(),
-    {'n_words': sizes},
-    until=1.0,
-    outputs=['language.exponent'],
-)
-exponents = experiment.prepare().run().result_.series('language.exponent')[:, 0]
+result = sweep(MandelbrotLeastEffortSystem(), {'n_words': sizes}, until=1.0, outputs=['language.exponent'])
+exponents = result.series('language.exponent')[:, 0]
 ranks = np.arange(1, probabilities.size + 1)
 fig, (law, trend) = plt.subplots(1, 2, figsize=(10, 4))
 law.loglog(ranks + 1, probabilities, '.')

@@ -11,7 +11,7 @@ from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.solvers import ScipyODESolver
-from skcomplex.core.experiments import Experiment, RowsDesign
+from skcomplex.core.experiments import sweep
 from skcomplex.systems.biology.common.populations import PopulationElement
 from skcomplex.systems.biology.ecology import HigherOrderRandomLotkaVolterraSystem, TripletInteraction
 
@@ -80,8 +80,8 @@ def test_higher_order_random_lotka_volterra_tensor_changes_by_an_experiment():
     """Test that an experiment sets the tensor parameter, so two tensors give different final abundances."""
     system = HigherOrderRandomLotkaVolterraSystem(8).prepare().system_
     rows = [{'triplets.a': np.zeros((8, 8, 8))}, {'triplets.a': -np.ones((8, 8, 8))}]
-    experiment = Experiment(system, RowsDesign(rows), until=20.0, dt=20.0, outputs=['species.n'])
-    final = experiment.prepare().run().result_.series('species.n')[:, -1]
+    result = sweep(system, rows, until=20.0, dt=20.0, outputs=['species.n'])
+    final = result.series('species.n')[:, -1]
     np.testing.assert_allclose(final[0], 1.0, atol=1e-3)
     assert np.all(final[1] < final[0])
 
@@ -92,8 +92,8 @@ def test_higher_order_random_lotka_volterra_random_community_matches_the_paper()
     drawn = [HigherOrderRandomLotkaVolterraSystem(random_state=seed).prepare().system_ for seed in range(20)]
     rows = [{'triplets.a': system.interactions[1].a, 'species.n': system.elements[0].values['n']} for system in drawn]
     solver = ScipyODESolver('RK45', rtol=1e-6, atol=1e-9)
-    experiment = Experiment(drawn[0], RowsDesign(rows), until=1000.0, dt=1000.0, solver=solver, outputs=['species.n'])
-    final = experiment.prepare().run().result_.series('species.n')[:, -1]
+    result = sweep(drawn[0], rows, until=1000.0, dt=1000.0, solver=solver, outputs=['species.n'])
+    final = result.series('species.n')[:, -1]
     assert np.all(np.isfinite(final))
     assert np.all(final >= 0)
     assert np.mean(final > EXTINCT) == pytest.approx(SURVIVING_FRACTION, abs=FRACTION_PRECISION)

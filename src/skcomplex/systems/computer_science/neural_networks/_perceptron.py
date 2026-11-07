@@ -43,7 +43,7 @@ class PerceptronSatisfiabilitySystem(BaseSystem):
     A pattern `xi` of output `sigma` holds when `sigma sum_i w_i xi_i > 0`, so with an odd number `N` of weights `w_i =
     +-1`, when at least `(N + 1) / 2` of the literals `w_i = sigma xi_i` hold. The patterns are satisfiable up to the
     critical load `p / N` of about 0.83 in the limit of many weights (Bertin 2021 §6.3.3, Ex. 6.4). The patterns are
-    drawn from `random_state`, so a disorder average sweeps it through `GridDesign`. The system has the group `weights`
+    drawn from `random_state`, so a disorder average sweeps it with `sweep`. The system has the group `weights`
     and the reports `decide.satisfiable` and `decide.revealed`.
 
     Args:

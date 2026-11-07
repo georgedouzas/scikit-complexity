@@ -14,7 +14,7 @@ import numpy as np
 
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.experiments import Experiment, GridDesign
+from skcomplex.core.experiments import sweep
 from skcomplex.systems.physics.statistical_mechanics import RandomEnergySystem
 
 SYSTEM = 'random_energy'
@@ -32,14 +32,8 @@ trajectory = simulate(system, until=1.0, observers=[observer])
 temperatures = np.array([0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0, 1.5, 2.0])
 seeds = list(range(5))
 bounds = {'n_spins': [16], 'temperature': temperatures.tolist(), 'random_state': seeds}
-experiment = Experiment(
-    lambda **parameters: RandomEnergySystem(**parameters).prepare().system_,
-    GridDesign(),
-    bounds,
-    until=1.0,
-    outputs=['ensemble.entropy'],
-)
-entropies = experiment.prepare().run().result_.series('ensemble.entropy')[:, 0]
+result = sweep(RandomEnergySystem(), bounds, until=1.0, outputs=['ensemble.entropy'])
+entropies = result.series('ensemble.entropy')[:, 0]
 grid = np.linspace(1 / (2 * np.sqrt(np.log(2))), 2.1, 100)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(temperatures, entropies.reshape(len(temperatures), len(seeds)).mean(axis=1), 'o', label='N = 16, 5 draws')
