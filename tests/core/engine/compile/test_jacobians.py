@@ -34,7 +34,7 @@ from skcomplex.core.engine.solvers import IMEXEulerSolver, ScipyODESolver
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.specs import ParameterSpec, RunStateSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.ecology import FisherKPPElement
-from skcomplex.systems.chemistry.pattern_formation import gray_scott
+from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
 from skcomplex.systems.physics.common.oscillators import SitedOscillatorElement
 from skcomplex.systems.physics.fluids import kuramoto_sivashinsky
 from skcomplex.systems.physics.heat import heat_diffusion, heat_l_shape
@@ -257,7 +257,7 @@ def _relative_error(problem, rng):
 
 def test_exact_jacobian_of_gray_scott():
     """Test that the exact Jacobian of Gray-Scott on a 64 by 64 lattice agrees with central finite differences."""
-    problem = PassCompiler(backend=NumpyBackend()).prepare(gray_scott((64, 64))).run().problem_
+    problem = PassCompiler(backend=NumpyBackend()).prepare(GrayScottSystem((64, 64)).prepare().system_).run().problem_
     assert _relative_error(problem, np.random.default_rng(0)) < 1e-6
 
 

@@ -17,13 +17,22 @@ from skcomplex.core.engine.problems import ProblemSpec
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import RegistryError, ValidationError
-from skcomplex.systems import SystemCatalog, catalog, create_simulation, create_system, describe, register_system
+from skcomplex.systems import (
+    SystemCatalog,
+    all_systems,
+    catalog,
+    create_simulation,
+    create_system,
+    describe,
+    register_system,
+)
 from skcomplex.systems.biology.common.populations import (
     ExponentialGrowthInteraction,
     MortalityInteraction,
     PopulationElement,
 )
 from skcomplex.systems.biology.ecology import PredationInteraction
+from skcomplex.systems.chemistry.kinetics import BrusselatorODESystem
 
 
 def _undeclared_laws(system: System) -> list[str]:
@@ -86,6 +95,60 @@ assert not any(name == 'skcomplex.formalisms' or name.startswith('skcomplex.form
     process.start()
     process.join()
     assert process.exitcode == 0
+
+
+def test_all_systems_lists_system_classes_by_field_and_topics():
+    """Test that the system classes of a field or with topics are listed by class name, sorted, and imported alone."""
+    code = """
+import sys
+from skcomplex.systems import all_systems
+from skcomplex.core.components.system import BaseSystem
+listed = all_systems(field='chemistry/pattern_formation')
+assert [name for name, _ in listed] == ['BrusselatorSystem', 'GrayScottSystem', 'SchnakenbergSystem'], listed
+assert all(issubclass(system, BaseSystem) and system.__name__ == name for name, system in listed)
+loaded = [name for name in sys.modules if name.startswith('skcomplex.systems.chemistry.kinetics')]
+assert loaded == [], loaded
+assert [name for name, _ in all_systems(field='chemistry', topics=('oscillation', 'pde'))] == ['BrusselatorSystem']
+"""
+    process = multiprocessing.get_context('spawn').Process(target=exec, args=(code, {}))
+    process.start()
+    process.join()
+    assert process.exitcode == 0
+
+
+def test_all_systems_filters_by_capability_tags():
+    """Test that filtering by capability tags keeps the system classes whose tags hold every wanted value."""
+    stochastic = all_systems(field='chemistry', tags={'randomness': 'stochastic'})
+    assert [name for name, _ in stochastic] == ['ChemicalLangevinEquationSystem', 'ChemicalLangevinNetworkSystem']
+    lattice = all_systems(field='chemistry', tags={'space': 'lattice', 'laws': ['update']})
+    assert [name for name, _ in lattice] == ['CyclicCellularAutomatonSystem', 'HodgepodgeSystem']
+    with pytest.raises(ValidationError, match="The tag 'spaces' is unknown"):
+        all_systems(field='chemistry', tags={'spaces': 'lattice'})
+
+
+def test_catalog_lists_and_creates_system_classes_by_name():
+    """Test that a system class is listed under its name in snake case and created by name as its composite."""
+    listing = next(listing for listing in catalog(field='chemistry') if listing.name == 'brusselator_ode')
+    assert listing.class_name == 'BrusselatorODESystem'
+    assert listing.tags == BrusselatorODESystem.topics
+    entry = describe('brusselator_ode')
+    assert entry.defaults == {'until': BrusselatorODESystem.until, 'dt': BrusselatorODESystem.dt}
+    assert entry.parameters['b'] == 3.0
+    created = create_system('brusselator_ode', b=1.5)
+    assert isinstance(created, System)
+    assert created.elements[0].b == 1.5
+
+
+def test_listings_reject_a_system_class_without_suffix_or_with_computed_field(tmp_path: Path):
+    """Test that a class giving `field` needs the suffix `System` and a literal field path."""
+    module = tmp_path / 'physics' / 'mechanics' / '_classes.py'
+    module.parent.mkdir(parents=True)
+    module.write_text("class Pendulum:\n    field = 'physics/mechanics'\n")
+    with pytest.raises(RegistryError, match='Name it with the suffix `System`'):
+        SystemCatalog(tmp_path).listings()
+    module.write_text("class PendulumSystem:\n    field = 'physics/' + 'mechanics'\n")
+    with pytest.raises(RegistryError, match="defines the class variable 'field' with a value computed at run time"):
+        SystemCatalog(tmp_path).listings()
 
 
 def test_listing_matches_registration():
@@ -293,14 +356,23 @@ def _imported_modules(path: Path, field: Path) -> set[Path]:
     return {module for module in found if module.is_relative_to(field) and module != path}
 
 
+def _defines_field(node: ast.ClassDef) -> bool:
+    """Return whether a class body gives the class variable `field`, which makes the class a system class."""
+    return any(
+        isinstance(item, ast.Assign) and any(getattr(target, 'id', None) == 'field' for target in item.targets)
+        for item in node.body
+    )
+
+
 def _registers_system(path: Path) -> bool:
-    """Return whether a module decorates a factory with `register_system`."""
+    """Return whether a module decorates a factory with `register_system` or defines a system class."""
+    body = ast.parse(path.read_text()).body
     return any(
         isinstance(decorator, ast.Call) and getattr(decorator.func, 'id', None) == 'register_system'
-        for node in ast.parse(path.read_text()).body
+        for node in body
         if isinstance(node, ast.FunctionDef)
         for decorator in node.decorator_list
-    )
+    ) or any(isinstance(node, ast.ClassDef) and _defines_field(node) for node in body)
 
 
 def _owners(field: Path) -> dict[Path, set[Path]]:

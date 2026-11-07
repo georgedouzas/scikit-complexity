@@ -17,7 +17,8 @@ class BrusselatorReactionElement(Element):
 
     The reactions `A -> U`, `B + U -> V + D`, `2U + V -> 3U`, and `U -> E` change the concentrations, with the buffered
     reactants `A` and `B` held at the supplies `a` and `b`, which the reactions read as modifiers. The well-mixed
-    `brusselator_ode` runs them in one reactor and the reaction-diffusion `brusselator` at every site of a field.
+    `BrusselatorODESystem` runs them in one reactor and the reaction-diffusion `BrusselatorSystem` at every site of a
+    field.
 
     Args:
         label:
