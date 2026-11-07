@@ -4,27 +4,49 @@
 # License: MIT
 
 import math
-from typing import Annotated
+from typing import Annotated, cast
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import MapInteraction
+from ....core.components.interactions import CouplingInteraction, MapInteraction, MovementInteraction
 from ....core.components.spaces import ContinuousSpace, DiscreteTime
 from ....core.components.system import System
-from ....core.engine.solvers import SystemView
-from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
+from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.engine.solvers import AgentView, SystemView
+from ....core.specs import (
+    ClampSpec,
+    ParameterSpec,
+    PhaseSpec,
+    PhasesScheduleSpec,
+    RadiusSpec,
+    RoleSpec,
+    StateSpec,
+    VisualSpec,
+)
+from ....core.types import Array
 from ..._catalog import register_system
-from ._schooling import SchoolingInteraction
-from ._shoal_member_view import ShoalMemberView
-from ._swimming import SwimmingInteraction
 
 
-def _draw_deviation(agent: ShoalMemberView, system: SystemView) -> float:
-    """Return a Gaussian angular noise of the turn of a fish, of standard deviation `noise`."""
-    return float(system.rng.normal(0.0, agent.noise))
+class ShoalMemberView(AgentView):
+    """View of a member of a shoal, with its states and parameters as attributes.
+
+    `ShoalMemberElement` names this class with `_get_view`, so its rules read them with checked types.
+    """
+
+    vx: float
+    vy: float
+    omega: float
+    deviation: float
+    preferred: float
+    alpha: float
+    rho: float
+    speed: float
+    max_turn: float
+    noise: float
+    size: float
 
 
 class ShoalMemberElement(Element):
@@ -117,6 +139,148 @@ class ShoalMemberElement(Element):
     def _get_view(cls) -> type[ShoalMemberView]:
         """Return the view of a member of a shoal, `ShoalMemberView`."""
         return ShoalMemberView
+
+
+class SchoolingInteraction(CouplingInteraction):
+    """Couzin's turn of every fish toward a desired direction set by zones around it, by at most `max_turn`.
+
+    When neighbours lie within the zone of repulsion `alpha`, the desired direction points away from them, and
+    repulsion overrides the other zones. Otherwise it points toward the neighbours within the zone of interaction `rho`
+    and along their headings and the fish's own, and an informed fish adds its preferred direction with the weight
+    `omega`. A fish with no neighbour keeps its heading. Offsets are the shortest ones on the torus of side `size`. It
+    is the agent form of coupling over two radii of different priorities, with a clamp of the turn.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        target:
+            The path of the group of fish.
+
+        phase:
+            The phase of the step the turn runs in, or `None` for the default phase.
+
+    Examples:
+        >>> from skcomplex.systems.biology.collective_behaviour import SchoolingInteraction
+        >>> [spec.priority for spec in SchoolingInteraction('schooling', target='shoal').radii]
+        [1, 0, 0]
+    """
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], phase: str | None = None) -> None:
+        super().__init__(
+            label,
+            target=target,
+            write=('vx', 'vy'),
+            form='agent',
+            combine=self._get_desired,
+            radii=(
+                RadiusSpec('alpha', self._get_repulsion, priority=1),
+                RadiusSpec('rho', self._get_attraction),
+                RadiusSpec('rho', self._get_alignment),
+            ),
+            clamp=ClampSpec(max_angle='max_turn'),
+            phase=phase,
+        )
+
+    @staticmethod
+    def _unit(vector: Array) -> Array:
+        """Return a vector scaled to unit length, or the vector itself when it is zero."""
+        norm = float(np.hypot(*vector))
+        return vector / norm if norm > 0 else vector
+
+    def _get_direction(self, agent: ShoalMemberView, other: ShoalMemberView) -> Array:
+        """Return the unit direction from a fish to another along the shortest offset on the torus."""
+        size = agent.size
+        offset = np.asarray(other.location, dtype=float) - np.asarray(agent.location, dtype=float)
+        return self._unit((offset + size / 2) % size - size / 2)
+
+    def _get_repulsion(self, agent: ShoalMemberView, other: ShoalMemberView, system: SystemView) -> Array:
+        """Return the direction away from a close neighbour."""
+        return -self._get_direction(agent, other)
+
+    def _get_attraction(self, agent: ShoalMemberView, other: ShoalMemberView, system: SystemView) -> Array:
+        """Return the direction toward a neighbour."""
+        return self._get_direction(agent, other)
+
+    @staticmethod
+    def _get_alignment(agent: ShoalMemberView, other: ShoalMemberView, system: SystemView) -> Array:
+        """Return the heading of a neighbour."""
+        return np.array([other.vx, other.vy])
+
+    def _get_desired(
+        self,
+        agent: AgentViewProtocol,
+        system: SystemViewProtocol,
+        reduction: Array | None,
+        priority: int | None,
+    ) -> Array:
+        """Return the desired direction from repulsion, or from attraction, alignment, and the preferred direction."""
+        fish = cast(ShoalMemberView, agent)
+        heading = np.array([fish.vx, fish.vy])
+        if reduction is None:
+            return heading
+        if priority == 1:
+            desired = self._unit(reduction)
+        else:
+            goal = np.array([math.cos(fish.preferred), math.sin(fish.preferred)])
+            desired = self._unit(self._unit(heading + reduction) + fish.omega * goal)
+        return desired if float(np.hypot(*desired)) > 0 else heading
+
+
+class SwimmingInteraction(MovementInteraction):
+    """Swim of every fish by `speed` along its heading, turned first by its angular noise `deviation`.
+
+    The heading `(vx, vy)` stays a unit vector, and the fish moves on the torus of side `size`.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        target:
+            The path of the group of fish.
+
+        probability:
+            The probability that a fish swims in a step.
+
+        phase:
+            The phase of the step the swim runs in, or `None` for the default phase.
+
+    Examples:
+        >>> from skcomplex.systems.biology.collective_behaviour import SwimmingInteraction
+        >>> SwimmingInteraction('swimming', target='shoal', phase='swim').phase
+        'swim'
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        probability: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
+        phase: str | None = None,
+    ) -> None:
+        super().__init__(
+            label,
+            target=target,
+            step=self._swim,
+            probability=probability,
+            schedule='member',
+            phase=phase,
+        )
+
+    @staticmethod
+    def _swim(agent: AgentViewProtocol, system: SystemViewProtocol) -> tuple[float, ...]:
+        """Turn the heading of a fish by its angular noise and return its position after one swim."""
+        fish = cast(ShoalMemberView, agent)
+        angle = math.atan2(fish.vy, fish.vx) + fish.deviation
+        fish.vx, fish.vy = math.cos(angle), math.sin(angle)
+        position = np.asarray(fish.location, dtype=float) + fish.speed * np.array([fish.vx, fish.vy])
+        return tuple(float(item) for item in np.mod(position, fish.size))
+
+
+def _draw_deviation(agent: ShoalMemberView, system: SystemView) -> float:
+    """Return a Gaussian angular noise of the turn of a fish, of standard deviation `noise`."""
+    return float(system.rng.normal(0.0, agent.noise))
 
 
 @register_system(
