@@ -6,7 +6,7 @@ should only help, yet it reroutes the flows so that one line overloads, and the 
 """
 
 # %%
-# The system is created by name from the catalog with eight nodes on a ring, four generators and four consumers, lines
+# The system is built from its class with eight nodes on a ring, four generators and four consumers, lines
 # of capacity `K = 2.75`, and the extra line `(0, 2)`, and runs for 300 time units. The blueprint shows the frequency
 # deviations of all eight nodes, which split apart when synchrony is lost.
 
@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.power_systems import PowerGridSystem
 
 SYSTEM = 'power_grid'
 
@@ -34,9 +34,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, added_line=(0, 2))
+system = PowerGridSystem(added_line=(0, 2))
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=300)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Synchrony with and without the extra capacity
@@ -47,11 +47,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(unti
 fig, axes = plt.subplots(1, 3, figsize=(12, 3.8), sharey=True)
 grids = [('default ring', {}), ('added line (0, 2)', None), ('doubled line (0, 1)', {'doubled_line': (0, 1)})]
 for ax, (label, arguments) in zip(axes, grids, strict=True):
-    run = (
-        simulation.trajectory_
-        if arguments is None
-        else Simulation(create_system(SYSTEM, **arguments), dt=1.0).prepare().run(300).trajectory_
-    )
+    run = trajectory if arguments is None else simulate(PowerGridSystem(**arguments))
     for node in range(8):
         ax.plot(run.times, run.values(f'node_{node}.phi_d1'), linewidth=0.8)
     spread = np.abs([run.values(f'node_{node}.phi_d1')[-50:] for node in range(8)]).max()

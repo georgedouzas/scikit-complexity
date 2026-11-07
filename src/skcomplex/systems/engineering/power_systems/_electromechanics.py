@@ -12,14 +12,15 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import derivative, pulse_train, sign
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.mechanics import SpringDamperInteraction
 
 
 class FaradayDiskElement(Element):
     """Homopolar generator, a spinning conducting disk in a field that charges a load."""
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -103,6 +104,8 @@ class RailSegmentElement(Element):
     a `SpringDamperInteraction` of the stiffness `kr` and the damping `br`.
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -164,6 +167,8 @@ class RailSegmentElement(Element):
 class RegenerativeCarElement(Element):
     """Car whose motor recovers braking energy, slowed by dry and viscous friction."""
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -201,30 +206,14 @@ class RegenerativeCarElement(Element):
         ]
 
 
-@register_system(
-    field='engineering/power_systems',
-    tags=('energy', 'electromechanics', 'vehicles', 'ode'),
-    references=('Trzaska 2023',),
-    defaults={'until': 60.0, 'dt': 0.5},
-)
-def regenerative_braking(
-    v: float = 20.0,
-    *,
-    m: float = 1000.0,
-    A: float = 1.2,
-    L: float = 0.01,
-    R: float = 0.05,
-    C: float = 680.0,
-    alpha: float = 50.0,
-    beta: float = 5.0,
-) -> System:
-    """Return a car braked by a Faraday disk generator on its wheel, which charges a supercapacitor.
+class RegenerativeBrakingSystem(BaseSystem):
+    """A car braked by a Faraday disk generator on its wheel, which charges a supercapacitor.
 
     The disk generates the voltage `A v`, with the structural constant `A = |B| R^2 / (2 r_w)` of the disk and the
-    wheel, and drives the current through an inductor and a resistor into a supercapacitor,
-    `L I' = A v - R I - V_s` and `C V_s' = I`. The current brakes the car with the force `A I`, together with dry and
-    viscous friction, `m v' = -A I - alpha sign(v) - β v`, so the kinetic energy of the car ends up in the capacitor
-    and in the losses.
+    wheel, and drives the current through an inductor and a resistor into a supercapacitor, `L I' = A v - R I - V_s` and
+    `C V_s' = I`. The current brakes the car with the force `A I`, together with dry and viscous friction, `m v' = -A I
+    - alpha sign(v) - β v`, so the kinetic energy of the car ends up in the capacitor and in the losses. The system has
+    the speed `car.v`, the current `car.I`, and the capacitor voltage `car.Vs`.
 
     Args:
         v:
@@ -251,39 +240,64 @@ def regenerative_braking(
         beta:
             The viscous friction coefficient.
 
-    Returns:
-        system:
-            The system, with the speed `car.v`, the current `car.I`, and the capacitor voltage `car.Vs`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.power_systems import regenerative_braking
-        >>> regenerative_braking(C=100.0).elements[0].C
+        >>> from skcomplex.systems.engineering.power_systems import RegenerativeBrakingSystem
+        >>> RegenerativeBrakingSystem(C=100.0).prepare().system_.elements[0].C
         100.0
     """
-    car = RegenerativeCarElement('car', v=v, I=0.0, Vs=0.0, m=m, A=A, L=L, R=R, C=C, alpha=alpha, beta=beta)
-    return System(elements=[car])
+
+    field = 'engineering/power_systems'
+    topics = ('energy', 'electromechanics', 'vehicles', 'ode')
+    references = ('Trzaska 2023',)
+    until = 60.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        v: float = 20.0,
+        *,
+        m: float = 1000.0,
+        A: float = 1.2,
+        L: float = 0.01,
+        R: float = 0.05,
+        C: float = 680.0,
+        alpha: float = 50.0,
+        beta: float = 5.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.v = v
+        self.m = m
+        self.A = A
+        self.L = L
+        self.R = R
+        self.C = C
+        self.alpha = alpha
+        self.beta = beta
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        car = RegenerativeCarElement(
+            'car',
+            v=self.v,
+            I=0.0,
+            Vs=0.0,
+            m=self.m,
+            A=self.A,
+            L=self.L,
+            R=self.R,
+            C=self.C,
+            alpha=self.alpha,
+            beta=self.beta,
+        )
+        return System(self.label, elements=[car])
 
 
-@register_system(
-    field='engineering/power_systems',
-    tags=('energy', 'electromechanics', 'batteries', 'ode'),
-    references=('Trzaska 2023',),
-    defaults={'until': 50.0, 'dt': 0.1},
-)
-def faraday_disk(
-    I: float = 0.0,
-    U: float = 0.0,
-    omega: float = 0.0,
-    *,
-    B: float = 1.5,
-    M: float = 4.8,
-    N: float = 250.0,
-    R1: float = 2.3,
-    R2: float = 109.0,
-    L: float = 0.2,
-    C: float = 0.75,
-) -> System:
-    """Return a battery charger driven by a Faraday disk generator whose own current strengthens its field.
+class FaradayDiskSystem(BaseSystem):
+    """A battery charger driven by a Faraday disk generator whose own current strengthens its field.
 
     A motor turns the conducting disk of radii `r1` and `r2` with a constant torque `M` in the field `B` of a magnet
     plus the field `μ N I / l` of a coil that the generated current flows through. With `a = B (r2^2 - r1^2) / 2` and
@@ -300,6 +314,8 @@ def faraday_disk(
     32 or a torque near 9.5 for the defaults, the steady state loses its stability and the current oscillates around
     zero, swinging between charging and discharging, while the mean braking torque `b <I²>` bends the speed below the
     linear trend. A stronger magnet charges at the default torque: `B = 4` gives a steady current of 0.013.
+
+    The system has the current `charger.I`, the polarization voltage `charger.U`, and the angular speed `charger.omega`.
 
     Args:
         I:
@@ -332,43 +348,74 @@ def faraday_disk(
         C:
             The polarization capacitance of the battery.
 
-    Returns:
-        system:
-            The system, with the current `charger.I`, the polarization voltage `charger.U`, and the angular speed
-            `charger.omega`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.power_systems import faraday_disk
-        >>> faraday_disk(M=6.0).elements[0].M
+        >>> from skcomplex.systems.engineering.power_systems import FaradayDiskSystem
+        >>> FaradayDiskSystem(M=6.0).prepare().system_.elements[0].M
         6.0
     """
-    charger = FaradayDiskElement('charger', I=I, U=U, omega=omega, B=B, M=M, N=N, R1=R1, R2=R2, L=L, C=C)
-    return System(elements=[charger])
+
+    field = 'engineering/power_systems'
+    topics = ('energy', 'electromechanics', 'batteries', 'ode')
+    references = ('Trzaska 2023',)
+    until = 50.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        I: float = 0.0,
+        U: float = 0.0,
+        omega: float = 0.0,
+        *,
+        B: float = 1.5,
+        M: float = 4.8,
+        N: float = 250.0,
+        R1: float = 2.3,
+        R2: float = 109.0,
+        L: float = 0.2,
+        C: float = 0.75,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.I = I
+        self.U = U
+        self.omega = omega
+        self.B = B
+        self.M = M
+        self.N = N
+        self.R1 = R1
+        self.R2 = R2
+        self.L = L
+        self.C = C
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        charger = FaradayDiskElement(
+            'charger',
+            I=self.I,
+            U=self.U,
+            omega=self.omega,
+            B=self.B,
+            M=self.M,
+            N=self.N,
+            R1=self.R1,
+            R2=self.R2,
+            L=self.L,
+            C=self.C,
+        )
+        return System(self.label, elements=[charger])
 
 
-@register_system(
-    field='engineering/power_systems',
-    tags=('energy', 'vibration', 'railways', 'pulses', 'ode'),
-    references=('Trzaska 2023',),
-    defaults={'until': 60.0, 'dt': 0.05},
-)
-def wheel_rail_contact(
-    *,
-    F: float = 1000.0,
-    T: float = 10.0,
-    width: float = 1.0,
-    spacing: float = 3.0,
-    k2: float = 0.0,
-    Mr: float = 60.0,
-    Ms: float = 156.0,
-) -> System:
-    """Return a rail segment on a sleeper, loaded by the wheels of passing bogies.
+class WheelRailContactSystem(BaseSystem):
+    """A rail segment on a sleeper, loaded by the wheels of passing bogies.
 
     The rail and the sleeper are lumped masses joined by the pad, a spring and a damper, and the sleeper rests on the
-    ballast, `Mr z'' + br (z' - zs') + kr (z - zs) = F(t)` and
-    `Ms zs'' + br (zs' - z') + bs zs' + kr (zs - z) + ks zs + k2 (alpha zs^2 + β zs^3) = 0`. The load is two rectangular
-    pulses of force `F` per period `T`, one per wheel of a bogie, `spacing` apart. The nonlinear ballast term, with
-    `alpha = 1.75` and `β = -1`, is off for `k2 = 0`.
+    ballast, `Mr z'' + br (z' - zs') + kr (z - zs) = F(t)` and `Ms zs'' + br (zs' - z') + bs zs' + kr (zs - z) + ks zs +
+    k2 (alpha zs^2 + β zs^3) = 0`. The load is two rectangular pulses of force `F` per period `T`, one per wheel of a
+    bogie, `spacing` apart. The nonlinear ballast term, with `alpha = 1.75` and `β = -1`, is off for `k2 = 0`. The
+    system has the deflections `rail.z` of the rail and `rail.zs` of the sleeper, and their velocities.
 
     Args:
         F:
@@ -392,22 +439,60 @@ def wheel_rail_contact(
         Ms:
             The mass of the sleeper.
 
-    Returns:
-        system:
-            The system, with the deflections `rail.z` of the rail and `rail.zs` of the sleeper, and their velocities.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.power_systems import wheel_rail_contact
-        >>> wheel_rail_contact(k2=500.0).elements[0].k2
+        >>> from skcomplex.systems.engineering.power_systems import WheelRailContactSystem
+        >>> WheelRailContactSystem(k2=500.0).prepare().system_.elements[0].k2
         500.0
     """
-    rail = RailSegmentElement('rail', F=F, T=T, width=width, spacing=spacing, k2=k2, Mr=Mr, Ms=Ms)
-    pad = SpringDamperInteraction(
-        'pad',
-        target='rail',
-        states=('z', 'zs'),
-        stiffness='kr',
-        damping='br',
-        divisor={'z': 'Mr', 'zs': 'Ms'},
-    )
-    return System(elements=[rail], interactions=[pad])
+
+    field = 'engineering/power_systems'
+    topics = ('energy', 'vibration', 'railways', 'pulses', 'ode')
+    references = ('Trzaska 2023',)
+    until = 60.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        *,
+        F: float = 1000.0,
+        T: float = 10.0,
+        width: float = 1.0,
+        spacing: float = 3.0,
+        k2: float = 0.0,
+        Mr: float = 60.0,
+        Ms: float = 156.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.F = F
+        self.T = T
+        self.width = width
+        self.spacing = spacing
+        self.k2 = k2
+        self.Mr = Mr
+        self.Ms = Ms
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rail = RailSegmentElement(
+            'rail',
+            F=self.F,
+            T=self.T,
+            width=self.width,
+            spacing=self.spacing,
+            k2=self.k2,
+            Mr=self.Mr,
+            Ms=self.Ms,
+        )
+        pad = SpringDamperInteraction(
+            'pad',
+            target='rail',
+            states=('z', 'zs'),
+            stiffness='kr',
+            damping='br',
+            divisor={'z': 'Mr', 'zs': 'Ms'},
+        )
+        return System(self.label, elements=[rail], interactions=[pad])

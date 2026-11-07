@@ -7,7 +7,7 @@ starts to push current back.
 """
 
 # %%
-# The system is created by name from the catalog for a car of 1000 kg at 20 m/s and a supercapacitor of 680 F, and runs
+# The system is built from its class for a car of 1000 kg at 20 m/s and a supercapacitor of 680 F, and runs
 # for one minute. The blueprint shows the speed and the capacitor voltage in one time series view, leaving out the
 # current, which is a hundred times larger.
 
@@ -15,9 +15,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.power_systems import RegenerativeBrakingSystem
 
 SYSTEM = 'regenerative_braking'
 
@@ -35,9 +35,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM)
+system = RegenerativeBrakingSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=60)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Where the kinetic energy goes
@@ -47,7 +47,6 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 # capacitor holds should reach its maximum when the current changes sign.
 
 m, C = 1000.0, 680.0
-trajectory = simulation.trajectory_
 kinetic = m * trajectory.values('car.v') ** 2 / 2
 stored = C * trajectory.values('car.Vs') ** 2 / 2
 recovered = np.divide(stored, kinetic[0] - kinetic, out=np.zeros_like(stored), where=kinetic[0] > kinetic)
