@@ -15,7 +15,7 @@ from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import RK4Solver, ScipyODESolver
 from skcomplex.core.specs import ConnectorSpec
-from skcomplex.systems.engineering.circuits import chua
+from skcomplex.systems.engineering.circuits import ChuaSystem
 from skcomplex.systems.engineering.common.electrical import (
     ELECTRICAL,
     CapacitorElement,
@@ -162,10 +162,10 @@ def test_operational_amplifier_inverts_with_the_ratio_of_its_resistors():
 
 
 def test_component_chua_follows_chua():
-    """Test that the capacitor voltages of the component circuit follow `chua` until chaos separates the two runs."""
+    """Test that the capacitor voltages of the component circuit follow `ChuaSystem` until chaos separates the two runs."""
     settings = {'dt': 0.05, 'solver': ScipyODESolver(method='RK45', rtol=1e-10, atol=1e-10)}
     circuit = Simulation(_component_chua(), **settings).prepare().run(until=20.0).trajectory_
-    written = Simulation(chua(), **settings).prepare().run(until=20.0).trajectory_
+    written = Simulation(ChuaSystem().prepare().system_, **settings).prepare().run(until=20.0).trajectory_
     assert np.allclose(circuit.values('first.u').ravel(), written.values('circuit.x').ravel(), rtol=0, atol=1e-4)
     assert np.allclose(circuit.values('second.u').ravel(), written.values('circuit.y').ravel(), rtol=0, atol=1e-4)
 
