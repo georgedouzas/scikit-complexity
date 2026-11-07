@@ -729,7 +729,7 @@ class LammpsSolver(ExternalSolver):
             >>> from skcomplex.core.engine.solvers import LammpsSolver
             >>> x = symbol('x')
             >>> LammpsSolver._lepton_expression(4 * (x**-12 - x**-6), x)
-            '-4/r^6 + 4/r^12'
+            '4/r^12 - 4/r^6'
         """
         expression = SR(expression)
         others = symbols_of([expression]) - {distance}

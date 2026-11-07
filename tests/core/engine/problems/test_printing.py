@@ -1,5 +1,8 @@
 """Test the NumPy, Numba, and Lepton code that the expression printer writes for every operator."""
 
+import multiprocessing
+from concurrent.futures import ProcessPoolExecutor
+
 import pytest
 from sage.all__sagemath_symbolics import (
     abs_symbolic,
@@ -124,3 +127,30 @@ def test_repeated_subexpressions_are_computed_once():
     assignments, codes = ExpressionPrinter().prepare().run([(X + Y) ** 2, 3 * (X + Y) ** 2]).code_
     assert assignments == [('_cse0', '(x + y)**2')]
     assert codes == ['_cse0', '3*_cse0']
+
+
+def _printed_law(order: str) -> str:
+    """Return the code of a law in every dialect, its symbols created in a forward or backward order."""
+    indices = range(12) if order == 'forward' else reversed(range(12))
+    reads = {index: symbol(f'a{index}') for index in indices}
+    count, rate = symbol('count'), symbol('rate')
+    blocked = 1
+    for index in range(12):
+        blocked *= 1 - where(count > index, reads[index], 0)
+    law = rate * blocked * (reads[0] + reads[5] + 2 * reads[11]) + blocked**2 / (rate + reads[3])
+    dialects = ('numpy', 'scalar', 'jax')
+    return '\n'.join(str(ExpressionPrinter(dialect).prepare().run([law, 3 * law]).code_) for dialect in dialects)
+
+
+def test_printed_code_is_the_same_in_every_process(monkeypatch):
+    """Test that two processes print a law alike, whatever their hash seed and the order they create its symbols in.
+
+    The Numba backend caches compiled kernels by their source, so a source that changes between processes would be
+    compiled again in every run.
+    """
+    printed = []
+    for seed, order in (('1', 'forward'), ('2', 'backward')):
+        monkeypatch.setenv('PYTHONHASHSEED', seed)
+        with ProcessPoolExecutor(max_workers=1, mp_context=multiprocessing.get_context('spawn')) as executor:
+            printed.append(executor.submit(_printed_law, order).result())
+    assert printed[0] == printed[1]
