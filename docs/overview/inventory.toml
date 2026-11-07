@@ -825,6 +825,8 @@ irrigation = { title = "Irrigation system", sources = ["Ba 4.11"], primitives = 
 [engineering.mechatronics]
 quarter_car = { title = "Quarter-car suspension", sources = ["Fritzson 2015"], primitives = ["rates", "equations", "interactions", "time-inputs"], system = { time = ["continuous"], space = ["none"], components = ["element"], bindings = ["members"], laws = ["rate"], domains = ["real"] }, priority = "core", status = "implemented" }
 dc_motor = { title = "DC motor with an inertia", sources = ["Fritzson 2015"], primitives = ["acausal-components", "equations"], system = { time = ["continuous"], space = ["none"], components = ["element"], bindings = ["members"], laws = ["equation"], domains = ["real"] }, priority = "core", status = "implemented" }
+magnetic_levitation = { title = "Magnetic levitation under alternating impulses", sources = ["Tr 2.3.4"], primitives = ["rates", "events"], system = { time = ["continuous"], space = ["none"], components = ["element"], bindings = ["members"], laws = ["event", "rate"], domains = ["real"] }, priority = "example", status = "implemented" }
+vibrating_table = { title = "Electromagnetic vibrating table", sources = ["Tr 2.5"], primitives = ["rates", "numeric-functions", "time-inputs"], system = { time = ["continuous"], space = ["none"], components = ["element"], bindings = [], laws = ["rate"], domains = ["real"] }, priority = "core", status = "implemented" }
 
 [mathematics.dynamical_systems]
 lorenz = { title = "Lorenz", sources = ["Gr 3.1.2", "Tr 2.6", "Sa 10", "2102.12086 5.2", "2509.11338 IV.A"], primitives = ["rates"], system = { time = ["continuous"], space = ["none"], components = ["element"], bindings = [], laws = ["rate"], domains = ["real"] }, priority = "example", status = "implemented" }
