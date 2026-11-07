@@ -13,9 +13,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import section
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.nonlinear_oscillators import NuclearQuadrupoleSystem
 
 SYSTEM = 'nuclear_quadrupole'
 ENERGY = 0.75
@@ -24,11 +24,11 @@ ENERGY = 0.75
 def start(q2, p2, energy=ENERGY):
     """Return the quadrupole system started on `q1 = 0` at a given energy."""
     p1 = np.sqrt(2 * energy - p2**2 - q2**2 - q2**4 / 4)
-    return create_system(SYSTEM, q1=0.0, q2=q2, p1=p1, p2=p2)
+    return NuclearQuadrupoleSystem(q1=0.0, q2=q2, p1=p1, p2=p2)
 
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=8)
-simulation = Simulation(start(1.0, 0.0), dt=0.05, observers=[observer]).prepare().run(until=100)
+trajectory = simulate(start(1.0, 0.0), until=100, observers=[observer])
 
 # %%
 # Poincaré section

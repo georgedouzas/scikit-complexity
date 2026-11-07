@@ -13,15 +13,15 @@ the drive and oscillates exactly at the driving frequency, over a whole plateau 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.nonlinear_oscillators import ForcedVanDerPolSystem
 
 SYSTEM = 'forced_van_der_pol'
 
-system = create_system(SYSTEM, x=2.0, v=0.0, mu=1.0, A=0.3, omega=0.95)
+system = ForcedVanDerPolSystem(x=2.0, v=0.0, mu=1.0, A=0.3, omega=0.95)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=5)
-simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=60)
+trajectory = simulate(system, until=60, observers=[observer])
 
 # %%
 # Frequency locking
@@ -34,8 +34,8 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(unt
 
 def response_frequency(omega):
     """Return the mean angular frequency of the response after a transient."""
-    run = Simulation(create_system(SYSTEM, x=2.0, v=0.0, mu=1.0, A=0.3, omega=omega), dt=0.025).prepare().run(until=400)
-    times, x = np.asarray(run.trajectory_.times), np.ravel(run.trajectory_.values('oscillator.x'))
+    run = simulate(ForcedVanDerPolSystem(x=2.0, v=0.0, mu=1.0, A=0.3, omega=omega), until=400, dt=0.025)
+    times, x = np.asarray(run.times), np.ravel(run.values('oscillator.x'))
     late = times > 150
     crossings = times[late][1:][(x[late][:-1] < 0) & (x[late][1:] >= 0)]
     return 2 * np.pi * (len(crossings) - 1) / (crossings[-1] - crossings[0])
