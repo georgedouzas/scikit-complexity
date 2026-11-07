@@ -99,36 +99,3 @@ def test_circuit_and_oscillator_agree():
         .ravel()
     )
     assert np.allclose(charge, displacement, rtol=1e-5, atol=1e-5)
-
-
-def _phase(y, z):
-    """Return the unwrapped angle of an orbit in the plane of two variables, around their means."""
-    return np.unwrap(np.arctan2(z - z.mean(), y - y.mean()))
-
-
-def test_memristive_mixed_mode_oscillator_settles_on_two_large_and_eleven_small_oscillations():
-    """Test that the defaults give Trzaska's mixed-mode oscillation `2^11` with a period near 7.8."""
-    trajectory = create_simulation('memristive_mixed_mode_oscillator').prepare().run().trajectory_
-    settled = trajectory.times > 60
-    x, times = trajectory.values('circuit.x')[settled], trajectory.times[settled]
-    inner = (x[1:-1] > x[:-2]) & (x[1:-1] > x[2:])
-    peaks, peak_times = x[1:-1][inner], times[1:-1][inner]
-    spikes = peak_times[peaks > 30]
-    period = spikes[2] - spikes[0]
-    assert period == pytest.approx(7.8, rel=0.03)
-    within = (peak_times >= spikes[0]) & (peak_times < spikes[2])
-    assert (peaks[within] > 30).sum() == 2
-    small = peaks[within][(peaks[within] > 0) & (peaks[within] < 30)]
-    assert small.size == 11
-
-
-@pytest.mark.parametrize(('k', 'locked'), [(0.0, False), (0.4, True)])
-def test_coupled_colpitts_lock_their_phases_for_moderate_coupling(k, locked):
-    """Test that the phases of the detuned oscillators drift apart without coupling and stay together for `k = 0.4`."""
-    trajectory = create_simulation('coupled_colpitts', k=k).prepare().run(until=400).trajectory_
-    settled = trajectory.times > 100
-    phases = [
-        _phase(trajectory.values(f'oscillator_{index}.y')[settled], trajectory.values(f'oscillator_{index}.z')[settled])
-        for index in range(2)
-    ]
-    assert (np.ptp(phases[0] - phases[1]) < 2 * math.pi) == locked

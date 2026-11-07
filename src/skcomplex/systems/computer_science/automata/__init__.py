@@ -7,12 +7,12 @@ from ._alphabets import (
     self_indexed_shift,
     subtraction_automaton,
 )
-from ._automata import AntCellElement, elementary_automaton, game_of_life, langtons_ant, turing_machine
+from ._automata import AntCellElement, elementary_automaton, game_of_life, langtons_ant
 from ._binary_cell import BinaryCellElement
 from ._codes import Wolfram, life
-from ._continuous_automata import lenia
 from ._diffusion_cell import DiffusionCellElement
 from ._digit_cell import DigitCellElement
+from ._fredkin_replicator import fredkin_replicator
 from ._free_group_automata import life_in_a_tree, muller_automaton, surjective_linear_automaton
 from ._golden_cell import GoldenCellElement
 from ._group_automata import (
@@ -27,22 +27,20 @@ from ._group_automata import (
 )
 from ._group_cell import GroupCellElement
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter
-from ._lenia_site import LeniaSiteElement
-from ._lenia_update import LeniaUpdateInteraction
+from ._lenia import LeniaSiteElement, LeniaUpdateInteraction, lenia
 from ._line_automata import involutive_automaton, nilpotent_automaton
 from ._morse_word import MorseElement
-from ._network_automata import small_world_life
 from ._noisy_elementary_cell import NoisyElementaryCellElement
 from ._pair_cell import PairCellElement
 from ._pascal_cell import PascalCellElement
 from ._power_series_cell import PowerSeriesCellElement
 from ._real_cell import RealCellElement
 from ._shift_spaces import adding_machine, context_free_subshift, gap_subshift, morse_subshift
-from ._tape_cell import TapeCellElement
+from ._small_world_life import small_world_life
 from ._ternary_cell import TernaryCellElement
+from ._turing_machine import TapeCellElement, turing_machine
 from ._variants import (
     diffusion_automaton,
-    fredkin_replicator,
     highlife,
     noisy_automata,
     unbounded_alphabet_automaton,

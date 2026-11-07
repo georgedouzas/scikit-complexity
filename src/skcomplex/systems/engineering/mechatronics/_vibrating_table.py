@@ -1,4 +1,4 @@
-"""Electromagnetic vibrating table, a shaker whose table a supplied electromagnet pulls against a spring."""
+"""Electromagnetic vibrating table: a shaker whose table a supplied electromagnet pulls against a spring."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,7 +11,9 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.system import System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_system
 
 
 class VibratingTableElement(Element):
@@ -147,3 +149,98 @@ class VibratingTableElement(Element):
         """Return the force of the electromagnet, `k2 tan(alpha i2) / alpha`, or its linearization `k2 i2`."""
         force: Expression = s.k2 * s.i2 if self.linear else s.k2 * tan(s.alpha * s.i2) / s.alpha
         return force
+
+
+@register_system(
+    field='engineering/mechatronics',
+    tags=('mechatronics', 'electromagnet', 'vibration', 'forcing', 'ode'),
+    references=('Trzaska 2023',),
+    defaults={'until': 40.0, 'dt': 0.01},
+)
+def vibrating_table(
+    *,
+    U: float = 0.141,
+    omega: float = 1.5915,
+    R: float = 1.5,
+    L: float = 0.25,
+    C: float = 0.1,
+    K: float = 500.0,
+    m: float = 10.0,
+    B: float = 2.0,
+    k1: float = 0.5,
+    k2: float = 17.0,
+    alpha: float = 2.5,
+    linear: bool = False,
+) -> System:
+    """Return an electromagnetic vibrating table, a shaker driven by a sinusoidal supply after its switch closes.
+
+    The source `u = U sin(omega t)` feeds a resistor and a capacitor, whose voltage drives the current `i2` of the coil
+    of an electromagnet against the back electromotive force `k1 v` of the table. The electromagnet pulls the table,
+    held by a spring and a damper, with the force `g(i2) = k2 tan(alpha i2) / alpha`, whose slope `k2` at zero current
+    is the one of Trzaska's linearized model. From rest, a transient of about 8 s dies out and the table vibrates
+    steadily at the supply frequency, and the linearized model, `g(i2) = k2 i2`, gives nearly the same response since
+    the current stays small.
+
+    Args:
+        U:
+            The amplitude of the supply voltage in V.
+
+        omega:
+            The angular frequency of the supply in rad/s.
+
+        R:
+            The resistance in Ω.
+
+        L:
+            The inductance of the coil in H.
+
+        C:
+            The capacitance in F.
+
+        K:
+            The stiffness of the spring in N/m.
+
+        m:
+            The mass of the table in kg.
+
+        B:
+            The damping coefficient in Ns/m.
+
+        k1:
+            The electromechanical constant in Wb/m.
+
+        k2:
+            The mechanical-electrical constant, the slope of the force of the electromagnet at zero current.
+
+        alpha:
+            The scale of the current in the characteristic of the electromagnet in 1/A.
+
+        linear:
+            Whether the force of the electromagnet is its linearization `k2 i2`.
+
+    Returns:
+        system:
+            The system, with the current `shaker.i2`, the capacitor voltage `shaker.uC`, the displacement `shaker.x`,
+            and the velocity `shaker.v`.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.mechatronics import vibrating_table
+        >>> vibrating_table(linear=True).elements[0].linear
+        True
+    """
+    shaker = VibratingTableElement(
+        'shaker',
+        U=U,
+        omega=omega,
+        R=R,
+        L=L,
+        C=C,
+        K=K,
+        m=m,
+        B=B,
+        k1=k1,
+        k2=k2,
+        alpha=alpha,
+        linear=linear,
+    )
+    return System(elements=[shaker])

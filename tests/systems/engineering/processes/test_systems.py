@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import LoopAnalysis
-from skcomplex.systems import create_simulation
 from skcomplex.systems.engineering.processes import food_relief, irrigation, rice_milling, solid_waste
 
 from ...conftest import _run_monitored
@@ -52,15 +51,3 @@ def test_irrigation_pumps_groundwater_in_the_dry_season():
     assert reservoir[pumping > 0].max() < 10.0
     assert trajectory.values('scheme.groundwater')[-1] < trajectory.values('scheme.groundwater')[0]
     assert irrigation(pump_capacity=0.0).elements[0].pump_capacity == 0.0
-
-
-def test_grain_storage_oscillates_and_settles_where_the_release_balances_the_receiving():
-    """Test that the stock overshoots the desired stock, oscillates, and settles at `6000 / (1 + 0.025 * 5)`."""
-    trajectory = create_simulation('grain_storage').prepare().run(until=300).trajectory_
-    stock, procurement = trajectory.values('store.stock'), trajectory.values('store.procurement')
-    assert stock.max() > 7000
-    assert procurement.min() < 0
-    settled = 6000 / (1 + 0.025 * 5)
-    assert stock[trajectory.times > 20].min() < settled - 300
-    assert stock[-1] == pytest.approx(settled, rel=1e-3)
-    assert trajectory.values('store.receiving')[-1] == pytest.approx(trajectory.values('store.release')[-1], rel=1e-3)

@@ -1,4 +1,4 @@
-"""Retail grain store, whose stock is restocked from grain on order through a receiving delay."""
+"""Grain storage: a retail grain store whose orders through a supply line make its stock oscillate."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,7 +11,9 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, Sink, Source, TransferLaw
+from ....core.components.system import System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from ..._catalog import register_system
 
 
 class GrainStoreElement(Element):
@@ -101,3 +103,70 @@ class GrainStoreElement(Element):
         """Return the receiving rate, the grain on order over the receiving delay."""
         receiving: Expression = s.on_order / s.receiving_delay
         return receiving
+
+
+@register_system(
+    field='engineering/processes',
+    tags=('agriculture', 'storage', 'stocks and flows', 'system dynamics', 'oscillation', 'ode'),
+    references=('Bala et al. 2017',),
+    defaults={'until': 100.0, 'dt': 0.25},
+)
+def grain_storage(
+    stock: float = 1000.0,
+    on_order: float = 10000.0,
+    *,
+    desired_stock: float = 6000.0,
+    release_fraction: float = 0.025,
+    receiving_delay: float = 10.0,
+    adjustment_delay: float = 5.0,
+) -> System:
+    """Return a retail grain store, whose orders through a supply line make its stock oscillate.
+
+    The grain stock gains the receiving rate `on_order / receiving_delay` and loses the release rate
+    `release_fraction stock`, and the grain on order gains the procurement rate
+    `(desired_stock - stock) / adjustment_delay` and loses the receiving rate. The orders ignore the grain already on
+    order, so the supply line overshoots and the stock, the receiving rate, and the procurement oscillate in weeks
+    before they settle, with the stock below the desired one at
+    `desired_stock / (1 + release_fraction adjustment_delay)`, 5333 tonnes for the defaults, where the release
+    balances the receiving. The defaults are those of the grain storage example of Bala, Arshad and Noh (2017), in
+    tonnes and weeks.
+
+    Args:
+        stock:
+            The initial grain stock.
+
+        on_order:
+            The initial grain on order.
+
+        desired_stock:
+            The desired grain stock.
+
+        release_fraction:
+            The fraction of the stock released per week.
+
+        receiving_delay:
+            The average time for grain on order to arrive, in weeks.
+
+        adjustment_delay:
+            The time to close the gap between the desired and the current stock, in weeks.
+
+    Returns:
+        system:
+            The system, with the stocks `store.stock` and `store.on_order` in tonnes, and the flows
+            `store.procurement`, `store.receiving`, and `store.release` in tonnes per week, over weeks.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.processes import grain_storage
+        >>> grain_storage(receiving_delay=5.0).elements[0].receiving_delay
+        5.0
+    """
+    store = GrainStoreElement(
+        'store',
+        stock=stock,
+        on_order=on_order,
+        desired_stock=desired_stock,
+        release_fraction=release_fraction,
+        receiving_delay=receiving_delay,
+        adjustment_delay=adjustment_delay,
+    )
+    return System(elements=[store])

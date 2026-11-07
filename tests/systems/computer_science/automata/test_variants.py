@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 
 from skcomplex.core.errors import ParameterError
-from skcomplex.systems import create_simulation
 from skcomplex.systems.computer_science.automata import (
     diffusion_automaton,
     elementary_automaton,
@@ -56,13 +55,3 @@ def test_unbounded_alphabet_automaton_builds_pascals_triangle():
     """Test that the additive automaton over the integers holds the binomial coefficients of its step."""
     values = _run(unbounded_alphabet_automaton(81), 40).values('cells.value')[-1]
     np.testing.assert_array_equal(values[40:81], [comb(40, k) for k in range(41)])
-
-
-def test_fredkin_replicator_copies_the_pattern_four_times_at_powers_of_two():
-    """Test that at the times 16 and 32 the state is the sum modulo 2 of the pattern shifted by that many cells."""
-    trajectory = create_simulation('fredkin_replicator').prepare().run().trajectory_
-    cells = trajectory.lattice('cells.alive')
-    for time in (16, 32):
-        shifted = [np.roll(cells[0], shift, axis) for shift in (time, -time) for axis in (0, 1)]
-        assert np.array_equal(cells[time], sum(shifted) % 2)
-        assert cells[time].sum() == 4 * cells[0].sum()

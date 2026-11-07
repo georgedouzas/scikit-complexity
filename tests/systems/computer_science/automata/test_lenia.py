@@ -1,4 +1,4 @@
-"""Test the `_continuous_automata` module of `skcomplex.systems.computer_science.automata`."""
+"""Test the `_lenia` module of `skcomplex.systems.computer_science.automata`."""
 
 import numpy as np
 import pytest

@@ -7,14 +7,12 @@ from types import SimpleNamespace
 
 from sage.all__sagemath_symbolics import Expression
 
-from ....core.components.interactions import ConnectionInteraction, CrossingInteraction, ImpulseInteraction
+from ....core.components.interactions import ConnectionInteraction, CrossingInteraction
 from ....core.components.system import System
 from ....core.engine.solvers import RK4Solver
-from ....core.errors import ParameterError
 from ....core.specs import ObservableSpec
 from ..._catalog import register_system
 from ..common.electrical import GroundElement, VoltageSourceElement
-from ._bang_bang_plant import PLANTS, BangBangPlantElement
 from ._controlled_process import ControlledProcessElement
 from ._room import RoomElement
 from ._satellite import SatelliteElement
@@ -374,70 +372,4 @@ def heated_room(
                 direction=-1,
             ),
         ],
-    )
-
-
-@register_system(
-    field='engineering/control',
-    tags=('control', 'bang-bang', 'optimal control', 'pontryagin', 'events', 'ode'),
-    references=('Pontryagin et al. 1962', 'Dilão 2023'),
-    defaults={'until': 10.0, 'dt': 0.01},
-)
-def minimum_time_control(
-    x: float = 3.0,
-    v: float = 2.0,
-    *,
-    plant: str = 'free_particle',
-    interval: float = 0.1,
-) -> System:
-    """Return a linear plant steered to the origin of its phase space in minimum time by a sampled bang-bang control.
-
-    The plant follows `x'' = a x + u` with `|u| <= 1`: a free particle, `x'' = u`, a harmonic oscillator,
-    `x'' + x = u`, or an unstable saddle, `x'' - x = u`. Pontryagin's maximum principle makes the minimum-time
-    control bang-bang, `u = ±1`, with the switch on the curve of the two trajectories under `u = 1` and `u = -1` that
-    reach the origin: the control is -1 above the curve and 1 below it. As in Dilão's examples, the controller samples
-    the position and the velocity every `interval` and holds the control until the next sample, so the plant reaches
-    a neighbourhood of the origin, whose size shrinks with the interval, and stays there. A free particle from `(x, v)`
-    above the curve reaches the origin at the time `v + 2 sqrt(x + v^2 / 2)`, about 6.47 for the defaults. Only the
-    states between the lines `y = -(x + 1)` and `y = -(x - 1)` of the saddle are controllable, and from the others the
-    plant escapes to infinity.
-
-    Args:
-        x:
-            The initial position.
-
-        v:
-            The initial velocity.
-
-        plant:
-            The plant, `'free_particle'`, `'harmonic_oscillator'`, or `'saddle'`.
-
-        interval:
-            The time between two samples of the controller.
-
-    Returns:
-        system:
-            The system, with the position `plant.x`, the velocity `plant.y`, and the control `plant.u`, which the
-            samples `sample` set.
-
-    Raises:
-        ParameterError:
-            The plant is unknown, or the interval is not positive.
-
-    Examples:
-        >>> from skcomplex.systems.engineering.control import minimum_time_control
-        >>> minimum_time_control(plant='saddle', x=0.5, v=0.0).elements[0].u
-        -1.0
-    """
-    if plant not in PLANTS:
-        error_msg = f'Unknown plant {plant!r}. Use one of {", ".join(PLANTS)}.'
-        raise ParameterError(error_msg)
-    if not interval > 0:
-        error_msg = f'The interval of the samples is {interval!r}. Give a positive number.'
-        raise ParameterError(error_msg)
-    start = float(BangBangPlantElement._control(plant, x, v))
-    sample = {'u': lambda s: BangBangPlantElement._control(plant, s.target.x, s.target.y)}
-    return System(
-        elements=[BangBangPlantElement('plant', x=x, y=v, u=start, a=PLANTS[plant])],
-        interactions=[ImpulseInteraction('sample', target='plant', reset=sample, period=interval, start=interval)],
     )
