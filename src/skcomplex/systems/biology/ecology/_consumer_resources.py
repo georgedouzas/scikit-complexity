@@ -117,7 +117,7 @@ def consumer_resource(
     n_consumers, n_resources = uptake.shape
     sizes = np.full(n_consumers, 0.1) if consumers is None else np.asarray(consumers, dtype=float)
     supplied = K if supply == 'logistic' else kappa
-    abundances = np.broadcast_to(np.asarray(supplied, dtype=float), n_resources) if resources is None else np.asarray(resources, float)
+    abundances = np.asarray(resources if resources is not None else np.broadcast_to(supplied, n_resources), float)
     if sizes.shape != (n_consumers,) or abundances.shape != (n_resources,):
         error_msg = (
             f'The uptake rates of shape {uptake.shape} need {n_consumers} initial populations and {n_resources} '
