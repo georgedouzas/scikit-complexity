@@ -4,22 +4,166 @@
 # License: MIT
 
 from types import SimpleNamespace
+from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
 from ....core.components.elements import LatticeElement
-from ....core.components.interactions import BaseInteraction
+from ....core.components.interactions import BaseInteraction, Interaction, NeighborInteraction
+from ....core.components.laws import BaseLaw, DissipatorLaw, GeneratorLaw
 from ....core.components.laws.utils import local_operator
 from ....core.components.spaces import LatticeSpace
 from ....core.components.system import System
 from ....core.engine.compile import OperatorCompiler
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec
 from ..._catalog import register_system
 from ..common.quantum import SpinElement
-from ._dephasing import DephasingInteraction
-from ._xxz_exchange import XXZExchangeInteraction
-from ._zeeman_field import ZeemanFieldInteraction
+
+
+class DephasingInteraction(Interaction):
+    """Dephasing of every spin of a chain, a dissipator with the collapse operator `S^z_i` at the rate `gamma`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the spin chain.
+
+        gamma:
+            The dephasing rate.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import DephasingInteraction
+        >>> DephasingInteraction('dephasing', target='chain', gamma=0.1).gamma
+        0.1
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.gamma = gamma
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return one dissipator per spin.
+
+        Args:
+            s:
+                The namespace of the interaction.
+
+        Returns:
+            laws:
+                The dissipators.
+        """
+        return [DissipatorLaw(local_operator(member.psi, 'z'), s.gamma) for member in s.target]
+
+
+class XXZExchangeInteraction(NeighborInteraction):
+    """Exchange `J (S^x_i S^x_j + S^y_i S^y_j + Δ S^z_i S^z_j)` between neighbouring spins.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the spin chain.
+
+        J:
+            The exchange coupling, antiferromagnetic when positive.
+
+        delta:
+            The anisotropy `Δ`, 1 for the isotropic chain and 0 for the XX chain.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import XXZExchangeInteraction
+        >>> XXZExchangeInteraction('exchange', target='chain', delta=0.5).delta
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        J: Annotated[float, ParameterSpec()] = 1.0,
+        delta: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.J = J
+        self.delta = delta
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the exchange Hamiltonian of one bond.
+
+        Args:
+            s:
+                The namespace of the bond, with `s.source` and `s.target`.
+
+        Returns:
+            laws:
+                The Hamiltonian of the bond.
+        """
+        first, second = s.source.psi, s.target.psi
+        exchange = (
+            local_operator(first, 'x') * local_operator(second, 'x')
+            + local_operator(first, 'y') * local_operator(second, 'y')
+            + s.delta * local_operator(first, 'z') * local_operator(second, 'z')
+        )
+        return [GeneratorLaw(s.J * exchange)]
+
+
+class ZeemanFieldInteraction(Interaction):
+    """Uniform field `-h Σ S^z_i` on the spins of a chain.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the spin chain.
+
+        h:
+            The field.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import ZeemanFieldInteraction
+        >>> ZeemanFieldInteraction('field', target='chain', h=0.2).h
+        0.2
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        h: Annotated[float, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.h = h
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the Hamiltonian of the field.
+
+        Args:
+            s:
+                The namespace of the interaction.
+
+        Returns:
+            laws:
+                The field Hamiltonian.
+        """
+        return [GeneratorLaw(-s.h * sum(local_operator(member.psi, 'z') for member in s.target))]
+
 
 INITIAL_STATES = ('neel', 'flip', 'domain_wall', 'ground')
 

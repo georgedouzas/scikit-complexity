@@ -3,14 +3,41 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import numpy as np
+from typing import Annotated
 
-from ....core.components.elements import GroupElement
+import numpy as np
+import numpy.typing as npt
+
+from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import ContinuousSpace, StaticTime
 from ....core.components.system import System
-from ....core.specs import VisualSpec
+from ....core.specs import StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._disk import DiskElement
+
+
+class DiskElement(Element):
+    """Disk of the plane at a position that no law moves.
+
+    Args:
+        label:
+            The label of the disk or the group.
+
+        x:
+            The position of its centre.
+
+    Examples:
+        >>> from skcomplex.systems.physics.statistical_mechanics import DiskElement
+        >>> DiskElement('disk', x=(1.0, 2.0)).x
+        (1.0, 2.0)
+    """
+
+    def __init__(
+        self,
+        label: str,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, role='position')] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.x = x
 
 
 @register_system(
