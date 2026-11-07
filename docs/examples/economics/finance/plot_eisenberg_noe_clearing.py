@@ -14,13 +14,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import linprog
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation, create_system
+from skcomplex.systems.economics.finance import EisenbergNoeClearingSystem
 
 SYSTEM = 'eisenberg_noe_clearing'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run(until=30)
+trajectory = simulate(EisenbergNoeClearingSystem(), observers=[observer])
 
 # %%
 # The fixed point as a linear programme
@@ -28,16 +29,19 @@ simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare(
 # The greatest clearing vector maximizes the total payment subject to `p <= p_bar` and `p <= e + Pi^T p`. The payments
 # the iteration reaches should lie on the diagonal against the solution of that programme by SciPy.
 
-system = create_system(SYSTEM)
-matrix = np.asarray(system.interactions[0].liabilities)
-external = system.elements[0].values['external']
+system = EisenbergNoeClearingSystem()
+parts = system.prepare().system_
+matrix = np.asarray(parts.interactions[0].liabilities)
+external = parts.elements[0].values['external']
 owed = matrix.sum(axis=1)
 shares = np.divide(matrix, owed[:, None], out=np.zeros_like(matrix), where=owed[:, None] > 0)
 size = len(owed)
 solution = linprog(
-    -np.ones(size), A_ub=np.eye(size) - shares.T, b_ub=external, bounds=list(zip(np.zeros(size), owed, strict=True)),
+    -np.ones(size),
+    A_ub=np.eye(size) - shares.T,
+    b_ub=external,
+    bounds=list(zip(np.zeros(size), owed, strict=True)),
 )
-trajectory = simulation.trajectory_
 payments = trajectory.agents('banks', len(trajectory.times) - 1).values['payment']
 fig, (rounds, check) = plt.subplots(1, 2, figsize=(10, 4))
 rounds.plot(trajectory.times[1:], trajectory.values('clearing.shortfall')[1:])

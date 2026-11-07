@@ -19,11 +19,10 @@ from ....core.components.interactions import NeighborInteraction, RateInteractio
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import codifferential, exterior_derivative
 from ....core.components.spaces import CellComplexSpace, LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, RunSettings, System
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 SOLVER_TOLERANCE = 1e-15
 
@@ -133,6 +132,8 @@ class TraderCurrentInteraction(NeighborInteraction):
         0.5
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -165,16 +166,6 @@ class TraderCurrentInteraction(NeighborInteraction):
         return [RateLaw(source.rho, -current), RateLaw(target.rho, current), RateLaw(edge.E, -current)]
 
 
-def _potential_rate(namespace: SimpleNamespace) -> Expression:
-    """Return the rate of the potential, the field `F_0i` of the link."""
-    return namespace.target.E
-
-
-def _field_rate(namespace: SimpleNamespace) -> Expression:
-    """Return the rate of the field without the current, minus the codifferential of the exterior derivative."""
-    return -codifferential(exterior_derivative(namespace.target.A))
-
-
 def _total_good(t: float, values: Mapping[str, object]) -> float:
     """Return the total of the good."""
     del t
@@ -198,35 +189,8 @@ def _market_observables(system: System) -> list[ObservableSpec]:
     ]
 
 
-def _initial_field(edges: scipy.sparse.csr_array, excess: Array) -> Array:
-    """Return the electric field of the smallest norm whose codifferential is the excess of the good."""
-    field = scipy.sparse.linalg.lsqr(
-        -edges.T,
-        excess,
-        atol=SOLVER_TOLERANCE,
-        btol=SOLVER_TOLERANCE,
-        conlim=0.0,
-        iter_lim=100 * excess.size,
-    )[0]
-    return np.asarray(field, dtype=float)
-
-
-@register_system(
-    field='economics/finance',
-    tags=('gauge', 'arbitrage', 'exchange rates', 'lattice', 'maxwell', 'cell complex'),
-    references=('Schwichtenberg 2020',),
-    defaults={'until': 20.0, 'dt': 0.5, 'solver': RK4Solver(dt=0.02)},
-    observables=_market_observables,
-)
-def gauge_arbitrage_market(
-    size: int = 16,
-    *,
-    D: float = 0.5,
-    q: float = 0.2,
-    bump: float = 1.0,
-    seed: int = 0,
-) -> System:
-    """Return exchange-rate potentials on links as lattice Maxwell fields, sourced by traders who move a good on sites.
+class GaugeArbitrageMarketSystem(BaseSystem):
+    """Exchange-rate potentials on links as lattice Maxwell fields, sourced by traders who move a good on sites.
 
     The potentials follow `A_t = E` and `E_t = -codifferential(dA) - J`, and the good follows `rho_t =
     -codifferential(J)` with the current `J = -D (d rho - q A rho)` along its covariant gradient, after Schwichtenberg
@@ -254,30 +218,85 @@ def gauge_arbitrage_market(
         seed:
             The seed of the initial density.
 
-    Returns:
-        system:
-            The system.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.finance import gauge_arbitrage_market
-        >>> [element.label for element in gauge_arbitrage_market(4).elements]
+        >>> from skcomplex.systems.economics.finance import GaugeArbitrageMarketSystem
+        >>> [element.label for element in GaugeArbitrageMarketSystem(4).prepare().system_.elements]
         ['sites', 'links']
     """
-    space = CellComplexSpace(LatticeSpace((size, size))).prepare()
-    density = 1.0 + bump * np.random.default_rng(seed).random(size * size)
-    field = _initial_field(space.incidences_[0], density - density.mean())
-    sites = GroupElement('sites', element=GoodSiteElement, space=space, on='sites', values={'rho': density})
-    links = GroupElement(
-        'links',
-        element=ExchangeLinkElement,
-        space=space,
-        on='edges',
-        values={'E': field},
-        visual=VisualSpec('cell', {'state': 'A'}),
-    )
-    interactions = [
-        RateInteraction('potential', target='links', state='A', rate=_potential_rate),
-        RateInteraction('field', target='links', state='E', rate=_field_rate),
-        TraderCurrentInteraction('current', target='sites', links='links', D=D, q=q),
-    ]
-    return System(elements=[sites, links], interactions=interactions)
+
+    field = 'economics/finance'
+    topics = ('gauge', 'arbitrage', 'exchange rates', 'lattice', 'maxwell', 'cell complex')
+    references = ('Schwichtenberg 2020',)
+    until = 20.0
+    dt = 0.5
+    solver = RK4Solver(dt=0.02)
+
+    def __init__(
+        self,
+        size: int = 16,
+        *,
+        D: float = 0.5,
+        q: float = 0.2,
+        bump: float = 1.0,
+        seed: int = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.size = size
+        self.D = D
+        self.q = q
+        self.bump = bump
+        self.seed = seed
+
+    @staticmethod
+    def _potential_rate(namespace: SimpleNamespace) -> Expression:
+        """Return the rate of the potential, the field `F_0i` of the link."""
+        return namespace.target.E
+
+    @staticmethod
+    def _field_rate(namespace: SimpleNamespace) -> Expression:
+        """Return the rate of the field without the current, minus the codifferential of the exterior derivative."""
+        return -codifferential(exterior_derivative(namespace.target.A))
+
+    @staticmethod
+    def _initial_field(edges: scipy.sparse.csr_array, excess: Array) -> Array:
+        """Return the electric field of the smallest norm whose codifferential is the excess of the good."""
+        field = scipy.sparse.linalg.lsqr(
+            -edges.T,
+            excess,
+            atol=SOLVER_TOLERANCE,
+            btol=SOLVER_TOLERANCE,
+            conlim=0.0,
+            iter_lim=100 * excess.size,
+        )[0]
+        return np.asarray(field, dtype=float)
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        space = CellComplexSpace(LatticeSpace((self.size, self.size))).prepare()
+        density = 1.0 + self.bump * np.random.default_rng(self.seed).random(self.size * self.size)
+        field = self._initial_field(space.incidences_[0], density - density.mean())
+        sites = GroupElement('sites', element=GoodSiteElement, space=space, on='sites', values={'rho': density})
+        links = GroupElement(
+            'links',
+            element=ExchangeLinkElement,
+            space=space,
+            on='edges',
+            values={'E': field},
+            visual=VisualSpec('cell', {'state': 'A'}),
+        )
+        interactions = [
+            RateInteraction('potential', target='links', state='A', rate=self._potential_rate),
+            RateInteraction('field', target='links', state='E', rate=self._field_rate),
+            TraderCurrentInteraction('current', target='sites', links='links', D=self.D, q=self.q),
+        ]
+        return System(self.label, elements=[sites, links], interactions=interactions)
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings, with the observables of the parts built from the model parameters."""
+        settings = super().get_run_settings()
+        settings['observables'] = _market_observables(self._build_system())
+        return settings

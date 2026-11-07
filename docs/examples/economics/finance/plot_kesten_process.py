@@ -17,25 +17,16 @@ import numpy as np
 from scipy.optimize import brentq
 
 from skcomplex.core.analysis import distribution
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.finance import KestenProcessSystem
 
 SYSTEM = 'kesten_process'
 N_FIRMS, LOW, HIGH, STEPS = 3000, 0.48, 1.48, 250
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-system_system = create_system(SYSTEM, n_firms=N_FIRMS)
-simulation = (
-    Simulation(
-        system_system,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system_system),
-    )
-    .prepare()
-    .run(until=STEPS)
-)
+system_system = KestenProcessSystem(n_firms=N_FIRMS)
+trajectory = simulate(system_system, until=STEPS, observers=[observer], random_state=0)
 
 # %%
 # Tail exponent
@@ -52,7 +43,6 @@ def moment(alpha):
 
 
 alpha = brentq(moment, 0.1, 10.0)
-trajectory = simulation.trajectory_
 sizes = np.array([trajectory.agents('firms', frame).values['x'] for frame in range(STEPS - 100, STEPS + 1)])
 ccdf = distribution(sizes.ravel(), kind='ccdf')
 values, probabilities = ccdf.support, ccdf.survival

@@ -24,7 +24,7 @@ from skcomplex.systems.biology.common.populations import (
     PopulationElement,
 )
 from skcomplex.systems.biology.epidemiology import InfectionInteraction, RecoveryInteraction
-from skcomplex.systems.economics.finance import geometric_brownian_motion
+from skcomplex.systems.economics.finance import GeometricBrownianMotionSystem
 from skcomplex.systems.economics.markets import CobwebInteraction, MarketElement
 from skcomplex.systems.physics.common.particles import ConstantForceInteraction, MassPointElement
 from skcomplex.systems.physics.statistical_mechanics import ideal_gas
@@ -475,7 +475,12 @@ def test_perfect_correlation_keeps_states_equal():
 @pytest.mark.parametrize('backend', [NumpyBackend, NumbaBackend])
 def test_unnamed_noise_reproduces_stored_trajectory(backend):
     """Test that geometric Brownian motion with random state 0 repeats the stored trajectory on both backends."""
-    simulation = Simulation(geometric_brownian_motion(), backend=backend(), random_state=0, dt=0.05).prepare()
+    simulation = Simulation(
+        GeometricBrownianMotionSystem().prepare().system_,
+        backend=backend(),
+        random_state=0,
+        dt=0.05,
+    ).prepare()
     trajectory = simulation.run(until=0.5).trajectory_
     np.testing.assert_array_equal(trajectory.values('asset.price'), STORED_GEOMETRIC_BROWNIAN_MOTION)
 

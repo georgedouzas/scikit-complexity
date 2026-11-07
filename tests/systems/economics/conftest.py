@@ -2,20 +2,20 @@
 
 from collections.abc import Mapping, Sequence
 
-from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation, Trajectory
+from skcomplex.core.components.system import BaseSystem, System
+from skcomplex.core.engine.runtime import Simulation, Trajectory, simulate
 from skcomplex.core.specs import ObservableSpec
 from skcomplex.core.types import AnyArray
 
 
 def _run(
-    system: System,
+    system: BaseSystem,
     until: float,
     dt: float | None = None,
     observables: Sequence[ObservableSpec] = (),
 ) -> Trajectory:
-    """Return the trajectory of a system run with a fixed random state."""
-    return Simulation(system, dt=dt, random_state=0, observables=observables).prepare().run(until=until).trajectory_
+    """Return the trajectory of a system run with a fixed random state, with its tuned settings for the others."""
+    return simulate(system, until=until, dt=dt, observables=observables, random_state=0)
 
 
 def _agents(trajectory: Trajectory, group: str, frame: int) -> Mapping[str, AnyArray]:

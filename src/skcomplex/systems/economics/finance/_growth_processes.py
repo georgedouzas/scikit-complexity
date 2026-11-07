@@ -12,10 +12,9 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class GibratFirmView(AgentView):
@@ -255,21 +254,10 @@ def _size_observables() -> list[ObservableSpec]:
     ]
 
 
-@register_system(
-    field='economics/finance',
-    tags=('multiplicative process', 'lognormal', 'agents'),
-    references=('Caiani et al. 2016', 'Thurner et al. 2018', 'Gibrat 1931'),
-    defaults={'until': 100},
-    observables=lambda system: _size_observables(),
-)
-def gibrat_process(
-    n_firms: int = 200,
-    *,
-    x: float = 100.0,
-    mu: float = 1.02,
-    sigma: float = 0.05,
-) -> System:
-    """Return firms that grow by Gibrat's law of proportionate effect, which makes their sizes lognormal.
+class GibratProcessSystem(BaseSystem):
+    """Firms that grow by Gibrat's law of proportionate effect, which makes their sizes lognormal.
+
+    The system has the group `firms`, the mean size `mean_size`, and the largest size `max_size`.
 
     Args:
         n_firms:
@@ -284,43 +272,53 @@ def gibrat_process(
         sigma:
             The standard deviation of the growth factor.
 
-    Returns:
-        system:
-            The system, with the group `firms`, the mean size `mean_size`, and the largest size `max_size`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.finance import gibrat_process
-        >>> gibrat_process(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.economics.finance import GibratProcessSystem
+        >>> GibratProcessSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    firms = GroupElement(
-        'firms',
-        element=GibratFirmElement,
-        size=n_firms,
-        values={'x': x, 'previous': x, 'mu': mu, 'sigma': sigma},
-    )
-    return System(elements=[firms], interactions=_get_gibrat_growth(), time=DiscreteTime())
+
+    field = 'economics/finance'
+    topics = ('multiplicative process', 'lognormal', 'agents')
+    references = ('Caiani et al. 2016', 'Thurner et al. 2018', 'Gibrat 1931')
+    until = 100
+    observables = tuple(_size_observables())
+
+    def __init__(
+        self,
+        n_firms: int = 200,
+        *,
+        x: float = 100.0,
+        mu: float = 1.02,
+        sigma: float = 0.05,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_firms = n_firms
+        self.x = x
+        self.mu = mu
+        self.sigma = sigma
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        firms = GroupElement(
+            'firms',
+            element=GibratFirmElement,
+            size=self.n_firms,
+            values={'x': self.x, 'previous': self.x, 'mu': self.mu, 'sigma': self.sigma},
+        )
+        return System(self.label, elements=[firms], interactions=_get_gibrat_growth(), time=DiscreteTime())
 
 
-@register_system(
-    field='economics/finance',
-    tags=('multiplicative process', 'power law', 'agents'),
-    references=('Caiani et al. 2016', 'Thurner et al. 2018', 'Levy and Solomon 1996'),
-    defaults={'until': 100},
-    observables=lambda system: _size_observables(),
-)
-def multiplicative_process(
-    n_firms: int = 200,
-    *,
-    x: float = 100.0,
-    mu: float = 1.02,
-    sigma: float = 0.05,
-    c: float = 0.9,
-) -> System:
-    """Return Levy and Solomon's multiplicative process, whose floor at a fraction of the mean makes a power-law tail.
+class MultiplicativeProcessSystem(BaseSystem):
+    """Levy and Solomon's multiplicative process, whose floor at a fraction of the mean makes a power-law tail.
 
-    Every size is multiplied by a normal growth factor and then raised to `c` times the mean size of the step before
-    if it fell below it. With `c = 0` the process is Gibrat's.
+    Every size is multiplied by a normal growth factor and then raised to `c` times the mean size of the step before if
+    it fell below it. With `c = 0` the process is Gibrat's. The system has the group `firms`, the mean size `mean_size`,
+    and the largest size `max_size`.
 
     Args:
         n_firms:
@@ -338,48 +336,59 @@ def multiplicative_process(
         c:
             The fraction of the previous mean size below which no size falls.
 
-    Returns:
-        system:
-            The system, with the group `firms`, the mean size `mean_size`, and the largest size `max_size`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.finance import multiplicative_process
-        >>> multiplicative_process(c=0.5).interactions[-1].c
+        >>> from skcomplex.systems.economics.finance import MultiplicativeProcessSystem
+        >>> MultiplicativeProcessSystem(c=0.5).prepare().system_.interactions[-1].c
         0.5
     """
-    firms = GroupElement(
-        'firms',
-        element=GibratFirmElement,
-        size=n_firms,
-        values={'x': x, 'previous': x, 'mu': mu, 'sigma': sigma},
-    )
-    return System(
-        elements=[firms],
-        interactions=[*_get_gibrat_growth(), ReflectingFloorInteraction('floor', target='firms', c=c)],
-        time=DiscreteTime(),
-    )
+
+    field = 'economics/finance'
+    topics = ('multiplicative process', 'power law', 'agents')
+    references = ('Caiani et al. 2016', 'Thurner et al. 2018', 'Levy and Solomon 1996')
+    until = 100
+    observables = tuple(_size_observables())
+
+    def __init__(
+        self,
+        n_firms: int = 200,
+        *,
+        x: float = 100.0,
+        mu: float = 1.02,
+        sigma: float = 0.05,
+        c: float = 0.9,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_firms = n_firms
+        self.x = x
+        self.mu = mu
+        self.sigma = sigma
+        self.c = c
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        firms = GroupElement(
+            'firms',
+            element=GibratFirmElement,
+            size=self.n_firms,
+            values={'x': self.x, 'previous': self.x, 'mu': self.mu, 'sigma': self.sigma},
+        )
+        return System(
+            self.label,
+            elements=[firms],
+            interactions=[*_get_gibrat_growth(), ReflectingFloorInteraction('floor', target='firms', c=self.c)],
+            time=DiscreteTime(),
+        )
 
 
-@register_system(
-    field='economics/finance',
-    tags=('multiplicative process', 'power law', 'agents'),
-    references=('Caiani et al. 2016', 'Thurner et al. 2018', 'Kesten 1973'),
-    defaults={'until': 100},
-    observables=lambda system: _size_observables(),
-)
-def kesten_process(
-    n_firms: int = 200,
-    *,
-    x: float = 100.0,
-    lambda_low: float = 0.48,
-    lambda_high: float = 1.48,
-    b_low: float = 0.0,
-    b_high: float = 1.0,
-) -> System:
-    """Return firms whose sizes follow Kesten's process, a random multiplicative factor plus a random positive term.
+class KestenProcessSystem(BaseSystem):
+    """Firms whose sizes follow Kesten's process, a random multiplicative factor plus a random positive term.
 
     When the factor shrinks sizes on average, the additive term reinjects them, and the stationary distribution has a
-    power-law tail.
+    power-law tail. The system has the group `firms`, the mean size `mean_size`, and the largest size `max_size`.
 
     Args:
         n_firms:
@@ -400,20 +409,59 @@ def kesten_process(
         b_high:
             The upper bound of the additive term.
 
-    Returns:
-        system:
-            The system, with the group `firms`, the mean size `mean_size`, and the largest size `max_size`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.finance import kesten_process
-        >>> kesten_process(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.economics.finance import KestenProcessSystem
+        >>> KestenProcessSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    firms = GroupElement(
-        'firms',
-        element=KestenFirmElement,
-        size=n_firms,
-        values={'x': x, 'lambda_low': lambda_low, 'lambda_high': lambda_high, 'b_low': b_low, 'b_high': b_high},
-    )
-    growth = MapInteraction('growth', target='firms', state='x', function=KestenFirmElement.get_growth, form='agent')
-    return System(elements=[firms], interactions=[growth], time=DiscreteTime())
+
+    field = 'economics/finance'
+    topics = ('multiplicative process', 'power law', 'agents')
+    references = ('Caiani et al. 2016', 'Thurner et al. 2018', 'Kesten 1973')
+    until = 100
+    observables = tuple(_size_observables())
+
+    def __init__(
+        self,
+        n_firms: int = 200,
+        *,
+        x: float = 100.0,
+        lambda_low: float = 0.48,
+        lambda_high: float = 1.48,
+        b_low: float = 0.0,
+        b_high: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_firms = n_firms
+        self.x = x
+        self.lambda_low = lambda_low
+        self.lambda_high = lambda_high
+        self.b_low = b_low
+        self.b_high = b_high
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        firms = GroupElement(
+            'firms',
+            element=KestenFirmElement,
+            size=self.n_firms,
+            values={
+                'x': self.x,
+                'lambda_low': self.lambda_low,
+                'lambda_high': self.lambda_high,
+                'b_low': self.b_low,
+                'b_high': self.b_high,
+            },
+        )
+        growth = MapInteraction(
+            'growth',
+            target='firms',
+            state='x',
+            function=KestenFirmElement.get_growth,
+            form='agent',
+        )
+        return System(self.label, elements=[firms], interactions=[growth], time=DiscreteTime())

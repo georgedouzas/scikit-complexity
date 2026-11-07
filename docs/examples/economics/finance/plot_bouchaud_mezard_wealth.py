@@ -19,10 +19,10 @@ import rerun.blueprint as rrb
 from scipy import stats
 
 from skcomplex.core.analysis import distribution
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import ObservableSpec
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.finance import BouchaudMezardWealthSystem
 
 SYSTEM = 'bouchaud_mezard_wealth'
 N_AGENTS, J, SIGMA, DT, UNTIL = 500, 0.5, 1.0, 0.01, 30.0
@@ -33,9 +33,9 @@ def gini(wealth: np.ndarray) -> float:
     return distribution(wealth, kind='gini').gini
 
 
-system = create_system(SYSTEM, n_agents=N_AGENTS, J=J, sigma=SIGMA)
+system = BouchaudMezardWealthSystem(n_agents=N_AGENTS, J=J, sigma=SIGMA)
 observables = [
-    *describe(SYSTEM).observables_of(system),
+    *system.get_run_settings()['observables'],
     ObservableSpec('gini', group='agents', variable='W', reduce=gini),
 ]
 whole_run = rrb.TimeRange(start=rrb.TimeRangeBoundary.infinite(), end=rrb.TimeRangeBoundary.infinite())
@@ -46,9 +46,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=20)
-simulation = (
-    Simulation(system, dt=DT, observers=[observer], random_state=0, observables=observables).prepare().run(until=UNTIL)
-)
+trajectory = simulate(system, until=UNTIL, dt=DT, observables=observables, observers=[observer], random_state=0)
 
 # %%
 # Stationary distribution
@@ -59,7 +57,6 @@ simulation = (
 # motion of this system `mu = 1 + 2 J / sigma^2 = 2`. Pooling the relative wealth after a transient of ten time units,
 # the histogram should follow it, and the complementary cumulative distribution should fall as `w^-mu`.
 
-trajectory = simulation.trajectory_
 wealth = trajectory.values('agents.W')
 relative = (wealth / wealth.mean(axis=1, keepdims=True))[trajectory.times > 10][::10].ravel()
 mu = 1 + 2 * J / SIGMA**2

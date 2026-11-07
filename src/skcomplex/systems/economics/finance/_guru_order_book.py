@@ -14,11 +14,10 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class GuruTraderView(AgentView):
@@ -73,6 +72,8 @@ class GuruTraderElement(Element):
         >>> GroupElement('traders', element=GuruTraderElement, size=3).size
         3
     """
+
+    law_classes = ()
 
     def __init__(
         self,
@@ -348,27 +349,8 @@ class GuruMarketInteraction(FeedbackInteraction[SystemView]):
 HOLDINGS = ('cash', 'stocks')
 
 
-@register_system(
-    field='economics/finance',
-    tags=('stock market', 'agents', 'order book', 'imitation', 'network', 'gurus', 'noise traders'),
-    references=('Caiani et al. 2016 §3.2',),
-    defaults={'until': 300, 'invariants': {f'total_{name}': 1e-6 for name in HOLDINGS}},
-    observables=lambda system: [
-        ObservableSpec(f'total_{name}', group='traders', variable=name, reduce='sum') for name in HOLDINGS
-    ],
-)
-def guru_order_book(
-    n_traders: int = 100,
-    *,
-    tau: int = 100,
-    beta_step: float = 1.5,
-    sigma: float = 0.01,
-    cash: float = 1000.0,
-    stocks: float = 100.0,
-    opening: float = 10.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the order-driven market of Grilli and Tedeschi, whose noise traders imitate gurus they choose by wealth.
+class GuruOrderBookSystem(BaseSystem):
+    """The order-driven market of Grilli and Tedeschi, whose noise traders imitate gurus they choose by wealth.
 
     Noise traders expect random returns of their own volatility, but every day each adopts the expectation of the
     trader it follows on a directed communication network. Every day each trader moves its link to a random trader with
@@ -380,6 +362,10 @@ def guru_order_book(
     clusters. The source leaves two choices open: the volatilities are uniform on `(0, sigma)`, and the intensity of
     choice grows by `beta_step` every day the guru survives. The cash and the stocks of the traders are conserved,
     which the default run checks as invariants.
+
+    The system has the group `traders` and the market `market`, whose reporters are `market.price`, `market.log_return`,
+    `market.volume`, `market.guru`, `market.beta`, and `market.guru_followers`. The observables of the system are the
+    totals `total_cash` and `total_stocks`.
 
     Args:
         n_traders:
@@ -406,31 +392,68 @@ def guru_order_book(
         random_state:
             The seed or generator of the volatilities and the initial links.
 
-    Returns:
-        system:
-            The system, with the group `traders` and the market `market`, whose reporters are `market.price`,
-            `market.log_return`, `market.volume`, `market.guru`, `market.beta`, and `market.guru_followers`. The
-            observables of the system are the totals `total_cash` and `total_stocks`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.finance import guru_order_book
-        >>> guru_order_book(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.economics.finance import GuruOrderBookSystem
+        >>> GuruOrderBookSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    rng = np.random.default_rng(random_state)
-    links = rng.integers(n_traders - 1, size=n_traders)
-    links += links >= np.arange(n_traders)
-    traders = GroupElement(
-        'traders',
-        element=GuruTraderElement,
-        size=n_traders,
-        values={
-            'cash': cash,
-            'stocks': stocks,
-            'wealth': cash + opening * stocks,
-            'follows': links.astype(float),
-            'sigma': rng.uniform(0.0, sigma, n_traders),
-        },
+
+    field = 'economics/finance'
+    topics = ('stock market', 'agents', 'order book', 'imitation', 'network', 'gurus', 'noise traders')
+    references = ('Caiani et al. 2016 §3.2',)
+    until = 300
+    observables = tuple(
+        [ObservableSpec(f'total_{name}', group='traders', variable=name, reduce='sum') for name in HOLDINGS],
     )
-    market = GuruMarketInteraction('market', traders='traders', tau=tau, beta_step=beta_step, opening=opening)
-    return System(elements=[traders], interactions=[market])
+
+    def __init__(
+        self,
+        n_traders: int = 100,
+        *,
+        tau: int = 100,
+        beta_step: float = 1.5,
+        sigma: float = 0.01,
+        cash: float = 1000.0,
+        stocks: float = 100.0,
+        opening: float = 10.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_traders = n_traders
+        self.tau = tau
+        self.beta_step = beta_step
+        self.sigma = sigma
+        self.cash = cash
+        self.stocks = stocks
+        self.opening = opening
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        links = rng.integers(self.n_traders - 1, size=self.n_traders)
+        links += links >= np.arange(self.n_traders)
+        traders = GroupElement(
+            'traders',
+            element=GuruTraderElement,
+            size=self.n_traders,
+            values={
+                'cash': self.cash,
+                'stocks': self.stocks,
+                'wealth': self.cash + self.opening * self.stocks,
+                'follows': links.astype(float),
+                'sigma': rng.uniform(0.0, self.sigma, self.n_traders),
+            },
+        )
+        market = GuruMarketInteraction(
+            'market',
+            traders='traders',
+            tau=self.tau,
+            beta_step=self.beta_step,
+            opening=self.opening,
+        )
+        return System(self.label, elements=[traders], interactions=[market])

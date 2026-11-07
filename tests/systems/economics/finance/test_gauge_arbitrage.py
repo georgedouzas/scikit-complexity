@@ -3,13 +3,13 @@
 import numpy as np
 
 from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.systems import create_simulation
-from skcomplex.systems.economics.finance import gauge_arbitrage_market
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.economics.finance import GaugeArbitrageMarketSystem
 
 
 def test_market_conserves_the_good_and_the_gauss_law():
     """Test that the total good stays within 1e-10 relative error, and the Gauss residual below 1e-8."""
-    trajectory = create_simulation('gauge_arbitrage_market').prepare().run().trajectory_
+    trajectory = simulate(GaugeArbitrageMarketSystem())
     total = trajectory.values('total_good')
     assert np.abs(total - total[0]).max() / total[0] < 1e-10
     assert trajectory.values('gauss_residual').max() < 1e-8
@@ -17,7 +17,7 @@ def test_market_conserves_the_good_and_the_gauss_law():
 
 def test_market_moves_the_good_and_the_exchange_rates():
     """Test that the good spreads out and the potentials leave their initial value."""
-    trajectory = create_simulation('gauge_arbitrage_market').prepare().run().trajectory_
+    trajectory = simulate(GaugeArbitrageMarketSystem())
     density = trajectory.values('sites.rho')
     assert density[-1].std() < density[0].std()
     assert np.abs(trajectory.values('links.A')[-1]).max() > 0.01
@@ -26,7 +26,7 @@ def test_market_moves_the_good_and_the_exchange_rates():
 def test_current_and_field_follow_the_signs_of_the_book():
     """Test the rates against `J = -D (d rho - q A rho)`, `rho_t = -div J`, `A_t = E`, and `E_t = -curl curl A - J`."""
     D, q = 0.5, 0.2
-    system = gauge_arbitrage_market(4, D=D, q=q)
+    system = GaugeArbitrageMarketSystem(4, D=D, q=q).prepare().system_
     problem = PassCompiler().prepare(system).run().problem_
     space = system.elements[0].space
     edges, faces = space.incidences_[:2]

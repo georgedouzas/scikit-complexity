@@ -14,25 +14,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.finance import GibratProcessSystem
 
 SYSTEM = 'gibrat_process'
 N_FIRMS, SIZE, MU, SIGMA, STEPS = 1000, 100.0, 1.02, 0.05, 150
 
-system = create_system(SYSTEM, n_firms=N_FIRMS, x=SIZE, mu=MU, sigma=SIGMA)
+system = GibratProcessSystem(n_firms=N_FIRMS, x=SIZE, mu=MU, sigma=SIGMA)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(
-        system,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=STEPS)
-)
+trajectory = simulate(system, until=STEPS, observers=[observer], random_state=0)
 
 # %%
 # Lognormal sizes
@@ -45,7 +36,6 @@ nodes, weights = np.polynomial.hermite_e.hermegauss(40)
 logs = np.log(MU + SIGMA * nodes)
 m = weights @ logs / weights.sum()
 v = weights @ (logs - m) ** 2 / weights.sum()
-trajectory = simulation.trajectory_
 sizes = np.array([trajectory.agents('firms', frame).values['x'] for frame in range(STEPS + 1)])
 grid = np.linspace(np.log(sizes[-1]).min(), np.log(sizes[-1]).max(), 200)
 fig, (density, spread) = plt.subplots(1, 2, figsize=(10, 4))

@@ -18,7 +18,7 @@ from skcomplex.core.specs import StateSpec, StepSpec, VisualSpec
 from skcomplex.systems.economics.finance import (
     AssetElement,
     GeometricBrownianMotionInteraction,
-    geometric_brownian_motion,
+    GeometricBrownianMotionSystem,
 )
 
 from ....conftest import _correlated
@@ -51,7 +51,9 @@ def test_euler_maruyama_same_seed_on_both_backends():
     """Test that geometric Brownian motion from 0.1 to 0.4 takes three steps on both backends and ends equal."""
     states = []
     for backend in (NumpyBackend(), NumbaBackend()):
-        problem = PassCompiler(backend=backend).prepare(geometric_brownian_motion()).run().problem_
+        problem = (
+            PassCompiler(backend=backend).prepare(GeometricBrownianMotionSystem().prepare().system_).run().problem_
+        )
         rng = np.random.default_rng(0)
         stepper = EulerMaruyamaSolver(dt=0.1)
         stepper.set_params(random_state=rng).prepare(problem)

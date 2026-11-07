@@ -64,6 +64,8 @@ class BalanceSheetElement(Element):
         3
     """
 
+    law_classes = ()
+
     def __init__(
         self,
         label: str,

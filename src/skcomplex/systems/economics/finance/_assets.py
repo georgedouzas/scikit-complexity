@@ -4,20 +4,15 @@
 # License: MIT
 
 
-from ....core.components.system import System
-from ..._catalog import register_system
+from ....core.components.system import BaseSystem, System
 from ..common._asset import AssetElement
 from ..common._geometric_brownian_motion import GeometricBrownianMotionInteraction
 
 
-@register_system(
-    field='economics/finance',
-    tags=('asset', 'sde'),
-    references=('Black and Scholes 1973',),
-    defaults={'until': 1.0, 'dt': 0.01},
-)
-def geometric_brownian_motion(price: float = 100.0, *, mu: float = 0.05, sigma: float = 0.2) -> System:
-    """Return an asset whose price follows geometric Brownian motion.
+class GeometricBrownianMotionSystem(BaseSystem):
+    """An asset whose price follows geometric Brownian motion.
+
+    The system has the asset `asset`.
 
     Args:
         price:
@@ -29,16 +24,38 @@ def geometric_brownian_motion(price: float = 100.0, *, mu: float = 0.05, sigma: 
         sigma:
             The volatility.
 
-    Returns:
-        system:
-            The system, with the asset `asset`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.finance import geometric_brownian_motion
-        >>> geometric_brownian_motion(sigma=0.3).interactions[0].sigma
+        >>> from skcomplex.systems.economics.finance import GeometricBrownianMotionSystem
+        >>> GeometricBrownianMotionSystem(sigma=0.3).prepare().system_.interactions[0].sigma
         0.3
     """
-    return System(
-        elements=[AssetElement('asset', price=price)],
-        interactions=[GeometricBrownianMotionInteraction('gbm', target='asset', mu=mu, sigma=sigma)],
-    )
+
+    field = 'economics/finance'
+    topics = ('asset', 'sde')
+    references = ('Black and Scholes 1973',)
+    until = 1.0
+    dt = 0.01
+
+    def __init__(
+        self,
+        price: float = 100.0,
+        *,
+        mu: float = 0.05,
+        sigma: float = 0.2,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.price = price
+        self.mu = mu
+        self.sigma = sigma
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        return System(
+            self.label,
+            elements=[AssetElement('asset', price=self.price)],
+            interactions=[GeometricBrownianMotionInteraction('gbm', target='asset', mu=self.mu, sigma=self.sigma)],
+        )

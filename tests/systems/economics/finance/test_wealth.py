@@ -7,7 +7,7 @@ import pytest
 from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.systems import describe
 from skcomplex.systems.economics.finance import (
-    bouchaud_mezard_wealth,
+    BouchaudMezardWealthSystem,
 )
 
 from ..conftest import _run
@@ -17,7 +17,7 @@ def test_bouchaud_mezard_exchange_conserves_and_equalizes_wealth():
     """Test that exchange without returns conserves the total and relaxes wealth to the mean at rate `J N / (N - 1)`."""
     wealth = np.linspace(0.5, 1.5, 20)
     trajectory = _run(
-        built := bouchaud_mezard_wealth(20, sigma=0.0, wealth=wealth),
+        built := BouchaudMezardWealthSystem(20, sigma=0.0, wealth=wealth).prepare().system_,
         1.0,
         dt=0.1,
         observables=describe('bouchaud_mezard_wealth').observables_of(built),
@@ -26,7 +26,7 @@ def test_bouchaud_mezard_exchange_conserves_and_equalizes_wealth():
     assert final.sum() == pytest.approx(20.0)
     assert np.allclose(final - 1.0, (wealth - 1.0) * np.exp(-20 / 19), atol=2e-3)
     noisy = _run(
-        built := bouchaud_mezard_wealth(20),
+        built := BouchaudMezardWealthSystem(20).prepare().system_,
         1.0,
         dt=0.1,
         observables=describe('bouchaud_mezard_wealth').observables_of(built),
@@ -37,10 +37,10 @@ def test_bouchaud_mezard_exchange_conserves_and_equalizes_wealth():
 def test_bouchaud_mezard_exchanges_with_the_mean():
     """Test that the agents exchange with the group mean as with the complete-graph Laplacian, conserving wealth."""
     wealth = np.random.default_rng(0).uniform(0.5, 1.5, 50)
-    built = bouchaud_mezard_wealth(50, sigma=0.0, wealth=wealth)
+    built = BouchaudMezardWealthSystem(50, sigma=0.0, wealth=wealth).prepare().system_
     observables = describe('bouchaud_mezard_wealth').observables_of(built)
     mean_field = PassCompiler(observables=observables).prepare(built).run().problem_
-    built = bouchaud_mezard_wealth(50, graph=nx.complete_graph(50), sigma=0.0, wealth=wealth)
+    built = BouchaudMezardWealthSystem(50, graph=nx.complete_graph(50), sigma=0.0, wealth=wealth).prepare().system_
     observables = describe('bouchaud_mezard_wealth').observables_of(built)
     complete = PassCompiler(observables=observables).prepare(built).run().problem_
     exchange = mean_field.drift(0.0, mean_field.initial_state, mean_field.initial_parameters)

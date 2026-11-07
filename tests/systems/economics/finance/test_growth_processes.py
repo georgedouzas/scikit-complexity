@@ -5,9 +5,9 @@ import pytest
 
 from skcomplex.systems import describe
 from skcomplex.systems.economics.finance import (
-    gibrat_process,
-    kesten_process,
-    multiplicative_process,
+    GibratProcessSystem,
+    KestenProcessSystem,
+    MultiplicativeProcessSystem,
 )
 
 from ..conftest import _agents, _run
@@ -16,7 +16,11 @@ from ..conftest import _agents, _run
 def test_gibrat_process_makes_lognormal_sizes():
     """Test that the logarithm of the sizes spreads like a random walk of the logarithmic growth factors."""
     sizes = _agents(
-        _run(built := gibrat_process(1000), 100, observables=describe('gibrat_process').observables_of(built)),
+        _run(
+            built := GibratProcessSystem(1000).prepare().system_,
+            100,
+            observables=describe('gibrat_process').observables_of(built),
+        ),
         'firms',
         100,
     )['x']
@@ -28,7 +32,7 @@ def test_gibrat_process_makes_lognormal_sizes():
 def test_multiplicative_process_respects_its_floor():
     """Test that no size falls below the fraction of the previous mean, and the floor fattens the upper tail."""
     trajectory = _run(
-        built := multiplicative_process(300),
+        built := MultiplicativeProcessSystem(300).prepare().system_,
         100,
         observables=describe('multiplicative_process').observables_of(built),
     )
@@ -36,7 +40,11 @@ def test_multiplicative_process_respects_its_floor():
         previous = _agents(trajectory, 'firms', frame)['previous']
         assert _agents(trajectory, 'firms', frame)['x'].min() >= 0.9 * previous.mean() - 1e-9
     free = _agents(
-        _run(built := gibrat_process(300), 100, observables=describe('gibrat_process').observables_of(built)),
+        _run(
+            built := GibratProcessSystem(300).prepare().system_,
+            100,
+            observables=describe('gibrat_process').observables_of(built),
+        ),
         'firms',
         100,
     )['x']
@@ -47,7 +55,11 @@ def test_multiplicative_process_respects_its_floor():
 
 def test_kesten_process_reaches_a_positive_stationary_state():
     """Test that Kesten sizes stay positive and settle far below the initial size when the factor shrinks on average."""
-    trajectory = _run(built := kesten_process(500), 100, observables=describe('kesten_process').observables_of(built))
+    trajectory = _run(
+        built := KestenProcessSystem(500).prepare().system_,
+        100,
+        observables=describe('kesten_process').observables_of(built),
+    )
     sizes = _agents(trajectory, 'firms', 100)['x']
     assert sizes.min() > 0
     assert np.median(sizes) < 25.0

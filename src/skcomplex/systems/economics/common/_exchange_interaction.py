@@ -10,7 +10,7 @@ from typing import ClassVar
 import numpy as np
 
 from ....core.components.interactions import TransferInteraction
-from ....core.components.laws import BaseLaw, RuleLaw
+from ....core.components.laws import BaseLaw, MatchLaw, RuleLaw, TransferLaw
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ._exchange import trade_goods
 
@@ -55,6 +55,8 @@ class ExchangeInteraction(TransferInteraction):
         >>> ExchangeInteraction('exchange', source='traders', target='traders').reports
         ('price', 'dispersion', 'volume')
     """
+
+    law_classes = (MatchLaw, RuleLaw, TransferLaw)
 
     reports: ClassVar[tuple[str, ...]] = ('price', 'dispersion', 'volume')
 

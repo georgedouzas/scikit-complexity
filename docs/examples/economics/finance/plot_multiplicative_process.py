@@ -16,25 +16,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import distribution
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.finance import MultiplicativeProcessSystem
 
 SYSTEM = 'multiplicative_process'
 N_FIRMS, MU, SIGMA, FLOOR, STEPS = 2000, 1.0, 0.2, 0.3, 250
 
-system = create_system(SYSTEM, n_firms=N_FIRMS, mu=MU, sigma=SIGMA, c=FLOOR)
+system = MultiplicativeProcessSystem(n_firms=N_FIRMS, mu=MU, sigma=SIGMA, c=FLOOR)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(
-        system,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=STEPS)
-)
+trajectory = simulate(system, until=STEPS, observers=[observer], random_state=0)
 
 # %%
 # Pareto tail of the relative sizes
@@ -43,7 +34,6 @@ simulation = (
 # cumulative distribution falls as `w^-alpha` with `alpha = 1 / (1 - c)`, about 1.43 here. Pooling the last 100
 # periods, the tail should run parallel to that line on log-log axes, while the log sizes spread no further.
 
-trajectory = simulation.trajectory_
 sizes = np.array([trajectory.agents('firms', frame).values['x'] for frame in range(STEPS + 1)])
 relative = sizes / sizes.mean(axis=1, keepdims=True)
 ccdf = distribution(relative[-100:].ravel(), kind='ccdf')

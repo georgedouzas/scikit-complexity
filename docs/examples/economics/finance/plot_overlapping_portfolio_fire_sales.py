@@ -14,13 +14,14 @@ in turn. The stronger the market impact, the further the losses travel.
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.economics.finance import OverlappingPortfolioFireSalesSystem
 
 SYSTEM = 'overlapping_portfolio_fire_sales'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-create_simulation(SYSTEM, shock=0.6).set_params(observers=[observer]).prepare().run(until=30)
+simulate(OverlappingPortfolioFireSalesSystem(shock=0.6), observers=[observer])
 
 # %%
 # Market impact and the size of the shock
@@ -34,18 +35,12 @@ shocks = [0.2, 0.4, 0.6]
 fig, axis = plt.subplots(figsize=(6, 4))
 for shock in shocks:
     defaults = [
-        create_simulation(SYSTEM, shock=shock, alpha=alpha)
-        .prepare()
-        .run(until=30)
-        .trajectory_.values('sales.defaults')[-1]
+        simulate(OverlappingPortfolioFireSalesSystem(shock=shock, alpha=alpha)).values('sales.defaults')[-1]
         for alpha in impacts
     ]
     axis.plot(impacts, defaults, 'o-', label=f'shock {shock}, thresholds')
 defaults = [
-    create_simulation(SYSTEM, shock=0.2, alpha=alpha, selling='leverage')
-    .prepare()
-    .run(until=30)
-    .trajectory_.values(
+    simulate(OverlappingPortfolioFireSalesSystem(shock=0.2, alpha=alpha, selling='leverage')).values(
         'sales.defaults',
     )[-1]
     for alpha in impacts
