@@ -14,7 +14,7 @@ fluctuates around one state for a while and then switches to the other, again an
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.analysis import distribution
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
@@ -39,20 +39,20 @@ drift = np.polynomial.Polynomial([c3 * B, -c1 * A / 2 - c4 - c2 / 3, c1 * A / 2 
 roots = np.sort(drift.roots().real)
 trajectory = simulation.trajectory_
 x = trajectory.values('reactor.x')
-histogram = DistributionAnalysis('histogram', bins=40).prepare(x[trajectory.times > 5]).run()
-edges, density = histogram.edges_, histogram.density_
-fig, (series, distribution) = plt.subplots(1, 2, figsize=(10, 4))
+histogram = distribution(x[trajectory.times > 5], kind='histogram', bins=40)
+edges, density = histogram.edges, histogram.density
+fig, (series, distribution_axes) = plt.subplots(1, 2, figsize=(10, 4))
 series.plot(trajectory.times, x, linewidth=0.5)
 for root in roots:
     series.axhline(root, color='black', linestyle='--', linewidth=0.8)
 series.set_xlabel('time')
 series.set_ylabel('molecules x')
 series.set_title('Noise-driven switches between two states')
-distribution.stairs(density, edges, fill=True, alpha=0.5)
+distribution_axes.stairs(density, edges, fill=True, alpha=0.5)
 for root, label in zip(roots, ['stable', 'unstable', 'stable'], strict=True):
-    distribution.axvline(root, color='black', linestyle='--' if label == 'stable' else ':', linewidth=1)
-distribution.set_xlabel('molecules x')
-distribution.set_ylabel('probability density')
-distribution.set_title('Two peaks at the stable states')
+    distribution_axes.axvline(root, color='black', linestyle='--' if label == 'stable' else ':', linewidth=1)
+distribution_axes.set_xlabel('molecules x')
+distribution_axes.set_ylabel('probability density')
+distribution_axes.set_title('Two peaks at the stable states')
 fig.tight_layout()
 plt.show()

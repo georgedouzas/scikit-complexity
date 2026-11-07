@@ -16,7 +16,7 @@ it comes close to the wall. The view shows the height of the particle above the 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.analysis import distribution
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
@@ -43,8 +43,8 @@ run = (
     .run(until=15000)
 )
 heights = run.trajectory_.values('particle.z')[200:]
-histogram = DistributionAnalysis('histogram', bins=30).prepare(heights).run()
-edges, density = histogram.edges_, histogram.density_
+histogram = distribution(heights, kind='histogram', bins=30)
+edges, density = histogram.edges, histogram.density
 grid = np.linspace(0, edges[-1], 200)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.stairs(density, edges, fill=True, alpha=0.5, label='simulation')

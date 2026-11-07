@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import skew
 
-from skcomplex.core.analysis import DomainAnalysis, SpectrumAnalysis
+from skcomplex.core.analysis import domains, spectrum
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import ETDRK4Solver
 from skcomplex.core.engine.viz import RerunObserver
@@ -54,11 +54,11 @@ rolls_run = (
 rolls = rolls_run.trajectory_.lattice('layer.u')[-1]
 spacing = LENGTH / hexagons.shape[0]
 
-fig, (spectrum, histogram) = plt.subplots(1, 2, figsize=(10, 4))
+fig, (spectrum_axes, histogram) = plt.subplots(1, 2, figsize=(10, 4))
 for field, label in [(hexagons, 'hexagons, g = 1'), (rolls, 'rolls, g = 0')]:
-    factor = SpectrumAnalysis('structure-factor', spacing=spacing).prepare(field).run()
-    order = DomainAnalysis('wavelength', spacing=spacing).prepare(field).run().orientation_[0]
-    spectrum.plot(factor.wavenumbers_, factor.power_, 'o-', markersize=3, label=f'{label}, orientation {order:.2f}')
+    factor = spectrum(field, kind='structure-factor', spacing=spacing)
+    order = domains(field, kind='wavelength', spacing=spacing).orientation[0]
+    spectrum_axes.plot(factor.wavenumbers, factor.power, 'o-', markersize=3, label=f'{label}, orientation {order:.2f}')
     histogram.hist(
         field.ravel(),
         bins=60,
@@ -66,12 +66,12 @@ for field, label in [(hexagons, 'hexagons, g = 1'), (rolls, 'rolls, g = 0')]:
         density=True,
         label=f'{label}, skewness {skew(field.ravel()):.2f}',
     )
-spectrum.axvline(1.0, linestyle='--', color='black', label='k = 1')
-spectrum.set_xlim(0, 3)
-spectrum.set_xlabel('wavenumber k')
-spectrum.set_ylabel('structure factor S(k)')
-spectrum.set_title('Both patterns select k = 1')
-spectrum.legend(fontsize=8)
+spectrum_axes.axvline(1.0, linestyle='--', color='black', label='k = 1')
+spectrum_axes.set_xlim(0, 3)
+spectrum_axes.set_xlabel('wavenumber k')
+spectrum_axes.set_ylabel('structure factor S(k)')
+spectrum_axes.set_title('Both patterns select k = 1')
+spectrum_axes.legend(fontsize=8)
 histogram.set_xlabel('vertical velocity u')
 histogram.set_ylabel('density')
 histogram.set_title('Hexagons rise in strong, skewed cells')

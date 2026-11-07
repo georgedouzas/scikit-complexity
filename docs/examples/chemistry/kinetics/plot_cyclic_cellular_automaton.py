@@ -12,7 +12,7 @@ first lock into local cycles, then spiral waves form around their defects and gr
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import CorrelationAnalysis
+from skcomplex.core.analysis import correlation
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -33,19 +33,18 @@ simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=
 
 levels = simulation.trajectory_.lattice('cells.level')
 advancing = np.mean(levels[1:] != levels[:-1], axis=(1, 2))
-fig, (activity, correlation) = plt.subplots(1, 2, figsize=(10, 4))
+fig, (activity, reach) = plt.subplots(1, 2, figsize=(10, 4))
 activity.plot(simulation.trajectory_.times[1:], advancing)
 activity.set_xlabel('step')
 activity.set_ylabel('share of cells that advance')
 activity.set_title('Activity rises as the spirals take over')
 for step in (0, 20, 60, 300):
-    phase = CorrelationAnalysis('function', max_distance=40).prepare(np.cos(2 * np.pi * levels[step] / 14))
-    phase.run()
-    correlation.plot(phase.distances_, phase.correlation_, label=f'step {step}')
-correlation.axhline(0.0, color='gray', linewidth=0.8)
-correlation.set_xlabel('distance (cells)')
-correlation.set_ylabel('correlation of the phase')
-correlation.set_title('Correlations reach farther over time')
-correlation.legend()
+    phase = correlation(np.cos(2 * np.pi * levels[step] / 14), kind='function', max_distance=40)
+    reach.plot(phase.distances, phase.correlation, label=f'step {step}')
+reach.axhline(0.0, color='gray', linewidth=0.8)
+reach.set_xlabel('distance (cells)')
+reach.set_ylabel('correlation of the phase')
+reach.set_title('Correlations reach farther over time')
+reach.legend()
 fig.tight_layout()
 plt.show()

@@ -11,7 +11,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.analysis import DistributionAnalysis
+from ....core.analysis import distribution
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import LifeCycleInteraction, MovementInteraction, TransferInteraction
 from ....core.components.laws import Sink
@@ -274,7 +274,8 @@ def _get_foraging() -> list[MovementInteraction | TransferInteraction | LifeCycl
 
 def _gini(wealth: object) -> float:
     """Return the Gini coefficient of the wealth of the foragers."""
-    return float(DistributionAnalysis('gini').prepare(np.asarray(wealth, dtype=float)).run().gini_)
+    gini = distribution(np.asarray(wealth, dtype=float), kind='gini').gini
+    return 0.0 if gini is None else gini
 
 
 @register_system(

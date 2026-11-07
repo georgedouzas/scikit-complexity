@@ -13,7 +13,7 @@ image shows the density at the end of the run.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import AlignmentAnalysis
+from skcomplex.core.analysis import alignment
 from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import RK4Solver
@@ -37,11 +37,11 @@ simulation = (
 # initial value to rounding, since the current is a divergence.
 
 trajectory = simulation.trajectory_
-alignment = AlignmentAnalysis('principal-axis').prepare(trajectory.lattice('nematic.Q')).run()
+tensors = alignment(trajectory.lattice('nematic.Q'), kind='principal-axis')
 density = trajectory.lattice('nematic.rho')
 
 fig, (order, total) = plt.subplots(1, 2, figsize=(10, 4))
-order.plot(trajectory.times, alignment.order_.mean(axis=(1, 2)))
+order.plot(trajectory.times, tensors.order.mean(axis=(1, 2)))
 order.set_xlabel('time')
 order.set_ylabel('mean scalar order')
 total.plot(trajectory.times, density.sum(axis=(1, 2)) - density[0].sum())

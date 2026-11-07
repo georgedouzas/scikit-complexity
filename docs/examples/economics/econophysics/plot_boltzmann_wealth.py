@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.analysis import distribution
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import ObservableSpec
@@ -27,7 +27,7 @@ STEPS = 200
 
 def gini(wealth: np.ndarray) -> float:
     """Return the Gini coefficient of the wealth."""
-    return DistributionAnalysis('gini').prepare(wealth).run().gini_
+    return distribution(wealth, kind='gini').gini
 
 
 system = create_system(SYSTEM, n_agents=300)

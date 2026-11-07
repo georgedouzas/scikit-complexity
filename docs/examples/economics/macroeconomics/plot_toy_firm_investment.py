@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import DistributionAnalysis, FitAnalysis
+from skcomplex.core.analysis import distribution, fit_law
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import ObservableSpec
@@ -61,19 +61,19 @@ simulation = (
 
 trajectory = simulation.trajectory_
 capital = trajectory.agents('firms', STEPS).values['K']
-fit = FitAnalysis().prepare(capital).run()
-ccdf = DistributionAnalysis('ccdf').prepare(capital).run()
-values, probabilities = ccdf.support_, ccdf.survival_
-tail = values >= fit.minimum_
+fit = fit_law(capital)
+ccdf = distribution(capital, kind='ccdf')
+values, probabilities = ccdf.support, ccdf.survival
+tail = values >= fit.minimum
 anchor = probabilities[tail][0]
 fig, (sizes, concentration) = plt.subplots(1, 2, figsize=(10, 4))
 sizes.loglog(values, probabilities, label='simulation')
 sizes.loglog(
     values[tail],
-    anchor * (values[tail] / fit.minimum_) ** (1 - fit.exponent_),
+    anchor * (values[tail] / fit.minimum) ** (1 - fit.exponent),
     'k--',
     lw=0.8,
-    label=f'power law, alpha = {fit.exponent_:.2f}',
+    label=f'power law, alpha = {fit.exponent:.2f}',
 )
 sizes.set_xlabel('capital K')
 sizes.set_ylabel('P(K > k)')

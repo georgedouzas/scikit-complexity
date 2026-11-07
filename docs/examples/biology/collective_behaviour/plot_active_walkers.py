@@ -11,7 +11,7 @@ are used, so instead of a lawn worn evenly a few shared trails emerge that bundl
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.analysis import distribution
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -30,7 +30,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 
 trajectory = simulation.trajectory_
 trails = trajectory.lattice('land/ground.G')
-concentration = [DistributionAnalysis('gini').prepare(frame.ravel()).run().gini_ for frame in trails]
+concentration = [distribution(frame.ravel(), kind='gini').gini for frame in trails]
 fig, (image, inequality) = plt.subplots(1, 2, figsize=(11, 4.5))
 image.imshow(trails[-1], cmap='Greens', origin='lower')
 image.set_title(f'Trails at step {trajectory.times[-1]:.0f}')

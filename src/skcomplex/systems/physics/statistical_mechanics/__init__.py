@@ -16,7 +16,7 @@ from ._driven_particles import (
 from ._fully_connected_spins import FullyConnectedSpinElement, curie_weiss, sherrington_kirkpatrick
 from ._gases import ideal_gas, lennard_jones_fluid
 from ._graph_spins import graph_ising
-from ._kinetic_temperature import KineticTemperatureAnalysis
+from ._kinetic_temperature import KineticTemperatureResult, kinetic_temperature
 from ._master_equations import (
     MicrostateElement,
     OrderParameterElement,
@@ -25,7 +25,7 @@ from ._master_equations import (
     landau_relaxation,
     two_phase_zone_exchange,
 )
-from ._maxwell_boltzmann import MaxwellBoltzmannAnalysis
+from ._maxwell_boltzmann import MaxwellBoltzmannResult, maxwell_boltzmann
 from ._percolation import DiskElement, continuum_percolation
 from ._processes import (
     ContactSiteElement,
@@ -57,7 +57,7 @@ from ._spin_glasses import (
     mattis_spin_glass,
 )
 from ._spins import PottsSpinElement, XYSpinElement, ising, potts, xy
-from ._susceptibility import SusceptibilityAnalysis
+from ._susceptibility import SusceptibilityResult, susceptibility
 from ._traps import TrapWalkerElement, trap_system
 from ._urns import EhrenfestUrnElement, ehrenfest_urn
 
@@ -75,9 +75,9 @@ __all__: list[str] = [
     'ExclusionSiteElement',
     'FullyConnectedSpinElement',
     'IsingSpinElement',
-    'KineticTemperatureAnalysis',
+    'KineticTemperatureResult',
     'MattisSpinElement',
-    'MaxwellBoltzmannAnalysis',
+    'MaxwellBoltzmannResult',
     'MicrostateElement',
     'OrderParameterElement',
     'ParticleSiteElement',
@@ -86,7 +86,7 @@ __all__: list[str] = [
     'Q2RSpinElement',
     'ReactingParticlesElement',
     'ReservoirInteraction',
-    'SusceptibilityAnalysis',
+    'SusceptibilityResult',
     'TrapWalkerElement',
     'TreeNodeElement',
     'WalkerElement',
@@ -110,16 +110,19 @@ __all__: list[str] = [
     'graph_ising',
     'ideal_gas',
     'ising',
+    'kinetic_temperature',
     'landau_relaxation',
     'lennard_jones_fluid',
     'local_magnetization',
     'mattis_spin_glass',
+    'maxwell_boltzmann',
     'potts',
     'q2r',
     'quantum_heisenberg',
     'random_energy_system',
     'sherrington_kirkpatrick',
     'site_percolation',
+    'susceptibility',
     'tasep',
     'total_magnetization',
     'trap_system',

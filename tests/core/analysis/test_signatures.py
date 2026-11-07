@@ -3,14 +3,14 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import SignatureAnalysis
+from skcomplex.core.analysis import signatures
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems import create_simulation
 
 
 def _signatures(trajectory: object) -> list:
     """Return the signatures of a trajectory."""
-    return SignatureAnalysis().prepare(trajectory).run().signatures_
+    return signatures(trajectory).signatures
 
 
 def test_signature_analysis_of_a_series():
@@ -89,7 +89,7 @@ def test_signature_analysis_of_phases_of_particles():
 def test_signature_analysis_reads_a_trajectory():
     """Test that the signature analysis rejects a source that is not a trajectory."""
     with pytest.raises(AnalysisError, match='reads a trajectory'):
-        SignatureAnalysis().prepare(np.zeros(10))
+        signatures(np.zeros(10))
 
 
 def test_signature_analysis_of_a_system_with_several_kinds():

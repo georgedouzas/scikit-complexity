@@ -14,7 +14,7 @@ potential minimum. The view shows 400 particles in a periodic box at density 0.5
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import NeighborAnalysis
+from skcomplex.core.analysis import neighbors
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import VelocityVerletSolver
 from skcomplex.core.engine.viz import RerunObserver
@@ -44,9 +44,8 @@ for density in (0.2, 0.8):
         random_state=1,
     ).prepare()
     positions = np.mod(run.run(until=20).trajectory_.values('fluid.x')[100:], side)
-    neighbors = NeighborAnalysis('radial-distribution', box=[side, side], bins=120, r_max=5.0)
-    neighbors.prepare(positions).run()
-    distances, g = neighbors.radii_, neighbors.distribution_
+    pairs = neighbors(positions, kind='radial-distribution', box=[side, side], bins=120, r_max=5.0)
+    distances, g = pairs.radii, pairs.distribution
     ax.plot(distances, g, label=f'density {density}')
 ax.axvline(2 ** (1 / 6), color='gray', linestyle='--', label='potential minimum 2^(1/6)')
 ax.axhline(1.0, color='lightgray')

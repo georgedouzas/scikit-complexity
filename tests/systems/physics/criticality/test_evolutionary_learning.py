@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import FitAnalysis, events
+from skcomplex.core.analysis import events, fit_law
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.systems import create_system
 from skcomplex.systems.physics.criticality import evolutionary_sk_game
@@ -65,8 +65,8 @@ def test_evolutionary_sk_game_self_organisation():
     fitness = np.asarray(evolved.values('agents.fitness'))[::3][TRANSIENT // 3 :]
     threshold = np.quantile(fitness.min(axis=1), 0.97)
     sizes = events((fitness < threshold).sum(axis=1), kind='excursions').sizes
-    fit = FitAnalysis(minimum=5, discrete=True).prepare(sizes).run()
-    assert fit.exponent_ == pytest.approx(1.5, abs=0.15)
+    fit = fit_law(sizes, minimum=5, discrete=True)
+    assert fit.exponent == pytest.approx(1.5, abs=0.15)
     reward = np.asarray(evolved.values('agents.reward'))[STEPS // 2 :].mean()
     for temperature in SWEEP:
         system = create_system('evolutionary_sk_game', temperature=temperature, random_state=SEED)

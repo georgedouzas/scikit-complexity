@@ -7,7 +7,7 @@ import pytest
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.analysis import CoarseGrainAnalysis, SpectrumAnalysis
+from skcomplex.core.analysis import CoarseGrainAnalysis, spectrum
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws.utils import moment
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
@@ -62,7 +62,7 @@ def test_coarse_grain_density():
     rng = np.random.default_rng(6)
     density = _coarse_grain(rng.random((10_000, 2)) * 5, [32, 32], box=[5.0, 5.0])
     assert density.sum() == 10_000
-    assert SpectrumAnalysis('structure-factor').prepare(density).run().power_.size > 0
+    assert spectrum(density, kind='structure-factor').power.size > 0
     polarization = _coarse_grain(rng.random((100, 2)), [4, 4], box=[1.0, 1.0], values=np.ones((100, 2)))
     assert polarization.shape == (4, 4, 2)
     with pytest.raises(AnalysisError, match='one entry per dimension'):

@@ -5,8 +5,8 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import DistributionAnalysis
-from skcomplex.systems.physics.statistical_mechanics import SusceptibilityAnalysis
+from skcomplex.core.analysis import distribution
+from skcomplex.systems.physics.statistical_mechanics import susceptibility
 
 from ....core.analysis.conftest import ISING_TEMPERATURES, _magnetizations
 
@@ -30,14 +30,14 @@ def test_susceptibility_scales_the_variance_of_absolute_samples():
     """Test that the susceptibility is the variance of the absolute samples times the size over the temperature."""
     samples = np.random.default_rng(0).standard_normal((500, 5)) * 0.3 + 0.2
     temperatures = np.linspace(1.0, 2.0, 5)
-    susceptibility = SusceptibilityAnalysis(size=64, temperatures=temperatures).prepare(samples).run()
-    general = DistributionAnalysis('moments', absolute=True).prepare(samples).run()
-    for name in ('mean_', 'variance_', 'skewness_', 'kurtosis_'):
-        np.testing.assert_array_equal(getattr(susceptibility, name), getattr(general, name))
-    np.testing.assert_allclose(susceptibility.susceptibility_, 64 * general.variance_ / temperatures, rtol=1e-15)
-    assert susceptibility.peak_ is None
+    result = susceptibility(samples, size=64, temperatures=temperatures)
+    general = distribution(samples, kind='moments', absolute=True)
+    for name in ('mean', 'variance', 'skewness', 'kurtosis'):
+        np.testing.assert_array_equal(getattr(result, name), getattr(general, name))
+    np.testing.assert_allclose(result.susceptibility, 64 * general.variance / temperatures, rtol=1e-15)
+    assert result.peak is None
     with pytest.raises(Exception, match='positive size'):
-        SusceptibilityAnalysis(size=0).prepare()
+        susceptibility(samples, size=0)
 
 
 @pytest.mark.slow
@@ -45,11 +45,11 @@ def test_susceptibility_peaks_at_two_transitions():
     """Test that the susceptibility peaks of a 64 by 64 Ising lattice and of Kuramoto oscillators locate T_c and K_c."""
     rng = np.random.default_rng(0)
     samples = np.column_stack([_magnetizations(64, temperature, rng) for temperature in ISING_TEMPERATURES])
-    ising = SusceptibilityAnalysis(size=64**2, temperatures=ISING_TEMPERATURES, parameters=ISING_TEMPERATURES)
-    assert ising.prepare(samples).run().peak_ == pytest.approx(CRITICAL, rel=0.03)
+    ising = susceptibility(samples, size=64**2, temperatures=ISING_TEMPERATURES, parameters=ISING_TEMPERATURES)
+    assert ising.peak == pytest.approx(CRITICAL, rel=0.03)
     couplings = np.linspace(1.0, 3.0, 11)
     rng = np.random.default_rng(4)
     orders = np.column_stack([_kuramoto_order(rng, coupling, 2000) for coupling in couplings])
-    kuramoto = SusceptibilityAnalysis(size=2000, parameters=couplings).prepare(orders).run()
-    assert kuramoto.peak_ == pytest.approx(2, rel=0.1)
-    assert np.all(np.diff(kuramoto.mean_[couplings >= 2.2]) > 0)
+    kuramoto = susceptibility(orders, size=2000, parameters=couplings)
+    assert kuramoto.peak == pytest.approx(2, rel=0.1)
+    assert np.all(np.diff(kuramoto.mean[couplings >= 2.2]) > 0)

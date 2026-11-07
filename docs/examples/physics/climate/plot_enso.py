@@ -12,7 +12,7 @@ waves turns it around, so it swings regularly between El Niño, a warm anomaly, 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import SpectrumAnalysis
+from skcomplex.core.analysis import spectrum
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -34,19 +34,19 @@ trajectory = simulation.trajectory_
 anomaly = trajectory.values('pacific.T')
 shift = int(6.0 / 0.5)
 settled = slice(len(anomaly) // 2, None)
-spectrum = SpectrumAnalysis(dt=0.5).prepare(anomaly[settled]).run()
-frequencies, density = spectrum.frequencies_, spectrum.power_[0]
+power = spectrum(anomaly[settled], dt=0.5)
+frequencies, density = power.frequencies, power.power[0]
 peak = frequencies[1:][np.argmax(density[1:])]
-fig, (loop, spectrum) = plt.subplots(1, 2, figsize=(10, 4))
+fig, (loop, spectrum_axes) = plt.subplots(1, 2, figsize=(10, 4))
 loop.plot(anomaly[settled][shift:], anomaly[settled][:-shift])
 loop.set_xlabel('anomaly T(t)')
 loop.set_ylabel('delayed anomaly T(t - delta)')
 loop.set_title('One closed loop')
-spectrum.semilogy(frequencies[1:], density[1:])
-spectrum.axvline(peak, color='black', linestyle='--', label=f'period {1 / peak:.1f}')
-spectrum.set_xlabel('frequency')
-spectrum.set_ylabel('power spectral density')
-spectrum.set_title('Power spectrum of the anomaly')
-spectrum.legend()
+spectrum_axes.semilogy(frequencies[1:], density[1:])
+spectrum_axes.axvline(peak, color='black', linestyle='--', label=f'period {1 / peak:.1f}')
+spectrum_axes.set_xlabel('frequency')
+spectrum_axes.set_ylabel('power spectral density')
+spectrum_axes.set_title('Power spectrum of the anomaly')
+spectrum_axes.legend()
 fig.tight_layout()
 plt.show()

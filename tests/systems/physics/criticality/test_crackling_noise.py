@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import FitAnalysis, events
+from skcomplex.core.analysis import FitLawResult, events, fit_law
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems.physics.criticality import crackling_noise
 
@@ -11,9 +11,9 @@ DURATIONS = (20, 40, 80)
 MAX_GENERATIONS = 5000
 
 
-def _exponent(values: np.ndarray, minimum: float) -> FitAnalysis:
+def _exponent(values: np.ndarray, minimum: float) -> FitLawResult:
     """Return the discrete power law fitted above a fixed lower cutoff."""
-    return FitAnalysis('power', minimum=minimum, discrete=True, bootstrap=0).prepare(values).run()
+    return fit_law(values, law='power', minimum=minimum, discrete=True, bootstrap=0)
 
 
 def _galton_watson(rng: np.random.Generator, trees: int) -> np.ndarray:
@@ -52,8 +52,8 @@ def test_crackling_noise_branching_process_scaling():
         _galton_watson(np.random.default_rng(2), 1_000_000),
         durations=DURATIONS,
         min_duration=10,
-        size_exponent=_exponent(found.sizes, 10).exponent_,
-        duration_exponent=_exponent(found.durations, 10).exponent_,
+        size_exponent=_exponent(found.sizes, 10).exponent,
+        duration_exponent=_exponent(found.durations, 10).exponent,
     )
     assert crackling.exponent == pytest.approx(2, abs=0.1)
     assert crackling.exponent == pytest.approx(crackling.predicted, abs=0.15)

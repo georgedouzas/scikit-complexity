@@ -5,7 +5,7 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import ClusterAnalysis, CollapseAnalysis, CorrelationAnalysis, DistributionAnalysis
+from skcomplex.core.analysis import ClusterAnalysis, CollapseAnalysis, correlation, distribution
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems import create_system
@@ -23,9 +23,10 @@ def _collapse(kind: str, source: object, **settings: object) -> CollapseAnalysis
 
 def _susceptibilities(magnetizations: dict[int, list[np.ndarray]]) -> dict[int, np.ndarray]:
     """Return the susceptibility `N var(|m|) / T` of every size at every temperature."""
-    moments = DistributionAnalysis('moments', absolute=True)
     return {
-        side: side**2 * moments.prepare(np.column_stack(samples)).run().variance_ / np.asarray(ISING_TEMPERATURES)
+        side: side**2
+        * distribution(np.column_stack(samples), kind='moments', absolute=True).variance
+        / np.asarray(ISING_TEMPERATURES)
         for side, samples in magnetizations.items()
     }
 
@@ -88,7 +89,7 @@ def test_two_time_correlation_aging_on_two_domains():
     quenches = [Simulation(system, dt=1, random_state=seed).prepare().run(until=400) for seed in range(4, 8)]
     runs = [quench.trajectory_.lattice('spins.spin') for quench in quenches]
     waiting, lags = [50, 100, 200], np.arange(0, 200)
-    ising = CorrelationAnalysis('two-time', waiting=waiting, lags=lags).prepare(np.stack(runs)).run()
+    ising = correlation(np.stack(runs), kind='two-time', waiting=waiting, lags=lags)
     horizon = 1000.0
     renewals = _trap_renewals(np.random.default_rng(1), 20_000, horizon)
     grid = np.arange(0, 1001, 5.0)
@@ -98,7 +99,7 @@ def test_two_time_correlation_aging_on_two_domains():
     trap_curves = np.asarray(
         [[np.mean(counts[:, start] == counts[:, start + lag]) for lag in trap_lags] for start in trap_waiting],
     )
-    cases = ((ising.correlation_, waiting, lags, 1.0), (trap_curves, trap_waiting, trap_lags, 5.0))
+    cases = ((ising.correlation, waiting, lags, 1.0), (trap_curves, trap_waiting, trap_lags, 5.0))
     for curves, starts, steps, scale in cases:
         assert np.all(np.diff(curves[:, 10]) > 0)
         collapse = _collapse('aging', curves, waiting=np.asarray(starts) * scale, lags=steps * scale)
@@ -124,9 +125,9 @@ def test_collapse_distributions_trap_system():
 
 def test_crossings_of_moment_ratios_at_the_ising_critical_point(ising_magnetizations):
     """Test that the moment-ratio cumulants of Ising lattices of sides 16, 32, and 64 cross within 1 percent of T_c."""
-    ratio = DistributionAnalysis('moment-ratio')
     cumulants = {
-        side: ratio.prepare(np.column_stack(ising_magnetizations[side])).run().cumulant_ for side in ISING_SIZES
+        side: distribution(np.column_stack(ising_magnetizations[side]), kind='moment-ratio').cumulant
+        for side in ISING_SIZES
     }
     crossings = _collapse('crossings', cumulants, parameters=ISING_TEMPERATURES).crossings_
     np.testing.assert_allclose(crossings, CRITICAL, rtol=0.01)

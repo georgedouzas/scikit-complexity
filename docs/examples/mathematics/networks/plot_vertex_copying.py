@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.analysis import distribution
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -54,8 +54,8 @@ for randomness in (1.0, 0.5, 0.1):
         .run(until=3000)
     )
     snapshot = run.trajectory_.network(-1)
-    ccdf = DistributionAnalysis('ccdf').prepare(np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))).run()
-    values, shares = ccdf.support_, ccdf.survival_
+    ccdf = distribution(np.bincount(np.concatenate([snapshot.sources, snapshot.targets])), kind='ccdf')
+    values, shares = ccdf.support, ccdf.survival
     axis.loglog(values, shares, 'o', markersize=3, label=f'randomness {randomness}')
 axis.set_xlabel('degree k')
 axis.set_ylabel('P(K >= k)')

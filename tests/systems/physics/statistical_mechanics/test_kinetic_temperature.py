@@ -5,10 +5,10 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.analysis import distribution
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems import create_simulation
-from skcomplex.systems.physics.statistical_mechanics import KineticTemperatureAnalysis
+from skcomplex.systems.physics.statistical_mechanics import kinetic_temperature
 
 
 def _langevin_velocities(rng: np.random.Generator, particles: int, temperature: float) -> np.ndarray:
@@ -28,16 +28,16 @@ def test_kinetic_temperature_of_an_ideal_gas_is_the_second_moment_of_its_speeds(
         trajectory = (
             create_simulation('ideal_gas', n_dim=dimension, random_state=0).prepare().run(until=1.0).trajectory_
         )
-        temperatures = KineticTemperatureAnalysis(mass=2.0).prepare(trajectory).run().temperature_
+        temperatures = kinetic_temperature(trajectory, mass=2.0).temperature
         assert np.ptp(temperatures) < 1e-10
-        speeds = DistributionAnalysis('moments').prepare(trajectory).run()
-        np.testing.assert_allclose(temperatures, 2.0 * (speeds.variance_ + speeds.mean_**2) / dimension)
+        speeds = distribution(trajectory, kind='moments')
+        np.testing.assert_allclose(temperatures, 2.0 * (speeds.variance + speeds.mean**2) / dimension)
 
 
 def test_kinetic_temperature_of_langevin_particles():
     """Test that 2000 underdamped Langevin particles reach the bath temperature 1.5."""
     velocities = _langevin_velocities(np.random.default_rng(3), 2000, 1.5)
-    temperature = KineticTemperatureAnalysis().prepare(velocities).run().temperature_
+    temperature = kinetic_temperature(velocities).temperature
     assert temperature[0] == pytest.approx(1.5, rel=0.03)
     with pytest.raises(AnalysisError, match='positive mass'):
-        KineticTemperatureAnalysis(mass=-1.0).prepare()
+        kinetic_temperature(velocities, mass=-1.0)

@@ -1,6 +1,6 @@
 """Analyse systems, trajectories, and measured data by kind of data: series, paths, fields, agents, and networks."""
 
-from ._alignment import AlignmentAnalysis
+from ._alignment import AlignmentResult, alignment
 from ._autocatalytic import AutocatalyticSetAnalysis
 from ._automata import AutomatonResult, automaton
 from ._base import BaseAnalysis, bind_analysis
@@ -10,19 +10,19 @@ from ._coarse_grain import CoarseGrainAnalysis
 from ._collapse import CollapseAnalysis
 from ._complexity import ComplexityResult, complexity
 from ._computational_mechanics import EpsilonMachineAnalysis
-from ._correlation import CorrelationAnalysis
+from ._correlation import CorrelationResult, correlation
 from ._defects import DefectAnalysis
 from ._discovery import DiscoveryAnalysis
 from ._displacement import DisplacementAnalysis
-from ._distribution import DistributionAnalysis
-from ._domains import DomainAnalysis
+from ._distribution import DistributionResult, distribution
+from ._domains import DomainsResult, domains
 from ._elementary_modes import ElementaryModesResult, elementary_modes
 from ._embedding import EmbeddingResult, embedding
 from ._emergence import EmergenceResult, emergence
 from ._entropy import EntropyResult, entropy
 from ._ergodicity import ErgodicityResult, ergodicity
 from ._events import EventsResult, events
-from ._fit import FitAnalysis
+from ._fit import FitLawResult, fit_law
 from ._information import InformationResult, information
 from ._invariants import InvariantsResult, invariants
 from ._irreversibility import IrreversibilityResult, irreversibility
@@ -34,28 +34,28 @@ from ._loops import LoopsResult, loops
 from ._lyapunov import LyapunovResult, lyapunov
 from ._markov import MarkovResult, markov
 from ._mode_decomposition import ModeDecompositionAnalysis
-from ._motifs import MotifAnalysis
-from ._neighbors import NeighborAnalysis
-from ._networks import NetworkAnalysis
+from ._motifs import MotifsResult, motifs
+from ._neighbors import NeighborsResult, neighbors
+from ._networks import NetworkMeasuresResult, network_measures
 from ._operator import OperatorMeasuresResult, operator_measures
 from ._partial_information import PartialInformationResult, partial_information
 from ._passage import PassageResult, passage
 from ._recurrence import RecurrenceResult, recurrence
-from ._renormalization import RenormalizationAnalysis
+from ._renormalization import RenormalizationResult, renormalization
 from ._reservoirs import ReservoirAnalysis
 from ._rolling import RollingResult, rolling
 from ._scaling import ScalingAnalysis
 from ._sections import SectionResult, section
 from ._shape import ShapeAnalysis
-from ._signatures import SignatureAnalysis
+from ._signatures import SignaturesResult, signatures
 from ._sparse_identification import SparseIdentificationAnalysis
-from ._spectrum import SpectrumAnalysis
+from ._spectrum import SpectrumResult, spectrum
 from ._stability import StabilityResult, stability
 from ._surrogates import SurrogateTestResult, surrogate_test
 from ._symbolic import SymbolicResult, symbolic
 
 __all__: list[str] = [
-    'AlignmentAnalysis',
+    'AlignmentResult',
     'AutocatalyticSetAnalysis',
     'AutomatonResult',
     'BaseAnalysis',
@@ -64,12 +64,12 @@ __all__: list[str] = [
     'CoarseGrainAnalysis',
     'CollapseAnalysis',
     'ComplexityResult',
-    'CorrelationAnalysis',
+    'CorrelationResult',
     'DefectAnalysis',
     'DiscoveryAnalysis',
     'DisplacementAnalysis',
-    'DistributionAnalysis',
-    'DomainAnalysis',
+    'DistributionResult',
+    'DomainsResult',
     'ElementaryModesResult',
     'EmbeddingResult',
     'EmergenceResult',
@@ -77,7 +77,7 @@ __all__: list[str] = [
     'EpsilonMachineAnalysis',
     'ErgodicityResult',
     'EventsResult',
-    'FitAnalysis',
+    'FitLawResult',
     'InformationResult',
     'InvariantsResult',
     'IrreversibilityResult',
@@ -89,34 +89,39 @@ __all__: list[str] = [
     'LyapunovResult',
     'MarkovResult',
     'ModeDecompositionAnalysis',
-    'MotifAnalysis',
-    'NeighborAnalysis',
-    'NetworkAnalysis',
+    'MotifsResult',
+    'NeighborsResult',
+    'NetworkMeasuresResult',
     'OperatorMeasuresResult',
     'PartialInformationResult',
     'PassageResult',
     'RecurrenceResult',
-    'RenormalizationAnalysis',
+    'RenormalizationResult',
     'ReservoirAnalysis',
     'RollingResult',
     'ScalingAnalysis',
     'SectionResult',
     'ShapeAnalysis',
-    'SignatureAnalysis',
+    'SignaturesResult',
     'SparseIdentificationAnalysis',
-    'SpectrumAnalysis',
+    'SpectrumResult',
     'StabilityResult',
     'SurrogateTestResult',
     'SymbolicResult',
+    'alignment',
     'automaton',
     'bind_analysis',
     'complexity',
+    'correlation',
+    'distribution',
+    'domains',
     'elementary_modes',
     'embedding',
     'emergence',
     'entropy',
     'ergodicity',
     'events',
+    'fit_law',
     'information',
     'invariants',
     'irreversibility',
@@ -127,12 +132,18 @@ __all__: list[str] = [
     'loops',
     'lyapunov',
     'markov',
+    'motifs',
+    'neighbors',
+    'network_measures',
     'operator_measures',
     'partial_information',
     'passage',
     'recurrence',
+    'renormalization',
     'rolling',
     'section',
+    'signatures',
+    'spectrum',
     'stability',
     'surrogate_test',
     'symbolic',

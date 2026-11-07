@@ -15,7 +15,7 @@ the whole lattice. The view shows the heights of a 48 x 48 pile, from zero (dark
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import DistributionAnalysis, events
+from skcomplex.core.analysis import distribution, events
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -39,8 +39,8 @@ found = events(
     [record for record in simulation.trajectory_.events if record.time > 5000 and record.size > 0],
     kind='excursions',
 )
-histogram = DistributionAnalysis('histogram', bins=20, log=True).prepare(found.sizes).run()
-edges, density = histogram.edges_, histogram.density_
+histogram = distribution(found.sizes, kind='histogram', bins=20, log=True)
+edges, density = histogram.edges, histogram.density
 centers = np.sqrt(edges[1:] * edges[:-1])
 shown = density > 0
 
