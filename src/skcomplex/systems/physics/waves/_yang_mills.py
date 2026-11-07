@@ -3,22 +3,316 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
+import itertools
+from collections.abc import Mapping, Sequence
 from functools import partial
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
 
-from ....core.components.elements import GroupElement
+from ....core.analysis import BaseAnalysis
+from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import CellComplexSpace, DiscreteTime, LatticeSpace
 from ....core.components.system import System
-from ....core.errors import ValidationError
-from ....core.specs import MatrixGroupSpec, ObservableSpec
+from ....core.engine.runtime import Trajectory
+from ....core.errors import AnalysisError, ValidationError
+from ....core.specs import MatrixGroupSpec, ObservableSpec, StateSpec, VisualSpec
+from ....core.types import Array, DataKind, Indices
 from ..._catalog import register_system
-from ._color_link import COLOR, ColorLinkElement
-from ._gauge_analysis import GaugeAnalysis
-from ._isospin_link import ISOSPIN, IsospinLinkElement
 from ._wilson_sampling import WilsonSamplingInteraction
+
+COLOR = MatrixGroupSpec('SU', 3)
+
+
+class ColorLinkElement(Element):
+    """Link of a lattice with an SU(3) matrix `U`, the parallel transport of color along the link.
+
+    Args:
+        label:
+            The label of the link or the group on the links.
+
+        visual:
+            How the link is drawn, or `None` for `default_visual_`.
+
+        U:
+            The real components of the matrix of the link, the identity by default.
+
+    Attributes:
+        default_visual_:
+            The visual of the link when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.waves import ColorLinkElement
+        >>> len(ColorLinkElement('link').U)
+        18
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        U: Annotated[object, StateSpec(group=COLOR)] = tuple(COLOR.identity),
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.U = U
+
+
+ISOSPIN = MatrixGroupSpec('SU', 2)
+
+
+class IsospinLinkElement(Element):
+    """Link of a lattice with an SU(2) matrix `U`, the parallel transport of isospin along the link.
+
+    Args:
+        label:
+            The label of the link or the group on the links.
+
+        visual:
+            How the link is drawn, or `None` for `default_visual_`.
+
+        U:
+            The real components of the matrix of the link, the identity by default.
+
+    Attributes:
+        default_visual_:
+            The visual of the link when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.waves import IsospinLinkElement
+        >>> len(IsospinLinkElement('link').U)
+        8
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        U: Annotated[object, StateSpec(group=ISOSPIN)] = tuple(ISOSPIN.identity),
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.U = U
+
+
+KINDS = ('wilson', 'polyakov', 'charge', 'gauss')
+MATRIX_KINDS = ('wilson', 'polyakov')
+CHARGE_DIMENSIONS = 2
+LOOP_AXES = 2
+
+
+class GaugeAnalysis(BaseAnalysis):
+    """Gauge observables of a link state on the cell complex of a periodic lattice, one value per frame.
+
+    The kind `'wilson'` is the mean cosine of the oriented sum of the link angles around the rectangles of given extents
+    in every plane. The kind `'polyakov'` is the mean cosine of the sum of the link angles along the last axis. The kind
+    `'charge'` is the sum over the plaquettes of a two-dimensional lattice of the oriented sums wrapped into one period
+    around 0, over `2 pi`. The kind `'gauss'` is the largest absolute value of the codifferential of an electric link
+    state minus a site charge.
+
+    An array of one dimension holds one snapshot, and an array of two dimensions one frame per row.
+
+    With a matrix group, the link states are the real components of the link matrices, and a loop is the path-ordered
+    product of the link matrices around it. The kind `'wilson'` is then the mean of `Re tr W / N` over the rectangles of
+    every plane, and the kind `'polyakov'` the modulus of the mean of `tr P / N` over the loops `P` that wind once along
+    the last axis, the order parameter of deconfinement. An array of two dimensions then holds one snapshot, with the
+    components of every link on the last axis, and an array of three dimensions one frame per row.
+
+    Args:
+        kind:
+            `'wilson'`, `'polyakov'`, `'charge'`, or `'gauss'`.
+
+        space:
+            The cell complex of the links.
+
+        variables:
+            The dotted name of the state of a trajectory, or `None` for a source that is an array.
+
+        extents:
+            The sides of the rectangles of the kind `'wilson'`.
+
+        charges:
+            The charge of every site for the kind `'gauss'`, or `None` for none.
+
+        group:
+            The matrix group of the links, or `None` for link angles.
+
+    Attributes:
+        values_:
+            The link states, with one row per frame.
+
+        value_:
+            The observable of every frame.
+
+    Raises:
+        AnalysisError:
+            The kind is unknown, the space is not the cell complex of a periodic lattice, the charge is asked of a
+            lattice that does not have two dimensions, or a kind other than a loop is asked of matrix links.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.core.components.spaces import CellComplexSpace, LatticeSpace
+        >>> from skcomplex.systems.physics.waves import GaugeAnalysis
+        >>> space = CellComplexSpace(LatticeSpace((4, 4))).prepare()
+        >>> GaugeAnalysis('wilson', space).prepare(np.zeros(32)).run().value_.tolist()
+        [1.0]
+        >>> from skcomplex.core.specs import MatrixGroupSpec
+        >>> group = MatrixGroupSpec('SU', 2)
+        >>> identity = np.tile(group.identity, (32, 1))
+        >>> GaugeAnalysis('polyakov', space, group=group).prepare(identity).run().value_.tolist()
+        [1.0]
+    """
+
+    values_: Array
+    value_: Array
+
+    def __init__(
+        self,
+        kind: str,
+        space: CellComplexSpace,
+        variables: str | None = None,
+        extents: tuple[int, int] = (1, 1),
+        charges: Sequence[float] | None = None,
+        *,
+        group: MatrixGroupSpec | None = None,
+    ) -> None:
+        self.kind = kind
+        self.space = space
+        self.variables = variables
+        self.extents = extents
+        self.charges = charges
+        self.group = group
+
+    def _check(self) -> None:
+        """Raise an error for an unknown kind, or a space that is not the cell complex of a periodic lattice."""
+        self._check_choice('kind', self.kind, KINDS)
+        place = getattr(self.space, 'space', None)
+        if not isinstance(place, LatticeSpace) or place.boundary != 'periodic':
+            error_msg = f'GaugeAnalysis reads the cell complex of a periodic lattice, not {self.space!r}.'
+            raise AnalysisError(error_msg)
+        if self.group is not None and self.kind not in MATRIX_KINDS:
+            error_msg = f'The kind {self.kind!r} reads link angles. Matrix links take the kind wilson or polyakov.'
+            raise AnalysisError(error_msg)
+        if self.kind == 'charge' and len(np.ravel(place.shape)) != CHARGE_DIMENSIONS:
+            error_msg = f'The topological charge is defined on a two-dimensional lattice, not on {place!r}.'
+            raise AnalysisError(error_msg)
+
+    def _get_data_kind(self) -> DataKind:
+        """Return the kind of data the analysis reads, the values of the links of a complex."""
+        return DataKind.FIELD
+
+    def _prepare(self, source: object) -> None:
+        """Read the link states of a trajectory or an array, with one row per frame."""
+        self.space.prepare()
+        if isinstance(source, Trajectory):
+            self.values_ = np.asarray(source.values(str(self.variables)), dtype=float)
+            return
+        values = np.asarray(source, dtype=float)
+        frame = 1 if self.group is None else 2
+        self.values_ = values[None] if values.ndim == frame else values
+
+    def _rectangles_of(self, first: int, second: int, sums: Array) -> Array:
+        """Return the oriented sums around the rectangles of a plane, with the frame first and the sites next."""
+        shape = self.space.space.shape_
+        faces = np.flatnonzero(np.all(self.space.face_planes_ == (first, second), axis=1))
+        corners = np.asarray([self.space.hyperedges_[face][0] for face in faces], dtype=np.intp)
+        flat = np.zeros((sums.shape[0], int(np.prod(shape))))
+        flat[:, corners] = sums[:, faces]
+        grid = flat.reshape(sums.shape[0], *shape)
+        loops = np.zeros_like(grid)
+        for steps in itertools.product(range(self.extents[0]), range(self.extents[1])):
+            loops += np.roll(grid, (-steps[0], -steps[1]), axis=(first + 1, second + 1))
+        return loops
+
+    def _get_paths(self, moves: Sequence[tuple[int, int]]) -> tuple[Indices, Array]:
+        """Return the links and signs of the path of steps along axes, forward 1 or backward -1, from every site."""
+        place = self.space.space
+        sites = np.arange(place.size_).reshape(place.shape_)
+        forward = np.stack([np.roll(sites, -1, axis=axis).ravel() for axis in range(place.n_dim_)])
+        backward = np.stack([np.roll(sites, 1, axis=axis).ravel() for axis in range(place.n_dim_)])
+        table = np.empty((place.n_dim_, place.size_), dtype=np.intp)
+        table[self.space.link_axes_, self.space.edges_[None][0]] = np.arange(self.space.link_axes_.size)
+        current = np.arange(place.size_)
+        edges, signs = [], []
+        for axis, direction in moves:
+            if direction < 0:
+                current = backward[axis, current]
+            edges.append(table[axis, current])
+            signs.append(np.full(place.size_, float(direction)))
+            if direction > 0:
+                current = forward[axis, current]
+        return np.stack(edges, axis=1), np.stack(signs, axis=1)
+
+    def _get_traces(self, group: MatrixGroupSpec, edges: Indices, signs: Array) -> Array:
+        """Return the trace over `N` of the path-ordered product along every path, with one row per frame."""
+        return np.stack(
+            [
+                np.trace(group.holonomy_of(group.matrices_of(values), edges, signs), axis1=-2, axis2=-1) / group.degree
+                for values in self.values_
+            ],
+        )
+
+    def _run_matrix_wilson(self, group: MatrixGroupSpec) -> Array:
+        """Return the mean of `Re tr W / N` over the rectangles of every plane."""
+        rows, columns = self.extents
+        planes = np.unique(self.space.face_planes_, axis=0).reshape(-1, LOOP_AXES)
+        loops = []
+        for first, second in planes.tolist():
+            moves = [(first, 1)] * rows + [(second, 1)] * columns + [(first, -1)] * rows + [(second, -1)] * columns
+            loops.append(self._get_traces(group, *self._get_paths(moves)).real)
+        return np.concatenate(loops, axis=1).mean(axis=1)
+
+    def _run_matrix_polyakov(self, group: MatrixGroupSpec) -> Array:
+        """Return the modulus of the mean of `tr P / N` over the loops that wind along the last axis."""
+        place = self.space.space
+        last = place.n_dim_ - 1
+        traces = self._get_traces(group, *self._get_paths([(last, 1)] * place.shape_[last]))
+        return np.abs(traces.mean(axis=1))
+
+    def _run_wilson(self) -> Array:
+        """Return the mean cosine of the rectangles of every plane."""
+        sums = (self.space.incidences_[1] @ self.values_.T).T
+        planes = np.unique(self.space.face_planes_, axis=0).reshape(-1, LOOP_AXES)
+        loops = [self._rectangles_of(int(first), int(second), sums) for first, second in planes]
+        axes = tuple(range(1, self.space.space.n_dim_ + 1))
+        return np.mean([np.cos(loop).mean(axis=axes) for loop in loops], axis=0)
+
+    def _run_polyakov(self) -> Array:
+        """Return the mean cosine of the sums of the link angles along the last axis."""
+        place = self.space.space
+        last = place.n_dim_ - 1
+        links = np.flatnonzero(self.space.link_axes_ == last)
+        flat = np.zeros((self.values_.shape[0], place.size_))
+        flat[:, self.space.edges_[None][0][links]] = self.values_[:, links]
+        grid = flat.reshape(self.values_.shape[0], *place.shape_)
+        return np.cos(grid.sum(axis=last + 1)).mean(axis=tuple(range(1, place.n_dim_)))
+
+    def _run_charge(self) -> Array:
+        """Return the sum of the wrapped oriented sums of the plaquettes, over `2 pi`."""
+        sums = (self.space.incidences_[1] @ self.values_.T).T
+        return np.angle(np.exp(1j * sums)).sum(axis=1) / (2 * np.pi)
+
+    def _run_gauss(self) -> Array:
+        """Return the largest absolute difference of the codifferential of the links and the charge of the sites."""
+        divergence = -(self.space.incidences_[0].T @ self.values_.T).T / self.space.stars_[0]
+        charges = np.zeros(divergence.shape[1]) if self.charges is None else np.asarray(self.charges, dtype=float)
+        return np.abs(divergence - charges).max(axis=1)
+
+    def _run(self, inputs: object = None) -> None:
+        """Compute the observable of the kind of the analysis at every frame."""
+        if self.group is not None:
+            matrix = self._run_matrix_wilson if self.kind == 'wilson' else self._run_matrix_polyakov
+            self.value_ = matrix(self.group)
+            return
+        readers = {
+            'wilson': self._run_wilson,
+            'polyakov': self._run_polyakov,
+            'charge': self._run_charge,
+            'gauss': self._run_gauss,
+        }
+        self.value_ = readers[self.kind]()
+
 
 LINKS = {2: (IsospinLinkElement, ISOSPIN), 3: (ColorLinkElement, COLOR)}
 
