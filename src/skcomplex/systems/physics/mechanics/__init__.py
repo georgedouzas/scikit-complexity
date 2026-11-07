@@ -1,23 +1,11 @@
 """Mechanics: pendulums, oscillators, friction, projectiles, collisions, rotating bodies, wells, and beam maps."""
 
-from ._accelerators import beam_beam_map, friction_oscillator
-from ._ballistic_pendulum import BallisticPendulumElement
-from ._beam import BeamElement
-from ._bouncing_ball import BouncingBallElement
-from ._cart_pendulum import CartPendulumElement
-from ._cart_pendulum_interaction import CartPendulumInteraction
-from ._clock_pendulum import ClockPendulumElement
-from ._clock_pendulum_interaction import ClockPendulumInteraction
-from ._disc_billiard import DiscBilliardElement
-from ._double_pendulum import DoublePendulumElement
-from ._double_pendulum_interaction import DoublePendulumInteraction
-from ._elastic_collision import ElasticCollisionInteraction
-from ._friction_oscillator import FrictionOscillatorElement
-from ._gyroscope import GyroscopeElement
-from ._gyroscope_interaction import GyroscopeInteraction
-from ._hanging_ball import HangingBallElement
-from ._magnet import MagnetInteraction
+from ._accelerators import BeamElement, FrictionOscillatorElement, beam_beam_map, friction_oscillator
 from ._mechanics import (
+    BouncingBallElement,
+    DiscBilliardElement,
+    ElasticCollisionInteraction,
+    HangingBallElement,
     bouncing_ball,
     circular_billiard,
     driven_damped_oscillator,
@@ -26,12 +14,21 @@ from ._mechanics import (
     pendulum,
     projectile,
 )
-from ._parametric_pendulum import ParametricPendulumElement
-from ._parametric_pendulum_interaction import ParametricPendulumInteraction
 from ._pendulum import PendulumElement
 from ._pendulum_interaction import PendulumInteraction
-from ._pendulum_spring import PendulumSpringInteraction
 from ._pendulums import (
+    BallisticPendulumElement,
+    CartPendulumElement,
+    CartPendulumInteraction,
+    ClockPendulumElement,
+    ClockPendulumInteraction,
+    DoublePendulumElement,
+    DoublePendulumInteraction,
+    MagnetInteraction,
+    ParametricPendulumElement,
+    ParametricPendulumInteraction,
+    PendulumSpringInteraction,
+    SupportSpringInteraction,
     ballistic_pendulum,
     cart_pendulum,
     coupled_pendulums,
@@ -40,12 +37,17 @@ from ._pendulums import (
     magnetic_pendulum,
     parametric_pendulum,
 )
-from ._rotating_ball import RotatingBallElement
-from ._rotating_swing import RotatingSwingElement
-from ._rotating_swing_interaction import RotatingSwingInteraction
-from ._rotations import gimballed_gyroscope, rotating_balls_on_rods, rotating_swing
+from ._rotations import (
+    GyroscopeElement,
+    GyroscopeInteraction,
+    RotatingBallElement,
+    RotatingSwingElement,
+    RotatingSwingInteraction,
+    gimballed_gyroscope,
+    rotating_balls_on_rods,
+    rotating_swing,
+)
 from ._springs import HarmonicForceInteraction, two_mass_spring_damper
-from ._support_spring import SupportSpringInteraction
 from ._wells import ExponentialWellInteraction, particle_in_a_well
 
 __all__: list[str] = [
