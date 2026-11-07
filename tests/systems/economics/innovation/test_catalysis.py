@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.analysis import AutocatalyticSetAnalysis
+from skcomplex.core.analysis import autocatalytic_sets
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.systems.economics.innovation import tap_catalysis
 
@@ -35,7 +35,7 @@ def test_catalysis_joins_a_share_pc_of_the_ordered_pairs():
 
 def test_autocatalytic_sets_appear_as_the_catalysis_probability_rises():
     """Test that large RAFs never appear at a low catalysis probability and always at a high one."""
-    low = [AutocatalyticSetAnalysis().prepare(_final(seed, goods=300, pc=0.004)).run() for seed in range(4)]
-    high = [AutocatalyticSetAnalysis().prepare(_final(seed, goods=300, pc=0.04)).run() for seed in range(4)]
-    assert max(analysis.fractions_[0] for analysis in low) < 0.5
-    assert min(analysis.fractions_[0] for analysis in high) > 0.9
+    low = [autocatalytic_sets(_final(seed, goods=300, pc=0.004)) for seed in range(4)]
+    high = [autocatalytic_sets(_final(seed, goods=300, pc=0.04)) for seed in range(4)]
+    assert max(analysis.fractions[0] for analysis in low) < 0.5
+    assert min(analysis.fractions[0] for analysis in high) > 0.9

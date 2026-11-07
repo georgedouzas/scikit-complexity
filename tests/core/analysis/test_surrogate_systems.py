@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import ModeDecompositionAnalysis, ReservoirAnalysis, SparseIdentificationAnalysis
+from skcomplex.core.analysis import mode_decomposition, reservoir, sparse_identification
 from skcomplex.core.engine.runtime import Simulation
 
 
@@ -11,7 +11,7 @@ def _fit(labels, dt=0.1):
     """Return the mode decomposition of decaying series of the given variables, sampled every `dt`."""
     times = np.arange(30) * dt
     values = np.exp(-np.outer(times, np.arange(1, len(labels) + 1)))
-    return ModeDecompositionAnalysis(labels, dt=dt).prepare(values).run()
+    return mode_decomposition(values, variables=labels, dt=dt)
 
 
 @pytest.mark.parametrize(
@@ -27,12 +27,12 @@ def _fit(labels, dt=0.1):
 )
 def test_surrogate_names_states_after_variables(labels, states):
     """Test that the states take the last part of every label, or the whole label where those clash."""
-    assert _fit(labels).states_ == states
+    assert _fit(labels).states == states
 
 
 def test_surrogate_accepts_steps_with_rounding_noise():
     """Test that steps equal up to rounding count as uniform."""
-    assert _fit(['x']).dt_ == pytest.approx(0.1)
+    assert _fit(['x']).dt == pytest.approx(0.1)
 
 
 def _damped_rotation():
@@ -43,14 +43,13 @@ def _damped_rotation():
 
 def _last_values(analysis, states, until, dt):
     """Return the last values of states of the surrogate of an analysis."""
-    trajectory = Simulation(analysis.system_, dt=dt).prepare().run(until=until).trajectory_
+    trajectory = Simulation(analysis.system, dt=dt).prepare().run(until=until).trajectory_
     return [float(np.ravel(trajectory.values(f'surrogate.{state}'))[-1]) for state in states]
 
 
 def test_sparse_identification_keeps_its_reference_values():
     """Test the run of the sparse surrogate against the values recorded before it moved to declared states."""
-    analysis = SparseIdentificationAnalysis(['x', 'y'], degree=1, threshold=0.01, dt=0.05)
-    analysis = analysis.prepare(_damped_rotation()).run()
+    analysis = sparse_identification(_damped_rotation(), variables=['x', 'y'], degree=1, threshold=0.01, dt=0.05)
     assert _last_values(analysis, ['x', 'y'], 1.0, 0.01) == pytest.approx(
         [-0.25163852889586635, 0.5533559045838776],
         rel=1e-9,
@@ -59,7 +58,7 @@ def test_sparse_identification_keeps_its_reference_values():
 
 def test_mode_decomposition_keeps_its_reference_values():
     """Test the run of the linear surrogate against the values recorded before it moved to declared states."""
-    analysis = ModeDecompositionAnalysis(['x', 'y'], dt=0.05).prepare(_damped_rotation()).run()
+    analysis = mode_decomposition(_damped_rotation(), variables=['x', 'y'], dt=0.05)
     assert _last_values(analysis, ['x', 'y'], 1.0, 0.01) == pytest.approx(
         [-0.25240559441454513, 0.5515162392689774],
         rel=1e-9,
@@ -68,8 +67,9 @@ def test_mode_decomposition_keeps_its_reference_values():
 
 def test_reservoir_keeps_its_reference_values():
     """Test the run of the reservoir surrogate against the values recorded before it moved to declared states."""
-    analysis = ReservoirAnalysis(
-        ['x', 'y'],
+    analysis = reservoir(
+        _damped_rotation(),
+        variables=['x', 'y'],
         kind='next_generation',
         delay=2,
         order=2,
@@ -77,7 +77,6 @@ def test_reservoir_keeps_its_reference_values():
         validation=0.0,
         dt=0.05,
     )
-    analysis = analysis.prepare(_damped_rotation()).run()
     assert _last_values(analysis, ['x', 'y'], 10, 1) == pytest.approx(
         [-0.0024828568048470227, 0.004773226924693426],
         rel=1e-9,

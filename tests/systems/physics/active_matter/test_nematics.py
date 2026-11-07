@@ -5,7 +5,7 @@ import pytest
 from sage.all__sagemath_symbolics import SR, identity_matrix, matrix, var, vector
 from scipy.integrate import solve_ivp
 
-from skcomplex.core.analysis import AlignmentAnalysis, DefectAnalysis
+from skcomplex.core.analysis import AlignmentAnalysis, defects
 from skcomplex.core.components.laws.utils import laplacian, partial, symmetric_part, upwind, vector_gradient
 from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.runtime import Simulation
@@ -122,12 +122,12 @@ def test_active_gels_extensile_nematic_turbulence_conserves_the_charge():
     trajectory = _run_gel(system, until=0.5, dt=0.025, step=5e-4)
     axes = AlignmentAnalysis('principal-axis').prepare(np.asarray(trajectory.lattice('gel.Q'))).run().axes_
     angles = np.arctan2(axes[..., 1], axes[..., 0])
-    defects = DefectAnalysis(period=np.pi).prepare(angles).run()
-    charges = [item.sum() for item in defects.charges_]
+    found = defects(angles, period=np.pi)
+    charges = [item.sum() for item in found.charges]
     assert np.max(np.abs(charges)) < 1e-6
     late = len(charges) // 2
-    assert max(len(item) for item in defects.charges_[late:]) >= 2
-    assert any(0.5 in item.tolist() and -0.5 in item.tolist() for item in defects.charges_[late:])
+    assert max(len(item) for item in found.charges[late:]) >= 2
+    assert any(0.5 in item.tolist() and -0.5 in item.tolist() for item in found.charges[late:])
     energy = _kinetic_energy(trajectory)
     first, second = energy[late : late + (len(energy) - late) // 2], energy[late + (len(energy) - late) // 2 :]
     assert second.mean() > 1e-4

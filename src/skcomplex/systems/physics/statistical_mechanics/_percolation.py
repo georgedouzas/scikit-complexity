@@ -55,7 +55,7 @@ def continuum_percolation(
     """Return overlapping disks at uniform positions in a square, whose clusters percolate near a filling of 1.13.
 
     The number of disks is `filling side^2 / (pi radius^2)`. The clusters of touching disks are read by
-    `ClusterAnalysis(radius=radius)`, and an `Experiment` sweeps `filling` and `random_state` for the spanning
+    `clusters(source, radius=radius)`, and an `Experiment` sweeps `filling` and `random_state` for the spanning
     probability (Satz 2022 ch. 3).
 
     Args:

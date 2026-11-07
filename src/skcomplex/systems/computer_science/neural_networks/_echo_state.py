@@ -113,7 +113,7 @@ def echo_state_network(
 
     The recurrent weights are sparse and Gaussian, scaled to a spectral radius below 1, so the reservoir has the echo
     state property: its activities forget their initial values and become a function of the input history alone. A
-    readout trained on these activities, as `skcomplex.core.analysis.ReservoirAnalysis` does, turns the reservoir
+    readout trained on these activities, as `skcomplex.core.analysis.reservoir` does, turns the reservoir
     into a forecaster.
 
     Args:

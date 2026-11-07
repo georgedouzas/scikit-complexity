@@ -5,7 +5,13 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import ClusterAnalysis, CollapseAnalysis, CorrelationAnalysis, DistributionAnalysis
+from skcomplex.core.analysis import (
+    CorrelationAnalysis,
+    DataCollapseResult,
+    DistributionAnalysis,
+    clusters,
+    data_collapse,
+)
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems import create_system
@@ -16,9 +22,9 @@ CRITICAL = 2 / math.log(1 + math.sqrt(2))
 PERCOLATION = 0.5927
 
 
-def _collapse(kind: str, source: object, **settings: object) -> CollapseAnalysis:
+def _collapse(kind: str, source: object, **settings: object) -> DataCollapseResult:
     """Return the collapse analysis of a source for one kind, run."""
-    return CollapseAnalysis(kind, **settings).prepare(source).run()
+    return data_collapse(source, kind=kind, **settings)
 
 
 def _susceptibilities(magnetizations: dict[int, list[np.ndarray]]) -> dict[int, np.ndarray]:
@@ -32,7 +38,7 @@ def _susceptibilities(magnetizations: dict[int, list[np.ndarray]]) -> dict[int, 
 
 def _spanning(grids: list[np.ndarray]) -> float:
     """Return the share of grids with a cluster joining the opposite edges of their first axis."""
-    return ClusterAnalysis('spanning').prepare(grids).run().probability_
+    return clusters(grids, kind='spanning').probability
 
 
 def _trap_renewals(rng: np.random.Generator, walkers: int, horizon: float) -> list[np.ndarray]:
@@ -61,8 +67,8 @@ def test_scaling_collapse_same_on_two_transitions(ising_magnetizations):
         exponent=7 / 4,
         fit=('nu',),
     )
-    assert exact.quality_ < wrong.quality_
-    assert fitted.nu_ == pytest.approx(1, rel=0.1)
+    assert exact.quality < wrong.quality
+    assert fitted.nu == pytest.approx(1, rel=0.1)
     rng = np.random.default_rng(0)
     probabilities = np.linspace(0.56, 0.62, 13)
     spanning = {
@@ -74,8 +80,8 @@ def test_scaling_collapse_same_on_two_transitions(ising_magnetizations):
     exact = _collapse('scaling', spanning, parameters=probabilities, critical=PERCOLATION, nu=4 / 3)
     wrong = _collapse('scaling', spanning, parameters=probabilities, critical=PERCOLATION, nu=4 / 3 * 1.2)
     fitted = _collapse('scaling', spanning, parameters=probabilities, critical=PERCOLATION, nu=1.0, fit=('nu',))
-    assert exact.quality_ < wrong.quality_
-    assert fitted.nu_ == pytest.approx(4 / 3, rel=0.1)
+    assert exact.quality < wrong.quality
+    assert fitted.nu == pytest.approx(4 / 3, rel=0.1)
     with pytest.raises(AnalysisError, match='at least 2 sizes'):
         _collapse('scaling', {32: spanning[32]}, parameters=probabilities, critical=PERCOLATION, nu=1.0)
 
@@ -102,8 +108,8 @@ def test_two_time_correlation_aging_on_two_domains():
     for curves, starts, steps, scale in cases:
         assert np.all(np.diff(curves[:, 10]) > 0)
         collapse = _collapse('aging', curves, waiting=np.asarray(starts) * scale, lags=steps * scale)
-        assert collapse.ratio_spread_ < 0.05
-        assert collapse.time_spread_ > collapse.ratio_spread_
+        assert collapse.ratio_spread < 0.05
+        assert collapse.time_spread > collapse.ratio_spread
 
 
 def test_collapse_distributions_trap_system():
@@ -118,8 +124,8 @@ def test_collapse_distributions_trap_system():
             durations.append(times[index] - start)
         samples[age] = np.asarray(durations)
     collapse = _collapse('distribution', samples, ratios=np.geomspace(0.3, 3, 5))
-    assert collapse.spread_ < 0.1
-    assert collapse.densities_.shape == (3, 4)
+    assert collapse.spread < 0.1
+    assert collapse.densities.shape == (3, 4)
 
 
 def test_crossings_of_moment_ratios_at_the_ising_critical_point(ising_magnetizations):
@@ -128,10 +134,10 @@ def test_crossings_of_moment_ratios_at_the_ising_critical_point(ising_magnetizat
     cumulants = {
         side: ratio.prepare(np.column_stack(ising_magnetizations[side])).run().cumulant_ for side in ISING_SIZES
     }
-    crossings = _collapse('crossings', cumulants, parameters=ISING_TEMPERATURES).crossings_
+    crossings = _collapse('crossings', cumulants, parameters=ISING_TEMPERATURES).crossings
     np.testing.assert_allclose(crossings, CRITICAL, rtol=0.01)
     np.testing.assert_array_equal(
-        _collapse('crossings', [cumulants[side] for side in ISING_SIZES], parameters=ISING_TEMPERATURES).crossings_,
+        _collapse('crossings', [cumulants[side] for side in ISING_SIZES], parameters=ISING_TEMPERATURES).crossings,
         crossings,
     )
     with pytest.raises(AnalysisError, match='at least 2 sizes'):
@@ -141,12 +147,12 @@ def test_crossings_of_moment_ratios_at_the_ising_critical_point(ising_magnetizat
 def test_unknown_kind_ignored_setting_and_missing_settings():
     """Test that an unknown kind, an ignored setting, and missing settings raise errors."""
     with pytest.raises(AnalysisError, match='scaling, aging, distribution'):
-        CollapseAnalysis('unknown').prepare()
+        data_collapse({}, kind='unknown')
     with pytest.raises(AnalysisError, match='does not read ratios'):
-        CollapseAnalysis('aging', waiting=[1], lags=[1], ratios=[0.1, 1.0]).prepare()
+        data_collapse({}, kind='aging', waiting=[1], lags=[1], ratios=[0.1, 1.0])
     with pytest.raises(AnalysisError, match='needs parameters, critical, and nu'):
-        CollapseAnalysis('scaling').prepare()
+        data_collapse({}, kind='scaling')
     with pytest.raises(AnalysisError, match='crossings needs the control parameter values'):
-        CollapseAnalysis('crossings').prepare()
+        data_collapse({}, kind='crossings')
     with pytest.raises(AnalysisError, match="fit='gamma'"):
-        CollapseAnalysis(parameters=[0.0], critical=0.0, nu=1.0, fit=('gamma',)).prepare()
+        data_collapse({}, parameters=[0.0], critical=0.0, nu=1.0, fit=('gamma',))

@@ -15,7 +15,7 @@ enough the production functions form an autocatalytic set, a RAF, that tends to 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import AutocatalyticSetAnalysis
+from skcomplex.core.analysis import autocatalytic_sets
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -42,7 +42,7 @@ for pc in probabilities:
         Simulation(create_system(SYSTEM, pc=pc), random_state=seed).prepare().run(until=400).trajectory_
         for seed in range(8)
     ]
-    found = [AutocatalyticSetAnalysis(frames=[-1]).prepare(run).run().fractions_[0] for run in runs]
+    found = [autocatalytic_sets(run, frames=[-1]).fractions[0] for run in runs]
     shares.append(found)
 fig, (growth, rafs) = plt.subplots(1, 2, figsize=(10, 4))
 growth.plot(trajectory.times, goods)

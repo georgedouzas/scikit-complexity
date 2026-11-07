@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from rerun.chunk import RrdReader
 
-from skcomplex.core.analysis import ShapeAnalysis
+from skcomplex.core.analysis import chain_shape
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import ValidationError
@@ -94,7 +94,7 @@ def test_folding_lowers_the_relative_distance_and_compacts_the_chain():
     geometry = BackboneGeometry(structure).prepare()
     angles = trajectory.lattice('chain.angle').astype(float)[[0, -1], 0]
     chains = np.array([geometry.run(row).read_effective_atoms() for row in angles])
-    radii = ShapeAnalysis().prepare(chains).run().values_
+    radii = chain_shape(chains).values
     assert radii[1] < radii[0]
 
 

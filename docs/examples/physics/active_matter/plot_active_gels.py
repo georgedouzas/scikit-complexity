@@ -13,7 +13,7 @@ aligned state is unstable. Pairs of `+1/2` and `-1/2` defects appear and move in
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import AlignmentAnalysis, DefectAnalysis
+from skcomplex.core.analysis import AlignmentAnalysis, defects
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
@@ -45,15 +45,15 @@ simulation = (
 trajectory = simulation.trajectory_
 tensors = trajectory.lattice('gel.Q')
 axes = AlignmentAnalysis('principal-axis').prepare(tensors).run().axes_
-defects = DefectAnalysis(period=np.pi).prepare(np.arctan2(axes[..., 1], axes[..., 0])).run()
+found = defects(np.arctan2(axes[..., 1], axes[..., 0]), period=np.pi)
 energy = 0.5 * (np.asarray(trajectory.values('u_x')) ** 2 + np.asarray(trajectory.values('u_y')) ** 2).mean(axis=1)
 
 fig, (count, kinetic) = plt.subplots(1, 2, figsize=(10, 4))
-count.plot(trajectory.times, [len(item) for item in defects.charges_])
+count.plot(trajectory.times, [len(item) for item in found.charges])
 count.set_xlabel('time')
 count.set_ylabel('number of defects')
 kinetic.plot(trajectory.times, energy)
 kinetic.set_xlabel('time')
 kinetic.set_ylabel('mean kinetic energy')
 fig.tight_layout()
-assert max(abs(item.sum()) for item in defects.charges_) < 1e-6
+assert max(abs(item.sum()) for item in found.charges) < 1e-6

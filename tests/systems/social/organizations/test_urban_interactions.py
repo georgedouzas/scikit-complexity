@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import ScalingAnalysis
+from skcomplex.core.analysis import ScalingResult, scaling
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import ValidationError
 from skcomplex.core.experiments import Experiment, GridDesign
@@ -14,7 +14,7 @@ SIZES = [100, 200, 400, 800]
 SEEDS = [0, 1, 2]
 
 
-def _fit(internal: float) -> ScalingAnalysis:
+def _fit(internal: float) -> ScalingResult:
     """Return the allometric fit of the meetings of cities over a sweep of their size."""
     observables = describe('urban_scaling_interactions').observables_of(urban_scaling_interactions(20))
     experiment = Experiment(
@@ -28,19 +28,19 @@ def _fit(internal: float) -> ScalingAnalysis:
     )
     meetings = experiment.prepare().run().result_.series('total_meetings')[:, -1]
     samples = dict(zip(SIZES, meetings.reshape(len(SIZES), len(SEEDS)), strict=True))
-    return ScalingAnalysis('allometric', resamples=300).prepare(samples).run()
+    return scaling(samples, kind='allometric', resamples=300)
 
 
 def test_urban_scaling_interactions_meetings_are_superlinear_with_internal_links():
     """Test that the exponent of the meetings is above 1 at the rate of internal links that this system assumes."""
     fit = _fit(0.002)
-    assert fit.interval_[0] > 1.0
-    assert fit.exponent_ == pytest.approx(1.14, abs=0.05)
+    assert fit.interval[0] > 1.0
+    assert fit.exponent == pytest.approx(1.14, abs=0.05)
 
 
 def test_urban_scaling_interactions_meetings_are_linear_without_internal_links():
     """Test that the exponent of the meetings is near 1 without internal links, whose rate makes it superlinear."""
-    assert _fit(0.0).exponent_ == pytest.approx(1.0, abs=0.05)
+    assert _fit(0.0).exponent == pytest.approx(1.0, abs=0.05)
 
 
 def test_urban_scaling_interactions_city_stops_growing_at_its_population():

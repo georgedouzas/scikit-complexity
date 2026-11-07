@@ -3,13 +3,13 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import EpsilonMachineAnalysis
+from skcomplex.core.analysis import EpsilonMachineResult, epsilon_machine
 from skcomplex.core.errors import AnalysisError
 
 
-def _machine(symbols: object, max_length: int) -> EpsilonMachineAnalysis:
+def _machine(symbols: object, max_length: int) -> EpsilonMachineResult:
     """Return the run ε-machine of a series of symbols."""
-    return EpsilonMachineAnalysis(max_length=max_length).prepare(symbols).run()
+    return epsilon_machine(symbols, max_length=max_length)
 
 
 def _golden_mean(steps: int, seed: int) -> np.ndarray:
@@ -25,30 +25,30 @@ def _golden_mean(steps: int, seed: int) -> np.ndarray:
 def test_epsilon_machine_golden_mean_process():
     """Test that the golden mean process has two causal states and a statistical complexity of 0.918 bits."""
     machine = _machine(_golden_mean(100_000, 0), 4)
-    assert len(machine.histories_) == 2
-    assert machine.statistical_complexity_ == pytest.approx(0.918, abs=0.01)
-    assert machine.entropy_rate_ == pytest.approx(2 / 3, abs=0.01)
-    after_zero = next(number for number, state in enumerate(machine.histories_) if state[0][-1] == 0)
-    assert machine.probabilities_[after_zero].tolist() == [0.0, 1.0]
-    assert machine.transitions_[after_zero, 0] == -1
+    assert len(machine.histories) == 2
+    assert machine.statistical_complexity == pytest.approx(0.918, abs=0.01)
+    assert machine.entropy_rate == pytest.approx(2 / 3, abs=0.01)
+    after_zero = next(number for number, state in enumerate(machine.histories) if state[0][-1] == 0)
+    assert machine.probabilities[after_zero].tolist() == [0.0, 1.0]
+    assert machine.transitions[after_zero, 0] == -1
 
 
 def test_epsilon_machine_fair_coin_has_one_state():
     """Test that fair coin flips have one causal state, no statistical complexity, and one bit of entropy rate."""
     machine = _machine(np.random.default_rng(1).integers(0, 2, 50_000), 3)
-    assert len(machine.histories_) == 1
-    assert machine.statistical_complexity_ == pytest.approx(0.0)
-    assert machine.entropy_rate_ == pytest.approx(1.0, abs=0.01)
-    assert machine.transitions_.tolist() == [[0, 0]]
+    assert len(machine.histories) == 1
+    assert machine.statistical_complexity == pytest.approx(0.0)
+    assert machine.entropy_rate == pytest.approx(1.0, abs=0.01)
+    assert machine.transitions.tolist() == [[0, 0]]
 
 
 def test_epsilon_machine_period_three():
     """Test that a period-three sequence of letters has three states visited in a cycle."""
     machine = _machine(list('aab') * 500, 3)
-    assert machine.alphabet_.tolist() == ['a', 'b']
-    assert len(machine.histories_) == 3
-    assert machine.statistical_complexity_ == pytest.approx(np.log2(3), abs=1e-3)
-    assert machine.entropy_rate_ == pytest.approx(0.0)
+    assert machine.alphabet.tolist() == ['a', 'b']
+    assert len(machine.histories) == 3
+    assert machine.statistical_complexity == pytest.approx(np.log2(3), abs=1e-3)
+    assert machine.entropy_rate == pytest.approx(0.0)
 
 
 def test_epsilon_machine_rejects_long_histories():
@@ -56,10 +56,10 @@ def test_epsilon_machine_rejects_long_histories():
     with pytest.raises(AnalysisError, match='longest history'):
         _machine([0, 1, 0], 3)
     with pytest.raises(AnalysisError, match='max_length=0'):
-        EpsilonMachineAnalysis(max_length=0).prepare()
+        epsilon_machine([0, 1], max_length=0)
 
 
 def test_epsilon_machine_reads_one_series():
     """Test that a source of two series raises an error asking to select one."""
     with pytest.raises(AnalysisError, match='one series'):
-        EpsilonMachineAnalysis().prepare(np.zeros((10, 2)))
+        epsilon_machine(np.zeros((10, 2)))

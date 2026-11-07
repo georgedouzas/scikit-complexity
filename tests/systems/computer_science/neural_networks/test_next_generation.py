@@ -5,7 +5,7 @@ import pytest
 from scipy.integrate import solve_ivp
 from sklearn.base import clone
 
-from skcomplex.core.analysis import ReservoirAnalysis
+from skcomplex.core.analysis import reservoir
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import ValidationError
@@ -54,8 +54,9 @@ def test_next_generation_reservoir_agrees_with_analysis():
     """Test that the forecast of the system agrees with the forecast of the same analysis within 1e-6."""
     values = _lorenz_samples()[:403]
     horizon = round(LYAPUNOV_TIME / STEP)
-    analysis = ReservoirAnalysis(
-        VARIABLES,
+    analysis = reservoir(
+        values,
+        variables=VARIABLES,
         delay=2,
         order=2,
         ridge=2.5e-6,
@@ -64,19 +65,17 @@ def test_next_generation_reservoir_agrees_with_analysis():
         horizon=horizon,
         dt=STEP,
     )
-    analysis.prepare(values).run()
-    forecast = _forecast(next_generation_reservoir(analysis=analysis), horizon)
-    assert np.abs(forecast - analysis.forecast_).max() < 1e-6 * np.ptp(values, axis=0).max()
+    forecast = _forecast(next_generation_reservoir(result=analysis), horizon)
+    assert np.abs(forecast - analysis.forecast).max() < 1e-6 * np.ptp(values, axis=0).max()
 
 
 def test_next_generation_reservoir_agrees_with_analysis_for_longer_delays():
     """Test that the monomials of the readout stay in the order of the fitted node for three samples of two series."""
     times = 0.1 * np.arange(400.0)
     values = np.column_stack([np.sin(times), np.cos(1.3 * times)])
-    analysis = ReservoirAnalysis(['u', 'w'], delay=3, order=3, ridge=1e-6, validation=0.0, horizon=20)
-    analysis.prepare(values).run()
-    forecast = _forecast(next_generation_reservoir(analysis=analysis), 20, ['u', 'w'])
-    assert np.abs(forecast - analysis.forecast_).max() < 1e-6
+    analysis = reservoir(values, variables=['u', 'w'], delay=3, order=3, ridge=1e-6, validation=0.0, horizon=20)
+    forecast = _forecast(next_generation_reservoir(result=analysis), 20, ['u', 'w'])
+    assert np.abs(forecast - analysis.forecast).max() < 1e-6
 
 
 def test_next_generation_reservoir_needs_standardized_features_for_an_accurate_series():
@@ -88,8 +87,15 @@ def test_next_generation_reservoir_needs_standardized_features_for_an_accurate_s
     limit = 0.1 * np.ptp(values, axis=0).max()
     standardized = next_generation_reservoir(values[: trained + 1], standardize=True)
     assert np.linalg.norm(_forecast(standardized, horizon) - truth, axis=1).max() < limit
-    raw = ReservoirAnalysis(VARIABLES, ridge=2.5e-6, standardize=False, validation=0.0, horizon=horizon, dt=STEP)
-    forecast = raw.prepare(values[: trained + 1]).run().forecast_
+    forecast = reservoir(
+        values[: trained + 1],
+        variables=VARIABLES,
+        ridge=2.5e-6,
+        standardize=False,
+        validation=0.0,
+        horizon=horizon,
+        dt=STEP,
+    ).forecast
     assert not np.linalg.norm(forecast - truth, axis=1).max() < limit
 
 
@@ -118,9 +124,9 @@ def test_next_generation_reservoir_fits_the_lorenz_flow_by_default():
 def test_next_generation_reservoir_rejects_echo_state_analysis():
     """Test that a readout of another kind of reservoir raises an error naming the kind."""
     values = np.sin(0.1 * np.arange(300.0))[:, None]
-    analysis = ReservoirAnalysis(['v'], kind='echo_state', units=20).prepare(values).run()
+    analysis = reservoir(values, variables=['v'], kind='echo_state', units=20)
     with pytest.raises(ValidationError, match='echo_state'):
-        next_generation_reservoir(analysis=analysis)
+        next_generation_reservoir(result=analysis)
 
 
 def test_next_generation_reservoir_clones():

@@ -7,7 +7,7 @@ units of the Lorenz flow, the readout then runs alone and follows the butterfly 
 """
 
 # %%
-# The factory fits `ReservoirAnalysis(kind='next_generation', delay=2, order=2)` to 400 samples of the Lorenz flow, one
+# The factory fits `reservoir(series, kind='next_generation', delay=2, order=2)` to 400 samples of the Lorenz flow, one
 # every 0.025, with the ridge 2.5e-6 on features that are not standardized, as Gauthier et al. (2021) do. It writes the
 # readout as one symbolic map per variable. One step of the system stands for one sample. The primary view shows the
 # three variables of the forecast.

@@ -7,7 +7,7 @@ import pytest
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.analysis import CoarseGrainAnalysis, SpectrumAnalysis
+from skcomplex.core.analysis import SpectrumAnalysis, coarse_grain
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws.utils import moment
 from skcomplex.core.components.spaces import ContinuousTime, LatticeSpace
@@ -54,7 +54,7 @@ def mean_class(s):
 
 def _coarse_grain(positions: object, shape: list[int], **settings: object) -> np.ndarray:
     """Return the field of agents coarse-grained on a grid."""
-    return CoarseGrainAnalysis(shape, **settings).prepare(positions).run().field_
+    return coarse_grain(positions, shape=shape, **settings).field
 
 
 def test_coarse_grain_density():
@@ -66,7 +66,7 @@ def test_coarse_grain_density():
     polarization = _coarse_grain(rng.random((100, 2)), [4, 4], box=[1.0, 1.0], values=np.ones((100, 2)))
     assert polarization.shape == (4, 4, 2)
     with pytest.raises(AnalysisError, match='one entry per dimension'):
-        CoarseGrainAnalysis([4], box=[1.0, 1.0]).prepare()
+        coarse_grain(np.zeros((3, 2)), shape=[4], box=[1.0, 1.0])
 
 
 def test_coarse_grain_agents_of_a_trajectory():
@@ -76,14 +76,14 @@ def test_coarse_grain_agents_of_a_trajectory():
     assert field.shape == (4, 5, 5)
     assert np.all(field.sum(axis=(1, 2)) == 50)
     with pytest.raises(AnalysisError, match='needs the sides of the box'):
-        CoarseGrainAnalysis([5, 5]).prepare(np.zeros((3, 2)))
+        coarse_grain(np.zeros((3, 2)), shape=[5, 5])
 
 
 def test_density_over_a_state():
     """Test that the wealth of 1,000 traders over 20 values gives the fractions nearest every value, summing to 1."""
     wealth = np.random.default_rng(0).exponential(5.0, size=1000)
     values = np.linspace(0.0, 19.0, 20)
-    densities = CoarseGrainAnalysis(over=values).prepare(wealth).run().field_
+    densities = coarse_grain(wealth, over=values).field
     nearest = np.argmin(np.abs(wealth[:, None] - values[None, :]), axis=1)
     np.testing.assert_allclose(densities, np.bincount(nearest, minlength=20) / 1000)
     assert densities.sum() == pytest.approx(1.0)
@@ -91,14 +91,14 @@ def test_density_over_a_state():
 
 def test_density_over_a_state_bins_to_the_nearest_value():
     """Test that values between two given values count at the nearest one, and values outside at the closest end."""
-    densities = CoarseGrainAnalysis(over=[0.0, 1.0, 2.0]).prepare([-1.0, 0.4, 0.6, 1.5, 9.0]).run().field_
+    densities = coarse_grain([-1.0, 0.4, 0.6, 1.5, 9.0], over=[0.0, 1.0, 2.0]).field
     np.testing.assert_allclose(densities, [0.4, 0.4, 0.2])
 
 
 def test_density_over_a_state_starts_a_distribution():
     """Test that the densities of 1,000 traders start a distribution of density 1 whose mean is the traders' mean."""
     wealth = np.random.default_rng(0).integers(0, 9, size=1000).astype(float)
-    densities = CoarseGrainAnalysis(over=CLASSES).prepare(wealth).run().field_
+    densities = coarse_grain(wealth, over=CLASSES).field
     distribution = GroupElement('wealth', element=DensityElement, size=9, on='sites', values={'f': densities})
     system = System(elements=[distribution], space=LatticeSpace(9, boundary='fixed'), time=ContinuousTime())
     observables = [
@@ -115,9 +115,9 @@ def test_density_over_a_state_of_a_trajectory():
     wealth = np.random.default_rng(1).integers(0, 9, size=50).astype(float)
     traders = GroupElement('traders', element=TraderElement, size=50, values={'wealth': wealth})
     trajectory = Simulation(System(elements=[traders]), dt=1.0).prepare().run(until=2).trajectory_
-    analysis = CoarseGrainAnalysis(over=CLASSES, state='traders.wealth').prepare(trajectory).run()
-    assert analysis.field_.shape == (3, 9)
-    np.testing.assert_allclose(analysis.field_.sum(axis=1), 1.0)
+    analysis = coarse_grain(trajectory, over=CLASSES, state='traders.wealth')
+    assert analysis.field.shape == (3, 9)
+    np.testing.assert_allclose(analysis.field.sum(axis=1), 1.0)
 
 
 @pytest.mark.parametrize(
@@ -131,4 +131,4 @@ def test_density_over_a_state_of_a_trajectory():
 def test_density_over_a_state_rejects_bad_settings(settings, message):
     """Test that the analysis rejects values that are not increasing, weights, and a state without values."""
     with pytest.raises(AnalysisError, match=message):
-        CoarseGrainAnalysis(**settings).prepare()
+        coarse_grain(np.zeros((3, 2)), **settings)

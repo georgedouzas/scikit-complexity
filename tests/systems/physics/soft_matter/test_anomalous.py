@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import ScalingAnalysis
+from skcomplex.core.analysis import scaling
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver, FractionalEulerMaruyamaSolver, RK4Solver
 from skcomplex.systems.physics.soft_matter import (
@@ -51,7 +51,7 @@ def test_fractional_brownian_motion_has_its_hurst_index():
     trajectory = simulation.run(10).trajectory_
     assert _exponent(trajectory, 'walkers.x', 0.05) == pytest.approx(0.6, abs=0.05)
     steps = np.diff(trajectory.values('walkers.x')[:, :100, 0], axis=0)
-    exponents = ScalingAnalysis().prepare(steps).run().exponent_
+    exponents = scaling(steps).exponent
     assert np.mean(exponents) == pytest.approx(0.3, abs=0.05)
 
 
