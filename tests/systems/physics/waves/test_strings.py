@@ -5,8 +5,8 @@ import math
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems.physics.waves import spring_chain, standing_waves
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.physics.waves import SpringChainSystem, StandingWavesSystem
 
 from ..conftest import _run, _series
 
@@ -14,7 +14,7 @@ from ..conftest import _run, _series
 def test_plucked_spring_chain_keeps_its_fundamental_mode():
     """Test that the fundamental transverse mode of the chain oscillates at `2 sqrt(k / m) sin(pi / (2 (N + 1)))`."""
     n_masses = 15
-    trajectory = Simulation(spring_chain(n_masses), dt=0.1).prepare().run(until=4.0).trajectory_
+    trajectory = simulate(SpringChainSystem(n_masses), until=4.0, dt=0.1)
     heights = np.stack([_series(trajectory, f'mass_{index}.x')[0][:, 1] for index in range(n_masses)], axis=1)
     mode = np.sin(np.pi * np.arange(1, n_masses + 1) / (n_masses + 1))
     amplitude = heights @ mode / (mode @ mode)
@@ -28,7 +28,7 @@ def test_standing_wave_returns_after_its_period():
     spacing = length / (n_sites + 1)
     frequency = 2 / spacing * math.sin(mode * math.pi / (2 * (n_sites + 1)))
     period = 2 * math.pi / frequency
-    trajectory = _run(standing_waves(n_sites, length=length, mode=mode), period, period / 20)
+    trajectory = _run(StandingWavesSystem(n_sites, length=length, mode=mode), period, period / 20)
     shape = _series(trajectory, 'string.u')[0]
     assert period == pytest.approx(2 * length / mode, rel=1e-3)
     assert np.allclose(shape[-1], shape[0], atol=1e-7)

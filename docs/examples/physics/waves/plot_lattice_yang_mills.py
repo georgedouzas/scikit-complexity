@@ -18,7 +18,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import iv
 
-from skcomplex.systems import create_simulation
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.physics.waves import LatticeYangMillsSystem
 
 SYSTEM = 'lattice_yang_mills'
 
@@ -38,10 +39,8 @@ couplings = {2: [0.5, 1.5, 3.0, 5.0], 3: [1.0, 3.0, 6.0, 10.0]}
 measured = {}
 for colors, betas in couplings.items():
     measured[colors] = [
-        create_simulation(SYSTEM, size=8, dimension=2, colors=colors, beta=beta)
-        .prepare()
-        .run(until=150)
-        .trajectory_.values('mean_plaquette')[50:]
+        simulate(LatticeYangMillsSystem(size=8, dimension=2, colors=colors, beta=beta), until=150, random_state=0)
+        .values('mean_plaquette')[50:]
         .mean()
         for beta in betas
     ]
@@ -66,7 +65,7 @@ plt.show()
 
 betas = np.linspace(1.4, 2.6, 5)
 loops = [
-    create_simulation(SYSTEM, size=6, extent=2, beta=beta).prepare().run(until=150).trajectory_.values('polyakov_loop')
+    simulate(LatticeYangMillsSystem(size=6, extent=2, beta=beta), until=150, random_state=0).values('polyakov_loop')
     for beta in betas
 ]
 
@@ -86,8 +85,8 @@ plt.show()
 cold = np.broadcast_to(np.eye(3), (1024, 3, 3))
 fig, ax = plt.subplots(figsize=(6, 4))
 for label, links in (('hot start', None), ('cold start', cold)):
-    simulation = create_simulation(SYSTEM, size=4, colors=3, beta=5.0, width=0.3, links=links).prepare()
-    ax.plot(simulation.run(until=100).trajectory_.values('mean_plaquette'), label=label)
+    system = LatticeYangMillsSystem(size=4, colors=3, beta=5.0, width=0.3, links=links)
+    ax.plot(simulate(system, until=100, random_state=0).values('mean_plaquette'), label=label)
 ax.set_xlabel('sweep')
 ax.set_ylabel('mean plaquette')
 ax.set_title('SU(3) Wilson action at beta = 5')
