@@ -4,20 +4,220 @@
 # License: MIT
 
 import math
+from typing import Annotated
 
+import numpy as np
+import numpy.typing as npt
+from sage.all__sagemath_symbolics import QQ, SR, Expression, cos, matrix, sin
+from sage.structure.element import Matrix
+
+from ....core.components.elements import Element
 from ....core.components.interactions import GeodesicInteraction
+from ....core.components.spaces import PseudoRiemannianSpace
 from ....core.components.system import System
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ValidationError
+from ....core.specs import StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._geodesic_particle import GeodesicParticleElement
-from ._spacetimes import KerrSpace, SchwarzschildSpace
+
+R_INDEX = 1
+PHI_INDEX = 3
+
+
+def _equatorial_position(x: npt.NDArray[np.float64], **_: float) -> list[list[float]]:
+    """Return the position `(r cos phi, r sin phi)` of a particle in the equatorial plane."""
+    return [[x[R_INDEX] * np.cos(x[PHI_INDEX]), x[R_INDEX] * np.sin(x[PHI_INDEX])]]
+
+
+def _central_mass(**_: float) -> list[list[float]]:
+    """Return the position of the central mass at the origin."""
+    return [[0.0, 0.0]]
+
+
+class GeodesicParticleElement(Element):
+    """Test particle at the spacetime position `x = (t, r, theta, phi)` around a central mass, with its four-velocity.
+
+    The position is a vector state of order 2 in the Schwarzschild or Boyer-Lindquist coordinates of the space, and its
+    companion `x_d1` is the four-velocity, the derivative of the position by the proper time of a massive particle or by
+    the affine parameter of a light ray. The particle is drawn in the equatorial plane, at `(r cos phi, r sin phi)`.
+
+    Args:
+        label:
+            The label of the particle.
+
+        x:
+            The initial position `(t, r, theta, phi)`.
+
+        x_d1:
+            The initial four-velocity.
+
+        visual:
+            How the particle is drawn, or `None` for its class visual.
+
+    Examples:
+        >>> from skcomplex.systems.physics.celestial_mechanics import GeodesicParticleElement
+        >>> GeodesicParticleElement('particle', x=[0.0, 10.0, 1.5708, 0.0]).x
+        [0.0, 10.0, 1.5708, 0.0]
+    """
+
+    visual = VisualSpec('bodies', {'positions': _equatorial_position, 'trail': None, 'marks': _central_mass})
+
+    def __init__(
+        self,
+        label: str,
+        x: Annotated[npt.ArrayLike, StateSpec(vector=True, order=2)] = 0.0,
+        x_d1: npt.ArrayLike = 0.0,
+        visual: VisualSpec | None = None,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+
+
+class SchwarzschildSpace(PseudoRiemannianSpace):
+    """Spacetime outside a static, spherical mass `M`, the Schwarzschild metric in units with `G = c = 1`.
+
+    The line element in the coordinates `(t, r, theta, phi)` is
+    `ds² = -(1 - 2M/r) dt² + dr² / (1 - 2M/r) + r² (dθ² + sin²θ dφ²)`, with the horizon at `r = 2M`. The mass enters
+    the metric as an exact rational, which keeps the symbolic derivation fast.
+
+    Args:
+        mass:
+            The mass `M`.
+
+        curvature:
+            Whether `prepare` derives the curvature tensors besides the Christoffel symbols.
+
+        label:
+            The label of the space in its system.
+
+    Raises:
+        ValidationError:
+            The mass is not positive.
+
+    Examples:
+        >>> from skcomplex.systems.physics.celestial_mechanics import SchwarzschildSpace
+        >>> SchwarzschildSpace(mass=1.0, curvature=False).prepare().christoffel_[1][0][0]
+        (r - 2)/r^3
+    """
+
+    def __init__(self, mass: float = 1.0, *, curvature: bool = False, label: str = 'space') -> None:
+        super().__init__(curvature=curvature, label=label)
+        self.mass = mass
+
+    def _get_coordinates(self) -> tuple[Expression, ...]:
+        """Return the coordinates `(t, r, theta, phi)`."""
+        return tuple(SR.var(name) for name in ('t', 'r', 'theta', 'phi'))
+
+    def _get_metric(self) -> Matrix:
+        """Return the Schwarzschild metric of the mass.
+
+        Returns:
+            metric:
+                The metric in the coordinates `(t, r, theta, phi)`.
+
+        Raises:
+            ValidationError:
+                The mass is not positive.
+        """
+        if not self.mass > 0:
+            error_msg = f'The mass of {type(self).__name__} is {self.mass!r}. Give a positive mass.'
+            raise ValidationError(error_msg)
+        _, r, theta, _ = self._get_coordinates()
+        lapse = 1 - 2 * QQ(self.mass) / r
+        return matrix(SR, 4, 4, {(0, 0): -lapse, (1, 1): 1 / lapse, (2, 2): r**2, (3, 3): r**2 * sin(theta) ** 2})
+
+
+class KerrSpace(PseudoRiemannianSpace):
+    """Spacetime outside a spinning mass `M` of angular momentum `M a`, the Kerr metric in Boyer-Lindquist coordinates.
+
+    With `Σ = r² + a² cos²θ` and `Δ = r² - 2 M r + a²`, the line element in `(t, r, theta, phi)` is
+    `ds² = -(1 - 2Mr/Σ) dt² - (4 M a r sin²θ / Σ) dt dφ + Σ/Δ dr² + Σ dθ² + (r² + a² + 2 M a² r sin²θ / Σ) sin²θ dφ²`,
+    in units with `G = c = 1`. The term in `dt dφ` drags the frames of free particles around the spin axis. The mass and
+    the spin enter the metric as exact rationals, which keeps the symbolic derivation fast.
+
+    Args:
+        mass:
+            The mass `M`.
+
+        spin:
+            The spin parameter `a`, the angular momentum per unit mass, between `-M` and `M`.
+
+        curvature:
+            Whether `prepare` derives the curvature tensors besides the Christoffel symbols, which takes long.
+
+        label:
+            The label of the space in its system.
+
+    Raises:
+        ValidationError:
+            The mass is not positive, or the spin exceeds the mass.
+
+    Examples:
+        >>> from skcomplex.systems.physics.celestial_mechanics import KerrSpace
+        >>> KerrSpace(mass=1.0, spin=0.5).prepare().metric_[0, 3]
+        -4*r*sin(theta)^2/(4*r^2 + cos(theta)^2)
+    """
+
+    def __init__(
+        self,
+        mass: float = 1.0,
+        spin: float = 0.5,
+        *,
+        curvature: bool = False,
+        label: str = 'space',
+    ) -> None:
+        super().__init__(curvature=curvature, label=label)
+        self.mass = mass
+        self.spin = spin
+
+    def _get_coordinates(self) -> tuple[Expression, ...]:
+        """Return the coordinates `(t, r, theta, phi)`."""
+        return tuple(SR.var(name) for name in ('t', 'r', 'theta', 'phi'))
+
+    def _get_metric(self) -> Matrix:
+        """Return the Kerr metric of the mass and the spin.
+
+        Returns:
+            metric:
+                The metric in the coordinates `(t, r, theta, phi)`.
+
+        Raises:
+            ValidationError:
+                The mass is not positive, or the spin exceeds the mass.
+        """
+        if not self.mass > 0 or not abs(self.spin) <= self.mass:
+            error_msg = (
+                f'{type(self).__name__} has the mass {self.mass!r} and the spin {self.spin!r}. Give a positive mass '
+                'and a spin no larger than it.'
+            )
+            raise ValidationError(error_msg)
+        _, r, theta, _ = self._get_coordinates()
+        mass, spin = QQ(self.mass), QQ(self.spin)
+        sigma = r**2 + spin**2 * cos(theta) ** 2
+        delta = r**2 - 2 * mass * r + spin**2
+        drag = -2 * mass * spin * r * sin(theta) ** 2 / sigma
+        return matrix(
+            SR,
+            4,
+            4,
+            {
+                (0, 0): -(1 - 2 * mass * r / sigma),
+                (0, 3): drag,
+                (3, 0): drag,
+                (1, 1): sigma / delta,
+                (2, 2): sigma,
+                (3, 3): (r**2 + spin**2 + 2 * mass * spin**2 * r * sin(theta) ** 2 / sigma) * sin(theta) ** 2,
+            },
+        )
+
 
 EQUATOR = math.pi / 2
 """The polar angle of the equatorial plane, where the orbits stay."""
 
 GEODESIC_SOLVER = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
 """The adaptive solver that keeps the conserved energy, angular momentum, and norm of a geodesic to high accuracy."""
+
 
 @register_system(
     field='physics/celestial_mechanics',
