@@ -14,8 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.engineering.processes import FoodReliefSystem
 
 SYSTEM = 'food_relief'
 
@@ -33,7 +34,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-simulation = create_simulation(SYSTEM).set_params(dt=0.5, observers=[observer]).prepare().run(until=120)
+trajectory = simulate(FoodReliefSystem(), observers=[observer])
 
 # %%
 # The gap during the shipping delay
@@ -42,7 +43,6 @@ simulation = create_simulation(SYSTEM).set_params(dt=0.5, observers=[observer]).
 # of the third-order delay. The distribution meets the need only once enough food has arrived, and the unmet need in
 # between is the cost of the delay.
 
-trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
 need, distribution = trajectory.values('relief.need'), trajectory.values('relief.distribution')
 fig, (flows, gap) = plt.subplots(1, 2, figsize=(10, 4))

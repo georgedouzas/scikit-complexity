@@ -2,12 +2,13 @@
 
 import pytest
 
-from skcomplex.systems import create_simulation
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.engineering.processes import GrainStorageSystem
 
 
 def test_grain_storage_oscillates_and_settles_where_the_release_balances_the_receiving():
     """Test that the stock overshoots the desired stock, oscillates, and settles at `6000 / (1 + 0.025 * 5)`."""
-    trajectory = create_simulation('grain_storage').prepare().run(until=300).trajectory_
+    trajectory = simulate(GrainStorageSystem(), until=300)
     stock, procurement = trajectory.values('store.stock'), trajectory.values('store.procurement')
     assert stock.max() > 7000
     assert procurement.min() < 0

@@ -27,7 +27,7 @@ from skcomplex.core.errors import SolverError, ValidationError
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.ecology import hutchinson
 from skcomplex.systems.biology.physiology import mackey_glass
-from skcomplex.systems.engineering.processes import bathtub
+from skcomplex.systems.engineering.processes import BathtubSystem
 from skcomplex.systems.physics.mechanics import bouncing_ball, huygens_clocks
 
 
@@ -562,14 +562,14 @@ def test_state_conditions_restart_the_integrator_without_stalling():
     """Test that the bathtub drains without a stall warning, keeps its water nonnegative, and records no events."""
     with warnings.catch_warnings():
         warnings.simplefilter('error')
-        trajectory = Simulation(bathtub(water=20.0), dt=1).prepare().run(until=6).trajectory_
+        trajectory = Simulation(BathtubSystem(water=20.0).prepare().system_, dt=1).prepare().run(until=6).trajectory_
     assert np.all(np.asarray(trajectory.values('tub.water')) >= -1e-6)
     assert not trajectory.events
 
 
 def test_state_conditions_compile_into_hidden_events():
     """Test that the condition of a rate law compiles into a hidden event without a reset."""
-    problem = PassCompiler().prepare(bathtub(water=20.0)).run().problem_
+    problem = PassCompiler().prepare(BathtubSystem(water=20.0).prepare().system_).run().problem_
     hidden = [event for event in problem.events if event.hidden]
     assert len(hidden) == 1
     assert hidden[0].reset is None

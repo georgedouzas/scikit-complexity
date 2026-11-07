@@ -13,9 +13,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.engineering.processes import IrrigationSystem
 
 SYSTEM = 'irrigation'
 
@@ -34,7 +34,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=5)
-simulation = Simulation(create_system(SYSTEM), dt=1.0, observers=[observer]).prepare().run(730)
+trajectory = simulate(IrrigationSystem(), observers=[observer])
 
 # %%
 # Groundwater as a buffer
@@ -43,7 +43,6 @@ simulation = Simulation(create_system(SYSTEM), dt=1.0, observers=[observer]).pre
 # falls, the pumping takes over up to the pump capacity, and the crops come under water stress only when both fall
 # short.
 
-trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
 fig, (stocks, flows) = plt.subplots(1, 2, figsize=(10, 4))
 stocks.plot(times, trajectory.values('scheme.reservoir'), label='reservoir')

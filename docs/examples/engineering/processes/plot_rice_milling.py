@@ -14,8 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.engineering.processes import RiceMillingSystem
 
 SYSTEM = 'rice_milling'
 
@@ -34,7 +35,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=4)
-simulation = create_simulation(SYSTEM).set_params(dt=0.25, observers=[observer]).prepare().run(until=120)
+trajectory = simulate(RiceMillingSystem(), observers=[observer])
 
 # %%
 # Capacity lags the harvest
@@ -43,7 +44,6 @@ simulation = create_simulation(SYSTEM).set_params(dt=0.25, observers=[observer])
 # binds and paddy accumulates, while before the next harvest the paddy runs low and the capacity idles. Grain is
 # conserved, so the milled paddy splits into rice, husk, and bran in fixed shares.
 
-trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
 fig, (rates, products) = plt.subplots(1, 2, figsize=(10, 4))
 rates.plot(times, trajectory.values('mill.paddy_purchases'), label='paddy purchases')
