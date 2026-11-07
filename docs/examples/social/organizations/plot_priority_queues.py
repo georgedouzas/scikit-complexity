@@ -7,7 +7,7 @@ exponent near 1, as Barabási found for the timing of e-mails and letters.
 """
 
 # %%
-# The system is created by name from the catalog with two tasks, and the highest priority task is executed with
+# The system is built from its class with two tasks, and the highest priority task is executed with
 # probability 0.999 and a random task otherwise, so that waits are cut off near 1 / (1 - 0.999) = 1000 steps. It runs
 # for 100000 steps, one task executed per step. The default blueprint shows the age of both tasks, sampled every 400
 # steps: one task is executed at every step while the other ages along long ramps until a new task of even lower
@@ -17,15 +17,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import fit_law
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.organizations import PriorityQueuesSystem
 
 SYSTEM = 'priority_queues'
 
-system = create_system(SYSTEM, greed=0.999, random_state=0)
+system = PriorityQueuesSystem(greed=0.999, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=400)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=100_000)
+trajectory = simulate(system, until=100_000, dt=1, observers=[observer], random_state=0)
 
 # %%
 # Distribution of waiting times
@@ -35,7 +35,7 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 # from 2 to 300 steps should lie near 1, and the log-binned distribution should fall by about one decade per decade
 # before it bends down past the cutoff.
 
-waits = simulation.trajectory_.values('execution.wait')[1:]
+waits = trajectory.values('execution.wait')[1:]
 fit = fit_law(waits, discrete=True, minimum=2, maximum=300, bootstrap=0)
 edges = np.unique(np.logspace(0, np.log10(waits.max() + 1), 20).astype(int))
 counts, _ = np.histogram(waits, edges)

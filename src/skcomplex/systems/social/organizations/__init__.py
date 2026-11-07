@@ -1,119 +1,119 @@
 """Organizations: hierarchies, queues, workplaces, and institutions."""
 
-from ._employment import WorkplaceElement, employment_takeover
-from ._hierarchies import ContenderElement, ContenderView, bonabeau_hierarchies
+from ._employment import EmploymentTakeoverSystem, WorkplaceElement
+from ._hierarchies import BonabeauHierarchiesSystem, ContenderElement, ContenderView
 from ._kauai import (
     CommuteInteraction,
+    KauaiPopulationSystem,
     PlaceVisitsInteraction,
     ResidentElement,
     ResidentView,
     SentimentInteraction,
-    kauai_population,
     load_island_layers,
     load_island_populations,
 )
 from ._mobility import (
     ContainerMobilityInteraction,
+    ContainerMobilitySystem,
     ExplorationInteraction,
+    ExplorationPreferentialReturnSystem,
     ExplorerElement,
     ExplorerView,
-    container_mobility,
-    exploration_preferential_return,
 )
-from ._obesity import EaterElement, EaterView, RestaurantElement, RestaurantView, basal_metabolic_rate, obesity
-from ._queues import ExecutionInteraction, TaskElement, TaskView, priority_queues
-from ._sabotage import EmployeeElement, EmployeeView, insider_sabotage
-from ._supply_chains import SupplierElement, SupplierView, supply_chain_diffusion
+from ._obesity import EaterElement, EaterView, ObesitySystem, RestaurantElement, RestaurantView, basal_metabolic_rate
+from ._queues import ExecutionInteraction, PriorityQueuesSystem, TaskElement, TaskView
+from ._sabotage import EmployeeElement, EmployeeView, InsiderSabotageSystem
+from ._supply_chains import SupplierElement, SupplierView, SupplyChainDiffusionSystem
 from ._trafficking import (
     DailyMovementsInteraction,
     PremisesElement,
     PremisesView,
+    TraffickingSystem,
     TravellerElement,
     TravellerView,
-    trafficking,
 )
 from ._traps import (
     ArmsRaceElement,
     BurdenElement,
     ContestElement,
+    DriftToLowPerformanceSystem,
+    EscalationSystem,
     PerformanceElement,
+    PolicyResistanceSystem,
+    ShiftingTheBurdenSystem,
     StandoffElement,
-    drift_to_low_performance,
-    escalation,
-    policy_resistance,
-    shifting_the_burden,
-    success_to_the_successful,
+    SuccessToTheSuccessfulSystem,
 )
-from ._urban_interactions import CityDwellerElement, urban_scaling_interactions
-from ._urban_scaling import CityResidentElement, GravityContactInteraction, gravity_urban_scaling
-from ._wages import FarmerElement, FarmerView, HarvesterElement, HarvesterView, HarvestInteraction, ajanis_choice
-from ._watchmakers import AssemblyInteraction, WatchmakerElement, WatchmakerView, watchmakers
+from ._urban_interactions import CityDwellerElement, UrbanScalingInteractionsSystem
+from ._urban_scaling import CityResidentElement, GravityContactInteraction, GravityUrbanScalingSystem
+from ._wages import AjanisChoiceSystem, FarmerElement, FarmerView, HarvesterElement, HarvesterView, HarvestInteraction
+from ._watchmakers import AssemblyInteraction, WatchmakerElement, WatchmakersSystem, WatchmakerView
 
 __all__: list[str] = [
+    'AjanisChoiceSystem',
     'ArmsRaceElement',
     'AssemblyInteraction',
+    'BonabeauHierarchiesSystem',
     'BurdenElement',
     'CityDwellerElement',
     'CityResidentElement',
     'CommuteInteraction',
     'ContainerMobilityInteraction',
+    'ContainerMobilitySystem',
     'ContenderElement',
     'ContenderView',
     'ContestElement',
     'DailyMovementsInteraction',
+    'DriftToLowPerformanceSystem',
     'EaterElement',
     'EaterView',
     'EmployeeElement',
     'EmployeeView',
+    'EmploymentTakeoverSystem',
+    'EscalationSystem',
     'ExecutionInteraction',
     'ExplorationInteraction',
+    'ExplorationPreferentialReturnSystem',
     'ExplorerElement',
     'ExplorerView',
     'FarmerElement',
     'FarmerView',
     'GravityContactInteraction',
+    'GravityUrbanScalingSystem',
     'HarvestInteraction',
     'HarvesterElement',
     'HarvesterView',
+    'InsiderSabotageSystem',
+    'KauaiPopulationSystem',
+    'ObesitySystem',
     'PerformanceElement',
     'PlaceVisitsInteraction',
+    'PolicyResistanceSystem',
     'PremisesElement',
     'PremisesView',
+    'PriorityQueuesSystem',
     'ResidentElement',
     'ResidentView',
     'RestaurantElement',
     'RestaurantView',
     'SentimentInteraction',
+    'ShiftingTheBurdenSystem',
     'StandoffElement',
+    'SuccessToTheSuccessfulSystem',
     'SupplierElement',
     'SupplierView',
+    'SupplyChainDiffusionSystem',
     'TaskElement',
     'TaskView',
+    'TraffickingSystem',
     'TravellerElement',
     'TravellerView',
+    'UrbanScalingInteractionsSystem',
     'WatchmakerElement',
     'WatchmakerView',
+    'WatchmakersSystem',
     'WorkplaceElement',
-    'ajanis_choice',
     'basal_metabolic_rate',
-    'bonabeau_hierarchies',
-    'container_mobility',
-    'drift_to_low_performance',
-    'employment_takeover',
-    'escalation',
-    'exploration_preferential_return',
-    'gravity_urban_scaling',
-    'insider_sabotage',
-    'kauai_population',
     'load_island_layers',
     'load_island_populations',
-    'obesity',
-    'policy_resistance',
-    'priority_queues',
-    'shifting_the_burden',
-    'success_to_the_successful',
-    'supply_chain_diffusion',
-    'trafficking',
-    'urban_scaling_interactions',
-    'watchmakers',
 ]

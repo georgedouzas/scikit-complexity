@@ -13,14 +13,14 @@ power law, and otherwise returns to a known place in proportion to its past visi
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.organizations import ExplorationPreferentialReturnSystem
 
 SYSTEM = 'exploration_preferential_return'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(create_system(SYSTEM), observers=[observer], random_state=0).prepare().run(until=500)
+trajectory = simulate(ExplorationPreferentialReturnSystem(), observers=[observer], random_state=0)
 
 # %%
 # Sublinear exploration
@@ -28,7 +28,6 @@ simulation = Simulation(create_system(SYSTEM), observers=[observer], random_stat
 # The number of distinct places should grow as `n^(1 / (1 + gamma))`, a slope of 0.83 on logarithmic axes, and a
 # trajectory should return again and again to a few places.
 
-trajectory = simulation.trajectory_
 steps = np.arange(1, len(trajectory.times))
 distinct = [np.mean(trajectory.agents('individuals', frame).values['distinct']) for frame in steps]
 x = [trajectory.agents('individuals', frame).values['x'][0] for frame in steps]

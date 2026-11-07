@@ -20,13 +20,12 @@ from shapely.geometry import shape
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, MovementInteraction
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class ResidentView(AgentView):
@@ -410,42 +409,8 @@ GENDERS = 2
 OLDEST_AGE = 90.0
 
 
-def _get_weights(n_residents: int, n_topics: int, share: float, rng: np.random.Generator) -> np.ndarray:
-    """Return the weight of every topic per resident, above zero for the given share of residents of every topic."""
-    weights = np.zeros((n_residents, n_topics))
-    n_weighted = round(share * n_residents)
-    for topic in range(n_topics):
-        weighted = rng.permutation(n_residents)[:n_weighted]
-        weights[weighted, topic] = rng.uniform(MIN_WEIGHT, 1.0, n_weighted)
-    return weights
-
-
-def _mean_sentiment(system: System) -> list[ObservableSpec]:
-    """Return the mean sentiment of the residents."""
-    return [ObservableSpec('mean_sentiment', group='residents', variable='sentiment', reduce='mean')]
-
-
-@register_system(
-    field='social/organizations',
-    tags=('agents', 'continuous space', 'region layers', 'census', 'sentiment'),
-    references=('Carmichael et al. 2019',),
-    defaults={'until': 30},
-    observables=_mean_sentiment,
-)
-def kauai_population(
-    populations: Sequence[int] | None = None,
-    *,
-    layers: Mapping[str, Sequence[Polygon]] | None = None,
-    n_topics: int = 2,
-    weighted_share: float = 0.5,
-    events: Sequence[tuple[int, int, float]] = ((1, 0, 0.8),),
-    convergence: float = 1.0,
-    event_rate: float = 0.05,
-    cell_size: float = 1000.0,
-    partners: int = 15,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return one agent per resident of the census regions of a map, moving between home, work, and favourite places.
+class KauaiPopulationSystem(BaseSystem):
+    """One agent per resident of the census regions of a map, moving between home, work, and favourite places.
 
     Every resident starts at a uniform point of its census region, its home, and has a facility of work and a favourite
     place drawn uniformly. It commutes between the three in a cycle of three steps. Its sentiment follows the rules of
@@ -456,6 +421,9 @@ def kauai_population(
     cycle of the chapter. The chapter gives the 15 partners, the grid of 1 km, and the event rate 0.05 of its example,
     and it gives no value of `CR`, the initial sentiments, the topic weights, or the demographics, which are choices of
     this system.
+
+    The system has the group `residents`, its states `sentiment`, `weights`, `home`, `census`, `work`, `favourite`,
+    `visits`, `race`, `gender`, `occupation`, and `age`, and the region layers in its space.
 
     Args:
         populations:
@@ -492,56 +460,102 @@ def kauai_population(
             The seed or generator of the initial sentiments, the weights, the demographics, the work, and the favourite
             places.
 
-    Returns:
-        system:
-            The system, with the group `residents`, its states `sentiment`, `weights`, `home`, `census`, `work`,
-            `favourite`, `visits`, `race`, `gender`, `occupation`, and `age`, and the region layers in its space.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The populations do not name one number per census region.
 
     Examples:
-        >>> from skcomplex.systems.social.organizations import kauai_population
-        >>> kauai_population((3, 2, 0)).elements[0].size
+        >>> from skcomplex.systems.social.organizations import KauaiPopulationSystem
+        >>> KauaiPopulationSystem((3, 2, 0)).prepare().system_.elements[0].size
         5
     """
-    regions = load_island_layers() if layers is None else layers
-    counts = load_island_populations() if populations is None else populations
-    if len(counts) != len(regions['census']):
-        error_msg = f'The populations {counts} need one number for each of the {len(regions["census"])} census regions.'
-        raise ValidationError(error_msg)
-    rng = np.random.default_rng(random_state)
-    census = np.repeat(np.arange(len(counts)), counts)
-    size = len(census)
-    shares = np.array(OCCUPATION_SHARES) / sum(OCCUPATION_SHARES)
-    residents = GroupElement(
-        'residents',
-        element=ResidentElement,
-        size=size,
-        values={
-            'sentiment': rng.uniform(-0.2, 0.2, size),
-            'weights': _get_weights(size, n_topics, weighted_share, rng),
-            'home': np.full((size, 2), np.nan),
-            'census': census.astype(float),
-            'work': rng.integers(len(regions['facilities']), size=size).astype(float),
-            'favourite': rng.integers(len(regions['places']), size=size).astype(float),
-            'race': rng.integers(RACES, size=size).astype(float),
-            'gender': rng.integers(GENDERS, size=size).astype(float),
-            'occupation': rng.choice(len(shares), size=size, p=shares).astype(float),
-            'age': rng.uniform(0.0, OLDEST_AGE, size),
-            'convergence': convergence,
-            'event_rate': event_rate,
-            'cell_size': cell_size,
-            'partners': float(partners),
-        },
-        location=[regions['census'][region] for region in census.tolist()],
-    )
-    bounds = shapely.total_bounds([polygon for polygons in regions.values() for polygon in polygons])
-    interactions = [
-        CommuteInteraction('commute', target='residents'),
-        PlaceVisitsInteraction('visits', target='residents'),
-        SentimentInteraction('sentiment', target='residents', events=events),
-    ]
-    space = ContinuousSpace(extent=(float(bounds[2]), float(bounds[3])), regions=regions)
-    return System(elements=[residents], interactions=interactions, space=space)
+
+    field = 'social/organizations'
+    topics = ('agents', 'continuous space', 'region layers', 'census', 'sentiment')
+    references = ('Carmichael et al. 2019',)
+    until = 30
+    observables = (ObservableSpec('mean_sentiment', group='residents', variable='sentiment', reduce='mean'),)
+
+    def __init__(
+        self,
+        populations: Sequence[int] | None = None,
+        *,
+        layers: Mapping[str, Sequence[Polygon]] | None = None,
+        n_topics: int = 2,
+        weighted_share: float = 0.5,
+        events: Sequence[tuple[int, int, float]] = ((1, 0, 0.8),),
+        convergence: float = 1.0,
+        event_rate: float = 0.05,
+        cell_size: float = 1000.0,
+        partners: int = 15,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.populations = populations
+        self.layers = layers
+        self.n_topics = n_topics
+        self.weighted_share = weighted_share
+        self.events = events
+        self.convergence = convergence
+        self.event_rate = event_rate
+        self.cell_size = cell_size
+        self.partners = partners
+        self.random_state = random_state
+
+    @staticmethod
+    def _get_weights(n_residents: int, n_topics: int, share: float, rng: np.random.Generator) -> np.ndarray:
+        """Return the weight of every topic per resident, above zero for the given share of residents of every topic."""
+        weights = np.zeros((n_residents, n_topics))
+        n_weighted = round(share * n_residents)
+        for topic in range(n_topics):
+            weighted = rng.permutation(n_residents)[:n_weighted]
+            weights[weighted, topic] = rng.uniform(MIN_WEIGHT, 1.0, n_weighted)
+        return weights
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        regions = load_island_layers() if self.layers is None else self.layers
+        counts = load_island_populations() if self.populations is None else self.populations
+        if len(counts) != len(regions['census']):
+            error_msg = (
+                f'The populations {counts} need one number for each of the {len(regions["census"])} census regions.'
+            )
+            raise ValidationError(error_msg)
+        rng = np.random.default_rng(self.random_state)
+        census = np.repeat(np.arange(len(counts)), counts)
+        size = len(census)
+        shares = np.array(OCCUPATION_SHARES) / sum(OCCUPATION_SHARES)
+        residents = GroupElement(
+            'residents',
+            element=ResidentElement,
+            size=size,
+            values={
+                'sentiment': rng.uniform(-0.2, 0.2, size),
+                'weights': self._get_weights(size, self.n_topics, self.weighted_share, rng),
+                'home': np.full((size, 2), np.nan),
+                'census': census.astype(float),
+                'work': rng.integers(len(regions['facilities']), size=size).astype(float),
+                'favourite': rng.integers(len(regions['places']), size=size).astype(float),
+                'race': rng.integers(RACES, size=size).astype(float),
+                'gender': rng.integers(GENDERS, size=size).astype(float),
+                'occupation': rng.choice(len(shares), size=size, p=shares).astype(float),
+                'age': rng.uniform(0.0, OLDEST_AGE, size),
+                'convergence': self.convergence,
+                'event_rate': self.event_rate,
+                'cell_size': self.cell_size,
+                'partners': float(self.partners),
+            },
+            location=[regions['census'][region] for region in census.tolist()],
+        )
+        bounds = shapely.total_bounds([polygon for polygons in regions.values() for polygon in polygons])
+        interactions = [
+            CommuteInteraction('commute', target='residents'),
+            PlaceVisitsInteraction('visits', target='residents'),
+            SentimentInteraction('sentiment', target='residents', events=self.events),
+        ]
+        space = ContinuousSpace(extent=(float(bounds[2]), float(bounds[3])), regions=regions)
+        return System(self.label, elements=[residents], interactions=interactions, space=space)

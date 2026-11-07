@@ -9,9 +9,9 @@ from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.social.organizations import (
+    KauaiPopulationSystem,
     ResidentElement,
     SentimentInteraction,
-    kauai_population,
     load_island_layers,
     load_island_populations,
 )
@@ -30,7 +30,7 @@ def test_island_layers_load_inside_their_boundary():
 def test_kauai_population_follows_the_census_layer():
     """Test that populations of 100, 50, and 0 give 150 residents, each with a home point in its census region."""
     census = load_island_layers()['census']
-    trajectory = _run(kauai_population((100, 50, 0)), 4)
+    trajectory = _run(KauaiPopulationSystem((100, 50, 0)), 4)
     start = trajectory.agents('residents', 0)
     regions = start.values['census'].astype(int).tolist()
     assert len(start.ids) == 150
@@ -44,13 +44,13 @@ def test_kauai_population_follows_the_census_layer():
 def test_kauai_population_rejects_populations_of_other_regions():
     """Test that populations that do not match the census layer raise an error that names both."""
     with pytest.raises(ValidationError, match='3 census regions'):
-        kauai_population((100, 50))
+        KauaiPopulationSystem((100, 50)).prepare()
 
 
 def test_kauai_residents_commute_through_their_regions():
     """Test that residents stand in their facility, then in their favourite place, and count the visits."""
     layers = load_island_layers()
-    trajectory = _run(kauai_population((10, 5, 0)), 6)
+    trajectory = _run(KauaiPopulationSystem((10, 5, 0)), 6)
     at_work = trajectory.agents('residents', 1)
     at_place = trajectory.agents('residents', 2)
     assert all(
@@ -82,7 +82,7 @@ def _pair(first, second, **parameters):
 
 
 def test_kauai_event_follows_equation_five_of_the_chapter():
-    """Test the terms of the example of Eq. 6, which the chapter adds to -0.2755 by a slip of sign on its last term."""
+    """Test the terms of the example of equation 6, which the chapter sums to -0.2755 by a slip of sign."""
     residents = GroupElement(
         'residents',
         element=ResidentElement,
@@ -141,20 +141,20 @@ def test_kauai_interaction_stops_at_the_grid_cell():
 
 def test_kauai_positive_event_raises_sentiment_of_those_who_weigh_its_topic():
     """Test that a positive event raises the mean of those who weigh it, and the others follow by interaction."""
-    alone = _run(kauai_population((100, 50, 0), events=[(1, 0, 0.8)], event_rate=0.5, partners=0), 3)
+    alone = _run(KauaiPopulationSystem((100, 50, 0), events=[(1, 0, 0.8)], event_rate=0.5, partners=0), 3)
     start, end = alone.agents('residents', 0), alone.agents('residents', 3)
     weighted = start.values['weights'][:, 0] > 0
     assert weighted.sum() == 75
     assert end.values['sentiment'][weighted].mean() > start.values['sentiment'][weighted].mean() + 0.2
     np.testing.assert_array_equal(end.values['sentiment'][~weighted], start.values['sentiment'][~weighted])
-    together = _run(kauai_population((100, 50, 0), events=[(1, 0, 0.8)], event_rate=0.5), 6)
+    together = _run(KauaiPopulationSystem((100, 50, 0), events=[(1, 0, 0.8)], event_rate=0.5), 6)
     others = together.agents('residents', 6).values['sentiment'][~weighted]
     assert others.mean() > start.values['sentiment'][~weighted].mean()
 
 
 def test_kauai_sentiment_stays_between_the_bounds():
     """Test that strong events and interactions leave every sentiment within -1 and 1."""
-    trajectory = _run(kauai_population((20, 10, 0), events=[(1, 0, 1.0), (2, 1, -1.0)], event_rate=1.0), 3)
+    trajectory = _run(KauaiPopulationSystem((20, 10, 0), events=[(1, 0, 1.0), (2, 1, -1.0)], event_rate=1.0), 3)
     for frame in (1, 2, 3):
         sentiment = trajectory.agents('residents', frame).values['sentiment']
         assert sentiment.min() >= -1.0

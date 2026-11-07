@@ -14,12 +14,11 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class ExplorerView(AgentView):
@@ -112,6 +111,8 @@ class ExplorationInteraction(Interaction):
         >>> ExplorationInteraction('displacement', target='individuals').rho
         0.6
     """
+
+    law_classes = (RuleLaw,)
 
     def __init__(
         self,
@@ -211,6 +212,8 @@ class ContainerMobilityInteraction(Interaction):
         >>> ContainerMobilityInteraction('displacement', target='individuals').levels
         3
     """
+
+    law_classes = (RuleLaw,)
 
     def __init__(
         self,
@@ -319,21 +322,8 @@ class ContainerMobilityInteraction(Interaction):
             individual.distinct = float(len(visited))
 
 
-@register_system(
-    field='social/organizations',
-    tags=('agents', 'human mobility', 'exploration', 'preferential return'),
-    references=('Song, Koren, Wang, and Barabási 2010', 'Alessandretti, Aslak, and Lehmann 2020'),
-    defaults={'until': 500},
-)
-def exploration_preferential_return(
-    n_individuals: int = 10,
-    *,
-    rho: float = 0.6,
-    gamma: float = 0.21,
-    beta: float = 1.55,
-    least_jump: float = 1.0,
-) -> System:
-    """Return the exploration and preferential return model of human mobility of Song and coauthors.
+class ExplorationPreferentialReturnSystem(BaseSystem):
+    """The exploration and preferential return model of human mobility of Song and coauthors.
 
     At every displacement an individual who has visited `S` distinct locations explores a new place with the
     probability `rho S^-gamma`, at a distance drawn from the power law `P(r) ~ r^-beta`, and otherwise returns to a
@@ -341,6 +331,8 @@ def exploration_preferential_return(
     The number of distinct locations grows as `n^(1 / (1 + gamma))` after `n` displacements, and the visits of the
     locations follow Zipf's law. The defaults `rho = 0.6` and `gamma = 0.21` are the values of Song and coauthors, and
     every individual starts at the origin.
+
+    The system has the group `individuals`.
 
     Args:
         n_individuals:
@@ -358,42 +350,53 @@ def exploration_preferential_return(
         least_jump:
             The least jump length.
 
-    Returns:
-        system:
-            The system, with the group `individuals`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.organizations import exploration_preferential_return
-        >>> exploration_preferential_return(3).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.organizations import ExplorationPreferentialReturnSystem
+        >>> ExplorationPreferentialReturnSystem(3).prepare().system_.elements[0].prepare().size_
         3
     """
-    individuals = GroupElement('individuals', element=ExplorerElement, size=n_individuals)
-    displacement = ExplorationInteraction(
-        'displacement',
-        target='individuals',
-        rho=rho,
-        gamma=gamma,
-        beta=beta,
-        least_jump=least_jump,
-    )
-    return System(elements=[individuals], interactions=[displacement])
+
+    field = 'social/organizations'
+    topics = ('agents', 'human mobility', 'exploration', 'preferential return')
+    references = ('Song, Koren, Wang, and Barabási 2010', 'Alessandretti, Aslak, and Lehmann 2020')
+    until = 500
+
+    def __init__(
+        self,
+        n_individuals: int = 10,
+        *,
+        rho: float = 0.6,
+        gamma: float = 0.21,
+        beta: float = 1.55,
+        least_jump: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_individuals = n_individuals
+        self.rho = rho
+        self.gamma = gamma
+        self.beta = beta
+        self.least_jump = least_jump
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        individuals = GroupElement('individuals', element=ExplorerElement, size=self.n_individuals)
+        displacement = ExplorationInteraction(
+            'displacement',
+            target='individuals',
+            rho=self.rho,
+            gamma=self.gamma,
+            beta=self.beta,
+            least_jump=self.least_jump,
+        )
+        return System(self.label, elements=[individuals], interactions=[displacement])
 
 
-@register_system(
-    field='social/organizations',
-    tags=('agents', 'human mobility', 'hierarchy', 'containers', 'scales'),
-    references=('Alessandretti, Aslak, and Lehmann 2020',),
-    defaults={'until': 500},
-)
-def container_mobility(
-    n_individuals: int = 10,
-    *,
-    levels: int = 3,
-    side: int = 4,
-    travel: Sequence[float] = (0.6, 0.3, 0.1),
-    exponent: float = 1.5,
-) -> System:
-    """Return the container model of human mobility of Alessandretti, Aslak, and Lehmann, trajectories across scales.
+class ContainerMobilitySystem(BaseSystem):
+    """The container model of human mobility of Alessandretti, Aslak, and Lehmann, trajectories across scales.
 
     Space is a hierarchy of `L` levels of containers, a nested grid where every container holds `side` by `side`
     containers of the level below, down to the locations, and every container has an attractiveness among its siblings,
@@ -403,6 +406,8 @@ def container_mobility(
     (arXiv 2109.07381 Methods, Generating traces). The nested grid, the power law of the attractivenesses, and the
     probabilities of travel that do not depend on the distance from home follow Supplementary Note 3. Displacements are
     a mixture of the scales of the containers, from one cell to `side^(L - 1)` cells.
+
+    The system has the group `individuals`.
 
     Args:
         n_individuals:
@@ -420,22 +425,46 @@ def container_mobility(
         exponent:
             The exponent of the power law of the attractivenesses.
 
-    Returns:
-        system:
-            The system, with the group `individuals`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.organizations import container_mobility
-        >>> container_mobility(3).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.organizations import ContainerMobilitySystem
+        >>> ContainerMobilitySystem(3).prepare().system_.elements[0].prepare().size_
         3
     """
-    individuals = GroupElement('individuals', element=ExplorerElement, size=n_individuals)
-    displacement = ContainerMobilityInteraction(
-        'displacement',
-        target='individuals',
-        levels=levels,
-        side=side,
-        travel=travel,
-        exponent=exponent,
-    )
-    return System(elements=[individuals], interactions=[displacement])
+
+    field = 'social/organizations'
+    topics = ('agents', 'human mobility', 'hierarchy', 'containers', 'scales')
+    references = ('Alessandretti, Aslak, and Lehmann 2020',)
+    until = 500
+
+    def __init__(
+        self,
+        n_individuals: int = 10,
+        *,
+        levels: int = 3,
+        side: int = 4,
+        travel: Sequence[float] = (0.6, 0.3, 0.1),
+        exponent: float = 1.5,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_individuals = n_individuals
+        self.levels = levels
+        self.side = side
+        self.travel = travel
+        self.exponent = exponent
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        individuals = GroupElement('individuals', element=ExplorerElement, size=self.n_individuals)
+        displacement = ContainerMobilityInteraction(
+            'displacement',
+            target='individuals',
+            levels=self.levels,
+            side=self.side,
+            travel=self.travel,
+            exponent=self.exponent,
+        )
+        return System(self.label, elements=[individuals], interactions=[displacement])

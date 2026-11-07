@@ -14,10 +14,9 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class FarmerView(AgentView):
@@ -175,6 +174,8 @@ class HarvestInteraction(Interaction):
         3
     """
 
+    law_classes = (RuleLaw,)
+
     reports: ClassVar[tuple[str, ...]] = ('slaves', 'in_work')
 
     def __init__(
@@ -257,22 +258,8 @@ class HarvestInteraction(Interaction):
         system.report('in_work', float(sum(item.working and item.pay >= 1 for item in harvesters)))
 
 
-@register_system(
-    field='social/organizations',
-    tags=('agents', 'labour exploitation', 'wages', 'emergence'),
-    references=('Chesney 2021', 'Chesney, Evans, Gold, and Trautrims 2018'),
-    defaults={'until': 60},
-)
-def ajanis_choice(
-    n_employers: int = 10,
-    *,
-    n_workers: int = 500,
-    asks: int = 1,
-    chat: int = 3,
-    adjustment: float = 0.2,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Chesney's Ajani's Choice, migrant farm workers and employers among whom underpayment emerges.
+class AjanisChoiceSystem(BaseSystem):
+    """Chesney's Ajani's Choice, migrant farm workers and employers among whom underpayment emerges.
 
     Employers need between 50 and 99 workers a day each and start with a random wage between 1 and 2, the minimum
     wage being 1. Workers live in two slums, `n_workers` in each, and ask the employers of their local area for work
@@ -283,6 +270,8 @@ def ajanis_choice(
     lasts 60 days, two summer months. When workers outnumber the jobs, desperation drags the wages below the
     minimum, as with the default 10 employers and 1000 workers. The NetLogo listing of section 3.8 accepts a low offer
     when yesterday's pay was above the minimum, against rule 3 of the text, and the system follows the text.
+
+    The system has the groups `employers` and `workers`, and the reporters `day.slaves` and `day.in_work`.
 
     Args:
         n_employers:
@@ -303,38 +292,64 @@ def ajanis_choice(
         random_state:
             The seed or generator of the employers.
 
-    Returns:
-        system:
-            The system, with the groups `employers` and `workers`, and the reporters `day.slaves` and `day.in_work`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.organizations import ajanis_choice
-        >>> ajanis_choice(5, n_workers=10).elements[1].prepare().size_
+        >>> from skcomplex.systems.social.organizations import AjanisChoiceSystem
+        >>> AjanisChoiceSystem(5, n_workers=10).prepare().system_.elements[1].prepare().size_
         20
     """
-    rng = np.random.default_rng(random_state)
-    employers = GroupElement(
-        'employers',
-        element=FarmerElement,
-        size=n_employers,
-        values={
-            'wage': 1.0 + rng.random(n_employers),
-            'workforce': rng.integers(50, 100, size=n_employers).astype(float),
-            'area': rng.integers(2, size=n_employers).astype(float),
-        },
-    )
-    workers = GroupElement(
-        'workers',
-        element=HarvesterElement,
-        size=2 * n_workers,
-        values={'slum': np.repeat([0.0, 1.0], n_workers)},
-    )
-    day = HarvestInteraction(
-        'day',
-        employers='employers',
-        workers='workers',
-        asks=asks,
-        chat=chat,
-        adjustment=adjustment,
-    )
-    return System(elements=[employers, workers], interactions=[day])
+
+    field = 'social/organizations'
+    topics = ('agents', 'labour exploitation', 'wages', 'emergence')
+    references = ('Chesney 2021', 'Chesney, Evans, Gold, and Trautrims 2018')
+    until = 60
+
+    def __init__(
+        self,
+        n_employers: int = 10,
+        *,
+        n_workers: int = 500,
+        asks: int = 1,
+        chat: int = 3,
+        adjustment: float = 0.2,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_employers = n_employers
+        self.n_workers = n_workers
+        self.asks = asks
+        self.chat = chat
+        self.adjustment = adjustment
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        employers = GroupElement(
+            'employers',
+            element=FarmerElement,
+            size=self.n_employers,
+            values={
+                'wage': 1.0 + rng.random(self.n_employers),
+                'workforce': rng.integers(50, 100, size=self.n_employers).astype(float),
+                'area': rng.integers(2, size=self.n_employers).astype(float),
+            },
+        )
+        workers = GroupElement(
+            'workers',
+            element=HarvesterElement,
+            size=2 * self.n_workers,
+            values={'slum': np.repeat([0.0, 1.0], self.n_workers)},
+        )
+        day = HarvestInteraction(
+            'day',
+            employers='employers',
+            workers='workers',
+            asks=self.asks,
+            chat=self.chat,
+            adjustment=self.adjustment,
+        )
+        return System(self.label, elements=[employers, workers], interactions=[day])

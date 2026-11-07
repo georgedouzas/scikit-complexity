@@ -6,7 +6,7 @@ import pytest
 from skcomplex.core.analysis import scaling
 from skcomplex.core.experiments import Experiment, GridDesign
 from skcomplex.core.specs import ObservableSpec
-from skcomplex.systems.social.organizations import gravity_urban_scaling
+from skcomplex.systems.social.organizations import GravityUrbanScalingSystem
 
 POPULATIONS = [100, 200, 400, 800, 1600]
 
@@ -16,7 +16,7 @@ def _totals(alpha: float, gamma: float, seeds: list[int]) -> np.ndarray:
     total = ObservableSpec('total_contacts', group='residents', variable='contacts', reduce='sum')
     bounds = {'population': POPULATIONS, 'alpha': [alpha], 'gamma': [gamma], 'random_state': seeds}
     experiment = Experiment(
-        gravity_urban_scaling,
+        lambda **arguments: GravityUrbanScalingSystem(**arguments).prepare().system_,
         GridDesign(),
         bounds,
         until=1.0,

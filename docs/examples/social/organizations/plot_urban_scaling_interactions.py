@@ -15,18 +15,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import scaling
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import Experiment, GridDesign
-from skcomplex.systems import create_system, describe
-from skcomplex.systems.social.organizations import urban_scaling_interactions
+from skcomplex.systems.social.organizations import UrbanScalingInteractionsSystem
 
 SYSTEM = 'urban_scaling_interactions'
 
-system = create_system(SYSTEM)
+system = UrbanScalingInteractionsSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-observables = describe(SYSTEM).observables_of(system)
-simulation = Simulation(system, observers=[observer], observables=observables, random_state=0).prepare().run(until=297)
+observables = system.get_run_settings()['observables']
+trajectory = simulate(system, observables=observables, observers=[observer], random_state=0)
 
 # %%
 # Meetings against the population
@@ -44,7 +43,7 @@ fig, ax = plt.subplots(figsize=(7, 4))
 for rate in rates:
     bounds = {'population': sizes, 'internal': [rate], 'random_state': seeds}
     experiment = Experiment(
-        urban_scaling_interactions,
+        lambda **parameters: UrbanScalingInteractionsSystem(**parameters).prepare().system_,
         GridDesign(),
         bounds,
         until=float(max(sizes)),

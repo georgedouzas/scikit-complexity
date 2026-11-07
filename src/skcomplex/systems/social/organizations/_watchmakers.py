@@ -12,10 +12,9 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class WatchmakerView(AgentView):
@@ -106,6 +105,8 @@ class AssemblyInteraction(Interaction):
         0.01
     """
 
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -151,19 +152,8 @@ class AssemblyInteraction(Interaction):
                 watchmaker.watches += 1.0
 
 
-@register_system(
-    field='social/organizations',
-    tags=('hierarchy', 'agents', 'stable intermediate forms', 'interruptions'),
-    references=('Simon 1962', 'Meadows 2008'),
-    defaults={'until': 5000},
-)
-def watchmakers(
-    parts: int = 1000,
-    *,
-    subassembly: int = 10,
-    interruption: float = 0.01,
-) -> System:
-    """Return Simon's fable of the watchmakers Hora and Tempus, told by Meadows, with and without stable subassemblies.
+class WatchmakersSystem(BaseSystem):
+    """Simon's fable of the watchmakers Hora and Tempus, told by Meadows, with and without stable subassemblies.
 
     Both watchmakers build watches of `parts` parts. Tempus puts all of them together at once, so an interruption,
     a customer's call, makes the unfinished watch fall to pieces. Hora puts together stable subassemblies of
@@ -173,6 +163,8 @@ def watchmakers(
     every action takes `((1 - p)^-k - 1) / p` actions on average, so at `p = 0.01` Hora finishes a watch every 1173
     steps and Tempus one every 2.3 million steps. The book tells the fable as a narrative, so the step of one action
     and the interruption at every action follow Simon's original telling.
+
+    The system has the group `watchmakers`, Hora first and Tempus second.
 
     Args:
         parts:
@@ -184,23 +176,44 @@ def watchmakers(
         interruption:
             The probability that a watchmaker is interrupted at an action.
 
-    Returns:
-        system:
-            The system, with the group `watchmakers`, Hora first and Tempus second.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.organizations import watchmakers
-        >>> watchmakers().elements[0].prepare().size_
+        >>> from skcomplex.systems.social.organizations import WatchmakersSystem
+        >>> WatchmakersSystem().prepare().system_.elements[0].prepare().size_
         2
     """
-    hora_tasks = (parts - 1) // (subassembly - 1)
-    group = GroupElement(
-        'watchmakers',
-        element=WatchmakerElement,
-        size=2,
-        values={'task_size': [float(subassembly), float(parts)], 'tasks': [float(hora_tasks), 1.0]},
-    )
-    return System(
-        elements=[group],
-        interactions=[AssemblyInteraction('assembly', target='watchmakers', interruption=interruption)],
-    )
+
+    field = 'social/organizations'
+    topics = ('hierarchy', 'agents', 'stable intermediate forms', 'interruptions')
+    references = ('Simon 1962', 'Meadows 2008')
+    until = 5000
+
+    def __init__(
+        self,
+        parts: int = 1000,
+        *,
+        subassembly: int = 10,
+        interruption: float = 0.01,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.parts = parts
+        self.subassembly = subassembly
+        self.interruption = interruption
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        hora_tasks = (self.parts - 1) // (self.subassembly - 1)
+        group = GroupElement(
+            'watchmakers',
+            element=WatchmakerElement,
+            size=2,
+            values={'task_size': [float(self.subassembly), float(self.parts)], 'tasks': [float(hora_tasks), 1.0]},
+        )
+        return System(
+            self.label,
+            elements=[group],
+            interactions=[AssemblyInteraction('assembly', target='watchmakers', interruption=self.interruption)],
+        )

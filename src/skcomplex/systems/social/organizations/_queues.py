@@ -13,10 +13,9 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class TaskView(AgentView):
@@ -100,6 +99,8 @@ class ExecutionInteraction(Interaction):
         'tasks'
     """
 
+    law_classes = (RuleLaw,)
+
     reports: ClassVar[tuple[str, ...]] = ('wait',)
 
     def __init__(
@@ -144,19 +145,11 @@ class ExecutionInteraction(Interaction):
                 system.report('wait', task.wait)
 
 
-@register_system(
-    field='social/organizations',
-    tags=('queues', 'agents', 'bursts', 'power law'),
-    references=('Barabási 2005', 'Castellano, Fortunato, and Loreto 2009'),
-    defaults={'until': 200},
-)
-def priority_queues(
-    n_tasks: int = 2,
-    *,
-    greed: float = 0.99999,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Barabási priority queue, whose waiting times follow a power law as the choice becomes greedy.
+class PriorityQueuesSystem(BaseSystem):
+    """The Barabási priority queue, whose waiting times follow a power law as the choice becomes greedy.
+
+    The system has the group `tasks` and the execution `execution`, which reports the waiting time of the task it
+    executes at every step.
 
     Args:
         n_tasks:
@@ -168,16 +161,40 @@ def priority_queues(
         random_state:
             The seed or generator of the initial priorities.
 
-    Returns:
-        system:
-            The system, with the group `tasks` and the execution `execution`, which reports the waiting time of the
-            task it executes at every step.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.organizations import priority_queues
-        >>> priority_queues(3, random_state=0).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.organizations import PriorityQueuesSystem
+        >>> PriorityQueuesSystem(3, random_state=0).prepare().system_.elements[0].prepare().size_
         3
     """
-    priorities = np.random.default_rng(random_state).random(n_tasks)
-    tasks = GroupElement('tasks', element=TaskElement, size=n_tasks, values={'priority': priorities, 'greed': greed})
-    return System(elements=[tasks], interactions=[ExecutionInteraction('execution', target='tasks')])
+
+    field = 'social/organizations'
+    topics = ('queues', 'agents', 'bursts', 'power law')
+    references = ('Barabási 2005', 'Castellano, Fortunato, and Loreto 2009')
+    until = 200
+
+    def __init__(
+        self,
+        n_tasks: int = 2,
+        *,
+        greed: float = 0.99999,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_tasks = n_tasks
+        self.greed = greed
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        priorities = np.random.default_rng(self.random_state).random(self.n_tasks)
+        tasks = GroupElement(
+            'tasks',
+            element=TaskElement,
+            size=self.n_tasks,
+            values={'priority': priorities, 'greed': self.greed},
+        )
+        return System(self.label, elements=[tasks], interactions=[ExecutionInteraction('execution', target='tasks')])

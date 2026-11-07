@@ -7,7 +7,7 @@ employees drift into a high-risk tail.
 """
 
 # %%
-# The system is created by name from the catalog with 130 employees and 3 supervisors on a 20 by 20 office and a yearly
+# The system is built from its class with 130 employees and 3 supervisors on a 20 by 20 office and a yearly
 # turnover of 15%, and runs for one year, one step per day. The default blueprint shows the employees colored by risk,
 # from 0 (dark) to 5 (bright), with the supervisors.
 
@@ -15,15 +15,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import distribution
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.organizations import InsiderSabotageSystem
 
 SYSTEM = 'insider_sabotage'
 
-system = create_system(SYSTEM, random_state=0)
+system = InsiderSabotageSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=365)
+trajectory = simulate(system, dt=1, observers=[observer], random_state=0)
 
 # %%
 # Risk builds up over the year
@@ -31,7 +31,6 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 # The mean risk of the employees should rise steadily over the year, and the upper tail should rise faster than the
 # mean, so the distribution of risk at the end of the year should be wider and shifted to the right of the first day.
 
-trajectory = simulation.trajectory_
 risks = [np.asarray(trajectory.agents('employees', frame).values['risk']) for frame in range(len(trajectory.times))]
 fig, (trend, spread) = plt.subplots(1, 2, figsize=(10, 4))
 trend.plot(trajectory.times, [risk.mean() for risk in risks], label='mean')

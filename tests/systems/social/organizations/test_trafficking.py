@@ -3,7 +3,7 @@
 import numpy as np
 
 from skcomplex.systems.social.organizations import (
-    trafficking,
+    TraffickingSystem,
 )
 
 from ..conftest import _run
@@ -21,7 +21,7 @@ TRAFFICKING_BILLS = (
 
 def test_trafficking_binds_both_groups_and_matches_recorded_run():
     """Test that the daily interaction reads both groups through roles and the grid size from the system."""
-    system = trafficking(random_state=0)
+    system = TraffickingSystem(random_state=0).prepare().system_
     day = system.interactions[0]
     assert (day.women, day.premises) == ('women', 'premises')
     assert not {'width', 'height'} & set(day.get_params())
@@ -33,7 +33,7 @@ def test_trafficking_binds_both_groups_and_matches_recorded_run():
 
 def test_trafficking_victims_stay_in_brothels():
     """Test that victims are always in brothels and that brothels run higher bills than houses."""
-    trajectory = _run(trafficking(random_state=0), 180)
+    trajectory = _run(TraffickingSystem(random_state=0), 180)
     premises, women = trajectory.agents('premises', 180), trajectory.agents('women', 180)
     brothels = premises.values['brothel'] > 0
     cells = {tuple(location) for location in premises.locations[brothels].tolist()}
