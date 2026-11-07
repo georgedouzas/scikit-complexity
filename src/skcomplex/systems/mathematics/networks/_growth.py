@@ -1,4 +1,4 @@
-"""Growing networks: preferential attachment, triad formation, vertex copying, and popularity-similarity growth."""
+"""Growing networks: preferential attachment, fitness, triad formation, copying, graphlets, and hyperbolic growth."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,6 +18,7 @@ from ....core.components.system import System
 from ....core.errors import ValidationError
 from ..._catalog import register_system
 from ._copying_vertex import CopyingVertexElement
+from ._fitness_vertex import FitnessVertexElement
 from ._link import LinkElement
 from ._similarity_vertex import SimilarityVertexElement
 from ._triad_vertex import TriadVertexElement
@@ -91,14 +92,33 @@ def _grown(
 @register_system(
     field='mathematics/networks',
     tags=('network', 'growth', 'preferential attachment', 'scale-free'),
-    references=('Barabási and Albert 1999', 'Argun et al. 2021', 'Gros 2015', 'Thurner et al. 2018'),
+    references=(
+        'Barabási and Albert 1999',
+        'Bianconi and Barabási 2001',
+        'Argun et al. 2021',
+        'Gros 2015',
+        'Thurner et al. 2018',
+        'Raman 2021',
+    ),
     defaults={'until': 300},
 )
-def barabasi_albert(n_nodes: int = 303, *, edges: int = 2, seed_nodes: int = 3) -> System:
+def barabasi_albert(
+    n_nodes: int = 303,
+    *,
+    edges: int = 2,
+    seed_nodes: int = 3,
+    fitness: bool = False,
+    random_state: int | np.random.Generator | None = 0,
+) -> System:
     """Return Barabási-Albert growth, whose degrees follow a power law `P(k) ~ k^-3` by preferential attachment.
 
     The network starts complete on `seed_nodes` nodes, and every step one node joins with `edges` edges to nodes
     drawn with probability proportional to their degree, until it holds `n_nodes` nodes.
+
+    With `fitness`, every node draws a fitness `eta` uniformly in `[0, 1]` and new edges join nodes with probability
+    proportional to `eta k`, the model of Bianconi and Barabási (2001) that Raman (2021, section 3.2.4) describes.
+    The degree of a node then grows as `t^beta(eta)` with an exponent that rises with its fitness, so a fit late node
+    overtakes older ones.
 
     Args:
         n_nodes:
@@ -110,9 +130,16 @@ def barabasi_albert(n_nodes: int = 303, *, edges: int = 2, seed_nodes: int = 3) 
         seed_nodes:
             The number of nodes of the complete seed network.
 
+        fitness:
+            Whether the nodes draw a fitness that scales their attachment, the Bianconi-Barabási model.
+
+        random_state:
+            The seed or generator of the fitness of the seed nodes.
+
     Returns:
         system:
-            The system, with the groups `nodes` and `links` and the arrival `growth`.
+            The system, with the groups `nodes` and `links` and the arrival `growth`, and with `fitness` the state
+            `nodes.fitness`.
 
     Examples:
         >>> from skcomplex.core.engine.runtime import Simulation
@@ -122,9 +149,21 @@ def barabasi_albert(n_nodes: int = 303, *, edges: int = 2, seed_nodes: int = 3) 
         23
     """
     space = NetworkSpace(nx.complete_graph(seed_nodes))
-    nodes = _nodes(VertexElement, n_nodes)
-    growth = TopologyInteraction('growth', action='add-node', edges=edges, toward=_degree)
-    return _grown(nodes, growth, space, edges * n_nodes + seed_nodes**2)
+    capacity = edges * n_nodes + seed_nodes**2
+    if not fitness:
+        nodes = _nodes(VertexElement, n_nodes)
+        growth = TopologyInteraction('growth', action='add-node', edges=edges, toward=_degree)
+        return _grown(nodes, growth, space, capacity)
+    seed_fitness = np.random.default_rng(random_state).uniform(0.0, 1.0, seed_nodes)
+    nodes = _nodes(FitnessVertexElement, n_nodes, fitness=seed_fitness.tolist())
+    growth = TopologyInteraction(
+        'growth',
+        action='add-node',
+        edges=edges,
+        values={'fitness': lambda rng: rng.uniform(0.0, 1.0)},
+        toward=lambda node: node.fitness * neighbors(1),
+    )
+    return _grown(nodes, growth, space, capacity)
 
 
 @register_system(
@@ -334,3 +373,49 @@ def popularity_similarity_network(
         ),
     )
     return _grown(nodes, growth, NetworkSpace(nx.complete_graph(seed_nodes)), edges * n_nodes + seed_nodes**2)
+
+
+@register_system(
+    field='mathematics/networks',
+    tags=('network', 'growth', 'graphlet', 'preferential attachment', 'tree'),
+    references=('Filkov et al. 2009', 'Raman 2021'),
+    defaults={'until': 300},
+)
+def graphlet_arrival(n_nodes: int = 602, *, alpha: float = 0.3) -> System:
+    """Return growth by the arrival of three-node graphlets, a tree whose degree exponent rises with `alpha`.
+
+    The network starts from one edge, and every step a graphlet of a central node and two peripheral nodes joined to it
+    arrives and merges one of its nodes with an existing node drawn with probability proportional to its degree: a
+    peripheral node with probability `alpha`, so the existing node gains the central node, which carries the other
+    peripheral node, and the central node otherwise, so the existing node gains both peripheral nodes (Filkov et al.
+    2009, as Raman 2021, section 3.2.4.2, describes). Every step adds two nodes and two edges, and the shares of nodes
+    of degree 1 and 2 are `2 (2 - alpha) / 5` and `alpha (7 - alpha) / 15`.
+
+    Args:
+        n_nodes:
+            The number of nodes the network holds room for.
+
+        alpha:
+            The probability that the graphlet attaches by a peripheral node.
+
+    Returns:
+        system:
+            The system, with the groups `nodes` and `links` and the arrivals `growth` and `graphlet`.
+
+    Examples:
+        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.systems.mathematics.networks import graphlet_arrival
+        >>> trajectory = Simulation(graphlet_arrival(22), random_state=0).prepare().run(until=10).trajectory_
+        >>> int(trajectory.network(-1).nodes.size), int(trajectory.network(-1).sources.size)
+        (22, 21)
+    """
+    nodes = _nodes(VertexElement, n_nodes)
+    growth = TopologyInteraction('growth', action='add-node', toward=_degree)
+    graphlet = TopologyInteraction(
+        'graphlet',
+        action='add-node',
+        values={'age': 0.0},
+        toward=lambda node: alpha * where(node.age < JOINING_AGE, 1, 0)
+        + (1 - alpha) * where(node.age > JOINING_AGE, 1, 0) * neighbors(where(node.other.age < JOINING_AGE, 1, 0)),
+    )
+    return _grown(nodes, growth, NetworkSpace(nx.path_graph(2)), n_nodes, [graphlet])
