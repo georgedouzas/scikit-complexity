@@ -13,9 +13,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.mechanics import CoupledPendulumsSystem
 
 SYSTEM = 'coupled_pendulums'
 
@@ -26,9 +26,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, theta1=0.2, theta2=0.0, k=0.5)
+system = CoupledPendulumsSystem(theta1=0.2, theta2=0.0, k=0.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=4)
-simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=50)
+trajectory = simulate(system, until=50, observers=[observer])
 
 # %%
 # Normal modes and beats
@@ -38,9 +38,9 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(unt
 # displacement should follow `θ0 cos((ω2 - ω1) t / 2) cos((ω1 + ω2) t / 2)`, whose envelope, dashed, beats with the
 # period `2π / (ω2 - ω1)`.
 
-times = np.asarray(simulation.trajectory_.times)
-left = np.sin(np.ravel(simulation.trajectory_.values('left.theta')))
-right = np.sin(np.ravel(simulation.trajectory_.values('right.theta')))
+times = np.asarray(trajectory.times)
+left = np.sin(np.ravel(trajectory.values('left.theta')))
+right = np.sin(np.ravel(trajectory.values('right.theta')))
 slow, fast = np.sqrt(9.81), np.sqrt(9.81 + 2 * 0.5)
 envelope = 0.2 * np.abs(np.cos((fast - slow) * times / 2))
 fig, ax = plt.subplots(figsize=(10, 4))

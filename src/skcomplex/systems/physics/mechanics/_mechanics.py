@@ -15,9 +15,8 @@ from ....core.components.interactions import BaseInteraction, GradientInteractio
 from ....core.components.laws import BaseLaw, CrossingLaw, RateLaw
 from ....core.components.laws.utils import derivative
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.mechanics import PendulumElement, PendulumInteraction, ReflectionInteraction
 from ..common.particles import (
     ConstantForceInteraction,
@@ -111,6 +110,8 @@ class DiscBilliardElement(Element):
         >>> DiscBilliardElement('particle', radius=2.0).radius
         2.0
     """
+
+    law_classes = (RateLaw,)
 
     visual = VisualSpec('bodies', {'positions': ('x', 'y'), 'trail': None, 'outline': _disc_wall})
 
@@ -224,6 +225,8 @@ class ElasticCollisionInteraction(Interaction):
         0.2
     """
 
+    law_classes = (CrossingLaw,)
+
     def __init__(
         self,
         label: str,
@@ -263,14 +266,10 @@ class ElasticCollisionInteraction(Interaction):
 GRAVITY = 9.81
 
 
-@register_system(
-    field='physics/mechanics',
-    tags=('mechanics', 'ode'),
-    references=('Newton 1687',),
-    defaults={'until': 2.0, 'dt': 0.01},
-)
-def projectile(speed: float = 10.0, angle: float = 45.0, *, mass: float = 1.0, drag: float = 0.0) -> System:
-    """Return a particle launched under uniform gravity, optionally slowed by linear drag.
+class ProjectileSystem(BaseSystem):
+    """A particle launched under uniform gravity, optionally slowed by linear drag.
+
+    The system has the particle `ball` in two dimensions.
 
     Args:
         speed:
@@ -285,44 +284,57 @@ def projectile(speed: float = 10.0, angle: float = 45.0, *, mass: float = 1.0, d
         drag:
             The linear drag coefficient.
 
-    Returns:
-        system:
-            The system, with the particle `ball` in two dimensions.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.mechanics import projectile
-        >>> projectile(speed=5.0, angle=90.0).elements[0].x_d1[1]
+        >>> from skcomplex.systems.physics.mechanics import ProjectileSystem
+        >>> ProjectileSystem(speed=5.0, angle=90.0).prepare().system_.elements[0].x_d1[1]
         5.0
     """
-    radians = np.radians(angle)
-    velocity = [round(float(speed * np.cos(radians)), 12), round(float(speed * np.sin(radians)), 12)]
-    interactions: list[BaseInteraction] = [
-        ConstantForceInteraction('gravity', target='ball', F=[0.0, -GRAVITY * mass]),
-    ]
-    if drag:
-        interactions.append(DampingInteraction('drag', target='ball', gamma=drag))
-    return System(
-        elements=[MassPointElement('ball', x=[0.0, 0.0], x_d1=velocity, m=mass)],
-        interactions=interactions,
-        space=ContinuousSpace(n_dim=2),
-    )
+
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode')
+    references = ('Newton 1687',)
+    until = 2.0
+    dt = 0.01
+
+    def __init__(
+        self,
+        speed: float = 10.0,
+        angle: float = 45.0,
+        *,
+        mass: float = 1.0,
+        drag: float = 0.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.speed = speed
+        self.angle = angle
+        self.mass = mass
+        self.drag = drag
+
+    def _build_system(self) -> System:
+        """Return a particle launched under uniform gravity, optionally slowed by linear drag."""
+        radians = np.radians(self.angle)
+        velocity = [round(float(self.speed * np.cos(radians)), 12), round(float(self.speed * np.sin(radians)), 12)]
+        interactions: list[BaseInteraction] = [
+            ConstantForceInteraction('gravity', target='ball', F=[0.0, -GRAVITY * self.mass]),
+        ]
+        if self.drag:
+            interactions.append(DampingInteraction('drag', target='ball', gamma=self.drag))
+        return System(
+            self.label,
+            elements=[MassPointElement('ball', x=[0.0, 0.0], x_d1=velocity, m=self.mass)],
+            interactions=interactions,
+            space=ContinuousSpace(n_dim=2),
+        )
 
 
-@register_system(
-    field='physics/mechanics',
-    tags=('mechanics', 'ode', 'oscillation'),
-    references=('Hooke 1678',),
-    defaults={'until': 20.0, 'dt': 0.05},
-)
-def harmonic_oscillator(
-    x: float = 1.0,
-    v: float = 0.0,
-    *,
-    k: float = 1.0,
-    mass: float = 1.0,
-    damping: float = 0.0,
-) -> System:
-    """Return a particle on a spring, optionally damped.
+class HarmonicOscillatorSystem(BaseSystem):
+    """A particle on a spring, optionally damped.
+
+    The system has the particle `mass` in one dimension.
 
     Args:
         x:
@@ -340,40 +352,55 @@ def harmonic_oscillator(
         damping:
             The linear damping coefficient.
 
-    Returns:
-        system:
-            The system, with the particle `mass` in one dimension.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.mechanics import harmonic_oscillator
-        >>> harmonic_oscillator(k=4.0).interactions[0].k
+        >>> from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
+        >>> HarmonicOscillatorSystem(k=4.0).prepare().system_.interactions[0].k
         4.0
     """
-    interactions: list[BaseInteraction] = [HarmonicPotentialInteraction('spring', target='mass', k=k)]
-    if damping:
-        interactions.append(DampingInteraction('damping', target='mass', gamma=damping))
-    return System(
-        elements=[MassPointElement('mass', x=x, x_d1=v, m=mass)],
-        interactions=interactions,
-        space=ContinuousSpace(n_dim=1),
-    )
+
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'oscillation')
+    references = ('Hooke 1678',)
+    until = 20.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        x: float = 1.0,
+        v: float = 0.0,
+        *,
+        k: float = 1.0,
+        mass: float = 1.0,
+        damping: float = 0.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.v = v
+        self.k = k
+        self.mass = mass
+        self.damping = damping
+
+    def _build_system(self) -> System:
+        """Return a particle on a spring, optionally damped."""
+        interactions: list[BaseInteraction] = [HarmonicPotentialInteraction('spring', target='mass', k=self.k)]
+        if self.damping:
+            interactions.append(DampingInteraction('damping', target='mass', gamma=self.damping))
+        return System(
+            self.label,
+            elements=[MassPointElement('mass', x=self.x, x_d1=self.v, m=self.mass)],
+            interactions=interactions,
+            space=ContinuousSpace(n_dim=1),
+        )
 
 
-@register_system(
-    field='physics/mechanics',
-    tags=('mechanics', 'ode', 'second order', 'oscillation'),
-    references=('Newton 1687',),
-    defaults={'until': 10.0, 'dt': 0.01},
-)
-def pendulum(
-    theta: float = 0.5,
-    omega: float = 0.0,
-    *,
-    m: float = 1.0,
-    g: float = 9.81,
-    l: float = 1.0,
-) -> System:
-    """Return a pendulum, whose angle follows Newton's second law `m l θ'' = -m g sin θ`.
+class PendulumSystem(BaseSystem):
+    """A pendulum, whose angle follows Newton's second law `m l θ'' = -m g sin θ`.
+
+    The system has the pendulum `bob`, whose angle has order 2 and angular velocity `bob.theta_d1`.
 
     Args:
         theta:
@@ -391,38 +418,51 @@ def pendulum(
         l:
             The length of the rod.
 
-    Returns:
-        system:
-            The system, with the pendulum `bob`, whose angle has order 2 and angular velocity `bob.theta_d1`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.mechanics import pendulum
-        >>> pendulum(theta=0.1).elements[0].theta_d1
+        >>> from skcomplex.systems.physics.mechanics import PendulumSystem
+        >>> PendulumSystem(theta=0.1).prepare().system_.elements[0].theta_d1
         0.0
     """
-    return System(
-        elements=[PendulumElement('bob', theta=theta, theta_d1=omega, m=m, g=g, l=l)],
-        interactions=[PendulumInteraction('swing', target='bob')],
-    )
+
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'second order', 'oscillation')
+    references = ('Newton 1687',)
+    until = 10.0
+    dt = 0.01
+
+    def __init__(
+        self,
+        theta: float = 0.5,
+        omega: float = 0.0,
+        *,
+        m: float = 1.0,
+        g: float = 9.81,
+        l: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.theta = theta
+        self.omega = omega
+        self.m = m
+        self.g = g
+        self.l = l
+
+    def _build_system(self) -> System:
+        """Return a pendulum, whose angle follows Newton's second law `m l θ'' = -m g sin θ`."""
+        return System(
+            self.label,
+            elements=[PendulumElement('bob', theta=self.theta, theta_d1=self.omega, m=self.m, g=self.g, l=self.l)],
+            interactions=[PendulumInteraction('swing', target='bob')],
+        )
 
 
-@register_system(
-    field='physics/mechanics',
-    tags=('mechanics', 'ode', 'second order', 'oscillation', 'forcing'),
-    references=('Hooke 1678',),
-    defaults={'until': 50.0, 'dt': 0.05},
-)
-def driven_damped_oscillator(
-    x: float = 1.0,
-    v: float = 0.0,
-    *,
-    m: float = 1.0,
-    k: float = 1.0,
-    c: float = 0.1,
-    F: float = 0.0,
-    omega: float = 1.0,
-) -> System:
-    """Return a mass on a spring with damping and a periodic force, `m x'' = -k x - c x' + F cos(ω t)`.
+class DrivenDampedOscillatorSystem(BaseSystem):
+    """A mass on a spring with damping and a periodic force, `m x'' = -k x - c x' + F cos(ω t)`.
+
+    The system has the mass `mass` in one dimension, whose displacement `mass.x` has order 2.
 
     Args:
         x:
@@ -446,37 +486,62 @@ def driven_damped_oscillator(
         omega:
             The angular frequency of the driving force.
 
-    Returns:
-        system:
-            The system, with the mass `mass` in one dimension, whose displacement `mass.x` has order 2.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.mechanics import driven_damped_oscillator
-        >>> driven_damped_oscillator(F=0.5).interactions[2].F
+        >>> from skcomplex.systems.physics.mechanics import DrivenDampedOscillatorSystem
+        >>> DrivenDampedOscillatorSystem(F=0.5).prepare().system_.interactions[2].F
         0.5
     """
-    return System(
-        elements=[MassPointElement('mass', x=x, x_d1=v, m=m)],
-        interactions=[
-            HarmonicPotentialInteraction('spring', target='mass', k=k),
-            DampingInteraction('damping', target='mass', gamma=c),
-            HarmonicForceInteraction('drive', target='mass', F=F, omega=omega),
-        ],
-        space=ContinuousSpace(n_dim=1),
-    )
+
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'second order', 'oscillation', 'forcing')
+    references = ('Hooke 1678',)
+    until = 50.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        x: float = 1.0,
+        v: float = 0.0,
+        *,
+        m: float = 1.0,
+        k: float = 1.0,
+        c: float = 0.1,
+        F: float = 0.0,
+        omega: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.v = v
+        self.m = m
+        self.k = k
+        self.c = c
+        self.F = F
+        self.omega = omega
+
+    def _build_system(self) -> System:
+        """Return a mass on a spring with damping and a periodic force, `m x'' = -k x - c x' + F cos(ω t)`."""
+        return System(
+            self.label,
+            elements=[MassPointElement('mass', x=self.x, x_d1=self.v, m=self.m)],
+            interactions=[
+                HarmonicPotentialInteraction('spring', target='mass', k=self.k),
+                DampingInteraction('damping', target='mass', gamma=self.c),
+                HarmonicForceInteraction('drive', target='mass', F=self.F, omega=self.omega),
+            ],
+            space=ContinuousSpace(n_dim=1),
+        )
 
 
-@register_system(
-    field='physics/mechanics',
-    tags=('mechanics', 'events', 'impacts'),
-    references=('Strogatz 2015', 'Hairer, Nørsett, and Wanner 1993'),
-    defaults={'until': 3.0, 'dt': 0.01},
-)
-def bouncing_ball(h: float = 1.0, v: float = 0.0, *, g: float = 9.81, e: float = 0.8) -> System:
-    """Return a ball that falls under gravity and bounces off the floor, losing speed by a coefficient of restitution.
+class BouncingBallSystem(BaseSystem):
+    """A ball that falls under gravity and bounces off the floor, losing speed by a coefficient of restitution.
 
     Every impact is an event that reverses the velocity and scales it by `e`. The impacts accumulate at the Zeno time
-    `sqrt(2 h / g) (1 + e) / (1 - e)` for a ball dropped from rest, so runs should end before it.
+    `sqrt(2 h / g) (1 + e) / (1 - e)` for a ball dropped from rest, so runs should end before it. The system has the
+    height `ball.h` of order 2 and its velocity `ball.h_d1`.
 
     Args:
         h:
@@ -491,54 +556,64 @@ def bouncing_ball(h: float = 1.0, v: float = 0.0, *, g: float = 9.81, e: float =
         e:
             The coefficient of restitution.
 
-    Returns:
-        system:
-            The system, with the height `ball.h` of order 2 and its velocity `ball.h_d1`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.mechanics import bouncing_ball
-        >>> from skcomplex.core.engine.runtime import Simulation
-        >>> trajectory = Simulation(bouncing_ball(), dt=0.01).prepare().run(until=1.0).trajectory_
+        >>> from skcomplex.systems.physics.mechanics import BouncingBallSystem
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> trajectory = simulate(BouncingBallSystem(), until=1.0, dt=0.01)
         >>> round(trajectory.events[0].time, 6)
         0.451524
     """
-    return System(
-        elements=[BouncingBallElement('ball', h=h, h_d1=v, g=g)],
-        interactions=[
-            RateInteraction('gravity', target='ball', state='h', rate=lambda s: -s.target.g),
-            ReflectionInteraction(
-                'impact',
-                target='ball',
-                guard=lambda s: s.target.h,
-                positions=('h',),
-                velocities=('h_d1',),
-                direction=-1,
-                restitution=e,
-            ),
-        ],
-    )
+
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'events', 'impacts')
+    references = ('Strogatz 2015', 'Hairer, Nørsett, and Wanner 1993')
+    until = 3.0
+    dt = 0.01
+
+    def __init__(
+        self,
+        h: float = 1.0,
+        v: float = 0.0,
+        *,
+        g: float = 9.81,
+        e: float = 0.8,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.h = h
+        self.v = v
+        self.g = g
+        self.e = e
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        return System(
+            self.label,
+            elements=[BouncingBallElement('ball', h=self.h, h_d1=self.v, g=self.g)],
+            interactions=[
+                RateInteraction('gravity', target='ball', state='h', rate=lambda s: -s.target.g),
+                ReflectionInteraction(
+                    'impact',
+                    target='ball',
+                    guard=lambda s: s.target.h,
+                    positions=('h',),
+                    velocities=('h_d1',),
+                    direction=-1,
+                    restitution=self.e,
+                ),
+            ],
+        )
 
 
-@register_system(
-    field='physics/mechanics',
-    tags=('mechanics', 'events', 'impacts', 'momentum'),
-    references=('Hinch and Saint-Jean 1999',),
-    defaults={'until': 5.0, 'dt': 0.01},
-)
-def newtons_cradle(
-    n_balls: int = 5,
-    *,
-    speed: float = 0.5,
-    diameter: float = 0.1,
-    gap: float = 0.001,
-    length: float = 1.0,
-    g: float = 9.81,
-) -> System:
-    """Return Newton's cradle: pendulum balls in a row that pass momentum along by elastic collisions.
+class NewtonsCradleSystem(BaseSystem):
+    """Newton's cradle: pendulum balls in a row that pass momentum along by elastic collisions.
 
     The balls swing with small amplitude about rest positions that leave a small gap between neighbours, so collisions
-    are separate events. The first ball starts with a speed towards the others, and equal masses exchange velocities
-    at every collision.
+    are separate events. The first ball starts with a speed towards the others, and equal masses exchange velocities at
+    every collision. The system has the horizontal positions `ball_<i>.x` and velocities `ball_<i>.x_d1`.
 
     Args:
         n_balls:
@@ -559,64 +634,79 @@ def newtons_cradle(
         g:
             The gravitational acceleration.
 
-    Returns:
-        system:
-            The system, with the horizontal positions `ball_<i>.x` and velocities `ball_<i>.x_d1`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.mechanics import newtons_cradle
-        >>> len(newtons_cradle(n_balls=3).interactions)
+        >>> from skcomplex.systems.physics.mechanics import NewtonsCradleSystem
+        >>> len(NewtonsCradleSystem(n_balls=3).prepare().system_.interactions)
         5
     """
-    spacing = diameter + gap
-    elements = [
-        HangingBallElement(
-            f'ball_{index}',
-            x=index * spacing,
-            x_d1=speed if index == 0 else 0.0,
-            rest=index * spacing,
-            g=g,
-            length=length,
-        )
-        for index in range(n_balls)
-    ]
-    swings: list[BaseInteraction] = [
-        GradientInteraction(
-            f'swing_{index}',
-            target=f'ball_{index}',
-            potential=lambda s: s.target.g * (s.target.x - s.target.rest) ** 2 / (2 * s.target.length),
-        )
-        for index in range(n_balls)
-    ]
-    collisions: list[BaseInteraction] = [
-        ElasticCollisionInteraction(
-            f'collision_{index}',
-            left=f'ball_{index}',
-            right=f'ball_{index + 1}',
-            diameter=diameter,
-        )
-        for index in range(n_balls - 1)
-    ]
-    return System(elements=elements, interactions=[*swings, *collisions])
+
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'events', 'impacts', 'momentum')
+    references = ('Hinch and Saint-Jean 1999',)
+    until = 5.0
+    dt = 0.01
+
+    def __init__(
+        self,
+        n_balls: int = 5,
+        *,
+        speed: float = 0.5,
+        diameter: float = 0.1,
+        gap: float = 0.001,
+        length: float = 1.0,
+        g: float = 9.81,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_balls = n_balls
+        self.speed = speed
+        self.diameter = diameter
+        self.gap = gap
+        self.length = length
+        self.g = g
+
+    def _build_system(self) -> System:
+        """Return Newton's cradle: pendulum balls in a row that pass momentum along by elastic collisions."""
+        spacing = self.diameter + self.gap
+        elements = [
+            HangingBallElement(
+                f'ball_{index}',
+                x=index * spacing,
+                x_d1=self.speed if index == 0 else 0.0,
+                rest=index * spacing,
+                g=self.g,
+                length=self.length,
+            )
+            for index in range(self.n_balls)
+        ]
+        swings: list[BaseInteraction] = [
+            GradientInteraction(
+                f'swing_{index}',
+                target=f'ball_{index}',
+                potential=lambda s: s.target.g * (s.target.x - s.target.rest) ** 2 / (2 * s.target.length),
+            )
+            for index in range(self.n_balls)
+        ]
+        collisions: list[BaseInteraction] = [
+            ElasticCollisionInteraction(
+                f'collision_{index}',
+                left=f'ball_{index}',
+                right=f'ball_{index + 1}',
+                diameter=self.diameter,
+            )
+            for index in range(self.n_balls - 1)
+        ]
+        return System(self.label, elements=elements, interactions=[*swings, *collisions])
 
 
-@register_system(
-    field='physics/mechanics',
-    tags=('mechanics', 'events', 'billiard', 'integrable'),
-    references=('Tabachnikov 2005', 'Datseris and Parlitz 2022'),
-    defaults={'until': 20.0, 'dt': 0.05},
-)
-def circular_billiard(
-    x: float = 0.3,
-    y: float = 0.0,
-    vx: float = 0.4,
-    vy: float = 1.0,
-    *,
-    radius: float = 1.0,
-) -> System:
-    """Return a particle moving freely inside a circle and reflecting specularly off its wall.
+class CircularBilliardSystem(BaseSystem):
+    """A particle moving freely inside a circle and reflecting specularly off its wall.
 
-    The angle of incidence is the same at every bounce, so the circular billiard is integrable.
+    The angle of incidence is the same at every bounce, so the circular billiard is integrable. The system has the
+    position `particle.x`, `particle.y` and the velocity `particle.vx`, `particle.vy`.
 
     Args:
         x:
@@ -634,24 +724,50 @@ def circular_billiard(
         radius:
             The radius of the table.
 
-    Returns:
-        system:
-            The system, with the position `particle.x`, `particle.y` and the velocity `particle.vx`, `particle.vy`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.mechanics import circular_billiard
-        >>> circular_billiard(radius=2.0).elements[0].radius
+        >>> from skcomplex.systems.physics.mechanics import CircularBilliardSystem
+        >>> CircularBilliardSystem(radius=2.0).prepare().system_.elements[0].radius
         2.0
     """
-    wall = ReflectionInteraction(
-        'bounce',
-        target='particle',
-        guard=lambda s: s.target.x**2 + s.target.y**2 - s.target.radius**2,
-        positions=('x', 'y'),
-        velocities=('vx', 'vy'),
-        direction=1,
-    )
-    return System(
-        elements=[DiscBilliardElement('particle', x=x, y=y, vx=vx, vy=vy, radius=radius)],
-        interactions=[wall],
-    )
+
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'events', 'billiard', 'integrable')
+    references = ('Tabachnikov 2005', 'Datseris and Parlitz 2022')
+    until = 20.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        x: float = 0.3,
+        y: float = 0.0,
+        vx: float = 0.4,
+        vy: float = 1.0,
+        *,
+        radius: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.y = y
+        self.vx = vx
+        self.vy = vy
+        self.radius = radius
+
+    def _build_system(self) -> System:
+        """Return a particle moving freely inside a circle and reflecting specularly off its wall."""
+        wall = ReflectionInteraction(
+            'bounce',
+            target='particle',
+            guard=lambda s: s.target.x**2 + s.target.y**2 - s.target.radius**2,
+            positions=('x', 'y'),
+            velocities=('vx', 'vy'),
+            direction=1,
+        )
+        return System(
+            self.label,
+            elements=[DiscBilliardElement('particle', x=self.x, y=self.y, vx=self.vx, vy=self.vy, radius=self.radius)],
+            interactions=[wall],
+        )

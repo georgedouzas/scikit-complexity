@@ -7,16 +7,16 @@ the sympathy of clocks that Huygens observed in 1665.
 """
 
 # %%
-# The system is created by name from the catalog with two identical clocks, the first released from 0.2, and runs for
+# The system is built from its class with two identical clocks, the first released from 0.2, and runs for
 # 100 time units. The blueprint shows the angles of both pendulums over the whole run.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.mechanics import HuygensClocksSystem
 
 SYSTEM = 'huygens_clocks'
 
@@ -34,9 +34,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM)
+system = HuygensClocksSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=8)
-simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=100)
+trajectory = simulate(system, until=100, observers=[observer])
 
 # %%
 # Antiphase synchronization
@@ -45,7 +45,6 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(unt
 # the clocks swing independently, to -1, the antiphase state, where the supports stay nearly still and both amplitudes
 # settle at the limit cycle of the escapement.
 
-trajectory = simulation.trajectory_
 first, second = trajectory.values('clock_0.theta'), trajectory.values('clock_1.theta')
 window = 200
 starts = np.arange(0, len(first) - window, 20)

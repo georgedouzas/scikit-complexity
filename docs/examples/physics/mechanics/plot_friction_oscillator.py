@@ -13,15 +13,15 @@ equilibria.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.mechanics import FrictionOscillatorSystem
 
 SYSTEM = 'friction_oscillator'
 
-system = create_system(SYSTEM)
+system = FrictionOscillatorSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=20)
-simulation = Simulation(system, dt=0.01, observers=[observer]).prepare().run(until=40)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Dry and viscous friction
@@ -32,8 +32,8 @@ simulation = Simulation(system, dt=0.01, observers=[observer]).prepare().run(unt
 
 fig, ax = plt.subplots(figsize=(6, 5))
 for label, settings in [('dry', {}), ('viscous', {'mu_s': 0.0, 'mu_k': 0.0, 'c': 0.05})]:
-    run = Simulation(create_system(SYSTEM, **settings), dt=0.01).prepare().run(until=40)
-    ax.plot(np.ravel(run.trajectory_.values('mass.x')), np.ravel(run.trajectory_.values('mass.v')), label=label)
+    run = simulate(FrictionOscillatorSystem(**settings))
+    ax.plot(np.ravel(run.values('mass.x')), np.ravel(run.values('mass.v')), label=label)
 ax.axvspan(-0.06, 0.06, color='grey', alpha=0.3, label='equilibria')
 ax.set_xlabel('x')
 ax.set_ylabel('v')
