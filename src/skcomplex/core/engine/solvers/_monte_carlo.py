@@ -4,7 +4,7 @@
 # License: MIT
 
 
-from ...components.laws import BoundaryLaw, SampleLaw
+from ...components.laws import SampleLaw
 from ...components.spaces import DiscreteTime, LatticeSpace, NetworkSpace
 from ...specs import SupportSpec
 from ...types import FormKind, OrderKind
@@ -33,7 +33,7 @@ class MonteCarloSolver(LatticeSolver):
         return SupportSpec(
             time={DiscreteTime},
             space={LatticeSpace, NetworkSpace},
-            laws={SampleLaw, BoundaryLaw},
+            laws={SampleLaw},
             orders=frozenset({OrderKind.INTEGER}),
         )
 

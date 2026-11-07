@@ -4,6 +4,7 @@
 # License: MIT
 
 import math
+from collections.abc import Mapping
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
@@ -405,6 +406,7 @@ class GuruOrderBookSystem(BaseSystem):
     topics = ('stock market', 'agents', 'order book', 'imitation', 'network', 'gurus', 'noise traders')
     references = ('Caiani et al. 2016 §3.2',)
     until = 300
+    invariants: ClassVar[Mapping[str, float]] = {f'total_{name}': 1e-6 for name in HOLDINGS}
     observables = tuple(
         [ObservableSpec(f'total_{name}', group='traders', variable=name, reduce='sum') for name in HOLDINGS],
     )

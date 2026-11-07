@@ -4,7 +4,7 @@
 # License: MIT
 
 import math
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
 
@@ -397,6 +397,7 @@ class OrderBookSystem(BaseSystem):
     topics = ('stock market', 'agents', 'order book', 'imitation', 'fundamentalists', 'chartists')
     references = ('Lux and Marchesi 1999', 'Caiani et al. 2016 §3.2.1')
     until = 200
+    invariants: ClassVar[Mapping[str, float]] = {f'total_{name}': 1e-6 for name in HOLDINGS}
     observables = (
         ObservableSpec('chartists', group='traders', variable='strategy', reduce='mean'),
         ObservableSpec('mean_wealth', group='traders', variable='wealth', reduce='mean'),

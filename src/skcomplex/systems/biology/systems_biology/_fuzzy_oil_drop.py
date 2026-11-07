@@ -552,16 +552,12 @@ class FuzzyOilDropSystem(BaseSystem):
                 The tuned run settings by name.
         """
         state = ANGLE_STATE if self.dynamics == 'folding' else COORDINATE_STATE
-        return RunSettings(
-            until=self.until,
-            dt=self.dt,
-            solver=self.solver,
-            observables=[
-                ObservableSpec('RD', function=partial(_read_observed_value, 'relative-distance', self.entry, state)),
-                ObservableSpec('K', function=partial(_read_observed_value, 'environment-factor', self.entry, state)),
-            ],
-            initial_state=self.initial_state,
-        )
+        settings = super().get_run_settings()
+        settings['observables'] = [
+            ObservableSpec('RD', function=partial(_read_observed_value, 'relative-distance', self.entry, state)),
+            ObservableSpec('K', function=partial(_read_observed_value, 'environment-factor', self.entry, state)),
+        ]
+        return settings
 
     @staticmethod
     def _rotate_dihedral(width: float, row: Array, rng: np.random.Generator) -> Array:

@@ -6,7 +6,7 @@ from sage.all__sagemath_symbolics import RR
 
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.problems import BaseProblemSpec
-from skcomplex.core.engine.solvers import BaseSolver, GillespieSolver, LatticeSolver, ScipyODESolver
+from skcomplex.core.engine.solvers import BaseSolver, GillespieSolver, LatticeSolver, MonteCarloSolver, ScipyODESolver
 from skcomplex.core.errors import SolverError
 from skcomplex.core.specs import EntrySpec, LayoutSpec, StepSpec
 from skcomplex.core.types import FormKind
@@ -107,3 +107,4 @@ def test_solvers_support_the_tags_of_the_classes_they_support():
     assert {'none', 'lattice', 'phase space', 'hypergraph'} <= ode.space
     assert GillespieSolver.get_supported_tags().laws == {'jump', 'update'}
     assert 'none' not in LatticeSolver.get_supported_tags().space
+    assert MonteCarloSolver.get_supported_tags().laws == {'sampling'}

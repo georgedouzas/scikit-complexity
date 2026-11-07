@@ -3,9 +3,10 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 
 import numpy as np
+import numpy.typing as npt
 from sklearn.base import clone
 
 from ...base import BaseConfig
@@ -13,6 +14,7 @@ from ...components.system import BaseSystem
 from ...errors import TagError, ValidationError
 from ...specs import ObservableSpec, Tags
 from ..backends import BaseBackend
+from ..compile import BaseCompiler
 from ..solvers import BaseSolver
 from ..solvers._defaults import DEFAULT_SOLVERS
 from ._base import BaseObserver
@@ -52,6 +54,20 @@ def _check_support(runner: BaseConfig, kind: str, tags: Tags) -> None:
         raise TagError(error_msg)
 
 
+def _clone_setting[ConfigT: BaseConfig](setting: ConfigT | None) -> ConfigT | None:
+    """Return an unfitted copy of a solver, a backend, or a compiler, so a run never changes the one it was given.
+
+    Args:
+        setting:
+            The solver, the backend, or the compiler, or `None`.
+
+    Returns:
+        copy:
+            The copy, or `None`.
+    """
+    return None if setting is None else clone(setting)
+
+
 def _choose_solver(tags: Tags) -> BaseSolver | None:
     """Return the default solver the tags choose, or `None` for the compiled form of the system to choose it.
 
@@ -83,17 +99,20 @@ def simulate(
     backend: BaseBackend | None = None,
     observables: Sequence[ObservableSpec] = (),
     observers: Sequence[BaseObserver] = (),
+    invariants: Mapping[str, float] | None = None,
+    schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,
+    compiler: BaseCompiler | None = None,
     random_state: int | np.random.Generator | None = None,
 ) -> Trajectory:
     """Simulate a system until a time and return its trajectory.
 
     A solver takes the role of a splitter in scikit-learn, a backend the role of `n_jobs`, observables the role of
     `scoring`, and observers, such as a Rerun recording, the role of callbacks. An argument left out comes from the
-    tuned run settings of the class of the system, its class variables `until`, `dt`, `solver`, `observables`, and
-    `initial_state`.
-    Without a solver, the tags of the system choose the default solver, or the form the compiler infers when the tags
-    fit several. The tags are read before any compiling, so a solver or a backend that does not support them is
-    rejected first.
+    tuned run settings of the system, which `get_run_settings` returns. A system brings a form of its own through its
+    tuned `compiler`, the one hook to the compiled form.
+    Without a solver, the tags of the system choose the default solver, or the compiled form chooses it when the tags
+    fit several, when the system brings its own compiler, or when it nests systems that run as partitions. The tags
+    are read before any compiling, so a solver or a backend that does not support them is rejected first.
 
     Args:
         system:
@@ -114,7 +133,7 @@ def simulate(
             The solver, or `None` for the tuned solver of the class of the system, or else the default solver.
 
         backend:
-            The backend, or `None` for the default backend.
+            The backend, or `None` for the tuned backend of the system, or else the default backend.
 
         observables:
             The observables to compute and record at every frame, or none for the tuned observables of the class of
@@ -122,6 +141,20 @@ def simulate(
 
         observers:
             The observers that receive every frame, such as a `RerunObserver`.
+
+        invariants:
+            The tolerance of every observable that must stay constant, by the path of the observable, or `None` for the
+            tuned invariants of the system. The run raises a `ConservationError` that names the first observable and
+            frame that leave the tolerance of their value at the first frame.
+
+        schedule:
+            A mapping from dotted parameter name to a function of time, such as a ramp of a control parameter, or
+            `None` for the tuned schedule of the system. At every frame the parameter takes the value of its function
+            at the frame's time.
+
+        compiler:
+            The compiler of the system, or `None` for the tuned compiler of the system, or else `PassCompiler`. A
+            system that brings a form of its own, such as a rewriting system, tunes the compiler of that form.
 
         random_state:
             The seed or generator of stochastic solvers.
@@ -157,22 +190,28 @@ def simulate(
     if end is None:
         error_msg = f'{type(system).__name__} has no tuned end time. Pass `until`.'
         raise ValidationError(error_msg)
-    tuned = settings['solver'] if solver is None else solver
-    stepper = None if tuned is None else clone(tuned)
+    stepper = _clone_setting(settings['solver'] if solver is None else solver)
+    runner = _clone_setting(settings['backend'] if backend is None else backend)
+    form = _clone_setting(settings['compiler'] if compiler is None else compiler)
     tags = system.get_tags()
     if stepper is not None:
         _check_support(stepper, 'solver', tags)
-    if backend is not None:
-        _check_support(backend, 'backend', tags)
+    if runner is not None:
+        _check_support(runner, 'backend', tags)
     composite = system.prepare().system_
     tuned_observables = () if composite is system else settings['observables']
+    if stepper is None and form is None and not composite.systems:
+        stepper = _choose_solver(tags)
     simulation = Simulation(
         composite,
-        solver=_choose_solver(tags) if stepper is None else stepper,
-        backend=backend,
+        compiler=form,
+        solver=stepper,
+        backend=runner,
         dt=settings['dt'] if dt is None else dt,
         observers=observers,
+        schedule=settings['schedule'] if schedule is None else schedule,
         observables=observables or tuned_observables,
+        invariants=settings['invariants'] if invariants is None else invariants,
         initial_state=settings['initial_state'] if initial_state is None else initial_state,
         random_state=random_state,
         until=end,

@@ -7,12 +7,13 @@ from __future__ import annotations
 
 import functools
 from abc import abstractmethod
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
 from types import SimpleNamespace
 from typing import ClassVar, TypedDict
 
 import numpy as np
+import numpy.typing as npt
 from sklearn.base import BaseEstimator
 
 from ..base import BaseConfig
@@ -32,6 +33,10 @@ class RunSettings(TypedDict):
     solver: BaseConfig | None
     observables: Sequence[ObservableSpec]
     initial_state: Mapping[str, object] | None
+    invariants: Mapping[str, float] | None
+    schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None
+    compiler: BaseConfig | None
+    backend: BaseConfig | None
 
 
 class BaseSystem(BasePart[BaseSpace, SimpleNamespace]):
@@ -47,7 +52,9 @@ class BaseSystem(BasePart[BaseSpace, SimpleNamespace]):
 
     A subclass may give tuned run settings as class variables, which `simulate` reads for the arguments a call leaves
     out: `until`, the end time, `dt`, the time between frames, `solver`, the solver, `observables`, the observables,
-    and `initial_state`, the initial values by dotted state name. The compiler also reads `observables` of a `System`
+    `initial_state`, the initial values by dotted state name, `invariants`, the tolerance of every observable that
+    must stay constant, `schedule`, the functions of time that drive parameters, `compiler`, the compiler of a form
+    the system brings, and `backend`, the backend. The compiler also reads `observables` of a `System`
     it compiles, so the tuned observables of a subclass of `System` are computed without being passed again.
 
     Attributes:
@@ -87,6 +94,10 @@ class BaseSystem(BasePart[BaseSpace, SimpleNamespace]):
     solver: ClassVar[BaseConfig | None] = None
     observables: Sequence[ObservableSpec] = ()
     initial_state: ClassVar[Mapping[str, object] | None] = None
+    invariants: ClassVar[Mapping[str, float] | None] = None
+    schedule: ClassVar[Mapping[str, Callable[[float], float | npt.ArrayLike]] | None] = None
+    compiler: ClassVar[BaseConfig | None] = None
+    backend: ClassVar[BaseConfig | None] = None
 
     system_: System
     laws_: Sequence[BasePart]
@@ -127,17 +138,19 @@ class BaseSystem(BasePart[BaseSpace, SimpleNamespace]):
         if type(old) is not type(new):
             return False
         if isinstance(old, BaseEstimator) and isinstance(new, BaseEstimator):
-            return self._is_equal(old.get_params(deep=False), new.get_params(deep=False))
+            old, new = old.get_params(deep=False), new.get_params(deep=False)
         if isinstance(old, Mapping) and isinstance(new, Mapping):
-            return old.keys() == new.keys() and all(self._is_equal(old[key], new[key]) for key in old)
-        if isinstance(old, list | tuple) and isinstance(new, list | tuple):
-            return len(old) == len(new) and all(self._is_equal(*pair) for pair in zip(old, new, strict=True))
-        if isinstance(old, np.ndarray) and isinstance(new, np.ndarray):
-            return old.shape == new.shape and bool(np.array_equal(old, new))
-        try:
-            return bool(old == new)
-        except (TypeError, ValueError):
-            return False
+            equal = old.keys() == new.keys() and all(self._is_equal(old[key], new[key]) for key in old)
+        elif isinstance(old, list | tuple) and isinstance(new, list | tuple):
+            equal = len(old) == len(new) and all(self._is_equal(*pair) for pair in zip(old, new, strict=True))
+        elif isinstance(old, np.ndarray) and isinstance(new, np.ndarray):
+            equal = old.shape == new.shape and bool(np.array_equal(old, new))
+        else:
+            try:
+                equal = bool(old == new)
+            except (TypeError, ValueError):
+                equal = False
+        return equal
 
     def _pass_parameters(self) -> System:
         """Return the parts of the system built from its current model parameters.
@@ -207,8 +220,9 @@ class BaseSystem(BasePart[BaseSpace, SimpleNamespace]):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings that `simulate` uses for every argument a call leaves out.
 
-        The settings are the class attributes `until`, `dt`, `solver`, `observables`, and `initial_state`. A system
-        whose settings depend on its model parameters or on its built parts overrides this method.
+        The settings are the class attributes `until`, `dt`, `solver`, `observables`, `initial_state`, `invariants`,
+        `schedule`, `compiler`, and `backend`. A system whose settings depend on its model parameters or on its built
+        parts overrides this method.
 
         Returns:
             settings:
@@ -217,7 +231,7 @@ class BaseSystem(BasePart[BaseSpace, SimpleNamespace]):
         Examples:
             >>> from skcomplex.systems.chemistry.pattern_formation import GrayScottSystem
             >>> sorted(GrayScottSystem().get_run_settings())
-            ['dt', 'initial_state', 'observables', 'solver', 'until']
+            ['backend', 'compiler', 'dt', 'initial_state', 'invariants', 'observables', 'schedule', 'solver', 'until']
         """
         return RunSettings(
             until=self.until,
@@ -225,6 +239,10 @@ class BaseSystem(BasePart[BaseSpace, SimpleNamespace]):
             solver=self.solver,
             observables=self.observables,
             initial_state=self.initial_state,
+            invariants=self.invariants,
+            schedule=self.schedule,
+            compiler=self.compiler,
+            backend=self.backend,
         )
 
 

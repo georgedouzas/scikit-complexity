@@ -8,14 +8,16 @@ import pytest
 
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import JumpInteraction, RateInteraction
+from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.spaces import LatticeSpace, StaticTime
 from skcomplex.core.components.system import BaseSystem, System
 from skcomplex.core.engine.backends import JaxBackend
-from skcomplex.core.engine.runtime import RecorderObserver, Simulation, Trajectory, simulate
+from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.engine.runtime import RecorderObserver, Simulation, Trajectory, _simulate, simulate
 from skcomplex.core.engine.runtime._simulate import _choose_solver
 from skcomplex.core.engine.solvers import GillespieSolver, MonteCarloSolver, RootSolver, ScipyODESolver
-from skcomplex.core.errors import TagError, ValidationError
-from skcomplex.core.specs import ObservableSpec, StateSpec, Tags
+from skcomplex.core.errors import ConservationError, TagError, ValidationError
+from skcomplex.core.specs import ObservableSpec, ParameterSpec, StateSpec, Tags
 
 
 class TankElement(Element):
@@ -46,6 +48,44 @@ class DecaySystem(BaseSystem):
     def _build_system(self) -> System:
         decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -self.k * s.target.x)
         return System(self.label, elements=[TankElement('tank')], interactions=[decay])
+
+
+def _level(namespace):
+    """Return the level of a tank."""
+    return namespace.x
+
+
+class LeakyTankElement(Element):
+    """Element with one real state that leaks at a rate."""
+
+    law_classes = (RateLaw,)
+
+    def __init__(
+        self,
+        label: str,
+        x: Annotated[float, StateSpec()] = 1.0,
+        k: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.k = k
+
+    def _get_laws(self, s):
+        return [RateLaw(s.x, -s.k * s.x)]
+
+
+class LeakySystem(BaseSystem):
+    """System of one leaky tank, with tuned invariants, schedule, and compiler."""
+
+    until = 2.0
+    dt = 0.5
+    observables = (ObservableSpec('level', _level, element='tank'),)
+    invariants: ClassVar[Mapping[str, float]] = {'tank.level': 1e-9}
+    schedule: ClassVar[Mapping[str, object]] = {'tank.k': lambda t: 0.0}
+    compiler = PassCompiler()
+
+    def _build_system(self) -> System:
+        return System(self.label, elements=[LeakyTankElement('tank')])
 
 
 def _jump_system() -> System:
@@ -126,3 +166,52 @@ def test_tags_choose_the_default_solver_when_one_default_supports_them():
     assert _choose_solver(Tags(time=frozenset({'continuous'}), laws=frozenset({'rate'}))) is None
     assert _choose_solver(Tags(laws=None)) is None
     assert StaticTime.time_tag == 'static'
+
+
+def test_simulate_reads_the_tuned_invariants_schedule_and_compiler(monkeypatch):
+    """Test that the tuned schedule holds the level, which the tuned invariant checks, and the tuned compiler runs."""
+    trajectory = simulate(LeakySystem())
+    assert trajectory.values('tank.x').tolist() == [1.0] * 5
+    with pytest.raises(ConservationError, match=r'invariant tank\.level'):
+        simulate(LeakySystem(), schedule={'tank.k': lambda t: 1.0})
+    assert simulate(LeakySystem(), schedule={'tank.k': lambda t: 1.0}, invariants={}).values('tank.x')[-1] < 1.0
+    compilers = []
+
+    def capture(simulation):
+        compilers.append(simulation.compiler)
+        raise ValidationError
+
+    monkeypatch.setattr(Simulation, 'prepare', capture)
+    with pytest.raises(ValidationError):
+        simulate(LeakySystem())
+    assert isinstance(compilers[0], PassCompiler)
+    assert compilers[0] is not LeakySystem.compiler
+
+
+def test_simulate_rejects_a_tuned_backend_of_other_spaces():
+    """Test that a tuned backend that does not support the space of a system is rejected, naming the space."""
+
+    class CellsSystem(BaseSystem):
+        """System of decaying cells on a lattice, with a tuned backend."""
+
+        backend = JaxBackend()
+
+        def _build_system(self) -> System:
+            group = GroupElement('cells', element=TankElement, space=LatticeSpace((3,)))
+            decay = RateInteraction('decay', target='cells', state='x', rate=lambda s: -s.target.x)
+            return System(self.label, elements=[group], interactions=[decay])
+
+    with pytest.raises(TagError, match='The backend JaxBackend does not support the space lattice'):
+        simulate(CellsSystem(), until=1.0)
+
+
+def test_simulate_leaves_the_solver_of_nested_systems_to_the_compiled_form(monkeypatch):
+    """Test that a system of nested systems runs without the tags choosing a solver for the whole."""
+
+    def fail(tags):
+        raise AssertionError
+
+    monkeypatch.setattr(_simulate, '_choose_solver', fail)
+    decay = RateInteraction('decay', target='tank', state='x', rate=lambda s: -s.target.x)
+    nested = System(systems=[System('left', elements=[TankElement('tank')], interactions=[decay])])
+    assert simulate(nested, until=1.0).values('left/tank.x')[-1] == pytest.approx(np.exp(-1.0), rel=1e-3)

@@ -3,7 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from typing import Annotated
+from collections.abc import Mapping
+from typing import Annotated, ClassVar
 
 import numpy as np
 from sage.all__sagemath_symbolics import oo
@@ -142,6 +143,7 @@ class GoodsTradersSystem(BaseSystem):
     topics = ('market', 'agents', 'barter', 'price convergence', 'grid')
     references = ('Epstein and Axtell 1996',)
     until = 50
+    invariants: ClassVar[Mapping[str, float]] = dict.fromkeys(GOODS, 1e-6)
     observables = (
         ObservableSpec('utility', _utility, group='traders', reduce='mean'),
         *(ObservableSpec(good, group='traders', variable=good, reduce='sum') for good in GOODS),

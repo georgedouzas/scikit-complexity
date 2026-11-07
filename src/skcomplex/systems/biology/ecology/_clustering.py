@@ -16,6 +16,7 @@ from ....core.components.interactions import BaseInteraction, Interaction, JumpI
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.spaces import LatticeSpace
 from ....core.components.system import BaseSystem, System
+from ....core.engine.backends import NumbaBackend
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
@@ -147,6 +148,7 @@ class NeutralClusteringSystem(BaseSystem):
     references = ('Bertin 2021', 'Houchmandzadeh 2002', 'Houchmandzadeh 2009')
     until = 50.0
     dt = 0.5
+    backend = NumbaBackend()
     observables = (
         ObservableSpec('mean', group='patches', variable='n', reduce='mean'),
         ObservableSpec('variance', group='patches', variable='n', reduce='var'),

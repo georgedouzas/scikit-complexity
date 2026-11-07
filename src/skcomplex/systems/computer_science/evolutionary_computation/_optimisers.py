@@ -18,7 +18,6 @@ from ....core.components.laws import UpdateLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
 from ....core.components.system import BaseSystem, RunSettings, System
-from ....core.engine.solvers import CoSimulationSolver
 from ....core.errors import ValidationError
 from ....core.specs import (
     CovarianceAdaptationSpec,
@@ -351,11 +350,11 @@ class EvolutionaryOptimisersSystem(BaseSystem):
         return System(self.label, elements=[candidates], interactions=[search], time=DiscreteTime())
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the solver and the lowest candidate energy of simulated annealing.
+        """Return the tuned run settings, with the lowest candidate energy of simulated annealing.
 
         A population optimiser keeps the default settings. Simulated annealing nests the search and the tracker of the
-        best energy, which the co-simulation solver runs side by side, and records the lowest energy its candidates
-        reach, as `search/lowest`, which the tracker reads.
+        best energy, which run side by side, and records the lowest energy its candidates reach, as `search/lowest`,
+        which the tracker reads.
 
         Returns:
             settings:
@@ -371,5 +370,4 @@ class EvolutionaryOptimisersSystem(BaseSystem):
         if self.algorithm == ANNEALING and self.landscape in MEMBER_ENERGIES:
             member = MEMBER_ENERGIES[self.landscape]
             settings['observables'] = (ObservableSpec('search/lowest', member, group='candidates', reduce='min'),)
-            settings['solver'] = CoSimulationSolver()
         return settings
