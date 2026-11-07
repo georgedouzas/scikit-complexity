@@ -47,7 +47,9 @@ from ._gene_viral_therapy import (
 )
 from ._growth import (
     ExponentialLinearGrowthInteraction,
+    GompertzGrowthInteraction,
     LogKillInteraction,
+    PowerLawGrowthInteraction,
     VascularSupportInteraction,
     VasculatureElement,
     dynamic_carrying_capacity,
@@ -134,6 +136,7 @@ __all__: list[str] = [
     'ErythropoiesisElement',
     'ExponentialLinearGrowthInteraction',
     'GliomaBrainElement',
+    'GompertzGrowthInteraction',
     'Her2TumourElement',
     'IntermittentSuppressionElement',
     'IrradiatedTumourElement',
@@ -149,6 +152,7 @@ __all__: list[str] = [
     'OptimalChemotherapyElement',
     'OptimalImmunotherapyElement',
     'PiecewiseLinearProstateElement',
+    'PowerLawGrowthInteraction',
     'RadiationCompetitionElement',
     'ResistanceSwitchingElement',
     'RestingHuntingChemotherapyElement',

@@ -23,7 +23,7 @@ from ....core.components.types import Target
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._catalog import register_system
-from ._spike_reset import SpikeResetInteraction
+from ..common.excitable import SpikeResetInteraction
 
 SILENT = -2.0
 

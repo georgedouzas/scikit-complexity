@@ -9,8 +9,8 @@ from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression
 
-from ....core.components.interactions import CrossingInteraction
-from ....core.specs import ParameterSpec, RoleSpec
+from .....core.components.interactions import CrossingInteraction
+from .....core.specs import ParameterSpec, RoleSpec
 
 
 class SpikeResetInteraction(CrossingInteraction):

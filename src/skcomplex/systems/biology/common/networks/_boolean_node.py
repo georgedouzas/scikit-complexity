@@ -7,8 +7,8 @@ from typing import Annotated
 
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 
-from ....core.components.elements import Element
-from ....core.specs import StateSpec, VisualSpec
+from .....core.components.elements import Element
+from .....core.specs import StateSpec, VisualSpec
 
 
 class BooleanNodeElement(Element):

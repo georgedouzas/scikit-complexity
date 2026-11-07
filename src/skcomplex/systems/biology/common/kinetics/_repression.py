@@ -10,10 +10,10 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import Expression, oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.interactions import ReactionInteraction
-from ....core.components.laws.utils import hill
-from ....core.specs import ParameterSpec, RoleSpec
-from ....core.types import Stoichiometry
+from .....core.components.interactions import ReactionInteraction
+from .....core.components.laws.utils import hill
+from .....core.specs import ParameterSpec, RoleSpec
+from .....core.types import Stoichiometry
 
 
 class RepressionInteraction(ReactionInteraction):

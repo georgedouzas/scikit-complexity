@@ -21,7 +21,7 @@ from ....core.components.system import System
 from ....core.components.types import Target
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._theta_neuron import ThetaNeuronElement
+from ..common.excitable import ThetaNeuronElement
 
 
 class PolyhomeostaticNeuronElement(Element):

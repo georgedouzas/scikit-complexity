@@ -14,7 +14,7 @@ from ....core.components.interactions import BaseInteraction, ReactionInteractio
 from ....core.components.system import System
 from ....core.specs import StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._repression import RepressionInteraction
+from ..common.kinetics import RepressionInteraction
 
 
 class GeneElement(Element):

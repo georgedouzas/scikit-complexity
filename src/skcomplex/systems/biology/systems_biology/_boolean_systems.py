@@ -22,8 +22,7 @@ from ....core.components.system import System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._boolean_function import BooleanFunctionInteraction
-from ._boolean_node import BooleanNodeElement
+from ..common.networks import BooleanFunctionInteraction, BooleanNodeElement
 from .types import Rule
 
 RAMAN = 'Raman 2021'

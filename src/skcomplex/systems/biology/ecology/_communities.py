@@ -15,8 +15,12 @@ from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.system import System
 from ....core.specs import ParameterSpec, RoleSpec
 from ..._catalog import register_system
-from ..common.populations import LogisticGrowthInteraction, MortalityInteraction, PopulationElement
-from ._predation_interaction import PredationInteraction
+from ..common.populations import (
+    LogisticGrowthInteraction,
+    MortalityInteraction,
+    PopulationElement,
+    PredationInteraction,
+)
 
 WEB_POPULATIONS = {'frogs': 50.0, 'mice': 50.0, 'snakes': 10.0, 'hawks': 5.0}
 

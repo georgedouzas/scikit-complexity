@@ -1,5 +1,7 @@
 """Systems biology: gene circuits, Boolean networks, circadian clocks, signalling cascades, and Min-protein waves."""
 
+from ..common.kinetics import RepressionInteraction, SpeciesElement
+from ..common.networks import BooleanFunctionInteraction, BooleanNodeElement
 from ._adaptation import (
     EnzymeNodeElement,
     EnzymeRegulationInteraction,
@@ -8,8 +10,6 @@ from ._adaptation import (
 )
 from ._backbone_geometry import BackboneGeometry
 from ._boolean import ThresholdFunctionInteraction, random_boolean_network, yeast_cell_cycle
-from ._boolean_function import BooleanFunctionInteraction
-from ._boolean_node import BooleanNodeElement
 from ._boolean_systems import (
     MajorityNodeElement,
     NoisyMajorityInteraction,
@@ -77,8 +77,6 @@ from ._networks import (
 )
 from ._probabilistic import ProbabilisticFunctionInteraction, ProbabilisticNodeElement, probabilistic_boolean_network
 from ._regulatory_fba import GlucoseSensorInteraction, regulatory_fba
-from ._repression import RepressionInteraction
-from ._species import SpeciesElement
 from ._structure_spec import StructureSpec
 from ._structures import read_biopython_structure, read_structure, read_trajectory, write_structure
 

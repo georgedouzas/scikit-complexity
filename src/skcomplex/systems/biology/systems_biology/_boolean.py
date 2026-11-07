@@ -16,8 +16,7 @@ from ....core.components.system import System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec
 from ..._catalog import register_system
-from ._boolean_function import BooleanFunctionInteraction
-from ._boolean_node import BooleanNodeElement
+from ..common.networks import BooleanFunctionInteraction, BooleanNodeElement
 
 YEAST_NODES = ('Cln3', 'MBF', 'SBF', 'Cln1_2', 'Cdh1', 'Swi5', 'Cdc20', 'Clb5_6', 'Sic1', 'Clb1_2', 'Mcm1')
 

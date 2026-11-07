@@ -19,9 +19,7 @@ from ....core.components.system import System
 from ....core.errors import ValidationError
 from ....core.specs import DeclaredVariableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ..common.kinetics import MichaelisMentenInteraction
-from ._repression import RepressionInteraction
-from ._species import SpeciesElement
+from ..common.kinetics import MichaelisMentenInteraction, RepressionInteraction, SpeciesElement
 
 CONCENTRATIONS = MappingProxyType(
     {

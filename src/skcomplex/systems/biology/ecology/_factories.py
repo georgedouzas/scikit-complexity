@@ -21,8 +21,8 @@ from ..common.populations import (
     LogisticGrowthInteraction,
     MortalityInteraction,
     PopulationElement,
+    PredationInteraction,
 )
-from ._predation_interaction import PredationInteraction
 
 DAYS = (0.0, 29.2, 58.3, 87.5, 117.0, 146.0, 175.0, 204.0, 233.0, 263.0, 292.0, 321.0, 350.0)
 

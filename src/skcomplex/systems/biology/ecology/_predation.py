@@ -18,8 +18,12 @@ from ....core.components.system import System
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ParameterSpec, RoleSpec
 from ..._catalog import register_system
-from ..common.populations import ExponentialGrowthInteraction, MortalityInteraction, PopulationElement
-from ._predation_interaction import PredationInteraction
+from ..common.populations import (
+    ExponentialGrowthInteraction,
+    MortalityInteraction,
+    PopulationElement,
+    PredationInteraction,
+)
 
 
 class ParasitismInteraction(Interaction):

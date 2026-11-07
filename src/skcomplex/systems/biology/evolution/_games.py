@@ -18,7 +18,7 @@ from ....core.components.system import System
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
 from ..._catalog import register_system
-from ._replicator import ReplicatorInteraction
+from ..common.populations import ReplicatorInteraction
 
 NEAREST = VonNeumannNeighborhood()
 

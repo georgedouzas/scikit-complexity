@@ -19,8 +19,7 @@ from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.system import System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._host import HostElement
-from ._spreading import SpreadingInteraction
+from ..common.networks import HostElement, SpreadingInteraction
 
 HIDDEN = VisualSpec('sites', {'states': []})
 

@@ -1,5 +1,6 @@
 """Ecology: population growth, predation, competition, food webs, succession, grazing, and neutral communities."""
 
+from ..common.populations import PredationInteraction
 from ._agent_predation import PredatorElement, PreyElement, agent_based_lotka_volterra
 from ._cell_quota import QuotaPhytoplanktonElement, droop_cell_quota
 from ._clustering import HabitatPatchElement, HoppingInteraction, neutral_clustering
@@ -45,7 +46,6 @@ from ._predation import (
     rosenzweig_macarthur,
     stochastic_predator_prey,
 )
-from ._predation_interaction import PredationInteraction
 from ._sequential import AbundanceElement, LinearGrowthInteraction, sequentially_linear_ecosystem
 from ._speciation import NeutralReplacementInteraction, OrganismElement, neutral_biodiversity
 from ._stigmergy import (

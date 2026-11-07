@@ -15,7 +15,7 @@ from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.system import System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._spike_reset import SpikeResetInteraction
+from ..common.excitable import SpikeResetInteraction
 
 PEAK = 30.0
 

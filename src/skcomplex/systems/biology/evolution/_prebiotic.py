@@ -20,7 +20,7 @@ from ....core.components.system import System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._replicator import ReplicatorInteraction
+from ..common.populations import ReplicatorInteraction
 
 
 class GenotypeClassElement(Element):

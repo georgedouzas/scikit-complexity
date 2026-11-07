@@ -1,4 +1,4 @@
-"""Test the `_spreading` module of `skcomplex.systems.biology.epidemiology`."""
+"""Test the `_spreading` module of `skcomplex.systems.biology.common.networks`."""
 
 from typing import Annotated
 

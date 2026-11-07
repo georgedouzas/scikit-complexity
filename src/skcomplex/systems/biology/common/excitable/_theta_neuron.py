@@ -8,9 +8,9 @@ from typing import Annotated
 
 from sage.all__sagemath_symbolics import cos, pi
 
-from ....core.components.elements import Element
-from ....core.components.laws import BaseLaw, RateLaw
-from ....core.specs import ParameterSpec, StateSpec, VisualSpec
+from .....core.components.elements import Element
+from .....core.components.laws import BaseLaw, RateLaw
+from .....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ThetaNeuronElement(Element):

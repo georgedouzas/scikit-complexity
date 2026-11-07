@@ -9,10 +9,10 @@ from typing import Annotated
 
 from sage.all__sagemath_symbolics import Expression
 
-from ....core.components.interactions import RateInteraction
-from ....core.components.laws.utils import total
-from ....core.errors import ValidationError
-from ....core.specs import RoleSpec
+from .....core.components.interactions import RateInteraction
+from .....core.components.laws.utils import total
+from .....core.errors import ValidationError
+from .....core.specs import RoleSpec
 
 
 class ReplicatorInteraction(RateInteraction):

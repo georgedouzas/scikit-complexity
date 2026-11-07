@@ -1,5 +1,6 @@
 """Epidemiology: compartmental, network, metapopulation, and agent-based systems of infection and recovery."""
 
+from ..common.networks import HostElement, SpreadingInteraction
 from ._adaptive import (
     ActiveHostElement,
     CarrierElement,
@@ -26,12 +27,10 @@ from ._factories import (
     sis,
     zombie_outbreak,
 )
-from ._host import HostElement
 from ._networks import DegreeClassElement, SubpopulationElement, heterogeneous_mean_field_sis, metapopulation
 from ._outbreaks import ImmunizingDegreeClassElement, heterogeneous_mean_field_sir
 from ._records import PathogenElement, ResidentElement, ResistanceInfectionInteraction, record_dynamics_epidemic
 from ._recurrent import EpidemicCenterElement, delayed_sirs
-from ._spreading import SpreadingInteraction
 from ._vaccination import VaccinatedPopulationElement, sir_vaccination
 
 __all__: list[str] = [

@@ -23,7 +23,7 @@ from ..common.metabolism import (
     SwitchInteraction,
     load_network,
 )
-from ._boolean_node import BooleanNodeElement
+from ..common.networks import BooleanNodeElement
 
 GROWTH = 'Biomass_Ecoli_core'
 GLUCOSE_EXCHANGE = 'EX_glc__D_e'

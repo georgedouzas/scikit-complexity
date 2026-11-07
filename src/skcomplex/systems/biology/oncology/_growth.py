@@ -19,11 +19,9 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
 from ..common.populations import (
     ExponentialGrowthInteraction,
-    GompertzGrowthInteraction,
     GrowthInteraction,
     MortalityInteraction,
     PopulationElement,
-    PowerLawGrowthInteraction,
 )
 
 GROWTH_REFERENCES = ('Padmanabhan, Meskin, and Al Moustafa 2021', 'Benzekry et al. 2014')
@@ -233,6 +231,126 @@ class VascularSupportInteraction(Interaction):
         """
         n, K = s.tumour.n, s.vasculature.K
         return [RateLaw(n, s.r * n * log(K / n)), RateLaw(K, s.d * n ** (2 / 3))]
+
+
+class GompertzGrowthInteraction(GrowthInteraction):
+    """Gompertz growth towards a capacity, `dn/dt = r n log(K / n(t - tau))`, without harvest.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the element or group whose population grows.
+
+        r:
+            The growth rate.
+
+        K:
+            The capacity.
+
+        tau:
+            The delay of the limiting factor, 0 for none.
+
+        state:
+            The name of the state of the target that holds the population.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import CompartmentElement
+        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.systems.biology.oncology import GompertzGrowthInteraction
+        >>> system = System(
+        ...     elements=[CompartmentElement('tumour', n=1.0)],
+        ...     interactions=[GompertzGrowthInteraction('growth', target='tumour', r=1.0, K=20.0)],
+        ... )
+        >>> trajectory = Simulation(system, dt=0.1).prepare().run(until=30.0).trajectory_
+        >>> round(float(trajectory.values('tumour.n')[-1]), 3)
+        20.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.0719,
+        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1964.0,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        state: str = 'n',
+    ) -> None:
+        super().__init__(label, target=target, r=r, K=K, tau=tau, form='gompertz', state=state)
+
+    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
+        """Return the Gompertz growth, with no harvest.
+
+        Args:
+            namespace:
+                The namespace of the symbols the rate can use, with the namespace of the target.
+
+        Returns:
+            rate:
+                The rate of the population.
+        """
+        return self._get_growth(namespace)
+
+
+class PowerLawGrowthInteraction(GrowthInteraction):
+    """Growth that scales as a power of the size, `dn/dt = r n ** p`, without harvest.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the element or group whose population grows.
+
+        r:
+            The growth rate.
+
+        p:
+            The exponent, `2/3` for a growing rim and 1 for exponential growth.
+
+        state:
+            The name of the state of the target that holds the population.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import CompartmentElement
+        >>> from skcomplex.core.components.system import System
+        >>> from skcomplex.core.engine.runtime import Simulation
+        >>> from skcomplex.systems.biology.oncology import PowerLawGrowthInteraction
+        >>> system = System(
+        ...     elements=[CompartmentElement('tumour', n=1.0)],
+        ...     interactions=[PowerLawGrowthInteraction('growth', target='tumour', r=1.0, p=0.5)],
+        ... )
+        >>> trajectory = Simulation(system, dt=0.01).prepare().run(until=2.0).trajectory_
+        >>> round(float(trajectory.values('tumour.n')[-1]), 3)
+        4.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        r: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.32,
+        p: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.58,
+        state: str = 'n',
+    ) -> None:
+        super().__init__(label, target=target, r=r, p=p, form='power', state=state)
+
+    def _get_rate(self, namespace: SimpleNamespace) -> Expression:
+        """Return the power-law growth, with no harvest.
+
+        Args:
+            namespace:
+                The namespace of the symbols the rate can use, with the namespace of the target.
+
+        Returns:
+            rate:
+                The rate of the population.
+        """
+        return self._get_growth(namespace)
 
 
 @register_system(

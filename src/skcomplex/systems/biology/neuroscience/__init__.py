@@ -1,5 +1,6 @@
 """Neuroscience: spiking and conductance-based neurons, populations, networks, excitable networks, and synapses."""
 
+from ..common.excitable import SpikeResetInteraction, ThetaNeuronElement
 from ._associative import AssociativeSiteElement, CliqueCompetitionInteraction, associative_thought_process
 from ._conductances import FitzHughNagumoNeuronElement, HodgkinHuxleyElement, fitzhugh_nagumo_ode, hodgkin_huxley
 from ._excitable import ExcitableElement, kinouchi_copelli
@@ -42,9 +43,7 @@ from ._populations import (
     wilson_cowan,
     winners_take_all,
 )
-from ._spike_reset import SpikeResetInteraction
 from ._synapses import AdaptrodeElement, adaptrode
-from ._theta_neuron import ThetaNeuronElement
 
 __all__: list[str] = [
     'AdaptrodeElement',

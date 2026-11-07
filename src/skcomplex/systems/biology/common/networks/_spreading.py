@@ -9,12 +9,12 @@ from typing import Annotated
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from ....core.components.interactions import TransitionInteraction
-from ....core.components.laws import BaseLaw
-from ....core.components.laws.utils import neighbors, where
-from ....core.components.spaces import AdjacencyNeighborhood
-from ....core.errors import ValidationError
-from ....core.specs import ParameterSpec, RoleSpec
+from .....core.components.interactions import TransitionInteraction
+from .....core.components.laws import BaseLaw
+from .....core.components.laws.utils import neighbors, where
+from .....core.components.spaces import AdjacencyNeighborhood
+from .....core.errors import ValidationError
+from .....core.specs import ParameterSpec, RoleSpec
 
 FORMS = ('number', 'fraction')
 

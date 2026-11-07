@@ -1,5 +1,6 @@
 """Evolution: evolutionary games, quasispecies, hypercycles, finite populations, landscapes, and coevolution."""
 
+from ..common.populations import ReplicatorInteraction
 from ._assembly import (
     AssemblyLevelElement,
     PolymerElement,
@@ -42,7 +43,6 @@ from ._prebiotic import (
     eigen_quasispecies,
     hypercycles,
 )
-from ._replicator import ReplicatorInteraction
 from ._rna_walks import (
     NucleotideElement,
     fold_sequence,

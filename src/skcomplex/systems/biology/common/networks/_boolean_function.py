@@ -10,9 +10,9 @@ from typing import Annotated
 
 from sage.all__sagemath_symbolics import SR, Expression
 
-from ....core.components.interactions import MapInteraction
-from ....core.errors import ValidationError
-from ....core.specs import RoleSpec
+from .....core.components.interactions import MapInteraction
+from .....core.errors import ValidationError
+from .....core.specs import RoleSpec
 
 
 class BooleanFunctionInteraction(MapInteraction):
