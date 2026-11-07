@@ -7,9 +7,9 @@ from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.social.cooperation import (
-    nonlinear_pairwise_group_conflict,
-    trimorphic_multilevel_selection,
-    two_level_replicator,
+    NonlinearPairwiseGroupConflictSystem,
+    TrimorphicMultilevelSelectionSystem,
+    TwoLevelReplicatorSystem,
 )
 
 
@@ -23,7 +23,10 @@ def _final_density(system, until, dt=0.02):
 @pytest.mark.parametrize('victory', ['fermi', 'local', 'tullock'])
 def test_nonlinear_pairwise_group_conflict_keeps_the_total(victory):
     """Test that every victory probability keeps the integral of the density at one."""
-    start, final = _final_density(nonlinear_pairwise_group_conflict(40, victory=victory, exponent=2.0), 3.0)
+    start, final = _final_density(
+        NonlinearPairwiseGroupConflictSystem(40, victory=victory, exponent=2.0).prepare().system_,
+        3.0,
+    )
     assert abs(final.sum() / 40 - 1.0) < 1e-10
     assert not np.allclose(final, start)
 
@@ -33,7 +36,10 @@ def test_nonlinear_pairwise_group_conflict_strong_conflict_sustains_punishers():
     centres = (np.arange(50) + 0.5) / 50
     means = {}
     for strength in (0.1, 2.0):
-        _, final = _final_density(nonlinear_pairwise_group_conflict(50, group_strength=strength), 10.0)
+        _, final = _final_density(
+            NonlinearPairwiseGroupConflictSystem(50, group_strength=strength).prepare().system_,
+            10.0,
+        )
         means[strength] = float((final * centres).sum() / 50)
     assert means[2.0] > 0.8
     assert means[0.1] < 0.1
@@ -42,7 +48,7 @@ def test_nonlinear_pairwise_group_conflict_strong_conflict_sustains_punishers():
 @pytest.mark.parametrize('victory', ['defectors', 'payoff'])
 def test_trimorphic_multilevel_selection_lowers_defection_and_keeps_the_total(victory):
     """Test that the mean fraction of defectors falls on the simplex while the integral stays one."""
-    system = trimorphic_multilevel_selection(16, victory=victory)
+    system = TrimorphicMultilevelSelectionSystem(16, victory=victory).prepare().system_
     space = system.elements[0].space.prepare()
     weights = space.volumes_.ravel() / 16**2
     defectors = np.broadcast_to(space.coordinates_['y'][None, None, :], space.shape_).ravel()
@@ -54,15 +60,15 @@ def test_trimorphic_multilevel_selection_lowers_defection_and_keeps_the_total(vi
 def test_multilevel_selection_rejects_an_unknown_victory_probability():
     """Test that an unknown victory probability raises a named error listing the known ones."""
     with pytest.raises(ValidationError, match='fermi'):
-        nonlinear_pairwise_group_conflict(victory='majority')
+        NonlinearPairwiseGroupConflictSystem(victory='majority').prepare()
     with pytest.raises(ValidationError, match='defectors'):
-        trimorphic_multilevel_selection(victory='fermi')
+        TrimorphicMultilevelSelectionSystem(victory='fermi').prepare()
 
 
 @pytest.mark.parametrize(('strength', 'expected'), [(2.0, 0.75), (1.0, 0.5)])
 def test_two_level_replicator_reaches_the_mean_fraction_of_punishers(strength, expected):
     """Test that above `lambda* = c + q - p` the mean fraction of punishers tends to `1 - (c + q - p) / lambda`."""
-    _, final = _final_density(two_level_replicator(group_strength=strength), 20.0, dt=0.01)
+    _, final = _final_density(TwoLevelReplicatorSystem(group_strength=strength).prepare().system_, 20.0, dt=0.01)
     final = final.ravel()
     centres = (np.arange(final.size) + 0.5) / final.size
     assert np.sum(centres * final) / np.sum(final) == pytest.approx(expected, abs=0.02)
@@ -72,13 +78,13 @@ def test_two_level_replicator_reaches_the_mean_fraction_of_punishers(strength, e
 def test_two_level_replicator_loses_the_punishers_below_the_threshold():
     """Test that groups concentrate at all defectors below `lambda*`, and at all punishers if `p > c + q`."""
     centres = (np.arange(100) + 0.5) / 100
-    _, weak = _final_density(two_level_replicator(group_strength=0.3), 20.0, dt=0.01)
+    _, weak = _final_density(TwoLevelReplicatorSystem(group_strength=0.3).prepare().system_, 20.0, dt=0.01)
     assert np.sum(centres * weak.ravel()) / np.sum(weak) < 0.05
-    _, strong = _final_density(two_level_replicator(punishment=1.5), 20.0, dt=0.01)
+    _, strong = _final_density(TwoLevelReplicatorSystem(punishment=1.5).prepare().system_, 20.0, dt=0.01)
     assert np.sum(centres * strong.ravel()) / np.sum(strong) > 0.95
 
 
 def test_two_level_replicator_rejects_a_non_additive_victory():
     """Test that only additively separable victory probabilities reduce to a two-level replicator equation."""
     with pytest.raises(ValidationError, match='Unknown victory'):
-        two_level_replicator(victory='fermi')
+        TwoLevelReplicatorSystem(victory='fermi').prepare()

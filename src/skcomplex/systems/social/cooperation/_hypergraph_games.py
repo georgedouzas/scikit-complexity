@@ -19,9 +19,8 @@ from ....core.components.elements import Element, LatticeElement
 from ....core.components.interactions import CouplingInteraction, ImitationInteraction
 from ....core.components.laws.utils import count, total, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ._contributor import ContributorElement
 
 
@@ -29,7 +28,7 @@ class DilemmaElement(Element):
     """Player of the social dilemmas on a simplicial complex, a cooperator at 1 and a defector at 0, with its payoff.
 
     The play is a `SimplicialDilemmaInteraction` of the network, and the imitation an `ImitationInteraction` that
-    reads the payoffs of the same step, which `simplicial_social_dilemmas` adds.
+    reads the payoffs of the same step, which `SimplicialSocialDilemmasSystem` adds.
 
     Args:
         label:
@@ -222,46 +221,8 @@ CLIQUE = 5
 PHASES = ('play', 'imitate')
 
 
-def _hypergraph(n_nodes: int, sizes: Sequence[int], hyperdegree: float, rng: np.random.Generator) -> xgi.Hypergraph:
-    """Return a hypergraph of hyperedges of random members, `hyperdegree` of every size around a node on average."""
-    hypergraph = xgi.Hypergraph()
-    hypergraph.add_nodes_from(range(n_nodes))
-    for size in sizes:
-        number = round(n_nodes * hyperdegree / size)
-        hypergraph.add_edges_from(rng.choice(n_nodes, size, replace=False).tolist() for _ in range(number))
-    return hypergraph
-
-
-def _triangle_attachment(n_nodes: int, rng: np.random.Generator) -> tuple[nx.Graph, list[tuple[int, ...]]]:
-    """Return a network grown from a complete graph on five nodes by joining every new node to both ends of a link."""
-    graph = nx.complete_graph(CLIQUE)
-    triangles: list[tuple[int, ...]] = list(itertools.combinations(range(CLIQUE), 3))
-    edges = list(graph.edges)
-    for node in range(CLIQUE, n_nodes):
-        first, second = edges[rng.integers(len(edges))]
-        graph.add_edges_from([(node, first), (node, second)])
-        edges.extend([(node, first), (node, second)])
-        triangles.append((min(first, second), max(first, second), node))
-    return graph, triangles
-
-
-@register_system(
-    field='social/cooperation',
-    tags=('hypergraph', 'games', 'cooperation', 'public goods'),
-    references=('Alvarez-Rodriguez et al. 2021', 'Majhi et al. 2022'),
-    defaults={'until': 100, 'dt': 1},
-)
-def hypergraph_public_goods(
-    n_nodes: int = 400,
-    *,
-    sizes: Sequence[int] = (3, 5),
-    hyperdegree: float = 2.0,
-    synergy: float = 4.0,
-    noise: float = 0.5,
-    share: float = 0.5,
-    seed: int = 0,
-) -> System:
-    """Return the public goods game on a hypergraph, played in every hyperedge, with Fermi imitation.
+class HypergraphPublicGoodsSystem(BaseSystem):
+    """The public goods game on a hypergraph, played in every hyperedge, with Fermi imitation.
 
     Every hyperedge is a group that plays the public goods game: a cooperator pays 1, and the pot multiplied by
     `synergy` is shared by the members. Every step has two phases. In the phase `play` every player takes the sum of
@@ -269,6 +230,8 @@ def hypergraph_public_goods(
     random neighbour, a member of one of its hyperedges, with the Fermi probability `1 / (1 + exp((P_own - P_other) /
     K))` of the payoffs of the same step, at the noise `K`. In a well-mixed population defection wins in a group of `m`
     for `synergy < m`, so cooperation needs a synergy near the sizes of the hyperedges.
+
+    The system has the strategies `players.strategy` and the payoffs `players.payoff`.
 
     Args:
         n_nodes:
@@ -292,63 +255,84 @@ def hypergraph_public_goods(
         seed:
             The seed of the hypergraph and the initial strategies.
 
-    Returns:
-        system:
-            The system, with the strategies `players.strategy` and the payoffs `players.payoff`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.cooperation import hypergraph_public_goods
-        >>> hypergraph_public_goods(30).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.cooperation import HypergraphPublicGoodsSystem
+        >>> HypergraphPublicGoodsSystem(30).prepare().system_.elements[0].prepare().size_
         30
     """
-    rng = np.random.default_rng(seed)
-    hypergraph = _hypergraph(n_nodes, sizes, hyperdegree, rng)
-    graph = xgi.to_graph(hypergraph)
-    strategies = (rng.random(n_nodes) < share).astype(float)
-    players = LatticeElement(
-        'players',
-        element=ContributorElement,
-        space=NetworkSpace(graph, hyperedges=hypergraph),
-        values={'strategy': strategies, 'synergy': synergy, 'noise': noise},
-        visual=VisualSpec('sites', {'states': ['strategy'], 'low': 0.0, 'high': 1.0}),
-    )
-    imitation = ImitationInteraction(
-        'imitation',
-        target='players',
-        state='strategy',
-        rule='fermi',
-        form='probability',
-        intensity=1 / noise,
-        phase='imitate',
-    )
-    return System(
-        elements=[players],
-        interactions=[HyperedgeGoodsInteraction('play', target='players', phase='play'), imitation],
-        time=DiscreteTime(schedule=PhasesScheduleSpec(tuple(PhaseSpec(phase) for phase in PHASES))),
-    )
+
+    field = 'social/cooperation'
+    topics = ('hypergraph', 'games', 'cooperation', 'public goods')
+    references = ('Alvarez-Rodriguez et al. 2021', 'Majhi et al. 2022')
+    until = 100
+    dt = 1
+
+    def __init__(
+        self,
+        n_nodes: int = 400,
+        *,
+        sizes: Sequence[int] = (3, 5),
+        hyperdegree: float = 2.0,
+        synergy: float = 4.0,
+        noise: float = 0.5,
+        share: float = 0.5,
+        seed: int = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_nodes = n_nodes
+        self.sizes = sizes
+        self.hyperdegree = hyperdegree
+        self.synergy = synergy
+        self.noise = noise
+        self.share = share
+        self.seed = seed
+
+    @staticmethod
+    def _hypergraph(n_nodes: int, sizes: Sequence[int], hyperdegree: float, rng: np.random.Generator) -> xgi.Hypergraph:
+        """Return a hypergraph of hyperedges of random members, `hyperdegree` of every size around a node on average."""
+        hypergraph = xgi.Hypergraph()
+        hypergraph.add_nodes_from(range(n_nodes))
+        for size in sizes:
+            number = round(n_nodes * hyperdegree / size)
+            hypergraph.add_edges_from(rng.choice(n_nodes, size, replace=False).tolist() for _ in range(number))
+        return hypergraph
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.seed)
+        hypergraph = self._hypergraph(self.n_nodes, self.sizes, self.hyperdegree, rng)
+        graph = xgi.to_graph(hypergraph)
+        strategies = (rng.random(self.n_nodes) < self.share).astype(float)
+        players = LatticeElement(
+            'players',
+            element=ContributorElement,
+            space=NetworkSpace(graph, hyperedges=hypergraph),
+            values={'strategy': strategies, 'synergy': self.synergy, 'noise': self.noise},
+            visual=VisualSpec('sites', {'states': ['strategy'], 'low': 0.0, 'high': 1.0}),
+        )
+        imitation = ImitationInteraction(
+            'imitation',
+            target='players',
+            state='strategy',
+            rule='fermi',
+            form='probability',
+            intensity=1 / self.noise,
+            phase='imitate',
+        )
+        return System(
+            self.label,
+            elements=[players],
+            interactions=[HyperedgeGoodsInteraction('play', target='players', phase='play'), imitation],
+            time=DiscreteTime(schedule=PhasesScheduleSpec(tuple(PhaseSpec(phase) for phase in PHASES))),
+        )
 
 
-@register_system(
-    field='social/cooperation',
-    tags=('simplicial complex', 'games', 'cooperation', 'social dilemmas'),
-    references=('Guo et al. 2021', 'Majhi et al. 2022'),
-    defaults={'until': 100, 'dt': 1},
-)
-def simplicial_social_dilemmas(
-    n_nodes: int = 500,
-    *,
-    simplices: float = 0.5,
-    sucker: float = -0.2,
-    temptation: float = 1.2,
-    sucker_allied: float = 0.5,
-    temptation_allied: float = 0.8,
-    sucker_opposed: float | None = None,
-    temptation_opposed: float | None = None,
-    noise: float = 0.1,
-    share: float = 0.5,
-    seed: int = 0,
-) -> System:
-    """Return the social dilemmas of Guo et al. on the links and the 2-simplices of a simplicial complex.
+class SimplicialSocialDilemmasSystem(BaseSystem):
+    """The social dilemmas of Guo et al. on the links and the 2-simplices of a simplicial complex.
 
     The network grows from a complete graph on five nodes, every new node joining both ends of a random link, which
     forms one new triangle. A share `simplices` of the triangles, drawn at random, are 2-simplices, and the others are
@@ -361,7 +345,8 @@ def simplicial_social_dilemmas(
 
     The review of Majhi et al. writes the payoff as a mean over the links of a player of the mean over the triangles of
     each link, and picks game 2 when `s_ki = s_kj`. This system takes the mean over the links of the triangles, which
-    counts a link once per triangle, and reads the condition as the third member sharing the strategy of the player.
+    counts a link once per triangle, and reads the condition as the third member sharing the strategy of the player. The
+    system has the strategies `players.strategy` and the payoffs `players.payoff`.
 
     Args:
         n_nodes:
@@ -397,48 +382,98 @@ def simplicial_social_dilemmas(
         seed:
             The seed of the network, the 2-simplices, and the initial strategies.
 
-    Returns:
-        system:
-            The system, with the strategies `players.strategy` and the payoffs `players.payoff`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.cooperation import simplicial_social_dilemmas
-        >>> simplicial_social_dilemmas(30).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.cooperation import SimplicialSocialDilemmasSystem
+        >>> SimplicialSocialDilemmasSystem(30).prepare().system_.elements[0].prepare().size_
         30
     """
-    rng = np.random.default_rng(seed)
-    graph, triangles = _triangle_attachment(n_nodes, rng)
-    filled = rng.random(len(triangles)) < simplices
-    hyperedges: list[tuple[int, ...]] = []
-    for triangle, simplex in zip(triangles, filled, strict=True):
-        hyperedges.extend([triangle] if simplex else itertools.combinations(triangle, PAIR))
-    held = np.bincount(np.asarray(triangles).ravel(), minlength=n_nodes).astype(float)
-    players = LatticeElement(
-        'players',
-        element=DilemmaElement,
-        space=NetworkSpace(graph, hyperedges=hyperedges),
-        values={'strategy': (rng.random(n_nodes) < share).astype(float), 'triangles': held},
-        visual=VisualSpec('sites', {'states': ['strategy'], 'low': 0.0, 'high': 1.0}),
-    )
-    play = SimplicialDilemmaInteraction(
-        'play',
-        target='players',
-        sucker=sucker,
-        temptation=temptation,
-        sucker_allied=sucker_allied,
-        temptation_allied=temptation_allied,
-        sucker_opposed=sucker if sucker_opposed is None else sucker_opposed,
-        temptation_opposed=temptation if temptation_opposed is None else temptation_opposed,
-        phase='play',
-    )
-    imitation = ImitationInteraction(
-        'imitation',
-        target='players',
-        state='strategy',
-        rule='fermi',
-        form='probability',
-        intensity=1 / noise,
-        phase='imitate',
-    )
-    time = DiscreteTime(schedule=PhasesScheduleSpec(tuple(PhaseSpec(phase) for phase in PHASES)))
-    return System(elements=[players], interactions=[play, imitation], time=time)
+
+    field = 'social/cooperation'
+    topics = ('simplicial complex', 'games', 'cooperation', 'social dilemmas')
+    references = ('Guo et al. 2021', 'Majhi et al. 2022')
+    until = 100
+    dt = 1
+
+    def __init__(
+        self,
+        n_nodes: int = 500,
+        *,
+        simplices: float = 0.5,
+        sucker: float = -0.2,
+        temptation: float = 1.2,
+        sucker_allied: float = 0.5,
+        temptation_allied: float = 0.8,
+        sucker_opposed: float | None = None,
+        temptation_opposed: float | None = None,
+        noise: float = 0.1,
+        share: float = 0.5,
+        seed: int = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_nodes = n_nodes
+        self.simplices = simplices
+        self.sucker = sucker
+        self.temptation = temptation
+        self.sucker_allied = sucker_allied
+        self.temptation_allied = temptation_allied
+        self.sucker_opposed = sucker_opposed
+        self.temptation_opposed = temptation_opposed
+        self.noise = noise
+        self.share = share
+        self.seed = seed
+
+    @staticmethod
+    def _triangle_attachment(n_nodes: int, rng: np.random.Generator) -> tuple[nx.Graph, list[tuple[int, ...]]]:
+        """Return a network grown from a complete graph on five nodes, joining each new node to both ends of a link."""
+        graph = nx.complete_graph(CLIQUE)
+        triangles: list[tuple[int, ...]] = list(itertools.combinations(range(CLIQUE), 3))
+        edges = list(graph.edges)
+        for node in range(CLIQUE, n_nodes):
+            first, second = edges[rng.integers(len(edges))]
+            graph.add_edges_from([(node, first), (node, second)])
+            edges.extend([(node, first), (node, second)])
+            triangles.append((min(first, second), max(first, second), node))
+        return graph, triangles
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.seed)
+        graph, triangles = self._triangle_attachment(self.n_nodes, rng)
+        filled = rng.random(len(triangles)) < self.simplices
+        hyperedges: list[tuple[int, ...]] = []
+        for triangle, simplex in zip(triangles, filled, strict=True):
+            hyperedges.extend([triangle] if simplex else itertools.combinations(triangle, PAIR))
+        held = np.bincount(np.asarray(triangles).ravel(), minlength=self.n_nodes).astype(float)
+        players = LatticeElement(
+            'players',
+            element=DilemmaElement,
+            space=NetworkSpace(graph, hyperedges=hyperedges),
+            values={'strategy': (rng.random(self.n_nodes) < self.share).astype(float), 'triangles': held},
+            visual=VisualSpec('sites', {'states': ['strategy'], 'low': 0.0, 'high': 1.0}),
+        )
+        play = SimplicialDilemmaInteraction(
+            'play',
+            target='players',
+            sucker=self.sucker,
+            temptation=self.temptation,
+            sucker_allied=self.sucker_allied,
+            temptation_allied=self.temptation_allied,
+            sucker_opposed=self.sucker if self.sucker_opposed is None else self.sucker_opposed,
+            temptation_opposed=self.temptation if self.temptation_opposed is None else self.temptation_opposed,
+            phase='play',
+        )
+        imitation = ImitationInteraction(
+            'imitation',
+            target='players',
+            state='strategy',
+            rule='fermi',
+            form='probability',
+            intensity=1 / self.noise,
+            phase='imitate',
+        )
+        time = DiscreteTime(schedule=PhasesScheduleSpec(tuple(PhaseSpec(phase) for phase in PHASES)))
+        return System(self.label, elements=[players], interactions=[play, imitation], time=time)

@@ -1,35 +1,41 @@
 """Cooperation: evolutionary games between neighbours, in hyperedges, in tournaments, and between groups."""
 
 from ._contributor import ContributorElement
-from ._game_transitions import DonorElement, DonorView, GameTransitionsInteraction, game_transitions
+from ._game_transitions import DonorElement, DonorView, GameTransitionsInteraction, GameTransitionsSystem
 from ._hypergraph_games import (
     DilemmaElement,
     HyperedgeGoodsInteraction,
+    HypergraphPublicGoodsSystem,
     SimplicialDilemmaInteraction,
-    hypergraph_public_goods,
-    simplicial_social_dilemmas,
+    SimplicialSocialDilemmasSystem,
 )
 from ._multilevel_selection import (
-    nonlinear_pairwise_group_conflict,
-    trimorphic_multilevel_selection,
-    two_level_replicator,
+    NonlinearPairwiseGroupConflictSystem,
+    TrimorphicMultilevelSelectionSystem,
+    TwoLevelReplicatorSystem,
 )
 from ._spatial_games import (
     IteratedDilemmaInteraction,
+    IteratedLatticeDilemmaSystem,
     IteratedPrisonerElement,
     PrisonerElement,
     PrisonersDilemmaInteraction,
+    PublicGoodsGameSystem,
     PublicGoodsInteraction,
-    iterated_lattice_dilemma,
-    public_goods_game,
-    spatial_prisoners_dilemma,
+    SpatialPrisonersDilemmaSystem,
 )
-from ._tournaments import StrategistElement, StrategistView, TournamentInteraction, play, prisoners_dilemma_tournament
+from ._tournaments import (
+    PrisonersDilemmaTournamentSystem,
+    StrategistElement,
+    StrategistView,
+    TournamentInteraction,
+    play,
+)
 from ._two_level_birth_death import (
     PunisherGroupElement,
     PunisherGroupView,
     TwoLevelBirthDeathInteraction,
-    two_level_birth_death,
+    TwoLevelBirthDeathSystem,
 )
 
 __all__: list[str] = [
@@ -38,29 +44,29 @@ __all__: list[str] = [
     'DonorElement',
     'DonorView',
     'GameTransitionsInteraction',
+    'GameTransitionsSystem',
     'HyperedgeGoodsInteraction',
+    'HypergraphPublicGoodsSystem',
     'IteratedDilemmaInteraction',
+    'IteratedLatticeDilemmaSystem',
     'IteratedPrisonerElement',
+    'NonlinearPairwiseGroupConflictSystem',
     'PrisonerElement',
     'PrisonersDilemmaInteraction',
+    'PrisonersDilemmaTournamentSystem',
+    'PublicGoodsGameSystem',
     'PublicGoodsInteraction',
     'PunisherGroupElement',
     'PunisherGroupView',
     'SimplicialDilemmaInteraction',
+    'SimplicialSocialDilemmasSystem',
+    'SpatialPrisonersDilemmaSystem',
     'StrategistElement',
     'StrategistView',
     'TournamentInteraction',
+    'TrimorphicMultilevelSelectionSystem',
     'TwoLevelBirthDeathInteraction',
-    'game_transitions',
-    'hypergraph_public_goods',
-    'iterated_lattice_dilemma',
-    'nonlinear_pairwise_group_conflict',
+    'TwoLevelBirthDeathSystem',
+    'TwoLevelReplicatorSystem',
     'play',
-    'prisoners_dilemma_tournament',
-    'public_goods_game',
-    'simplicial_social_dilemmas',
-    'spatial_prisoners_dilemma',
-    'trimorphic_multilevel_selection',
-    'two_level_birth_death',
-    'two_level_replicator',
 ]

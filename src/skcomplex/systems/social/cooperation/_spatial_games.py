@@ -16,11 +16,10 @@ from ....core.components.elements import Element, LatticeElement
 from ....core.components.interactions import GroupingInteraction, ImitationInteraction, LocalRuleInteraction
 from ....core.components.laws.utils import count, total
 from ....core.components.spaces import DiscreteTime, LatticeNeighborhood, LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, Pair
-from ..._catalog import register_system
 from ._contributor import ContributorElement
 
 
@@ -30,7 +29,7 @@ class IteratedPrisonerElement(Element):
     The strategy `n` of a player is the number of rounds it intends to cooperate, until round `n` included or until its
     opponent defects, after which it defects for the rest of the game. The payoffs are years in prison, so lower is
     better. The play, the revision, and the mutation are an `IteratedDilemmaInteraction` of the lattice, which
-    `iterated_lattice_dilemma` adds.
+    `IteratedLatticeDilemmaSystem` adds.
 
     Args:
         label:
@@ -97,7 +96,7 @@ class IteratedPrisonerElement(Element):
 class PrisonerElement(Element):
     """Player of the spatial prisoner's dilemma, a cooperator at 1 and a defector at 0.
 
-    The play and the imitation are a `PrisonersDilemmaInteraction` of the lattice, which `spatial_prisoners_dilemma`
+    The play and the imitation are a `PrisonersDilemmaInteraction` of the lattice, which `SpatialPrisonersDilemmaSystem`
     adds.
 
     Args:
@@ -442,22 +441,10 @@ def _random_strategies(
     return (np.random.default_rng(random_state).random(tuple(shape)) < share).astype(float)
 
 
-@register_system(
-    field='social/cooperation',
-    tags=('lattice', 'games', 'cooperation', 'evolution'),
-    references=('Nowak and May 1992', 'Szabó and Fáth 2007', 'Argun et al. 2021', 'Gros 2015'),
-    defaults={'until': 50, 'dt': 1},
-)
-def spatial_prisoners_dilemma(
-    shape: Sequence[int] = (50, 50),
-    *,
-    temptation: float = 1.85,
-    imitation: str = 'best',
-    noise: float = 0.1,
-    share: float = 0.9,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the spatial prisoner's dilemma of Nowak and May, with best-neighbour or Fermi imitation.
+class SpatialPrisonersDilemmaSystem(BaseSystem):
+    """The spatial prisoner's dilemma of Nowak and May, with best-neighbour or Fermi imitation.
+
+    The system has the strategies `players.strategy`.
 
     Args:
         shape:
@@ -478,50 +465,66 @@ def spatial_prisoners_dilemma(
         random_state:
             The seed or generator of the initial strategies.
 
-    Returns:
-        system:
-            The system, with the strategies `players.strategy`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.cooperation import spatial_prisoners_dilemma
-        >>> spatial_prisoners_dilemma((10, 10)).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.cooperation import SpatialPrisonersDilemmaSystem
+        >>> SpatialPrisonersDilemmaSystem((10, 10)).prepare().system_.elements[0].prepare().size_
         100
     """
-    players = LatticeElement(
-        'players',
-        element=PrisonerElement,
-        space=LatticeSpace(tuple(shape)),
-        values={
-            'strategy': _random_strategies(shape, share, random_state),
-            'temptation': temptation,
-            'noise': noise,
-        },
-    )
-    return System(
-        elements=[players],
-        interactions=[PrisonersDilemmaInteraction('play', target='players', imitation=imitation)],
-    )
+
+    field = 'social/cooperation'
+    topics = ('lattice', 'games', 'cooperation', 'evolution')
+    references = ('Nowak and May 1992', 'Szabó and Fáth 2007', 'Argun et al. 2021', 'Gros 2015')
+    until = 50
+    dt = 1
+
+    def __init__(
+        self,
+        shape: Sequence[int] = (50, 50),
+        *,
+        temptation: float = 1.85,
+        imitation: str = 'best',
+        noise: float = 0.1,
+        share: float = 0.9,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.temptation = temptation
+        self.imitation = imitation
+        self.noise = noise
+        self.share = share
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        players = LatticeElement(
+            'players',
+            element=PrisonerElement,
+            space=LatticeSpace(tuple(self.shape)),
+            values={
+                'strategy': _random_strategies(self.shape, self.share, self.random_state),
+                'temptation': self.temptation,
+                'noise': self.noise,
+            },
+        )
+        return System(
+            self.label,
+            elements=[players],
+            interactions=[PrisonersDilemmaInteraction('play', target='players', imitation=self.imitation)],
+        )
 
 
-@register_system(
-    field='social/cooperation',
-    tags=('lattice', 'games', 'cooperation', 'public goods'),
-    references=('Szabó and Hauert 2002', 'Szabó and Fáth 2007'),
-    defaults={'until': 50, 'dt': 1},
-)
-def public_goods_game(
-    shape: Sequence[int] = (50, 50),
-    *,
-    synergy: float = 4.5,
-    noise: float = 0.5,
-    share: float = 0.5,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the spatial public goods game in groups of five neighbours, with Fermi imitation.
+class PublicGoodsGameSystem(BaseSystem):
+    """The spatial public goods game in groups of five neighbours, with Fermi imitation.
 
     Every step has two phases. In the phase `play` every player takes the payoff of its five groups, and in the phase
     `imitate` every player copies a random neighbour with the Fermi probability `1 / (1 + exp((P_own - P_other) / K))`
-    of the payoffs of the same step, at the noise `K`.
+    of the payoffs of the same step, at the noise `K`. The system has the strategies `players.strategy` and the payoffs
+    `players.payoff`.
 
     Args:
         shape:
@@ -539,58 +542,67 @@ def public_goods_game(
         random_state:
             The seed or generator of the initial strategies.
 
-    Returns:
-        system:
-            The system, with the strategies `players.strategy` and the payoffs `players.payoff`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.cooperation import public_goods_game
-        >>> public_goods_game((10, 10)).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.cooperation import PublicGoodsGameSystem
+        >>> PublicGoodsGameSystem((10, 10)).prepare().system_.elements[0].prepare().size_
         100
     """
-    strategies = _random_strategies(shape, share, random_state)
-    players = LatticeElement(
-        'players',
-        element=ContributorElement,
-        space=LatticeSpace(tuple(shape), neighborhood='von_neumann'),
-        values={'strategy': strategies, 'synergy': synergy, 'noise': noise},
-    )
-    imitation = ImitationInteraction(
-        'imitation',
-        target='players',
-        state='strategy',
-        rule='fermi',
-        form='probability',
-        intensity=1 / noise,
-        phase='imitate',
-    )
-    time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('play'), PhaseSpec('imitate'))))
-    return System(
-        elements=[players],
-        interactions=[PublicGoodsInteraction('play', target='players', phase='play'), imitation],
-        time=time,
-    )
+
+    field = 'social/cooperation'
+    topics = ('lattice', 'games', 'cooperation', 'public goods')
+    references = ('Szabó and Hauert 2002', 'Szabó and Fáth 2007')
+    until = 50
+    dt = 1
+
+    def __init__(
+        self,
+        shape: Sequence[int] = (50, 50),
+        *,
+        synergy: float = 4.5,
+        noise: float = 0.5,
+        share: float = 0.5,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.synergy = synergy
+        self.noise = noise
+        self.share = share
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        strategies = _random_strategies(self.shape, self.share, self.random_state)
+        players = LatticeElement(
+            'players',
+            element=ContributorElement,
+            space=LatticeSpace(tuple(self.shape), neighborhood='von_neumann'),
+            values={'strategy': strategies, 'synergy': self.synergy, 'noise': self.noise},
+        )
+        imitation = ImitationInteraction(
+            'imitation',
+            target='players',
+            state='strategy',
+            rule='fermi',
+            form='probability',
+            intensity=1 / self.noise,
+            phase='imitate',
+        )
+        time = DiscreteTime(schedule=PhasesScheduleSpec((PhaseSpec('play'), PhaseSpec('imitate'))))
+        return System(
+            self.label,
+            elements=[players],
+            interactions=[PublicGoodsInteraction('play', target='players', phase='play'), imitation],
+            time=time,
+        )
 
 
-@register_system(
-    field='social/cooperation',
-    tags=('lattice', 'games', 'cooperation', 'iterated', 'mutation'),
-    references=('Argun et al. 2021', 'Axelrod and Hamilton 1981'),
-    defaults={'until': 100, 'dt': 1},
-)
-def iterated_lattice_dilemma(
-    shape: Sequence[int] = (30, 30),
-    *,
-    rounds: int = 7,
-    reward: float = 0.6,
-    sucker: float = 1.5,
-    temptation: float = 0.0,
-    punishment: float = 1.0,
-    mutation: float = 0.01,
-    extremes: bool = False,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Argun's evolutionary iterated prisoner's dilemma on a lattice, with strategies of `n` cooperation rounds.
+class IteratedLatticeDilemmaSystem(BaseSystem):
+    """Argun's evolutionary iterated prisoner's dilemma on a lattice, with strategies of `n` cooperation rounds.
 
     The payoffs are years in prison, `T < R < P < S`, so lower is better. A strategy `n` cooperates until round `n`
     or until the opponent defects, and defects afterwards, so `n = 0` always defects and `n = N` always cooperates.
@@ -603,6 +615,8 @@ def iterated_lattice_dilemma(
     strategies,
     `extremes=True`, cooperation dominates at `R = 0.82`, coexists with defection at `R = 0.84`, and vanishes at
     `R = 0.86` (Exercise 13.3).
+
+    The system has the strategies `players.strategy`.
 
     Args:
         shape:
@@ -632,33 +646,70 @@ def iterated_lattice_dilemma(
         random_state:
             The seed or generator of the initial strategies.
 
-    Returns:
-        system:
-            The system, with the strategies `players.strategy`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.cooperation import iterated_lattice_dilemma
-        >>> iterated_lattice_dilemma((10, 10)).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.cooperation import IteratedLatticeDilemmaSystem
+        >>> IteratedLatticeDilemmaSystem((10, 10)).prepare().system_.elements[0].prepare().size_
         100
     """
-    rng = np.random.default_rng(random_state)
-    if extremes:
-        strategies = rounds * rng.integers(2, size=tuple(shape)).astype(float)
-    else:
-        strategies = rng.integers(rounds + 1, size=tuple(shape)).astype(float)
-    players = LatticeElement(
-        'players',
-        element=IteratedPrisonerElement,
-        space=LatticeSpace(tuple(shape), neighborhood='von_neumann'),
-        values={
-            'strategy': strategies,
-            'rounds': rounds,
-            'reward': reward,
-            'sucker': sucker,
-            'temptation': temptation,
-            'punishment': punishment,
-            'mutation': mutation,
-            'extremes': float(extremes),
-        },
-    )
-    return System(elements=[players], interactions=[IteratedDilemmaInteraction('play', target='players')])
+
+    field = 'social/cooperation'
+    topics = ('lattice', 'games', 'cooperation', 'iterated', 'mutation')
+    references = ('Argun et al. 2021', 'Axelrod and Hamilton 1981')
+    until = 100
+    dt = 1
+
+    def __init__(
+        self,
+        shape: Sequence[int] = (30, 30),
+        *,
+        rounds: int = 7,
+        reward: float = 0.6,
+        sucker: float = 1.5,
+        temptation: float = 0.0,
+        punishment: float = 1.0,
+        mutation: float = 0.01,
+        extremes: bool = False,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.rounds = rounds
+        self.reward = reward
+        self.sucker = sucker
+        self.temptation = temptation
+        self.punishment = punishment
+        self.mutation = mutation
+        self.extremes = extremes
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        if self.extremes:
+            strategies = self.rounds * rng.integers(2, size=tuple(self.shape)).astype(float)
+        else:
+            strategies = rng.integers(self.rounds + 1, size=tuple(self.shape)).astype(float)
+        players = LatticeElement(
+            'players',
+            element=IteratedPrisonerElement,
+            space=LatticeSpace(tuple(self.shape), neighborhood='von_neumann'),
+            values={
+                'strategy': strategies,
+                'rounds': self.rounds,
+                'reward': self.reward,
+                'sucker': self.sucker,
+                'temptation': self.temptation,
+                'punishment': self.punishment,
+                'mutation': self.mutation,
+                'extremes': float(self.extremes),
+            },
+        )
+        return System(
+            self.label,
+            elements=[players],
+            interactions=[IteratedDilemmaInteraction('play', target='players')],
+        )

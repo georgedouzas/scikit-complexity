@@ -15,16 +15,15 @@ punishers only when between-group competition is strong enough.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.cooperation import TwoLevelReplicatorSystem
 
 SYSTEM = 'two_level_replicator'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(create_system(SYSTEM), dt=1.0, solver=RK4Solver(dt=0.01), observers=[observer]).prepare()
-simulation.run(until=20)
+trajectory = simulate(TwoLevelReplicatorSystem(), until=20, dt=1.0, solver=RK4Solver(dt=0.01), observers=[observer])
 
 # %%
 # The threshold of group selection
@@ -36,10 +35,10 @@ centres = (np.arange(100) + 0.5) / 100
 strengths = np.array([0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0])
 means = []
 for strength in strengths:
-    run = Simulation(create_system(SYSTEM, group_strength=float(strength)), dt=20.0, solver=RK4Solver(dt=0.01))
-    final = run.prepare().run(until=20).trajectory_.values('groups.f')[-1].ravel()
+    system = TwoLevelReplicatorSystem(group_strength=float(strength))
+    final = simulate(system, until=20, dt=20.0, solver=RK4Solver(dt=0.01)).values('groups.f')[-1].ravel()
     means.append(np.sum(centres * final) / np.sum(final))
-density = simulation.trajectory_.values('groups.f')[-1].ravel()
+density = trajectory.values('groups.f')[-1].ravel()
 fig, (steady, threshold) = plt.subplots(1, 2, figsize=(10, 4))
 steady.plot(centres, density)
 steady.set_xlabel('fraction of punishers z')

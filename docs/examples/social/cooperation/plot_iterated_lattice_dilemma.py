@@ -14,14 +14,14 @@ cooperative and defecting strategies chase each other across the lattice.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.social.cooperation import IteratedLatticeDilemmaSystem
 
 SYSTEM = 'iterated_lattice_dilemma'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(create_system(SYSTEM), observers=[observer], random_state=0).prepare().run(until=200)
+trajectory = simulate(IteratedLatticeDilemmaSystem(), until=200, observers=[observer], random_state=0)
 
 # %%
 # Cycles of strategies and the regimes of two strategies
@@ -30,17 +30,17 @@ simulation = Simulation(create_system(SYSTEM), observers=[observer], random_stat
 # always-defect, cooperation should dominate at `R = 0.82`, coexist at `R = 0.84`, and vanish at `R = 0.86`, as in
 # Exercise 13.3.
 
-strategies = simulation.trajectory_.values('players.strategy').reshape(201, -1)
+strategies = trajectory.values('players.strategy').reshape(201, -1)
 shares = np.array([np.bincount(row.astype(int), minlength=8) / row.size for row in strategies])
 fig, (cycles, regimes) = plt.subplots(1, 2, figsize=(10, 4))
-cycles.stackplot(simulation.trajectory_.times, shares.T, labels=[f'n = {n}' for n in range(8)])
+cycles.stackplot(trajectory.times, shares.T, labels=[f'n = {n}' for n in range(8)])
 cycles.set_xlabel('steps')
 cycles.set_ylabel('share of the strategy')
 cycles.set_title('Strategies emerge, grow, and vanish')
 cycles.legend(fontsize='small', ncol=2)
 for reward in (0.82, 0.84, 0.86):
-    system = create_system(SYSTEM, reward=reward, extremes=True)
-    values = Simulation(system, random_state=0).prepare().run(100).trajectory_.values('players.strategy')
+    system = IteratedLatticeDilemmaSystem(reward=reward, extremes=True)
+    values = simulate(system, random_state=0).values('players.strategy')
     regimes.plot(np.mean(values.reshape(101, -1) == 7, axis=1), label=f'R = {reward}')
 regimes.set_xlabel('steps')
 regimes.set_ylabel('share of cooperators')

@@ -16,12 +16,11 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, IntArray
-from ..._catalog import register_system
 
 
 class DonorView(AgentView):
@@ -128,6 +127,8 @@ class GameTransitionsInteraction(Interaction):
         >>> GameTransitionsInteraction('evolution', target='players').update
         'death-birth'
     """
+
+    law_classes = (RuleLaw,)
 
     reports: ClassVar[tuple[str, ...]] = ('game_one',)
 
@@ -256,28 +257,8 @@ class GameTransitionsInteraction(Interaction):
         system.report('game_one', float(np.mean(games == 1)) if games.size else 1.0)
 
 
-@register_system(
-    field='social/cooperation',
-    tags=('network', 'games', 'cooperation', 'game transitions', 'evolution'),
-    references=('Su, McAvoy, Wang, and Nowak 2019',),
-    defaults={'until': 100},
-)
-def game_transitions(
-    n_players: int = 100,
-    *,
-    degree: int = 4,
-    first_benefit: float = 3.5,
-    second_benefit: float = 2.6,
-    cost: float = 1.0,
-    selection: float = 0.1,
-    after_cooperation: float = 0.0,
-    after_defection: float = 1.0,
-    transitions: bool = True,
-    update: str = 'death-birth',
-    share: float = 0.5,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return evolutionary dynamics with game transitions on a random regular graph, after Su, McAvoy, Wang, and Nowak.
+class GameTransitionsSystem(BaseSystem):
+    """Evolutionary dynamics with game transitions on a random regular graph, after Su, McAvoy, Wang, and Nowak.
 
     Every edge carries a donation game, game 1 of benefit `b1` or game 2 of benefit `b2 < b1`, at the same cost `c`.
     Players accumulate the payoffs of the games with all their neighbours, one player is replaced every time step by
@@ -290,6 +271,8 @@ def game_transitions(
     `(b1 - b2) / (2 c) > 1` (Eq. 2), whatever `b1`, and never with a single game. The defaults `b1 = 3.5`,
     `b2 = b1 - 0.9`, and `k = 4` lie in the range of Fig. 2 where transitions favour cooperation, since
     `3.5 > 4 - 1.5 * 0.9`, and game 1 alone does not, since `3.5 < 4`.
+
+    The system has the group `players` on the nodes of the graph, and the reporter `evolution.game_one`.
 
     Args:
         n_players:
@@ -328,33 +311,71 @@ def game_transitions(
         random_state:
             The seed or generator of the graph and of the initial strategies.
 
-    Returns:
-        system:
-            The system, with the group `players` on the nodes of the graph, and the reporter `evolution.game_one`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.cooperation import game_transitions
-        >>> game_transitions(20).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.cooperation import GameTransitionsSystem
+        >>> GameTransitionsSystem(20).prepare().system_.elements[0].prepare().size_
         20
     """
-    rng = np.random.default_rng(random_state)
-    graph = nx.random_regular_graph(degree, n_players, seed=int(rng.integers(2**31)))
-    players = GroupElement(
-        'players',
-        element=DonorElement,
-        size=n_players,
-        values={'strategy': (rng.random(n_players) < share).astype(float)},
-    )
-    evolution = GameTransitionsInteraction(
-        'evolution',
-        target='players',
-        first_benefit=first_benefit,
-        second_benefit=second_benefit,
-        cost=cost,
-        selection=selection,
-        after_cooperation=after_cooperation,
-        after_defection=after_defection,
-        transitions=transitions,
-        update=update,
-    )
-    return System(elements=[players], interactions=[evolution], space=NetworkSpace(graph))
+
+    field = 'social/cooperation'
+    topics = ('network', 'games', 'cooperation', 'game transitions', 'evolution')
+    references = ('Su, McAvoy, Wang, and Nowak 2019',)
+    until = 100
+
+    def __init__(
+        self,
+        n_players: int = 100,
+        *,
+        degree: int = 4,
+        first_benefit: float = 3.5,
+        second_benefit: float = 2.6,
+        cost: float = 1.0,
+        selection: float = 0.1,
+        after_cooperation: float = 0.0,
+        after_defection: float = 1.0,
+        transitions: bool = True,
+        update: str = 'death-birth',
+        share: float = 0.5,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_players = n_players
+        self.degree = degree
+        self.first_benefit = first_benefit
+        self.second_benefit = second_benefit
+        self.cost = cost
+        self.selection = selection
+        self.after_cooperation = after_cooperation
+        self.after_defection = after_defection
+        self.transitions = transitions
+        self.update = update
+        self.share = share
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        graph = nx.random_regular_graph(self.degree, self.n_players, seed=int(rng.integers(2**31)))
+        players = GroupElement(
+            'players',
+            element=DonorElement,
+            size=self.n_players,
+            values={'strategy': (rng.random(self.n_players) < self.share).astype(float)},
+        )
+        evolution = GameTransitionsInteraction(
+            'evolution',
+            target='players',
+            first_benefit=self.first_benefit,
+            second_benefit=self.second_benefit,
+            cost=self.cost,
+            selection=self.selection,
+            after_cooperation=self.after_cooperation,
+            after_defection=self.after_defection,
+            transitions=self.transitions,
+            update=self.update,
+        )
+        return System(self.label, elements=[players], interactions=[evolution], space=NetworkSpace(graph))

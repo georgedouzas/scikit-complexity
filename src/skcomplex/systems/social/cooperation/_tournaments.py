@@ -12,12 +12,11 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import EvolutionInteraction, GroupingInteraction
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class StrategistView(AgentView):
@@ -186,21 +185,10 @@ class TournamentInteraction(GroupingInteraction):
 GENES = 7
 
 
-@register_system(
-    field='social/cooperation',
-    tags=('agents', 'games', 'cooperation', 'evolution'),
-    references=('Axelrod 1984', 'Downey 2018'),
-    defaults={'until': 50},
-)
-def prisoners_dilemma_tournament(
-    n_agents: int = 100,
-    *,
-    rounds: int = 6,
-    death: float = 0.1,
-    mutation: float = 0.05,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the evolution of strategies of the iterated prisoner's dilemma from random genomes.
+class PrisonersDilemmaTournamentSystem(BaseSystem):
+    """The evolution of strategies of the iterated prisoner's dilemma from random genomes.
+
+    The system has the group `agents`, the tournament `tournament`, and the death-birth replacement `selection`.
 
     Args:
         n_agents:
@@ -218,39 +206,63 @@ def prisoners_dilemma_tournament(
         random_state:
             The seed or generator of the initial genomes.
 
-    Returns:
-        system:
-            The system, with the group `agents`, the tournament `tournament`, and the death-birth replacement
-            `selection`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.social.cooperation import prisoners_dilemma_tournament
-        >>> prisoners_dilemma_tournament(10, random_state=0).elements[0].prepare().size_
+        >>> from skcomplex.systems.social.cooperation import PrisonersDilemmaTournamentSystem
+        >>> PrisonersDilemmaTournamentSystem(10, random_state=0).prepare().system_.elements[0].prepare().size_
         10
     """
-    genomes = np.random.default_rng(random_state).integers(0, 2, (n_agents, GENES)).astype(float)
-    visual = VisualSpec('histograms', {'color_by': 'fitness'})
-    agents = GroupElement(
-        'agents',
-        element=StrategistElement,
-        size=n_agents,
-        values={'genome': genomes},
-        visual=visual,
-    )
-    return System(
-        elements=[agents],
-        interactions=[
-            TournamentInteraction('tournament', target='agents', rounds=rounds),
-            EvolutionInteraction(
-                'selection',
-                target='agents',
-                strategy='genome',
-                selection='proportional',
-                replacement='death-birth',
-                mutation=mutation,
-                death=death,
-                change='one',
-                parents='all',
-            ),
-        ],
-    )
+
+    field = 'social/cooperation'
+    topics = ('agents', 'games', 'cooperation', 'evolution')
+    references = ('Axelrod 1984', 'Downey 2018')
+    until = 50
+
+    def __init__(
+        self,
+        n_agents: int = 100,
+        *,
+        rounds: int = 6,
+        death: float = 0.1,
+        mutation: float = 0.05,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+        self.rounds = rounds
+        self.death = death
+        self.mutation = mutation
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        genomes = np.random.default_rng(self.random_state).integers(0, 2, (self.n_agents, GENES)).astype(float)
+        visual = VisualSpec('histograms', {'color_by': 'fitness'})
+        agents = GroupElement(
+            'agents',
+            element=StrategistElement,
+            size=self.n_agents,
+            values={'genome': genomes},
+            visual=visual,
+        )
+        return System(
+            self.label,
+            elements=[agents],
+            interactions=[
+                TournamentInteraction('tournament', target='agents', rounds=self.rounds),
+                EvolutionInteraction(
+                    'selection',
+                    target='agents',
+                    strategy='genome',
+                    selection='proportional',
+                    replacement='death-birth',
+                    mutation=self.mutation,
+                    death=self.death,
+                    change='one',
+                    parents='all',
+                ),
+            ],
+        )
