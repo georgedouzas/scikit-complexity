@@ -7,7 +7,7 @@ more customers.
 """
 
 # %%
-# The system is created by name from the catalog with half a product per customer in each shop and products that age
+# The system is built from its class with half a product per customer in each shop and products that age
 # over one unit of time, so the control parameter is `R = 1` and the critical temperature `T_c = R / (1 + R)^2 = 0.25`.
 # The customers choose at the temperature 0.1. The two shops are the isolated nodes of a network, so the customers are
 # not drawn in space: the blueprint shows the time series of `m` and, below it, the shares of customers at each shop,
@@ -19,9 +19,9 @@ import rerun as rr
 import rerun.blueprint as rrb
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.markets import PerishableGoodsDuopolySystem
 
 SYSTEM = 'perishable_goods_duopoly'
 CONTROL = 1.0
@@ -40,19 +40,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, customers=200, stock=0.5, tau_a=1.0, T=0.1, random_state=0)
+system = PerishableGoodsDuopolySystem(customers=200, stock=0.5, tau_a=1.0, T=0.1, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-simulation = (
-    Simulation(
-        system,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=300)
-)
-trajectory = simulation.trajectory_
+trajectory = simulate(system, observers=[observer], random_state=0)
 shops = np.array([trajectory.agents('customers', frame).values['shop'] for frame in range(len(trajectory.times))])
 for shop, color in zip(SHOPS, COLORS, strict=True):
     observer.recording_.log(
@@ -91,21 +81,13 @@ def mean_field_asymmetry(temperature):
 temperatures = np.linspace(0.3, 1.6, 6) * CRITICAL
 asymmetries = []
 for temperature in temperatures:
-    system_system = create_system(SYSTEM, customers=100, T=temperature, random_state=1)
-    run = (
-        Simulation(
-            system_system,
-            random_state=1,
-            observables=describe(SYSTEM).observables_of(system_system),
-        )
-        .prepare()
-        .run(until=300)
-    )
-    asymmetries.append(np.abs(run.trajectory_.values('m')[-100:]).mean())
+    system_system = PerishableGoodsDuopolySystem(customers=100, T=temperature, random_state=1)
+    run = simulate(system_system, random_state=1)
+    asymmetries.append(np.abs(run.values('m')[-100:]).mean())
 grid = np.linspace(0.2, 1.7, 200) * CRITICAL
 
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(simulation.trajectory_.times, simulation.trajectory_.values('m'))
+series.plot(trajectory.times, trajectory.values('m'))
 series.axhline(mean_field_asymmetry(0.1), color='black', linestyle='--', label='+-m* of mean field')
 series.axhline(-mean_field_asymmetry(0.1), color='black', linestyle='--')
 series.set_xlabel('time')

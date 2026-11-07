@@ -2,14 +2,14 @@
 
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.systems import describe
-from skcomplex.systems.economics.markets import fair_food
+from skcomplex.systems.economics.markets import FairFoodSystem
 
 
 def _fair_share(**kwargs):
     """Return the mean share of fair food over the last steps of a run."""
     trajectory = (
         Simulation(
-            built := fair_food(12, 12, **kwargs),
+            built := FairFoodSystem(12, 12, **kwargs).prepare().system_,
             random_state=0,
             observables=describe('fair_food').observables_of(built),
         )

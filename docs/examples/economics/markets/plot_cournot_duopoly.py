@@ -15,9 +15,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.markets import CournotDuopolySystem
 
 SYSTEM = 'cournot_duopoly'
 A, B, COSTS = 1500.0, 10.0, (0.0, 150.0)
@@ -31,17 +31,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-system = create_system(SYSTEM, outputs=(0.0, 0.0), costs=COSTS, a=A, b=B, error=0.05)
-simulation = (
-    Simulation(
-        system,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=60)
-)
+system = CournotDuopolySystem(outputs=(0.0, 0.0), costs=COSTS, a=A, b=B, error=0.05)
+trajectory = simulate(system, until=60, observers=[observer], random_state=0)
 
 # %%
 # Reaction curves and convergence
@@ -56,14 +47,11 @@ def outputs(trajectory):
     return np.array([trajectory.agents('firms', frame).values['output'] for frame in range(len(trajectory.times))])
 
 
-exact_system = create_system(SYSTEM, outputs=(100.0, 0.0), costs=COSTS, a=A, b=B)
+exact_system = CournotDuopolySystem(outputs=(100.0, 0.0), costs=COSTS, a=A, b=B)
 exact = outputs(
-    Simulation(exact_system, random_state=0, observables=describe(SYSTEM).observables_of(exact_system))
-    .prepare()
-    .run(until=20)
-    .trajectory_,
+    simulate(exact_system, until=20, random_state=0),
 )
-noisy = outputs(simulation.trajectory_)
+noisy = outputs(trajectory)
 grid = np.linspace(0.0, 150.0, 2)
 fig, (reaction, distance) = plt.subplots(1, 2, figsize=(10, 4))
 reaction.plot((A - COSTS[0]) / (2 * B) - grid / 2, grid, color='C0', label='reaction of firm 1')

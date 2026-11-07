@@ -2,14 +2,14 @@
 
 import numpy as np
 
-from skcomplex.systems.economics.markets import fair_food_program
+from skcomplex.systems.economics.markets import FairFoodProgramSystem
 
 from ..conftest import _run
 
 
 def test_fair_food_program_farms_tip_into_the_programme_late():
     """Test that farms wait for most buyers to commit, then join together, and that all needs are met at last."""
-    trajectory = _run(fair_food_program(), 5000)
+    trajectory = _run(FairFoodProgramSystem(), 5000)
     farms, committed = trajectory.values('market.member_farms'), trajectory.values('market.committed_shops')
     members = trajectory.values('market.member_shops')
     first = int(np.argmax(farms > 0))

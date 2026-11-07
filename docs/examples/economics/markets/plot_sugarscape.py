@@ -18,9 +18,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.markets import SugarscapeSystem
 
 SYSTEM = 'sugarscape'
 
@@ -45,13 +45,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, width=50, height=50, n_foragers=400, random_state=0)
+system = SugarscapeSystem(width=50, height=50, n_foragers=400, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-simulation = (
-    Simulation(system, observers=[observer], random_state=0, observables=describe(SYSTEM).observables_of(system))
-    .prepare()
-    .run(until=100)
-)
+trajectory = simulate(system, observers=[observer], random_state=0)
 
 # %%
 # Carrying capacity and inequality
@@ -61,7 +57,6 @@ simulation = (
 # the uniform initial endowments, about 0.22, to well above 0.3, and the Lorenz curve of the final wealth should sag
 # far below the line of equality.
 
-trajectory = simulation.trajectory_
 times = trajectory.times
 inequality = trajectory.values('gini')
 wealth = np.sort(trajectory.agents('foragers', len(times) - 1).values['sugar'])

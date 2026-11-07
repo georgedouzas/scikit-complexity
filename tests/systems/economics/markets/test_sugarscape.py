@@ -3,12 +3,12 @@
 from skcomplex.core.analysis import distribution
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.systems import describe
-from skcomplex.systems.economics.markets import sugarscape
+from skcomplex.systems.economics.markets import SugarscapeSystem
 
 
 def test_sugarscape_carrying_capacity_and_inequality():
     """The population falls to a stable carrying capacity and the wealth becomes unequal."""
-    system = sugarscape(30, 30, n_foragers=200)
+    system = SugarscapeSystem(30, 30, n_foragers=200).prepare().system_
     trajectory = (
         Simulation(system, random_state=0, observables=describe('sugarscape').observables_of(system))
         .prepare()

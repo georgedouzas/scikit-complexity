@@ -4,14 +4,14 @@ import numpy as np
 import pytest
 
 from skcomplex.systems import describe
-from skcomplex.systems.economics.markets import household_demand
+from skcomplex.systems.economics.markets import HouseholdDemandSystem
 
 from ..conftest import _run
 
 
 def _totals(demand):
     """Return the total demand, expenditure, budgets, and utilities of a run of one price rise of 10 percent."""
-    system = household_demand(demand=demand)
+    system = HouseholdDemandSystem(demand=demand).prepare().system_
     trajectory = _run(system, 1, observables=describe('household_demand').observables_of(system))
     return trajectory
 

@@ -13,7 +13,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, MatchingInteraction, TransitionInteraction
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import (
     MatchSpec,
@@ -25,7 +25,6 @@ from ....core.specs import (
     StateSpec,
     VisualSpec,
 )
-from ..._catalog import register_system
 
 
 class EmployerView(AgentView):
@@ -296,36 +295,18 @@ def _unemployment(employers: object) -> float:
     return float(np.mean(np.asarray(employers, dtype=float) < 0))
 
 
-@register_system(
-    field='economics/markets',
-    tags=('labour', 'market', 'matching', 'agents'),
-    references=('Hamill and Gilbert 2016 ch. 7',),
-    defaults={'until': 200},
-    observables=lambda system: [
-        ObservableSpec('unemployment', group='workers', variable='employer', reduce=_unemployment),
-        ObservableSpec('searching', group='workers', variable='supply', reduce='sum'),
-    ],
-)
-def labour_market(
-    n_workers: int = 200,
-    n_firms: int = 40,
-    *,
-    separation: float = 0.05,
-    vacancy_rate: float = 0.3,
-    reservation: float = 1.0,
-    decline: float = 0.1,
-    low_wage: float = 0.5,
-    high_wage: float = 1.0,
-    unemployment: float = 0.5,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Hamill and Gilbert's labour market of firms posting wage offers and unemployed workers searching.
+class LabourMarketSystem(BaseSystem):
+    """Hamill and Gilbert's labour market of firms posting wage offers and unemployed workers searching.
 
     In the phase of offers, jobs are destroyed at the separation rate `s`, every firm posts a vacancy with a uniform
     wage offer at the vacancy rate, and unemployed workers set reservation wages that fall with the duration of their
     search. In the phase of matching, a deferred-acceptance market pairs vacancies with workers whose reservation wage
     they cover, every worker getting the best offer of a stable matching. The unemployment rate settles at the
     flow-balance value `s / (s + f)`, with `f` the share of searching workers hired in a step.
+
+    The system has the groups `firms` and `workers`, the market `labour` with the reporters `labour.value` (the mean
+    wage of the hires) and `labour.volume` (the hires), and the catalog observables of the unemployment rate
+    `unemployment` and of the searching workers `searching`.
 
     Args:
         n_workers:
@@ -358,76 +339,125 @@ def labour_market(
         random_state:
             The seed or generator of the initial employment.
 
-    Returns:
-        system:
-            The system, with the groups `firms` and `workers`, the market `labour` with the reporters `labour.value`
-            (the mean wage of the hires) and `labour.volume` (the hires), and the catalog observables of the
-            unemployment rate `unemployment` and of the searching workers `searching`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.markets import labour_market
-        >>> [group.size for group in labour_market(20, 5).elements]
+        >>> from skcomplex.systems.economics.markets import LabourMarketSystem
+        >>> [group.size for group in LabourMarketSystem(20, 5).prepare().system_.elements]
         [5, 20]
     """
-    rng = np.random.default_rng(random_state)
-    employed = rng.random(n_workers) >= unemployment
-    employers = np.where(employed, rng.integers(n_firms, size=n_workers), -1).astype(float)
-    firms = GroupElement(
-        'firms',
-        element=EmployerElement,
-        size=n_firms,
-        values={'vacancy_rate': vacancy_rate, 'low_wage': low_wage, 'high_wage': high_wage, 'bid': low_wage},
+
+    field = 'economics/markets'
+    topics = ('labour', 'market', 'matching', 'agents')
+    references = ('Hamill and Gilbert 2016 ch. 7',)
+    until = 200
+    observables = (
+        ObservableSpec('unemployment', group='workers', variable='employer', reduce=_unemployment),
+        ObservableSpec('searching', group='workers', variable='supply', reduce='sum'),
     )
-    workers = GroupElement(
-        'workers',
-        element=JobseekerElement,
-        size=n_workers,
-        values={
-            'employer': employers,
-            'wage': np.where(employed, (low_wage + high_wage) / 2, 0.0),
-            'supply': 0.0,
-            'ask': reservation,
-            'separation': separation,
-            'reservation': reservation,
-            'decline': decline,
-        },
-    )
-    offers = [
-        MapInteraction(f'{group}_{name}', target=group, state=name, function=function, form='agent', phase='offers')
-        for group, steps in (('firms', EmployerElement.get_posting()), ('workers', JobseekerElement.get_search()))
-        for name, function in steps
-    ]
-    losses = TransitionInteraction(
-        'workers_separation',
-        target='workers',
-        state='employer',
-        source=lambda value: value >= 0,
-        destination=-1.0,
-        probability=lambda agent, system: agent.separation,
-        form='agent',
-        phase='offers',
-    )
-    spells = [
-        MapInteraction(f'workers_{name}', target='workers', state=name, function=function, form='agent', phase='offers')
-        for name, function in JobseekerElement.get_spell()
-    ]
-    market = MatchingInteraction(
-        'labour',
-        requesters='firms',
-        providers='workers',
-        rule=StableMatchingSpec(clearing='requester'),
-        limit=('bid', 'ask'),
-        quantity=('demand', 'supply'),
-        phase='matching',
-        on_match=hire,
-    )
-    return System(
-        elements=[firms, workers],
-        interactions=[
-            *offers,
-            losses,
-            *spells,
-            market,
-        ],
-        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('offers'), PhaseSpec('matching')])),
-    )
+
+    def __init__(
+        self,
+        n_workers: int = 200,
+        n_firms: int = 40,
+        *,
+        separation: float = 0.05,
+        vacancy_rate: float = 0.3,
+        reservation: float = 1.0,
+        decline: float = 0.1,
+        low_wage: float = 0.5,
+        high_wage: float = 1.0,
+        unemployment: float = 0.5,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_workers = n_workers
+        self.n_firms = n_firms
+        self.separation = separation
+        self.vacancy_rate = vacancy_rate
+        self.reservation = reservation
+        self.decline = decline
+        self.low_wage = low_wage
+        self.high_wage = high_wage
+        self.unemployment = unemployment
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        employed = rng.random(self.n_workers) >= self.unemployment
+        employers = np.where(employed, rng.integers(self.n_firms, size=self.n_workers), -1).astype(float)
+        firms = GroupElement(
+            'firms',
+            element=EmployerElement,
+            size=self.n_firms,
+            values={
+                'vacancy_rate': self.vacancy_rate,
+                'low_wage': self.low_wage,
+                'high_wage': self.high_wage,
+                'bid': self.low_wage,
+            },
+        )
+        workers = GroupElement(
+            'workers',
+            element=JobseekerElement,
+            size=self.n_workers,
+            values={
+                'employer': employers,
+                'wage': np.where(employed, (self.low_wage + self.high_wage) / 2, 0.0),
+                'supply': 0.0,
+                'ask': self.reservation,
+                'separation': self.separation,
+                'reservation': self.reservation,
+                'decline': self.decline,
+            },
+        )
+        offers = [
+            MapInteraction(f'{group}_{name}', target=group, state=name, function=function, form='agent', phase='offers')
+            for group, steps in (('firms', EmployerElement.get_posting()), ('workers', JobseekerElement.get_search()))
+            for name, function in steps
+        ]
+        losses = TransitionInteraction(
+            'workers_separation',
+            target='workers',
+            state='employer',
+            source=lambda value: value >= 0,
+            destination=-1.0,
+            probability=lambda agent, system: agent.separation,
+            form='agent',
+            phase='offers',
+        )
+        spells = [
+            MapInteraction(
+                f'workers_{name}',
+                target='workers',
+                state=name,
+                function=function,
+                form='agent',
+                phase='offers',
+            )
+            for name, function in JobseekerElement.get_spell()
+        ]
+        market = MatchingInteraction(
+            'labour',
+            requesters='firms',
+            providers='workers',
+            rule=StableMatchingSpec(clearing='requester'),
+            limit=('bid', 'ask'),
+            quantity=('demand', 'supply'),
+            phase='matching',
+            on_match=hire,
+        )
+        return System(
+            self.label,
+            elements=[firms, workers],
+            interactions=[
+                *offers,
+                losses,
+                *spells,
+                market,
+            ],
+            time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('offers'), PhaseSpec('matching')])),
+        )

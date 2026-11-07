@@ -16,9 +16,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.markets import GoodsTradersSystem
 
 SYSTEM = 'goods_traders'
 
@@ -35,18 +35,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, random_state=0)
+system = GoodsTradersSystem(random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = (
-    Simulation(
-        system,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=50)
-)
+trajectory = simulate(system, observers=[observer], random_state=0)
 
 # %%
 # Prices converge while every good is conserved
@@ -59,18 +50,12 @@ simulation = (
 
 fig, (spread, utility, totals) = plt.subplots(1, 3, figsize=(14, 4))
 for goods in (2, 3):
-    run = (
-        Simulation(create_system(SYSTEM, goods=goods, random_state=0), random_state=0)
-        .prepare()
-        .run(until=50)
-        .trajectory_
-    )
+    run = simulate(GoodsTradersSystem(goods=goods, random_state=0), random_state=0)
     spread.semilogy(run.times[1:], run.values('exchange.dispersion')[1:], label=f'{goods} goods')
 spread.set_xlabel('step')
 spread.set_ylabel('standard deviation of log price')
 spread.set_title('The prices of the trades converge')
 spread.legend()
-trajectory = simulation.trajectory_
 utility.plot(trajectory.times, trajectory.values('utility'))
 utility.set_xlabel('step')
 utility.set_ylabel('mean log utility')

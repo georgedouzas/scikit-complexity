@@ -17,9 +17,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.markets import ShopsSystem
 
 SYSTEM = 'shops'
 
@@ -40,18 +40,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, online=1.0, random_state=0)
+system = ShopsSystem(online=1.0, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = (
-    Simulation(
-        system,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=100)
-)
+trajectory = simulate(system, observers=[observer], random_state=0)
 
 # %%
 # Distance protects shops
@@ -64,13 +55,11 @@ simulation = (
 shares = np.linspace(0.0, 1.0, 5)
 survivors, leaders, prices = [], [], []
 for share in shares:
-    system = create_system(SYSTEM, online=share, random_state=0)
-    run = (
-        Simulation(system, random_state=0, observables=describe(SYSTEM).observables_of(system)).prepare().run(until=100)
-    )
-    survivors.append(run.trajectory_.values('open_shops')[-1])
-    leaders.append(run.trajectory_.values('concentration')[-1])
-    prices.append(run.trajectory_.values('mean_price')[50:].mean())
+    system = ShopsSystem(online=share, random_state=0)
+    run = simulate(system, random_state=0)
+    survivors.append(run.values('open_shops')[-1])
+    leaders.append(run.values('concentration')[-1])
+    prices.append(run.values('mean_price')[50:].mean())
 fig, (count, leader, price) = plt.subplots(1, 3, figsize=(13, 4))
 count.plot(shares, survivors, marker='o')
 count.set_xlabel('share of shoppers online')

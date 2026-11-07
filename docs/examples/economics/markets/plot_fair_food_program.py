@@ -13,13 +13,14 @@ buyers outside the programme no longer need their tomatoes. Farms hold out for y
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.economics.markets import FairFoodProgramSystem
 
 SYSTEM = 'fair_food_program'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
-simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run(until=5000)
+trajectory = simulate(FairFoodProgramSystem(), observers=[observer])
 
 # %%
 # The tipping point
@@ -28,13 +29,10 @@ simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare(
 # at zero until few buyers remain outside, and then join in a cascade, after which every buyer moves to level 2.
 # Across seeds, the period at which all farms have joined spreads widely.
 
-trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
 tipping = []
 for seed in range(10):
-    farms = (
-        create_simulation(SYSTEM, random_state=seed).prepare().run(until=5000).trajectory_.values('market.member_farms')
-    )
+    farms = simulate(FairFoodProgramSystem(random_state=seed)).values('market.member_farms')
     tipping.append(np.argmax(farms == farms.max()))
 fig, (levels, spread) = plt.subplots(1, 2, figsize=(10, 4))
 levels.plot(times, trajectory.values('market.committed_shops'), label='buyers at level 1')

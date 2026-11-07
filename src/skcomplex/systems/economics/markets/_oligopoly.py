@@ -18,12 +18,11 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import ChoiceInteraction, ReinforcementInteraction
 from ....core.components.laws import EquationLaw
 from ....core.components.spaces import DiscreteTime, StaticTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, RunSettings, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import BaseSpec, ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class CournotBestResponseElement(Element):
@@ -62,6 +61,8 @@ class CournotBestResponseElement(Element):
         >>> CournotBestResponseElement('duopoly', demand=8.0).demand
         8.0
     """
+
+    law_classes = (EquationLaw,)
 
     def __init__(
         self,
@@ -133,6 +134,8 @@ class PricePointElement(Element):
         >>> PricePointElement('point', price=0.5).price
         0.5
     """
+
+    law_classes = (EquationLaw,)
 
     def __init__(
         self,
@@ -308,63 +311,18 @@ def _price_observables(system: System) -> list[ObservableSpec]:
     ]
 
 
-def _fictitious_play(prices: Array, alpha: float, beta: float) -> System:
-    """Return two firms that best respond to the sum of the payoffs of every price against the rival so far."""
-    game = PricingGameSpec(prices, alpha, beta)
-    firms = GroupElement(
-        'firms',
-        element=PricingFirmElement,
-        size=DUOPOLY,
-        values={'price': np.full(DUOPOLY, prices[-1]), 'scores': np.zeros((DUOPOLY, prices.size))},
-    )
-    choice = ChoiceInteraction(
-        'choice',
-        target='firms',
-        state='price',
-        options=tuple(prices.tolist()),
-        utility=game.utility,
-        rule='best',
-        form='agent',
-        phase='choose',
-    )
-    beliefs = ReinforcementInteraction(
-        'beliefs',
-        target='firms',
-        scores='scores',
-        payoff=game.payoff,
-        rule='cumulative',
-        form='agent',
-        phase='learn',
-    )
-    schedule = PhasesScheduleSpec([PhaseSpec('choose'), PhaseSpec('learn')])
-    return System(elements=[firms], interactions=[choice, beliefs], time=DiscreteTime(schedule=schedule))
-
-
-@register_system(
-    field='economics/markets',
-    tags=('oligopoly', 'equilibrium', 'static', 'game theory'),
-    references=('Forrest 2018', 'Brown 1951'),
-    observables=_price_observables,
-)
-def oligopoly_equilibria(
-    n_firms: int = 2,
-    *,
-    alpha: float = 0.25,
-    n_prices: int = 21,
-    demand: float = 10.0,
-    c_i: float = 1.0,
-    c_j: float = 2.0,
-    lambda_i: float = 0.0,
-    lambda_j: float = 0.0,
-    dynamics: str = 'static',
-) -> System:
-    """Return the equilibria of a Cournot duopoly and of a pricing game of firms with loyal customers and switchers.
+class OligopolyEquilibriaSystem(BaseSystem):
+    """The equilibria of a Cournot duopoly and of a pricing game of firms with loyal customers and switchers.
 
     The static system solves the Cournot best responses (Forrest 2018 Eqs. 21.5-21.6) and, on a grid of prices, the
     symmetric mixed equilibrium of `m` firms of loyal share `alpha` and switchers `beta = 1 - m alpha`, whose price
     distribution makes a firm indifferent among its prices, at the profit `alpha` (Lemma 20.1). With
     `dynamics='fictitious-play'`, two firms learn to price on the grid instead: every round each plays a best response
     to the prices of its rival so far, and the prices they charge are distributed near the mixed equilibrium.
+
+    The static system, with the states `cournot.q_i`, `cournot.q_j`, `prices.price`, and `prices.distribution` and the
+    observables `lowest_profit` and `highest_profit`, or the learning system, with the group `firms` and the observables
+    `lower_price` and `higher_price`. The catalog lists the observables, so a run passes them in `observables`.
 
     Args:
         n_firms:
@@ -394,46 +352,112 @@ def oligopoly_equilibria(
         dynamics:
             `'static'` for the equilibria, or `'fictitious-play'` for the learning of two pricing firms.
 
-    Returns:
-        system:
-            The static system, with the states `cournot.q_i`, `cournot.q_j`, `prices.price`, and `prices.distribution`
-            and the observables `lowest_profit` and `highest_profit`, or the learning system, with the group `firms` and
-            the observables `lower_price` and `higher_price`. The catalog lists the observables, so a run passes them
-            in `observables`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The dynamics are unknown, or fictitious play has other than two firms.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import Simulation
-        >>> from skcomplex.systems.economics.markets import oligopoly_equilibria
-        >>> trajectory = Simulation(oligopoly_equilibria()).prepare().run(1.0).trajectory_
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.economics.markets import OligopolyEquilibriaSystem
+        >>> trajectory = simulate(OligopolyEquilibriaSystem(), until=1.0)
         >>> round(float(trajectory.values('cournot.q_i')[0]), 6)
         3.333333
     """
-    if dynamics not in DYNAMICS or (dynamics == 'fictitious-play' and n_firms != DUOPOLY):
-        error_msg = (
-            f'oligopoly_equilibria has dynamics={dynamics!r} and n_firms={n_firms!r}. Use one of {DYNAMICS}, and '
-            f'{DUOPOLY} firms under fictitious play.'
+
+    field = 'economics/markets'
+    topics = ('oligopoly', 'equilibrium', 'static', 'game theory')
+    references = ('Forrest 2018', 'Brown 1951')
+
+    def __init__(
+        self,
+        n_firms: int = 2,
+        *,
+        alpha: float = 0.25,
+        n_prices: int = 21,
+        demand: float = 10.0,
+        c_i: float = 1.0,
+        c_j: float = 2.0,
+        lambda_i: float = 0.0,
+        lambda_j: float = 0.0,
+        dynamics: str = 'static',
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_firms = n_firms
+        self.alpha = alpha
+        self.n_prices = n_prices
+        self.demand = demand
+        self.c_i = c_i
+        self.c_j = c_j
+        self.lambda_i = lambda_i
+        self.lambda_j = lambda_j
+        self.dynamics = dynamics
+
+    @staticmethod
+    def _fictitious_play(label: str, prices: Array, alpha: float, beta: float) -> System:
+        """Return two firms that best respond to the sum of the payoffs of every price against the rival so far."""
+        game = PricingGameSpec(prices, alpha, beta)
+        firms = GroupElement(
+            'firms',
+            element=PricingFirmElement,
+            size=DUOPOLY,
+            values={'price': np.full(DUOPOLY, prices[-1]), 'scores': np.zeros((DUOPOLY, prices.size))},
         )
-        raise ValidationError(error_msg)
-    beta = 1 - n_firms * alpha
-    prices = np.linspace(alpha / (alpha + beta), 1.0, n_prices)
-    if dynamics == 'fictitious-play':
-        return _fictitious_play(prices, alpha, beta)
-    points = GroupElement(
-        'prices',
-        element=PricePointElement,
-        size=n_prices,
-        values={'price': prices, 'alpha': alpha, 'beta': beta, 'n_firms': float(n_firms)},
-    )
-    cournot = CournotBestResponseElement(
-        'cournot',
-        demand=demand,
-        c_i=c_i,
-        c_j=c_j,
-        lambda_i=lambda_i,
-        lambda_j=lambda_j,
-    )
-    return System(elements=[cournot, points], time=StaticTime())
+        choice = ChoiceInteraction(
+            'choice',
+            target='firms',
+            state='price',
+            options=tuple(prices.tolist()),
+            utility=game.utility,
+            rule='best',
+            form='agent',
+            phase='choose',
+        )
+        beliefs = ReinforcementInteraction(
+            'beliefs',
+            target='firms',
+            scores='scores',
+            payoff=game.payoff,
+            rule='cumulative',
+            form='agent',
+            phase='learn',
+        )
+        schedule = PhasesScheduleSpec([PhaseSpec('choose'), PhaseSpec('learn')])
+        return System(label, elements=[firms], interactions=[choice, beliefs], time=DiscreteTime(schedule=schedule))
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        if self.dynamics not in DYNAMICS or (self.dynamics == 'fictitious-play' and self.n_firms != DUOPOLY):
+            error_msg = (
+                f'OligopolyEquilibriaSystem has dynamics={self.dynamics!r} and n_firms={self.n_firms!r}. Use one of '
+                f'{DYNAMICS}, and {DUOPOLY} firms under fictitious play.'
+            )
+            raise ValidationError(error_msg)
+        beta = 1 - self.n_firms * self.alpha
+        prices = np.linspace(self.alpha / (self.alpha + beta), 1.0, self.n_prices)
+        if self.dynamics == 'fictitious-play':
+            return self._fictitious_play(self.label, prices, self.alpha, beta)
+        points = GroupElement(
+            'prices',
+            element=PricePointElement,
+            size=self.n_prices,
+            values={'price': prices, 'alpha': self.alpha, 'beta': beta, 'n_firms': float(self.n_firms)},
+        )
+        cournot = CournotBestResponseElement(
+            'cournot',
+            demand=self.demand,
+            c_i=self.c_i,
+            c_j=self.c_j,
+            lambda_i=self.lambda_i,
+            lambda_j=self.lambda_j,
+        )
+        return System(self.label, elements=[cournot, points], time=StaticTime())
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings, with the observables of the parts built from the model parameters."""
+        settings = super().get_run_settings()
+        settings['observables'] = _price_observables(self._build_system())
+        return settings

@@ -15,9 +15,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.economics.markets import CarWashSystem
 
 SYSTEM = 'car_wash'
 DAY, P_PASS, P_ENTER, P_VALET, WASH, VALET = 8 * 3600, 0.33, 0.005, 0.5, 4.0, 10.0
@@ -35,9 +35,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=100)
-simulation = (
-    Simulation(create_system(SYSTEM, n_workers=4), observers=[observer], random_state=0).prepare().run(until=DAY)
-)
+trajectory = simulate(CarWashSystem(n_workers=4), until=DAY, observers=[observer], random_state=0)
 
 # %%
 # Revenue against demand
@@ -47,14 +45,11 @@ simulation = (
 # grows and drivers drive past, but from three workers on the daily revenue should saturate at the demand, while the
 # forecourt keeps emptying and the revenue per worker keeps falling.
 
-trajectory = simulation.trajectory_
 frames = np.arange(0, len(trajectory.times), 100)
 revenue = [trajectory.agents('till', frame).values['revenue'][0] for frame in frames]
 expected = P_PASS * P_ENTER * ((1 - P_VALET) * WASH + P_VALET * VALET)
 workers = np.array([1, 2, 3, 4, 6])
-days = [
-    Simulation(create_system(SYSTEM, n_workers=n), random_state=0).prepare().run(until=DAY).trajectory_ for n in workers
-]
+days = [simulate(CarWashSystem(n_workers=n), until=DAY, random_state=0) for n in workers]
 earned = np.array([day.agents('till', len(day.times) - 1).values['revenue'][0] for day in days])
 fig, (till, labour) = plt.subplots(1, 2, figsize=(10, 4))
 till.plot(trajectory.times[frames] / 3600, revenue, label='till')

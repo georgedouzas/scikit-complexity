@@ -14,14 +14,15 @@ the rich and the poor differently.
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.economics.markets import HouseholdDemandSystem
 
 SYSTEM = 'household_demand'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-utility = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run(until=10).trajectory_
-practical = create_simulation(SYSTEM, demand='elasticity').prepare().run(until=1).trajectory_
+utility = simulate(HouseholdDemandSystem(), observers=[observer])
+practical = simulate(HouseholdDemandSystem(demand='elasticity'), until=1)
 
 # %%
 # Demand curves and who pays for a price rise

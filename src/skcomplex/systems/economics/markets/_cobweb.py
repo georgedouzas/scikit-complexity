@@ -11,9 +11,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class MarketElement(Element):
@@ -99,14 +98,10 @@ class CobwebInteraction(MapInteraction):
         return (s.a - s.c - s.d * s.target.price) / s.b
 
 
-@register_system(
-    field='economics/markets',
-    tags=('market', 'discrete map'),
-    references=('Ezekiel 1938',),
-    defaults={'until': 30, 'dt': 1},
-)
-def cobweb(price: float = 1.0, *, a: float = 10.0, b: float = 2.0, c: float = 1.0, d: float = 1.0) -> System:
-    """Return a market whose price converges to or oscillates around equilibrium as supply lags the price.
+class CobwebSystem(BaseSystem):
+    """A market whose price converges to or oscillates around equilibrium as supply lags the price.
+
+    The system has the market `market`.
 
     Args:
         price:
@@ -124,16 +119,42 @@ def cobweb(price: float = 1.0, *, a: float = 10.0, b: float = 2.0, c: float = 1.
         d:
             The supply slope.
 
-    Returns:
-        system:
-            The system, with the market `market`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.markets import cobweb
-        >>> cobweb(price=2.0).elements[0].price
+        >>> from skcomplex.systems.economics.markets import CobwebSystem
+        >>> CobwebSystem(price=2.0).prepare().system_.elements[0].price
         2.0
     """
-    return System(
-        elements=[MarketElement('market', price=price)],
-        interactions=[CobwebInteraction('cobweb', target='market', a=a, b=b, c=c, d=d)],
-    )
+
+    field = 'economics/markets'
+    topics = ('market', 'discrete map')
+    references = ('Ezekiel 1938',)
+    until = 30
+    dt = 1
+
+    def __init__(
+        self,
+        price: float = 1.0,
+        *,
+        a: float = 10.0,
+        b: float = 2.0,
+        c: float = 1.0,
+        d: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.price = price
+        self.a = a
+        self.b = b
+        self.c = c
+        self.d = d
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        return System(
+            self.label,
+            elements=[MarketElement('market', price=self.price)],
+            interactions=[CobwebInteraction('cobweb', target='market', a=self.a, b=self.b, c=self.c, d=self.d)],
+        )

@@ -13,9 +13,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import distributed_delay, lookup, step
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 PRICE_TABLE = ((0.0, 3.0), (0.5, 1.8), (1.0, 1.0), (1.5, 0.65), (2.0, 0.5), (3.0, 0.4))
 INVESTMENT_TABLE = ((0.0, 0.0), (0.5, 0.1), (1.0, 1.0), (1.25, 2.5), (1.5, 4.0), (2.0, 5.0), (3.0, 5.5))
@@ -49,24 +48,6 @@ def _capacity_orders(s: SimpleNamespace) -> Expression:
 def _market(s: SimpleNamespace) -> SimpleNamespace:
     """Return the symbols of the market a transfer moves the commodity or the capacity of, with the time."""
     return SimpleNamespace(t=s.t, **vars(s.source))
-
-
-def _production(s: SimpleNamespace) -> Expression:
-    """Return the production, the capacity times the relative price to the supply elasticity."""
-    market = _market(s)
-    return market.capacity * (_price(market) / market.reference_price) ** market.supply_elasticity
-
-
-def _consumption(s: SimpleNamespace) -> Expression:
-    """Return the consumption, the demand times the relative price to minus the demand elasticity."""
-    market = _market(s)
-    return _demand(market) * (_price(market) / market.reference_price) ** (-market.demand_elasticity)
-
-
-def _completions(s: SimpleNamespace) -> Expression:
-    """Return the completions of capacity, the orders through a third-order delay."""
-    market = _market(s)
-    return distributed_delay(_capacity_orders(market), order=3, time=market.construction_delay)
 
 
 class CommodityMarketElement(Element):
@@ -161,34 +142,8 @@ class CommodityMarketElement(Element):
         self.lifetime = lifetime
 
 
-@register_system(
-    field='economics/markets',
-    tags=('commodity cycle', 'delay', 'oscillations', 'stocks and flows', 'system dynamics', 'ode'),
-    references=('Bala et al. 2017',),
-    defaults={'until': 60.0, 'dt': 0.25},
-    observables=lambda system: [
-        ObservableSpec('coverage', _coverage, element='market'),
-        ObservableSpec('price', _price, element='market'),
-        ObservableSpec('expected_price', _expected_price, element='market'),
-        ObservableSpec('capacity_orders', _capacity_orders, element='market'),
-    ],
-)
-def commodity_cycle(
-    inventory: float = 25.0,
-    capacity: float = 100.0,
-    *,
-    demand: float = 100.0,
-    demand_step: float = 10.0,
-    step_time: float = 2.0,
-    desired_coverage: float = 0.25,
-    reference_price: float = 1.0,
-    supply_elasticity: float = 0.1,
-    demand_elasticity: float = 0.25,
-    expectation_time: float = 1.0,
-    construction_delay: float = 3.0,
-    lifetime: float = 15.0,
-) -> System:
-    """Return a commodity market whose price and capacity cycle because new capacity arrives after a delay.
+class CommodityCycleSystem(BaseSystem):
+    """A commodity market whose price and capacity cycle because new capacity arrives after a delay.
 
     The inventory is a stock of the commodity that production fills and consumption drains. The price is a falling
     table function of the inventory coverage, the years of demand the inventory holds, relative to the desired
@@ -199,6 +154,10 @@ def commodity_cycle(
     Bala et al. Section 4.11.4. The book was not at hand, so the tables and the parameters are a documented
     reconstruction of that structure, in years and in units of the reference demand and price. The market starts in
     equilibrium.
+
+    The system has the inventory `market.inventory` and the capacity `market.capacity` in years, the flows
+    `market.production`, `market.consumption`, `market.completions`, and `market.retirements`. The observables of the
+    system are `market.coverage`, `market.price`, `market.expected_price`, and `market.capacity_orders`.
 
     Args:
         inventory:
@@ -237,50 +196,111 @@ def commodity_cycle(
         lifetime:
             The average lifetime of capacity.
 
-    Returns:
-        system:
-            The system, with the inventory `market.inventory` and the capacity `market.capacity` in years, the flows
-            `market.production`, `market.consumption`, `market.completions`, and `market.retirements`. The observables
-            of the system are `market.coverage`, `market.price`, `market.expected_price`, and `market.capacity_orders`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.markets import commodity_cycle
-        >>> commodity_cycle(construction_delay=5.0).elements[0].construction_delay
+        >>> from skcomplex.systems.economics.markets import CommodityCycleSystem
+        >>> CommodityCycleSystem(construction_delay=5.0).prepare().system_.elements[0].construction_delay
         5.0
     """
-    market = CommodityMarketElement(
-        'market',
-        inventory=inventory,
-        capacity=capacity,
-        demand=demand,
-        demand_step=demand_step,
-        step_time=step_time,
-        desired_coverage=desired_coverage,
-        reference_price=reference_price,
-        supply_elasticity=supply_elasticity,
-        demand_elasticity=demand_elasticity,
-        expectation_time=expectation_time,
-        construction_delay=construction_delay,
-        lifetime=lifetime,
+
+    field = 'economics/markets'
+    topics = ('commodity cycle', 'delay', 'oscillations', 'stocks and flows', 'system dynamics', 'ode')
+    references = ('Bala et al. 2017',)
+    until = 60.0
+    dt = 0.25
+    observables = (
+        ObservableSpec('coverage', _coverage, element='market'),
+        ObservableSpec('price', _price, element='market'),
+        ObservableSpec('expected_price', _expected_price, element='market'),
+        ObservableSpec('capacity_orders', _capacity_orders, element='market'),
     )
-    commodity = TransferInteraction(
-        'commodity',
-        source='market',
-        target='market',
-        state=Source('producers'),
-        into='inventory',
-        amount=_production,
-        flow='production',
-        legs=[('inventory', Sink('consumers'), _consumption, 'consumption')],
-    )
-    capacity_flows = TransferInteraction(
-        'capacity_flows',
-        source='market',
-        target='market',
-        state=Source('construction'),
-        into='capacity',
-        amount=_completions,
-        flow='completions',
-        legs=[('capacity', Sink('retirement'), lambda s: s.source.capacity / s.source.lifetime, 'retirements')],
-    )
-    return System(elements=[market], interactions=[commodity, capacity_flows])
+
+    def __init__(
+        self,
+        inventory: float = 25.0,
+        capacity: float = 100.0,
+        *,
+        demand: float = 100.0,
+        demand_step: float = 10.0,
+        step_time: float = 2.0,
+        desired_coverage: float = 0.25,
+        reference_price: float = 1.0,
+        supply_elasticity: float = 0.1,
+        demand_elasticity: float = 0.25,
+        expectation_time: float = 1.0,
+        construction_delay: float = 3.0,
+        lifetime: float = 15.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.inventory = inventory
+        self.capacity = capacity
+        self.demand = demand
+        self.demand_step = demand_step
+        self.step_time = step_time
+        self.desired_coverage = desired_coverage
+        self.reference_price = reference_price
+        self.supply_elasticity = supply_elasticity
+        self.demand_elasticity = demand_elasticity
+        self.expectation_time = expectation_time
+        self.construction_delay = construction_delay
+        self.lifetime = lifetime
+
+    @staticmethod
+    def _production(s: SimpleNamespace) -> Expression:
+        """Return the production, the capacity times the relative price to the supply elasticity."""
+        market = _market(s)
+        return market.capacity * (_price(market) / market.reference_price) ** market.supply_elasticity
+
+    @staticmethod
+    def _consumption(s: SimpleNamespace) -> Expression:
+        """Return the consumption, the demand times the relative price to minus the demand elasticity."""
+        market = _market(s)
+        return _demand(market) * (_price(market) / market.reference_price) ** (-market.demand_elasticity)
+
+    @staticmethod
+    def _completions(s: SimpleNamespace) -> Expression:
+        """Return the completions of capacity, the orders through a third-order delay."""
+        market = _market(s)
+        return distributed_delay(_capacity_orders(market), order=3, time=market.construction_delay)
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        market = CommodityMarketElement(
+            'market',
+            inventory=self.inventory,
+            capacity=self.capacity,
+            demand=self.demand,
+            demand_step=self.demand_step,
+            step_time=self.step_time,
+            desired_coverage=self.desired_coverage,
+            reference_price=self.reference_price,
+            supply_elasticity=self.supply_elasticity,
+            demand_elasticity=self.demand_elasticity,
+            expectation_time=self.expectation_time,
+            construction_delay=self.construction_delay,
+            lifetime=self.lifetime,
+        )
+        commodity = TransferInteraction(
+            'commodity',
+            source='market',
+            target='market',
+            state=Source('producers'),
+            into='inventory',
+            amount=self._production,
+            flow='production',
+            legs=[('inventory', Sink('consumers'), self._consumption, 'consumption')],
+        )
+        capacity_flows = TransferInteraction(
+            'capacity_flows',
+            source='market',
+            target='market',
+            state=Source('construction'),
+            into='capacity',
+            amount=self._completions,
+            flow='completions',
+            legs=[('capacity', Sink('retirement'), lambda s: s.source.capacity / s.source.lifetime, 'retirements')],
+        )
+        return System(self.label, elements=[market], interactions=[commodity, capacity_flows])

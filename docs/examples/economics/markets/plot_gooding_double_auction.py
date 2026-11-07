@@ -13,14 +13,15 @@ way. In the short run the price settles at the competitive level, halfway betwee
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.economics.markets import GoodingDoubleAuctionSystem
 
 SYSTEM = 'gooding_double_auction'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-short = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run(until=300).trajectory_
-long = create_simulation(SYSTEM, n_buyers=10, n_sellers=10, unlimited=True).prepare().run(until=5000).trajectory_
+short = simulate(GoodingDoubleAuctionSystem(), observers=[observer])
+long = simulate(GoodingDoubleAuctionSystem(n_buyers=10, n_sellers=10, unlimited=True), until=5000)
 
 # %%
 # Short and long run

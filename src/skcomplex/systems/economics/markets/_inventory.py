@@ -13,9 +13,8 @@ from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import distributed_delay, maximum, minimum, step
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 def _sales(s: SimpleNamespace) -> Expression:
@@ -43,12 +42,6 @@ def _orders(s: SimpleNamespace) -> Expression:
 def _dealer(s: SimpleNamespace) -> SimpleNamespace:
     """Return the symbols of the dealership a transfer moves cars of, with the time."""
     return SimpleNamespace(t=s.t, **vars(s.source))
-
-
-def _deliveries(s: SimpleNamespace) -> Expression:
-    """Return the deliveries of the dealership, its orders through a third-order delay."""
-    dealer = _dealer(s)
-    return distributed_delay(_orders(dealer), order=3, time=dealer.delivery_delay)
 
 
 class CarDealershipElement(Element):
@@ -121,29 +114,8 @@ class CarDealershipElement(Element):
         self.delivery_delay = delivery_delay
 
 
-@register_system(
-    field='economics/markets',
-    tags=('inventory', 'delay', 'oscillations', 'stocks and flows', 'system dynamics', 'ode'),
-    references=('Meadows 2008',),
-    defaults={'until': 100.0, 'dt': 1.0},
-    observables=lambda system: [
-        ObservableSpec('perceived', _perceived, element='dealer'),
-        ObservableSpec('desired_inventory', _desired_inventory, element='dealer'),
-        ObservableSpec('orders', _orders, element='dealer'),
-    ],
-)
-def car_dealer(
-    inventory: float = 200.0,
-    *,
-    demand: float = 20.0,
-    demand_step: float = 2.0,
-    step_time: float = 25.0,
-    coverage: float = 10.0,
-    perception_delay: float = 5.0,
-    response_delay: float = 3.0,
-    delivery_delay: float = 5.0,
-) -> System:
-    """Return Meadows' car dealership, whose inventory oscillates after a step in demand because of its delays.
+class CarDealerSystem(BaseSystem):
+    """Meadows' car dealership, whose inventory oscillates after a step in demand because of its delays.
 
     The inventory is a stock of cars that deliveries from the factory fill and sales to customers drain. Sales are the
     customer demand, limited by the cars on the lot. The dealer smooths sales over the perception delay, wants an
@@ -151,6 +123,10 @@ def car_dealer(
     divided by the response delay. Orders arrive through a third-order material delay, a continuous stand-in for
     Meadows' fixed delivery delay. Lengthening the response delay damps the oscillation, while shortening the
     perception delay makes the dealer react faster to the new demand and slightly enlarges it.
+
+    The system has the cars on the lot `dealer.inventory`, and the flows `dealer.deliveries` and `dealer.sales`. The
+    observables of the system are `dealer.perceived` for the perceived sales, `dealer.desired_inventory`, and
+    `dealer.orders`.
 
     Args:
         inventory:
@@ -177,36 +153,76 @@ def car_dealer(
         delivery_delay:
             The average time between an order and its delivery.
 
-    Returns:
-        system:
-            The system, with the cars on the lot `dealer.inventory`, and the flows `dealer.deliveries` and
-            `dealer.sales`. The observables of the system are `dealer.perceived` for the perceived sales,
-            `dealer.desired_inventory`, and `dealer.orders`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.markets import car_dealer
-        >>> car_dealer(response_delay=6.0).elements[0].response_delay
+        >>> from skcomplex.systems.economics.markets import CarDealerSystem
+        >>> CarDealerSystem(response_delay=6.0).prepare().system_.elements[0].response_delay
         6.0
     """
-    dealer = CarDealershipElement(
-        'dealer',
-        inventory=inventory,
-        demand=demand,
-        demand_step=demand_step,
-        step_time=step_time,
-        coverage=coverage,
-        perception_delay=perception_delay,
-        response_delay=response_delay,
-        delivery_delay=delivery_delay,
+
+    field = 'economics/markets'
+    topics = ('inventory', 'delay', 'oscillations', 'stocks and flows', 'system dynamics', 'ode')
+    references = ('Meadows 2008',)
+    until = 100.0
+    dt = 1.0
+    observables = (
+        ObservableSpec('perceived', _perceived, element='dealer'),
+        ObservableSpec('desired_inventory', _desired_inventory, element='dealer'),
+        ObservableSpec('orders', _orders, element='dealer'),
     )
-    cars = TransferInteraction(
-        'cars',
-        source='dealer',
-        target='dealer',
-        state=Source('factory'),
-        into='inventory',
-        amount=_deliveries,
-        flow='deliveries',
-        legs=[('inventory', Sink('customers'), lambda s: _sales(_dealer(s)), 'sales')],
-    )
-    return System(elements=[dealer], interactions=[cars])
+
+    def __init__(
+        self,
+        inventory: float = 200.0,
+        *,
+        demand: float = 20.0,
+        demand_step: float = 2.0,
+        step_time: float = 25.0,
+        coverage: float = 10.0,
+        perception_delay: float = 5.0,
+        response_delay: float = 3.0,
+        delivery_delay: float = 5.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.inventory = inventory
+        self.demand = demand
+        self.demand_step = demand_step
+        self.step_time = step_time
+        self.coverage = coverage
+        self.perception_delay = perception_delay
+        self.response_delay = response_delay
+        self.delivery_delay = delivery_delay
+
+    @staticmethod
+    def _deliveries(s: SimpleNamespace) -> Expression:
+        """Return the deliveries of the dealership, its orders through a third-order delay."""
+        dealer = _dealer(s)
+        return distributed_delay(_orders(dealer), order=3, time=dealer.delivery_delay)
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        dealer = CarDealershipElement(
+            'dealer',
+            inventory=self.inventory,
+            demand=self.demand,
+            demand_step=self.demand_step,
+            step_time=self.step_time,
+            coverage=self.coverage,
+            perception_delay=self.perception_delay,
+            response_delay=self.response_delay,
+            delivery_delay=self.delivery_delay,
+        )
+        cars = TransferInteraction(
+            'cars',
+            source='dealer',
+            target='dealer',
+            state=Source('factory'),
+            into='inventory',
+            amount=self._deliveries,
+            flow='deliveries',
+            legs=[('inventory', Sink('customers'), lambda s: _sales(_dealer(s)), 'sales')],
+        )
+        return System(self.label, elements=[dealer], interactions=[cars])

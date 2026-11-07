@@ -4,7 +4,7 @@ import numpy as np
 
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.systems import describe
-from skcomplex.systems.economics.markets import labour_market
+from skcomplex.systems.economics.markets import LabourMarketSystem
 
 
 def test_labour_market_flow_balance():
@@ -12,7 +12,7 @@ def test_labour_market_flow_balance():
     separation = 0.05
     trajectory = (
         Simulation(
-            built := labour_market(150, 30, separation=separation),
+            built := LabourMarketSystem(150, 30, separation=separation).prepare().system_,
             random_state=0,
             observables=describe('labour_market').observables_of(built),
         )

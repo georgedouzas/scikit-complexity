@@ -16,7 +16,7 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, MatchingInteraction
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import MatchingRule
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import (
@@ -29,7 +29,6 @@ from ....core.specs import (
     StateSpec,
     VisualSpec,
 )
-from ..._catalog import register_system
 
 
 class BarterTraderView(AgentView):
@@ -304,52 +303,8 @@ def _utility(agent: object) -> float:
     return math.prod(float(getattr(agent, good)) for good in GOODS)
 
 
-def _trade_network(topology: str, n_agents: int, n_groups: int, shortcuts: int, rng: np.random.Generator) -> nx.Graph:
-    """Return the trade network of one of Wilhite's four topologies, with nodes numbered from zero."""
-    if topology not in TOPOLOGIES:
-        error_msg = f'Unknown topology {topology!r}. Use one of {TOPOLOGIES}.'
-        raise ValueError(error_msg)
-    if topology == 'complete':
-        return nx.complete_graph(n_agents)
-    groups = np.array_split(np.arange(n_agents), n_groups)
-    graph = nx.Graph()
-    graph.add_nodes_from(range(n_agents))
-    for members in groups:
-        graph.add_edges_from((int(a), int(b)) for index, a in enumerate(members) for b in members[index + 1 :])
-    if topology == 'isolated':
-        return graph
-    for index, members in enumerate(groups):
-        following = groups[(index + 1) % n_groups]
-        graph.add_edges_from((int(members[-1]), int(other)) for other in following if other != members[-1])
-    if topology == 'linked':
-        return graph
-    for _ in range(shortcuts):
-        first, second = rng.choice(n_groups, size=2, replace=False)
-        graph.add_edge(int(rng.choice(groups[first])), int(rng.choice(groups[second])))
-    return graph
-
-
-@register_system(
-    field='economics/markets',
-    tags=('barter', 'trade', 'network', 'small world', 'agents'),
-    references=('Wilhite 2001', 'Gooding 2019'),
-    defaults={'until': 60},
-    observables=lambda system: [
-        ObservableSpec('dispersion', group='traders', variable='mrs', reduce=_log_spread),
-        ObservableSpec('utility', _utility, group='traders'),
-    ],
-)
-def wilhite_trade_networks(
-    n_agents: int = 500,
-    *,
-    topology: str = 'small_world',
-    n_groups: int = 10,
-    shortcuts: int = 5,
-    endowment: float = 100.0,
-    units: int = 100,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Wilhite's bilateral barter of two goods among traders on one of four trade networks.
+class WilhiteTradeNetworksSystem(BaseSystem):
+    """Wilhite's bilateral barter of two goods among traders on one of four trade networks.
 
     Traders start with random bundles of two goods and the utility `good1 good2`. Every step, each trader searches
     its neighbours and trades with the one whose marginal rate of substitution differs the most, single units at a
@@ -358,6 +313,9 @@ def wilhite_trade_networks(
     onto the most extreme partners, so prices converge slowly. Isolated groups settle on different prices. Groups
     chained by shared end traders, or a small world with some long links, bring the prices together with far fewer
     searches.
+
+    The system has the group `traders` on the network, the reporters `barter.trades` and `barter.searches`, and the
+    observables `dispersion`, the spread of the logarithms of the rates, and `utility`, the mean utility.
 
     Args:
         n_agents:
@@ -382,56 +340,118 @@ def wilhite_trade_networks(
         random_state:
             The seed or generator of the bundles and the long links.
 
-    Returns:
-        system:
-            The system, with the group `traders` on the network, the reporters `barter.trades` and `barter.searches`,
-            and the observables `dispersion`, the spread of the logarithms of the rates, and `utility`, the mean
-            utility.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValueError:
             The topology is unknown.
 
     Examples:
-        >>> from skcomplex.systems.economics.markets import wilhite_trade_networks
-        >>> system = wilhite_trade_networks(40, topology='isolated', n_groups=4)
+        >>> from skcomplex.systems.economics.markets import WilhiteTradeNetworksSystem
+        >>> system = WilhiteTradeNetworksSystem(40, topology='isolated', n_groups=4).prepare().system_
         >>> system.elements[0].prepare().size_
         40
     """
-    rng = np.random.default_rng(random_state)
-    graph = _trade_network(topology, n_agents, n_groups, shortcuts, rng)
-    goods = rng.integers(1, int(endowment) + 1, size=(2, n_agents)).astype(float)
-    traders = GroupElement(
-        'traders',
-        element=BarterTraderElement,
-        size=n_agents,
-        values={
-            'good1': goods[0],
-            'good2': goods[1],
-            'mrs': goods[1] / goods[0],
-            'links': np.array([graph.degree(node) for node in range(n_agents)], dtype=float),
-        },
-        location=list(range(n_agents)),
+
+    field = 'economics/markets'
+    topics = ('barter', 'trade', 'network', 'small world', 'agents')
+    references = ('Wilhite 2001', 'Gooding 2019')
+    until = 60
+    observables = (
+        ObservableSpec('dispersion', group='traders', variable='mrs', reduce=_log_spread),
+        ObservableSpec('utility', _utility, group='traders'),
     )
-    return System(
-        elements=[traders],
-        interactions=[
-            MapInteraction(
-                'appraisal',
-                target='traders',
-                state='mrs',
-                function=BarterTraderElement.get_rate,
-                form='agent',
-            ),
-            BilateralBarterInteraction(
-                'barter',
-                requesters='traders',
-                providers='traders',
-                rule=PartnerSpec(choice='score', score=BarterTraderElement.get_rate_gap, clearing='provider'),
-                quantity=('quantity', 'partners'),
-                units=units,
-            ),
-        ],
-        space=NetworkSpace(graph),
-        time=DiscreteTime(),
-    )
+
+    def __init__(
+        self,
+        n_agents: int = 500,
+        *,
+        topology: str = 'small_world',
+        n_groups: int = 10,
+        shortcuts: int = 5,
+        endowment: float = 100.0,
+        units: int = 100,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+        self.topology = topology
+        self.n_groups = n_groups
+        self.shortcuts = shortcuts
+        self.endowment = endowment
+        self.units = units
+        self.random_state = random_state
+
+    @staticmethod
+    def _trade_network(
+        topology: str,
+        n_agents: int,
+        n_groups: int,
+        shortcuts: int,
+        rng: np.random.Generator,
+    ) -> nx.Graph:
+        """Return the trade network of one of Wilhite's four topologies, with nodes numbered from zero."""
+        if topology not in TOPOLOGIES:
+            error_msg = f'Unknown topology {topology!r}. Use one of {TOPOLOGIES}.'
+            raise ValueError(error_msg)
+        if topology == 'complete':
+            return nx.complete_graph(n_agents)
+        groups = np.array_split(np.arange(n_agents), n_groups)
+        graph = nx.Graph()
+        graph.add_nodes_from(range(n_agents))
+        for members in groups:
+            graph.add_edges_from((int(a), int(b)) for index, a in enumerate(members) for b in members[index + 1 :])
+        if topology == 'isolated':
+            return graph
+        for index, members in enumerate(groups):
+            following = groups[(index + 1) % n_groups]
+            graph.add_edges_from((int(members[-1]), int(other)) for other in following if other != members[-1])
+        if topology == 'linked':
+            return graph
+        for _ in range(shortcuts):
+            first, second = rng.choice(n_groups, size=2, replace=False)
+            graph.add_edge(int(rng.choice(groups[first])), int(rng.choice(groups[second])))
+        return graph
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        graph = self._trade_network(self.topology, self.n_agents, self.n_groups, self.shortcuts, rng)
+        goods = rng.integers(1, int(self.endowment) + 1, size=(2, self.n_agents)).astype(float)
+        traders = GroupElement(
+            'traders',
+            element=BarterTraderElement,
+            size=self.n_agents,
+            values={
+                'good1': goods[0],
+                'good2': goods[1],
+                'mrs': goods[1] / goods[0],
+                'links': np.array([graph.degree(node) for node in range(self.n_agents)], dtype=float),
+            },
+            location=list(range(self.n_agents)),
+        )
+        return System(
+            self.label,
+            elements=[traders],
+            interactions=[
+                MapInteraction(
+                    'appraisal',
+                    target='traders',
+                    state='mrs',
+                    function=BarterTraderElement.get_rate,
+                    form='agent',
+                ),
+                BilateralBarterInteraction(
+                    'barter',
+                    requesters='traders',
+                    providers='traders',
+                    rule=PartnerSpec(choice='score', score=BarterTraderElement.get_rate_gap, clearing='provider'),
+                    quantity=('quantity', 'partners'),
+                    units=self.units,
+                ),
+            ],
+            space=NetworkSpace(graph),
+            time=DiscreteTime(),
+        )

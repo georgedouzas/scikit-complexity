@@ -13,12 +13,11 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 FITNESS_TESTS = ('none', 'money', 'assets')
 
@@ -103,6 +102,8 @@ class ToyTraderElement(Element):
         >>> GroupElement('traders', element=ToyTraderElement, size=3).size
         3
     """
+
+    law_classes = ()
 
     def __init__(
         self,
@@ -358,24 +359,8 @@ class ToyMarketInteraction(FeedbackInteraction[SystemView]):
         system.report('asset_gini', self._gini(state['money'] + state['stocks'][:, 0] * average))
 
 
-@register_system(
-    field='economics/markets',
-    tags=('money', 'prices', 'agents', 'inequality', 'evolution', 'imitation', 'market sight'),
-    references=('Gooding 2019',),
-    defaults={'until': 300},
-)
-def toy_trader(
-    n_traders: int = 400,
-    *,
-    sight: float = 1.0,
-    mutation: float = 0.0,
-    imitation: float = 0.1,
-    fitness: str = 'none',
-    n_goods: int = 1,
-    size: float = 51.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Gooding's Toy Trader, traders with money and toys who buy the cheapest toy they can see.
+class ToyTraderSystem(BaseSystem):
+    """Gooding's Toy Trader, traders with money and toys who buy the cheapest toy they can see.
 
     Four hundred traders on a 51 by 51 torus start with 100 money, 5 toys, and a toy price of 10. Every iteration every
     trader buys one toy from the cheapest trader within its market sight, if it can pay, and moves one unit in a random
@@ -387,6 +372,10 @@ def toy_trader(
     poorest half under a fitness test of money or of assets evolves the price patterns of speculation and asset markets
     (Sections 10.2 and 11). With `n_goods=3` the traders also trade crayons and blackboards, starting with 30 and 15,
     which keep the fixed factors and the target stocks of 10 to 15 and 5 to 8 of the Three-Goods Trader (Section 11.1).
+
+    The system has the group `traders` and the market `market`, whose reporters are the average price of the toys traded
+    `market.average_price`, the toys traded `market.trades`, and the Gini coefficients of money `market.money_gini` and
+    of assets `market.asset_gini`.
 
     Args:
         n_traders:
@@ -413,34 +402,62 @@ def toy_trader(
         random_state:
             The seed or generator of the places of the traders.
 
-    Returns:
-        system:
-            The system, with the group `traders` and the market `market`, whose reporters are the average price of the
-            toys traded `market.average_price`, the toys traded `market.trades`, and the Gini coefficients of money
-            `market.money_gini` and of assets `market.asset_gini`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.markets import toy_trader
-        >>> toy_trader(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.economics.markets import ToyTraderSystem
+        >>> ToyTraderSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    rng = np.random.default_rng(random_state)
-    places = rng.uniform(0, size, (n_traders, 2))
-    stocks = dict(zip(GOODS, STOCKS[:n_goods] + (0.0,) * (len(GOODS) - n_goods), strict=True))
-    traders = GroupElement(
-        'traders',
-        element=ToyTraderElement,
-        size=n_traders,
-        values={'x': places[:, 0], 'y': places[:, 1], **stocks},
-    )
-    market = ToyMarketInteraction(
-        'market',
-        traders='traders',
-        sight=sight,
-        mutation=mutation,
-        imitation=imitation,
-        size=size,
-        n_goods=n_goods,
-        fitness=fitness,
-    )
-    return System(elements=[traders], interactions=[market])
+
+    field = 'economics/markets'
+    topics = ('money', 'prices', 'agents', 'inequality', 'evolution', 'imitation', 'market sight')
+    references = ('Gooding 2019',)
+    until = 300
+
+    def __init__(
+        self,
+        n_traders: int = 400,
+        *,
+        sight: float = 1.0,
+        mutation: float = 0.0,
+        imitation: float = 0.1,
+        fitness: str = 'none',
+        n_goods: int = 1,
+        size: float = 51.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_traders = n_traders
+        self.sight = sight
+        self.mutation = mutation
+        self.imitation = imitation
+        self.fitness = fitness
+        self.n_goods = n_goods
+        self.size = size
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        places = rng.uniform(0, self.size, (self.n_traders, 2))
+        stocks = dict(zip(GOODS, STOCKS[: self.n_goods] + (0.0,) * (len(GOODS) - self.n_goods), strict=True))
+        traders = GroupElement(
+            'traders',
+            element=ToyTraderElement,
+            size=self.n_traders,
+            values={'x': places[:, 0], 'y': places[:, 1], **stocks},
+        )
+        market = ToyMarketInteraction(
+            'market',
+            traders='traders',
+            sight=self.sight,
+            mutation=self.mutation,
+            imitation=self.imitation,
+            size=self.size,
+            n_goods=self.n_goods,
+            fitness=self.fitness,
+        )
+        return System(self.label, elements=[traders], interactions=[market])

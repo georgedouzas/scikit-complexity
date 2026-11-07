@@ -14,11 +14,10 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 OUTSIDE, COMMITTED, MEMBER = 0, 1, 2
 
@@ -60,6 +59,8 @@ class ProgramMemberElement(Element):
         >>> GroupElement('farms', element=ProgramMemberElement, size=3, values={'acres': 10.0}).size
         3
     """
+
+    law_classes = ()
 
     def __init__(
         self,
@@ -198,27 +199,8 @@ class FairFoodMarketInteraction(FeedbackInteraction[SystemView]):
         system.report('unsold', float(left.sum()))
 
 
-def _sizes(count: int, acres: float, rng: np.random.Generator) -> tuple[Array, Array]:
-    """Return random weights of the agents and their shares of the acres, as `farm_size / total_sizes * acres`."""
-    weights = rng.random(count)
-    return weights, weights / weights.sum() * acres
-
-
-@register_system(
-    field='economics/markets',
-    tags=('fair trade', 'supply chain', 'agents', 'tipping point', 'labour standards', 'modern slavery'),
-    references=('Chesney 2021',),
-    defaults={'until': 5000},
-)
-def fair_food_program(
-    n_shops: int = 30,
-    n_farms: int = 20,
-    *,
-    acres: float = 1000.0,
-    pressure: float = 0.001,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Chesney's Fair Food Program, in which pressure on tomato buyers draws farms into fair wages.
+class FairFoodProgramSystem(BaseSystem):
+    """Chesney's Fair Food Program, in which pressure on tomato buyers draws farms into fair wages.
 
     The Coalition of Immokalee Workers presses tomato buyers to join the Fair Food Program, whose member farms pay
     pickers a penny more per pound. Buyers join at level 1, buying from member farms first, then move to level 2,
@@ -228,6 +210,10 @@ def fair_food_program(
     and `ceiling` of its NetLogo code, whose `sell_me` subtracts the last tomatoes of a farm from the buyer instead of
     adding them, which this system corrects. Farms hold out until most buyers have joined, then join in a cascade, a
     tipping point that comes later the more unequal the agents.
+
+    The system has the groups `shops` and `farms` and the market `market`, whose reporters are the buyers at level 1
+    `market.committed_shops` and level 2 `market.member_shops`, the member farms `market.member_farms`, the unfulfilled
+    needs `market.unfulfilled`, and the unsold tomatoes `market.unsold`.
 
     Args:
         n_shops:
@@ -245,21 +231,54 @@ def fair_food_program(
         random_state:
             The seed or generator of the sizes of the buyers and farms.
 
-    Returns:
-        system:
-            The system, with the groups `shops` and `farms` and the market `market`, whose reporters are the buyers at
-            level 1 `market.committed_shops` and level 2 `market.member_shops`, the member farms `market.member_farms`,
-            the unfulfilled needs `market.unfulfilled`, and the unsold tomatoes `market.unsold`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.markets import fair_food_program
-        >>> [group.prepare().size_ for group in fair_food_program(5, 3).elements]
+        >>> from skcomplex.systems.economics.markets import FairFoodProgramSystem
+        >>> [group.prepare().size_ for group in FairFoodProgramSystem(5, 3).prepare().system_.elements]
         [5, 3]
     """
-    rng = np.random.default_rng(random_state)
-    _, needs = _sizes(n_shops, acres, rng)
-    _, grown = _sizes(n_farms, acres, rng)
-    shops = GroupElement('shops', element=ProgramMemberElement, size=n_shops, values={'acres': np.floor(needs)})
-    farms = GroupElement('farms', element=ProgramMemberElement, size=n_farms, values={'acres': np.ceil(grown)})
-    market = FairFoodMarketInteraction('market', shops='shops', farms='farms', pressure=pressure)
-    return System(elements=[shops, farms], interactions=[market])
+
+    field = 'economics/markets'
+    topics = ('fair trade', 'supply chain', 'agents', 'tipping point', 'labour standards', 'modern slavery')
+    references = ('Chesney 2021',)
+    until = 5000
+
+    def __init__(
+        self,
+        n_shops: int = 30,
+        n_farms: int = 20,
+        *,
+        acres: float = 1000.0,
+        pressure: float = 0.001,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_shops = n_shops
+        self.n_farms = n_farms
+        self.acres = acres
+        self.pressure = pressure
+        self.random_state = random_state
+
+    @staticmethod
+    def _sizes(count: int, acres: float, rng: np.random.Generator) -> tuple[Array, Array]:
+        """Return random weights of the agents and their shares of the acres, as `farm_size / total_sizes * acres`."""
+        weights = rng.random(count)
+        return weights, weights / weights.sum() * acres
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        _, needs = self._sizes(self.n_shops, self.acres, rng)
+        _, grown = self._sizes(self.n_farms, self.acres, rng)
+        shops = GroupElement(
+            'shops',
+            element=ProgramMemberElement,
+            size=self.n_shops,
+            values={'acres': np.floor(needs)},
+        )
+        farms = GroupElement('farms', element=ProgramMemberElement, size=self.n_farms, values={'acres': np.ceil(grown)})
+        market = FairFoodMarketInteraction('market', shops='shops', farms='farms', pressure=self.pressure)
+        return System(self.label, elements=[shops, farms], interactions=[market])

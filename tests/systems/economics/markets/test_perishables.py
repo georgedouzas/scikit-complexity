@@ -6,7 +6,7 @@ from scipy.optimize import brentq
 
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.systems import describe
-from skcomplex.systems.economics.markets import perishable_goods_duopoly
+from skcomplex.systems.economics.markets import PerishableGoodsDuopolySystem
 
 
 def _asymmetry_at_mean_field(temperature, control):
@@ -23,7 +23,9 @@ def test_perishable_goods_duopoly_symmetry_breaking(ratio):
     """Test that one shop takes most customers below T_c = R / (1 + R)^2 and that both shops share them above it."""
     control = 1.0
     critical = control / (1 + control) ** 2
-    system = perishable_goods_duopoly(200, stock=0.5, tau_a=1.0, T=ratio * critical, random_state=0)
+    system = (
+        PerishableGoodsDuopolySystem(200, stock=0.5, tau_a=1.0, T=ratio * critical, random_state=0).prepare().system_
+    )
     asymmetry = np.abs(
         (
             Simulation(

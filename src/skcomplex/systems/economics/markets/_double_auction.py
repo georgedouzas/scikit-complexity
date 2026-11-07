@@ -12,7 +12,7 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import FeedbackInteraction, MapInteraction, MatchingInteraction
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import (
     BatchMatchingSpec,
@@ -24,7 +24,6 @@ from ....core.specs import (
     StateSpec,
     VisualSpec,
 )
-from ..._catalog import register_system
 
 
 class ZeroIntelligenceBuyerView(AgentView):
@@ -289,33 +288,8 @@ class AuctionLedgerInteraction(FeedbackInteraction[SystemView]):
 PROTOCOLS = ('order_book', 'call_auction')
 
 
-def _book_profit(trade: MatchSpec, system: SystemView) -> None:
-    """Add the surplus of a trade to the profits of the buyer and the seller."""
-    del system
-    buyer, seller = trade.requester, trade.provider
-    if not isinstance(buyer, ZeroIntelligenceBuyerView) or not isinstance(seller, ZeroIntelligenceSellerView):
-        return
-    buyer.profit += trade.quantity * (buyer.value - trade.value)
-    seller.profit += trade.quantity * (trade.value - seller.value)
-
-
-@register_system(
-    field='economics/markets',
-    tags=('market', 'agents', 'double auction', 'zero intelligence'),
-    references=('Gode and Sunder 1993',),
-    defaults={'until': 20},
-)
-def double_auction(
-    n_buyers: int = 50,
-    n_sellers: int = 50,
-    *,
-    protocol: str = 'order_book',
-    rounds: int = 20,
-    constrained: bool = True,
-    ceiling: float = 200.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Gode and Sunder's double auction of zero-intelligence traders, a step per trading period.
+class DoubleAuctionSystem(BaseSystem):
+    """Gode and Sunder's double auction of zero-intelligence traders, a step per trading period.
 
     Every buyer values one unit and every seller can produce one unit at a cost, both drawn uniformly below the price
     ceiling. During a trading period of several rounds, every trader that has not traded yet quotes a random price and
@@ -323,8 +297,9 @@ def double_auction(
     the budget constraint (ZI-C) no trader accepts a loss, and the market alone reaches nearly the whole competitive
     surplus. Without it (ZI-U), traders make losing trades and the efficiency drops.
 
-    The traders are the zero-intelligence traders of Gode and Sunder (1993). The double auction of Gooding (2019),
-    whose traders adapt their bids and asks, is a different model.
+    The traders are the zero-intelligence traders of Gode and Sunder (1993). The double auction of Gooding (2019), whose
+    traders adapt their bids and asks, is a different model. The system has the groups `buyers` and `sellers`, the
+    market `auction`, and the realised `ledger.surplus` and `ledger.efficiency` of every trading period.
 
     Args:
         n_buyers:
@@ -348,58 +323,98 @@ def double_auction(
         random_state:
             The seed or generator of the values and the costs.
 
-    Returns:
-        system:
-            The system, with the groups `buyers` and `sellers`, the market `auction`, and the realised `ledger.surplus`
-            and `ledger.efficiency` of every trading period.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValueError:
             The protocol is unknown.
 
     Examples:
-        >>> from skcomplex.systems.economics.markets import double_auction
-        >>> [group.size for group in double_auction(10, 8).elements]
+        >>> from skcomplex.systems.economics.markets import DoubleAuctionSystem
+        >>> [group.size for group in DoubleAuctionSystem(10, 8).prepare().system_.elements]
         [10, 8]
     """
-    if protocol not in PROTOCOLS:
-        error_msg = f'Unknown protocol {protocol!r}. Use one of {PROTOCOLS}.'
-        raise ValueError(error_msg)
-    rng = np.random.default_rng(random_state)
-    values = rng.uniform(0.25 * ceiling, ceiling, n_buyers)
-    costs = rng.uniform(0.0, 0.75 * ceiling, n_sellers)
-    limit = float(constrained)
-    buyers = GroupElement(
-        'buyers',
-        element=ZeroIntelligenceBuyerElement,
-        size=n_buyers,
-        values={'value': values, 'ceiling': ceiling, 'constrained': limit},
-    )
-    sellers = GroupElement(
-        'sellers',
-        element=ZeroIntelligenceSellerElement,
-        size=n_sellers,
-        values={'value': costs, 'ceiling': ceiling, 'constrained': limit},
-    )
-    market = MatchingInteraction(
-        'auction',
-        requesters='buyers',
-        providers='sellers',
-        rule=ContinuousMatchingSpec() if protocol == 'order_book' else BatchMatchingSpec(),
-        limit=('bid', 'ask'),
-        quantity=('demand', 'supply'),
-        phase='trade',
-        on_match=_book_profit,
-    )
-    quotes = [
-        MapInteraction(label, target=group, state=state, function=function, form='agent', phase='trade')
-        for label, group, state, function in (
-            ('bids', 'buyers', 'bid', ZeroIntelligenceBuyerElement.get_bid),
-            ('asks', 'sellers', 'ask', ZeroIntelligenceSellerElement.get_ask),
+
+    field = 'economics/markets'
+    topics = ('market', 'agents', 'double auction', 'zero intelligence')
+    references = ('Gode and Sunder 1993',)
+    until = 20
+
+    def __init__(
+        self,
+        n_buyers: int = 50,
+        n_sellers: int = 50,
+        *,
+        protocol: str = 'order_book',
+        rounds: int = 20,
+        constrained: bool = True,
+        ceiling: float = 200.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_buyers = n_buyers
+        self.n_sellers = n_sellers
+        self.protocol = protocol
+        self.rounds = rounds
+        self.constrained = constrained
+        self.ceiling = ceiling
+        self.random_state = random_state
+
+    @staticmethod
+    def _book_profit(trade: MatchSpec, system: SystemView) -> None:
+        """Add the surplus of a trade to the profits of the buyer and the seller."""
+        del system
+        buyer, seller = trade.requester, trade.provider
+        if not isinstance(buyer, ZeroIntelligenceBuyerView) or not isinstance(seller, ZeroIntelligenceSellerView):
+            return
+        buyer.profit += trade.quantity * (buyer.value - trade.value)
+        seller.profit += trade.quantity * (trade.value - seller.value)
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        if self.protocol not in PROTOCOLS:
+            error_msg = f'Unknown protocol {self.protocol!r}. Use one of {PROTOCOLS}.'
+            raise ValueError(error_msg)
+        rng = np.random.default_rng(self.random_state)
+        values = rng.uniform(0.25 * self.ceiling, self.ceiling, self.n_buyers)
+        costs = rng.uniform(0.0, 0.75 * self.ceiling, self.n_sellers)
+        limit = float(self.constrained)
+        buyers = GroupElement(
+            'buyers',
+            element=ZeroIntelligenceBuyerElement,
+            size=self.n_buyers,
+            values={'value': values, 'ceiling': self.ceiling, 'constrained': limit},
         )
-    ]
-    return System(
-        elements=[buyers, sellers],
-        interactions=[*quotes, market, AuctionLedgerInteraction('ledger', phase='close')],
-        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec('trade', repeat=rounds), PhaseSpec('close')])),
-    )
+        sellers = GroupElement(
+            'sellers',
+            element=ZeroIntelligenceSellerElement,
+            size=self.n_sellers,
+            values={'value': costs, 'ceiling': self.ceiling, 'constrained': limit},
+        )
+        market = MatchingInteraction(
+            'auction',
+            requesters='buyers',
+            providers='sellers',
+            rule=ContinuousMatchingSpec() if self.protocol == 'order_book' else BatchMatchingSpec(),
+            limit=('bid', 'ask'),
+            quantity=('demand', 'supply'),
+            phase='trade',
+            on_match=self._book_profit,
+        )
+        quotes = [
+            MapInteraction(label, target=group, state=state, function=function, form='agent', phase='trade')
+            for label, group, state, function in (
+                ('bids', 'buyers', 'bid', ZeroIntelligenceBuyerElement.get_bid),
+                ('asks', 'sellers', 'ask', ZeroIntelligenceSellerElement.get_ask),
+            )
+        ]
+        return System(
+            self.label,
+            elements=[buyers, sellers],
+            interactions=[*quotes, market, AuctionLedgerInteraction('ledger', phase='close')],
+            time=DiscreteTime(
+                schedule=PhasesScheduleSpec([PhaseSpec('trade', repeat=self.rounds), PhaseSpec('close')]),
+            ),
+        )
