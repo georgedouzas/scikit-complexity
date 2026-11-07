@@ -39,6 +39,14 @@
 - [ ] 6.4 Add the systems page, and catalog pages with class, import path, parameters, and tags
 - [ ] 6.5 Update every docstring example
 
+## 8. Follow-ups found while converting systems
+
+- [ ] 8.1 Cache the parts `BaseSystem` builds while its parameters are unchanged, so `get_tags`, `_check`, and `prepare` do not rebuild systems that fit or generate data when built
+- [ ] 8.2 Add `invariants` and `schedule` to `RunSettings` and `simulate`, and restore the tuned invariants of the order book, guru order book, and goods traders systems
+- [ ] 8.3 Read `get_run_settings()` in the registry bridge, until the registry is removed
+- [ ] 8.4 Rename the classes whose catalog names end in `_system`, such as `IntelligentDriverSystemSystem` and `VoterSystemSystem`, with their gallery and inventory keys
+- [ ] 8.5 Fix the failures that predate the conversion: the period of `memristive_mixed_mode_oscillator` and the frozen-spec test that analysis results break
+
 ## 7. Verification
 
 - [ ] 7.1 Checks, import contracts, and layout tests pass
