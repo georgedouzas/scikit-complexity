@@ -23,7 +23,6 @@ from ._finite_populations import (
 )
 from ._games import CyclicSpeciesElement, StrategyElement, replicator_dynamics, rock_paper_scissors
 from ._networks import (
-    CatalyticLinkElement,
     ChemicalElement,
     CompetingSpeciesElement,
     CompetitiveSelectionInteraction,
@@ -59,7 +58,6 @@ __all__: list[str] = [
     'AlleleFrequencyElement',
     'AssemblyLevelElement',
     'CatalysisInteraction',
-    'CatalyticLinkElement',
     'ChemicalElement',
     'ClimberElement',
     'CoevolutionaryClimbingInteraction',

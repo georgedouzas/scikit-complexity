@@ -52,6 +52,17 @@ No component serves systems of two subfields outside `common`. One module import
   into that system's module.
 - **Cross-field duplicates.** After the moves, a script lists classes whose source is identical across fields. The
   list goes to the user with a proposal for each: move to the core under a mathematical name, or keep the copies.
+- **Decision on the cross-field duplicates.** The element subclasses that add nothing to the core `Element`, with no
+  state, parameter, visual, view, or method and only a docstring, are removed, and their systems pass `Element`
+  itself to their groups, as in `GroupElement('ties', element=Element, ...)`. A search of every field and every
+  `common` package found four: `CatalyticLinkElement` of `biology.evolution`, `LinkElement` of `mathematics.common`
+  (its module `_link` goes too), `TieElement` of `social.opinion_dynamics`, and `SupervisorElement` of
+  `social.organizations`. Link elements that carry a state, a parameter, or a visual stay, such as `LinkElement` of
+  `physics.common.oscillators` with its weight and the gauge link elements of `physics.waves`. `StigmergicPreyElement`
+  of `biology.ecology` adds nothing to `ForagerElement` but specializes a system element rather than the core one, so
+  it stays. The other duplicates stay as copies: `_random_cells` of computer science and social, and `_noise` of
+  chemistry and physics, are one-line helpers, `LorenzElement` is a named model, and the evenly spaced classes
+  `activity_grid`, `wealth_classes`, and `criminality_grid` are one-line helpers under names of their fields.
 - **Tests.** The test modules of folded component modules merge into the test module of the owning system. The layout
   test gains a check that no subfield module registers nothing while serving one system.
 - **No system module imports another.** After the fields were folded, five system modules still took a definition from

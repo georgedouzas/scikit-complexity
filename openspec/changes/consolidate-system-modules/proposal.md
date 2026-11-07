@@ -17,7 +17,8 @@ restructure, and later changes copied it.
   that system's module.
 - Nothing is shared across fields. A component that two fields copy is reviewed: when it is domain-agnostic
   mathematics it moves to the core under a mathematical name, after the user approves the list. Otherwise the copies
-  stay.
+  stay. An element subclass that adds nothing to the core `Element` is removed, and its systems use `Element`
+  directly. **BREAKING** for the names listed under Impact.
 - The test modules follow the source, so `tests/systems/<field>/<subfield>/test_<module>.py` tests one self-contained
   system module.
 - The names a subfield package exports stay importable from it, so code that imports a component from its subfield
@@ -37,5 +38,8 @@ None.
 
 Most modules of `skcomplex.systems` change, and so do their tests. Private module paths such as
 `skcomplex.systems.biology.collective_behaviour._schooling` disappear. Public names exported by the subfield packages do
-not change. The import contracts of the checks session keep their field rules, with `common` as the only shared
+not change, except four element classes that added nothing to the core `Element` and are removed, their systems using
+`Element` directly: `CatalyticLinkElement` of `skcomplex.systems.biology.evolution`, `LinkElement` of
+`skcomplex.systems.mathematics.networks` and `skcomplex.systems.mathematics.common`, `TieElement` of
+`skcomplex.systems.social.opinion_dynamics`, and `SupervisorElement` of `skcomplex.systems.social.organizations`. The import contracts of the checks session keep their field rules, with `common` as the only shared
 package of a field.

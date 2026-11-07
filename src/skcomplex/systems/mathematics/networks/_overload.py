@@ -19,7 +19,6 @@ from ....core.components.system import System
 from ....core.errors import ValidationError
 from ....core.specs import StateSpec, VisualSpec
 from ..._catalog import register_system
-from ..common._link import LinkElement
 
 
 class LoadedNodeElement(Element):
@@ -146,7 +145,7 @@ def motter_lai_overload(
         capacity=len(loads),
         values={'load': loads, 'capacity': capacities, 'giant': float(len(loads))},
     )
-    links = GroupElement('links', element=LinkElement, on='edges', variable=True, capacity=graph.number_of_edges())
+    links = GroupElement('links', element=Element, on='edges', variable=True, capacity=graph.number_of_edges())
     return System(
         elements=[nodes, links],
         interactions=[

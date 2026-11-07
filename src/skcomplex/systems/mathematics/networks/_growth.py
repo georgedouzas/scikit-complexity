@@ -12,7 +12,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, exp, ln, oo, pi, sin
 from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BaseInteraction, MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import logistic, neighbors, total, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
@@ -20,7 +20,6 @@ from ....core.components.system import System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ..common._link import LinkElement
 from ..common._vertex import DEGREE_VISUAL, VertexElement
 
 
@@ -249,7 +248,7 @@ def _grown(
     interactions: Sequence[BaseInteraction] = (),
 ) -> System:
     """Return a growing network of a group on its nodes, a variable edge group, the arrival of nodes, and its maps."""
-    links = GroupElement('links', element=LinkElement, on='edges', variable=True, capacity=capacity)
+    links = GroupElement('links', element=Element, on='edges', variable=True, capacity=capacity)
     return System(
         elements=[nodes, links],
         interactions=[growth, *_get_bookkeeping(), *interactions],

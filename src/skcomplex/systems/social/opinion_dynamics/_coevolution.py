@@ -136,20 +136,6 @@ class ClubMemberElement(Element):
         self.rewiring = rewiring
 
 
-class TieElement(Element):
-    """Edge of a coevolving network, which holds no state of its own.
-
-    Args:
-        label:
-            The label of the edge group.
-
-    Examples:
-        >>> from skcomplex.systems.social.opinion_dynamics import TieElement
-        >>> TieElement('ties').label
-        'ties'
-    """
-
-
 SMALLEST_DEGREE = 1e-9
 
 
@@ -254,7 +240,7 @@ def _coevolving(
         values={'opinion': opinions, **values},
         visual=OPINION_VISUAL,
     )
-    ties = GroupElement('ties', element=TieElement, on='edges', variable=True)
+    ties = GroupElement('ties', element=Element, on='edges', variable=True)
     interactions = [
         MapInteraction('degree', target='voters', state='degree', function=_count_neighbors),
         choice,

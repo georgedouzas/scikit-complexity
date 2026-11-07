@@ -20,24 +20,6 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
 
 
-class SupervisorElement(Element):
-    """Supervisor of the insider sabotage system, who wanders between adjacent cells.
-
-    The wandering is a `MovementInteraction` to a random adjacent cell, which `insider_sabotage` adds.
-
-    Args:
-        label:
-            The label of the agent or group.
-
-    Examples:
-        >>> from skcomplex.core.components.elements import GroupElement
-        >>> from skcomplex.systems.social.organizations import SupervisorElement
-        >>> group = GroupElement('supervisors', element=SupervisorElement, size=3)
-        >>> group.label, group.element.__name__, group.size
-        ('supervisors', 'SupervisorElement', 3)
-    """
-
-
 class EmployeeView(AgentView):
     """View of an employee of the insider sabotage system, with its states and parameters as attributes."""
 
@@ -357,7 +339,7 @@ def insider_sabotage(
         size=n_employees,
         values={'predisposed': predisposed, 'affect': affect, 'risk': predisposed + affect, 'turnover': turnover},
     )
-    supervisors = GroupElement('supervisors', element=SupervisorElement, size=n_supervisors)
+    supervisors = GroupElement('supervisors', element=Element, size=n_supervisors)
     wandering = MovementInteraction('wandering', target='supervisors', schedule='member')
     maps = [
         ('feeling', _feel, 'replace'),

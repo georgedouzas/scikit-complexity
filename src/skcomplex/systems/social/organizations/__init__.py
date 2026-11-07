@@ -22,7 +22,7 @@ from ._mobility import (
 )
 from ._obesity import EaterElement, EaterView, RestaurantElement, RestaurantView, basal_metabolic_rate, obesity
 from ._queues import ExecutionInteraction, TaskElement, TaskView, priority_queues
-from ._sabotage import EmployeeElement, EmployeeView, SupervisorElement, insider_sabotage
+from ._sabotage import EmployeeElement, EmployeeView, insider_sabotage
 from ._supply_chains import SupplierElement, SupplierView, supply_chain_diffusion
 from ._trafficking import (
     DailyMovementsInteraction,
@@ -85,7 +85,6 @@ __all__: list[str] = [
     'RestaurantView',
     'SentimentInteraction',
     'StandoffElement',
-    'SupervisorElement',
     'SupplierElement',
     'SupplierView',
     'TaskElement',

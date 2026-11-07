@@ -20,7 +20,6 @@ from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.system import System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ..common._link import LinkElement
 from ..common._vertex import VertexElement
 
 
@@ -268,7 +267,7 @@ def growing_simplicial_complex(n_nodes: int = 303) -> System:
         capacity=n_nodes,
         values={'age': 1.0},
     )
-    links = GroupElement('links', element=LinkElement, on='edges', variable=True, capacity=2 * n_nodes)
+    links = GroupElement('links', element=Element, on='edges', variable=True, capacity=2 * n_nodes)
     triangles = GroupElement('triangles', element=SimplexElement, on='hyperedges', variable=True, capacity=n_nodes)
     growth = TopologyInteraction('growth', action='add-node', hyperedge=3)
     ageing = SimplexAgeingInteraction('triangle_ageing', nodes='nodes', triangles='triangles')

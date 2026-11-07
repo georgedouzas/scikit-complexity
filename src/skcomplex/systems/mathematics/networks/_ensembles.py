@@ -22,7 +22,6 @@ from ....core.components.system import System
 from ....core.errors import ValidationError
 from ....core.specs import LayerSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ..common._link import LinkElement
 from ..common._network_node import NetworkNodeElement
 from ..common._regulated_node import ACTIVITY_VISUAL
 from ..common._vertex import DEGREE_VISUAL
@@ -174,7 +173,7 @@ def _variable_network(
         values=values,
         visual=DEGREE_VISUAL,
     )
-    links = GroupElement('links', element=LinkElement, on='edges', variable=True, capacity=capacity)
+    links = GroupElement('links', element=Element, on='edges', variable=True, capacity=capacity)
     return [nodes, links]
 
 

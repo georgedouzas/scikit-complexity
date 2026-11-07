@@ -22,7 +22,6 @@ from ._coevolution import (
     ClubMemberElement,
     CoevolvingVoterElement,
     SeparationInteraction,
-    TieElement,
     coevolving_voter,
     join_a_club,
 )
@@ -124,7 +123,6 @@ __all__: list[str] = [
     'ThinkerElement',
     'ThinkerView',
     'ThreeBodyConsensusInteraction',
-    'TieElement',
     'TransportedCouplingInteraction',
     'UndecidedElement',
     'UndecidedFlowsElement',

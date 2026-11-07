@@ -28,20 +28,6 @@ from ..common.networks import EdgeDrawInteraction, WeightedEdgeElement
 HIDDEN = VisualSpec('sites', {'states': []})
 
 
-class CatalyticLinkElement(Element):
-    """Catalytic link from a species to a species that catalyses it, which carries no state of its own.
-
-    Args:
-        label:
-            The label of the link or of the group of links.
-
-    Examples:
-        >>> from skcomplex.systems.biology.evolution import CatalyticLinkElement
-        >>> CatalyticLinkElement('link').label
-        'link'
-    """
-
-
 class ChemicalElement(Element):
     """Molecular species of a pool whose relative population grows with the populations of its catalysts.
 
@@ -531,7 +517,7 @@ def jain_krishna(
     )
     links = GroupElement(
         'links',
-        element=CatalyticLinkElement,
+        element=Element,
         space=space,
         on='edges',
         variable=True,

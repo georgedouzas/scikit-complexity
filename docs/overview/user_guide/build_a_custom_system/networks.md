@@ -634,10 +634,6 @@ class NodeElement(Element):
         return [UpdateLaw(s.age, s.age + 1)]
 
 
-class LinkElement(Element):
-    pass
-
-
 def degree(node):
     return neighbors(1)
 
@@ -650,7 +646,7 @@ class GrowthElement(Element):
 system = System(
     elements=[
         GroupElement('nodes', element=NodeElement, on='sites', variable=True, capacity=203),
-        GroupElement('links', element=LinkElement, on='edges', variable=True, capacity=403),
+        GroupElement('links', element=Element, on='edges', variable=True, capacity=403),
         GrowthElement('growth'),
     ],
     space=NetworkSpace(nx.complete_graph(3)),
@@ -661,6 +657,8 @@ snapshot = trajectory.network(-1)
 degrees = np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))
 snapshot.nodes.size, snapshot.sources.size, int(degrees.max()) > 10
 ```
+
+The links carry no state, so their group takes the core `Element` itself as its element.
 
 A network that changes needs room to grow. A variable group on the sites or edges of a network,
 `GroupElement(..., on='sites', variable=True, capacity=n)`, holds rows for up to `capacity` members, and marks the

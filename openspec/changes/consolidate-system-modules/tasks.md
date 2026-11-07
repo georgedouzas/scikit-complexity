@@ -20,7 +20,7 @@
 
 - [x] 3.1 Move components shared within a field to its `common` package, or copy them where the uses differ
 - [x] 3.2 Move single-user modules of the existing `common` packages into their systems
-- [ ] 3.3 List cross-field duplicates with a proposal for each, and act on the user's decision
+- [x] 3.3 List cross-field duplicates with a proposal for each, and act on the user's decision
 
 ## 4. Verification
 

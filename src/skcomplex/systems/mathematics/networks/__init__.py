@@ -1,6 +1,5 @@
 """Networks: growth, turnover, ensembles, robustness, cascades, walks, diffusion, PageRank, structure, percolation."""
 
-from ..common._link import LinkElement
 from ..common._network_node import NetworkNodeElement
 from ..common._regulated_node import RegulatedNodeElement
 from ..common._vertex import VertexElement
@@ -67,7 +66,6 @@ __all__: list[str] = [
     'FailingElement',
     'FitnessVertexElement',
     'GiantComponentInteraction',
-    'LinkElement',
     'LoadedNodeElement',
     'MergingNodeElement',
     'NetworkMeasuresElement',
