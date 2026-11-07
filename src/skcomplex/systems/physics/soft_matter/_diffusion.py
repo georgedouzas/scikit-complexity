@@ -10,11 +10,11 @@ from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
-from sage.all__sagemath_symbolics import SR, Expression, exp, oo, sin, sqrt, vector
+from sage.all__sagemath_symbolics import SR, Expression, cos, exp, oo, sin, sqrt, vector
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
-from ....core.components.interactions import GradientInteraction, RateInteraction
+from ....core.components.interactions import BaseInteraction, GradientInteraction, RateInteraction
 from ....core.components.laws import BaseLaw, BoundaryLaw
 from ....core.components.laws.utils import pulse_train, where
 from ....core.components.spaces import ContinuousSpace
@@ -30,7 +30,6 @@ from ..common.particles import (
     MassPointElement,
     ThermalNoiseInteraction,
 )
-from ._brownian import _get_double_well_interactions
 
 
 class ModulatedParticleElement(Element):
@@ -282,6 +281,24 @@ class SpeckleFieldInteraction(GradientInteraction):
             offset = position - vector(SR, center)
             intensity += height * exp(-offset.dot_product(offset) / length**2)
         return -namespace.strength * intensity
+
+
+def _get_double_well_drive(s: SimpleNamespace) -> Expression:
+    """Return the periodic forcing `A cos(2 pi f t)` of a particle in a double well."""
+    return s.target.amplitude * cos(2 * math.pi * s.target.frequency * s.t)
+
+
+def _get_double_well_interactions(target: str) -> list[BaseInteraction]:
+    """Return the interactions of particles in a double well, the gradient of the well and the noisy forcing."""
+    return [
+        GradientInteraction('well', target=target, potential=lambda s: s.target.x**4 / 4 - s.target.x**2 / 2),
+        RateInteraction(
+            'drive',
+            target=target,
+            rate=_get_double_well_drive,
+            noise=lambda s: sqrt(2 * s.target.D),
+        ),
+    ]
 
 
 @register_system(

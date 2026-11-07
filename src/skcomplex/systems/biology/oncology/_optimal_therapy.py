@@ -17,8 +17,9 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
 from ..common.kinetics import MichaelisMentenInteraction
 from ..common.pharmacokinetics import DosingInteraction
-from ._chemotherapy import BOOK
 from ._tumour_immune_chemotherapy import TumourImmuneChemotherapyElement
+
+BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
 MAX_DOSE = 1.0
 

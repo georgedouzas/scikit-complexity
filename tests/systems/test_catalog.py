@@ -355,3 +355,17 @@ def test_no_module_serves_one_system(field):
         if len(systems) == 1
     ]
     assert found == []
+
+
+@pytest.mark.parametrize('field', FIELDS)
+def test_no_system_module_imports_another(field):
+    """Test that no module registering systems imports another module registering systems of its subfield."""
+    root = Path(str(files('skcomplex.systems'))) / field
+    systems = [path for path in sorted(root.rglob('_*.py')) if _registers_system(path)]
+    found = [
+        f'{path.relative_to(root)} -> {module.relative_to(root)}'
+        for path in systems
+        for module in sorted(_imported_modules(path, root))
+        if module.parent == path.parent and _registers_system(module)
+    ]
+    assert found == []

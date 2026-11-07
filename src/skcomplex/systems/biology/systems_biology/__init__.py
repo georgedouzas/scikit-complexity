@@ -1,6 +1,7 @@
 """Systems biology: gene circuits, Boolean networks, circadian clocks, signalling cascades, and Min-protein waves."""
 
 from ..common.kinetics import RepressionInteraction, SpeciesElement
+from ..common.metabolism import ToyNetworkElement
 from ..common.networks import BooleanFunctionInteraction, BooleanNodeElement
 from ._adaptation import (
     EnzymeNodeElement,
@@ -46,7 +47,7 @@ from ._fates import (
     bristle_lateral_inhibition,
     three_way_fate_decision,
 )
-from ._flux_balance import ToyNetworkElement, flux_balance
+from ._flux_balance import flux_balance
 from ._fuzzy_oil_drop import (
     BackboneVisual,
     ChainCoordinateElement,

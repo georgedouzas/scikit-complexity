@@ -54,6 +54,14 @@ No component serves systems of two subfields outside `common`. One module import
   list goes to the user with a proposal for each: move to the core under a mathematical name, or keep the copies.
 - **Tests.** The test modules of folded component modules merge into the test module of the owning system. The layout
   test gains a check that no subfield module registers nothing while serving one system.
+- **No system module imports another.** After the fields were folded, five system modules still took a definition from
+  a sibling system module, and a layout test now fails on any such import within a subfield. Constants and small
+  helpers are copied: the reference `BOOK` of oncology into `_optimal_therapy`, like every other oncology module, the
+  image `SPIN_IMAGE` into `_spin_glasses`, and the double-well forcing helpers of `_brownian` into `_diffusion`, whose
+  Kramers escape uses them. Classes that two systems use the same way move to the family of `common` they belong to,
+  with no new package: `ToyNetworkElement` with its reactions to `biology.common.metabolism`, where the metabolic
+  network it specializes lives, and `HarmonicForceInteraction` to `physics.common.particles`, beside the constant
+  force and the damping. Each subfield re-exports the moved class, so its `__all__` is unchanged.
 - **Waves.** One agent per field group, at most four at a time, each in its own worktree cut from `development`, in
   the order biology, physics, economics and social, then mathematics, engineering, computer science, and chemistry.
 

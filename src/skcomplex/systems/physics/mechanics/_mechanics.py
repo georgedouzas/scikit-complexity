@@ -22,10 +22,10 @@ from ..common.mechanics import PendulumElement, PendulumInteraction, ReflectionI
 from ..common.particles import (
     ConstantForceInteraction,
     DampingInteraction,
+    HarmonicForceInteraction,
     HarmonicPotentialInteraction,
     MassPointElement,
 )
-from ._springs import HarmonicForceInteraction
 
 
 class BouncingBallElement(Element):
