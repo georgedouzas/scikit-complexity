@@ -22,7 +22,6 @@ from .types import Factory
 
 LISTED = ('name', 'field', 'description', 'tags', 'references')
 CLASS_LISTED = ('field', 'topics', 'references')
-TUNED = ('until', 'dt', 'solver', 'initial_state')
 
 
 class SystemCatalog:
@@ -219,8 +218,29 @@ class SystemCatalog:
         return system_class
 
     @staticmethod
-    def _class_entry(listing: SystemListing, system_class: type[BaseSystem]) -> SystemEntry:
+    def _tuned_settings(system: BaseSystem) -> dict[str, object]:
+        """Return the tuned run settings of a system that it gives, without those left as `None` or empty observables.
+
+        Args:
+            system:
+                The system.
+
+        Returns:
+            settings:
+                The given run settings by name.
+        """
+        return {
+            name: value
+            for name, value in system.get_run_settings().items()
+            if value is not None and not (name == 'observables' and not value)
+        }
+
+    @classmethod
+    def _class_entry(cls, listing: SystemListing, system_class: type[BaseSystem]) -> SystemEntry:
         """Return the entry of a system class: a factory of its composite, its metadata, and its tuned run settings.
+
+        The run settings and the observables come from `get_run_settings()` of an instance, so a class that overrides
+        it gives the settings of its model parameters.
 
         Args:
             listing:
@@ -232,7 +252,8 @@ class SystemCatalog:
         Returns:
             entry:
                 The entry, whose factory takes the model parameters of the class and returns the prepared composite of
-                its parts, and whose default run settings are the tuned run settings of the class.
+                its parts, whose default run settings are those of an instance with the default parameters, and whose
+                run settings for other parameters are those of an instance with them.
         """
         build: Callable[..., BaseSystem] = system_class
 
@@ -240,10 +261,14 @@ class SystemCatalog:
         def factory(**parameters: object) -> System:
             return build(**parameters).prepare().system_
 
-        def observables(system: System) -> Sequence[ObservableSpec]:
-            return tuple(system_class.observables)
+        def settings(**parameters: object) -> dict[str, object]:
+            return cls._tuned_settings(build(**parameters))
 
-        defaults = {name: getattr(system_class, name) for name in TUNED if getattr(system_class, name) is not None}
+        def observables(system: System) -> Sequence[ObservableSpec]:
+            return tuple(build().get_run_settings()['observables'])
+
+        tuned = cls._tuned_settings(build())
+        tuned.pop('observables', None)
         created: Factory = factory
         return SystemEntry(
             listing.name,
@@ -252,8 +277,9 @@ class SystemCatalog:
             listing.description,
             listing.tags,
             listing.references,
-            defaults,
+            tuned,
             observables,
+            settings=settings,
         )
 
     def _listed(self) -> dict[str, SystemListing]:

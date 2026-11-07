@@ -33,6 +33,7 @@ from skcomplex.systems.biology.common.populations import (
 )
 from skcomplex.systems.biology.ecology import PredationInteraction
 from skcomplex.systems.chemistry.kinetics import BrusselatorODESystem
+from skcomplex.systems.social.opinion_dynamics import AxelrodSystem
 
 
 def _undeclared_laws(system: System) -> list[str]:
@@ -76,6 +77,16 @@ def test_create_simulation_takes_settings_that_depend_on_the_factory_arguments()
         create_simulation('active_gels', order='polar', shape=(4, 4)).prepare().run(until=2.0).trajectory_.times[-1]
         == 2.0
     )
+
+
+def test_class_entries_read_the_run_settings_of_an_instance():
+    """Test that the observables and invariants of an instance reach `describe` and `create_simulation`."""
+    entry = describe('axelrod')
+    assert [spec.label for spec in entry.observables_of(entry.factory())]
+    labels = [spec.label for spec in create_simulation('axelrod', width=4, height=4).observables]
+    assert labels == [spec.label for spec in AxelrodSystem(width=4, height=4).get_run_settings()['observables']]
+    assert describe('order_book').defaults['invariants'] == {'total_money': 1e-6, 'total_shares': 1e-6}
+    assert create_simulation('order_book').invariants == {'total_money': 1e-6, 'total_shares': 1e-6}
 
 
 def test_listing_imports_no_system_module():

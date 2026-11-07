@@ -26,6 +26,7 @@ RUN_SETTINGS = (
     'random_state',
     'checked',
     'invariants',
+    'schedule',
     'initial_state',
 )
 _FORMALISMS: dict[str, str] = {}
