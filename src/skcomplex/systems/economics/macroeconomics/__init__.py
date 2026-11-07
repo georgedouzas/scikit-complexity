@@ -1,12 +1,12 @@
 """Macroeconomics: growth, business cycles, investment, international trade, and mortal monetary economies."""
 
-from ._banking import DepositorElement, PolicySwitchInteraction, ReserveBankElement, fractional_reserve_banking
-from ._capital import CapitalStockElement, capital_stock
-from ._credit import CreditMarketInteraction, FirmElement, LenderElement, credit_networks
-from ._firms import InvestingFirmElement, toy_firm_investment
-from ._growth import EconomyElement, IncomeElement, SolowGrowthInteraction, multiplier_accelerator, solow
-from ._herding import HerdingAgentElement, network_herding
-from ._mark0 import Mark0EconomyInteraction, Mark0FirmElement, mark0
+from ._banking import DepositorElement, FractionalReserveBankingSystem, PolicySwitchInteraction, ReserveBankElement
+from ._capital import CapitalStockElement, CapitalStockSystem
+from ._credit import CreditMarketInteraction, CreditNetworksSystem, FirmElement, LenderElement
+from ._firms import InvestingFirmElement, ToyFirmInvestmentSystem
+from ._growth import EconomyElement, IncomeElement, MultiplierAcceleratorSystem, SolowGrowthInteraction, SolowSystem
+from ._herding import HerdingAgentElement, NetworkHerdingSystem
+from ._mark0 import Mark0EconomyInteraction, Mark0FirmElement, Mark0System
 from ._metaphoria import (
     BusinessElement,
     CentralBankElement,
@@ -14,35 +14,41 @@ from ._metaphoria import (
     EstateInteraction,
     FoodMarketInteraction,
     LabourMarketInteraction,
+    MetaphoriaSystem,
     PlotElement,
     SettlerElement,
-    metaphoria,
 )
 from ._monetary import (
     CircuitInteraction,
     FirmsElement,
     HouseholdsElement,
     MonetaryBankElement,
-    stock_flow_consistent_economy,
+    StockFlowConsistentEconomySystem,
 )
-from ._optimal_growth import RamseyEconomyElement, optimal_consumption
-from ._purchasing_power import PurchasingPowerElement, categorized_purchasing_power
-from ._stochastic_growth import StochasticGrowthElement, brock_mirman_growth
-from ._trade import TradingEconomyElement, exchange_rates
+from ._optimal_growth import OptimalConsumptionSystem, RamseyEconomyElement
+from ._purchasing_power import CategorizedPurchasingPowerSystem, PurchasingPowerElement
+from ._stochastic_growth import BrockMirmanGrowthSystem, StochasticGrowthElement
+from ._trade import ExchangeRatesSystem, TradingEconomyElement
 
 __all__: list[str] = [
+    'BrockMirmanGrowthSystem',
     'BusinessElement',
     'CapitalStockElement',
+    'CapitalStockSystem',
+    'CategorizedPurchasingPowerSystem',
     'CentralBankElement',
     'CircuitInteraction',
     'CommonsInteraction',
     'CreditMarketInteraction',
+    'CreditNetworksSystem',
     'DepositorElement',
     'EconomyElement',
     'EstateInteraction',
+    'ExchangeRatesSystem',
     'FirmElement',
     'FirmsElement',
     'FoodMarketInteraction',
+    'FractionalReserveBankingSystem',
     'HerdingAgentElement',
     'HouseholdsElement',
     'IncomeElement',
@@ -51,7 +57,12 @@ __all__: list[str] = [
     'LenderElement',
     'Mark0EconomyInteraction',
     'Mark0FirmElement',
+    'Mark0System',
+    'MetaphoriaSystem',
     'MonetaryBankElement',
+    'MultiplierAcceleratorSystem',
+    'NetworkHerdingSystem',
+    'OptimalConsumptionSystem',
     'PlotElement',
     'PolicySwitchInteraction',
     'PurchasingPowerElement',
@@ -59,20 +70,9 @@ __all__: list[str] = [
     'ReserveBankElement',
     'SettlerElement',
     'SolowGrowthInteraction',
+    'SolowSystem',
     'StochasticGrowthElement',
+    'StockFlowConsistentEconomySystem',
+    'ToyFirmInvestmentSystem',
     'TradingEconomyElement',
-    'brock_mirman_growth',
-    'capital_stock',
-    'categorized_purchasing_power',
-    'credit_networks',
-    'exchange_rates',
-    'fractional_reserve_banking',
-    'mark0',
-    'metaphoria',
-    'multiplier_accelerator',
-    'network_herding',
-    'optimal_consumption',
-    'solow',
-    'stock_flow_consistent_economy',
-    'toy_firm_investment',
 ]

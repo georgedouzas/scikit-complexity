@@ -4,17 +4,18 @@ import numpy as np
 import pytest
 
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems import create_simulation
-from skcomplex.systems.economics.macroeconomics import EconomyElement, SolowGrowthInteraction
+from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.systems.economics.macroeconomics import (
+    EconomyElement,
+    MultiplierAcceleratorSystem,
+    SolowGrowthInteraction,
+)
 
 
 @pytest.mark.parametrize('cv', [0.6, 1.2])
 def test_multiplier_accelerator_stability(cv):
     """Test that the cycle damps when `c v < 1` and grows when `c v > 1`."""
-    income = (
-        create_simulation('multiplier_accelerator', v=cv / 0.8).prepare().run(until=60).trajectory_.values('economy.Y')
-    )
+    income = simulate(MultiplierAcceleratorSystem(v=cv / 0.8), until=60).values('economy.Y')
     deviation = np.abs(income - 100.0)
     assert (deviation[-10:].max() > deviation[:10].max()) == (cv > 1)
 

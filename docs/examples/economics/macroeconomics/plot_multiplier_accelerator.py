@@ -14,16 +14,16 @@ or explode.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.economics.macroeconomics import MultiplierAcceleratorSystem
 
 SYSTEM = 'multiplier_accelerator'
 G, UNTIL = 20.0, 40
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-system = create_system(SYSTEM, income=110.0, previous=100.0, c=0.8, v=0.9, G=G)
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=UNTIL)
+system = MultiplierAcceleratorSystem(income=110.0, previous=100.0, c=0.8, v=0.9, G=G)
+trajectory = simulate(system, until=UNTIL, observers=[observer])
 
 # %%
 # Samuelson's regions
@@ -37,12 +37,7 @@ cases = {(0.6, 0.05): 'monotone, damped', (0.8, 0.9): 'oscillating, damped', (0.
 cases[(0.9, 4.0)] = 'monotone, explosive'
 fig, (paths, regions) = plt.subplots(1, 2, figsize=(10, 4))
 for index, ((c, v), name) in enumerate(cases.items()):
-    trajectory = (
-        Simulation(create_system(SYSTEM, income=110.0, previous=100.0, c=c, v=v, G=G), dt=1)
-        .prepare()
-        .run(until=25)
-        .trajectory_
-    )
+    trajectory = simulate(MultiplierAcceleratorSystem(income=110.0, previous=100.0, c=c, v=v, G=G), until=25)
     deviation = trajectory.values('economy.Y') - G / (1 - c)
     root = np.roots([1, -c * (1 + v), c * v])[0]
     label = f'{name}, period {2 * np.pi / abs(np.angle(root)):.1f}' if np.iscomplex(root) else name

@@ -14,15 +14,15 @@ every economy with the same saving rate converges to the same steady state.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.economics.macroeconomics import SolowSystem
 
 SYSTEM = 'solow'
 ALPHA, DELTA, UNTIL = 0.3, 0.05, 150
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(create_system(SYSTEM, k=1.0, s=0.2), dt=1.0, observers=[observer]).prepare().run(until=UNTIL)
+trajectory = simulate(SolowSystem(k=1.0, s=0.2), until=UNTIL, observers=[observer])
 
 # %%
 # Exact convergence and the golden rule
@@ -41,7 +41,7 @@ def exact(k0, s, times):
 
 fig, (paths, golden) = plt.subplots(1, 2, figsize=(10, 4))
 for index, k0 in enumerate((1.0, 4.0, 12.0)):
-    trajectory = Simulation(create_system(SYSTEM, k=k0, s=0.2), dt=1.0).prepare().run(until=UNTIL).trajectory_
+    trajectory = simulate(SolowSystem(k=k0, s=0.2), until=UNTIL)
     paths.plot(
         trajectory.times[::5],
         trajectory.values('economy.k')[::5],
@@ -57,10 +57,7 @@ paths.set_ylabel('capital per worker k')
 paths.set_title('Simulated (dots) and exact (lines) paths')
 paths.legend()
 savings = np.linspace(0.05, 0.9, 18)
-final = [
-    (Simulation(create_system(SYSTEM, k=1.0, s=s), dt=1.0).prepare().run(until=400).trajectory_.values('economy.k')[-1])
-    for s in savings
-]
+final = [(simulate(SolowSystem(k=1.0, s=s), until=400).values('economy.k')[-1]) for s in savings]
 grid = np.linspace(0.02, 0.95, 200)
 golden.plot(savings, (1 - savings) * np.array(final) ** ALPHA, 'o', label='simulation at t = 400')
 golden.plot(grid, (1 - grid) * (grid / DELTA) ** (ALPHA / (1 - ALPHA)), 'k', lw=0.8, label='(1 - s) k*^alpha')

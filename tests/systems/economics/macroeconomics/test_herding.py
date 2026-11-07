@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.systems import describe
-from skcomplex.systems.economics.macroeconomics import network_herding
+from skcomplex.systems.economics.macroeconomics import NetworkHerdingSystem
 
 from ..conftest import _run
 
@@ -14,7 +14,7 @@ def test_network_herding_aggregates_through_the_out_degrees():
 
     1.12, the mean choice from the out-degrees, and the fixed point `(I - Theta)^-1 gamma x` without shocks.
     """
-    system = network_herding(sigma=0.0)
+    system = NetworkHerdingSystem(sigma=0.0).prepare().system_
     theta = np.asarray(system.interactions[0].weights)
     x = system.elements[0].values['x']
     trajectory = _run(system, 40, observables=describe('network_herding').observables_of(system))
@@ -28,7 +28,7 @@ def test_network_herding_persists_more_with_stronger_links():
     """Test that the mean choice of a shocked economy is more autocorrelated with stronger herding."""
 
     def persistence(herding):
-        system = network_herding(sigma=1.0, herding=herding, density=0.3)
+        system = NetworkHerdingSystem(sigma=1.0, herding=herding, density=0.3).prepare().system_
         mean = _run(system, 2000, observables=describe('network_herding').observables_of(system)).values('mean_choice')
         return np.corrcoef(mean[100:-1], mean[101:])[0, 1]
 

@@ -16,9 +16,9 @@ import numpy as np
 import rerun.blueprint as rrb
 
 from skcomplex.core.analysis import loops
-from skcomplex.core.engine.runtime import ConservationObserver, Simulation
+from skcomplex.core.engine.runtime import ConservationObserver, simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.economics.macroeconomics import StockFlowConsistentEconomySystem
 
 SYSTEM = 'stock_flow_consistent_economy'
 
@@ -35,7 +35,7 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer, ConservationObserver()]).prepare().run(100)
+trajectory = simulate(StockFlowConsistentEconomySystem(), observers=[observer, ConservationObserver()])
 
 # %%
 # Money changes only at the boundary
@@ -44,7 +44,6 @@ simulation = Simulation(create_system(SYSTEM), dt=1, observers=[observer, Conser
 # households, the firms, and the bank only pay each other. The transaction-flow matrix of a period lists every flow
 # with its outflow and inflow, so its rows sum to zero.
 
-trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
 money = (
     trajectory.values('households.deposits') + trajectory.values('firms.deposits') + trajectory.values('bank.deposits')

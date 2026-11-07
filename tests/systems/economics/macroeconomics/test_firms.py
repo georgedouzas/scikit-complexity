@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.systems import describe
-from skcomplex.systems.economics.macroeconomics import toy_firm_investment
+from skcomplex.systems.economics.macroeconomics import ToyFirmInvestmentSystem
 
 from ..conftest import _agents, _run
 
@@ -12,7 +12,7 @@ from ..conftest import _agents, _run
 def test_toy_firm_investment_keeps_its_accounting_identities():
     """Test that every firm produces in proportion to its capital, stays solvent, and sums to aggregate production."""
     trajectory = _run(
-        built := toy_firm_investment(50),
+        built := ToyFirmInvestmentSystem(50).prepare().system_,
         100,
         observables=describe('toy_firm_investment').observables_of(built),
     )

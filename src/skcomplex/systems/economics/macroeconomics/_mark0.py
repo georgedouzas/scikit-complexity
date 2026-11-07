@@ -13,12 +13,11 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class Mark0FirmView(AgentView):
@@ -73,6 +72,8 @@ class Mark0FirmElement(Element):
         >>> GroupElement('firms', element=Mark0FirmElement, size=3).size
         3
     """
+
+    law_classes = ()
 
     def __init__(
         self,
@@ -436,32 +437,8 @@ class Mark0EconomyInteraction(FeedbackInteraction[SystemView]):
             system.report(name, value)
 
 
-@register_system(
-    field='economics/macroeconomics',
-    tags=('agents', 'macroeconomics', 'unemployment', 'crises', 'covid', 'policy', 'firms', 'stock-flow consistent'),
-    references=('Sharma et al. 2020', 'Gualdi et al. 2015'),
-    defaults={'until': 300},
-)
-def mark0(
-    n_firms: int = 500,
-    *,
-    c0: float = 0.5,
-    beta: float = 2.0,
-    gamma: float = 0.01,
-    eta_minus: float = 0.2,
-    ratio: float = 2.0,
-    delta: float = 0.02,
-    theta: float = 3.0,
-    phi: float = 0.1,
-    shock_time: float = 100.0,
-    shock_length: float = 0.0,
-    dc: float = 0.0,
-    dzeta: float = 0.0,
-    kappa: float = 1.0,
-    credit: str = 'none',
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Mark-0 economy of Sharma, Bouchaud, and co-authors, with a Covid shock to supply and demand.
+class Mark0System(BaseSystem):
+    """The Mark-0 economy of Sharma, Bouchaud, and co-authors, with a Covid shock to supply and demand.
 
     Firms produce perishable goods with a linear technology, sell them to a representative household at prices they
     adjust by rules of thumb, hire and fire by the gap between production and demand, and borrow from a representative
@@ -473,6 +450,10 @@ def mark0(
     helicopter money can prevent. The source summarizes the model of earlier papers, so the initial firms (a workforce
     between 0.9 and 1, prices around 1, unit wages, no cash) and revived firms (the mean price and wage and a random
     share of the unemployed) follow Gualdi et al. (2015), and the demand reads prices relative to the mean price.
+
+    The system has the group `firms` and the economy `economy`, whose reporters are `economy.unemployment`,
+    `economy.inflation`, `economy.output`, `economy.savings`, `economy.fragility`, `economy.bankruptcies`,
+    `economy.threshold`, `economy.price`, and `economy.wage`.
 
     Args:
         n_firms:
@@ -523,44 +504,88 @@ def mark0(
         random_state:
             The seed or generator of the initial firms.
 
-    Returns:
-        system:
-            The system, with the group `firms` and the economy `economy`, whose reporters are `economy.unemployment`,
-            `economy.inflation`, `economy.output`, `economy.savings`, `economy.fragility`, `economy.bankruptcies`,
-            `economy.threshold`, `economy.price`, and `economy.wage`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.macroeconomics import mark0
-        >>> mark0(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.economics.macroeconomics import Mark0System
+        >>> Mark0System(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    rng = np.random.default_rng(random_state)
-    firms = GroupElement(
-        'firms',
-        element=Mark0FirmElement,
-        size=n_firms,
-        values={
-            'workforce': rng.uniform(0.9, 1.0, n_firms),
-            'price': 1 + 0.1 * (rng.random(n_firms) - 0.5),
-            'wage': 1.0,
-        },
-    )
-    economy = Mark0EconomyInteraction(
-        'economy',
-        firms='firms',
-        c0=c0,
-        beta=beta,
-        gamma=gamma,
-        eta_minus=eta_minus,
-        ratio=ratio,
-        delta=delta,
-        theta=theta,
-        phi=phi,
-        shock_time=shock_time,
-        shock_length=shock_length,
-        dc=dc,
-        dzeta=dzeta,
-        kappa=kappa,
-        credit=credit,
-    )
-    return System(elements=[firms], interactions=[economy])
+
+    field = 'economics/macroeconomics'
+    topics = ('agents', 'macroeconomics', 'unemployment', 'crises', 'covid', 'policy', 'firms', 'stock-flow consistent')
+    references = ('Sharma et al. 2020', 'Gualdi et al. 2015')
+    until = 300
+
+    def __init__(
+        self,
+        n_firms: int = 500,
+        *,
+        c0: float = 0.5,
+        beta: float = 2.0,
+        gamma: float = 0.01,
+        eta_minus: float = 0.2,
+        ratio: float = 2.0,
+        delta: float = 0.02,
+        theta: float = 3.0,
+        phi: float = 0.1,
+        shock_time: float = 100.0,
+        shock_length: float = 0.0,
+        dc: float = 0.0,
+        dzeta: float = 0.0,
+        kappa: float = 1.0,
+        credit: str = 'none',
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_firms = n_firms
+        self.c0 = c0
+        self.beta = beta
+        self.gamma = gamma
+        self.eta_minus = eta_minus
+        self.ratio = ratio
+        self.delta = delta
+        self.theta = theta
+        self.phi = phi
+        self.shock_time = shock_time
+        self.shock_length = shock_length
+        self.dc = dc
+        self.dzeta = dzeta
+        self.kappa = kappa
+        self.credit = credit
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        firms = GroupElement(
+            'firms',
+            element=Mark0FirmElement,
+            size=self.n_firms,
+            values={
+                'workforce': rng.uniform(0.9, 1.0, self.n_firms),
+                'price': 1 + 0.1 * (rng.random(self.n_firms) - 0.5),
+                'wage': 1.0,
+            },
+        )
+        economy = Mark0EconomyInteraction(
+            'economy',
+            firms='firms',
+            c0=self.c0,
+            beta=self.beta,
+            gamma=self.gamma,
+            eta_minus=self.eta_minus,
+            ratio=self.ratio,
+            delta=self.delta,
+            theta=self.theta,
+            phi=self.phi,
+            shock_time=self.shock_time,
+            shock_length=self.shock_length,
+            dc=self.dc,
+            dzeta=self.dzeta,
+            kappa=self.kappa,
+            credit=self.credit,
+        )
+        return System(self.label, elements=[firms], interactions=[economy])

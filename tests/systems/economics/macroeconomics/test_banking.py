@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.systems import describe
-from skcomplex.systems.economics.macroeconomics import fractional_reserve_banking
+from skcomplex.systems.economics.macroeconomics import FractionalReserveBankingSystem
 
 from ..conftest import _run_observed
 
@@ -12,7 +12,7 @@ from ..conftest import _run_observed
 def test_fractional_reserve_money_multiplier():
     """Broad money settles at base money over the reserve ratio, and moves to the new multiplier when it changes."""
     trajectory = _run_observed(
-        built := fractional_reserve_banking(ratio=0.1, new_ratio=0.2, change_at=100.0),
+        built := FractionalReserveBankingSystem(ratio=0.1, new_ratio=0.2, change_at=100.0).prepare().system_,
         200,
         observables=describe('fractional_reserve_banking').observables_of(built),
     )

@@ -3,12 +3,13 @@
 import numpy as np
 import pytest
 
-from skcomplex.systems import create_simulation
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.economics.macroeconomics import OptimalConsumptionSystem
 
 
 def test_optimal_consumption_approaches_the_golden_rule():
     """Test that capital rises towards the modified golden rule `alpha k^(alpha - 1) = delta + rho`."""
-    trajectory = create_simulation('optimal_consumption').prepare().run().trajectory_
+    trajectory = simulate(OptimalConsumptionSystem())
     golden = (0.3 / (0.05 + 0.03)) ** (1 / 0.7)
     capital, consumption = trajectory.values('economy.k'), trajectory.values('economy.c')
     early = trajectory.times < 30.0

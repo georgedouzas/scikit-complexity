@@ -19,7 +19,7 @@ from ....core.components.interactions import BaseInteraction, Interaction, Match
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.laws.utils import transfer
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, RunSettings, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import (
     BaseSpec,
@@ -34,7 +34,6 @@ from ....core.specs import (
     VisualSpec,
 )
 from ....core.types import Array
-from ..._catalog import register_system
 from ..common.resources import RegrowthInteraction
 
 
@@ -356,6 +355,8 @@ class SettlerElement(Element):
         >>> GroupElement('people', element=SettlerElement, size=3, variable=True).size
         3
     """
+
+    law_classes = (RuleLaw,)
 
     def __init__(
         self,
@@ -737,6 +738,8 @@ class CommonsInteraction(Interaction):
         'people'
     """
 
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -798,6 +801,8 @@ class EstateInteraction(Interaction):
         >>> EstateInteraction('census', people='people').reports
         ('births', 'starvations', 'old_age')
     """
+
+    law_classes = (RuleLaw,)
 
     reports: ClassVar[tuple[str, ...]] = ('births', 'starvations', 'old_age')
 
@@ -1015,29 +1020,8 @@ def _metaphoria_observables(system: System) -> list[ObservableSpec]:
     return observables
 
 
-@register_system(
-    field='economics/macroeconomics',
-    tags=('agents', 'mortality', 'evolution', 'money', 'hunter-gatherers', 'stock-flow consistent'),
-    references=('Gooding 2019',),
-    defaults={'until': 300},
-    observables=_metaphoria_observables,
-)
-def metaphoria(
-    n_people: int = 100,
-    *,
-    mode: str = 'hunter_gatherer',
-    shape: Sequence[int] = (20, 20),
-    max_food: float = 15.0,
-    max_resistance: float = 5.0,
-    regrowth: float = 1.0,
-    need: float = 2.0,
-    labour: float = 5.0,
-    interest: float = 0.003,
-    repayment: float = 0.004,
-    n_firms: int = 5,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Gooding's Metaphoria, a mortal population of hunter-gatherers or of a monetary economy.
+class MetaphoriaSystem(BaseSystem):
+    """Gooding's Metaphoria, a mortal population of hunter-gatherers or of a monetary economy.
 
     Patches of a periodic lattice hold food that grows back to a random capacity and resist harvesting with a random
     resistance. People need food every step, age, die of starvation or old age, and have children who inherit their
@@ -1048,6 +1032,10 @@ def metaphoria(
     and the monetary population smaller and less healthy, with money concentrating to a Gini coefficient near 0.5. On
     land where the hunter-gatherers thrive the monetary population dwindles towards extinction, and with abundant food
     it lives on with persistent starvation.
+
+    The system has the group `patches`, one per cell, the variable group `people`, the reporters `census.births`,
+    `census.starvations`, and `census.old_age`, and the observables `population` and `money_gini`. The monetary economy
+    adds the variable group `businesses`, the group `bank`, and the reporter `shops.gdp`.
 
     Args:
         n_people:
@@ -1086,121 +1074,168 @@ def metaphoria(
         random_state:
             The seed or generator of the patches, the places, ages, and propensities of the people.
 
-    Returns:
-        system:
-            The system, with the group `patches`, one per cell, the variable group `people`, the reporters
-            `census.births`, `census.starvations`, and `census.old_age`, and the observables `population` and
-            `money_gini`. The monetary economy adds the variable group `businesses`, the group `bank`, and the reporter
-            `shops.gdp`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValueError:
             The mode is unknown.
 
     Examples:
-        >>> from skcomplex.systems.economics.macroeconomics import metaphoria
-        >>> [group.label for group in metaphoria(10, mode='monetary', shape=(5, 5)).elements]
+        >>> from skcomplex.systems.economics.macroeconomics import MetaphoriaSystem
+        >>> [group.label for group in MetaphoriaSystem(10, mode='monetary', shape=(5, 5)).prepare().system_.elements]
         ['patches', 'people', 'businesses', 'bank']
     """
-    if mode not in MODES:
-        error_msg = f'Unknown mode {mode!r}. Use one of {MODES}.'
-        raise ValueError(error_msg)
-    rng = np.random.default_rng(random_state)
-    shape = tuple(int(item) for item in shape)
-    space = LatticeSpace(shape)
-    sites = list(np.ndindex(*shape))
-    capacity = rng.uniform(0.0, max_food, len(sites))
-    patches = GroupElement(
-        'patches',
-        element=PlotElement,
-        size=len(sites),
-        values={
-            'food': capacity,
-            'capacity': capacity,
-            'resistance': rng.uniform(0.0, max_resistance, len(sites)),
-            'regrowth': regrowth,
-        },
-        location=sites,
-    )
-    cells = rng.integers(0, shape, size=(n_people, len(shape)))
-    traits: dict[str, Array] = {name: rng.uniform(0.0, bound, n_people) for name, bound in PROPENSITIES.items()}
-    people = GroupElement(
-        'people',
-        element=SettlerElement,
-        size=n_people,
-        values={
-            'age': rng.integers(15, 40, n_people).astype(float),
-            'need': need,
-            'labour': labour,
-            'monetary': float(mode == 'monetary'),
-            'sight': SIGHT,
-            **traits,
-        },
-        variable=True,
-        location=[tuple(int(item) for item in cell) for cell in cells],
-    )
-    firms = rng.integers(0, shape, size=(n_firms, len(shape)))
-    businesses = GroupElement(
-        'businesses',
-        element=BusinessElement,
-        size=n_firms,
-        values={'interest': interest, 'repayment': repayment},
-        variable=True,
-        location=[tuple(int(item) for item in cell) for cell in firms],
-    )
-    bank = GroupElement('bank', element=CentralBankElement, size=1, location=(0,) * len(shape))
-    economy = [businesses, bank] if mode == 'monetary' else []
-    jobs = LabourMarketInteraction(
-        'jobs',
-        requesters='people',
-        providers='businesses',
-        rule=PartnerSpec(SIGHT, 'score', score=LabourMarketInteraction.score, clearing='provider'),
-        limit=('hireable', 'limit'),
-        quantity=('quantity', 'vacancies'),
-        phase='hiring',
-        on_match=LabourMarketInteraction.hire,
-    )
-    shops = FoodMarketInteraction(
-        'shops',
-        requesters='people',
-        providers='businesses',
-        rule=PartnerSpec(SIGHT, 'score', score=FoodMarketInteraction.score, clearing='provider'),
-        limit=('limit', 'price'),
-        quantity=('shortfall', 'stock'),
-        allowance='money',
-        transfers=(('money', -1),),
-        phase='market',
-        on_match=FoodMarketInteraction.sell,
-    )
-    dividends = TransferInteraction(
-        'dividends',
-        source='bank',
-        target='people',
-        state='money',
-        amount=CentralBankElement.get_income,
-        pairing='random',
-        fallback='businesses',
-        guard=lambda agent, holder, system: CentralBankElement.get_income(agent, holder, system) > 0,
-        form='agent',
-        phase='banking',
-    )
-    exchange: list[BaseInteraction] = (
-        [CommonsInteraction('commons', people='people')] if mode == 'hunter_gatherer' else [jobs, dividends, shops]
-    )
-    return System(
-        elements=[patches, people, *economy],
-        interactions=[
-            RegrowthInteraction(
-                'regrowth',
-                target='patches',
-                state='food',
-                growth='regrowth',
-                relative=True,
-                phase='growth',
-            ),
-            *exchange,
-            EstateInteraction('census', people='people'),
-        ],
-        space=space,
-        time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec(name) for name in PHASES])),
-    )
+
+    field = 'economics/macroeconomics'
+    topics = ('agents', 'mortality', 'evolution', 'money', 'hunter-gatherers', 'stock-flow consistent')
+    references = ('Gooding 2019',)
+    until = 300
+
+    def __init__(
+        self,
+        n_people: int = 100,
+        *,
+        mode: str = 'hunter_gatherer',
+        shape: Sequence[int] = (20, 20),
+        max_food: float = 15.0,
+        max_resistance: float = 5.0,
+        regrowth: float = 1.0,
+        need: float = 2.0,
+        labour: float = 5.0,
+        interest: float = 0.003,
+        repayment: float = 0.004,
+        n_firms: int = 5,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_people = n_people
+        self.mode = mode
+        self.shape = shape
+        self.max_food = max_food
+        self.max_resistance = max_resistance
+        self.regrowth = regrowth
+        self.need = need
+        self.labour = labour
+        self.interest = interest
+        self.repayment = repayment
+        self.n_firms = n_firms
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        shape = self.shape
+        if self.mode not in MODES:
+            error_msg = f'Unknown mode {self.mode!r}. Use one of {MODES}.'
+            raise ValueError(error_msg)
+        rng = np.random.default_rng(self.random_state)
+        shape = tuple(int(item) for item in shape)
+        space = LatticeSpace(shape)
+        sites = list(np.ndindex(*shape))
+        capacity = rng.uniform(0.0, self.max_food, len(sites))
+        patches = GroupElement(
+            'patches',
+            element=PlotElement,
+            size=len(sites),
+            values={
+                'food': capacity,
+                'capacity': capacity,
+                'resistance': rng.uniform(0.0, self.max_resistance, len(sites)),
+                'regrowth': self.regrowth,
+            },
+            location=sites,
+        )
+        cells = rng.integers(0, shape, size=(self.n_people, len(shape)))
+        traits: dict[str, Array] = {
+            name: rng.uniform(0.0, bound, self.n_people) for name, bound in PROPENSITIES.items()
+        }
+        people = GroupElement(
+            'people',
+            element=SettlerElement,
+            size=self.n_people,
+            values={
+                'age': rng.integers(15, 40, self.n_people).astype(float),
+                'need': self.need,
+                'labour': self.labour,
+                'monetary': float(self.mode == 'monetary'),
+                'sight': SIGHT,
+                **traits,
+            },
+            variable=True,
+            location=[tuple(int(item) for item in cell) for cell in cells],
+        )
+        firms = rng.integers(0, shape, size=(self.n_firms, len(shape)))
+        businesses = GroupElement(
+            'businesses',
+            element=BusinessElement,
+            size=self.n_firms,
+            values={'interest': self.interest, 'repayment': self.repayment},
+            variable=True,
+            location=[tuple(int(item) for item in cell) for cell in firms],
+        )
+        bank = GroupElement('bank', element=CentralBankElement, size=1, location=(0,) * len(shape))
+        economy = [businesses, bank] if self.mode == 'monetary' else []
+        jobs = LabourMarketInteraction(
+            'jobs',
+            requesters='people',
+            providers='businesses',
+            rule=PartnerSpec(SIGHT, 'score', score=LabourMarketInteraction.score, clearing='provider'),
+            limit=('hireable', 'limit'),
+            quantity=('quantity', 'vacancies'),
+            phase='hiring',
+            on_match=LabourMarketInteraction.hire,
+        )
+        shops = FoodMarketInteraction(
+            'shops',
+            requesters='people',
+            providers='businesses',
+            rule=PartnerSpec(SIGHT, 'score', score=FoodMarketInteraction.score, clearing='provider'),
+            limit=('limit', 'price'),
+            quantity=('shortfall', 'stock'),
+            allowance='money',
+            transfers=(('money', -1),),
+            phase='market',
+            on_match=FoodMarketInteraction.sell,
+        )
+        dividends = TransferInteraction(
+            'dividends',
+            source='bank',
+            target='people',
+            state='money',
+            amount=CentralBankElement.get_income,
+            pairing='random',
+            fallback='businesses',
+            guard=lambda agent, holder, system: CentralBankElement.get_income(agent, holder, system) > 0,
+            form='agent',
+            phase='banking',
+        )
+        exchange: list[BaseInteraction] = (
+            [CommonsInteraction('commons', people='people')]
+            if self.mode == 'hunter_gatherer'
+            else [jobs, dividends, shops]
+        )
+        return System(
+            self.label,
+            elements=[patches, people, *economy],
+            interactions=[
+                RegrowthInteraction(
+                    'regrowth',
+                    target='patches',
+                    state='food',
+                    growth='regrowth',
+                    relative=True,
+                    phase='growth',
+                ),
+                *exchange,
+                EstateInteraction('census', people='people'),
+            ],
+            space=space,
+            time=DiscreteTime(schedule=PhasesScheduleSpec([PhaseSpec(name) for name in PHASES])),
+        )
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings, with the observables of the parts built from the model parameters."""
+        settings = super().get_run_settings()
+        settings['observables'] = _metaphoria_observables(self._build_system())
+        return settings

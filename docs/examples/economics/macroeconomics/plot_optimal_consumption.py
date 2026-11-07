@@ -7,33 +7,22 @@ rule, and the economy saves a falling share of its output as it grows richer.
 """
 
 # %%
-# The system is created by name from the catalog with the Cobb-Douglas output `k^0.3`, depreciation 0.05, the discount
-# rate 0.03, and the initial capital 1. The collocation solver of its catalog entry solves the problem over 40 years.
+# The system is built from its class with the Cobb-Douglas output `k^0.3`, depreciation 0.05, the discount
+# rate 0.03, and the initial capital 1. Its tuned collocation solver solves the problem over 40 years.
 # The default blueprint shows capital and consumption in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.macroeconomics import OptimalConsumptionSystem
 
 SYSTEM = 'optimal_consumption'
 
-system = create_system(SYSTEM)
-entry = describe(SYSTEM)
+system = OptimalConsumptionSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(
-        system,
-        dt=0.5,
-        solver=entry.defaults['solver'],
-        observers=[observer],
-        observables=entry.observables_of(system),
-    )
-    .prepare()
-    .run(until=40)
-)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # The Euler equation
@@ -42,7 +31,6 @@ simulation = (
 # consumption, computed from the solution, should match the marginal product of capital net of depreciation and the
 # discount rate. It falls to 0 as capital approaches the golden rule `k* = (alpha / (delta + rho))^(1 / (1 - alpha))`.
 
-trajectory = simulation.trajectory_
 times, capital, consumption = trajectory.times, trajectory.values('economy.k'), trajectory.values('economy.c')
 growth = np.gradient(np.log(consumption), times)
 euler = 0.3 * capital ** (0.3 - 1) - 0.05 - 0.03

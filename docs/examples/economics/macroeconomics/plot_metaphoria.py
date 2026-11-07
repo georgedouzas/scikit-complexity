@@ -9,17 +9,17 @@ between about 80 and 150, above the births and the starvations of every step.
 """
 
 # %%
-# The system is created by name with 100 adults on a periodic 20 x 20 lattice of patches whose food capacity is drawn
-# up to 15 and whose resistance up to 5. Every adult brings 5 units of labour and eats 2 units of food per step. The
-# blueprint shows the observable `population` above the reporters `census.births` and `census.starvations`.
+# The system is built from its class with 100 adults on a periodic 20 x 20 lattice of patches whose food capacity is
+# drawn up to 15 and whose resistance up to 5. Every adult brings 5 units of labour and eats 2 units of food per step.
+# The blueprint shows the observable `population` above the reporters `census.births` and `census.starvations`.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.macroeconomics import MetaphoriaSystem
 
 SYSTEM = 'metaphoria'
 
@@ -38,18 +38,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, n_people=100, mode='hunter_gatherer', random_state=0)
+system = MetaphoriaSystem(n_people=100, mode='hunter_gatherer', random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = (
-    Simulation(
-        system,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=250)
-)
+trajectory = simulate(system, until=250, observers=[observer], random_state=0)
 
 # %%
 # Hunter-gatherers against a monetary economy
@@ -61,15 +52,13 @@ simulation = (
 # with a Gini coefficient above the 0.5 that Gooding reports. The money of all holders, the bank's issued money
 # included, should sum to zero.
 
-observables = describe(SYSTEM).observables_of
-monetary = create_system(SYSTEM, n_people=100, mode='monetary', random_state=0)
-scarce = Simulation(monetary, random_state=0, observables=observables(monetary)).prepare().run(until=150).trajectory_
-rich = create_system(SYSTEM, n_people=100, mode='monetary', max_food=50.0, max_resistance=0.0, random_state=0)
-abundant = Simulation(rich, random_state=0, observables=observables(rich)).prepare().run(until=150).trajectory_
+monetary = MetaphoriaSystem(n_people=100, mode='monetary', random_state=0)
+scarce = simulate(monetary, until=150, random_state=0)
+rich = MetaphoriaSystem(n_people=100, mode='monetary', max_food=50.0, max_resistance=0.0, random_state=0)
+abundant = simulate(rich, until=150, random_state=0)
 holders = [abundant.agents(group, 150).values for group in ('people', 'businesses', 'bank')]
 net_money = sum(np.sum(values['money']) for values in holders)
 
-trajectory = simulation.trajectory_
 fig, (populations, money) = plt.subplots(1, 2, figsize=(11, 4))
 populations.plot(trajectory.times[:151], trajectory.values('population')[:151], label='hunter-gatherers')
 populations.plot(scarce.times, scarce.values('population'), label='monetary')

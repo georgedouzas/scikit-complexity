@@ -12,9 +12,8 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction, RateInteraction
 from ....core.components.laws.utils import lag
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class EconomyElement(Element):
@@ -154,14 +153,10 @@ class SolowGrowthInteraction(RateInteraction):
         return rate
 
 
-@register_system(
-    field='economics/macroeconomics',
-    tags=('growth', 'ode'),
-    references=('Solow 1956',),
-    defaults={'until': 200.0, 'dt': 1.0},
-)
-def solow(k: float = 1.0, *, s: float = 0.2, alpha: float = 0.3, delta: float = 0.05) -> System:
-    """Return an economy whose capital per worker approaches its steady state through saving and depreciation.
+class SolowSystem(BaseSystem):
+    """An economy whose capital per worker approaches its steady state through saving and depreciation.
+
+    The system has the economy `economy`.
 
     Args:
         k:
@@ -176,45 +171,52 @@ def solow(k: float = 1.0, *, s: float = 0.2, alpha: float = 0.3, delta: float = 
         delta:
             The depreciation rate.
 
-    Returns:
-        system:
-            The system, with the economy `economy`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.macroeconomics import solow
-        >>> solow(s=0.3).interactions[0].s
+        >>> from skcomplex.systems.economics.macroeconomics import SolowSystem
+        >>> SolowSystem(s=0.3).prepare().system_.interactions[0].s
         0.3
     """
-    return System(
-        elements=[EconomyElement('economy', k=k)],
-        interactions=[SolowGrowthInteraction('growth', target='economy', s=s, alpha=alpha, delta=delta)],
-    )
+
+    field = 'economics/macroeconomics'
+    topics = ('growth', 'ode')
+    references = ('Solow 1956',)
+    until = 200.0
+    dt = 1.0
+
+    def __init__(
+        self,
+        k: float = 1.0,
+        *,
+        s: float = 0.2,
+        alpha: float = 0.3,
+        delta: float = 0.05,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.k = k
+        self.s = s
+        self.alpha = alpha
+        self.delta = delta
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        return System(
+            self.label,
+            elements=[EconomyElement('economy', k=self.k)],
+            interactions=[
+                SolowGrowthInteraction('growth', target='economy', s=self.s, alpha=self.alpha, delta=self.delta),
+            ],
+        )
 
 
-def _next_income(s: SimpleNamespace) -> Expression:
-    """Return the income of the next period, `c (1 + v) Y_t - c v Y_{t-1} + G`."""
-    economy = s.target
-    income: Expression = economy.c * (1 + economy.v) * economy.Y - economy.c * economy.v * lag(economy.Y, 1) + economy.G
-    return income
+class MultiplierAcceleratorSystem(BaseSystem):
+    """Samuelson's multiplier-accelerator, `Y_{t+1} = c (1 + v) Y_t - c v Y_{t-1} + G`.
 
-
-@register_system(
-    field='economics/macroeconomics',
-    tags=('business cycle', 'discrete map', 'second order'),
-    references=('Samuelson 1939',),
-    defaults={'until': 40, 'dt': 1},
-)
-def multiplier_accelerator(
-    income: float = 110.0,
-    previous: float = 100.0,
-    *,
-    c: float = 0.8,
-    v: float = 1.5,
-    G: float = 20.0,
-) -> System:
-    """Return Samuelson's multiplier-accelerator, `Y_{t+1} = c (1 + v) Y_t - c v Y_{t-1} + G`.
-
-    Income oscillates around `G / (1 - c)`, with growing amplitude when `c v > 1` and complex characteristic roots.
+    Income oscillates around `G / (1 - c)`, with growing amplitude when `c v > 1` and complex characteristic roots. The
+    system has the income `economy.Y` and its previous value `economy.Y_lag1`.
 
     Args:
         income:
@@ -232,16 +234,51 @@ def multiplier_accelerator(
         G:
             The government spending.
 
-    Returns:
-        system:
-            The system, with the income `economy.Y` and its previous value `economy.Y_lag1`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.macroeconomics import multiplier_accelerator
-        >>> multiplier_accelerator(v=0.5).elements[0].v
+        >>> from skcomplex.systems.economics.macroeconomics import MultiplierAcceleratorSystem
+        >>> MultiplierAcceleratorSystem(v=0.5).prepare().system_.elements[0].v
         0.5
     """
-    return System(
-        elements=[IncomeElement('economy', Y=income, Y_lag1=previous, c=c, v=v, G=G)],
-        interactions=[MapInteraction('cycle', target='economy', state='Y', function=_next_income)],
-    )
+
+    field = 'economics/macroeconomics'
+    topics = ('business cycle', 'discrete map', 'second order')
+    references = ('Samuelson 1939',)
+    until = 40
+    dt = 1
+
+    def __init__(
+        self,
+        income: float = 110.0,
+        previous: float = 100.0,
+        *,
+        c: float = 0.8,
+        v: float = 1.5,
+        G: float = 20.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.income = income
+        self.previous = previous
+        self.c = c
+        self.v = v
+        self.G = G
+
+    @staticmethod
+    def _next_income(s: SimpleNamespace) -> Expression:
+        """Return the income of the next period, `c (1 + v) Y_t - c v Y_{t-1} + G`."""
+        economy = s.target
+        income: Expression = (
+            economy.c * (1 + economy.v) * economy.Y - economy.c * economy.v * lag(economy.Y, 1) + economy.G
+        )
+        return income
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        return System(
+            self.label,
+            elements=[IncomeElement('economy', Y=self.income, Y_lag1=self.previous, c=self.c, v=self.v, G=self.G)],
+            interactions=[MapInteraction('cycle', target='economy', state='Y', function=self._next_income)],
+        )

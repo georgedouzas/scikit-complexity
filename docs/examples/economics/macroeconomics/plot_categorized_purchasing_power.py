@@ -12,14 +12,15 @@ reactions can decouple the sectors, so each index answers only to its own policy
 
 import matplotlib.pyplot as plt
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.economics.macroeconomics import CategorizedPurchasingPowerSystem
 
 SYSTEM = 'categorized_purchasing_power'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-decoupled = create_simulation(SYSTEM).set_params(dt=0.05, observers=[observer]).prepare().run(until=15)
-coupled = create_simulation(SYSTEM, feedback=False).set_params(dt=0.05).prepare().run(until=15)
+decoupled = simulate(CategorizedPurchasingPowerSystem(), observers=[observer])
+coupled = simulate(CategorizedPurchasingPowerSystem(feedback=False))
 
 # %%
 # Spillovers with and without feedback
@@ -29,8 +30,7 @@ coupled = create_simulation(SYSTEM, feedback=False).set_params(dt=0.05).prepare(
 # the steady state of its own decoupled system.
 
 fig, axes = plt.subplots(1, 2, figsize=(10, 4), sharey=True)
-for axis, simulation, title in ((axes[0], coupled, 'Without feedback'), (axes[1], decoupled, 'With feedback')):
-    trajectory = simulation.trajectory_
+for axis, trajectory, title in ((axes[0], coupled, 'Without feedback'), (axes[1], decoupled, 'With feedback')):
     for index, name in enumerate(('basic', 'desired', 'luxury'), start=1):
         axis.plot(trajectory.times, trajectory.values(f'economy.y{index}'), label=name)
     axis.set_xlabel('time')

@@ -15,10 +15,9 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import FeedbackInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, RuleLaw, Sink
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class DepositorView(AgentView):
@@ -180,6 +179,8 @@ class ReserveBankElement(Element):
         3
     """
 
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -308,30 +309,8 @@ class PolicySwitchInteraction(FeedbackInteraction[SystemView]):
             system.set_parameter(name, ratio)
 
 
-@register_system(
-    field='economics/macroeconomics',
-    tags=('money', 'banks', 'agents', 'institution'),
-    references=('Hamill and Gilbert 2016 ch. 9',),
-    defaults={'until': 300},
-    observables=lambda system: [
-        ObservableSpec('broad_money', group='banks', variable='deposits', reduce='sum'),
-        ObservableSpec('reserves', group='banks', variable='reserves', reduce='sum'),
-        ObservableSpec('loans', group='banks', variable='loans', reduce='sum'),
-    ],
-)
-def fractional_reserve_banking(
-    customers: int = 100,
-    banks: int = 5,
-    *,
-    base_money: float = 1000.0,
-    ratio: float = 0.1,
-    new_ratio: float | None = None,
-    change_at: float = 150.0,
-    spending: float = 0.1,
-    repayment: float = 0.05,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return customers and banks whose lending of excess reserves multiplies the base money by `1 / ratio`.
+class FractionalReserveBankingSystem(BaseSystem):
+    """Customers and banks whose lending of excess reserves multiplies the base money by `1 / ratio`.
 
     The base money starts as equal deposits of the customers, held as reserves by their banks, picked at random. Every
     step the customers pay a share of their deposits to random customers and repay a share of their loans from their
@@ -339,6 +318,9 @@ def fractional_reserve_banking(
     required share of its deposits. The loans are spent and redeposited at random banks. The reserves stay equal to the
     base money, so the broad money, the sum of deposits, settles near `base_money / ratio`. A regulator changes the
     reserve ratio to `new_ratio` at `change_at`, and the broad money moves to the new multiplier.
+
+    The system has the groups `customers` and `banks`, the institution `regulator`, and the observables `broad_money`,
+    `reserves`, and `loans`.
 
     Args:
         customers:
@@ -368,71 +350,108 @@ def fractional_reserve_banking(
         random_state:
             The seed or generator of the customers' banks.
 
-    Returns:
-        system:
-            The system, with the groups `customers` and `banks`, the institution `regulator`, and the observables
-            `broad_money`, `reserves`, and `loans`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.macroeconomics import fractional_reserve_banking
-        >>> fractional_reserve_banking(new_ratio=0.2).interactions[0].new_ratio
+        >>> from skcomplex.systems.economics.macroeconomics import FractionalReserveBankingSystem
+        >>> FractionalReserveBankingSystem(new_ratio=0.2).prepare().system_.interactions[0].new_ratio
         0.2
     """
-    rng = np.random.default_rng(random_state)
-    owners = rng.integers(banks, size=customers)
-    deposit = base_money / customers
-    holdings = np.bincount(owners, minlength=banks) * deposit
-    depositors = GroupElement(
-        'customers',
-        element=DepositorElement,
-        size=customers,
-        values={'bank': owners, 'deposit': deposit, 'spending': spending, 'repayment': repayment},
+
+    field = 'economics/macroeconomics'
+    topics = ('money', 'banks', 'agents', 'institution')
+    references = ('Hamill and Gilbert 2016 ch. 9',)
+    until = 300
+    observables = (
+        ObservableSpec('broad_money', group='banks', variable='deposits', reduce='sum'),
+        ObservableSpec('reserves', group='banks', variable='reserves', reduce='sum'),
+        ObservableSpec('loans', group='banks', variable='loans', reduce='sum'),
     )
-    payments = TransferInteraction(
-        'payments',
-        source='customers',
-        target='customers',
-        state='deposit',
-        amount=DepositorElement.get_payment,
-        pairing='random',
-        legs=(
-            ('bank.deposits', None, DepositorElement.get_payment),
-            ('bank.reserves', None, DepositorElement.get_payment),
-        ),
-        form='agent',
-        phase='pay',
-    )
-    repayments = TransferInteraction(
-        'repayments',
-        source='customers',
-        target='customers',
-        state='deposit',
-        into=Sink(),
-        amount=DepositorElement.get_repayment,
-        legs=tuple(
-            (state, Sink(), DepositorElement.get_repayment) for state in ('loan', 'bank.deposits', 'bank.loans')
-        ),
-        guard=lambda customer, same, system: DepositorElement.get_repayment(customer, same, system) > 0,
-        form='agent',
-        phase='pay',
-    )
-    lenders = GroupElement(
-        'banks',
-        element=ReserveBankElement,
-        size=banks,
-        values={'reserves': holdings, 'deposits': holdings, 'reserve_ratio': ratio},
-    )
-    regulator = PolicySwitchInteraction(
-        'regulator',
-        phase='regulate',
-        ratio=ratio,
-        new_ratio=ratio if new_ratio is None else new_ratio,
-        change_at=change_at,
-    )
-    return System(
-        elements=[depositors, lenders],
-        interactions=[regulator, payments, repayments],
-        time=DiscreteTime(
-            schedule=PhasesScheduleSpec([PhaseSpec('regulate'), PhaseSpec('pay'), PhaseSpec('lend', repeat=10)]),
-        ),
-    )
+
+    def __init__(
+        self,
+        customers: int = 100,
+        banks: int = 5,
+        *,
+        base_money: float = 1000.0,
+        ratio: float = 0.1,
+        new_ratio: float | None = None,
+        change_at: float = 150.0,
+        spending: float = 0.1,
+        repayment: float = 0.05,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.customers = customers
+        self.banks = banks
+        self.base_money = base_money
+        self.ratio = ratio
+        self.new_ratio = new_ratio
+        self.change_at = change_at
+        self.spending = spending
+        self.repayment = repayment
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        owners = rng.integers(self.banks, size=self.customers)
+        deposit = self.base_money / self.customers
+        holdings = np.bincount(owners, minlength=self.banks) * deposit
+        depositors = GroupElement(
+            'customers',
+            element=DepositorElement,
+            size=self.customers,
+            values={'bank': owners, 'deposit': deposit, 'spending': self.spending, 'repayment': self.repayment},
+        )
+        payments = TransferInteraction(
+            'payments',
+            source='customers',
+            target='customers',
+            state='deposit',
+            amount=DepositorElement.get_payment,
+            pairing='random',
+            legs=(
+                ('bank.deposits', None, DepositorElement.get_payment),
+                ('bank.reserves', None, DepositorElement.get_payment),
+            ),
+            form='agent',
+            phase='pay',
+        )
+        repayments = TransferInteraction(
+            'repayments',
+            source='customers',
+            target='customers',
+            state='deposit',
+            into=Sink(),
+            amount=DepositorElement.get_repayment,
+            legs=tuple(
+                (state, Sink(), DepositorElement.get_repayment) for state in ('loan', 'bank.deposits', 'bank.loans')
+            ),
+            guard=lambda customer, same, system: DepositorElement.get_repayment(customer, same, system) > 0,
+            form='agent',
+            phase='pay',
+        )
+        lenders = GroupElement(
+            'banks',
+            element=ReserveBankElement,
+            size=self.banks,
+            values={'reserves': holdings, 'deposits': holdings, 'reserve_ratio': self.ratio},
+        )
+        regulator = PolicySwitchInteraction(
+            'regulator',
+            phase='regulate',
+            ratio=self.ratio,
+            new_ratio=self.ratio if self.new_ratio is None else self.new_ratio,
+            change_at=self.change_at,
+        )
+        return System(
+            self.label,
+            elements=[depositors, lenders],
+            interactions=[regulator, payments, repayments],
+            time=DiscreteTime(
+                schedule=PhasesScheduleSpec([PhaseSpec('regulate'), PhaseSpec('pay'), PhaseSpec('lend', repeat=10)]),
+            ),
+        )
