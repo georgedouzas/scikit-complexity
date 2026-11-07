@@ -6,6 +6,8 @@ from ._crowding import CrowdingInteraction, crowding_table
 from ._deterrence import DeterrenceInteraction, deterrence_table
 from ._evacuation import evacuated_fraction, evacuation, evacuation_observables, mean_speed
 from ._guidance import GuidanceInteraction
+from ._kinetic_crowd import KineticCrowdInteraction, KineticWalkerElement, kinetic_crowd
+from ._kinetic_walker_view import KineticWalkerView
 from ._motivation import MotivationInteraction
 from ._pedestrians import social_force
 from ._recruitment import RecruitmentInteraction, criminality_grid
@@ -19,6 +21,9 @@ __all__: list[str] = [
     'CrowdingInteraction',
     'DeterrenceInteraction',
     'GuidanceInteraction',
+    'KineticCrowdInteraction',
+    'KineticWalkerElement',
+    'KineticWalkerView',
     'MotivationInteraction',
     'RecruitmentInteraction',
     'SecurityAgentsElement',
@@ -36,6 +41,7 @@ __all__: list[str] = [
     'evacuated_fraction',
     'evacuation',
     'evacuation_observables',
+    'kinetic_crowd',
     'mean_criminality',
     'mean_speed',
     'next_rooms',
