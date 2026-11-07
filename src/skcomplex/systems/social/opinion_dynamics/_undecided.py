@@ -17,9 +17,16 @@ from ....core.components.interactions import MapInteraction, TransferInteraction
 from ....core.components.spaces import NetworkSpace
 from ....core.components.system import System
 from ....core.components.types import SystemViewProtocol
+from ....core.engine.solvers import AgentView
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._undecided_view import UndecidedView
+
+
+class UndecidedView(AgentView):
+    """View of a voter of the three-state opinion system, with its states and parameters as attributes."""
+
+    opinion: float
+    sensitivity: float
 
 
 class UndecidedElement(Element):

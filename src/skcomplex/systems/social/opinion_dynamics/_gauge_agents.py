@@ -5,21 +5,66 @@
 
 from collections.abc import Mapping, Sequence
 from functools import partial
+from types import SimpleNamespace
 from typing import Annotated
 
 import networkx as nx
 import numpy as np
 import scipy.sparse
-from sage.all__sagemath_symbolics import pi
+from sage.all__sagemath_symbolics import pi, sin
 
 from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import CouplingInteraction
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import CellComplexSpace, NetworkSpace
 from ....core.components.system import System
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._catalog import register_system
-from ._transported_coupling import TransportedCouplingInteraction
+
+
+class TransportedCouplingInteraction(CouplingInteraction):
+    """Relaxation of agent phases towards the phases of their neighbours, `theta_i' += K sin(theta_j - theta_i - A_ij)`.
+
+    The connection `A_ij` lives on the edge of the network from `i` to `j`, and `A_ji = -A_ij`.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        target:
+            The path of the group of agents on the nodes.
+
+        links:
+            The path of the group on the edges, whose parameter `A` holds the connection.
+
+        K:
+            The coupling strength.
+
+    Examples:
+        >>> from skcomplex.systems.social.opinion_dynamics import TransportedCouplingInteraction
+        >>> TransportedCouplingInteraction('coupling', target='agents', links='links', K=0.5).K
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        links: Annotated[str, RoleSpec()],
+        K: Annotated[float, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, target=target, read='theta', write='theta')
+        self.links = links
+        self.K = K
+
+    def _get_edge_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rates of both ends of an edge, with the connection read along and against its direction."""
+        source, target = namespace.source, namespace.target
+        flow = namespace.K * sin(target.theta - source.theta - namespace.edge.A)
+        return [RateLaw(source.theta, flow), RateLaw(target.theta, -flow)]
 
 
 class PhaseAgentElement(Element):
