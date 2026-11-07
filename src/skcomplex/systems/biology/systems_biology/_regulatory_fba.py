@@ -10,11 +10,10 @@ from typing import Annotated
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import where
-from ....core.components.spaces import DiscreteTime
-from ....core.components.system import System
+from ....core.components.spaces import ContinuousTime, DiscreteTime
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import CoSimulationSolver, RK4Solver
 from ....core.specs import RoleSpec
-from ..._catalog import register_system
 from ..common.metabolism import (
     BiomassElement,
     ExchangeInteraction,
@@ -55,6 +54,8 @@ class GlucoseSensorInteraction(Interaction):
         0.1
     """
 
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -84,27 +85,8 @@ class GlucoseSensorInteraction(Interaction):
         return [UpdateLaw(namespace.node.x, where(namespace.source.c > float(self.threshold), 1, 0))]
 
 
-@register_system(
-    field='biology/systems_biology',
-    tags=('regulatory flux balance', 'boolean network', 'linear program', 'metabolism', 'diauxie', 'co-simulation'),
-    references=('Raman 2021', 'Covert et al. 2001'),
-    defaults={
-        'until': 8.0,
-        'dt': SYNCHRONISATION,
-        'solver': CoSimulationSolver(sync_dt=SYNCHRONISATION, solvers={'culture': RK4Solver(dt=ODE_STEP)}),
-    },
-)
-def regulatory_fba(
-    *,
-    biomass: float = 0.01,
-    glucose: float = 10.0,
-    acetate: float = 10.0,
-    threshold: float = 0.1,
-    lag: int = 10,
-    acetate_vmax: float = 10.0,
-    km: float = 0.015,
-) -> System:
-    """Return a batch culture on glucose and acetate with Boolean catabolite repression, which needs the extra.
+class RegulatoryFBASystem(BaseSystem):
+    """A batch culture on glucose and acetate with Boolean catabolite repression, which needs the extra.
 
     Boolean rules alternate with the program (Raman 2021, Eq. 9.7). A node reads whether glucose lies above a threshold,
     a chain of nodes delays it, and while the last node is on it holds the genes of acetate kinase off through update
@@ -137,75 +119,112 @@ def regulatory_fba(
         km:
             The half-saturation concentration of both substrates in mM.
 
-    Returns:
-        system:
-            The system.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         MissingExtraError:
             The extra is not installed.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import regulatory_fba
-        >>> [system.label for system in regulatory_fba(lag=1).systems]
+        >>> from skcomplex.systems.biology.systems_biology import RegulatoryFBASystem
+        >>> [system.label for system in RegulatoryFBASystem(lag=1).prepare().system_.systems]
         ['control', 'culture']
     """
-    cell = load_network('textbook', 'cell', needed_by='regulatory_fba')
-    cell.parsimonious, cell.infeasible = True, 'zero'
-    identifier = cell._identifier(ACETATE_EXCHANGE)
-    cell.set_params(
-        **{f'lower_{identifier}': -float(acetate_vmax)},
-        **{cell.gene_name(gene): 0.0 for gene in ACETATE_GENES},
-    )
-    nodes = [BooleanNodeElement(f'node_{position}', x=1) for position in range(lag + 1)]
-    chain = [
-        GlucoseSensorInteraction(
-            f'delay_{position}',
-            node=f'control/node_{position}',
-            source=f'control/node_{position - 1}',
+
+    field = 'biology/systems_biology'
+    topics = ('regulatory flux balance', 'boolean network', 'linear program', 'metabolism', 'diauxie', 'co-simulation')
+    references = ('Raman 2021', 'Covert et al. 2001')
+    until = 8.0
+    dt = SYNCHRONISATION
+    solver = CoSimulationSolver(sync_dt=SYNCHRONISATION, solvers={'culture': RK4Solver(dt=ODE_STEP)})
+
+    def __init__(
+        self,
+        *,
+        biomass: float = 0.01,
+        glucose: float = 10.0,
+        acetate: float = 10.0,
+        threshold: float = 0.1,
+        lag: int = 10,
+        acetate_vmax: float = 10.0,
+        km: float = 0.015,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.biomass = biomass
+        self.glucose = glucose
+        self.acetate = acetate
+        self.threshold = threshold
+        self.lag = lag
+        self.acetate_vmax = acetate_vmax
+        self.km = km
+
+    def _build_system(self) -> System:
+        """Return the parts of a batch culture on glucose and acetate with Boolean catabolite repression."""
+        cell = load_network('textbook', 'cell', needed_by='regulatory_fba')
+        cell.parsimonious, cell.infeasible = True, 'zero'
+        identifier = cell._identifier(ACETATE_EXCHANGE)
+        cell.set_params(
+            **{f'lower_{identifier}': -float(self.acetate_vmax)},
+            **{cell.gene_name(gene): 0.0 for gene in ACETATE_GENES},
         )
-        for position in range(1, lag + 1)
-    ]
-    return System(
-        systems=[
-            System('control', elements=[cell, *nodes], time=DiscreteTime()),
-            System(
-                'culture',
-                elements=[
-                    BiomassElement('biomass', x=biomass),
-                    SubstrateElement('glucose', c=glucose),
-                    SubstrateElement('acetate', c=acetate),
-                ],
-            ),
-        ],
-        interactions=[
+        nodes = [BooleanNodeElement(f'node_{position}', x=1) for position in range(self.lag + 1)]
+        chain = [
             GlucoseSensorInteraction(
-                'sensor',
-                node='control/node_0',
-                source='culture/glucose',
-                threshold=threshold,
-            ),
-            *chain,
-            SwitchInteraction('repression', node=f'control/node_{lag}', cell='control/cell', genes=ACETATE_GENES),
-            ExchangeInteraction(
-                'glucose_uptake',
-                cell='control/cell',
-                biomass='culture/biomass',
-                substrate='culture/glucose',
-                reaction=GLUCOSE_EXCHANGE,
-                km=km,
-                interval=SYNCHRONISATION,
-            ),
-            ExchangeInteraction(
-                'acetate_uptake',
-                cell='control/cell',
-                biomass='culture/biomass',
-                substrate='culture/acetate',
-                reaction=ACETATE_EXCHANGE,
-                vmax=acetate_vmax,
-                km=km,
-                interval=SYNCHRONISATION,
-            ),
-            GrowthInteraction('growth', cell='control/cell', biomass='culture/biomass', reaction=GROWTH),
-        ],
-    )
+                f'delay_{position}',
+                node=f'control/node_{position}',
+                source=f'control/node_{position - 1}',
+            )
+            for position in range(1, self.lag + 1)
+        ]
+        return System(
+            self.label,
+            systems=[
+                System('control', elements=[cell, *nodes], time=DiscreteTime()),
+                System(
+                    'culture',
+                    elements=[
+                        BiomassElement('biomass', x=self.biomass),
+                        SubstrateElement('glucose', c=self.glucose),
+                        SubstrateElement('acetate', c=self.acetate),
+                    ],
+                    time=ContinuousTime(),
+                ),
+            ],
+            interactions=[
+                GlucoseSensorInteraction(
+                    'sensor',
+                    node='control/node_0',
+                    source='culture/glucose',
+                    threshold=self.threshold,
+                ),
+                *chain,
+                SwitchInteraction(
+                    'repression',
+                    node=f'control/node_{self.lag}',
+                    cell='control/cell',
+                    genes=ACETATE_GENES,
+                ),
+                ExchangeInteraction(
+                    'glucose_uptake',
+                    cell='control/cell',
+                    biomass='culture/biomass',
+                    substrate='culture/glucose',
+                    reaction=GLUCOSE_EXCHANGE,
+                    km=self.km,
+                    interval=SYNCHRONISATION,
+                ),
+                ExchangeInteraction(
+                    'acetate_uptake',
+                    cell='control/cell',
+                    biomass='culture/biomass',
+                    substrate='culture/acetate',
+                    reaction=ACETATE_EXCHANGE,
+                    vmax=self.acetate_vmax,
+                    km=self.km,
+                    interval=SYNCHRONISATION,
+                ),
+                GrowthInteraction('growth', cell='control/cell', biomass='culture/biomass', reaction=GROWTH),
+            ],
+        )

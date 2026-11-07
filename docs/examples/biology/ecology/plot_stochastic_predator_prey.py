@@ -12,15 +12,14 @@ on it: demographic noise excites the damped oscillations of the deterministic sy
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import StochasticPredatorPreySystem
 
 SYSTEM = 'stochastic_predator_prey'
 
-system = create_system(SYSTEM, stochastic=True)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer], random_state=0).prepare().run(until=100)
+trajectory = simulate(StochasticPredatorPreySystem(stochastic=True), observers=[observer], random_state=0)
 
 # %%
 # Noise against the deterministic limit
@@ -28,8 +27,8 @@ simulation = Simulation(system, dt=0.5, observers=[observer], random_state=0).pr
 # The deterministic limit spirals into the coexistence point `x = m / (a (e - m h))`. In the phase plane the jump
 # process should circle the same point without settling, its excursions as large as the first turns of the spiral.
 
-noisy = simulation.trajectory_
-deterministic = Simulation(create_system(SYSTEM, stochastic=False), dt=0.5).prepare().run(until=100).trajectory_
+noisy = trajectory
+deterministic = simulate(StochasticPredatorPreySystem(stochastic=False))
 a, e, h, m = 0.005, 0.5, 0.5, 0.3
 fig, ax = plt.subplots(figsize=(6, 5))
 ax.plot(noisy.values('prey.n'), noisy.values('predators.n'), linewidth=0.8, label='jump process')

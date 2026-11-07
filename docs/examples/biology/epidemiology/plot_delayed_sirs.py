@@ -7,17 +7,17 @@ comes. A few visitors between two cities lock their outbreaks, here out of phase
 """
 
 # %%
-# The system is created by name from the catalog with the infection starting in the first city and six steps of
-# immunity. The blueprint shows the infected fraction of each city in one time series view over the last 60 steps.
+# The system is built from its class with the infection starting in the first city and six steps of immunity. The
+# blueprint shows the infected fraction of each city in one time series view over the last 60 steps.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.epidemiology import DelayedSIRSSystem
 
 SYSTEM = 'delayed_sirs'
 
@@ -38,9 +38,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, first=0.01, second=0.0, recovery=6, e=0.005)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=200)
+trajectory = simulate(DelayedSIRSSystem(first=0.01, second=0.0, recovery=6, e=0.005), observers=[observer])
 
 # %%
 # Recurrent and locked outbreaks
@@ -49,7 +48,6 @@ simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=
 # lose the immunity. The second city catches the disease from the visitors and its outbreaks should lock to those of
 # the first half a period apart, so the two series are anticorrelated at zero lag and correlated at half a period.
 
-trajectory = simulation.trajectory_
 first, second = trajectory.values('first.x'), trajectory.values('second.x')
 late = trajectory.times > 100
 lags = np.arange(-12, 13)

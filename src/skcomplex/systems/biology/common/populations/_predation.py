@@ -41,6 +41,8 @@ class PredationInteraction(Interaction):
         'rabbits'
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,

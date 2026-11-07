@@ -68,9 +68,9 @@ class BasinStabilityExperiment(BaseExperiment):
 
     Examples:
         >>> from skcomplex.core.experiments import BasinStabilityExperiment
-        >>> from skcomplex.systems.biology.ecology import logistic_growth
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
         >>> experiment = BasinStabilityExperiment(
-        ...     logistic_growth, {'population.n': (0.1, 10)}, lambda trajectory: 'capacity', n=5, until=5
+        ...     LogisticGrowthSystem, {'population.n': (0.1, 10)}, lambda trajectory: 'capacity', n=5, until=5
         ... )
         >>> experiment.prepare().run().fractions_
         {'capacity': 1.0}

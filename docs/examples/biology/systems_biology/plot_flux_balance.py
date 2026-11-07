@@ -7,24 +7,23 @@ two parallel routes, so the optimum fixes the growth and leaves the split betwee
 """
 
 # %%
-# The system is created by name from the catalog. The system holds one program under static time, so the run has one
-# frame, and the primary view is the bar chart of the fluxes.
+# The system is built from its class. The system holds one program under static time, so the run has one frame, and
+# the primary view is the bar chart of the fluxes.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import Experiment, GridDesign
-from skcomplex.systems import create_system
 from skcomplex.systems.biology.common.metabolism import flux_variability
-from skcomplex.systems.biology.systems_biology import flux_balance
+from skcomplex.systems.biology.systems_biology import FluxBalanceSystem
 
 SYSTEM = 'flux_balance'
 
-system = create_system(SYSTEM)
+system = FluxBalanceSystem().prepare().system_
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-trajectory = Simulation(system, observers=[observer]).prepare().run(until=0.0).trajectory_
+trajectory = simulate(system, observers=[observer], until=0.0)
 
 # %%
 # The ranges of the fluxes at the optimum
@@ -33,7 +32,7 @@ trajectory = Simulation(system, observers=[observer]).prepare().run(until=0.0).t
 # over the range from 0 to 600, the two routes from `A` to `B`. The parsimonious solution should sit inside every range.
 
 ranges = flux_variability(system).ranges
-parsimonious = Simulation(flux_balance(parsimonious=True)).prepare().run(until=0.0).trajectory_
+parsimonious = simulate(FluxBalanceSystem(parsimonious=True))
 fluxes = [float(parsimonious.values(f'cell.v_{name}')[0]) for name in ranges.index]
 fig, ax = plt.subplots(figsize=(9, 4))
 positions = np.arange(len(ranges))
@@ -57,7 +56,7 @@ plt.show()
 
 oxygen = np.linspace(0.0, 25.0, 11)
 experiment = Experiment(
-    flux_balance,
+    FluxBalanceSystem,
     GridDesign(),
     {'oxygen': oxygen.tolist(), 'network': ['ecoli']},
     until=0.0,

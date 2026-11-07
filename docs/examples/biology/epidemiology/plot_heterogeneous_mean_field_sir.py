@@ -7,35 +7,28 @@ size, the hubs fastest.
 """
 
 # %%
-# The system is created by name from the catalog on degrees from 3 to 30 with `P(k) ~ k^-2.5`, at a transmission
-# rate per contact of 2.5 times the threshold `<k> / <k^2>` of the unit recovery rate. The observer saves every frame
-# of the outbreak with the default blueprint, whose primary view holds the densities of the 28 degree classes.
+# The system is built from its class on degrees from 3 to 30 with `P(k) ~ k^-2.5`, at a transmission rate per contact
+# of 2.5 times the threshold `<k> / <k^2>` of the unit recovery rate. The observer saves every frame of the outbreak
+# with the default blueprint, whose primary view holds the densities of the 28 degree classes.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.biology.epidemiology import HeterogeneousMeanFieldSIRSystem
 
 SYSTEM = 'heterogeneous_mean_field_sir'
 
 degrees = np.arange(3, 31, dtype=float)
 probabilities = degrees**-2.5 / np.sum(degrees**-2.5)
 first, second = np.sum(degrees * probabilities), np.sum(degrees**2 * probabilities)
-system = create_system(SYSTEM, k_max=30, beta=2.5 * first / second)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(
-        system,
-        dt=0.5,
-        observers=[observer],
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(
-        until=40,
-    )
+trajectory = simulate(
+    HeterogeneousMeanFieldSIRSystem(k_max=30, beta=2.5 * first / second),
+    until=40,
+    dt=0.5,
+    observers=[observer],
 )
 
 # %%
@@ -48,17 +41,16 @@ simulation = (
 
 rates = np.linspace(0.2, 3.0, 15) * first / second
 final_sizes = [
-    Simulation(
-        create_system(SYSTEM, k_max=30, beta=rate, infected=1e-6),
+    simulate(
+        HeterogeneousMeanFieldSIRSystem(k_max=30, beta=rate, infected=1e-6),
+        until=300,
         dt=1.0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=300)
-    .trajectory_.values('recovered')[-1]
+    ).values(
+        'recovered',
+    )[-1]
     for rate in rates
 ]
-infected = simulation.trajectory_.values('network.i')
+infected = trajectory.values('network.i')
 
 fig, (sizes, timing) = plt.subplots(1, 2, figsize=(10, 4))
 sizes.plot(rates, final_sizes, 'o-', label='simulated')
@@ -70,7 +62,7 @@ sizes.set_title('An outbreak above the threshold')
 sizes.legend()
 for degree in (3, 6, 12, 30):
     density = infected[:, degree - 3]
-    timing.plot(simulation.trajectory_.times, density / density.max(), label=f'k = {degree}')
+    timing.plot(trajectory.times, density / density.max(), label=f'k = {degree}')
 timing.set_xlim(0, 20)
 timing.set_xlabel('time')
 timing.set_ylabel('infected density / its peak')

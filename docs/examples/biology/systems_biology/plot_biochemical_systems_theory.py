@@ -6,22 +6,21 @@ the linear equations in the logarithms of the concentrations predict.
 """
 
 # %%
-# The system is created by name from the catalog. The pathway `X1 -> X2 -> X3` has power-law fluxes, and `X3` inhibits
-# the supply of `X1` with a kinetic order of -0.5. The observer saves every frame of the 20 time units with the
-# default blueprint, whose primary view is the time series of the three concentrations.
+# The system is built from its class. The pathway `X1 -> X2 -> X3` has power-law fluxes, and `X3` inhibits the supply
+# of `X1` with a kinetic order of -0.5. The observer saves every frame of the 20 time units with the default
+# blueprint, whose primary view is the time series of the three concentrations.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.systems_biology import BiochemicalSystemsTheorySystem
 
 SYSTEM = 'biochemical_systems_theory'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=20)
+trajectory = simulate(BiochemicalSystemsTheorySystem(), dt=0.1, observers=[observer])
 
 # %%
 # The steady state of an S-system
@@ -34,8 +33,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 g = np.array([[0.0, 0.0, -0.5], [0.5, 0.0, 0.0], [0.0, 0.5, 0.0]])
 h = 0.5 * np.eye(3)
 steady = np.exp(np.linalg.solve(g - h, np.log(np.array([1.0, 1.0, 1.0]) / np.array([2.0, 1.0, 1.0]))))
-gma = Simulation(create_system(SYSTEM, form='gma'), dt=0.1).prepare().run(until=20).trajectory_
-trajectory = simulation.trajectory_
+gma = simulate(BiochemicalSystemsTheorySystem(form='gma'), dt=0.1)
 fig, ax = plt.subplots(figsize=(7, 4))
 for index, color in zip((1, 2, 3), ('C0', 'C1', 'C2'), strict=False):
     ax.plot(trajectory.times, trajectory.values(f'X{index}.x'), color=color, label=f'X{index}, S-system')

@@ -14,9 +14,8 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class FisherKPPElement(Element):
@@ -43,6 +42,8 @@ class FisherKPPElement(Element):
         >>> FisherKPPElement('site', u=0.5).u
         0.5
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -72,21 +73,10 @@ class FisherKPPElement(Element):
         return [RateLaw(s.u, s.D * laplacian(s.u) + s.r * s.u * (1 - s.u))]
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('field', 'fronts', 'reaction-diffusion', 'pde'),
-    references=('Fisher 1937', 'Kolmogorov, Petrovsky, and Piskunov 1937'),
-    defaults={'until': 40.0, 'dt': 1.0},
-)
-def fisher_kpp(
-    length: int = 800,
-    *,
-    D: float = 1.0,
-    r: float = 1.0,
-    spacing: float = 0.25,
-    front: float = 0.05,
-) -> System:
-    """Return the Fisher-KPP equation, whose step invades the empty line as a front of speed `2 sqrt(r D)`.
+class FisherKPPSystem(BaseSystem):
+    """The Fisher-KPP equation, whose step invades the empty line as a front of speed `2 sqrt(r D)`.
+
+    The system has the density `line.u`.
 
     Args:
         length:
@@ -104,25 +94,51 @@ def fisher_kpp(
         front:
             The fraction of the line that starts occupied, on its left.
 
-    Returns:
-        system:
-            The system, with the density `line.u`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import fisher_kpp
-        >>> int(fisher_kpp(100, front=0.1).elements[0].values['u'].sum())
+        >>> from skcomplex.systems.biology.ecology import FisherKPPSystem
+        >>> int(FisherKPPSystem(100, front=0.1).prepare().system_.elements[0].values['u'].sum())
         10
     """
-    u = (np.arange(length) < front * length).astype(float)
-    space = LatticeSpace(length, spacing=spacing)
-    return System(
-        elements=[
-            FieldElement(
-                'line',
-                element=FisherKPPElement,
-                space=space,
-                boundary={'u': 'zero-flux'},
-                values={'u': u, 'D': D, 'r': r},
-            ),
-        ],
-    )
+
+    field = 'biology/ecology'
+    topics = ('field', 'fronts', 'reaction-diffusion', 'pde')
+    references = ('Fisher 1937', 'Kolmogorov, Petrovsky, and Piskunov 1937')
+    until = 40.0
+    dt = 1.0
+
+    def __init__(
+        self,
+        length: int = 800,
+        *,
+        D: float = 1.0,
+        r: float = 1.0,
+        spacing: float = 0.25,
+        front: float = 0.05,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.length = length
+        self.D = D
+        self.r = r
+        self.spacing = spacing
+        self.front = front
+
+    def _build_system(self) -> System:
+        """Return the parts of the Fisher-KPP equation."""
+        u = (np.arange(self.length) < self.front * self.length).astype(float)
+        space = LatticeSpace(self.length, spacing=self.spacing)
+        return System(
+            self.label,
+            elements=[
+                FieldElement(
+                    'line',
+                    element=FisherKPPElement,
+                    space=space,
+                    boundary={'u': 'zero-flux'},
+                    values={'u': u, 'D': self.D, 'r': self.r},
+                ),
+            ],
+        )

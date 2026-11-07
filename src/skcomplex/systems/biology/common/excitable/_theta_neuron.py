@@ -40,6 +40,8 @@ class ThetaNeuronElement(Element):
         10
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,

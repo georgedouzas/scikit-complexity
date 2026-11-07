@@ -98,6 +98,8 @@ class TumourImmuneChemotherapyElement(Element):
         1.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,

@@ -7,23 +7,22 @@ hippocampus under optogenetic theta stimulation.
 """
 
 # %%
-# The system is created by name from the catalog with the PING settings of Segneri et al. (2020) and run for 600 ms
-# at a theta frequency of 5 Hz. The observer saves every other millisecond with the default blueprint, whose primary
-# view is the time series of the rates and potentials.
+# The system is built from its class with the PING settings of Segneri et al. (2020) and run for 600 ms at a theta
+# frequency of 5 Hz. The observer saves every other millisecond with the default blueprint, whose primary view is the
+# time series of the rates and potentials.
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import welch
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.neuroscience import NextGenerationNeuralMassSystem
 
 SYSTEM = 'next_generation_neural_mass'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=600)
+trajectory = simulate(NextGenerationNeuralMassSystem(), dt=1.0, observers=[observer], until=600)
 
 # %%
 # Theta-nested gamma
@@ -31,7 +30,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(unti
 # The spectrum of the mean potential should peak at the theta frequency and again in the gamma band near 40 Hz, while
 # the rate shows gamma bursts in every theta cycle.
 
-fine = Simulation(create_system(SYSTEM), dt=0.5).prepare().run(until=2000).trajectory_
+fine = simulate(NextGenerationNeuralMassSystem(), until=2000)
 potential = fine.values('excitatory.v')[400:]
 frequencies, power = welch(potential - potential.mean(), fs=2000.0, nperseg=2048)
 fig, (series, spectrum) = plt.subplots(1, 2, figsize=(11, 4.5))

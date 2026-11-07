@@ -144,7 +144,7 @@ class BaseExperiment(BaseConfig[None, None], ABC):
 
     Examples:
         >>> from skcomplex.core.experiments import BaseExperiment
-        >>> from skcomplex.systems.biology.ecology import logistic_growth
+        >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
         >>> class SystemExperiment(BaseExperiment):
         ...     def __init__(self, source):
         ...         self.source = source
@@ -156,8 +156,8 @@ class BaseExperiment(BaseConfig[None, None], ABC):
         ...         self.factory_ = self._check_source(self.source)
         ...
         ...     def _run(self, inputs):
-        ...         self.system_ = self.factory_()
-        >>> len(SystemExperiment(logistic_growth).prepare().run().system_.elements)
+        ...         self.system_ = self._composite(self.factory_())
+        >>> len(SystemExperiment(LogisticGrowthSystem).prepare().run().system_.elements)
         1
     """
 

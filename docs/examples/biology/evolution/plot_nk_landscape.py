@@ -12,15 +12,14 @@ the more different peaks trap the climbers.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.evolution import NKLandscapeSystem
 
 SYSTEM = 'nk_landscape'
 
-system = create_system(SYSTEM, climbers=50, n=10, k=2, seed=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=50)
+trajectory = simulate(NKLandscapeSystem(climbers=50, n=10, k=2, seed=0), dt=1, observers=[observer], random_state=0)
 
 # %%
 # Ruggedness
@@ -31,10 +30,8 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 
 def final_climbers(k):
     """Return the final genomes and fitnesses of a run with `k` interactions."""
-    trajectory = (
-        Simulation(create_system(SYSTEM, climbers=50, n=10, k=k, seed=0), dt=1, random_state=0).prepare().run(until=150)
-    )
-    climbers = trajectory.trajectory_.agents('climbers', len(trajectory.trajectory_.times) - 1)
+    trajectory = simulate(NKLandscapeSystem(climbers=50, n=10, k=k, seed=0), until=150, dt=1, random_state=0)
+    climbers = trajectory.agents('climbers', len(trajectory.times) - 1)
     return climbers.values['genome'], climbers.values['fitness']
 
 

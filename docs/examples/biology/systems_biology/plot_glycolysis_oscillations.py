@@ -6,20 +6,19 @@ and fall with a period of minutes, driven by the feedback of ATP and AMP on phos
 """
 
 # %%
-# The system is created by name from the catalog with the parameters of Nielsen et al. (1998), and the observer saves
-# every third frame with the default blueprint, whose primary view is the time series of the metabolites.
+# The system is built from its class with the parameters of Nielsen et al. (1998), and the observer saves every third
+# frame with the default blueprint, whose primary view is the time series of the metabolites.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.systems_biology import GlycolysisOscillationsSystem
 
 SYSTEM = 'glycolysis_oscillations'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=300)
+trajectory = simulate(GlycolysisOscillationsSystem(), observers=[observer])
 
 # %%
 # Effect of the dehydrogenase
@@ -29,7 +28,7 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 
 fig, (nadh, pool) = plt.subplots(1, 2, figsize=(11, 4.5))
 for v4 in (5.0, 10.0, 15.0):
-    run = Simulation(create_system(SYSTEM, V4=v4), dt=0.5).prepare().run(until=300).trajectory_
+    run = simulate(GlycolysisOscillationsSystem(V4=v4))
     nadh.plot(run.times, run.values('extract.NADH'), label=f'V4 = {v4}')
     pool.plot(run.times, run.values('extract.NAD') + run.values('extract.NADH'), label=f'V4 = {v4}')
 nadh.set_xlabel('time (min)')

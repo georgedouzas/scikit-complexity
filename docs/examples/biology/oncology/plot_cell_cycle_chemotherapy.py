@@ -6,22 +6,21 @@ compartment of the cell cycle decay after an initial redistribution of the cells
 """
 
 # %%
-# The system is created by name from the catalog with the three compartments of Table 3.8, a killing agent `u1 = 0.6`,
-# and a blocking agent `u2 = 0.3`. The observer saves every frame with the default blueprint, whose primary view is the
-# time series of the three compartments.
+# The system is built from its class with the three compartments of Table 3.8, a killing agent `u1 = 0.6`, and a
+# blocking agent `u2 = 0.3`. The observer saves every frame with the default blueprint, whose primary view is the time
+# series of the three compartments.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import CellCycleChemotherapySystem
 
 SYSTEM = 'cell_cycle_chemotherapy'
 
-system = create_system(SYSTEM, u1=0.6, u2=0.3)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=100)
+trajectory = simulate(CellCycleChemotherapySystem(u1=0.6, u2=0.3), observers=[observer])
 
 # %%
 # The kill threshold
@@ -34,7 +33,7 @@ l1, l2, l3, u2 = 0.197, 0.395, 0.107, 0.3
 kills = np.linspace(0.0, 0.8, 9)
 rates, eigenvalues = [], []
 for u1 in kills:
-    trajectory = Simulation(create_system(SYSTEM, u1=u1, u2=u2), dt=2.0).prepare().run(until=300).trajectory_
+    trajectory = simulate(CellCycleChemotherapySystem(u1=u1, u2=u2), dt=2.0, until=300)
     total = np.log(trajectory.values('tumour.A1') + trajectory.values('tumour.A2') + trajectory.values('tumour.A3'))
     late = trajectory.times >= 200
     rates.append(np.polyfit(trajectory.times[late], total[late], 1)[0])
@@ -42,7 +41,7 @@ for u1 in kills:
     eigenvalues.append(np.linalg.eigvals(matrix).real.max())
 fig, (compartments, threshold) = plt.subplots(1, 2, figsize=(10, 4))
 for name in ('A1', 'A2', 'A3'):
-    compartments.plot(simulation.trajectory_.times, simulation.trajectory_.values(f'tumour.{name}'), label=name)
+    compartments.plot(trajectory.times, trajectory.values(f'tumour.{name}'), label=name)
 compartments.set_xlabel('time')
 compartments.set_ylabel('cells')
 compartments.set_title('Under u1 = 0.6 every compartment decays')

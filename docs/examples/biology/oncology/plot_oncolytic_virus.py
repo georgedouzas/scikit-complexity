@@ -6,22 +6,21 @@ two thirds of the carrying capacity: the virus reduces the tumour but does not e
 """
 
 # %%
-# The system is created by name from the catalog, from a tenth of the capacity of uninfected cells and a trace of
-# infected cells, and runs for 60 growth times. The observer saves every second frame with the default blueprint,
-# whose primary view is the time series of the two populations.
+# The system is built from its class, from a tenth of the capacity of uninfected cells and a trace of infected cells,
+# and runs for 60 growth times. The observer saves every second frame with the default blueprint, whose primary view
+# is the time series of the two populations.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import OncolyticVirusSystem
 
 SYSTEM = 'oncolytic_virus'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(until=60)
+trajectory = simulate(OncolyticVirusSystem(), observers=[observer])
 
 # %%
 # Coexistence point
@@ -31,12 +30,12 @@ simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(unti
 # `AU = d / alpha - r AV = 1/3`. The trajectory should end on that point.
 
 alpha, r, d = 1.0, 0.5, 0.5
-AU, AV = simulation.trajectory_.values('tumour.AU'), simulation.trajectory_.values('tumour.AV')
+AU, AV = trajectory.values('tumour.AU'), trajectory.values('tumour.AV')
 grid = np.linspace(0, 1, 50)
 fig, (series, plane) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(simulation.trajectory_.times, AU, label='uninfected')
-series.plot(simulation.trajectory_.times, AV, label='infected')
-series.plot(simulation.trajectory_.times, AU + AV, '--', label='whole tumour')
+series.plot(trajectory.times, AU, label='uninfected')
+series.plot(trajectory.times, AV, label='infected')
+series.plot(trajectory.times, AU + AV, '--', label='whole tumour')
 series.set_xlabel('time')
 series.set_ylabel('cells (fraction of capacity)')
 series.set_title('The virus spreads and the tumour shrinks')

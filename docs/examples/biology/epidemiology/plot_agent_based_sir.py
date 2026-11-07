@@ -7,21 +7,26 @@ well-mixed population.
 """
 
 # %%
-# The system is created by name from the catalog with five infected among 500 people on a 50 by 50 grid. The observer
-# saves every step with the default blueprint, whose primary view shows the people on the grid.
+# The system is built from its class with five infected among 500 people on a 50 by 50 grid. The observer saves every
+# step with the default blueprint, whose primary view shows the people on the grid.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.epidemiology import AgentBasedSIRSystem
 
 SYSTEM = 'agent_based_sir'
 
-system = create_system(SYSTEM, people=500, infected=5, beta=0.6, gamma=0.02, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=299)
+trajectory = simulate(
+    AgentBasedSIRSystem(people=500, infected=5, beta=0.6, gamma=0.02, random_state=0),
+    dt=1,
+    observers=[observer],
+    random_state=0,
+    until=299,
+)
 
 # %%
 # Compartments over time
@@ -29,7 +34,6 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 # Counting the health states of the people at every step, the infected should rise, peak, and decline while the
 # recovered accumulate, and part of the population should never be infected.
 
-trajectory = simulation.trajectory_
 health = np.array([trajectory.agents('people', frame).values['health'] for frame in range(len(trajectory.times))])
 fig, ax = plt.subplots(figsize=(8, 4))
 for value, label, color in [(0, 'susceptible', 'tab:blue'), (2, 'infected', 'tab:red'), (3, 'recovered', 'tab:green')]:

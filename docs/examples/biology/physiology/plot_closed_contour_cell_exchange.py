@@ -8,18 +8,18 @@ shows the eight concentrations converging onto one line.
 """
 
 # %%
-# The system is created by name from the catalog with 8 cells, the logistic parameter `r = 2.5`, the coupling
-# `c = 0.1`, and the affinity `p = 0.5`, with concentrations drawn between 0.2 and 0.8. The run lasts 40 steps, and
-# the blueprint shows the concentrations of all cells over the whole run.
+# The system is built from its class with 8 cells, the logistic parameter `r = 2.5`, the coupling `c = 0.1`, and the
+# affinity `p = 0.5`, with concentrations drawn between 0.2 and 0.8. The run lasts 40 steps, and the blueprint shows
+# the concentrations of all cells over the whole run.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.physiology import ClosedContourCellExchangeSystem
 
 SYSTEM = 'closed_contour_cell_exchange'
 
@@ -35,9 +35,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, r=2.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(40)
+trajectory = simulate(ClosedContourCellExchangeSystem(r=2.5), observers=[observer], until=40)
 
 # %%
 # Stability domain and desynchronization
@@ -50,7 +49,7 @@ rates = np.linspace(2.0, 4.0, 41)
 fig, (diagram, spread) = plt.subplots(1, 2, figsize=(10, 4))
 spreads = []
 for rate in rates:
-    late = Simulation(create_system(SYSTEM, r=rate), dt=1).prepare().run(200).trajectory_.values('cells.x')[-30:]
+    late = simulate(ClosedContourCellExchangeSystem(r=rate)).values('cells.x')[-30:]
     diagram.plot(np.full(late.size, rate), late.ravel(), '.', markersize=2, color='tab:blue')
     spreads.append(np.ptp(late, axis=1).max())
 diagram.fill_between(rates, (rates - 1) / (2 * rates), (rates + 1) / (2 * rates), color='tab:green', alpha=0.2)

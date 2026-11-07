@@ -15,17 +15,15 @@ from ....core.components.elements import CompartmentElement, LatticeElement
 from ....core.components.interactions import BaseInteraction, Interaction, JumpInteraction
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
-from ....core.engine.backends import NumbaBackend
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class HabitatPatchElement(CompartmentElement):
     """Patch of space, a compartment of `n` organisms that divide and die at the same rate `alpha`.
 
-    The divisions and deaths are jumps of `neutral_clustering`, so the number of organisms is a symmetric random walk,
-    and an empty patch stays empty without arrivals from its neighbours.
+    The divisions and deaths are jumps of `NeutralClusteringSystem`, so the number of organisms is a symmetric random
+    walk, and an empty patch stays empty without arrivals from its neighbours.
 
     Args:
         label:
@@ -83,6 +81,8 @@ class HoppingInteraction(Interaction):
         0.5
     """
 
+    law_classes = (JumpLaw,)
+
     def __init__(
         self,
         label: str,
@@ -111,40 +111,14 @@ class HoppingInteraction(Interaction):
         return [JumpLaw(s.beta * patches[i].n, {patches[i].n: -1, patches[j].n: 1}) for i, j in self.links]
 
 
-def _neighbor_pairs(shape: tuple[int, ...]) -> list[tuple[int, int]]:
-    """Return the pairs of flat indices of every patch and each of its nearest neighbours on a periodic lattice."""
-    indices = np.arange(int(np.prod(shape))).reshape(shape)
-    pairs: list[tuple[int, int]] = []
-    for axis in range(len(shape)):
-        for step in (1, -1):
-            neighbours = np.roll(indices, -step, axis=axis)
-            pairs.extend(zip(indices.ravel().tolist(), neighbours.ravel().tolist(), strict=True))
-    return pairs
-
-
-@register_system(
-    field='biology/ecology',
-    tags=('neutral theory', 'clustering', 'jump process', 'lattice', 'birth-death', 'diffusion'),
-    references=('Bertin 2021', 'Houchmandzadeh 2002', 'Houchmandzadeh 2009'),
-    defaults={'until': 50.0, 'dt': 0.5, 'backend': NumbaBackend()},
-    observables=lambda system: [
-        ObservableSpec('mean', group='patches', variable='n', reduce='mean'),
-        ObservableSpec('variance', group='patches', variable='n', reduce='var'),
-    ],
-)
-def neutral_clustering(
-    shape: int | Sequence[int] = 64,
-    *,
-    n: float = 10.0,
-    alpha: float = 1.0,
-    beta: float = 0.5,
-) -> System:
-    """Return organisms that divide, die, and hop between patches on a periodic lattice, and gather in clusters.
+class NeutralClusteringSystem(BaseSystem):
+    """Organisms that divide, die, and hop between patches on a periodic lattice, and gather in clusters.
 
     Births balance deaths, so the mean number of organisms per patch stays `n` while its variance grows. Without hops it
-    grows as `2 alpha n t`, so most patches empty while a few fill. Hops at the rate `beta` slow the growth to
-    `t^(1/2)` in one dimension and `ln t` in two, so the clusters persist in low dimension although the mean density
-    obeys a diffusion equation.
+    grows as `2 alpha n t`, so most patches empty while a few fill. Hops at the rate `beta` slow the growth to `t^(1/2)`
+    in one dimension and `ln t` in two, so the clusters persist in low dimension although the mean density obeys a
+    diffusion equation. The system has the numbers `patches.n` of organisms on the lattice `patches`, and their mean
+    `mean` and variance `variance` over the patches.
 
     Args:
         shape:
@@ -159,31 +133,71 @@ def neutral_clustering(
         beta:
             The rate at which an organism hops to one neighbouring patch.
 
-    Returns:
-        system:
-            The system, with the numbers `patches.n` of organisms on the lattice `patches`, and their mean `mean` and
-            variance `variance` over the patches.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import neutral_clustering
-        >>> neutral_clustering(8).elements[0].prepare().size_
+        >>> from skcomplex.systems.biology.ecology import NeutralClusteringSystem
+        >>> NeutralClusteringSystem(8).prepare().system_.elements[0].prepare().size_
         8
     """
-    lattice = (shape,) if isinstance(shape, int) else tuple(shape)
-    patches = LatticeElement(
-        'patches',
-        element=HabitatPatchElement,
-        space=LatticeSpace(lattice),
-        values={'n': np.full(lattice, float(n)), 'alpha': alpha},
+
+    field = 'biology/ecology'
+    topics = ('neutral theory', 'clustering', 'jump process', 'lattice', 'birth-death', 'diffusion')
+    references = ('Bertin 2021', 'Houchmandzadeh 2002', 'Houchmandzadeh 2009')
+    until = 50.0
+    dt = 0.5
+    observables = (
+        ObservableSpec('mean', group='patches', variable='n', reduce='mean'),
+        ObservableSpec('variance', group='patches', variable='n', reduce='var'),
     )
-    members = [f'patches[{index}]' for index in range(int(np.prod(lattice)))]
-    interactions: list[BaseInteraction] = [
-        JumpInteraction('division', target='patches', changes={'n': 1}, rate=lambda s: s.target.alpha * s.target.n),
-        JumpInteraction('death', target='patches', changes={'n': -1}, rate=lambda s: s.target.alpha * s.target.n),
-    ]
-    if beta:
-        interactions.append(HoppingInteraction('hopping', patches=members, links=_neighbor_pairs(lattice), beta=beta))
-    return System(
-        elements=[patches],
-        interactions=interactions,
-    )
+
+    def __init__(
+        self,
+        shape: int | Sequence[int] = 64,
+        *,
+        n: float = 10.0,
+        alpha: float = 1.0,
+        beta: float = 0.5,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.n = n
+        self.alpha = alpha
+        self.beta = beta
+
+    @staticmethod
+    def _neighbor_pairs(shape: tuple[int, ...]) -> list[tuple[int, int]]:
+        """Return the pairs of flat indices of every patch and each of its nearest neighbours on a periodic lattice."""
+        indices = np.arange(int(np.prod(shape))).reshape(shape)
+        pairs: list[tuple[int, int]] = []
+        for axis in range(len(shape)):
+            for step in (1, -1):
+                neighbours = np.roll(indices, -step, axis=axis)
+                pairs.extend(zip(indices.ravel().tolist(), neighbours.ravel().tolist(), strict=True))
+        return pairs
+
+    def _build_system(self) -> System:
+        """Return the parts of organisms that divide."""
+        lattice = (self.shape,) if isinstance(self.shape, int) else tuple(self.shape)
+        patches = LatticeElement(
+            'patches',
+            element=HabitatPatchElement,
+            space=LatticeSpace(lattice),
+            values={'n': np.full(lattice, float(self.n)), 'alpha': self.alpha},
+        )
+        members = [f'patches[{index}]' for index in range(int(np.prod(lattice)))]
+        interactions: list[BaseInteraction] = [
+            JumpInteraction('division', target='patches', changes={'n': 1}, rate=lambda s: s.target.alpha * s.target.n),
+            JumpInteraction('death', target='patches', changes={'n': -1}, rate=lambda s: s.target.alpha * s.target.n),
+        ]
+        if self.beta:
+            interactions.append(
+                HoppingInteraction('hopping', patches=members, links=self._neighbor_pairs(lattice), beta=self.beta),
+            )
+        return System(
+            self.label,
+            elements=[patches],
+            interactions=interactions,
+        )

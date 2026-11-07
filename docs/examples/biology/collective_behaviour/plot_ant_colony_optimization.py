@@ -7,23 +7,23 @@ route, and after two roads of it are cut, explores again and finds a new one.
 """
 
 # %%
-# The system is created by name from the catalog on a Delaunay network of 40 points, with the best path cut at round 50.
-# The observer saves every round with the default blueprint, whose primary view is the time series of the shortest
-# path of every round.
+# The system is built from its class on a Delaunay network of 40 points, with the best path cut at round 50. The
+# observer saves every round with the default blueprint, whose primary view is the time series of the shortest path of
+# every round.
 
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.collective_behaviour import AntColonyOptimizationSystem
 
 SYSTEM = 'ant_colony_optimization'
 
-system = create_system(SYSTEM, cut=50)
+system = AntColonyOptimizationSystem(cut=50).prepare().system_
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=100)
+trajectory = simulate(system, observers=[observer], random_state=0, until=100)
 
 # %%
 # Convergence and healing
@@ -32,7 +32,6 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 # jump up when the best route is cut, and settle again near the new shortest path.
 
 search = system.interactions[0]
-trajectory = simulation.trajectory_
 is_open = trajectory.agents('roads', 100).values['passable']
 tau = trajectory.agents('roads', 100).values['tau']
 graph = nx.Graph()

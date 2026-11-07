@@ -54,6 +54,8 @@ class EdgeDrawInteraction(NeighborInteraction):
         '0'
     """
 
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,

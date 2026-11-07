@@ -9,34 +9,28 @@ bright spots, and new bands leave every meeting point in the opposite directions
 """
 
 # %%
-# The system is created by name from the catalog on a periodic line of length 100 with 128 sites, with the mean total
-# densities 200 of MinD and 120 of MinE and 1% noise on membrane MinD. The catalog registers the implicit `BDF` method
-# with the exact Jacobian, since the fast cytosolic diffusion makes the system stiff. The default blueprint shows every
-# state as a space-time image, with membrane MinD first.
+# The system is built from its class on a periodic line of length 100 with 128 sites, with the mean total densities
+# 200 of MinD and 120 of MinE and 1% noise on membrane MinD. The class tunes the implicit `BDF` method with the
+# exact Jacobian, since the fast cytosolic diffusion makes the system stiff. The default blueprint shows every state
+# as a space-time image, with membrane MinD first.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import stability
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.systems_biology import MinProteinSkeletonSystem
 
 SYSTEM = 'min_protein_skeleton'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(
-        system,
-        dt=4.0,
-        solver=ScipyODESolver(method='BDF', jacobian='exact'),
-        observers=[observer],
-        random_state=0,
-    )
-    .prepare()
-    .run(until=400)
+simulation = simulate(
+    MinProteinSkeletonSystem(),
+    solver=ScipyODESolver(method='BDF', jacobian='exact'),
+    observers=[observer],
+    random_state=0,
 )
 
 # %%
@@ -47,10 +41,10 @@ simulation = (
 # also turn, which is the oscillatory instability of the Min system (Brauns and Marchetti, App. F): the dispersion
 # relation of the linearised laws should show positive growth rates with nonzero frequencies.
 
-trajectory = simulation.trajectory_
+trajectory = simulation
 mind_total = sum(trajectory.values(f'cell.{name}') for name in ('md', 'mde', 'cdt', 'cdd')).sum(axis=1)
 mine_total = sum(trajectory.values(f'cell.{name}') for name in ('mde', 'ce')).sum(axis=1)
-relation = stability(create_system(SYSTEM, n_sites=512, length=400.0), kind='dispersion')
+relation = stability(MinProteinSkeletonSystem(n_sites=512, length=400.0).prepare().system_, kind='dispersion')
 order = np.argsort(relation.magnitudes)
 
 fig, (rates, totals) = plt.subplots(1, 2, figsize=(10, 4))

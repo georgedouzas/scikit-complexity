@@ -6,21 +6,20 @@ its carrying capacity of 100 along an S-shaped curve.
 """
 
 # %%
-# The system is created by name from the catalog and run from a population of two until it has saturated. The observer
-# saves every frame with the default blueprint, whose primary view is the time series of the population.
+# The system is built from its class and run from a population of two until it has saturated. The observer saves every
+# frame with the default blueprint, whose primary view is the time series of the population.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 
 SYSTEM = 'logistic_growth'
 
-system = create_system(SYSTEM, n=2.0, r=0.5, K=100.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=20)
+trajectory = simulate(LogisticGrowthSystem(n=2.0, r=0.5, K=100.0), observers=[observer])
 
 # %%
 # Closed-form solution and growth rate
@@ -28,7 +27,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 # The logistic law `dn/dt = r n (1 - n / K)` has the solution `n(t) = K / (1 + (K / n0 - 1) exp(-r t))`. The
 # simulated population should lie on it, and its growth rate `dn/dt` should be a parabola in `n` that peaks at `K / 2`.
 
-times, population = simulation.trajectory_.times, simulation.trajectory_.values('population.n')
+times, population = trajectory.times, trajectory.values('population.n')
 r, K, n0 = 0.5, 100.0, 2.0
 exact = K / (1 + (K / n0 - 1) * np.exp(-r * times))
 fig, (curve, rate) = plt.subplots(1, 2, figsize=(10, 4))

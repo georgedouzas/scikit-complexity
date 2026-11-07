@@ -7,21 +7,20 @@ a constant rate in the logarithm of time.
 """
 
 # %%
-# The system is created by name from the catalog with 2000 residents and run for 300 years. The observer saves every
-# other year with the default blueprint, whose primary view is the time series of the strength of the strain.
+# The system is built from its class with 2000 residents and run for 300 years. The observer saves every other year
+# with the default blueprint, whose primary view is the time series of the strength of the strain.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.epidemiology import RecordDynamicsEpidemicSystem
 
 SYSTEM = 'record_dynamics_epidemic'
 
-system = create_system(SYSTEM, n=2000)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=300)
+trajectory = simulate(RecordDynamicsEpidemicSystem(n=2000), observers=[observer], random_state=0, until=300)
 
 # %%
 # Outbreaks in logarithmic time
@@ -32,8 +31,8 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 years = np.arange(1, 301)
 counts = []
 for seed in range(20):
-    run = Simulation(create_system(SYSTEM, n=2000, seed=seed), random_state=seed).prepare().run(until=300)
-    counts.append(np.cumsum(run.trajectory_.values('residents.infected').sum(axis=1)[1:] > 0))
+    run = simulate(RecordDynamicsEpidemicSystem(n=2000, seed=seed), until=300, random_state=seed)
+    counts.append(np.cumsum(run.values('residents.infected').sum(axis=1)[1:] > 0))
 fig, ax = plt.subplots(figsize=(7, 4.5))
 ax.plot(years, np.mean(counts, axis=0), label='mean of 20 runs')
 ax.plot(years, np.cumsum(1 / years) - 1 / years, '--', color='black', label='harmonic number of the strains drawn')

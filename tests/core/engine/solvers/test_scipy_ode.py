@@ -26,7 +26,7 @@ from skcomplex.core.errors import SolverError, ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, RunStateSpec, StateSpec, StepSpec, VisualSpec
 from skcomplex.systems import create_simulation, create_system
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-from skcomplex.systems.biology.ecology import FisherKPPElement, fisher_kpp
+from skcomplex.systems.biology.ecology import FisherKPPElement, FisherKPPSystem
 from skcomplex.systems.physics.heat import heat_diffusion
 from skcomplex.systems.physics.mechanics import harmonic_oscillator
 
@@ -287,7 +287,12 @@ STIFF_SIZE = 4000
 
 def _stiff_fisher_problem():
     """Return Fisher-KPP on 4000 points whose diffusion makes the largest eigenvalue about 1600."""
-    return PassCompiler(backend=NumpyBackend()).prepare(fisher_kpp(STIFF_SIZE, D=1.0, spacing=0.05)).run().problem_
+    return (
+        PassCompiler(backend=NumpyBackend())
+        .prepare(FisherKPPSystem(STIFF_SIZE, D=1.0, spacing=0.05).prepare().system_)
+        .run()
+        .problem_
+    )
 
 
 def _counted(problem):
@@ -333,7 +338,7 @@ class StiffThresholdInteraction(Interaction):
 
 def _event_run(jacobian):
     """Return the duration and the event time of stiff Fisher-KPP that stops when its total grows by half."""
-    line = fisher_kpp(STIFF_SIZE, D=1.0, spacing=0.05).elements[0]
+    line = FisherKPPSystem(STIFF_SIZE, D=1.0, spacing=0.05).prepare().system_.elements[0]
     level = 1.5 * line.values['u'].sum()
     system = System(elements=[line], interactions=[StiffThresholdInteraction('threshold', line='line', level=level)])
     simulation = Simulation(
@@ -436,7 +441,7 @@ class UnitRateHutchinsonElement(Element):
 
 def _stiff_fisher(size=SIZE):
     """Return Fisher-KPP whose diffusion makes the largest eigenvalue about 1600."""
-    return PassCompiler().prepare(fisher_kpp(size, D=1.0, spacing=0.05)).run().problem_
+    return PassCompiler().prepare(FisherKPPSystem(size, D=1.0, spacing=0.05).prepare().system_).run().problem_
 
 
 def _advance(problem, until=1.0, p=None, **options):
@@ -637,7 +642,7 @@ def test_dense_pattern_is_not_passed():
 @pytest.mark.parametrize('jacobian', ['auto', 'exact', 'dense'])
 def test_explicit_methods_ignore_the_option(jacobian):
     """Test that RK45 builds no structure and returns the same trajectory with every option."""
-    problem = PassCompiler().prepare(fisher_kpp(100)).run().problem_
+    problem = PassCompiler().prepare(FisherKPPSystem(100).prepare().system_).run().problem_
     state, stepper = _advance(problem, method='RK45', jacobian=jacobian)
     reference, _ = _advance(problem, method='RK45')
     assert stepper.jacobian_pattern_ is None
@@ -647,7 +652,7 @@ def test_explicit_methods_ignore_the_option(jacobian):
 
 def test_unknown_option_raises():
     """Test that an unknown Jacobian option or method raises an error that lists the options."""
-    problem = PassCompiler().prepare(fisher_kpp(10)).run().problem_
+    problem = PassCompiler().prepare(FisherKPPSystem(10).prepare().system_).run().problem_
     with pytest.raises(SolverError, match="'auto', 'exact', 'dense'"):
         ScipyODESolver(jacobian='sparse', random_state=0).prepare(problem)
     with pytest.raises(SolverError, match='BDF'):

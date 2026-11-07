@@ -6,7 +6,7 @@ import numpy as np
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems.biology.common.networks import EdgeDrawInteraction, WeightedEdgeElement
 
 
@@ -24,7 +24,7 @@ def _weights(noise, fresh, until=3):
     )
     draw = EdgeDrawInteraction('draw', target='nodes', edges='edges', noise=noise)
     system = System(elements=[nodes, edges], interactions=[draw], time=DiscreteTime())
-    trajectory = Simulation(system, random_state=0).prepare().run(until=until).trajectory_
+    trajectory = simulate(system, random_state=0, until=until)
     return np.asarray(trajectory.values('edges.w'))
 
 

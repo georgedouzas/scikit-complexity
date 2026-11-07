@@ -14,9 +14,8 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws.utils import mod, where
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class ChamberElement(Element):
@@ -130,27 +129,14 @@ class ResistiveFlowInteraction(TransferInteraction):
         return where(drop > 0, drop / s.R, 0) if self.valve else drop / s.R
 
 
-@register_system(
-    field='biology/physiology',
-    tags=('cardiovascular', 'circulation', 'lumped system', 'hybrid'),
-    references=('Suga and Sagawa 1974', 'Trzaska 2023'),
-    defaults={'until': 8.0, 'dt': 0.02},
-)
-def cardiovascular(
-    *,
-    heart_rate: float = 75.0,
-    E_max: float = 2.5,
-    R_systemic: float = 1.0,
-    C_arterial: float = 1.3,
-    C_venous: float = 50.0,
-    volume: float = 1500.0,
-) -> System:
-    """Return a closed lumped system of the systemic circulation driven by a left ventricle of varying elastance.
+class CardiovascularSystem(BaseSystem):
+    """A closed lumped system of the systemic circulation driven by a left ventricle of varying elastance.
 
     Blood leaves the ventricle through the aortic valve into the compliant arteries, flows through the systemic
     resistance into the veins, and returns through the mitral valve. The ventricle stiffens in systole, so the system
     beats, the valves open and close, and the total volume of blood stays constant. With the defaults the arterial
-    pressure swings between about 80 and 120 mmHg.
+    pressure swings between about 80 and 120 mmHg. The system has the volumes `ventricle.V`, `arteries.V`, and
+    `veins.V`.
 
     Args:
         heart_rate:
@@ -171,47 +157,74 @@ def cardiovascular(
         volume:
             The total volume of blood in ml, split at the start among the ventricle, arteries, and veins.
 
-    Returns:
-        system:
-            The system, with the volumes `ventricle.V`, `arteries.V`, and `veins.V`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.physiology import cardiovascular
-        >>> sum(chamber.V for chamber in cardiovascular().elements)
+        >>> from skcomplex.systems.biology.physiology import CardiovascularSystem
+        >>> sum(chamber.V for chamber in CardiovascularSystem().prepare().system_.elements)
         1500.0
     """
-    period = 60.0 / heart_rate
-    systole = 0.375 * period
-    ventricle = ChamberElement(
-        'ventricle',
-        V=0.1 * volume,
-        V0=10.0,
-        E_min=0.08,
-        E_max=E_max,
-        period=period,
-        systole=systole,
-    )
-    arteries = ChamberElement(
-        'arteries',
-        V=0.3 * volume,
-        V0=250.0,
-        E_min=1 / C_arterial,
-        E_max=1 / C_arterial,
-        period=period,
-        systole=systole,
-    )
-    veins = ChamberElement(
-        'veins',
-        V=0.6 * volume,
-        V0=500.0,
-        E_min=1 / C_venous,
-        E_max=1 / C_venous,
-        period=period,
-        systole=systole,
-    )
-    flows = [
-        ResistiveFlowInteraction('aortic_valve', source='ventricle', target='arteries', R=0.02, valve=True),
-        ResistiveFlowInteraction('systemic', source='arteries', target='veins', R=R_systemic),
-        ResistiveFlowInteraction('mitral_valve', source='veins', target='ventricle', R=0.02, valve=True),
-    ]
-    return System(elements=[ventricle, arteries, veins], interactions=flows)
+
+    field = 'biology/physiology'
+    topics = ('cardiovascular', 'circulation', 'lumped system', 'hybrid')
+    references = ('Suga and Sagawa 1974', 'Trzaska 2023')
+    until = 8.0
+    dt = 0.02
+
+    def __init__(
+        self,
+        *,
+        heart_rate: float = 75.0,
+        E_max: float = 2.5,
+        R_systemic: float = 1.0,
+        C_arterial: float = 1.3,
+        C_venous: float = 50.0,
+        volume: float = 1500.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.heart_rate = heart_rate
+        self.E_max = E_max
+        self.R_systemic = R_systemic
+        self.C_arterial = C_arterial
+        self.C_venous = C_venous
+        self.volume = volume
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        period = 60.0 / self.heart_rate
+        systole = 0.375 * period
+        ventricle = ChamberElement(
+            'ventricle',
+            V=0.1 * self.volume,
+            V0=10.0,
+            E_min=0.08,
+            E_max=self.E_max,
+            period=period,
+            systole=systole,
+        )
+        arteries = ChamberElement(
+            'arteries',
+            V=0.3 * self.volume,
+            V0=250.0,
+            E_min=1 / self.C_arterial,
+            E_max=1 / self.C_arterial,
+            period=period,
+            systole=systole,
+        )
+        veins = ChamberElement(
+            'veins',
+            V=0.6 * self.volume,
+            V0=500.0,
+            E_min=1 / self.C_venous,
+            E_max=1 / self.C_venous,
+            period=period,
+            systole=systole,
+        )
+        flows = [
+            ResistiveFlowInteraction('aortic_valve', source='ventricle', target='arteries', R=0.02, valve=True),
+            ResistiveFlowInteraction('systemic', source='arteries', target='veins', R=self.R_systemic),
+            ResistiveFlowInteraction('mitral_valve', source='veins', target='ventricle', R=0.02, valve=True),
+        ]
+        return System(self.label, elements=[ventricle, arteries, veins], interactions=flows)

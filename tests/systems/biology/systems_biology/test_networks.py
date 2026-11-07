@@ -3,10 +3,10 @@
 import numpy as np
 
 from skcomplex.systems.biology.systems_biology import (
-    biochemical_systems_theory,
-    glycolysis_oscillations,
-    goodwin_oscillator,
-    phosphorylation_oscillator,
+    BiochemicalSystemsTheorySystem,
+    GlycolysisOscillationsSystem,
+    GoodwinOscillatorSystem,
+    PhosphorylationOscillatorSystem,
 )
 
 from ..conftest import SYSTEMS_PRECISE, _run_with_solver
@@ -17,7 +17,7 @@ def test_goodwin_oscillator_switches_at_hill_coefficient_eight():
     amplitudes = {}
     for n in (6.0, 12.0):
         trajectory = _run_with_solver(
-            goodwin_oscillator(3, n=n),
+            GoodwinOscillatorSystem(3, n=n),
             until=200.0,
             dt=0.1,
             solver=SYSTEMS_PRECISE,
@@ -31,7 +31,7 @@ def test_goodwin_oscillator_switches_at_hill_coefficient_eight():
 def test_phosphorylation_oscillator_cycles():
     """Test that the three switches turn on in turn and keep oscillating with a constant amplitude."""
     trajectory = _run_with_solver(
-        phosphorylation_oscillator(),
+        PhosphorylationOscillatorSystem(),
         until=40.0,
         dt=0.05,
         solver=SYSTEMS_PRECISE,
@@ -50,7 +50,7 @@ def test_biochemical_systems_theory_reaches_log_linear_steady_state():
     expected = np.exp(np.linalg.solve(g - h, np.log(np.array([1.0, 1.0, 1.0]) / np.array([2.0, 1.0, 1.0]))))
     for form in ('s-system', 'gma'):
         trajectory = _run_with_solver(
-            biochemical_systems_theory(form=form),
+            BiochemicalSystemsTheorySystem(form=form),
             until=60.0,
             dt=0.5,
             solver=SYSTEMS_PRECISE,
@@ -61,7 +61,7 @@ def test_biochemical_systems_theory_reaches_log_linear_steady_state():
 
 def test_glycolysis_oscillates_and_balances_its_nicotinamide_pool():
     """Test Nielsen et al.: NADH oscillates with a steady period, and `NAD + NADH` relaxes to the feed of 4.24 mM."""
-    trajectory = _run_with_solver(glycolysis_oscillations(), until=600.0, dt=0.5, solver=SYSTEMS_PRECISE)
+    trajectory = _run_with_solver(GlycolysisOscillationsSystem(), until=600.0, dt=0.5, solver=SYSTEMS_PRECISE)
     nadh = trajectory.values('extract.NADH')[600:]
     peaks = np.flatnonzero((nadh[1:-1] > nadh[:-2]) & (nadh[1:-1] > nadh[2:]))
     periods = np.diff(trajectory.times[600:][1:-1][peaks])

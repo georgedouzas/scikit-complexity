@@ -6,21 +6,20 @@ acting on the temperature receptors in fever, shifts the set point while it acts
 """
 
 # %%
-# The system is created by name from the catalog with a steering signal from time 20 to 40, and the observer saves
-# every third frame with the default blueprint, whose primary view is the time series of the product and the effector.
+# The system is built from its class with a steering signal from time 20 to 40, and the observer saves every third
+# frame with the default blueprint, whose primary view is the time series of the product and the effector.
 
 import matplotlib.pyplot as plt
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.physiology import SteerableFeedbackLoopSystem
 
 SYSTEM = 'steerable_feedback_loop'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=60)
+trajectory = simulate(SteerableFeedbackLoopSystem(), observers=[observer])
 
 # %%
 # Set points and delay
@@ -33,9 +32,9 @@ def set_point(sensitivity):
     return brentq(lambda x: 2.0 / (1 + (x / sensitivity) ** 4) - x, 0.0, 3.0)
 
 
-delayed = Simulation(create_system(SYSTEM, tau=3.0), dt=0.1).prepare().run(until=60).trajectory_
+delayed = simulate(SteerableFeedbackLoopSystem(tau=3.0))
 fig, ax = plt.subplots(figsize=(8, 4.5))
-ax.plot(simulation.trajectory_.times, simulation.trajectory_.values('loop.x'), label='delay 0.5')
+ax.plot(trajectory.times, trajectory.values('loop.x'), label='delay 0.5')
 ax.plot(delayed.times, delayed.values('loop.x'), alpha=0.6, label='delay 3')
 ax.axhline(set_point(1.0), color='black', linestyle='--', label='set point')
 ax.axhline(set_point(1.5), color='tab:red', linestyle='--', label='steered set point')

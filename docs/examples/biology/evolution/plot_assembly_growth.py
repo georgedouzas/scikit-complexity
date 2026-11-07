@@ -7,22 +7,21 @@ the discovery of new objects.
 """
 
 # %%
-# The system is created by name from the catalog with ten assembly levels and no selection, and the observer saves
-# every frame with the default blueprint, whose primary view is the time series of the levels.
+# The system is built from its class with ten assembly levels and no selection, and the observer saves every frame
+# with the default blueprint, whose primary view is the time series of the levels.
 
 import math
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.evolution import AssemblyGrowthSystem
 
 SYSTEM = 'assembly_growth'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=10)
+trajectory = simulate(AssemblyGrowthSystem(), observers=[observer])
 
 # %%
 # Selection slows discovery
@@ -32,7 +31,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 
 fig, ax = plt.subplots(figsize=(8, 4.5))
 for alpha in (1.0, 0.7, 0.4):
-    run = Simulation(create_system(SYSTEM, alpha=alpha), dt=0.1).prepare().run(until=10).trajectory_
+    run = simulate(AssemblyGrowthSystem(alpha=alpha))
     ax.semilogy(range(1, 11), run.values('levels.N')[-1], 'o-', label=f'alpha = {alpha}')
 ax.semilogy(range(1, 11), [10**a / math.factorial(a) for a in range(1, 11)], 'k--', label='(k t)^a / a!')
 ax.set_xlabel('assembly index a')

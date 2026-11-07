@@ -7,22 +7,22 @@ its predators.
 """
 
 # %%
-# The system is created by name from the catalog with its default web. The observer saves every frame with the default
-# blueprint, whose primary view is the time series of the four populations.
+# The system is built from its class with its default web. The observer saves every frame with the default blueprint,
+# whose primary view is the time series of the four populations.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import stability
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import FoodWebsSystem
 
 SYSTEM = 'food_webs'
 
-system = create_system(SYSTEM)
+system = FoodWebsSystem().prepare().system_
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=100)
+trajectory = simulate(system, dt=0.5, observers=[observer], until=100)
 
 # %%
 # Stability of the equilibrium
@@ -31,7 +31,6 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 # Jacobian at the final state, all four eigenvalues should lie in the left half-plane, and their imaginary parts give
 # the damped oscillations of the approach.
 
-trajectory = simulation.trajectory_
 species = ['frogs', 'mice', 'snakes', 'hawks']
 final = {f'{name}.n': trajectory.values(f'{name}.n')[-1] for name in species}
 result = stability(system, points=[final])

@@ -3,9 +3,9 @@
 import numpy as np
 from scipy.integrate import solve_ivp
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.experiments import Experiment, GridDesign
-from skcomplex.systems import create_simulation
-from skcomplex.systems.biology.ecology import generalized_lotka_volterra
+from skcomplex.systems.biology.ecology import GeneralizedLotkaVolterraSystem
 from skcomplex.systems.biology.ecology._microbial_communities import COMMUNITY_GROWTH, COMMUNITY_INTERACTIONS
 
 from ..conftest import SYSTEMS_PRECISE, _run_with_solver
@@ -16,7 +16,7 @@ def test_generalized_lotka_volterra_reaches_coexistence():
     b = np.array([1.0, 0.8, 0.6])
     a = np.array([[-1.0, -0.3, 0.2], [-0.2, -1.0, -0.3], [0.1, -0.2, -1.0]])
     trajectory = _run_with_solver(
-        generalized_lotka_volterra(),
+        GeneralizedLotkaVolterraSystem(),
         until=60.0,
         dt=0.5,
         solver=SYSTEMS_PRECISE,
@@ -27,7 +27,7 @@ def test_generalized_lotka_volterra_reaches_coexistence():
 def test_generalized_lotka_volterra_keeps_the_trajectory_of_the_constant_matrix():
     """Test that the matrix parameter gives the trajectory of the rate `x_i (b_i + sum_j a_ij x_j)` of NumPy."""
     b, a = np.array(COMMUNITY_GROWTH), np.array(COMMUNITY_INTERACTIONS)
-    trajectory = create_simulation('generalized_lotka_volterra').prepare().run().trajectory_
+    trajectory = simulate(GeneralizedLotkaVolterraSystem())
     expected = solve_ivp(
         lambda t, x: x * (b + a @ x),
         (0.0, 30.0),
@@ -45,6 +45,12 @@ def test_generalized_lotka_volterra_matrix_swept_by_an_experiment():
     second = first.copy()
     second[0, 1] = 0.3
     bounds = {'glv.a': [first, second]}
-    experiment = Experiment(generalized_lotka_volterra(), GridDesign(), bounds, until=30.0, outputs=['species.x'])
+    experiment = Experiment(
+        GeneralizedLotkaVolterraSystem().prepare().system_,
+        GridDesign(),
+        bounds,
+        until=30.0,
+        outputs=['species.x'],
+    )
     final = experiment.prepare().run().result_.series('species.x')[:, -1]
     assert not np.allclose(final[0], final[1])

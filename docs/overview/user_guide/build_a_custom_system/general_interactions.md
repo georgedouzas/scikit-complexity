@@ -1498,14 +1498,14 @@ tract_in_metres = translate(projected, -low_x, -low_y)
 ```
 
 The system `kauai_population` places one agent per resident of the census regions of the synthetic island of its
-package, and `boids_3d` flies in a periodic cube.
+package, and `boids3d` flies in a periodic cube.
 
 ```python
 from skcomplex.systems import create_system
 
 system = create_system('kauai_population', populations=(10, 5, 0))
 system.elements[0].size, list(system.space.regions)
-create_system('boids_3d', n_boids=10).space.extent
+create_system('boids3d', n_boids=10).space.extent
 ```
 
 ## Law utilities

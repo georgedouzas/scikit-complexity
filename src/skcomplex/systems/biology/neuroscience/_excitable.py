@@ -15,10 +15,9 @@ from ....core.components.elements import Element, LatticeElement
 from ....core.components.interactions import TransitionInteraction
 from ....core.components.laws.utils import neighbors, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import AnyArray
-from ..._catalog import register_system
 
 EXCITED = 1
 
@@ -73,52 +72,15 @@ class ExcitableElement(Element):
         self.stimulus = stimulus
 
 
-def _get_excitation(s: SimpleNamespace) -> Expression:
-    """Return the probability that the stimulus or an excited neighbour excites a quiescent element in a step."""
-    excited = neighbors(where(s.target.other.phase == EXCITED, 1, 0))
-    probability: Expression = 1 - exp(-s.target.stimulus) * (1 - s.target.p) ** excited
-    return probability
+class KinouchiCopelliSystem(BaseSystem):
+    """The Kinouchi-Copelli network of excitable elements, whose dynamic range peaks at the critical point.
 
-
-def _get_cycle(n_states: int) -> list[TransitionInteraction]:
-    """Return the moves of an excited or refractory element to the next state of the cycle, the last to quiescence."""
-    return [
-        TransitionInteraction(
-            f'cycle_{phase}',
-            target='neurons',
-            state='phase',
-            source=phase,
-            destination=(phase + 1) % n_states,
-            condition=lambda s: 1,
-        )
-        for phase in range(EXCITED, n_states)
-    ]
-
-
-@register_system(
-    field='biology/neuroscience',
-    tags=('excitable', 'network', 'criticality', 'dynamic range', 'stochastic'),
-    references=('Kinouchi and Copelli 2006', 'Larremore et al. 2011'),
-    defaults={'until': 1000, 'dt': 1},
-    observables=lambda system: [
-        ObservableSpec('activity', group='neurons', variable='phase', reduce=_excited_fraction),
-    ],
-)
-def kinouchi_copelli(
-    graph: nx.Graph | None = None,
-    *,
-    sigma: float = 1.0,
-    stimulus: float = 0.0,
-    n_states: int = 5,
-    excited: float | None = None,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Kinouchi-Copelli network of excitable elements, whose dynamic range peaks at the critical point.
-
-    Every element excites each quiescent neighbour with the transmission probability `p = sigma / K`, where `K` is
-    the mean degree of the graph, so `sigma` is the branching ratio, the mean number of elements one excitation
-    excites. Below `sigma = 1` activity dies out without a stimulus, and above it activity sustains itself. The
-    response, the mean firing rate against the stimulus rate, spans the most decades of stimulus at `sigma = 1`.
+    Every element excites each quiescent neighbour with the transmission probability `p = sigma / K`, where `K` is the
+    mean degree of the graph, so `sigma` is the branching ratio, the mean number of elements one excitation excites.
+    Below `sigma = 1` activity dies out without a stimulus, and above it activity sustains itself. The response, the
+    mean firing rate against the stimulus rate, spans the most decades of stimulus at `sigma = 1`. The system has the
+    states `neurons.phase`, one value per node. Its standard observable `activity` is the fraction of excited elements,
+    the firing rate per step.
 
     Args:
         graph:
@@ -141,38 +103,94 @@ def kinouchi_copelli(
         random_state:
             The seed or generator of the default graph and of the initial states.
 
-    Returns:
-        system:
-            The system, with the states `neurons.phase`, one value per node. Its standard observable `activity` is the
-            fraction of excited elements, the firing rate per step.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.systems.biology.neuroscience import kinouchi_copelli
-        >>> kinouchi_copelli(nx.random_regular_graph(4, 20, seed=0), sigma=1.0).elements[0].values['p']
+        >>> from skcomplex.systems.biology.neuroscience import KinouchiCopelliSystem
+        >>> system = KinouchiCopelliSystem(nx.random_regular_graph(4, 20, seed=0), sigma=1.0).prepare().system_
+        >>> system.elements[0].values['p']
         0.25
     """
-    rng = np.random.default_rng(random_state)
-    graph = nx.gnp_random_graph(1000, 10 / 999, seed=int(rng.integers(2**31))) if graph is None else graph
-    size = graph.number_of_nodes()
-    degree = 2 * graph.number_of_edges() / size
-    phase = (
-        rng.integers(0, n_states, size=size).astype(float)
-        if excited is None
-        else (rng.random(size) < excited).astype(float)
-    )
-    neurons = LatticeElement(
-        'neurons',
-        element=ExcitableElement,
-        space=NetworkSpace(graph),
-        values={'phase': phase, 'p': sigma / degree, 'stimulus': stimulus},
-    )
-    excitation = TransitionInteraction(
-        'excitation',
-        target='neurons',
-        state='phase',
-        source=0,
-        destination=EXCITED,
-        probability=_get_excitation,
-    )
-    return System(elements=[neurons], interactions=[excitation, *_get_cycle(n_states)], time=DiscreteTime())
+
+    field = 'biology/neuroscience'
+    topics = ('excitable', 'network', 'criticality', 'dynamic range', 'stochastic')
+    references = ('Kinouchi and Copelli 2006', 'Larremore et al. 2011')
+    until = 1000
+    dt = 1
+    observables = (ObservableSpec('activity', group='neurons', variable='phase', reduce=_excited_fraction),)
+
+    def __init__(
+        self,
+        graph: nx.Graph | None = None,
+        *,
+        sigma: float = 1.0,
+        stimulus: float = 0.0,
+        n_states: int = 5,
+        excited: float | None = None,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.graph = graph
+        self.sigma = sigma
+        self.stimulus = stimulus
+        self.n_states = n_states
+        self.excited = excited
+        self.random_state = random_state
+
+    @staticmethod
+    def _get_excitation(s: SimpleNamespace) -> Expression:
+        """Return the probability that the stimulus or an excited neighbour excites a quiescent element in a step."""
+        excited = neighbors(where(s.target.other.phase == EXCITED, 1, 0))
+        probability: Expression = 1 - exp(-s.target.stimulus) * (1 - s.target.p) ** excited
+        return probability
+
+    @staticmethod
+    def _get_cycle(n_states: int) -> list[TransitionInteraction]:
+        """Return the moves of an excited or refractory element to the next state of its cycle, the last to rest."""
+        return [
+            TransitionInteraction(
+                f'cycle_{phase}',
+                target='neurons',
+                state='phase',
+                source=phase,
+                destination=(phase + 1) % n_states,
+                condition=lambda s: 1,
+            )
+            for phase in range(EXCITED, n_states)
+        ]
+
+    def _build_system(self) -> System:
+        """Return the parts of the Kinouchi-Copelli network of excitable elements."""
+        graph = self.graph
+        rng = np.random.default_rng(self.random_state)
+        graph = nx.gnp_random_graph(1000, 10 / 999, seed=int(rng.integers(2**31))) if graph is None else graph
+        size = graph.number_of_nodes()
+        degree = 2 * graph.number_of_edges() / size
+        phase = (
+            rng.integers(0, self.n_states, size=size).astype(float)
+            if self.excited is None
+            else (rng.random(size) < self.excited).astype(float)
+        )
+        neurons = LatticeElement(
+            'neurons',
+            element=ExcitableElement,
+            space=NetworkSpace(graph),
+            values={'phase': phase, 'p': self.sigma / degree, 'stimulus': self.stimulus},
+        )
+        excitation = TransitionInteraction(
+            'excitation',
+            target='neurons',
+            state='phase',
+            source=0,
+            destination=EXCITED,
+            probability=self._get_excitation,
+        )
+        return System(
+            self.label,
+            elements=[neurons],
+            interactions=[excitation, *self._get_cycle(self.n_states)],
+            time=DiscreteTime(),
+        )

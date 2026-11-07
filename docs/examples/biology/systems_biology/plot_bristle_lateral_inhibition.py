@@ -7,21 +7,20 @@ neighbours, leaving sparse sensory bristles several cell diameters apart.
 """
 
 # %%
-# The system is created by name from the catalog with forty cells, and the observer saves every frame with the default
-# blueprint, whose primary view is the time series of the neural states.
+# The system is built from its class with forty cells, and the observer saves every frame with the default blueprint,
+# whose primary view is the time series of the neural states.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.systems_biology import BristleLateralInhibitionSystem
 
 SYSTEM = 'bristle_lateral_inhibition'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=60)
+trajectory = simulate(BristleLateralInhibitionSystem(), observers=[observer])
 
 # %%
 # Spacing of the bristles
@@ -29,7 +28,6 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 # The trajectories should peel off a common envelope near the saddle on the diagonal, and the neural cells should end
 # at least four cells apart.
 
-trajectory = simulation.trajectory_
 states = trajectory.values('cells.a')
 neural = np.flatnonzero(states[-1] > 0.5)
 gaps = np.diff(np.r_[neural, neural[0] + states.shape[1]])

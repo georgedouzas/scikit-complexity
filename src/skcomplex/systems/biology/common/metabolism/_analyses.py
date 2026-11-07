@@ -11,7 +11,7 @@ import pandas as pd
 
 from .....core.analysis.types import Source
 from .....core.components.spaces import StaticTime
-from .....core.components.system import System
+from .....core.components.system import BaseSystem, System
 from .....core.engine.compile import PassCompiler
 from .....core.engine.problems import LinearProgramKernel, ProblemSpec
 from .....core.errors import AnalysisError
@@ -494,6 +494,8 @@ def _read_network(source: Source, network: str | None, analysis: str) -> tuple[S
         AnalysisError:
             The source is not a system with the network.
     """
+    if isinstance(source, BaseSystem) and not isinstance(source, System):
+        source = source.prepare().system_
     if not isinstance(source, System):
         error_msg = f'{analysis} reads a system that holds a metabolic network element, not {type(source).__name__}.'
         raise AnalysisError(error_msg)

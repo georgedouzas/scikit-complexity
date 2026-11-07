@@ -22,8 +22,8 @@ class ExperimentResult:
 
     Examples:
         >>> from skcomplex.core.experiments import Experiment, GridDesign
-        >>> from skcomplex.systems.biology.epidemiology import sir
-        >>> experiment = Experiment(sir, GridDesign(), {'gamma': [0.1, 0.2]}, until=10).prepare().run()
+        >>> from skcomplex.systems.biology.epidemiology import SIRSystem
+        >>> experiment = Experiment(SIRSystem, GridDesign(), {'gamma': [0.1, 0.2]}, until=10).prepare().run()
         >>> [row['gamma'] for row in experiment.result_.rows]
         [0.1, 0.2]
     """
@@ -92,8 +92,8 @@ class ExperimentResult:
 
         Examples:
             >>> from skcomplex.core.experiments import Experiment
-            >>> from skcomplex.systems.biology.epidemiology import sir
-            >>> result = Experiment(sir, replicates=3, until=10, random_state=0).prepare().run().result_
+            >>> from skcomplex.systems.biology.epidemiology import SIRSystem
+            >>> result = Experiment(SIRSystem, replicates=3, until=10, random_state=0).prepare().run().result_
             >>> times, values, seeds = result.ensemble('I.n')
             >>> values.shape == (3, times.size), seeds.tolist()
             (True, [0, 1, 2])

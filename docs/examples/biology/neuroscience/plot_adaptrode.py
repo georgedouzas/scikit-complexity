@@ -8,20 +8,19 @@ holds the longest memory.
 """
 
 # %%
-# The system is created by name from the catalog with a pulse every ten steps until step 150. The observer saves every
-# second step with the default blueprint, whose primary view is the time series of the three weights.
+# The system is built from its class with a pulse every ten steps until step 150. The observer saves every second step
+# with the default blueprint, whose primary view is the time series of the three weights.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.neuroscience import AdaptrodeSystem
 
 SYSTEM = 'adaptrode'
 
-system = create_system(SYSTEM, period=10.0, stop=150.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=400)
+trajectory = simulate(AdaptrodeSystem(period=10.0, stop=150.0), observers=[observer])
 
 # %%
 # Three memories
@@ -29,7 +28,6 @@ simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=
 # Normalizing each weight by its value when the input stops, the fast weight should drop fastest, the medium weight
 # more slowly, and the slow weight should first keep growing on what the faster weights hold and then decay slowest.
 
-trajectory = simulation.trajectory_
 stop = trajectory.times.searchsorted(150)
 fig, (weights, decay) = plt.subplots(1, 2, figsize=(11, 4))
 for name, label in [('w0', 'fast'), ('w1', 'medium'), ('w2', 'slow')]:

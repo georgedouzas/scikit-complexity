@@ -13,15 +13,14 @@ breaking of the double bridge experiment.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.collective_behaviour import BinaryAntDecisionSystem
 
 SYSTEM = 'binary_ant_decision'
 
-system = create_system(SYSTEM, stochastic=True)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer], random_state=0).prepare().run(until=200)
+trajectory = simulate(BinaryAntDecisionSystem(stochastic=True), observers=[observer], random_state=0)
 
 # %%
 # Symmetry breaking across colonies
@@ -32,15 +31,10 @@ simulation = Simulation(system, dt=1.0, observers=[observer], random_state=0).pr
 
 shares = []
 for seed in range(40):
-    trajectory = (
-        Simulation(create_system(SYSTEM, stochastic=True), dt=1.0, random_state=seed)
-        .prepare()
-        .run(until=200)
-        .trajectory_
-    )
+    trajectory = simulate(BinaryAntDecisionSystem(stochastic=True), random_state=seed)
     left, right = trajectory.values('left.n')[-1], trajectory.values('right.n')[-1]
     shares.append(left / (left + right))
-deterministic = Simulation(create_system(SYSTEM, stochastic=False), dt=1.0).prepare().run(until=200).trajectory_
+deterministic = simulate(BinaryAntDecisionSystem(stochastic=False))
 even = deterministic.values('left.n')[-1] / (deterministic.values('left.n')[-1] + deterministic.values('right.n')[-1])
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.hist(shares, bins=np.linspace(0, 1, 21))

@@ -7,23 +7,21 @@ the stimulus take turns, each one a synchronized block.
 """
 
 # %%
-# The system is created by name from the catalog with its default stimulus of two objects on a 4 by 4 lattice, an
-# L-shape at the top left and a bar at the right, and the faster slow time scale `epsilon = 0.1`, so that several
-# turns fit in the run. The observer saves every step with the default blueprint, whose primary view shows the
-# oscillators.
+# The system is built from its class with its default stimulus of two objects on a 4 by 4 lattice, an L-shape at the
+# top left and a bar at the right, and the faster slow time scale `epsilon = 0.1`, so that several turns fit in the
+# run. The observer saves every step with the default blueprint, whose primary view shows the oscillators.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.neuroscience import LegionSystem
 
 SYSTEM = 'legion'
 
-system = create_system(SYSTEM, epsilon=0.1, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=290)
+trajectory = simulate(LegionSystem(epsilon=0.1, random_state=0), dt=1.0, observers=[observer], until=290)
 
 # %%
 # Synchrony within, alternation between
@@ -32,7 +30,6 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(unti
 # at the same times, the two sites of the second object at the same times, the two objects never together, and the
 # unstimulated sites never.
 
-trajectory = simulation.trajectory_
 active = trajectory.lattice('oscillators.x') > 0
 sites = {'object 1: (0, 0)': (0, 0), 'object 1: (0, 1)': (0, 1), 'object 1: (1, 0)': (1, 0)}
 sites |= {'object 2: (2, 3)': (2, 3), 'object 2: (3, 3)': (3, 3), 'unstimulated: (1, 1)': (1, 1)}

@@ -3,22 +3,22 @@
 import numpy as np
 import pytest
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.experiments import Experiment, GridDesign
-from skcomplex.systems import create_simulation
 from skcomplex.systems.biology.common.metabolism import flux_variability
-from skcomplex.systems.biology.systems_biology import flux_balance
+from skcomplex.systems.biology.systems_biology import FluxBalanceSystem
 
 
 def test_flux_balance_reaches_the_growth_of_raman():
     """Test that the default toy network grows at 50, as Raman Eq. 8.9 gives."""
-    trajectory = create_simulation('flux_balance').prepare().run().trajectory_
+    trajectory = simulate(FluxBalanceSystem())
     assert float(trajectory.values('cell.v_vbio')[0]) == pytest.approx(50, abs=1e-9)
     assert float(trajectory.values('cell.v_v6')[0]) == pytest.approx(1000)
 
 
 def test_flux_balance_variability_gives_the_ranges_of_raman():
     """Test the ranges of Raman Eq. 8.12 at the optimum of the toy network."""
-    ranges = flux_variability(flux_balance()).ranges
+    ranges = flux_variability(FluxBalanceSystem().prepare().system_).ranges
     expected = {
         'v1': (0, 600),
         'v2': (0, 600),
@@ -36,7 +36,7 @@ def test_flux_balance_variability_gives_the_ranges_of_raman():
 
 def test_flux_balance_parsimonious_uses_the_smallest_total():
     """Test that the parsimonious solution reaches the same growth with the smallest total flux."""
-    trajectory = create_simulation('flux_balance', parsimonious=True).prepare().run().trajectory_
+    trajectory = simulate(FluxBalanceSystem(parsimonious=True))
     assert float(trajectory.values('cell.objective_0')[0]) == pytest.approx(50)
     assert float(trajectory.values('cell.objective_1')[0]) == pytest.approx(3950)
 
@@ -45,7 +45,7 @@ def test_flux_balance_oxygen_sweep_by_an_experiment():
     """Test that growth rises from 0.2117 without oxygen and stays at 0.8739 above the uptake of about 21.8."""
     levels = [0.0, 5.0, 10.0, 20.0, 25.0]
     experiment = Experiment(
-        flux_balance,
+        FluxBalanceSystem,
         GridDesign(),
         {'oxygen': levels, 'network': ['ecoli']},
         until=0.0,

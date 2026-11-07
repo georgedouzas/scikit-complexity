@@ -17,9 +17,8 @@ from ....core.components.interactions import Interaction, NeighborInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import clip, delayed, where
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.excitable import ThetaNeuronElement
 
 
@@ -81,6 +80,8 @@ class PhaseUnitElement(Element):
         >>> PhaseUnitElement('unit', omega=1.5).omega
         1.5
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -177,6 +178,8 @@ class TracedThetaNeuronElement(ThetaNeuronElement):
         2.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -256,6 +259,8 @@ class DelayAdaptationInteraction(Interaction):
         >>> DelayAdaptationInteraction('myelination', source='a', target='b', axon='ab', rho=0.5).rho
         0.5
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -341,6 +346,8 @@ class SpikeTimingPlasticityInteraction(NeighborInteraction):
         1.05
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -384,32 +391,15 @@ class SpikeTimingPlasticityInteraction(NeighborInteraction):
         ]
 
 
-@register_system(
-    field='biology/neuroscience',
-    tags=('plasticity', 'stdp', 'adaptive network', 'theta neurons', 'ode'),
-    references=('Song, Miller, and Abbott 2000', 'Berner et al. 2023'),
-    defaults={'until': 150.0, 'dt': 0.5},
-)
-def stdp_network(
-    n_neurons: int = 20,
-    *,
-    p: float = 0.3,
-    eta: float = 0.5,
-    spread: float = 0.2,
-    epsilon: float = 0.05,
-    A_plus: float = 1.0,
-    A_minus: float = 1.05,
-    tau: float = 2.0,
-    kappa: float = 0.5,
-    seed: int | None = 0,
-) -> System:
-    """Return theta neurons on a random directed network whose synapses learn by spike-timing-dependent plasticity.
+class STDPNetworkSystem(BaseSystem):
+    """Theta neurons on a random directed network whose synapses learn by spike-timing-dependent plasticity.
 
     The neurons fire periodically with excitabilities spread around `eta`, and every synapse is potentiated when its
-    presynaptic neuron fires shortly before its postsynaptic neuron and depressed when it fires shortly after. Spikes
-    of neurons that fire at different rates fall at all delays, so the mean change of the efficacies follows the
-    integral of the window, `(A_plus - A_minus) tau`: a window dominated by depression weakens the synapses and one
-    dominated by potentiation strengthens them, while the spread of the efficacies grows.
+    presynaptic neuron fires shortly before its postsynaptic neuron and depressed when it fires shortly after. Spikes of
+    neurons that fire at different rates fall at all delays, so the mean change of the efficacies follows the integral
+    of the window, `(A_plus - A_minus) tau`: a window dominated by depression weakens the synapses and one dominated by
+    potentiation strengthens them, while the spread of the efficacies grows. The system has the phases `neurons.theta`,
+    the traces `neurons.a` and `neurons.b`, and the efficacies `synapses.kappa` on the edges.
 
     Args:
         n_neurons:
@@ -442,66 +432,91 @@ def stdp_network(
         seed:
             The seed of the network, the excitabilities, and the initial phases.
 
-    Returns:
-        system:
-            The system, with the phases `neurons.theta`, the traces `neurons.a` and `neurons.b`, and the efficacies
-            `synapses.kappa` on the edges.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.neuroscience import stdp_network
-        >>> stdp_network(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.biology.neuroscience import STDPNetworkSystem
+        >>> STDPNetworkSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    rng = np.random.default_rng(seed)
-    graph = nx.gnp_random_graph(n_neurons, p, seed=int(rng.integers(2**31)), directed=True)
-    space = NetworkSpace(graph)
-    neurons = LatticeElement(
-        'neurons',
-        element=TracedThetaNeuronElement,
-        space=space,
-        values={
-            'theta': rng.uniform(0, 2 * np.pi, n_neurons),
-            'eta': eta + rng.uniform(-spread, spread, n_neurons),
-            'tau_plus': tau,
-            'tau_minus': tau,
-        },
-    )
-    synapses = GroupElement('synapses', element=SynapseElement, space=space, on='edges', values={'kappa': kappa})
-    plasticity = SpikeTimingPlasticityInteraction(
-        'stdp',
-        neurons='neurons',
-        synapses='synapses',
-        k=max(p * (n_neurons - 1), 1.0),
-        epsilon=epsilon,
-        A_plus=A_plus,
-        A_minus=A_minus,
-    )
-    return System(elements=[neurons, synapses], interactions=[plasticity])
+
+    field = 'biology/neuroscience'
+    topics = ('plasticity', 'stdp', 'adaptive network', 'theta neurons', 'ode')
+    references = ('Song, Miller, and Abbott 2000', 'Berner et al. 2023')
+    until = 150.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        n_neurons: int = 20,
+        *,
+        p: float = 0.3,
+        eta: float = 0.5,
+        spread: float = 0.2,
+        epsilon: float = 0.05,
+        A_plus: float = 1.0,
+        A_minus: float = 1.05,
+        tau: float = 2.0,
+        kappa: float = 0.5,
+        seed: int | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_neurons = n_neurons
+        self.p = p
+        self.eta = eta
+        self.spread = spread
+        self.epsilon = epsilon
+        self.A_plus = A_plus
+        self.A_minus = A_minus
+        self.tau = tau
+        self.kappa = kappa
+        self.seed = seed
+
+    def _build_system(self) -> System:
+        """Return the parts of theta neurons on a random directed network."""
+        rng = np.random.default_rng(self.seed)
+        graph = nx.gnp_random_graph(self.n_neurons, self.p, seed=int(rng.integers(2**31)), directed=True)
+        space = NetworkSpace(graph)
+        neurons = LatticeElement(
+            'neurons',
+            element=TracedThetaNeuronElement,
+            space=space,
+            values={
+                'theta': rng.uniform(0, 2 * np.pi, self.n_neurons),
+                'eta': self.eta + rng.uniform(-self.spread, self.spread, self.n_neurons),
+                'tau_plus': self.tau,
+                'tau_minus': self.tau,
+            },
+        )
+        synapses = GroupElement(
+            'synapses',
+            element=SynapseElement,
+            space=space,
+            on='edges',
+            values={'kappa': self.kappa},
+        )
+        plasticity = SpikeTimingPlasticityInteraction(
+            'stdp',
+            neurons='neurons',
+            synapses='synapses',
+            k=max(self.p * (self.n_neurons - 1), 1.0),
+            epsilon=self.epsilon,
+            A_plus=self.A_plus,
+            A_minus=self.A_minus,
+        )
+        return System(self.label, elements=[neurons, synapses], interactions=[plasticity])
 
 
-@register_system(
-    field='biology/neuroscience',
-    tags=('adaptive delays', 'myelination', 'phase oscillators', 'adaptive network', 'dde'),
-    references=('Park and Lefebvre 2020', 'Berner et al. 2023'),
-    defaults={'until': 300.0, 'dt': 0.5},
-)
-def adaptive_delay_network(
-    n_units: int = 5,
-    *,
-    omega: float = 1.0,
-    spread: float = 0.1,
-    kappa: float = 1.0,
-    epsilon: float = 0.1,
-    rho: float = 1.0,
-    tau0: float = 3.0,
-    seed: int | None = 0,
-) -> System:
-    """Return phase units coupled all to all through conduction delays that adapt to their activity, as myelination.
+class AdaptiveDelayNetworkSystem(BaseSystem):
+    """Phase units coupled all to all through conduction delays that adapt to their activity, as myelination.
 
     Unit `i` follows `dtheta_i/dt = omega_i + (kappa / N) sum_j sin(theta_j(t - tau_ij) - theta_i)`, and every delay
-    `dtau_ij/dt = epsilon H(tau_ij) (-(tau_ij - tau0) + rho sin(theta_j - theta_i))` relaxes to its baseline `tau0`
-    and is pushed by the phase difference of its units. With the defaults, fixed delays of 3 leave the units
-    incoherent, and the adaptation of the delays restores a partial synchrony.
+    `dtau_ij/dt = epsilon H(tau_ij) (-(tau_ij - tau0) + rho sin(theta_j - theta_i))` relaxes to its baseline `tau0` and
+    is pushed by the phase difference of its units. With the defaults, fixed delays of 3 leave the units incoherent, and
+    the adaptation of the delays restores a partial synchrony. The system has the phases `unit_<i>.theta` of the units
+    and the delays `axon_<i>_<j>.tau` of the axons from unit `i` to unit `j`.
 
     Args:
         n_units:
@@ -528,34 +543,64 @@ def adaptive_delay_network(
         seed:
             The seed of the frequencies and the initial phases.
 
-    Returns:
-        system:
-            The system, with the phases `unit_<i>.theta` of the units and the delays `axon_<i>_<j>.tau` of the axons
-            from unit `i` to unit `j`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.neuroscience import adaptive_delay_network
-        >>> len(adaptive_delay_network(4).interactions)
+        >>> from skcomplex.systems.biology.neuroscience import AdaptiveDelayNetworkSystem
+        >>> len(AdaptiveDelayNetworkSystem(4).prepare().system_.interactions)
         12
     """
-    rng = np.random.default_rng(seed)
-    phases, frequencies = rng.uniform(0, 2 * np.pi, n_units), rng.normal(omega, spread, n_units)
-    units = [
-        PhaseUnitElement(f'unit_{index}', theta=float(phases[index]), omega=float(frequencies[index]))
-        for index in range(n_units)
-    ]
-    pairs = list(permutations(range(n_units), 2))
-    axons = [AxonElement(f'axon_{source}_{target}', tau=tau0, tau0=tau0) for source, target in pairs]
-    adaptations = [
-        DelayAdaptationInteraction(
-            f'myelination_{source}_{target}',
-            source=f'unit_{source}',
-            target=f'unit_{target}',
-            axon=f'axon_{source}_{target}',
-            kappa=kappa / n_units,
-            epsilon=epsilon,
-            rho=rho,
-        )
-        for source, target in pairs
-    ]
-    return System(elements=[*units, *axons], interactions=adaptations)
+
+    field = 'biology/neuroscience'
+    topics = ('adaptive delays', 'myelination', 'phase oscillators', 'adaptive network', 'dde')
+    references = ('Park and Lefebvre 2020', 'Berner et al. 2023')
+    until = 300.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        n_units: int = 5,
+        *,
+        omega: float = 1.0,
+        spread: float = 0.1,
+        kappa: float = 1.0,
+        epsilon: float = 0.1,
+        rho: float = 1.0,
+        tau0: float = 3.0,
+        seed: int | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_units = n_units
+        self.omega = omega
+        self.spread = spread
+        self.kappa = kappa
+        self.epsilon = epsilon
+        self.rho = rho
+        self.tau0 = tau0
+        self.seed = seed
+
+    def _build_system(self) -> System:
+        """Return the parts of phase units coupled all to all through conduction delays that adapt to their activity."""
+        rng = np.random.default_rng(self.seed)
+        phases, frequencies = rng.uniform(0, 2 * np.pi, self.n_units), rng.normal(self.omega, self.spread, self.n_units)
+        units = [
+            PhaseUnitElement(f'unit_{index}', theta=float(phases[index]), omega=float(frequencies[index]))
+            for index in range(self.n_units)
+        ]
+        pairs = list(permutations(range(self.n_units), 2))
+        axons = [AxonElement(f'axon_{source}_{target}', tau=self.tau0, tau0=self.tau0) for source, target in pairs]
+        adaptations = [
+            DelayAdaptationInteraction(
+                f'myelination_{source}_{target}',
+                source=f'unit_{source}',
+                target=f'unit_{target}',
+                axon=f'axon_{source}_{target}',
+                kappa=self.kappa / self.n_units,
+                epsilon=self.epsilon,
+                rho=self.rho,
+            )
+            for source, target in pairs
+        ]
+        return System(self.label, elements=[*units, *axons], interactions=adaptations)

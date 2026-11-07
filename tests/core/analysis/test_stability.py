@@ -15,8 +15,8 @@ from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import RoleSpec, StateSpec, VisualSpec
-from skcomplex.systems.biology.ecology import lotka_volterra
-from skcomplex.systems.biology.epidemiology import sir
+from skcomplex.systems.biology.ecology import LotkaVolterraSystem
+from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.chemistry.common.kinetics import CubicAutocatalysisInteraction
 from skcomplex.systems.chemistry.pattern_formation import BrusselatorElement
 from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem, LorenzSystem
@@ -48,7 +48,7 @@ def _brusselator(b, *, discretization='spectral', boundary='periodic'):
 
 def test_lotka_volterra_centre():
     """Test that the predator-prey interior point is `(d / b, r / a)` with purely imaginary eigenvalues, a centre."""
-    system = lotka_volterra()
+    system = LotkaVolterraSystem().prepare().system_
     analysis = _stability(system)
     d, b, r, a = (SR.var(name) for name in ('d_death', 'b_predation', 'r_growth', 'a_predation'))
     index = next(index for index, point in enumerate(analysis.fixed_points) if point['prey.n'] != 0)
@@ -85,7 +85,7 @@ def test_volume_preservation():
 
 def test_jacobian_and_nullclines():
     """Test the Jacobian's shape and the nullclines of a two-state system."""
-    analysis = _stability(lotka_volterra())
+    analysis = _stability(LotkaVolterraSystem().prepare().system_)
     assert analysis.jacobian.dimensions() == (2, 2)
     assert set(analysis.nullclines) == {'prey.n', 'predators.n'}
 
@@ -93,7 +93,7 @@ def test_jacobian_and_nullclines():
 def test_jump_process_has_no_vector_field():
     """Test that stochastic jump systems are rejected."""
     with pytest.raises(AnalysisError, match='jump process'):
-        _stability(sir(stochastic=True))
+        _stability(SIRSystem(stochastic=True).prepare().system_)
 
 
 def _hawks_and_doves(V=2.0, C=3.0, size=2):
@@ -181,7 +181,7 @@ def test_group_above_limit():
 
 def test_points_are_the_given_points():
     """Test that given points replace the fixed points found by solving."""
-    analysis = _stability(lotka_volterra(), points=[{'prey.n': 0, 'predators.n': 0}])
+    analysis = _stability(LotkaVolterraSystem().prepare().system_, points=[{'prey.n': 0, 'predators.n': 0}])
     assert analysis.fixed_points == [{'prey.n': 0, 'predators.n': 0}]
     assert len(analysis.eigenvalues) == 1
 
@@ -228,6 +228,6 @@ def test_dispersion_relation_rejects_non_periodic_fields_and_data():
 def test_stability_checks_its_kind_and_settings():
     """Test that an unknown kind and a setting the kind ignores raise errors."""
     with pytest.raises(AnalysisError, match='fixed-points, dispersion'):
-        stability(lotka_volterra(), kind='unknown')
+        stability(LotkaVolterraSystem().prepare().system_, kind='unknown')
     with pytest.raises(AnalysisError, match='does not read points'):
-        stability(lotka_volterra(), kind='dispersion', points=[{'x': 0.0}])
+        stability(LotkaVolterraSystem().prepare().system_, kind='dispersion', points=[{'x': 0.0}])

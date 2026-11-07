@@ -6,22 +6,21 @@ to fill the tumour's capacity.
 """
 
 # %%
-# The system is created by name from the catalog with the book's parameters: a spontaneous resistance rate of 10^-6,
-# a resistance induced at the rate 0.01 per unit of dose, and a resistant population that grows at a fifth of the rate
-# of the sensitive one. The observer saves every frame with the default blueprint, whose primary view is the time
-# series of the three populations.
+# The system is built from its class with the book's parameters: a spontaneous resistance rate of 10^-6, a resistance
+# induced at the rate 0.01 per unit of dose, and a resistant population that grows at a fifth of the rate of the
+# sensitive one. The observer saves every frame with the default blueprint, whose primary view is the time series of
+# the three populations.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import DrugResistanceSwitchingSystem
 
 SYSTEM = 'drug_resistance_switching'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=120)
+trajectory = simulate(DrugResistanceSwitchingSystem(), dt=0.5, observers=[observer], until=120)
 
 # %%
 # Spontaneous and induced resistance
@@ -29,8 +28,8 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 # Without induction, resistance arises only from the rare spontaneous mutations and takes much longer to fill the
 # tumour. With induction the resistant cells should reach half the capacity in less than half the time.
 
-spontaneous = Simulation(create_system(SYSTEM, alpha_m=0.0), dt=0.5).prepare().run(until=120).trajectory_
-induced = simulation.trajectory_
+spontaneous = simulate(DrugResistanceSwitchingSystem(alpha_m=0.0), dt=0.5, until=120)
+induced = trajectory
 fig, (resistant, sensitive) = plt.subplots(1, 2, figsize=(10, 4))
 resistant.plot(induced.times, induced.values('tumour.Rm'), label='induced, alpha_m = 0.01')
 resistant.plot(spontaneous.times, spontaneous.values('tumour.Rm'), label='spontaneous only')

@@ -23,7 +23,7 @@ from skcomplex.core.engine.solvers import (
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.errors import SolverError, ValidationError
 from skcomplex.core.specs import StateSpec, VisualSpec
-from skcomplex.systems.biology.ecology import logistic_growth
+from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.physics.fluids import (
     burgers,
     decaying_turbulence,
@@ -121,7 +121,7 @@ def test_implicit_explicit_steppers_agree(stepper):
 def test_steppers_need_linear_terms():
     """Test that split steppers reject problems without linear terms of fields, and ETDRK4 finite differences."""
     with pytest.raises(SolverError, match='no linear terms'):
-        Simulation(logistic_growth(), solver=IMEXEulerSolver()).prepare().run(until=1)
+        Simulation(LogisticGrowthSystem().prepare().system_, solver=IMEXEulerSolver()).prepare().run(until=1)
     with pytest.raises(SolverError, match='spectral'):
         Simulation(
             System(elements=[FieldElement('rod', element=HeatElement, space=LatticeSpace(8))]),

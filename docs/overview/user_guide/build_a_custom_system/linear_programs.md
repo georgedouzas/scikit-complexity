@@ -120,7 +120,7 @@ pandas below version 3, since COBRApy caps it.
 
 ## Isotope labelling
 
-Only the system `carbon_13_mfa` uses isotope labelling. It takes the atom transitions of the reactions, the isotopomer
+Only the system `carbon13_mfa` uses isotope labelling. It takes the atom transitions of the reactions, the isotopomer
 fractions of a substrate, and the measured fragments. From these it simulates the mass isotopomer distributions by
 elementary metabolite units. It fits the fluxes to the measurements from seeded starts, with 95% intervals and a
-chi-square test. Select it with `create_system('carbon_13_mfa')`.
+chi-square test. Select it with `create_system('carbon13_mfa')`.

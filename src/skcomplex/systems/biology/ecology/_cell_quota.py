@@ -11,9 +11,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class QuotaPhytoplanktonElement(Element):
@@ -59,6 +58,8 @@ class QuotaPhytoplanktonElement(Element):
         2.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -101,29 +102,14 @@ class QuotaPhytoplanktonElement(Element):
         ]
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('population growth', 'ode', 'nutrient', 'cell quota', 'phytoplankton'),
-    references=('Padmanabhan, Meskin, and Al Moustafa 2021', 'Droop 1973'),
-    defaults={'until': 20.0, 'dt': 0.1},
-)
-def droop_cell_quota(
-    Q: float = 1.5,
-    P: float = 1.0,
-    *,
-    r_inf: float = 1.0,
-    q: float = 1.0,
-    vmax: float = 2.0,
-    g: float = 1.0,
-    R: float = 1.0,
-    d: float = 0.1,
-) -> System:
-    """Return the Droop system, a phytoplankton whose growth rate follows the nutrient stored in its cells.
+class DroopCellQuotaSystem(BaseSystem):
+    """The Droop system, a phytoplankton whose growth rate follows the nutrient stored in its cells.
 
     The growth rate `r_inf (1 - q / Q)` rises with the quota `Q` and saturates at `r_inf`. Under a constant external
-    nutrient the quota settles at `Q* = q + v / r_inf`, where `v = vmax R / (g + R)` is the uptake, and the biomass
-    then grows exponentially at `r_inf (1 - q / Q*) - d`. The book gives no values for this system, so the defaults are
-    in units of the minimum quota, the maximum growth rate, and the half saturation, with time in days.
+    nutrient the quota settles at `Q* = q + v / r_inf`, where `v = vmax R / (g + R)` is the uptake, and the biomass then
+    grows exponentially at `r_inf (1 - q / Q*) - d`. The book gives no values for this system, so the defaults are in
+    units of the minimum quota, the maximum growth rate, and the half saturation, with time in days. The system has the
+    quota `algae.Q` and the biomass `algae.P`.
 
     Args:
         Q:
@@ -150,14 +136,55 @@ def droop_cell_quota(
         d:
             The death rate.
 
-    Returns:
-        system:
-            The system, with the quota `algae.Q` and the biomass `algae.P`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import droop_cell_quota
-        >>> droop_cell_quota(R=4.0).elements[0].R
+        >>> from skcomplex.systems.biology.ecology import DroopCellQuotaSystem
+        >>> DroopCellQuotaSystem(R=4.0).prepare().system_.elements[0].R
         4.0
     """
-    algae = QuotaPhytoplanktonElement('algae', Q=Q, P=P, r_inf=r_inf, q=q, vmax=vmax, g=g, R=R, d=d)
-    return System(elements=[algae])
+
+    field = 'biology/ecology'
+    topics = ('population growth', 'ode', 'nutrient', 'cell quota', 'phytoplankton')
+    references = ('Padmanabhan, Meskin, and Al Moustafa 2021', 'Droop 1973')
+    until = 20.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        Q: float = 1.5,
+        P: float = 1.0,
+        *,
+        r_inf: float = 1.0,
+        q: float = 1.0,
+        vmax: float = 2.0,
+        g: float = 1.0,
+        R: float = 1.0,
+        d: float = 0.1,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.Q = Q
+        self.P = P
+        self.r_inf = r_inf
+        self.q = q
+        self.vmax = vmax
+        self.g = g
+        self.R = R
+        self.d = d
+
+    def _build_system(self) -> System:
+        """Return the parts of the Droop system."""
+        algae = QuotaPhytoplanktonElement(
+            'algae',
+            Q=self.Q,
+            P=self.P,
+            r_inf=self.r_inf,
+            q=self.q,
+            vmax=self.vmax,
+            g=self.g,
+            R=self.R,
+            d=self.d,
+        )
+        return System(self.label, elements=[algae])

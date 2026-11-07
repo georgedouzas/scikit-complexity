@@ -29,7 +29,7 @@ from skcomplex.core.engine.viz import (
 from skcomplex.core.specs import StateSpec, TopologyRequestSpec, VisualSpec
 from skcomplex.systems import create_system, describe
 from skcomplex.systems.biology.common.populations import ExponentialGrowthInteraction, PopulationElement
-from skcomplex.systems.biology.ecology import higher_order_random_lotka_volterra
+from skcomplex.systems.biology.ecology import HigherOrderRandomLotkaVolterraSystem
 from skcomplex.systems.computer_science.automata import GameOfLifeSystem
 from skcomplex.systems.physics.common.particles import ConstantForceInteraction, MassPointElement
 from skcomplex.systems.physics.statistical_mechanics import ideal_gas
@@ -143,7 +143,11 @@ def test_rerun_observer_leaves_out_a_coupling_tensor(monkeypatch, tmp_path):
         return original(self, path, *args, **kwargs)
 
     monkeypatch.setattr(rr.RecordingStream, 'log', log)
-    _run(higher_order_random_lotka_volterra(4), RerunObserver('test', save_path=tmp_path / 'run.rrd'), until=0.2)
+    _run(
+        HigherOrderRandomLotkaVolterraSystem(4).prepare().system_,
+        RerunObserver('test', save_path=tmp_path / 'run.rrd'),
+        until=0.2,
+    )
     assert 'parameters/triplets.a' not in logged
     assert 'parameters/growth.r' in logged
 

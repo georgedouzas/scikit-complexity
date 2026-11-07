@@ -13,11 +13,10 @@ from ....core.base import BaseConfig
 from ....core.components.elements import Element, LatticeElement
 from ....core.components.interactions import SamplingInteraction
 from ....core.components.spaces import DiscreteTime, LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RowScoreSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 from ..._extras import import_extra
 from ._backbone_geometry import BackboneGeometry
 from ._structure_spec import StructureSpec
@@ -275,33 +274,17 @@ def read_cell_probabilities(cells: int = CELLS) -> Array:
     return counts / counts.sum(axis=1, keepdims=True)
 
 
-def _score_cells(energies: Array, row: Array, amino: Array) -> float:
-    """Return the sum of the local energies of the cells of the residues of a chain."""
-    return float(energies[amino.astype(int), row.astype(int)].sum())
-
-
-@register_system(
-    field='biology/systems_biology',
-    tags=('protein', 'ramachandran', 'early stage', 'heat bath', 'monte carlo'),
-    references=('Konieczny et al. 2023', 'Brylinski et al. 2004', 'Brylinski et al. 2005'),
-    defaults={'until': 300},
-)
-def early_stage_folding_intermediate(
-    entry: str = ENTRY,
-    *,
-    cells: int = CELLS,
-    temperature: float = 1.0,
-) -> System:
-    """Return the residues of a protein sampling the cells of an ellipse path of the Ramachandran map by heat bath.
+class EarlyStageFoldingIntermediateSystem(BaseSystem):
+    """The residues of a protein sampling the cells of an ellipse path of the Ramachandran map by heat bath.
 
     Each residue takes a cell of `EllipsePath`, the limited conformational space of the early stage after Konieczny et
     al. (2023 §3.7.1), with the local energy `-log p(cell | amino acid)` of the probabilities of
     `read_cell_probabilities`. The heat bath and the 72 cells of equal `t` are choices of this system: the 72 of the
-    book counts 5° steps of one angle of the whole map (p. 147).
-    Each unit of time makes as many draws as the chain has residues, each drawing the cell of one random residue from
-    `p(cell | amino acid)` raised to one over the temperature, renormalised, so at temperature 1 the cells follow the
-    probabilities. The local energies enter through a row score, their sum over the chain, since the change of the score
-    with the cell of one residue is the change of its local energy.
+    book counts 5° steps of one angle of the whole map (p. 147). Each unit of time makes as many draws as the chain has
+    residues, each drawing the cell of one random residue from `p(cell | amino acid)` raised to one over the
+    temperature, renormalised, so at temperature 1 the cells follow the probabilities. The local energies enter through
+    a row score, their sum over the chain, since the change of the score with the cell of one residue is the change of
+    its local energy. The system has the lattice `residues` of the state `cell`.
 
     Args:
         entry:
@@ -313,9 +296,8 @@ def early_stage_folding_intermediate(
         temperature:
             The temperature, in the units of the local energy.
 
-    Returns:
-        system:
-            The system, with the lattice `residues` of the state `cell`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         MissingExtraError:
@@ -325,38 +307,65 @@ def early_stage_folding_intermediate(
             The temperature is not positive.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import early_stage_folding_intermediate
-        >>> early_stage_folding_intermediate().elements[0].space.shape
+        >>> from skcomplex.systems.biology.systems_biology import EarlyStageFoldingIntermediateSystem
+        >>> EarlyStageFoldingIntermediateSystem().prepare().system_.elements[0].space.shape
         (1, 58)
     """
-    import_extra('Bio.PDB', 'early_stage_folding_intermediate', 'structures')
-    if temperature <= 0:
-        error_msg = f'The temperature of the system must be positive, but it is {temperature}.'
-        raise ValidationError(error_msg)
-    names = [residue for _, _, residue in read_structure(entry).residues]
-    amino = np.array([AMINO_ACIDS.index(name) for name in names], dtype=float)
-    energies = -np.log(read_cell_probabilities(cells))
-    return System(
-        elements=[
-            LatticeElement(
-                'residues',
-                element=PathCellElement,
-                space=LatticeSpace((1, len(names)), boundary='fixed'),
-                values={'amino': amino[None]},
-                visual=VisualSpec('image', {'states': ('cell',), 'low': 0.0, 'high': float(cells - 1)}),
-            ),
-        ],
-        interactions=[
-            SamplingInteraction(
-                'sampling',
-                target='residues',
-                state='cell',
-                objective=RowScoreSpec(partial(_score_cells, energies), proposals=len(names)),
-                move='random-value',
-                intensity=1 / temperature,
-                rule='heat-bath',
-                values=tuple(float(cell) for cell in range(cells)),
-            ),
-        ],
-        time=DiscreteTime(),
-    )
+
+    field = 'biology/systems_biology'
+    topics = ('protein', 'ramachandran', 'early stage', 'heat bath', 'monte carlo')
+    references = ('Konieczny et al. 2023', 'Brylinski et al. 2004', 'Brylinski et al. 2005')
+    until = 300
+
+    def __init__(
+        self,
+        entry: str = ENTRY,
+        *,
+        cells: int = CELLS,
+        temperature: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.entry = entry
+        self.cells = cells
+        self.temperature = temperature
+
+    @staticmethod
+    def _score_cells(energies: Array, row: Array, amino: Array) -> float:
+        """Return the sum of the local energies of the cells of the residues of a chain."""
+        return float(energies[amino.astype(int), row.astype(int)].sum())
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        import_extra('Bio.PDB', 'early_stage_folding_intermediate', 'structures')
+        if self.temperature <= 0:
+            error_msg = f'The temperature of the system must be positive, but it is {self.temperature}.'
+            raise ValidationError(error_msg)
+        names = [residue for _, _, residue in read_structure(self.entry).residues]
+        amino = np.array([AMINO_ACIDS.index(name) for name in names], dtype=float)
+        energies = -np.log(read_cell_probabilities(self.cells))
+        return System(
+            self.label,
+            elements=[
+                LatticeElement(
+                    'residues',
+                    element=PathCellElement,
+                    space=LatticeSpace((1, len(names)), boundary='fixed'),
+                    values={'amino': amino[None]},
+                    visual=VisualSpec('image', {'states': ('cell',), 'low': 0.0, 'high': float(self.cells - 1)}),
+                ),
+            ],
+            interactions=[
+                SamplingInteraction(
+                    'sampling',
+                    target='residues',
+                    state='cell',
+                    objective=RowScoreSpec(partial(self._score_cells, energies), proposals=len(names)),
+                    move='random-value',
+                    intensity=1 / self.temperature,
+                    rule='heat-bath',
+                    values=tuple(float(cell) for cell in range(self.cells)),
+                ),
+            ],
+            time=DiscreteTime(),
+        )

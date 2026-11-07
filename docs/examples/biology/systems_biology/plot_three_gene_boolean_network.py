@@ -6,21 +6,20 @@ state 011 is a point attractor.
 """
 
 # %%
-# The system is created by name from the catalog and started from the state `100`, `g1` on. The observer saves every
-# step with the default blueprint, whose primary view is the time series of the three genes.
+# The system is built from its class and started from the state `100`, `g1` on. The observer saves every step with the
+# default blueprint, whose primary view is the time series of the three genes.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.systems_biology import ThreeGeneBooleanNetworkSystem
 
 SYSTEM = 'three_gene_boolean_network'
 
-system = create_system(SYSTEM, x=(1, 0, 0))
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=10)
+trajectory = simulate(ThreeGeneBooleanNetworkSystem(x=(1, 0, 0)), observers=[observer])
 
 # %%
 # Attractors from every state
@@ -31,7 +30,7 @@ simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=
 fig, ax = plt.subplots(figsize=(7, 4))
 for start in range(8):
     bits = tuple(int(bit) for bit in format(start, '03b'))
-    run = Simulation(create_system(SYSTEM, x=bits), dt=1).prepare().run(until=8).trajectory_
+    run = simulate(ThreeGeneBooleanNetworkSystem(x=bits), until=8)
     code = 4 * run.values('g1.x') + 2 * run.values('g2.x') + run.values('g3.x')
     ax.plot(run.times, code + 0.06 * (start - 3.5), 'o-', label=format(start, '03b'))
 ax.set_yticks(np.arange(8), [format(code, '03b') for code in range(8)])

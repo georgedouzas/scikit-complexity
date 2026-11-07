@@ -17,9 +17,8 @@ from ....core.components.interactions import Interaction, MapInteraction, Topolo
 from ....core.components.laws import BaseLaw, UpdateLaw
 from ....core.components.laws.utils import neighbors, total, where
 from ....core.components.spaces import DiscreteTime, NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.networks import EdgeDrawInteraction, WeightedEdgeElement
 
 HIDDEN = VisualSpec('sites', {'states': []})
@@ -90,6 +89,8 @@ class LinearGrowthInteraction(Interaction):
         0.2
     """
 
+    law_classes = (UpdateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -120,27 +121,16 @@ class LinearGrowthInteraction(Interaction):
         return [UpdateLaw(species.x, kept / total(kept))]
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('adaptive network', 'extinction', 'diversity', 'linear dynamics', 'stochastic map'),
-    references=('Thurner et al. 2018', 'Thurner, Klimek, and Hanel 2010'),
-    defaults={'until': 300, 'dt': 1.0},
-)
-def sequentially_linear_ecosystem(
-    n: int = 60,
-    k: int = 4,
-    *,
-    rate: float = 0.2,
-    threshold: float = 1e-3,
-    seed: int | None = 1,
-) -> System:
-    """Return an ecosystem whose abundances follow linear dynamics between extinctions that rewrite its network.
+class SequentiallyLinearEcosystemSystem(BaseSystem):
+    """An ecosystem whose abundances follow linear dynamics between extinctions that rewrite its network.
 
-    Every species reads `k` random species through influences of random sign and strength, and grows linearly with
-    their abundances. Between extinctions the dynamics is linear, so the abundances approach the dominant eigenvector
-    of the current network. A species whose abundance falls below `threshold` goes extinct with its influences, and a
-    new species with `k` random influences takes its place, which changes the network and starts a new linear stretch.
-    Extinctions come in bursts separated by quiet periods.
+    Every species reads `k` random species through influences of random sign and strength, and grows linearly with their
+    abundances. Between extinctions the dynamics is linear, so the abundances approach the dominant eigenvector of the
+    current network. A species whose abundance falls below `threshold` goes extinct with its influences, and a new
+    species with `k` random influences takes its place, which changes the network and starts a new linear stretch.
+    Extinctions come in bursts separated by quiet periods. The system has the abundances `species.x` and ages
+    `species.age` of the variable group `species` and the strengths `influences.w` of the variable group `influences` on
+    the edges.
 
     Args:
         n:
@@ -158,57 +148,82 @@ def sequentially_linear_ecosystem(
         seed:
             The seed of the network and of the initial strengths.
 
-    Returns:
-        system:
-            The system, with the abundances `species.x` and ages `species.age` of the variable group `species` and the
-            strengths `influences.w` of the variable group `influences` on the edges.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import sequentially_linear_ecosystem
-        >>> [component.label for component in sequentially_linear_ecosystem(n=10).elements]
+        >>> from skcomplex.systems.biology.ecology import SequentiallyLinearEcosystemSystem
+        >>> [component.label for component in SequentiallyLinearEcosystemSystem(n=10).prepare().system_.elements]
         ['species', 'influences']
     """
-    rng = np.random.default_rng(seed)
-    graph = nx.DiGraph()
-    graph.add_nodes_from(range(n))
-    for node in range(n):
-        others = rng.choice(np.delete(np.arange(n), node), size=k, replace=False)
-        graph.add_edges_from((node, int(other)) for other in others)
-    space = NetworkSpace(graph)
-    edges = graph.number_of_edges()
-    species = GroupElement(
-        'species',
-        element=AbundanceElement,
-        space=space,
-        on='sites',
-        variable=True,
-        capacity=2 * n,
-        values={'x': np.full(n, 1 / n), 'threshold': threshold},
-        visual=VisualSpec('sites', {'states': ['x']}),
-    )
-    influences = GroupElement(
-        'influences',
-        element=WeightedEdgeElement,
-        space=space,
-        on='edges',
-        variable=True,
-        capacity=4 * edges,
-        values={'w': rng.uniform(-1, 1, edges), 'fresh': 0.0},
-        visual=HIDDEN,
-    )
-    return System(
-        elements=[species, influences],
-        interactions=[
-            LinearGrowthInteraction('growth', species='species', influences='influences', rate=rate),
-            EdgeDrawInteraction('draw', target='species', edges='influences'),
-            MapInteraction('ageing', target='species', state='age', function=lambda s: 1, mode='increment'),
-            TopologyInteraction(
-                'extinction',
-                target='species',
-                action='replace-node',
-                condition=lambda s: s.source.x < s.source.threshold,
-                edges=k,
-            ),
-        ],
-        time=DiscreteTime(),
-    )
+
+    field = 'biology/ecology'
+    topics = ('adaptive network', 'extinction', 'diversity', 'linear dynamics', 'stochastic map')
+    references = ('Thurner et al. 2018', 'Thurner, Klimek, and Hanel 2010')
+    until = 300
+    dt = 1.0
+
+    def __init__(
+        self,
+        n: int = 60,
+        k: int = 4,
+        *,
+        rate: float = 0.2,
+        threshold: float = 1e-3,
+        seed: int | None = 1,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.k = k
+        self.rate = rate
+        self.threshold = threshold
+        self.seed = seed
+
+    def _build_system(self) -> System:
+        """Return the parts of an ecosystem."""
+        rng = np.random.default_rng(self.seed)
+        graph = nx.DiGraph()
+        graph.add_nodes_from(range(self.n))
+        for node in range(self.n):
+            others = rng.choice(np.delete(np.arange(self.n), node), size=self.k, replace=False)
+            graph.add_edges_from((node, int(other)) for other in others)
+        space = NetworkSpace(graph)
+        edges = graph.number_of_edges()
+        species = GroupElement(
+            'species',
+            element=AbundanceElement,
+            space=space,
+            on='sites',
+            variable=True,
+            capacity=2 * self.n,
+            values={'x': np.full(self.n, 1 / self.n), 'threshold': self.threshold},
+            visual=VisualSpec('sites', {'states': ['x']}),
+        )
+        influences = GroupElement(
+            'influences',
+            element=WeightedEdgeElement,
+            space=space,
+            on='edges',
+            variable=True,
+            capacity=4 * edges,
+            values={'w': rng.uniform(-1, 1, edges), 'fresh': 0.0},
+            visual=HIDDEN,
+        )
+        return System(
+            self.label,
+            elements=[species, influences],
+            interactions=[
+                LinearGrowthInteraction('growth', species='species', influences='influences', rate=self.rate),
+                EdgeDrawInteraction('draw', target='species', edges='influences'),
+                MapInteraction('ageing', target='species', state='age', function=lambda s: 1, mode='increment'),
+                TopologyInteraction(
+                    'extinction',
+                    target='species',
+                    action='replace-node',
+                    condition=lambda s: s.source.x < s.source.threshold,
+                    edges=self.k,
+                ),
+            ],
+            time=DiscreteTime(),
+        )

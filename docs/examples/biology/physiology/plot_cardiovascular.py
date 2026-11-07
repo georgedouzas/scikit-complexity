@@ -7,21 +7,20 @@ volume pulses with the heartbeat and the total volume of blood stays constant.
 """
 
 # %%
-# The system is created by name from the catalog at 75 beats per minute and run for about six beats. The observer saves
-# every frame with the default blueprint, whose primary view is the time series of the three volumes.
+# The system is built from its class at 75 beats per minute and run for about six beats. The observer saves every
+# frame with the default blueprint, whose primary view is the time series of the three volumes.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.physiology import CardiovascularSystem
 
 SYSTEM = 'cardiovascular'
 
-system = create_system(SYSTEM, heart_rate=75.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(until=5)
+trajectory = simulate(CardiovascularSystem(heart_rate=75.0), observers=[observer], until=5)
 
 # %%
 # Stroke volume and conservation
@@ -30,7 +29,6 @@ simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(unt
 # the ventricular volume falls. Blood only moves between compartments, so the total should be conserved to the error
 # of the solver.
 
-trajectory = simulation.trajectory_
 ventricle, arteries, veins = (
     trajectory.values('ventricle.V'),
     trajectory.values('arteries.V'),

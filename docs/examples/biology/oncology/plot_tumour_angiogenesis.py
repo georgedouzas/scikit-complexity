@@ -6,22 +6,20 @@ sprouts out of the vessel towards the tumour, and once the new vessels arrive an
 """
 
 # %%
-# The system is created by name from the catalog with five sprouts on a 40 by 25 grid, the parent vessel along the
-# left edge. The observer saves every step with the default blueprint, whose primary view shows the cells and the
-# fields.
+# The system is built from its class with five sprouts on a 40 by 25 grid, the parent vessel along the left edge. The
+# observer saves every step with the default blueprint, whose primary view shows the cells and the fields.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import TumourAngiogenesisSystem
 
 SYSTEM = 'tumour_angiogenesis'
 
-system = create_system(SYSTEM, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=120)
+trajectory = simulate(TumourAngiogenesisSystem(random_state=0), observers=[observer], random_state=0)
 
 # %%
 # Growth follows the vessels
@@ -29,7 +27,6 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 # The vessels should grow first, and the tumour should stall with a high share of hypoxic cells until they arrive,
 # then grow while the hypoxic share falls.
 
-trajectory = simulation.trajectory_
 frames = range(len(trajectory.times))
 hypoxic = [np.mean(trajectory.agents('cells/tumour', frame).values['hypoxic']) for frame in frames]
 fig, (counts, share) = plt.subplots(1, 2, figsize=(11, 4))

@@ -3,13 +3,11 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from collections.abc import Mapping
 
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, RunSettings, System
 from ....core.engine.solvers import CoSimulationSolver, RK4Solver
 from ....core.errors import ValidationError
-from ..._catalog import register_system
 from ..common.metabolism import (
     BiomassElement,
     ExchangeInteraction,
@@ -25,33 +23,8 @@ SYNCHRONISATION = 0.05
 ODE_STEP = 0.005
 
 
-def _settings(*, approach: str = 'static', interval: float = SYNCHRONISATION, **_: object) -> Mapping[str, object]:
-    """Return the run settings of an approach and a synchronisation interval."""
-    solver = (
-        CoSimulationSolver(sync_dt=interval, solvers={'culture': RK4Solver(dt=ODE_STEP)})
-        if approach == 'static'
-        else RK4Solver(dt=ODE_STEP)
-    )
-    return {'until': 10.0, 'dt': SYNCHRONISATION, 'solver': solver}
-
-
-@register_system(
-    field='biology/systems_biology',
-    tags=('dynamic flux balance', 'linear program', 'metabolism', 'batch culture', 'co-simulation'),
-    references=('Raman 2021', 'Mahadevan et al. 2002', 'Varma and Palsson 1994'),
-    defaults={'until': 10.0, 'dt': SYNCHRONISATION},
-    settings=_settings,
-)
-def dynamic_fba(
-    approach: str = 'static',
-    *,
-    biomass: float = 0.01,
-    glucose: float = 10.0,
-    vmax: float = 10.0,
-    km: float = 0.015,
-    interval: float = SYNCHRONISATION,
-) -> System:
-    """Return a batch culture of the E. coli core system, which needs the extra `metabolism`.
+class DynamicFBASystem(BaseSystem):
+    """A batch culture of the E. coli core system, which needs the extra `metabolism`.
 
     The program solves for the fluxes with Michaelis-Menten glucose uptake and then the smallest total flux. By the
     static optimisation approach it solves in a discrete partition at every synchronisation point, and the biomass and
@@ -78,9 +51,8 @@ def dynamic_fba(
         interval:
             The synchronisation interval of the static optimisation approach in h.
 
-    Returns:
-        system:
-            The system.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
@@ -90,35 +62,79 @@ def dynamic_fba(
             The extra is not installed.
 
     Examples:
-        >>> from skcomplex.systems.biology.systems_biology import dynamic_fba
-        >>> [system.label for system in dynamic_fba().systems]
+        >>> from skcomplex.systems.biology.systems_biology import DynamicFBASystem
+        >>> [system.label for system in DynamicFBASystem().prepare().system_.systems]
         ['fba', 'culture']
     """
-    if approach not in APPROACHES:
-        error_msg = f'Unknown approach {approach!r}. Use one of {", ".join(APPROACHES)}.'
-        raise ValidationError(error_msg)
-    cell = load_network('textbook', 'cell', needed_by='dynamic_fba')
-    cell.parsimonious, cell.infeasible = True, 'zero'
-    amounts = [BiomassElement('biomass', x=biomass), SubstrateElement('glucose', c=glucose)]
-    static = approach == 'static'
-    cell_path = 'fba/cell' if static else 'cell'
-    biomass_path = 'culture/biomass' if static else 'biomass'
-    interactions = [
-        ExchangeInteraction(
-            'uptake',
-            cell=cell_path,
-            biomass=biomass_path,
-            substrate='culture/glucose' if static else 'glucose',
-            reaction=GLUCOSE_EXCHANGE,
-            vmax=vmax,
-            km=km,
-            interval=interval if static else None,
-        ),
-        GrowthInteraction('growth', cell=cell_path, biomass=biomass_path, reaction=GROWTH),
-    ]
-    if static:
-        return System(
-            systems=[System('fba', elements=[cell], time=DiscreteTime()), System('culture', elements=amounts)],
-            interactions=interactions,
+
+    field = 'biology/systems_biology'
+    topics = ('dynamic flux balance', 'linear program', 'metabolism', 'batch culture', 'co-simulation')
+    references = ('Raman 2021', 'Mahadevan et al. 2002', 'Varma and Palsson 1994')
+    until = 10.0
+    dt = SYNCHRONISATION
+
+    def __init__(
+        self,
+        approach: str = 'static',
+        *,
+        biomass: float = 0.01,
+        glucose: float = 10.0,
+        vmax: float = 10.0,
+        km: float = 0.015,
+        interval: float = SYNCHRONISATION,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.approach = approach
+        self.biomass = biomass
+        self.glucose = glucose
+        self.vmax = vmax
+        self.km = km
+        self.interval = interval
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings, with the solver of the approach and the synchronisation interval.
+
+        Returns:
+            settings:
+                The tuned run settings by name.
+        """
+        settings = super().get_run_settings()
+        settings['solver'] = (
+            CoSimulationSolver(sync_dt=self.interval, solvers={'culture': RK4Solver(dt=ODE_STEP)})
+            if self.approach == 'static'
+            else RK4Solver(dt=ODE_STEP)
         )
-    return System(elements=[cell, *amounts], interactions=interactions)
+        return settings
+
+    def _build_system(self) -> System:
+        """Return the parts of a batch culture of the E. coli core system, which needs the extra `metabolism`."""
+        if self.approach not in APPROACHES:
+            error_msg = f'Unknown approach {self.approach!r}. Use one of {", ".join(APPROACHES)}.'
+            raise ValidationError(error_msg)
+        cell = load_network('textbook', 'cell', needed_by='dynamic_fba')
+        cell.parsimonious, cell.infeasible = True, 'zero'
+        amounts = [BiomassElement('biomass', x=self.biomass), SubstrateElement('glucose', c=self.glucose)]
+        static = self.approach == 'static'
+        cell_path = 'fba/cell' if static else 'cell'
+        biomass_path = 'culture/biomass' if static else 'biomass'
+        interactions = [
+            ExchangeInteraction(
+                'uptake',
+                cell=cell_path,
+                biomass=biomass_path,
+                substrate='culture/glucose' if static else 'glucose',
+                reaction=GLUCOSE_EXCHANGE,
+                vmax=self.vmax,
+                km=self.km,
+                interval=self.interval if static else None,
+            ),
+            GrowthInteraction('growth', cell=cell_path, biomass=biomass_path, reaction=GROWTH),
+        ]
+        if static:
+            return System(
+                self.label,
+                systems=[System('fba', elements=[cell], time=DiscreteTime()), System('culture', elements=amounts)],
+                interactions=interactions,
+            )
+        return System(self.label, elements=[cell, *amounts], interactions=interactions)

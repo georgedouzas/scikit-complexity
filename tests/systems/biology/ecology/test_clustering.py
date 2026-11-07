@@ -5,9 +5,8 @@ import pytest
 from scipy.integrate import solve_ivp
 
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems import describe
-from skcomplex.systems.biology.ecology import neutral_clustering
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.biology.ecology import NeutralClusteringSystem
 
 
 def _expected_sample_variance(sites, alpha, beta, n, times):
@@ -27,18 +26,15 @@ def _expected_sample_variance(sites, alpha, beta, n, times):
 
 def test_neutral_clustering_variance_grows_linearly_without_hops():
     """Test that without hops the variance over 400 patches, averaged over six runs, grows as 2 alpha n t."""
-    system = neutral_clustering(400, n=10.0, alpha=1.0, beta=0.0)
+    system = NeutralClusteringSystem(400, n=10.0, alpha=1.0, beta=0.0)
     runs = [
-        Simulation(
+        simulate(
             system,
             dt=2.0,
             random_state=seed,
             backend=NumbaBackend(),
-            observables=describe('neutral_clustering').observables_of(system),
+            until=10,
         )
-        .prepare()
-        .run(until=10)
-        .trajectory_
         for seed in range(6)
     ]
     times = runs[0].times
@@ -49,18 +45,15 @@ def test_neutral_clustering_variance_grows_linearly_without_hops():
 def test_neutral_clustering_hops_slow_but_keep_the_clustering():
     """Test that hops on a ring give the variance of the exact moment equations, which grows below 2 alpha n t."""
     sites, until = 64, 20.0
-    system = neutral_clustering(sites, n=10.0, alpha=1.0, beta=1.0)
+    system = NeutralClusteringSystem(sites, n=10.0, alpha=1.0, beta=1.0)
     variances = [
-        Simulation(
+        simulate(
             system,
             dt=5.0,
             random_state=seed,
             backend=NumbaBackend(),
-            observables=describe('neutral_clustering').observables_of(system),
-        )
-        .prepare()
-        .run(until=until)
-        .trajectory_.values('variance')
+            until=until,
+        ).values('variance')
         for seed in range(32)
     ]
     times = np.arange(0.0, until + 1, 5.0)

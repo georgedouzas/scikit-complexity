@@ -5,14 +5,14 @@ import pytest
 from skcomplex.core.components.spaces import StaticTime
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems.biology.common.metabolism import (
     ReactionSpec,
     load_network,
     metabolic_network_type,
 )
-from skcomplex.systems.biology.systems_biology import flux_balance, metabolic_perturbations
+from skcomplex.systems.biology.systems_biology import FluxBalanceSystem, MetabolicPerturbationsSystem
 
 
 def _core_system(**values):
@@ -22,7 +22,7 @@ def _core_system(**values):
 
 def _objective(system):
     """Return the objective of the only program of a static system."""
-    trajectory = Simulation(system).prepare().run(0.0).trajectory_
+    trajectory = simulate(system, until=0.0)
     return float(trajectory.values('cell.objective_0')[0])
 
 
@@ -48,6 +48,9 @@ def test_network_rejects_a_rule_with_another_operator():
 
 def test_network_keeps_its_reference_values():
     """Test the toy and core networks against the values recorded before they moved to declared states."""
-    trajectory = Simulation(flux_balance()).prepare().run(0.0).trajectory_
+    trajectory = simulate(FluxBalanceSystem(), until=0.0)
     assert float(trajectory.values('cell.v_vbio')[0]) == pytest.approx(50.0, rel=1e-9)
-    assert _objective(metabolic_perturbations(genes=('b4025',))) == pytest.approx(0.8631595522084183, rel=1e-9)
+    assert _objective(MetabolicPerturbationsSystem(genes=('b4025',)).prepare().system_) == pytest.approx(
+        0.8631595522084183,
+        rel=1e-9,
+    )

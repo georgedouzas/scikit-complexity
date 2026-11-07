@@ -15,9 +15,8 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, EquationLaw
 from ....core.components.laws.utils import where
 from ....core.components.spaces import NetworkSpace, StaticTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class BranchingVesselElement(Element):
@@ -68,6 +67,8 @@ class BranchingVesselElement(Element):
         3.0
     """
 
+    law_classes = (EquationLaw,)
+
     def __init__(
         self,
         label: str,
@@ -114,29 +115,16 @@ class BranchingVesselElement(Element):
         ]
 
 
-def _network_totals(system: System) -> list[ObservableSpec]:
-    """Return the blood volume and the number of capillaries of the network."""
-    return [
-        ObservableSpec('blood_volume', group='vessels', variable='volume', reduce='sum'),
-        ObservableSpec('capillaries', group='vessels', variable='terminal', reduce='sum'),
-    ]
-
-
-@register_system(
-    field='biology/physiology',
-    tags=('allometry', 'kleiber law', 'fractal network', 'static', 'metabolic scaling'),
-    references=('West, Brown, and Enquist 1997', 'Ribeiro and Netto 2024'),
-    observables=_network_totals,
-)
-def west_brown_enquist(depth: int = 6, *, n: int = 2, r_c: float = 1.0, l_c: float = 1.0) -> System:
-    """Return the distribution network of West, Brown, and Enquist, a space-filling tree of invariant capillaries.
+class WestBrownEnquistSystem(BaseSystem):
+    """The distribution network of West, Brown, and Enquist, a space-filling tree of invariant capillaries.
 
     The tree branches `n` ways at every level down to the capillaries at level `depth`. The metabolic rate is
     proportional to the number of capillaries, `n^depth`, and the body mass to the blood volume, which the
     area-preserving and space-filling vessels make `V = pi r_c^2 l_c n^depth (n^(depth / 3) - 1) / (n^(1 / 3) - 1)`,
     which grows as `n^(4 depth / 3)` for deep trees. So the metabolic rate scales as the mass to the power 3/4,
     Kleiber's law, which the exponent between consecutive depths approaches from below. An `Experiment` over `depth`
-    fits it.
+    fits it. The system has the radii `vessels.r`, lengths `vessels.l`, and volumes `vessels.volume` on the edges of the
+    tree and the observables `blood_volume` and `capillaries` of the catalog, which a run passes in `observables`.
 
     Args:
         depth:
@@ -151,32 +139,55 @@ def west_brown_enquist(depth: int = 6, *, n: int = 2, r_c: float = 1.0, l_c: flo
         l_c:
             The length of a capillary.
 
-    Returns:
-        system:
-            The system, with the radii `vessels.r`, lengths `vessels.l`, and volumes `vessels.volume` on the edges of
-            the tree and the observables `blood_volume` and `capillaries` of the catalog, which a run passes in
-            `observables`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.physiology import west_brown_enquist
-        >>> west_brown_enquist(3).elements[0].prepare().size_
+        >>> from skcomplex.systems.biology.physiology import WestBrownEnquistSystem
+        >>> WestBrownEnquistSystem(3).prepare().system_.elements[0].prepare().size_
         14
     """
-    graph = nx.balanced_tree(n, depth)
-    space = NetworkSpace(graph).prepare()
-    _, children = space.edges_[None]
-    levels = nx.single_source_shortest_path_length(graph, 0)
-    vessels = GroupElement(
-        'vessels',
-        element=BranchingVesselElement,
-        space=space,
-        on='edges',
-        values={
-            'level': np.array([levels[int(child)] for child in children], dtype=float),
-            'depth': float(depth),
-            'n': float(n),
-            'r_c': r_c,
-            'l_c': l_c,
-        },
+
+    field = 'biology/physiology'
+    topics = ('allometry', 'kleiber law', 'fractal network', 'static', 'metabolic scaling')
+    references = ('West, Brown, and Enquist 1997', 'Ribeiro and Netto 2024')
+    observables = (
+        ObservableSpec('blood_volume', group='vessels', variable='volume', reduce='sum'),
+        ObservableSpec('capillaries', group='vessels', variable='terminal', reduce='sum'),
     )
-    return System(elements=[vessels], space=space, time=StaticTime())
+
+    def __init__(
+        self,
+        depth: int = 6,
+        *,
+        n: int = 2,
+        r_c: float = 1.0,
+        l_c: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.depth = depth
+        self.n = n
+        self.r_c = r_c
+        self.l_c = l_c
+
+    def _build_system(self) -> System:
+        """Return the parts of the distribution network of West."""
+        graph = nx.balanced_tree(self.n, self.depth)
+        space = NetworkSpace(graph).prepare()
+        _, children = space.edges_[None]
+        levels = nx.single_source_shortest_path_length(graph, 0)
+        vessels = GroupElement(
+            'vessels',
+            element=BranchingVesselElement,
+            space=space,
+            on='edges',
+            values={
+                'level': np.array([levels[int(child)] for child in children], dtype=float),
+                'depth': float(self.depth),
+                'n': float(self.n),
+                'r_c': self.r_c,
+                'l_c': self.l_c,
+            },
+        )
+        return System(self.label, elements=[vessels], space=space, time=StaticTime())

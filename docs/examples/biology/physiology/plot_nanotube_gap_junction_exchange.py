@@ -9,8 +9,8 @@ and dark where it has faded.
 """
 
 # %%
-# The system is created by name from the catalog on a modular Erdős-Rényi network of 100 cells like the default, with
-# the metabolism `alpha = 1`, `beta = 10`, and the gap junctions `g = 0.1`. The critical strength `xi_crit` of the
+# The system is built from its class on a modular Erdős-Rényi network of 100 cells like the default, with the
+# metabolism `alpha = 1`, `beta = 10`, and the gap junctions `g = 0.1`. The critical strength `xi_crit` of the
 # nanotubes is where the largest eigenvalue of `xi A - g L` reaches `alpha / beta`, found by root finding, and the run
 # sets `xi = 1.2 xi_crit`. The observer saves every second frame with the default blueprint, whose primary view is the
 # network colored by the concentrations.
@@ -20,9 +20,9 @@ import networkx as nx
 import numpy as np
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.physiology import NanotubeGapJunctionExchangeSystem
 
 SYSTEM = 'nanotube_gap_junction_exchange'
 
@@ -37,9 +37,12 @@ def leading_rate(xi):
 
 
 critical = brentq(leading_rate, 0.0, 1.0)
-system = create_system(SYSTEM, graph=graph, xi=1.2 * critical)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.5, observers=[observer], random_state=0).prepare().run(until=100)
+trajectory = simulate(
+    NanotubeGapJunctionExchangeSystem(graph=graph, xi=1.2 * critical),
+    observers=[observer],
+    random_state=0,
+)
 
 # %%
 # Distance to instability
@@ -58,8 +61,8 @@ spectrum.set_ylabel('leading eigenvalue of the Jacobian')
 spectrum.set_title('Distance to instability')
 spectrum.legend()
 for share in (0.0, 0.8, 1.0, 1.2):
-    run = Simulation(create_system(SYSTEM, graph=graph, xi=share * critical, x=0.01), dt=0.5).prepare().run(until=100)
-    totals.semilogy(run.trajectory_.times, run.trajectory_.values('cells.x').sum(axis=1), label=f'xi = {share} xi_crit')
+    run = simulate(NanotubeGapJunctionExchangeSystem(graph=graph, xi=share * critical, x=0.01))
+    totals.semilogy(run.times, run.values('cells.x').sum(axis=1), label=f'xi = {share} xi_crit')
 totals.set_xlabel('time')
 totals.set_ylabel('total substance')
 totals.set_title('Decay below and growth above the threshold')

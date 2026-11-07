@@ -14,13 +14,12 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, LatticeElement
 from ....core.components.interactions import TransitionInteraction
-from ....core.components.laws import BaseLaw
+from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import total
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
-from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
+from ....core.components.system import BaseSystem, RunSettings, System
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, Tags, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class LocusElement(Element):
@@ -96,6 +95,12 @@ class SubstitutionInteraction(TransitionInteraction):
         >>> SubstitutionInteraction('substitution', target='genome', N=50.0).N
         50.0
     """
+
+    law_classes = (JumpLaw,)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the jumps at a rate, the only laws of the interaction."""
+        return self._get_variant_tags(self.law_classes)
 
     def __init__(
         self,
@@ -186,30 +191,16 @@ def _walk_observables(system: System) -> list[ObservableSpec]:
     ]
 
 
-@register_system(
-    field='biology/evolution',
-    tags=('population genetics', 'fitness landscape', 'jump process', 'fixation', 'strong selection weak mutation'),
-    references=('Bertin 2021', 'Sella and Hirsh 2005', 'Drossel 2001'),
-    defaults={'until': 640.0, 'dt': 10.0},
-    observables=_walk_observables,
-)
-def origin_fixation_walk(
-    loci: int = 96,
-    *,
-    N: float = 100.0,
-    mu: float = 0.01,
-    field: float = 0.01,
-    coupling: float = 0.0,
-    F0: float = 1.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return a monomorphic population that climbs a fitness landscape as mutants arise and fix one at a time.
+class OriginFixationWalkSystem(BaseSystem):
+    """A monomorphic population that climbs a fitness landscape as mutants arise and fix one at a time.
 
-    Under strong selection and weak mutation the population carries one genome of `loci` alleles `-1` or `1`, and
-    every substitution of a mutant moves it to a neighbouring genome. The walk climbs the landscape and settles on the
-    stationary distribution `Q ~ f^(N - 1)`, a Boltzmann distribution of the energy `-ln f` at the temperature
-    `1 / (N - 1)`. Random fields alone, `coupling = 0`, give a landscape with one peak. Couplings `J_ij` of variance
-    `coupling^2 / loci` give the rugged landscape of a spin glass, where a small population escapes local peaks.
+    Under strong selection and weak mutation the population carries one genome of `loci` alleles `-1` or `1`, and every
+    substitution of a mutant moves it to a neighbouring genome. The walk climbs the landscape and settles on the
+    stationary distribution `Q ~ f^(N - 1)`, a Boltzmann distribution of the energy `-ln f` at the temperature `1 / (N -
+    1)`. Random fields alone, `coupling = 0`, give a landscape with one peak. Couplings `J_ij` of variance `coupling^2 /
+    loci` give the rugged landscape of a spin glass, where a small population escapes local peaks. The system has the
+    alleles `genome.s` on a one-dimensional lattice of loci, starting from the genome of all `-1`, and the fitness
+    `fitness` of the genome.
 
     Args:
         loci:
@@ -221,7 +212,7 @@ def origin_fixation_walk(
         mu:
             The rate at which one locus of an individual mutates.
 
-        field:
+        field_scale:
             The standard deviation of the random fields `h_i`.
 
         coupling:
@@ -234,28 +225,77 @@ def origin_fixation_walk(
         random_state:
             The seed or generator of the fields and couplings.
 
-    Returns:
-        system:
-            The system, with the alleles `genome.s` on a one-dimensional lattice of loci, starting from the genome of
-            all `-1`, and the fitness `fitness` of the genome.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.evolution import origin_fixation_walk
-        >>> origin_fixation_walk(8).elements[0].prepare().size_
+        >>> from skcomplex.systems.biology.evolution import OriginFixationWalkSystem
+        >>> OriginFixationWalkSystem(8).prepare().system_.elements[0].prepare().size_
         8
     """
-    rng = np.random.default_rng(random_state)
-    fields = rng.normal(0.0, field, loci)
-    upper = np.triu(rng.normal(0.0, coupling / np.sqrt(loci), (loci, loci)), 1)
-    matrix = upper + upper.T
-    couplings = matrix if coupling else None
-    genome = LatticeElement(
-        'genome',
-        element=LocusElement,
-        space=LatticeSpace(loci),
-        values={'s': -np.ones(loci), 'h': fields},
-    )
-    return System(
-        elements=[genome],
-        interactions=[SubstitutionInteraction('substitution', target='genome', N=N, mu=mu, F0=F0, couplings=couplings)],
-    )
+
+    field = 'biology/evolution'
+    topics = ('population genetics', 'fitness landscape', 'jump process', 'fixation', 'strong selection weak mutation')
+    references = ('Bertin 2021', 'Sella and Hirsh 2005', 'Drossel 2001')
+    until = 640.0
+    dt = 10.0
+
+    def __init__(
+        self,
+        loci: int = 96,
+        *,
+        N: float = 100.0,
+        mu: float = 0.01,
+        field_scale: float = 0.01,
+        coupling: float = 0.0,
+        F0: float = 1.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.loci = loci
+        self.N = N
+        self.mu = mu
+        self.field_scale = field_scale
+        self.coupling = coupling
+        self.F0 = F0
+        self.random_state = random_state
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings, with the shares and the fitness of the genome of the built parts.
+
+        Returns:
+            settings:
+                The tuned run settings by name.
+        """
+        settings = super().get_run_settings()
+        settings['observables'] = _walk_observables(self._build_system())
+        return settings
+
+    def _build_system(self) -> System:
+        """Return the parts of a monomorphic population."""
+        rng = np.random.default_rng(self.random_state)
+        fields = rng.normal(0.0, self.field_scale, self.loci)
+        upper = np.triu(rng.normal(0.0, self.coupling / np.sqrt(self.loci), (self.loci, self.loci)), 1)
+        matrix = upper + upper.T
+        couplings = matrix if self.coupling else None
+        genome = LatticeElement(
+            'genome',
+            element=LocusElement,
+            space=LatticeSpace(self.loci),
+            values={'s': -np.ones(self.loci), 'h': fields},
+        )
+        return System(
+            self.label,
+            elements=[genome],
+            interactions=[
+                SubstitutionInteraction(
+                    'substitution',
+                    target='genome',
+                    N=self.N,
+                    mu=self.mu,
+                    F0=self.F0,
+                    couplings=couplings,
+                ),
+            ],
+        )

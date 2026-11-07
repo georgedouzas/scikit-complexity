@@ -14,10 +14,9 @@ from ....core.components.elements import Element, GroupElement, LatticeElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.laws.utils import total
 from ....core.components.spaces import LatticeSpace, VonNeumannNeighborhood
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 from ..common.populations import ReplicatorInteraction
 
 NEAREST = VonNeumannNeighborhood()
@@ -88,33 +87,14 @@ class StrategyElement(Element):
         self.x = x
 
 
-def _invade(strategy: Array, *around: Array, random: Array) -> Array:
-    """Return the strategy of every site after a random neighbour that beats it invades it."""
-    choice = np.minimum((random * len(around)).astype(int), len(around) - 1)
-    neighbor = np.choose(choice, np.stack(around))
-    beaten = neighbor == np.mod(strategy + 1, STRATEGIES)
-    return np.where(beaten, neighbor, strategy)
+class ReplicatorDynamicsSystem(BaseSystem):
+    """The replicator dynamics of a game, by default hawks and doves, which settle at a share `V / C` of hawks.
 
-
-@register_system(
-    field='biology/evolution',
-    tags=('evolutionary game', 'replicator', 'ode', 'game theory'),
-    references=('Taylor and Jonker 1978', 'Maynard Smith 1982', 'Gros 2015', 'Szabó and Fáth 2007'),
-    defaults={'until': 30.0, 'dt': 0.1},
-)
-def replicator_dynamics(
-    x: Sequence[float] | None = None,
-    *,
-    payoff: Sequence[Sequence[float]] | None = None,
-    V: float = 2.0,
-    C: float = 3.0,
-) -> System:
-    """Return the replicator dynamics of a game, by default hawks and doves, which settle at a share `V / C` of hawks.
-
-    Every strategy is a member of the group `population`, and it grows with its payoff above the mean payoff. The
-    hawks and doves game has the payoff matrix `((V - C) / 2, V), (0, V / 2)` with hawks first. When the cost of a fight
-    `C` exceeds the value `V`, hawks and doves coexist with `V / C` hawks, and otherwise hawks take over. A payoff
-    matrix gives any other game, such as the prisoner's dilemma or rock, paper, scissors.
+    Every strategy is a member of the group `population`, and it grows with its payoff above the mean payoff. The hawks
+    and doves game has the payoff matrix `((V - C) / 2, V), (0, V / 2)` with hawks first. When the cost of a fight `C`
+    exceeds the value `V`, hawks and doves coexist with `V / C` hawks, and otherwise hawks take over. A payoff matrix
+    gives any other game, such as the prisoner's dilemma or rock, paper, scissors. The system has the shares
+    `population.x` of the strategies, hawks first.
 
     Args:
         x:
@@ -129,43 +109,61 @@ def replicator_dynamics(
         C:
             The cost of a fight between hawks.
 
-    Returns:
-        system:
-            The system, with the shares `population.x` of the strategies, hawks first.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.evolution import replicator_dynamics
-        >>> replicator_dynamics(payoff=((0, -1, 1), (1, 0, -1), (-1, 1, 0))).elements[0].prepare().size_
+        >>> from skcomplex.systems.biology.evolution import ReplicatorDynamicsSystem
+        >>> system = ReplicatorDynamicsSystem(payoff=((0, -1, 1), (1, 0, -1), (-1, 1, 0))).prepare().system_
+        >>> system.elements[0].prepare().size_
         3
     """
-    matrix = (((V - C) / 2, V), (0.0, V / 2)) if payoff is None else tuple(tuple(row) for row in payoff)
-    strategies = len(matrix)
-    shares = [1 / strategies] * strategies if x is None else list(x)
-    population = GroupElement('population', element=StrategyElement, size=strategies, values={'x': shares})
-    weights = np.asarray(matrix, dtype=float)
-    replication = ReplicatorInteraction(
-        'replication',
-        target='population',
-        fitness=lambda s: total(s.target.x, weights=weights),
-    )
-    return System(elements=[population], interactions=[replication])
+
+    field = 'biology/evolution'
+    topics = ('evolutionary game', 'replicator', 'ode', 'game theory')
+    references = ('Taylor and Jonker 1978', 'Maynard Smith 1982', 'Gros 2015', 'Szabó and Fáth 2007')
+    until = 30.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        x: Sequence[float] | None = None,
+        *,
+        payoff: Sequence[Sequence[float]] | None = None,
+        V: float = 2.0,
+        C: float = 3.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.payoff = payoff
+        self.V = V
+        self.C = C
+
+    def _build_system(self) -> System:
+        """Return the parts of the replicator dynamics of a game."""
+        matrix = (
+            (((self.V - self.C) / 2, self.V), (0.0, self.V / 2))
+            if self.payoff is None
+            else tuple(tuple(row) for row in self.payoff)
+        )
+        strategies = len(matrix)
+        shares = [1 / strategies] * strategies if self.x is None else list(self.x)
+        population = GroupElement('population', element=StrategyElement, size=strategies, values={'x': shares})
+        weights = np.asarray(matrix, dtype=float)
+        replication = ReplicatorInteraction(
+            'replication',
+            target='population',
+            fitness=lambda s: total(s.target.x, weights=weights),
+        )
+        return System(self.label, elements=[population], interactions=[replication])
 
 
-@register_system(
-    field='biology/evolution',
-    tags=('evolutionary game', 'lattice', 'cyclic dominance', 'spirals', 'stochastic'),
-    references=('Szabó and Fáth 2007', 'Reichenbach, Mobilia, and Frey 2007'),
-    defaults={'until': 100, 'dt': 1},
-)
-def rock_paper_scissors(
-    shape: Sequence[int] = (60, 60),
-    *,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return rock, paper, and scissors on a lattice, whose cyclic invasions keep the three strategies coexisting.
+class RockPaperScissorsSystem(BaseSystem):
+    """Rock, paper, and scissors on a lattice, whose cyclic invasions keep the three strategies coexisting.
 
-    Starting from random strategies, the strategies chase each other in domains and fronts, and each keeps about a
-    third of the lattice.
+    Starting from random strategies, the strategies chase each other in domains and fronts, and each keeps about a third
+    of the lattice. The system has the strategies `lattice.strategy`.
 
     Args:
         shape:
@@ -174,34 +172,64 @@ def rock_paper_scissors(
         random_state:
             The seed or generator of the initial strategies.
 
-    Returns:
-        system:
-            The system, with the strategies `lattice.strategy`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.evolution import rock_paper_scissors
-        >>> rock_paper_scissors((10, 10)).elements[0].prepare().size_
+        >>> from skcomplex.systems.biology.evolution import RockPaperScissorsSystem
+        >>> RockPaperScissorsSystem((10, 10)).prepare().system_.elements[0].prepare().size_
         100
     """
-    strategies = np.random.default_rng(random_state).integers(0, STRATEGIES, size=tuple(shape)).astype(float)
-    return System(
-        elements=[
-            LatticeElement(
-                'lattice',
-                element=CyclicSpeciesElement,
-                space=LatticeSpace(tuple(shape)),
-                values={'strategy': strategies},
-            ),
-        ],
-        interactions=[
-            LocalRuleInteraction(
-                'invasion',
-                target='lattice',
-                state='strategy',
-                rule=_invade,
-                neighborhood=NEAREST,
-                schedule='random-sequential',
-                stochastic=True,
-            ),
-        ],
-    )
+
+    field = 'biology/evolution'
+    topics = ('evolutionary game', 'lattice', 'cyclic dominance', 'spirals', 'stochastic')
+    references = ('Szabó and Fáth 2007', 'Reichenbach, Mobilia, and Frey 2007')
+    until = 100
+    dt = 1
+
+    def __init__(
+        self,
+        shape: Sequence[int] = (60, 60),
+        *,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.random_state = random_state
+
+    @staticmethod
+    def _invade(strategy: Array, *around: Array, random: Array) -> Array:
+        """Return the strategy of every site after a random neighbour that beats it invades it."""
+        choice = np.minimum((random * len(around)).astype(int), len(around) - 1)
+        neighbor = np.choose(choice, np.stack(around))
+        beaten = neighbor == np.mod(strategy + 1, STRATEGIES)
+        return np.where(beaten, neighbor, strategy)
+
+    def _build_system(self) -> System:
+        """Return the parts of rock, paper, and scissors on a lattice."""
+        strategies = (
+            np.random.default_rng(self.random_state).integers(0, STRATEGIES, size=tuple(self.shape)).astype(float)
+        )
+        return System(
+            self.label,
+            elements=[
+                LatticeElement(
+                    'lattice',
+                    element=CyclicSpeciesElement,
+                    space=LatticeSpace(tuple(self.shape)),
+                    values={'strategy': strategies},
+                ),
+            ],
+            interactions=[
+                LocalRuleInteraction(
+                    'invasion',
+                    target='lattice',
+                    state='strategy',
+                    rule=self._invade,
+                    neighborhood=NEAREST,
+                    schedule='random-sequential',
+                    stochastic=True,
+                ),
+            ],
+        )

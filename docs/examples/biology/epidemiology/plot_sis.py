@@ -13,15 +13,14 @@ individual, so the level fluctuates.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.epidemiology import SISSystem
 
 SYSTEM = 'sis'
 
-system = create_system(SYSTEM, stochastic=True)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer], random_state=0).prepare().run(until=100)
+trajectory = simulate(SISSystem(stochastic=True), observers=[observer], random_state=0)
 
 # %%
 # Logistic growth of the infected
@@ -29,7 +28,6 @@ simulation = Simulation(system, dt=1.0, observers=[observer], random_state=0).pr
 # With `S = N - I`, the infected follow the logistic law `dI/dt = (beta N - gamma) I (1 - I / I*)` with
 # `I* = N - gamma / beta`. The random run should follow the deterministic curve and fluctuate around `I*`.
 
-trajectory = simulation.trajectory_
 beta, gamma, total, i0 = 0.0003, 0.1, 1000.0, 10.0
 rate, level = beta * total - gamma, total - gamma / beta
 logistic = level / (1 + (level / i0 - 1) * np.exp(-rate * trajectory.times))

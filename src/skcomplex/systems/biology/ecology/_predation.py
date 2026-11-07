@@ -12,12 +12,11 @@ from sage.all__sagemath_symbolics import Expression, exp, oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.interactions import Interaction, JumpInteraction, RateInteraction
-from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
+from ....core.components.laws import BaseLaw, JumpLaw, RateLaw, UpdateLaw
 from ....core.components.laws.utils import clip
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ParameterSpec, RoleSpec
-from ..._catalog import register_system
 from ..common.populations import (
     ExponentialGrowthInteraction,
     MortalityInteraction,
@@ -56,6 +55,8 @@ class ParasitismInteraction(Interaction):
         >>> ParasitismInteraction('parasitism', host='moths', parasitoid='wasps', k=2.0).k
         2.0
     """
+
+    law_classes = (UpdateLaw,)
 
     def __init__(
         self,
@@ -133,6 +134,8 @@ class PredatorPreyEventsInteraction(Interaction):
         >>> PredatorPreyEventsInteraction('events', prey='voles', predators='weasels', K=200.0).K
         200.0
     """
+
+    law_classes = (JumpLaw, RateLaw)
 
     def __init__(
         self,
@@ -233,6 +236,8 @@ class RosenzweigMacArthurInteraction(Interaction):
         0.01
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -271,23 +276,8 @@ class RosenzweigMacArthurInteraction(Interaction):
         return [RateLaw(x, (x * (1 - crowding * x) - feeding) / s.kappa), RateLaw(y, feeding - y)]
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('predator-prey', 'ode', 'tipping', 'rate-induced tipping', 'slow-fast'),
-    references=('Rosenzweig and MacArthur 1963', 'Datseris and Parlitz 2022'),
-    defaults={'until': 150.0, 'dt': 0.5, 'solver': ScipyODESolver(rtol=1e-8, atol=1e-300)},
-)
-def rosenzweig_macarthur(
-    prey: float | None = None,
-    predators: float | None = None,
-    *,
-    kappa: float = 0.01,
-    eta: float = 0.8,
-    phi: float | None = None,
-    phi_end: float | None = None,
-    rate: float = 0.002,
-) -> System:
-    """Return fast prey and slow predators whose carrying capacity shrinks at a rate, which tips them when it is fast.
+class RosenzweigMacarthurSystem(BaseSystem):
+    """Fast prey and slow predators whose carrying capacity shrinks at a rate, which tips them when it is fast.
 
     By default the crowding rises from `eta (1 - eta) / (1 + eta)` to `1 - eta`, the range where the coexistence point
     at `x = 1 / (1 - eta)` is stable, and the run starts there. A slow rise lets the populations track the point, and a
@@ -295,7 +285,8 @@ def rosenzweig_macarthur(
 
     In a collapse the prey fall to about `1e-30`, far below any absolute tolerance, and an error of either sign there
     decides whether they return or, below zero, run into the pole of the feeding at `x = -1 / eta`. The registered
-    solver therefore controls the relative error only, with `ScipyODESolver(rtol=1e-8, atol=1e-300)`.
+    solver therefore controls the relative error only, with `ScipyODESolver(rtol=1e-8, atol=1e-300)`. The system has the
+    populations `prey` and `predators`.
 
     Args:
         prey:
@@ -319,53 +310,76 @@ def rosenzweig_macarthur(
         rate:
             The rate at which the crowding rises.
 
-    Returns:
-        system:
-            The system, with the populations `prey` and `predators`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import rosenzweig_macarthur
-        >>> round(rosenzweig_macarthur().elements[0].n, 6)
+        >>> from skcomplex.systems.biology.ecology import RosenzweigMacarthurSystem
+        >>> round(RosenzweigMacarthurSystem().prepare().system_.elements[0].n, 6)
         5.0
     """
-    phi = eta * (1 - eta) / (1 + eta) if phi is None else phi
-    phi_end = 1 - eta if phi_end is None else phi_end
-    prey = 1 / (1 - eta) if prey is None else prey
-    predators = (1 - phi * prey) * (1 + eta * prey) if predators is None else predators
-    return System(
-        elements=[PopulationElement('prey', n=prey), PopulationElement('predators', n=predators)],
-        interactions=[
-            RosenzweigMacArthurInteraction(
-                'predation',
-                prey='prey',
-                predators='predators',
-                kappa=kappa,
-                eta=eta,
-                phi=phi,
-                phi_end=phi_end,
-                rate=rate,
-            ),
-        ],
-    )
+
+    field = 'biology/ecology'
+    topics = ('predator-prey', 'ode', 'tipping', 'rate-induced tipping', 'slow-fast')
+    references = ('Rosenzweig and MacArthur 1963', 'Datseris and Parlitz 2022')
+    until = 150.0
+    dt = 0.5
+    solver = ScipyODESolver(rtol=1e-8, atol=1e-300)
+
+    def __init__(
+        self,
+        prey: float | None = None,
+        predators: float | None = None,
+        *,
+        kappa: float = 0.01,
+        eta: float = 0.8,
+        phi: float | None = None,
+        phi_end: float | None = None,
+        rate: float = 0.002,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.prey = prey
+        self.predators = predators
+        self.kappa = kappa
+        self.eta = eta
+        self.phi = phi
+        self.phi_end = phi_end
+        self.rate = rate
+
+    def _build_system(self) -> System:
+        """Return the parts of fast prey and slow predators whose carrying capacity shrinks at a rate."""
+        prey = self.prey
+        predators = self.predators
+        phi = self.phi
+        phi_end = self.phi_end
+        phi = self.eta * (1 - self.eta) / (1 + self.eta) if phi is None else phi
+        phi_end = 1 - self.eta if phi_end is None else phi_end
+        prey = 1 / (1 - self.eta) if prey is None else prey
+        predators = (1 - phi * prey) * (1 + self.eta * prey) if predators is None else predators
+        return System(
+            self.label,
+            elements=[PopulationElement('prey', n=prey), PopulationElement('predators', n=predators)],
+            interactions=[
+                RosenzweigMacArthurInteraction(
+                    'predation',
+                    prey='prey',
+                    predators='predators',
+                    kappa=self.kappa,
+                    eta=self.eta,
+                    phi=phi,
+                    phi_end=phi_end,
+                    rate=self.rate,
+                ),
+            ],
+        )
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('host-parasitoid', 'discrete map', 'oscillation'),
-    references=('Nicholson and Bailey 1935', 'Argun et al. 2021'),
-    defaults={'until': 30, 'dt': 1},
-)
-def nicholson_bailey(
-    hosts: float = 25.0,
-    parasitoids: float = 10.0,
-    *,
-    k: float = 2.0,
-    a: float = 0.05,
-    c: float = 1.0,
-) -> System:
-    """Return hosts and parasitoids in discrete generations, whose equilibrium is unstable to growing oscillations.
+class NicholsonBaileySystem(BaseSystem):
+    """Hosts and parasitoids in discrete generations, whose equilibrium is unstable to growing oscillations.
 
-    The equilibrium is `H = k ln k / ((k - 1) a c)` and `P = ln k / a`.
+    The equilibrium is `H = k ln k / ((k - 1) a c)` and `P = ln k / a`. The system has the populations `hosts` and
+    `parasitoids`.
 
     Args:
         hosts:
@@ -383,43 +397,62 @@ def nicholson_bailey(
         c:
             The number of viable eggs a parasitoid lays in a host.
 
-    Returns:
-        system:
-            The system, with the populations `hosts` and `parasitoids`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import nicholson_bailey
-        >>> nicholson_bailey(k=3.0).interactions[0].k
+        >>> from skcomplex.systems.biology.ecology import NicholsonBaileySystem
+        >>> NicholsonBaileySystem(k=3.0).prepare().system_.interactions[0].k
         3.0
     """
-    return System(
-        elements=[PopulationElement('hosts', n=hosts), PopulationElement('parasitoids', n=parasitoids)],
-        interactions=[ParasitismInteraction('parasitism', host='hosts', parasitoid='parasitoids', k=k, a=a, c=c)],
-    )
+
+    field = 'biology/ecology'
+    topics = ('host-parasitoid', 'discrete map', 'oscillation')
+    references = ('Nicholson and Bailey 1935', 'Argun et al. 2021')
+    until = 30
+    dt = 1
+
+    def __init__(
+        self,
+        hosts: float = 25.0,
+        parasitoids: float = 10.0,
+        *,
+        k: float = 2.0,
+        a: float = 0.05,
+        c: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.hosts = hosts
+        self.parasitoids = parasitoids
+        self.k = k
+        self.a = a
+        self.c = c
+
+    def _build_system(self) -> System:
+        """Return the parts of hosts and parasitoids in discrete generations."""
+        return System(
+            self.label,
+            elements=[PopulationElement('hosts', n=self.hosts), PopulationElement('parasitoids', n=self.parasitoids)],
+            interactions=[
+                ParasitismInteraction(
+                    'parasitism',
+                    host='hosts',
+                    parasitoid='parasitoids',
+                    k=self.k,
+                    a=self.a,
+                    c=self.c,
+                ),
+            ],
+        )
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('predator-prey', 'ode', 'harvesting', 'oscillation'),
-    references=('Volterra 1926', 'Trzaska 2023'),
-    defaults={'until': 50.0, 'dt': 0.1},
-)
-def lotka_volterra_with_harvesting(
-    prey: float = 16.0,
-    predators: float = 8.0,
-    *,
-    r: float = 1.0,
-    a: float = 0.1,
-    b: float = 0.05,
-    d: float = 0.5,
-    prey_harvest: float = 0.4,
-    predator_harvest: float = 0.4,
-) -> System:
-    """Return Lotka-Volterra predation where both species are harvested with a constant effort.
+class LotkaVolterraWithHarvestingSystem(BaseSystem):
+    """Lotka-Volterra predation where both species are harvested with a constant effort.
 
     The populations cycle around `prey = (d + predator_harvest) / b` and `predators = (r - prey_harvest) / a`, which are
     also their averages over a cycle. Harvesting raises the average prey and lowers the average predators, and a prey
-    harvest above `r` drives the predators extinct.
+    harvest above `r` drives the predators extinct. The system has the populations `prey` and `predators`.
 
     Args:
         prey:
@@ -446,50 +479,66 @@ def lotka_volterra_with_harvesting(
         predator_harvest:
             The harvesting effort on the predators.
 
-    Returns:
-        system:
-            The system, with the populations `prey` and `predators`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import lotka_volterra_with_harvesting
-        >>> [interaction.label for interaction in lotka_volterra_with_harvesting().interactions][-2:]
+        >>> from skcomplex.systems.biology.ecology import LotkaVolterraWithHarvestingSystem
+        >>> system = LotkaVolterraWithHarvestingSystem().prepare().system_
+        >>> [interaction.label for interaction in system.interactions][-2:]
         ['prey_harvest', 'predator_harvest']
     """
-    return System(
-        elements=[PopulationElement('prey', n=prey), PopulationElement('predators', n=predators)],
-        interactions=[
-            ExponentialGrowthInteraction('growth', target='prey', r=r),
-            PredationInteraction('predation', predator='predators', prey='prey', a=a, b=b),
-            MortalityInteraction('death', target='predators', d=d),
-            MortalityInteraction('prey_harvest', target='prey', d=prey_harvest),
-            MortalityInteraction('predator_harvest', target='predators', d=predator_harvest),
-        ],
-    )
+
+    field = 'biology/ecology'
+    topics = ('predator-prey', 'ode', 'harvesting', 'oscillation')
+    references = ('Volterra 1926', 'Trzaska 2023')
+    until = 50.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        prey: float = 16.0,
+        predators: float = 8.0,
+        *,
+        r: float = 1.0,
+        a: float = 0.1,
+        b: float = 0.05,
+        d: float = 0.5,
+        prey_harvest: float = 0.4,
+        predator_harvest: float = 0.4,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.prey = prey
+        self.predators = predators
+        self.r = r
+        self.a = a
+        self.b = b
+        self.d = d
+        self.prey_harvest = prey_harvest
+        self.predator_harvest = predator_harvest
+
+    def _build_system(self) -> System:
+        """Return the parts of Lotka-Volterra predation where both species are harvested with a constant effort."""
+        return System(
+            self.label,
+            elements=[PopulationElement('prey', n=self.prey), PopulationElement('predators', n=self.predators)],
+            interactions=[
+                ExponentialGrowthInteraction('growth', target='prey', r=self.r),
+                PredationInteraction('predation', predator='predators', prey='prey', a=self.a, b=self.b),
+                MortalityInteraction('death', target='predators', d=self.d),
+                MortalityInteraction('prey_harvest', target='prey', d=self.prey_harvest),
+                MortalityInteraction('predator_harvest', target='predators', d=self.predator_harvest),
+            ],
+        )
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('predator-prey', 'jump process', 'gillespie', 'paradox of enrichment'),
-    references=('Carmichael and Hadžikadić 2019', 'Rosenzweig 1971'),
-    defaults={'until': 100.0, 'dt': 0.5},
-)
-def stochastic_predator_prey(
-    prey: float = 200.0,
-    predators: float = 200.0,
-    *,
-    r: float = 1.0,
-    K: float = 600.0,
-    a: float = 0.005,
-    h: float = 0.5,
-    e: float = 0.5,
-    m: float = 0.3,
-    stochastic: bool = True,
-) -> System:
-    """Return prey and predators born and killed one at a time, with crowding of the prey and saturating predation.
+class StochasticPredatorPreySystem(BaseSystem):
+    """Prey and predators born and killed one at a time, with crowding of the prey and saturating predation.
 
-    The deterministic limit has the coexistence point `x = m / (a (e - m h))`. It is stable while
-    `K < 2 x + 1 / (a h)`, and enriching the prey beyond that turns it into large cycles, which demographic noise drives
-    to extinction.
+    The deterministic limit has the coexistence point `x = m / (a (e - m h))`. It is stable while `K < 2 x + 1 / (a h)`,
+    and enriching the prey beyond that turns it into large cycles, which demographic noise drives to extinction. The
+    system has the populations `prey` and `predators`.
 
     Args:
         prey:
@@ -519,29 +568,63 @@ def stochastic_predator_prey(
         stochastic:
             Whether births, deaths, and kills are random events.
 
-    Returns:
-        system:
-            The system, with the populations `prey` and `predators`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import stochastic_predator_prey
-        >>> stochastic_predator_prey(K=1000.0).interactions[0].K
+        >>> from skcomplex.systems.biology.ecology import StochasticPredatorPreySystem
+        >>> StochasticPredatorPreySystem(K=1000.0).prepare().system_.interactions[0].K
         1000.0
     """
-    return System(
-        elements=[PopulationElement('prey', n=prey), PopulationElement('predators', n=predators)],
-        interactions=[
-            PredatorPreyEventsInteraction(
-                'events',
-                prey='prey',
-                predators='predators',
-                r=r,
-                K=K,
-                a=a,
-                h=h,
-                e=e,
-                m=m,
-                stochastic=stochastic,
-            ),
-        ],
-    )
+
+    field = 'biology/ecology'
+    topics = ('predator-prey', 'jump process', 'gillespie', 'paradox of enrichment')
+    references = ('Carmichael and Hadžikadić 2019', 'Rosenzweig 1971')
+    until = 100.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        prey: float = 200.0,
+        predators: float = 200.0,
+        *,
+        r: float = 1.0,
+        K: float = 600.0,
+        a: float = 0.005,
+        h: float = 0.5,
+        e: float = 0.5,
+        m: float = 0.3,
+        stochastic: bool = True,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.prey = prey
+        self.predators = predators
+        self.r = r
+        self.K = K
+        self.a = a
+        self.h = h
+        self.e = e
+        self.m = m
+        self.stochastic = stochastic
+
+    def _build_system(self) -> System:
+        """Return the parts of prey and predators born and killed one at a time."""
+        return System(
+            self.label,
+            elements=[PopulationElement('prey', n=self.prey), PopulationElement('predators', n=self.predators)],
+            interactions=[
+                PredatorPreyEventsInteraction(
+                    'events',
+                    prey='prey',
+                    predators='predators',
+                    r=self.r,
+                    K=self.K,
+                    a=self.a,
+                    h=self.h,
+                    e=self.e,
+                    m=self.m,
+                    stochastic=self.stochastic,
+                ),
+            ],
+        )

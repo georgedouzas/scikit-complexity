@@ -12,9 +12,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec
-from ..._catalog import register_system
 from ..common.populations import (
     LogisticGrowthInteraction,
     MortalityInteraction,
@@ -75,6 +74,8 @@ class CompetitionInteraction(Interaction):
         >>> CompetitionInteraction('competition', first='deer', second='elk', alpha12=0.5).alpha12
         0.5
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -148,6 +149,8 @@ class MutualismInteraction(Interaction):
         0.5
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -184,28 +187,12 @@ class MutualismInteraction(Interaction):
         ]
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('competition', 'ode', 'exclusion'),
-    references=('Lotka 1925', 'Volterra 1926', 'Argun et al. 2021'),
-    defaults={'until': 50.0, 'dt': 0.1},
-)
-def competition(
-    first: float = 10.0,
-    second: float = 10.0,
-    *,
-    r1: float = 1.0,
-    r2: float = 0.8,
-    K1: float = 100.0,
-    K2: float = 80.0,
-    alpha12: float = 0.5,
-    alpha21: float = 0.6,
-) -> System:
-    """Return two species that compete for the same resources, which coexist or exclude each other.
+class CompetitionSystem(BaseSystem):
+    """Two species that compete for the same resources, which coexist or exclude each other.
 
-    The species coexist at `n1 = (K1 - alpha12 K2) / (1 - alpha12 alpha21)` and
-    `n2 = (K2 - alpha21 K1) / (1 - alpha12 alpha21)` when both are positive and `alpha12 alpha21 < 1`. Otherwise one
-    species excludes the other.
+    The species coexist at `n1 = (K1 - alpha12 K2) / (1 - alpha12 alpha21)` and `n2 = (K2 - alpha21 K1) / (1 - alpha12
+    alpha21)` when both are positive and `alpha12 alpha21 < 1`. Otherwise one species excludes the other. The system has
+    the populations `first` and `second`.
 
     Args:
         first:
@@ -232,55 +219,70 @@ def competition(
         alpha21:
             The effect of one member of the first population on the second, relative to one of its own.
 
-    Returns:
-        system:
-            The system, with the populations `first` and `second`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import competition
-        >>> competition(alpha12=0.2).interactions[0].alpha12
+        >>> from skcomplex.systems.biology.ecology import CompetitionSystem
+        >>> CompetitionSystem(alpha12=0.2).prepare().system_.interactions[0].alpha12
         0.2
     """
-    return System(
-        elements=[PopulationElement('first', n=first), PopulationElement('second', n=second)],
-        interactions=[
-            CompetitionInteraction(
-                'competition',
-                first='first',
-                second='second',
-                r1=r1,
-                r2=r2,
-                K1=K1,
-                K2=K2,
-                alpha12=alpha12,
-                alpha21=alpha21,
-            ),
-        ],
-    )
+
+    field = 'biology/ecology'
+    topics = ('competition', 'ode', 'exclusion')
+    references = ('Lotka 1925', 'Volterra 1926', 'Argun et al. 2021')
+    until = 50.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        first: float = 10.0,
+        second: float = 10.0,
+        *,
+        r1: float = 1.0,
+        r2: float = 0.8,
+        K1: float = 100.0,
+        K2: float = 80.0,
+        alpha12: float = 0.5,
+        alpha21: float = 0.6,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.first = first
+        self.second = second
+        self.r1 = r1
+        self.r2 = r2
+        self.K1 = K1
+        self.K2 = K2
+        self.alpha12 = alpha12
+        self.alpha21 = alpha21
+
+    def _build_system(self) -> System:
+        """Return the parts of Two species that compete for the same resources, which coexist or exclude each other."""
+        return System(
+            self.label,
+            elements=[PopulationElement('first', n=self.first), PopulationElement('second', n=self.second)],
+            interactions=[
+                CompetitionInteraction(
+                    'competition',
+                    first='first',
+                    second='second',
+                    r1=self.r1,
+                    r2=self.r2,
+                    K1=self.K1,
+                    K2=self.K2,
+                    alpha12=self.alpha12,
+                    alpha21=self.alpha21,
+                ),
+            ],
+        )
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('mutualism', 'ode', 'handling time'),
-    references=('May 1981', 'Wright 1989', 'Argun et al. 2021'),
-    defaults={'until': 50.0, 'dt': 0.1},
-)
-def mutualism(
-    first: float = 10.0,
-    second: float = 10.0,
-    *,
-    r1: float = 1.0,
-    r2: float = 1.0,
-    K1: float = 50.0,
-    K2: float = 50.0,
-    a: float = 0.1,
-    b: float = 0.5,
-    handling: float = 0.5,
-) -> System:
-    """Return two species that grow logistically and feed each other, above their carrying capacities.
+class MutualismSystem(BaseSystem):
+    """Two species that grow logistically and feed each other, above their carrying capacities.
 
     With a positive handling time the benefit saturates and the populations settle above their capacities. Without it,
-    strong mutualism grows without bound.
+    strong mutualism grows without bound. The system has the populations `first` and `second`.
 
     Args:
         first:
@@ -310,42 +312,71 @@ def mutualism(
         handling:
             The handling time of the resource of the partner, 0 for type I mutualism.
 
-    Returns:
-        system:
-            The system, with the populations `first` and `second`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import mutualism
-        >>> [interaction.label for interaction in mutualism().interactions]
+        >>> from skcomplex.systems.biology.ecology import MutualismSystem
+        >>> [interaction.label for interaction in MutualismSystem().prepare().system_.interactions]
         ['growth_first', 'growth_second', 'mutualism']
     """
-    return System(
-        elements=[PopulationElement('first', n=first), PopulationElement('second', n=second)],
-        interactions=[
-            LogisticGrowthInteraction('growth_first', target='first', r=r1, K=K1),
-            LogisticGrowthInteraction('growth_second', target='second', r=r2, K=K2),
-            MutualismInteraction('mutualism', first='first', second='second', a=a, b=b, handling=handling),
-        ],
-    )
+
+    field = 'biology/ecology'
+    topics = ('mutualism', 'ode', 'handling time')
+    references = ('May 1981', 'Wright 1989', 'Argun et al. 2021')
+    until = 50.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        first: float = 10.0,
+        second: float = 10.0,
+        *,
+        r1: float = 1.0,
+        r2: float = 1.0,
+        K1: float = 50.0,
+        K2: float = 50.0,
+        a: float = 0.1,
+        b: float = 0.5,
+        handling: float = 0.5,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.first = first
+        self.second = second
+        self.r1 = r1
+        self.r2 = r2
+        self.K1 = K1
+        self.K2 = K2
+        self.a = a
+        self.b = b
+        self.handling = handling
+
+    def _build_system(self) -> System:
+        """Return the parts of two species that grow logistically and feed each other."""
+        return System(
+            self.label,
+            elements=[PopulationElement('first', n=self.first), PopulationElement('second', n=self.second)],
+            interactions=[
+                LogisticGrowthInteraction('growth_first', target='first', r=self.r1, K=self.K1),
+                LogisticGrowthInteraction('growth_second', target='second', r=self.r2, K=self.K2),
+                MutualismInteraction(
+                    'mutualism',
+                    first='first',
+                    second='second',
+                    a=self.a,
+                    b=self.b,
+                    handling=self.handling,
+                ),
+            ],
+        )
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('food web', 'predator-prey', 'ode'),
-    references=('Argun et al. 2021', 'Pimm 1982'),
-    defaults={'until': 100.0, 'dt': 0.5},
-)
-def food_webs(
-    populations: Mapping[str, float] | None = None,
-    *,
-    growth: Mapping[str, tuple[float, float]] | None = None,
-    mortality: Mapping[str, float] | None = None,
-    links: Sequence[tuple[str, str, float, float]] | None = None,
-) -> System:
-    """Return a food web where basal species grow logistically and consumers live on Lotka-Volterra predation.
+class FoodWebsSystem(BaseSystem):
+    """A food web where basal species grow logistically and consumers live on Lotka-Volterra predation.
 
-    The default web has frogs and mice at its base, snakes that eat frogs and mice, and hawks that eat snakes and
-    mice. Its four species coexist at a stable equilibrium.
+    The default web has frogs and mice at its base, snakes that eat frogs and mice, and hawks that eat snakes and mice.
+    Its four species coexist at a stable equilibrium. The system has one population per species.
 
     Args:
         populations:
@@ -361,28 +392,56 @@ def food_webs(
             The links `(predator, prey, a, b)`, with the attack rate `a` and the conversion rate `b`, or `None` for the
             default web.
 
-    Returns:
-        system:
-            The system, with one population per species.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import food_webs
-        >>> [element.label for element in food_webs().elements]
+        >>> from skcomplex.systems.biology.ecology import FoodWebsSystem
+        >>> [element.label for element in FoodWebsSystem().prepare().system_.elements]
         ['frogs', 'mice', 'snakes', 'hawks']
     """
-    populations = WEB_POPULATIONS if populations is None else populations
-    growth = WEB_GROWTH if growth is None else growth
-    mortality = WEB_MORTALITY if mortality is None else mortality
-    links = WEB_LINKS if links is None else links
-    interactions: list[BaseInteraction] = [
-        LogisticGrowthInteraction(f'growth_{name}', target=name, r=r, K=K) for name, (r, K) in growth.items()
-    ]
-    interactions += [MortalityInteraction(f'death_{name}', target=name, d=d) for name, d in mortality.items()]
-    interactions += [
-        PredationInteraction(f'{predator}_eat_{prey}', predator=predator, prey=prey, a=a, b=b)
-        for predator, prey, a, b in links
-    ]
-    return System(
-        elements=[PopulationElement(name, n=n) for name, n in populations.items()],
-        interactions=interactions,
-    )
+
+    field = 'biology/ecology'
+    topics = ('food web', 'predator-prey', 'ode')
+    references = ('Argun et al. 2021', 'Pimm 1982')
+    until = 100.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        populations: Mapping[str, float] | None = None,
+        *,
+        growth: Mapping[str, tuple[float, float]] | None = None,
+        mortality: Mapping[str, float] | None = None,
+        links: Sequence[tuple[str, str, float, float]] | None = None,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.populations = populations
+        self.growth = growth
+        self.mortality = mortality
+        self.links = links
+
+    def _build_system(self) -> System:
+        """Return the parts of a food web."""
+        populations = self.populations
+        growth = self.growth
+        mortality = self.mortality
+        links = self.links
+        populations = WEB_POPULATIONS if populations is None else populations
+        growth = WEB_GROWTH if growth is None else growth
+        mortality = WEB_MORTALITY if mortality is None else mortality
+        links = WEB_LINKS if links is None else links
+        interactions: list[BaseInteraction] = [
+            LogisticGrowthInteraction(f'growth_{name}', target=name, r=r, K=K) for name, (r, K) in growth.items()
+        ]
+        interactions += [MortalityInteraction(f'death_{name}', target=name, d=d) for name, d in mortality.items()]
+        interactions += [
+            PredationInteraction(f'{predator}_eat_{prey}', predator=predator, prey=prey, a=a, b=b)
+            for predator, prey, a, b in links
+        ]
+        return System(
+            self.label,
+            elements=[PopulationElement(name, n=n) for name, n in populations.items()],
+            interactions=interactions,
+        )

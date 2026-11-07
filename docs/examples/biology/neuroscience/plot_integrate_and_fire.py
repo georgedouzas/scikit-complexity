@@ -6,22 +6,21 @@ the potential reaches the threshold the neuron spikes and resets, which gives a 
 """
 
 # %%
-# The system is created by name from the catalog with an input that drives `R I = 20 mV`, above the 15 mV between rest
-# and threshold, and run for 100 ms. The observer saves every fourth frame with the default blueprint, whose primary
-# view is the time series of the potential.
+# The system is built from its class with an input that drives `R I = 20 mV`, above the 15 mV between rest and
+# threshold, and run for 100 ms. The observer saves every fourth frame with the default blueprint, whose primary view
+# is the time series of the potential.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.neuroscience import IntegrateAndFireSystem
 
 SYSTEM = 'integrate_and_fire'
 
-system = create_system(SYSTEM, I=2.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=100)
+trajectory = simulate(IntegrateAndFireSystem(I=2.0), observers=[observer])
 
 # %%
 # The firing-rate curve
@@ -33,7 +32,7 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 currents = np.linspace(1.0, 5.0, 17)
 rates = []
 for current in currents:
-    events = Simulation(create_system(SYSTEM, I=current), dt=0.1).prepare().run(until=200).trajectory_.events
+    events = simulate(IntegrateAndFireSystem(I=current), until=200).events
     rates.append(1000 * sum(event.label == 'spike' for event in events) / 200)
 grid = np.linspace(1.51, 5.0, 200)
 fig, ax = plt.subplots(figsize=(7, 4))

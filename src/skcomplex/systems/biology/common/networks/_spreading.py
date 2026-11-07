@@ -10,11 +10,11 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from .....core.components.interactions import TransitionInteraction
-from .....core.components.laws import BaseLaw
+from .....core.components.laws import BaseLaw, JumpLaw
 from .....core.components.laws.utils import neighbors, where
 from .....core.components.spaces import AdjacencyNeighborhood
 from .....core.errors import ValidationError
-from .....core.specs import ParameterSpec, RoleSpec
+from .....core.specs import ParameterSpec, RoleSpec, Tags
 
 FORMS = ('number', 'fraction')
 
@@ -73,6 +73,12 @@ class SpreadingInteraction(TransitionInteraction):
         >>> spreading.form
         'fraction'
     """
+
+    law_classes = (JumpLaw,)
+
+    def _get_tags(self) -> Tags:
+        """Return the tags of the jumps at a rate, the only laws of the interaction."""
+        return self._get_variant_tags(self.law_classes)
 
     def __init__(
         self,

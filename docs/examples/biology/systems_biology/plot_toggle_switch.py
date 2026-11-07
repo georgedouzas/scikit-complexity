@@ -6,21 +6,20 @@ stays on, and the cell remembers that choice.
 """
 
 # %%
-# The system is created by name from the catalog and started with the first protein ahead. The observer saves every
-# frame with the default blueprint, whose primary view is the time series of the mRNA and protein counts.
+# The system is built from its class and started with the first protein ahead. The observer saves every frame with the
+# default blueprint, whose primary view is the time series of the mRNA and protein counts.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.systems_biology import ToggleSwitchSystem
 
 SYSTEM = 'toggle_switch'
 
-system = create_system(SYSTEM, proteins=(60.0, 0.0))
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=100)
+trajectory = simulate(ToggleSwitchSystem(proteins=(60.0, 0.0)), observers=[observer])
 
 # %%
 # Two basins of attraction
@@ -32,9 +31,7 @@ grid = np.linspace(0, 120, 9)
 fig, ax = plt.subplots(figsize=(6, 5))
 for first in grid:
     for second in grid:
-        trajectory = (
-            Simulation(create_system(SYSTEM, proteins=(first, second)), dt=0.5).prepare().run(until=100).trajectory_
-        )
+        trajectory = simulate(ToggleSwitchSystem(proteins=(first, second)))
         winner = 'tab:blue' if trajectory.values('gene_0.p')[-1] > trajectory.values('gene_1.p')[-1] else 'tab:orange'
         ax.plot(trajectory.values('gene_0.p'), trajectory.values('gene_1.p'), color=winner, linewidth=0.6, alpha=0.7)
 ax.plot([0, 120], [0, 120], ':', color='black', label='equal start')

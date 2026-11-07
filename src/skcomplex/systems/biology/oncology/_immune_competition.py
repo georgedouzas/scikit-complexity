@@ -14,9 +14,8 @@ from ....core.components.elements import DensityElement, GroupElement
 from ....core.components.interactions import EncounterInteraction
 from ....core.components.laws.utils import moment
 from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, RunSettings, System
 from ....core.specs import ObservableSpec
-from ..._catalog import register_system
 
 IMMUNE_REFERENCES = ('Bellomo et al. 2017', 'Bellomo and Delitala 2008', 'Bellomo, Bellouquid, and Delitala 2004')
 
@@ -131,32 +130,17 @@ def immune_observables(classes: int) -> list[ObservableSpec]:
     ]
 
 
-@register_system(
-    field='biology/oncology',
-    tags=('tumour', 'immune', 'kinetic', 'distribution'),
-    references=IMMUNE_REFERENCES,
-    defaults={'until': 40, 'dt': 0.5},
-    observables=lambda system: immune_observables(_classes_of(system)),
-)
-def immune_competition(
-    classes: int = 5,
-    *,
-    activation: float = 0.75,
-    tumour: float = 0.05,
-    immune: float = 1.0,
-    growth: float = 0.3,
-    progression: float = 0.05,
-    kill: float = 1.0,
-    inhibition: float = 0.2,
-) -> System:
-    """Return the kinetic system of the competition between tumour cells and immune cells.
+class ImmuneCompetitionSystem(BaseSystem):
+    """The kinetic system of the competition between tumour cells and immune cells.
 
     Tumour cells and immune cells are distributions over activity classes, the progression of tumour cells and the
     activation of immune cells, held by site groups on a lattice of the classes. Tumour cells proliferate in the host
-    and progress, active immune cells destroy them, and tumour cells inhibit the activation of immune cells. The
-    tumour starts in the lowest progression class and the immune cells in the class nearest `activation`. While
-    `kill activation immune` exceeds `growth`, the immune response wins and the tumour density decays. Below that
-    threshold the tumour grows, inhibits the immune cells further, and escapes.
+    and progress, active immune cells destroy them, and tumour cells inhibit the activation of immune cells. The tumour
+    starts in the lowest progression class and the immune cells in the class nearest `activation`. While `kill
+    activation immune` exceeds `growth`, the immune response wins and the tumour density decays. Below that threshold
+    the tumour grows, inhibits the immune cells further, and escapes. The system has the distributions `tumour` and
+    `immune`, the host `host`, and the interactions `growth` and `competition`. Its standard observables are the tumour
+    density, the mean tumour progression, and the mean immune activation.
 
     Args:
         classes:
@@ -183,59 +167,112 @@ def immune_competition(
         inhibition:
             The rate at which the most progressed tumour cells inhibit immune cells.
 
-    Returns:
-        system:
-            The system, with the distributions `tumour` and `immune`, the host `host`, and the interactions `growth`
-            and `competition`. Its standard observables are the tumour density, the mean tumour progression, and the
-            mean immune activation.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.oncology import immune_competition
-        >>> [item.label for item in immune_competition().elements]
+        >>> from skcomplex.systems.biology.oncology import ImmuneCompetitionSystem
+        >>> [item.label for item in ImmuneCompetitionSystem().prepare().system_.elements]
         ['tumour', 'immune', 'host']
     """
-    activities = activity_grid(classes)
-    activation_rates = np.tile(activities, (classes, 1))
-    tumour_density = np.zeros(classes)
-    tumour_density[0] = tumour
-    immune_density = np.zeros(classes)
-    immune_density[int(np.argmin(np.abs(activities - activation)))] = immune
-    return System(
-        elements=[
-            GroupElement('tumour', element=DensityElement, size=classes, on='sites', values={'f': tumour_density}),
-            GroupElement('immune', element=DensityElement, size=classes, on='sites', values={'f': immune_density}),
-            GroupElement('host', element=DensityElement, size=1, values={'f': 1.0}),
-        ],
-        interactions=[
-            EncounterInteraction(
-                'proliferation',
-                candidate='tumour',
-                field='host',
-                rate=lambda _: growth,
-                outcome='proliferative',
-            ),
-            EncounterInteraction(
-                'progression',
-                candidate='tumour',
-                field='host',
-                rate=lambda _: progression,
-                kernel=lambda _: step_table(classes, 1),
-            ),
-            EncounterInteraction(
-                'destruction',
-                candidate='tumour',
-                field='immune',
-                rate=lambda _: activation_rates * kill,
-                outcome='destructive',
-            ),
-            EncounterInteraction(
-                'inhibition',
-                candidate='immune',
-                field='tumour',
-                rate=lambda _: activation_rates * inhibition,
-                kernel=lambda _: step_table(classes, -1, classes),
-            ),
-        ],
-        space=LatticeSpace(classes, boundary='fixed'),
-        time=ContinuousTime(),
-    )
+
+    field = 'biology/oncology'
+    topics = ('tumour', 'immune', 'kinetic', 'distribution')
+    references = IMMUNE_REFERENCES
+    until = 40
+    dt = 0.5
+
+    def __init__(
+        self,
+        classes: int = 5,
+        *,
+        activation: float = 0.75,
+        tumour: float = 0.05,
+        immune: float = 1.0,
+        growth: float = 0.3,
+        progression: float = 0.05,
+        kill: float = 1.0,
+        inhibition: float = 0.2,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.classes = classes
+        self.activation = activation
+        self.tumour = tumour
+        self.immune = immune
+        self.growth = growth
+        self.progression = progression
+        self.kill = kill
+        self.inhibition = inhibition
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings, with the tumour and immune observables of the built parts.
+
+        Returns:
+            settings:
+                The tuned run settings by name.
+        """
+        settings = super().get_run_settings()
+        settings['observables'] = immune_observables(_classes_of(self._build_system()))
+        return settings
+
+    def _build_system(self) -> System:
+        """Return the parts of the kinetic system of the competition between tumour cells and immune cells."""
+        activities = activity_grid(self.classes)
+        activation_rates = np.tile(activities, (self.classes, 1))
+        tumour_density = np.zeros(self.classes)
+        tumour_density[0] = self.tumour
+        immune_density = np.zeros(self.classes)
+        immune_density[int(np.argmin(np.abs(activities - self.activation)))] = self.immune
+        return System(
+            self.label,
+            elements=[
+                GroupElement(
+                    'tumour',
+                    element=DensityElement,
+                    size=self.classes,
+                    on='sites',
+                    values={'f': tumour_density},
+                ),
+                GroupElement(
+                    'immune',
+                    element=DensityElement,
+                    size=self.classes,
+                    on='sites',
+                    values={'f': immune_density},
+                ),
+                GroupElement('host', element=DensityElement, size=1, values={'f': 1.0}),
+            ],
+            interactions=[
+                EncounterInteraction(
+                    'proliferation',
+                    candidate='tumour',
+                    field='host',
+                    rate=lambda _: self.growth,
+                    outcome='proliferative',
+                ),
+                EncounterInteraction(
+                    'progression',
+                    candidate='tumour',
+                    field='host',
+                    rate=lambda _: self.progression,
+                    kernel=lambda _: step_table(self.classes, 1),
+                ),
+                EncounterInteraction(
+                    'destruction',
+                    candidate='tumour',
+                    field='immune',
+                    rate=lambda _: activation_rates * self.kill,
+                    outcome='destructive',
+                ),
+                EncounterInteraction(
+                    'inhibition',
+                    candidate='immune',
+                    field='tumour',
+                    rate=lambda _: activation_rates * self.inhibition,
+                    kernel=lambda _: step_table(self.classes, -1, self.classes),
+                ),
+            ],
+            space=LatticeSpace(self.classes, boundary='fixed'),
+            time=ContinuousTime(),
+        )

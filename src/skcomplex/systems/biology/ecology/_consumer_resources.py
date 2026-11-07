@@ -15,10 +15,9 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import total
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 KINDS = ('substitutable', 'essential')
 
@@ -234,6 +233,8 @@ class ConsumerGrowthInteraction(ConsumptionInteraction):
         ((1.0,),)
     """
 
+    law_classes = (RateLaw,)
+
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
         """Return the growth of the consumers.
 
@@ -296,6 +297,8 @@ class ResourceTurnoverInteraction(ConsumptionInteraction):
         'logistic'
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -349,30 +352,8 @@ class ResourceTurnoverInteraction(ConsumptionInteraction):
         return [RateLaw(R, renewal - depletion)]
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('consumer-resource', 'competitive exclusion', 'niche theory', 'ode'),
-    references=('MacArthur 1970', 'Tilman 1982', 'Mehta and Blumenthal 2024', 'Gros 2015'),
-    defaults={'until': 100.0, 'dt': 0.5},
-)
-def consumer_resource(
-    consumers: Sequence[float] | None = None,
-    resources: Sequence[float] | None = None,
-    *,
-    c: Sequence[Sequence[float]] = UPTAKE,
-    m: Sequence[float] | float = 1.0,
-    e: Sequence[float] | float = 1.0,
-    w: Sequence[float] | float = 1.0,
-    r: Sequence[float] | float = 1.0,
-    K: Sequence[float] | float = CAPACITIES,
-    kappa: Sequence[float] | float = CAPACITIES,
-    omega: Sequence[float] | float = 1.0,
-    supply: str = 'logistic',
-    kind: str = 'substitutable',
-    n: float = -10.0,
-    v: Sequence[Sequence[float]] | None = None,
-) -> System:
-    """Return consumer species that compete only through the resources they take up, by MacArthur's niche theory.
+class ConsumerResourceSystem(BaseSystem):
+    """Consumer species that compete only through the resources they take up, by MacArthur's niche theory.
 
     The `'logistic'` supply of substitutable resources is MacArthur's consumer-resource model, `dN_i/dt = e_i N_i
     (sum_b w_b c_ib R_b - m_i)` and `dR_a/dt = r_a R_a (K_a - R_a) / K_a - sum_j c_ja N_j R_a`. The `'chemostat'` supply
@@ -384,7 +365,8 @@ def consumer_resource(
 
     The competition for one resource of Gros (2015, exercise 8), `dx_i/dt = (f r_i - d) x_i` and `df/dt = a - f sum_i
     r_i x_i`, is the chemostat with one resource, `c = r`, `m = d`, `kappa = a`, and `omega = 0`. The total population
-    tends to `a / d`, the resource to `min_i d / r_i`, and only the consumer with the largest `r_i` survives.
+    tends to `a / d`, the resource to `min_i d / r_i`, and only the consumer with the largest `r_i` survives. The system
+    has the populations `consumers.N` and the resources `resources.R`.
 
     Args:
         consumers:
@@ -429,59 +411,112 @@ def consumer_resource(
         v:
             The stoichiometry of essential resources, one row per consumer, or `None` for `c`.
 
-    Returns:
-        system:
-            The system, with the populations `consumers.N` and the resources `resources.R`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The uptake rates are not one row per consumer with one column per resource.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import consumer_resource
-        >>> [group.prepare().size_ for group in consumer_resource().elements]
+        >>> from skcomplex.systems.biology.ecology import ConsumerResourceSystem
+        >>> [group.prepare().size_ for group in ConsumerResourceSystem().prepare().system_.elements]
         [2, 2]
     """
-    uptake = np.atleast_2d(np.asarray(c, dtype=float))
-    n_consumers, n_resources = uptake.shape
-    sizes = np.full(n_consumers, 0.1) if consumers is None else np.asarray(consumers, dtype=float)
-    supplied = K if supply == 'logistic' else kappa
-    abundances = np.asarray(resources if resources is not None else np.broadcast_to(supplied, n_resources), float)
-    if sizes.shape != (n_consumers,) or abundances.shape != (n_resources,):
-        error_msg = (
-            f'The uptake rates of shape {uptake.shape} need {n_consumers} initial populations and {n_resources} '
-            'initial resources.'
+
+    field = 'biology/ecology'
+    topics = ('consumer-resource', 'competitive exclusion', 'niche theory', 'ode')
+    references = ('MacArthur 1970', 'Tilman 1982', 'Mehta and Blumenthal 2024', 'Gros 2015')
+    until = 100.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        consumers: Sequence[float] | None = None,
+        resources: Sequence[float] | None = None,
+        *,
+        c: Sequence[Sequence[float]] = UPTAKE,
+        m: Sequence[float] | float = 1.0,
+        e: Sequence[float] | float = 1.0,
+        w: Sequence[float] | float = 1.0,
+        r: Sequence[float] | float = 1.0,
+        K: Sequence[float] | float = CAPACITIES,
+        kappa: Sequence[float] | float = CAPACITIES,
+        omega: Sequence[float] | float = 1.0,
+        supply: str = 'logistic',
+        kind: str = 'substitutable',
+        n: float = -10.0,
+        v: Sequence[Sequence[float]] | None = None,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.consumers = consumers
+        self.resources = resources
+        self.c = c
+        self.m = m
+        self.e = e
+        self.w = w
+        self.r = r
+        self.K = K
+        self.kappa = kappa
+        self.omega = omega
+        self.supply = supply
+        self.kind = kind
+        self.n = n
+        self.v = v
+
+    def _build_system(self) -> System:
+        """Return the parts of consumer species that compete only through the resources they take up."""
+        uptake = np.atleast_2d(np.asarray(self.c, dtype=float))
+        n_consumers, n_resources = uptake.shape
+        sizes = np.full(n_consumers, 0.1) if self.consumers is None else np.asarray(self.consumers, dtype=float)
+        supplied = self.K if self.supply == 'logistic' else self.kappa
+        abundances = np.asarray(
+            self.resources if self.resources is not None else np.broadcast_to(supplied, n_resources),
+            float,
         )
-        raise ValidationError(error_msg)
-    consumer_group = GroupElement(
-        'consumers',
-        element=ConsumerElement,
-        size=n_consumers,
-        values={'N': sizes, 'm': m, 'e': e},
-    )
-    resource_group = GroupElement(
-        'resources',
-        element=ResourceElement,
-        size=n_resources,
-        values={'R': np.array(abundances, dtype=float), 'w': w, 'r': r, 'K': K, 'kappa': kappa, 'omega': omega},
-    )
-    uptake_rates = tuple(map(tuple, uptake.tolist()))
-    growth = ConsumerGrowthInteraction(
-        'growth',
-        consumers='consumers',
-        resources='resources',
-        c=uptake_rates,
-        kind=kind,
-        n=n,
-    )
-    turnover = ResourceTurnoverInteraction(
-        'turnover',
-        consumers='consumers',
-        resources='resources',
-        c=uptake_rates,
-        kind=kind,
-        n=n,
-        supply=supply,
-        v=v,
-    )
-    return System(elements=[consumer_group, resource_group], interactions=[growth, turnover])
+        if sizes.shape != (n_consumers,) or abundances.shape != (n_resources,):
+            error_msg = (
+                f'The uptake rates of shape {uptake.shape} need {n_consumers} initial populations and {n_resources} '
+                'initial resources.'
+            )
+            raise ValidationError(error_msg)
+        consumer_group = GroupElement(
+            'consumers',
+            element=ConsumerElement,
+            size=n_consumers,
+            values={'N': sizes, 'm': self.m, 'e': self.e},
+        )
+        resource_group = GroupElement(
+            'resources',
+            element=ResourceElement,
+            size=n_resources,
+            values={
+                'R': np.array(abundances, dtype=float),
+                'w': self.w,
+                'r': self.r,
+                'K': self.K,
+                'kappa': self.kappa,
+                'omega': self.omega,
+            },
+        )
+        uptake_rates = tuple(map(tuple, uptake.tolist()))
+        growth = ConsumerGrowthInteraction(
+            'growth',
+            consumers='consumers',
+            resources='resources',
+            c=uptake_rates,
+            kind=self.kind,
+            n=self.n,
+        )
+        turnover = ResourceTurnoverInteraction(
+            'turnover',
+            consumers='consumers',
+            resources='resources',
+            c=uptake_rates,
+            kind=self.kind,
+            n=self.n,
+            supply=self.supply,
+            v=self.v,
+        )
+        return System(self.label, elements=[consumer_group, resource_group], interactions=[growth, turnover])

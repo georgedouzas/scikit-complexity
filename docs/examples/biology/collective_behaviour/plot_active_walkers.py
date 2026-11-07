@@ -6,21 +6,20 @@ are used, so instead of a lawn worn evenly a few shared trails emerge that bundl
 """
 
 # %%
-# The system is created by name from the catalog with twenty walkers on a green of 30 by 30 cells. The observer saves
-# every second step with the default blueprint, whose primary view is the image of the trails.
+# The system is built from its class with twenty walkers on a green of 30 by 30 cells. The observer saves every second
+# step with the default blueprint, whose primary view is the image of the trails.
 
 import matplotlib.pyplot as plt
 
 from skcomplex.core.analysis import distribution
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.collective_behaviour import ActiveWalkersSystem
 
 SYSTEM = 'active_walkers'
 
-system = create_system(SYSTEM, size=30, n_walkers=20, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=300)
+trajectory = simulate(ActiveWalkersSystem(size=30, n_walkers=20, random_state=0), observers=[observer], random_state=0)
 
 # %%
 # Trails concentrate the wear
@@ -28,7 +27,6 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 # If the walkers spread evenly the wear of the green would be uniform, with a Gini coefficient near zero. As the
 # trails form and the walkers share them, the Gini coefficient of the trail field should settle well above that.
 
-trajectory = simulation.trajectory_
 trails = trajectory.lattice('land/ground.G')
 concentration = [distribution(frame.ravel(), kind='gini').gini for frame in trails]
 fig, (image, inequality) = plt.subplots(1, 2, figsize=(11, 4.5))

@@ -15,16 +15,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import spearmanr
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
-from skcomplex.systems.biology.evolution import fold_sequence, neutral_network
+from skcomplex.systems.biology.evolution import RNANeutralNetworksSystem, fold_sequence, neutral_network
 
 SYSTEM = 'rna_neutral_networks'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-trajectory = Simulation(system, observers=[observer], random_state=0).prepare().run(until=299).trajectory_
+trajectory = simulate(RNANeutralNetworksSystem(), observers=[observer], random_state=0, until=299)
 
 # %%
 # Drift, robustness, and evolvability

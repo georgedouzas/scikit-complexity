@@ -7,23 +7,22 @@ are and draws them together.
 """
 
 # %%
-# The system is created by name from the catalog with the test of Bellomo et al. (2017, section 6.6.2), and integrated
-# with the implicit BDF method, since the turning rates are large. The observer saves every frame with the default
-# blueprint, whose primary view is the image of the cell density.
+# The system is built from its class with the test of Bellomo et al. (2017, section 6.6.2), and integrated with the
+# implicit BDF method, since the turning rates are large. The observer saves every frame with the default blueprint,
+# whose primary view is the image of the cell density.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.physiology import HyperbolicChemotaxisSystem
 
 SYSTEM = 'hyperbolic_chemotaxis'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = ScipyODESolver(method='BDF')
-simulation = Simulation(system, dt=0.0005, solver=solver, observers=[observer]).prepare().run(until=0.015)
+trajectory = simulate(HyperbolicChemotaxisSystem(), solver=solver, observers=[observer])
 
 # %%
 # Spreading with a conserved mass
@@ -31,7 +30,6 @@ simulation = Simulation(system, dt=0.0005, solver=solver, observers=[observer]).
 # The total cell mass should stay at `2 n0 = 0.5` while the peak density falls, and the chemical should grow where the
 # cells are.
 
-trajectory = simulation.trajectory_
 cells, chemical = trajectory.lattice('tissue.n'), trajectory.lattice('tissue.c')
 area = (0.8 / 40) ** 2
 fig, (start, end, mass) = plt.subplots(1, 3, figsize=(14, 4.2))

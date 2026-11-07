@@ -6,35 +6,30 @@ frame: from a uniform start, dense patches grow next to empty stretches, althoug
 """
 
 # %%
-# The system is created by name from the catalog with 10 organisms per patch, division and death at the rate 1, and
-# hops to each neighbour at the rate 0.5. The observer saves every second frame with the default blueprint, whose
-# primary view is the space-time image of the numbers of organisms, the oldest frame at the top.
+# The system is built from its class with 10 organisms per patch, division and death at the rate 1, and hops to each
+# neighbour at the rate 0.5. The observer saves every second frame with the default blueprint, whose primary view is
+# the space-time image of the numbers of organisms, the oldest frame at the top.
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import solve_ivp
 
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.biology.ecology import NeutralClusteringSystem
 
 SYSTEM = 'neutral_clustering'
 SITES, N, ALPHA, BETA = 128, 10.0, 1.0, 0.5
 
-system = create_system(SYSTEM, shape=SITES, n=N, alpha=ALPHA, beta=BETA)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = (
-    Simulation(
-        system,
-        dt=0.25,
-        backend=NumbaBackend(),
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=60)
+trajectory = simulate(
+    NeutralClusteringSystem(shape=SITES, n=N, alpha=ALPHA, beta=BETA),
+    until=60,
+    dt=0.25,
+    backend=NumbaBackend(),
+    observers=[observer],
+    random_state=0,
 )
 
 # %%
@@ -60,23 +55,17 @@ def expected_variance(times):
     return covariance[0] - covariance.mean(axis=0)
 
 
-times = simulation.trajectory_.times
-still = create_system(SYSTEM, shape=SITES, n=N, alpha=ALPHA, beta=0.0)
-isolated = (
-    Simulation(
-        still,
-        dt=0.25,
-        backend=NumbaBackend(),
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(still),
-    )
-    .prepare()
-    .run(until=60)
-    .trajectory_.values('variance')
-)
+times = trajectory.times
+isolated = simulate(
+    NeutralClusteringSystem(shape=SITES, n=N, alpha=ALPHA, beta=0.0),
+    until=60,
+    dt=0.25,
+    backend=NumbaBackend(),
+    random_state=0,
+).values('variance')
 
 fig, (growth, profile) = plt.subplots(1, 2, figsize=(10, 4))
-growth.plot(times, simulation.trajectory_.values('variance'), label='simulated, beta = 0.5')
+growth.plot(times, trajectory.values('variance'), label='simulated, beta = 0.5')
 growth.plot(times, expected_variance(times), color='black', label='moment equations, beta = 0.5')
 growth.plot(times, isolated, label='simulated, beta = 0')
 growth.plot(times, 2 * ALPHA * N * times, color='black', linestyle='--', label='2 alpha n t')
@@ -84,7 +73,7 @@ growth.set_xlabel('time')
 growth.set_ylabel('variance over the patches')
 growth.set_title('Hops slow the growth of the fluctuations')
 growth.legend()
-profile.bar(np.arange(SITES), simulation.trajectory_.values('patches.n')[-1], width=1.0)
+profile.bar(np.arange(SITES), trajectory.values('patches.n')[-1], width=1.0)
 profile.axhline(N, color='black', linestyle='--', label='mean')
 profile.set_xlabel('patch')
 profile.set_ylabel('organisms')

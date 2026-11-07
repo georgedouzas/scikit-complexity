@@ -8,23 +8,23 @@ import pytest
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import Simulation, simulate
 from skcomplex.systems.biology.collective_behaviour import (
+    BirdSwarmSystem,
     BoidElement,
+    Boids3dSystem,
+    BoidsSystem,
     FlightInteraction,
     FlockingInteraction,
     HeadingInteraction,
     SpatialBoidElement,
     SpatialFlightInteraction,
-    bird_swarm,
-    boids,
-    boids_3d,
 )
 
 
 def test_boids_align():
     """Test that boids starting with random headings become a polarized flock."""
-    simulation = Simulation(boids(), dt=1, random_state=0).prepare().run(until=100)
+    simulation = Simulation(BoidsSystem().prepare().system_, dt=1, random_state=0).prepare().run(until=100)
 
     def polarization(frame):
         snapshot = simulation.trajectory_.agents('flock', frame)
@@ -37,8 +37,8 @@ def test_boids_align():
 
 def test_boids_3d_align_in_three_dimensions():
     """Test that boids with only the alignment rule polarize and keep their spread over the depth of the box."""
-    system = boids_3d(50, cohesion=0.0, separation=0.0, alignment=0.1, random_state=0)
-    trajectory = Simulation(system, dt=1, random_state=0).prepare().run(until=200).trajectory_
+    system = Boids3dSystem(50, cohesion=0.0, separation=0.0, alignment=0.1, random_state=0).prepare().system_
+    trajectory = simulate(system, dt=1, random_state=0, until=200)
 
     def polarization(frame):
         velocity = trajectory.agents('flock', frame).values['velocity']
@@ -53,7 +53,7 @@ def test_boids_3d_align_in_three_dimensions():
 
 def test_bird_swarm_flies_together():
     """Test that the swarm reaches the speed `sqrt(alpha / beta)` and stays together."""
-    trajectory = Simulation(bird_swarm(), dt=0.5).prepare().run(until=50).trajectory_
+    trajectory = simulate(BirdSwarmSystem(), dt=0.5, until=50)
     positions, velocities = trajectory.values('birds.x')[-1], trajectory.values('birds.x_d1')[-1]
     speeds = np.hypot(velocities[:, 0], velocities[:, 1])
     assert np.median(speeds) == pytest.approx(math.sqrt(2.0), rel=0.1)
@@ -122,7 +122,7 @@ def test_flocking_interaction_steers_by_cohesion_and_separation_with_bounded_spe
         interactions=[FlockingInteraction('flocking', target='flock')],
         space=ContinuousSpace(extent=(30.0, 30.0), boundary='periodic'),
     )
-    snapshot = Simulation(system, random_state=0).prepare().run(until=1).trajectory_.agents('flock', 1)
+    snapshot = simulate(system, random_state=0, until=1).agents('flock', 1)
     found = np.stack([snapshot.values['vx'], snapshot.values['vy']], axis=1)
     pull = (0.1 - 0.5) * np.array([0.8, 0.0])
     steered = [np.array([0.5, 0.0]) + pull, np.array([0.0, 0.5]) - pull]
@@ -139,5 +139,5 @@ def test_flight_interaction_moves_boids_by_velocity_on_torus():
         interactions=[FlightInteraction('flight', target='flock')],
         space=ContinuousSpace(extent=(30.0, 30.0), boundary='periodic'),
     )
-    snapshot = Simulation(system, random_state=0).prepare().run(until=1).trajectory_.agents('flock', 1)
+    snapshot = simulate(system, random_state=0, until=1).agents('flock', 1)
     np.testing.assert_allclose(snapshot.locations, [[0.5, 1.5], [29.0, 2.0]])

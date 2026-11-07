@@ -13,7 +13,7 @@ from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.experiments import Experiment, RowsDesign
 from skcomplex.systems.biology.common.populations import PopulationElement
-from skcomplex.systems.biology.ecology import TripletInteraction, higher_order_random_lotka_volterra
+from skcomplex.systems.biology.ecology import HigherOrderRandomLotkaVolterraSystem, TripletInteraction
 
 from ..conftest import SYSTEMS_PRECISE, _run_with_solver
 
@@ -27,7 +27,12 @@ EXTINCT = 1e-6
 def test_higher_order_random_lotka_volterra_tensor_has_the_moments_of_the_paper():
     """Test that the coefficients have the moments of Sidhom and Galla, equation 4, and 0 on repeated indices."""
     size = 60
-    tensor = higher_order_random_lotka_volterra(size, mu=-4.0, sigma=1.0, gamma=0.0, random_state=0).interactions[1].a
+    tensor = (
+        HigherOrderRandomLotkaVolterraSystem(size, mu=-4.0, sigma=1.0, gamma=0.0, random_state=0)
+        .prepare()
+        .system_.interactions[1]
+        .a
+    )
     i, j, k = np.indices(tensor.shape)
     distinct = (i != j) & (i != k) & (j != k)
     pairs = comb(size - 1, 2)
@@ -41,7 +46,12 @@ def test_higher_order_random_lotka_volterra_tensor_has_the_moments_of_the_paper(
 def test_higher_order_random_lotka_volterra_tensor_has_the_correlation_of_the_paper(gamma):
     """Test that the coefficients of a set of three species have the correlation of Sidhom and Galla, equation 5."""
     size = 40
-    tensor = higher_order_random_lotka_volterra(size, mu=0.0, sigma=1.0, gamma=gamma, random_state=0).interactions[1].a
+    tensor = (
+        HigherOrderRandomLotkaVolterraSystem(size, mu=0.0, sigma=1.0, gamma=gamma, random_state=0)
+        .prepare()
+        .system_.interactions[1]
+        .a
+    )
     i, j, k = np.indices(tensor.shape)
     ordered = (i < j) & (j < k)
     correlation = np.corrcoef(tensor[i[ordered], j[ordered], k[ordered]], tensor[j[ordered], i[ordered], k[ordered]])
@@ -50,9 +60,9 @@ def test_higher_order_random_lotka_volterra_tensor_has_the_correlation_of_the_pa
 
 def test_higher_order_random_lotka_volterra_draws_repeat_with_a_seed():
     """Test that one seed repeats the tensor and the initial abundances, and another seed changes them."""
-    first = higher_order_random_lotka_volterra(10, random_state=3)
-    again = higher_order_random_lotka_volterra(10, random_state=3)
-    other = higher_order_random_lotka_volterra(10, random_state=4)
+    first = HigherOrderRandomLotkaVolterraSystem(10, random_state=3).prepare().system_
+    again = HigherOrderRandomLotkaVolterraSystem(10, random_state=3).prepare().system_
+    other = HigherOrderRandomLotkaVolterraSystem(10, random_state=4).prepare().system_
     np.testing.assert_array_equal(first.interactions[1].a, again.interactions[1].a)
     np.testing.assert_array_equal(first.elements[0].values['n'], again.elements[0].values['n'])
     assert not np.array_equal(first.interactions[1].a, other.interactions[1].a)
@@ -60,7 +70,7 @@ def test_higher_order_random_lotka_volterra_draws_repeat_with_a_seed():
 
 def test_higher_order_random_lotka_volterra_without_interactions_reaches_the_capacity():
     """Test that with a tensor of zeros every species converges to its carrying capacity within 1e-6."""
-    system = higher_order_random_lotka_volterra(8, mu=0.0, sigma=0.0, k=1.5)
+    system = HigherOrderRandomLotkaVolterraSystem(8, mu=0.0, sigma=0.0, k=1.5).prepare().system_
     assert np.all(system.interactions[1].a == 0)
     final = _run_with_solver(system, 40.0, 1.0, SYSTEMS_PRECISE).values('species.n')[-1]
     np.testing.assert_allclose(final, 1.5, atol=1e-6)
@@ -68,7 +78,7 @@ def test_higher_order_random_lotka_volterra_without_interactions_reaches_the_cap
 
 def test_higher_order_random_lotka_volterra_tensor_changes_by_an_experiment():
     """Test that an experiment sets the tensor parameter, so two tensors give different final abundances."""
-    system = higher_order_random_lotka_volterra(8)
+    system = HigherOrderRandomLotkaVolterraSystem(8).prepare().system_
     rows = [{'triplets.a': np.zeros((8, 8, 8))}, {'triplets.a': -np.ones((8, 8, 8))}]
     experiment = Experiment(system, RowsDesign(rows), until=20.0, dt=20.0, outputs=['species.n'])
     final = experiment.prepare().run().result_.series('species.n')[:, -1]
@@ -79,7 +89,7 @@ def test_higher_order_random_lotka_volterra_tensor_changes_by_an_experiment():
 @pytest.mark.slow
 def test_higher_order_random_lotka_volterra_random_community_matches_the_paper():
     """Test that 20 seeds stay finite, with the surviving fraction and mean abundance of the paper's theory."""
-    drawn = [higher_order_random_lotka_volterra(random_state=seed) for seed in range(20)]
+    drawn = [HigherOrderRandomLotkaVolterraSystem(random_state=seed).prepare().system_ for seed in range(20)]
     rows = [{'triplets.a': system.interactions[1].a, 'species.n': system.elements[0].values['n']} for system in drawn]
     solver = ScipyODESolver('RK45', rtol=1e-6, atol=1e-9)
     experiment = Experiment(drawn[0], RowsDesign(rows), until=1000.0, dt=1000.0, solver=solver, outputs=['species.n'])
