@@ -7,7 +7,7 @@ SHALL be bound by one helper in the role of `make_scorer`, which returns a calla
 experiment accepts.
 
 #### Scenario: Measuring a trajectory
-- **WHEN** a user calls `lyapunov_exponents(trajectory, states=['x', 'y', 'z'])`
+- **WHEN** a user calls `lyapunov(trajectory, kind='largest', variables=['x'])`
 - **THEN** it returns the exponents, with no object to prepare or run
 
 #### Scenario: Reusing settings

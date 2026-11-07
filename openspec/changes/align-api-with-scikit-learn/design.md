@@ -145,6 +145,95 @@ every changed gallery example, and ruff, black, docformatter `--check`, mypy, an
 `initial_state=...`) and observables built from the system (`observables=lambda system: ...`) have no class attribute
 form while `simulate` reads class attributes. Static observables become an `observables` tuple of `ObservableSpec`.
 
+
+## Analysis names
+
+Every analysis class became a function named after it in snake case without `Analysis`, with a clearer name where
+snake case reads badly or clashes (`CollapseAnalysis`, `DiscoveryAnalysis`, `FitAnalysis`, `NetworkAnalysis`,
+`OperatorAnalysis`, `ShapeAnalysis`, and some field realizations). The source is the first positional argument, the
+former constructor settings are keyword-only with the same defaults, and the function returns a frozen result whose
+fields are the former fitted attributes without the trailing underscore. A field that only some kinds set defaults to
+`None`. `bind_analysis(function, **settings)` returns a `functools.partial` that `Experiment` and other callers apply to
+a trajectory, and an experiment names its outputs `<function name>.<field>`. `BaseAnalysis` is removed: the readers of
+sources are private functions of `skcomplex.core.analysis._base`, and a system class that builds its parts is read as
+its prepared composite.
+
+| Old class | Function | Result |
+|---|---|---|
+| `AlignmentAnalysis` | `alignment` | `AlignmentResult` |
+| `AutocatalyticSetAnalysis` | `autocatalytic_sets` | `AutocatalyticSetsResult` |
+| `AutomatonAnalysis` | `automaton` | `AutomatonResult` |
+| `CellComplexAnalysis` | `cell_complex` | `CellComplexResult` |
+| `ClusterAnalysis` | `clusters` | `ClustersResult` |
+| `CoarseGrainAnalysis` | `coarse_grain` | `CoarseGrainResult` |
+| `CollapseAnalysis` | `data_collapse` | `DataCollapseResult` |
+| `ComplexityAnalysis` | `complexity` | `ComplexityResult` |
+| `CorrelationAnalysis` | `correlation` | `CorrelationResult` |
+| `DefectAnalysis` | `defects` | `DefectsResult` |
+| `DiscoveryAnalysis` | `applicable_analyses` | `ApplicableAnalysesResult` |
+| `DisplacementAnalysis` | `displacement` | `DisplacementResult` |
+| `DistributionAnalysis` | `distribution` | `DistributionResult` |
+| `DomainAnalysis` | `domains` | `DomainsResult` |
+| `ElementaryModeAnalysis` | `elementary_modes` | `ElementaryModesResult` |
+| `EmbeddingAnalysis` | `embedding` | `EmbeddingResult` |
+| `EmergenceAnalysis` | `emergence` | `EmergenceResult` |
+| `EntropyAnalysis` | `entropy` | `EntropyResult` |
+| `EpsilonMachineAnalysis` | `epsilon_machine` | `EpsilonMachineResult` |
+| `ErgodicityAnalysis` | `ergodicity` | `ErgodicityResult` |
+| `EventAnalysis` | `events` | `EventsResult` |
+| `FitAnalysis` | `fit_law` | `FitLawResult` |
+| `InformationAnalysis` | `information` | `InformationResult` |
+| `InvariantAnalysis` | `invariants` | `InvariantsResult` |
+| `IrreversibilityAnalysis` | `irreversibility` | `IrreversibilityResult` |
+| `KramersMoyalAnalysis` | `kramers_moyal` | `KramersMoyalResult` |
+| `LargeDeviationAnalysis` | `large_deviations` | `LargeDeviationsResult` |
+| `LinearizationAnalysis` | `linearization` | `LinearizationResult` |
+| `LocalInformationAnalysis` | `local_information` | `LocalInformationResult` |
+| `LoopAnalysis` | `loops` | `LoopsResult` |
+| `LyapunovAnalysis` | `lyapunov` | `LyapunovResult` |
+| `MarkovAnalysis` | `markov` | `MarkovResult` |
+| `ModeDecompositionAnalysis` | `mode_decomposition` | `ModeDecompositionResult` |
+| `MotifAnalysis` | `motifs` | `MotifsResult` |
+| `NeighborAnalysis` | `neighbors` | `NeighborsResult` |
+| `NetworkAnalysis` | `network_measures` | `NetworkMeasuresResult` |
+| `OperatorAnalysis` | `operator_measures` | `OperatorMeasuresResult` |
+| `PartialInformationAnalysis` | `partial_information` | `PartialInformationResult` |
+| `PassageAnalysis` | `passage` | `PassageResult` |
+| `RecurrenceAnalysis` | `recurrence` | `RecurrenceResult` |
+| `RenormalizationAnalysis` | `renormalization` | `RenormalizationResult` |
+| `ReservoirAnalysis` | `reservoir` | `ReservoirResult` |
+| `RollingAnalysis` | `rolling` | `RollingResult` |
+| `ScalingAnalysis` | `scaling` | `ScalingResult` |
+| `SectionAnalysis` | `section` | `SectionResult` |
+| `ShapeAnalysis` | `chain_shape` | `ChainShapeResult` |
+| `SignatureAnalysis` | `signatures` | `SignaturesResult` |
+| `SparseIdentificationAnalysis` | `sparse_identification` | `SparseIdentificationResult` |
+| `SpectrumAnalysis` | `spectrum` | `SpectrumResult` |
+| `StabilityAnalysis` | `stability` | `StabilityResult` |
+| `SurrogateTestAnalysis` | `surrogate_test` | `SurrogateTestResult` |
+| `SymbolicAnalysis` | `symbolic` | `SymbolicResult` |
+| `SensitivityAnalysis` (experiments) | `sensitivity` | `SensitivityResult` |
+
+Field realizations, which call the core functions with fixed settings or replace system analyses that subclassed
+`BaseAnalysis`:
+
+| Old class | Subfield of `skcomplex.systems` | Function | Result |
+|---|---|---|---|
+| `EarlyWarningAnalysis` | `physics.climate` | `early_warning` | `EarlyWarningResult` |
+| `CracklingNoiseAnalysis` | `physics.criticality` | `crackling_noise` | `CracklingNoiseResult` |
+| `KineticTemperatureAnalysis` | `physics.statistical_mechanics` | `kinetic_temperature` | `KineticTemperatureResult` |
+| `MaxwellBoltzmannAnalysis` | `physics.statistical_mechanics` | `maxwell_boltzmann` | `MaxwellBoltzmannResult` |
+| `SusceptibilityAnalysis` | `physics.statistical_mechanics` | `susceptibility` | `SusceptibilityResult` |
+| `GaugeAnalysis` | `physics.waves` | `gauge_observables` | `GaugeObservablesResult` |
+| `FuzzyOilDropAnalysis` | `biology.systems_biology` | `fuzzy_oil_drop_measures` | `FuzzyOilDropMeasuresResult` |
+| `LabellingAnalysis` | `biology.systems_biology` | `labelling` | `LabellingResult` |
+| `FluxVariabilityAnalysis` | `biology.common.metabolism` | `flux_variability` | `FluxVariabilityResult` |
+| `ProductionScanAnalysis` | `biology.common.metabolism` | `production_scan` | `ProductionScanResult` |
+| `CobraAnalysis` | `biology.common.metabolism` | `cobra_measures` | `CobraMeasuresResult` |
+| `StrainDesignAnalysis` | `biology.common.metabolism` | `strain_design` | `StrainDesignResult` |
+| `CommunityAnalysis` | `biology.common.metabolism` | `community_growth` | `CommunityGrowthResult` |
+| `NeutralNetworkAnalysis` | `biology.evolution` | `neutral_network` | `NeutralNetworkResult` |
+
 ## Risks / Trade-offs
 
 - **Size:** about fifty analyses, the experiments, the catalog, every gallery example, and most tests change. The work
