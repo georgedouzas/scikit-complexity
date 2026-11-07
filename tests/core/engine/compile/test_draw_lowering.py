@@ -3,6 +3,7 @@
 import time
 from typing import Annotated
 
+import networkx as nx
 import numpy as np
 import pytest
 import quantecon
@@ -10,15 +11,17 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
+from skcomplex.core.components.interactions import HyperedgeInteraction
 from skcomplex.core.components.laws import EmissionLaw, RateLaw, TransitionLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import bernoulli, categorical, normal, shift_member, total, uniform, where
+from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import IncompatibleLawsError, ParameterError, ValidationError
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 CHAIN = [[0.9, 0.1], [0.4, 0.6]]
 
@@ -206,6 +209,41 @@ class HiddenElement(Element):
         """Return the transition of the hidden state and the emission of the observed one."""
         laws = [TransitionLaw(s.h, CHAIN), EmissionLaw(s.o, s.h, EMISSION if self.emission is None else self.emission)]
         return laws if self.order == 1 else laws[::-1]
+
+
+class RegulatedElement(Element):
+    """Regulated element."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+
+
+class KeptRegulationInteraction(HyperedgeInteraction):
+    """Increment of the edge or the focal member of every hyperedge by its last member, kept with a drawn chance."""
+
+    def __init__(
+        self,
+        label: str,
+        nodes: Annotated[str, RoleSpec()],
+        links: Annotated[str, RoleSpec()],
+        part: str = 'edge',
+    ) -> None:
+        super().__init__(label)
+        self.nodes = nodes
+        self.links = links
+        self.part = part
+
+    def _get_laws(self, s):
+        """Return the increment of the edge or of the focal member."""
+        target = s.edge.x if self.part == 'edge' else s.member.x
+        return [UpdateLaw(target, target + bernoulli('kept', 0.5) * s.others[-1].x, increment=True)]
 
 
 def _run(system, until, backend=None, random_state=0):
@@ -441,6 +479,24 @@ def test_compiler_agrees_across_backends():
     system = System(elements=[GroupElement('m', element=mixed, size=50)])
     numpy, numba = _run(system, 300, NumpyBackend()), _run(system, 300, NumbaBackend())
     for name in ('m.x', 'm.k', 'm.b'):
+        assert np.allclose(numpy.values(name), numba.values(name), atol=1e-12)
+
+
+@pytest.mark.parametrize('part', ['edge', 'member'])
+def test_compiler_agrees_across_backends_on_draws_of_hyperedges_of_several_sizes(part):
+    """Test that a drawn increment over hyperedges of two sizes gives equal trajectories on NumPy and Numba."""
+    hyperedges = [(0, 1, 4), (1, 2, 5), (2, 3, 0), (3, 4, 1), (4, 5, 0, 2), (5, 0, 1, 3)]
+    space = NetworkSpace(nx.cycle_graph(6), hyperedges=hyperedges)
+    system = System(
+        elements=[
+            LatticeElement('nodes', element=RegulatedElement, space=space, values={'x': np.arange(1.0, 7.0)}),
+            GroupElement('links', element=RegulatedElement, space=space, on='edges'),
+        ],
+        interactions=[KeptRegulationInteraction('regulation', nodes='nodes', links='links', part=part)],
+        time=DiscreteTime(),
+    )
+    numpy, numba = _run(system, 10, NumpyBackend()), _run(system, 10, NumbaBackend())
+    for name in ('nodes.x', 'links.x'):
         assert np.allclose(numpy.values(name), numba.values(name), atol=1e-12)
 
 
