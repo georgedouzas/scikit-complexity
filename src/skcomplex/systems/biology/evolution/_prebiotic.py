@@ -260,7 +260,7 @@ class EigenQuasispeciesSystem(BaseSystem):
         return gained / self._mean_fitness(master)
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the shares of a population at every number of mutations from the master sequence."""
         labels = ['master', *(f'k{k}' for k in range(1, self.classes + 1))]
         elements = [
             MasterSequenceElement('master', x=1.0, u=self.u, sigma=self.sigma),
@@ -338,7 +338,7 @@ class HypercyclesSystem(BaseSystem):
         self.topology = topology
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a network of self-replicating molecules whose catalysis keeps a set of them alive."""
         if self.topology == 'cycle':
             links = np.roll(np.eye(self.molecules), 1, axis=0)
         elif self.topology == 'complete':

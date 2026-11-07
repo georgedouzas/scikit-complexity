@@ -222,7 +222,7 @@ class AdaptiveResponseCostsSystem(BaseSystem):
         self.period = period
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a system that meets recurring demands by stimulus-response."""
         if self.strategy not in STRATEGIES:
             error_msg = f'Unknown strategy {self.strategy!r}. Use one of {", ".join(STRATEGIES)}.'
             raise ValidationError(error_msg)

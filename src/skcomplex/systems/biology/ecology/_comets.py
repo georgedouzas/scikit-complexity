@@ -137,7 +137,7 @@ class CometsSystem(BaseSystem):
         self.interval = interval
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of an expanding colony of the E. coli core system on a lattice."""
         source = load_network('textbook', 'cell', needed_by='comets')
         plain = {name: replace(spec, rule='') for name, spec in source.reactions.items()}
         concentration = self.glucose / GLUCOSE_MOLAR_MASS * MMOL_PER_MOL

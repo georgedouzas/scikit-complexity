@@ -158,7 +158,7 @@ class HormoneCascadeAmplifierSystem(BaseSystem):
         self.width = width
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the adenylate cyclase cascade."""
         if len(self.alpha) != len(STAGES) or len(self.beta) != len(STAGES):
             error_msg = f'Give one activation and one inactivation rate per stage, {len(STAGES)} of each.'
             raise ValidationError(error_msg)

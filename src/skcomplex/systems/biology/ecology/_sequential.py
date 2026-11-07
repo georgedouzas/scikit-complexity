@@ -181,7 +181,7 @@ class SequentiallyLinearEcosystemSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of an ecosystem."""
         rng = np.random.default_rng(self.seed)
         graph = nx.DiGraph()
         graph.add_nodes_from(range(self.n))

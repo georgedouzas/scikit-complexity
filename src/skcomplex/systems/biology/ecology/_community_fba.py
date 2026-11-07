@@ -75,7 +75,7 @@ class CommunityFBASystem(BaseSystem):
         self.common_rate = common_rate
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of two members of the E. coli core system that share a medium."""
         shared = dict(self.exchanges) if self.exchanges is not None else dict.fromkeys(CROSS_FED, 0.0)
         members = []
         for position, knockout in enumerate(self.knockouts):

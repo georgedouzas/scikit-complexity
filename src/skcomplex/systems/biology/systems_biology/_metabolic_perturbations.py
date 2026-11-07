@@ -51,7 +51,7 @@ class MetabolicPerturbationsSystem(BaseSystem):
         self.genes = genes
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the E. coli core system with some genes knocked out."""
         element = load_network('textbook', 'cell', needed_by='metabolic_perturbations')
         element.set_params(**{element.gene_name(gene): 0.0 for gene in self.genes})
         return System(self.label, elements=[element], time=StaticTime())

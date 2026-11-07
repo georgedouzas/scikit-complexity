@@ -195,7 +195,7 @@ class WattsMayConcurrencySystem(BaseSystem):
         self.nu = nu
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the SEIR epidemic of Watts and May."""
         population = PartnershipEpidemicElement(
             'population',
             S=1 - self.infected,
@@ -289,7 +289,7 @@ class PairFormationSISSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the SIS epidemic on partnerships that dissolve and are replaced at once."""
         beta = self.beta
         sigma = self.sigma
         beta = self.pressure / self.k if beta is None else beta

@@ -225,7 +225,7 @@ class HeterogeneousMeanFieldSISSystem(BaseSystem):
         return member.lam * member.k * (1 - member.rho) * namespace.other.rho
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the SIS epidemic on a network with a power-law degree distribution."""
         degrees = np.arange(self.k_min, self.k_max + 1, dtype=float)
         weights = degrees**-self.exponent / np.sum(degrees**-self.exponent)
         classes = GroupElement(
@@ -313,7 +313,7 @@ class MetapopulationSystem(BaseSystem):
         self.D = D
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of SIR epidemics in subpopulations at the nodes of a network."""
         graph = self.graph
         graph = nx.barabasi_albert_graph(30, 2, seed=0) if graph is None else graph
         size = nx.number_of_nodes(graph)

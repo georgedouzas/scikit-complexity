@@ -425,7 +425,7 @@ class GlucoseDualHormoneControlSystem(BaseSystem):
         self.duration = duration
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of blood glucose stabilised by antagonistic hormone loops."""
         k_n = 1.0 if self.glucagon else 0.0
         insulin, glucagon_level = 2.0 * 0.5, 1.0 * 0.5
         organism = GlucoseControlElement(
@@ -556,7 +556,7 @@ class CoagulationPositiveFeedbackSystem(BaseSystem):
         self.ka = ka
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the coagulation cascade."""
         blood = CoagulationElement(
             'blood',
             injury=self.injury,
@@ -710,7 +710,7 @@ class SteerableFeedbackLoopSystem(BaseSystem):
         self.duration = duration
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a receptor-effector loop."""
         loop = FeedbackLoopElement(
             'loop',
             v=self.v,

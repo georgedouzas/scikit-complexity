@@ -466,7 +466,7 @@ class HahnfeldtSystem(BaseSystem):
         self.start = start
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the Hahnfeldt system."""
         tumour = AngiogenicTumourElement(
             'tumour',
             A=self.A,
@@ -601,7 +601,7 @@ class VascularCorePeripherySystem(BaseSystem):
         self.start = start
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a tumour with a live core."""
         tumour = VascularizedSpheroidElement(
             'tumour',
             Vx=self.Vx,

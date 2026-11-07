@@ -479,7 +479,7 @@ class VaryingCapacityLogisticSystem(BaseSystem):
         self.period = period
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of logistic growth under a seasonal carrying capacity."""
         return System(
             self.label,
             elements=[PopulationElement('population', n=self.n)],
@@ -545,7 +545,7 @@ class HutchinsonSystem(BaseSystem):
         self.tau = tau
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of Hutchinson's delayed logistic equation."""
         return System(
             self.label,
             elements=[PopulationElement('population', n=self.n)],
@@ -674,7 +674,7 @@ class FibonacciRabbitsSystem(BaseSystem):
         self.previous = previous
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of Fibonacci's rabbits."""
         breeding = MapInteraction(
             'breeding',
             target='rabbits',
@@ -729,7 +729,7 @@ class RickerSystem(BaseSystem):
         self.r = r
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of Ricker's map of a population in discrete generations."""
         return System(
             self.label,
             elements=[PopulationElement('population', n=self.n)],
@@ -805,7 +805,7 @@ class PenaeidShrimpSystem(BaseSystem):
         self.K = K
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the growth of one penaeid shrimp from the juvenile stage."""
         return System(
             self.label,
             elements=[

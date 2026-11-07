@@ -275,7 +275,7 @@ class MangroveSuccessionSystem(BaseSystem):
         self.seedlings = seedlings
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the regrowth of a mangrove forest of the Sundarbans after a clear cut."""
         return System(
             self.label,
             elements=[

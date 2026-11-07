@@ -12,7 +12,7 @@ from skcomplex.systems.biology.evolution import OriginFixationWalkSystem
 def test_origin_fixation_walk_samples_fitness_to_the_power_n_minus_one():
     """Test that the time spent on each genome of four loci matches the stationary law Q ~ f^(N - 1)."""
     loci, size = 4, 10.0
-    system = OriginFixationWalkSystem(loci, N=size, mu=1.0, field=0.1, coupling=0.3, random_state=1)
+    system = OriginFixationWalkSystem(loci, N=size, mu=1.0, field_scale=0.1, coupling=0.3, random_state=1)
     trajectory = simulate(system, until=5000, dt=1.0, random_state=0)
     alleles = trajectory.values('genome.s')[100:]
     visited = np.bincount(((alleles > 0) * 2 ** np.arange(loci)).sum(axis=1).astype(int), minlength=2**loci)

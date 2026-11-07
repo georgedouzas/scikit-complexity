@@ -175,7 +175,7 @@ class DroopCellQuotaSystem(BaseSystem):
         self.d = d
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the Droop system."""
         algae = QuotaPhytoplanktonElement(
             'algae',
             Q=self.Q,

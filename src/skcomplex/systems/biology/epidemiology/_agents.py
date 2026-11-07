@@ -490,7 +490,7 @@ class AgentBasedSIRSystem(BaseSystem):
         return transitions
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of people who walk on a grid and infect those in their cell."""
         rng = np.random.default_rng(self.random_state)
         cells = rng.integers(0, [self.width, self.height], size=(self.people, 2))
         group = GroupElement(
@@ -611,7 +611,7 @@ class RandomWalkerEpidemicsSystem(BaseSystem):
         return float(other.infection) if isinstance(other, WalkerView) and other.health == SICK else 0.0
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of random walkers among whom one sick walker starts a deadly epidemic."""
         rng = np.random.default_rng(self.random_state)
         if self.graph is None:
             cells = rng.integers(0, [self.width, self.height], size=(self.walkers, 2))
@@ -741,7 +741,7 @@ class NetworkSIRSystem(BaseSystem):
         return float(other.tau) if isinstance(other, TravellerView) and other.health == INFECTED else 0.0
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of SIR epidemics in cities at the nodes of a network."""
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
         graph = nx.barabasi_albert_graph(20, 2, seed=0) if graph is None else graph

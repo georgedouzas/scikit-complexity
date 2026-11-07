@@ -257,7 +257,7 @@ class RNANeutralNetworksSystem(BaseSystem):
         return float(fold != target) if regime == 'neutral' else float(read_base_pair_distance(fold, target))
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of walkers of RNA sequences."""
         import_extra('RNA', 'rna_neutral_networks', 'rna')
         if self.regime not in REGIMES:
             error_msg = f'Unknown regime {self.regime!r}. Use one of {", ".join(REGIMES)}.'

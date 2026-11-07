@@ -337,7 +337,7 @@ class TwoLayerSepsisSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the two-layer model of tumour disease and sepsis."""
         rng = np.random.default_rng(self.seed)
         n = self.n_cells
         parenchyma = nx.complete_graph(range(n), create_using=nx.DiGraph)

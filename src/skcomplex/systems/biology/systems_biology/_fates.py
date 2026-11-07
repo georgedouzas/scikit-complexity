@@ -350,7 +350,7 @@ class BristleLateralInhibitionSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a ring of cells that inhibit the neural fate of their neighbours."""
         index = np.arange(self.cells)
         distance = np.abs(index[:, None] - index[None, :])
         distance = np.minimum(distance, self.cells - distance)

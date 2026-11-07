@@ -142,7 +142,7 @@ class RandomBooleanNetworkSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a Kauffman random Boolean network."""
         if not 1 <= self.k <= self.n_nodes:
             error_msg = (
                 f'k = {self.k} inputs per node must be between 1 and the number of nodes, n_nodes = {self.n_nodes}.'
@@ -200,7 +200,7 @@ class YeastCellCycleSystem(BaseSystem):
         self.active = active
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the Boolean network of the budding yeast cell cycle of Li et al."""
         nodes = [BooleanNodeElement(name, x=int(name in self.active)) for name in YEAST_NODES]
         functions = [
             ThresholdFunctionInteraction(

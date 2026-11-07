@@ -689,7 +689,7 @@ class StemCellDifferentiationSystem(BaseSystem):
         return target.d2, SR(1)
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the eight-compartment system of normal and malignant stem-cell lineages."""
         m1 = self.m0 * (1 + np.random.default_rng(self.seed).uniform())
         tissue = StemCellDifferentiationElement(
             'tissue',
@@ -904,7 +904,7 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
         self.tau2 = tau2
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the bone marrow and blood system of leukaemia."""
         patient = BoneMarrowBloodElement('patient', m1=self.m1, m3=self.m3, tau1=self.tau1, tau2=self.tau2)
         interactions = [
             RateInteraction(
@@ -1084,7 +1084,7 @@ class LeukaemiaStemCellsSystem(BaseSystem):
         self.d4 = d4
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of normal and leukaemic stem cells."""
         niche = LeukaemiaStemCellsElement(
             'niche',
             NS=self.NS,

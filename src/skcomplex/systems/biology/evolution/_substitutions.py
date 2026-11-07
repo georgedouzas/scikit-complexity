@@ -212,7 +212,7 @@ class OriginFixationWalkSystem(BaseSystem):
         mu:
             The rate at which one locus of an individual mutates.
 
-        field:
+        field_scale:
             The standard deviation of the random fields `h_i`.
 
         coupling:
@@ -246,7 +246,7 @@ class OriginFixationWalkSystem(BaseSystem):
         *,
         N: float = 100.0,
         mu: float = 0.01,
-        field: float = 0.01,
+        field_scale: float = 0.01,
         coupling: float = 0.0,
         F0: float = 1.0,
         random_state: int | np.random.Generator | None = 0,
@@ -256,7 +256,7 @@ class OriginFixationWalkSystem(BaseSystem):
         self.loci = loci
         self.N = N
         self.mu = mu
-        self.field = field
+        self.field_scale = field_scale
         self.coupling = coupling
         self.F0 = F0
         self.random_state = random_state
@@ -273,9 +273,9 @@ class OriginFixationWalkSystem(BaseSystem):
         return settings
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a monomorphic population."""
         rng = np.random.default_rng(self.random_state)
-        fields = rng.normal(0.0, self.field, self.loci)
+        fields = rng.normal(0.0, self.field_scale, self.loci)
         upper = np.triu(rng.normal(0.0, self.coupling / np.sqrt(self.loci), (self.loci, self.loci)), 1)
         matrix = upper + upper.T
         couplings = matrix if self.coupling else None

@@ -178,7 +178,7 @@ class RepressilatorSystem(BaseSystem):
         self.stochastic = stochastic
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the repressilator of Elowitz and Leibler."""
         mode = 'jump' if self.stochastic else 'rate'
         expression = {'b': self.b, 'beta': self.beta, 'delta': self.delta}
         repression = {'alpha': self.alpha, 'alpha0': self.alpha0, 'K': self.K, 'n': self.n}
@@ -261,7 +261,7 @@ class ToggleSwitchSystem(BaseSystem):
         self.stochastic = stochastic
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the genetic toggle switch of Gardner."""
         mode = 'jump' if self.stochastic else 'rate'
         expression = {'b': self.b, 'beta': self.beta, 'delta': self.delta}
         repression = {'alpha': self.alpha, 'alpha0': self.alpha0, 'K': self.K, 'n': self.n}

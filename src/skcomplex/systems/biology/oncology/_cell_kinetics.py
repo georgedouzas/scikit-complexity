@@ -349,7 +349,7 @@ class CellCycleChemotherapySystem(BaseSystem):
         self.v = v
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of tumour cells in cell-cycle compartments under killing."""
         if self.dormant:
             dormant_interactions = [
                 ReactionInteraction(
@@ -494,7 +494,7 @@ class ErythropoiesisMercaptopurineSystem(BaseSystem):
         self.n = n
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the production of red cells under a constant level of 6-mercaptopurine."""
         Q = self.Q50 * (self.m0 / self.r1 - 1) ** (1 / self.n)
         patient = ErythropoiesisElement(
             'patient',

@@ -384,7 +384,7 @@ class OptimalChemotherapySystem(BaseSystem):
         self.w = w
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a patient under the chemotherapy."""
         return System(
             self.label,
             elements=[OptimalChemotherapyElement('patient', E=self.E, A=self.A, N=self.N, w=self.w)],
@@ -449,7 +449,7 @@ class OptimalImmunotherapySystem(BaseSystem):
         self.w2 = w2
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a tumour under the adoptive therapy and IL-2 injection."""
         site = OptimalImmunotherapyElement('site', x=self.x, y=self.y, alpha_a=self.alpha_a, w1=self.w1, w2=self.w2)
         interactions = [
             RateInteraction('stimulation', target='site', state='x', rate=lambda s: s.target.alpha_a * s.target.y),

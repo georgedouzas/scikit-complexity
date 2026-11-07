@@ -203,7 +203,7 @@ class GeneralizedLogicalNetworkSystem(BaseSystem):
         self.levels = levels
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a generalised logical network of Thomas."""
         network = NEGATIVE_CIRCUIT if self.regulations is None else self.regulations
         start = self.levels or {}
         return System(
@@ -271,7 +271,7 @@ class PetriNetSystem(BaseSystem):
         self.stochastic = stochastic
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a Petri net."""
         marking = GENE_EXPRESSION_PLACES if self.places is None else self.places
         arcs = GENE_EXPRESSION_TRANSITIONS if self.transitions is None else self.transitions
         mode = 'jump' if self.stochastic else 'rate'

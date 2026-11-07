@@ -382,7 +382,7 @@ class SISSystem(BaseSystem):
         self.stochastic = stochastic
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of an infection without immunity."""
         return System(
             self.label,
             elements=[CompartmentElement('S', n=self.susceptible), CompartmentElement('I', n=self.infected)],
@@ -470,7 +470,7 @@ class SIRSSystem(BaseSystem):
         self.stochastic = stochastic
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of an epidemic whose immunity wanes."""
         return System(
             self.label,
             elements=[
@@ -582,7 +582,7 @@ class ZombieOutbreakSystem(BaseSystem):
         self.stochastic = stochastic
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the outbreak of zombies of Munz et al."""
         mode = 'jump' if self.stochastic else 'rate'
         return System(
             self.label,

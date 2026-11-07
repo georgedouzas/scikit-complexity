@@ -161,7 +161,7 @@ class RegulatoryFBASystem(BaseSystem):
         self.km = km
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a batch culture on glucose and acetate with Boolean catabolite repression."""
         cell = load_network('textbook', 'cell', needed_by='regulatory_fba')
         cell.parsimonious, cell.infeasible = True, 'zero'
         identifier = cell._identifier(ACETATE_EXCHANGE)

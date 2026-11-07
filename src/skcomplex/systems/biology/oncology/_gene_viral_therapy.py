@@ -697,7 +697,7 @@ class SirnaTGFBetaSystem(BaseSystem):
         self.du = du
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the Kirschner-Panetta system with TGF-beta."""
         site = SirnaTgfBetaElement(
             'site',
             E=self.E,
@@ -853,7 +853,7 @@ class OncolyticVirusSystem(BaseSystem):
         self.d = d
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of uninfected and infected tumour cells that share a carrying capacity."""
         tumour = OncolyticVirusElement('tumour', AU=self.AU, AV=self.AV, alpha=self.alpha, r=self.r, d=self.d)
         interactions = [
             RateInteraction(
@@ -953,7 +953,7 @@ class OncolyticVirusDendriticSystem(BaseSystem):
         self.a5 = a5
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a tumour treated with an oncolytic adenovirus."""
         site = OncolyticVirusDendriticElement(
             'site',
             AU=self.AU,

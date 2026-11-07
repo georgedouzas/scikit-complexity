@@ -192,7 +192,7 @@ class MinProteinSkeletonSystem(BaseSystem):
         return {'md': md, 'mde': mde, 'cdt': cdt, 'cdd': cdd, 'ce': ce}
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the skeleton system of the Min proteins on a periodic line."""
         rng = np.random.default_rng(self.random_state)
         uniform = self._uniform_state(MinSkeletonElement('site'), self.total_D, self.total_E)
         values: dict[str, Array] = {name: np.full(self.n_sites, value) for name, value in uniform.items()}

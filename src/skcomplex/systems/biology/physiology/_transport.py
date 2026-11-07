@@ -212,7 +212,7 @@ class AdaptiveFlowNetworkSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a square grid of vessels fed at one corner and drained at every other node."""
         graph = nx.convert_node_labels_to_integers(nx.grid_2d_graph(self.side, self.side))
         space = NetworkSpace(graph).prepare()
         sources, targets = space.edges_[None]

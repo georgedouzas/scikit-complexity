@@ -163,7 +163,7 @@ class KinouchiCopelliSystem(BaseSystem):
         ]
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the Kinouchi-Copelli network of excitable elements."""
         graph = self.graph
         rng = np.random.default_rng(self.random_state)
         graph = nx.gnp_random_graph(1000, 10 / 999, seed=int(rng.integers(2**31))) if graph is None else graph

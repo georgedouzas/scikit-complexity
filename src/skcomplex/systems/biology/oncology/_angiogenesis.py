@@ -533,7 +533,7 @@ class TumourAngiogenesisSystem(BaseSystem):
         ]
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a tumour."""
         rng = np.random.default_rng(self.random_state)
         center = (3 * self.width // 4, self.height // 2)
         tumour = [

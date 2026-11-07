@@ -196,7 +196,7 @@ class RecordDynamicsEpidemicSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of yearly strains that infect every resident less resistant than their strength."""
         resistance = np.random.default_rng(self.seed).random(self.n)
         residents = GroupElement('residents', element=ResidentElement, size=self.n, values={'R': resistance})
         return System(

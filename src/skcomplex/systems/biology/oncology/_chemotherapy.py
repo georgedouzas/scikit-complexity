@@ -755,7 +755,7 @@ class DePillisRadunskayaSystem(BaseSystem):
         self.a2 = a2
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the de Pillis-Radunskaya system of immune."""
         return System(
             self.label,
             elements=[
@@ -834,7 +834,7 @@ class MultidrugResistanceSystem(BaseSystem):
         self.u3 = u3
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a tumour of eight populations resistant to subsets of three drugs."""
         tumour = MultidrugResistanceElement('tumour', S=self.S, r=self.r, u1=self.u1, u2=self.u2, u3=self.u3)
 
         def growth(name: str) -> RateInteraction:
@@ -1071,7 +1071,7 @@ class DelayedRestingHuntingChemotherapySystem(BaseSystem):
         self.a = a
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the tumour-immune system of resting and hunting cells with a conversion delay."""
         patient = RestingHuntingChemotherapyElement(
             'patient',
             E=self.E,
@@ -1228,7 +1228,7 @@ class DelayedMetastasisSystem(BaseSystem):
         self.tau = tau
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of normal and tumour cells at a primary and a secondary site."""
         patient = MetastasisChemotherapyElement(
             'patient',
             Np=self.Np,

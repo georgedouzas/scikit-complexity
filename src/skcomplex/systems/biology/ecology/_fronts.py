@@ -127,7 +127,7 @@ class FisherKPPSystem(BaseSystem):
         self.front = front
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the Fisher-KPP equation."""
         u = (np.arange(self.length) < self.front * self.length).astype(float)
         space = LatticeSpace(self.length, spacing=self.spacing)
         return System(

@@ -1148,7 +1148,7 @@ class Carbon13MFASystem(BaseSystem):
         self.network = network
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a metabolic network that `labelling` fits to labelling data."""
         return System(
             self.label,
             elements=[TcaNetworkElement('tca') if self.network is None else self.network],

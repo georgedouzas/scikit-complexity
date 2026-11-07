@@ -306,7 +306,7 @@ class BinaryAntDecisionSystem(BaseSystem):
         self.stochastic = stochastic
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of ants that choose between two equal branches to a food source."""
         branches = [BranchElement(label) for label in ('left', 'right')]
         evaporations = [
             ReactionInteraction(
@@ -393,7 +393,7 @@ class RatsSystem(BaseSystem):
         self.stochastic = stochastic
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a colony of calm and nervous rats."""
         groups = [
             RatsElement('calm', n=float(self.n_rats - self.nervous)),
             RatsElement('nervous', n=float(self.nervous)),

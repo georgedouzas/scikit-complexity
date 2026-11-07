@@ -414,7 +414,7 @@ class SoleManrubiaSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the ecosystem of Solé and Manrubia."""
         rng = np.random.default_rng(self.seed)
         graph = nx.DiGraph()
         graph.add_nodes_from(range(self.n))
@@ -524,7 +524,7 @@ class JainKrishnaSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the system of Jain and Krishna."""
         rng = np.random.default_rng(self.seed)
         graph = nx.gnp_random_graph(self.n, self.p, seed=int(rng.integers(2**31)), directed=True)
         space = NetworkSpace(graph)
@@ -611,7 +611,7 @@ class CompetitiveJainKrishnaSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the Jain-Krishna model with signed interactions."""
         rng = np.random.default_rng(self.seed)
         matrix = rng.uniform(-1, 1, (self.n, self.n)) * (rng.random((self.n, self.n)) < self.p)
         np.fill_diagonal(matrix, -rng.random(self.n))

@@ -373,7 +373,7 @@ class RadiotherapyCompetitionSystem(BaseSystem):
         self.width = width
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of normal and tumour cells in Lotka-Volterra competition."""
         tissue = RadiationCompetitionElement(
             'tissue',
             N=self.N,
@@ -539,7 +539,7 @@ class LQRadiosensitizerSystem(BaseSystem):
         self.fractions = fractions
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a xenograft tumour irradiated in fractions scored by the linear-quadratic system."""
         tumour = IrradiatedTumourElement(
             'tumour',
             A1=self.A1,

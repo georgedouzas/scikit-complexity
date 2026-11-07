@@ -273,7 +273,7 @@ class MammalianCellCycleSystem(BaseSystem):
         self.knockouts = knockouts
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the Boolean system of the mammalian cell cycle of Faure et al."""
         return _rule_network(self.label, CELL_CYCLE_RULES, self.active, self.knockouts)
 
 
@@ -324,7 +324,7 @@ class BooleanRepressilatorSystem(BaseSystem):
         self.delay = delay
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the Boolean repressilator."""
         if self.delay < 0:
             error_msg = f'The delay must be a nonnegative number of steps, not {self.delay}.'
             raise ValidationError(error_msg)
@@ -408,7 +408,7 @@ class NoisyBooleanNetworkSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the Boolean network of Huepe and Aldana-González."""
         if self.k % 2 == 0:
             error_msg = f'The number of inputs must be odd so that the majority is defined, not {self.k}.'
             raise ValidationError(error_msg)

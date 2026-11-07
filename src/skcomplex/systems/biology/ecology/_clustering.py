@@ -179,7 +179,7 @@ class NeutralClusteringSystem(BaseSystem):
         return pairs
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of organisms that divide."""
         lattice = (self.shape,) if isinstance(self.shape, int) else tuple(self.shape)
         patches = LatticeElement(
             'patches',

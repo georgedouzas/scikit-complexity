@@ -466,7 +466,7 @@ class ConsumerResourceSystem(BaseSystem):
         self.v = v
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of consumer species that compete only through the resources they take up."""
         uptake = np.atleast_2d(np.asarray(self.c, dtype=float))
         n_consumers, n_resources = uptake.shape
         sizes = np.full(n_consumers, 0.1) if self.consumers is None else np.asarray(self.consumers, dtype=float)

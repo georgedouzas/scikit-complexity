@@ -346,7 +346,7 @@ class CouzinLeadershipSystem(BaseSystem):
         return float(system.rng.normal(0.0, agent.noise))
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the Couzin shoal."""
         rng = np.random.default_rng(self.random_state)
         radius = 5.0 * np.sqrt(rng.uniform(0.0, 1.0, self.n_fish))
         place = rng.uniform(0.0, 2 * math.pi, self.n_fish)

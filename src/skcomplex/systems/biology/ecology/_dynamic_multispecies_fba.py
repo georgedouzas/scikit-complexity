@@ -82,7 +82,7 @@ class DynamicMultispeciesFBASystem(BaseSystem):
         self.km = km
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of two E. coli core strains that differ in maximal glucose uptake on one medium."""
         cells = []
         interactions = []
         for name, vmax in (('fast', self.fast_vmax), ('slow', self.slow_vmax)):

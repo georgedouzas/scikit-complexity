@@ -410,7 +410,7 @@ class CellularPottsSystem(BaseSystem):
         return graph
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the cellular Potts model of a confluent tissue."""
         rows, columns = (int(size) for size in self.shape)
         height, width = (int(size) for size in self.cell_shape)
         if self.lattice not in LATTICES:

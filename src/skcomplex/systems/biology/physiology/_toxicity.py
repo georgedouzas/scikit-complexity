@@ -148,7 +148,7 @@ class DrugToxicitySystem(BaseSystem):
         self.doses = doses
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the toxicity a weekly drug accumulates in the body."""
         patient = DrugToxicityElement(
             'patient',
             k=self.k,

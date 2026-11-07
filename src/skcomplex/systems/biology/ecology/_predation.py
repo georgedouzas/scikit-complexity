@@ -348,7 +348,7 @@ class RosenzweigMacarthurSystem(BaseSystem):
         self.rate = rate
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of fast prey and slow predators whose carrying capacity shrinks at a rate."""
         prey = self.prey
         predators = self.predators
         phi = self.phi
@@ -430,7 +430,7 @@ class NicholsonBaileySystem(BaseSystem):
         self.c = c
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of hosts and parasitoids in discrete generations."""
         return System(
             self.label,
             elements=[PopulationElement('hosts', n=self.hosts), PopulationElement('parasitoids', n=self.parasitoids)],
@@ -609,7 +609,7 @@ class StochasticPredatorPreySystem(BaseSystem):
         self.stochastic = stochastic
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of prey and predators born and killed one at a time."""
         return System(
             self.label,
             elements=[PopulationElement('prey', n=self.prey), PopulationElement('predators', n=self.predators)],

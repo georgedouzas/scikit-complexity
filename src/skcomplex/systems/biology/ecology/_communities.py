@@ -353,7 +353,7 @@ class MutualismSystem(BaseSystem):
         self.handling = handling
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of two species that grow logistically and feed each other."""
         return System(
             self.label,
             elements=[PopulationElement('first', n=self.first), PopulationElement('second', n=self.second)],
@@ -423,7 +423,7 @@ class FoodWebsSystem(BaseSystem):
         self.links = links
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a food web."""
         populations = self.populations
         growth = self.growth
         mortality = self.mortality

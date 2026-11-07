@@ -249,7 +249,7 @@ class AlievPanfilovSystem(BaseSystem):
         self.mu2 = mu2
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the Aliev-Panfilov system of cardiac tissue."""
         rows, columns = self.shape
         u, v = np.zeros(self.shape), np.zeros(self.shape)
         u[: rows // 2, :] = 1.0
@@ -330,7 +330,7 @@ class BarkleySystem(BaseSystem):
         self.gamma = gamma
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of Barkley's excitable medium."""
         rows, columns = self.shape
         u, w = np.zeros(self.shape), np.zeros(self.shape)
         u[:, : columns // 2] = 1.0

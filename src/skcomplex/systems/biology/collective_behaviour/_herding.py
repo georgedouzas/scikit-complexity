@@ -334,7 +334,7 @@ class ShepherdingSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a shepherd that collects a scattered flock and drives it to a goal."""
         rng = np.random.default_rng(self.seed)
         positions = rng.uniform(0.4 * self.size, 0.7 * self.size, (self.n_sheep, 2))
         sheep = GroupElement(

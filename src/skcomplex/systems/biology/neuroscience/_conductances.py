@@ -232,7 +232,7 @@ class HodgkinHuxleySystem(BaseSystem):
         return {gate: float(opening / (opening + closing)) for gate, (opening, closing) in self._gate_rates(v).items()}
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the Hodgkin-Huxley neuron."""
         gates = self._resting_gates(self.v)
         return System(
             self.label,
@@ -343,7 +343,7 @@ class FitzhughNagumoODESystem(BaseSystem):
         self.I = I
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the FitzHugh-Nagumo neuron."""
         kinetics = FitzHughNagumoInteraction(
             'kinetics',
             target='neuron',

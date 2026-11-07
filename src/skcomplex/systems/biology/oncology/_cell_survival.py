@@ -179,7 +179,7 @@ class LQCellSurvivalSystem(BaseSystem):
         self.delivery_time = delivery_time
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the linear-quadratic survival of cells after a total dose."""
         cells = LinearQuadraticSurvivalElement(
             'cells',
             alpha=self.alpha,

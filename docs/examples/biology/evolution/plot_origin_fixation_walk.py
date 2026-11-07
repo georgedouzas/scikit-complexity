@@ -40,7 +40,7 @@ fields = OriginFixationWalkSystem(random_state=0).prepare().system_.elements[0].
 stationary = 1.0
 for _ in range(100):
     stationary = 1 + np.sum(fields * np.tanh(99 * fields / stationary))
-small = OriginFixationWalkSystem(loci=4, N=10.0, mu=1.0, field=0.1, coupling=0.3, random_state=1)
+small = OriginFixationWalkSystem(loci=4, N=10.0, mu=1.0, field_scale=0.1, coupling=0.3, random_state=1)
 alleles = simulate(
     small,
     until=5000,

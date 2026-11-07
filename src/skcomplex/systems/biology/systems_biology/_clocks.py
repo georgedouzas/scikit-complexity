@@ -200,7 +200,7 @@ class CircadianClockSystem(BaseSystem):
         self.n = n
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of Goldbeter's system of the Drosophila circadian clock."""
         clock = PerClockElement('clock', v_s=self.v_s, v_d=self.v_d, k_s=self.k_s, n=self.n)
         reactions = [
             ReactionInteraction(

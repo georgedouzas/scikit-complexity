@@ -1149,7 +1149,7 @@ class ChemoimmunotherapySystem(BaseSystem):
         return kill
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a tumour with NK cells."""
         tumour = ChemoimmunotherapyTumourElement(
             'tumour',
             A=self.A,
@@ -1398,7 +1398,7 @@ class ClonalChemoimmunotherapySystem(BaseSystem):
         self.u_vaccine = u_vaccine
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of two competing tumour clones."""
         tumour = ClonalTumourElement(
             'tumour',
             A1=self.A1,
@@ -1857,7 +1857,7 @@ class HER2TargetedTherapySystem(BaseSystem):
         self.sigma = sigma
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of HER2+ breast cancer cells under trastuzumab and paclitaxel."""
         tumour = Her2TumourElement(
             'tumour',
             A=self.A,
@@ -1968,7 +1968,7 @@ class AngiogenesisImmunotherapySystem(BaseSystem):
         return effect
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the Hahnfeldt tumour."""
         tumour = AngiogenesisImmunotherapyTumourElement(
             'tumour',
             A=self.A,

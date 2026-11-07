@@ -475,7 +475,7 @@ class STDPNetworkSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of theta neurons on a random directed network."""
         rng = np.random.default_rng(self.seed)
         graph = nx.gnp_random_graph(self.n_neurons, self.p, seed=int(rng.integers(2**31)), directed=True)
         space = NetworkSpace(graph)
@@ -582,7 +582,7 @@ class AdaptiveDelayNetworkSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of phase units coupled all to all through conduction delays that adapt to their activity."""
         rng = np.random.default_rng(self.seed)
         phases, frequencies = rng.uniform(0, 2 * np.pi, self.n_units), rng.normal(self.omega, self.spread, self.n_units)
         units = [

@@ -569,7 +569,7 @@ class ThetaNeuronsSystem(BaseSystem):
         return [float(value) for value in center + width * stats.cauchy.ppf(levels)]
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a network of theta neurons."""
         phases = np.random.default_rng(self.random_state).uniform(0.0, 2 * math.pi, self.n_neurons)
         neurons = GroupElement(
             'neurons',
@@ -719,7 +719,7 @@ class PolyhomeostaticNeuronSystem(BaseSystem):
         return gradient
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a neuron."""
         neuron = PolyhomeostaticNeuronElement(
             'neuron',
             mu=self.mu,

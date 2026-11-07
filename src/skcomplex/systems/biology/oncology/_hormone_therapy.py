@@ -1153,7 +1153,7 @@ class ContinuousAndrogenSuppressionSystem(BaseSystem):
         self.a = a
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of prostate cancer under continuous androgen suppression."""
         tumour = AndrogenSuppressionElement(
             'tumour',
             AD=self.AD,
@@ -1324,7 +1324,7 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
         self.h1 = h1
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the Ideta system of intermittent androgen suppression."""
         tumour = IntermittentSuppressionElement(
             'tumour',
             AD=self.AD,
@@ -1524,7 +1524,7 @@ class ProstateCellQuotaSystem(BaseSystem):
         return uptake
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the Portz cell-quota system of prostate cancer."""
         tumour = CellQuotaProstateElement(
             'tumour',
             AD=self.AD,

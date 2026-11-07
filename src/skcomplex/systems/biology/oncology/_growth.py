@@ -399,7 +399,7 @@ class ExponentialLinearGrowthSystem(BaseSystem):
         self.r = r
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a tumour."""
         return System(
             self.label,
             elements=[PopulationElement('tumour', n=self.n)],
@@ -571,7 +571,7 @@ class GeneralizedLogisticSystem(BaseSystem):
         self.p = p
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a tumour that saturates at a carrying capacity."""
         return System(
             self.label,
             elements=[PopulationElement('tumour', n=self.n)],
@@ -624,7 +624,7 @@ class GompertzSystem(BaseSystem):
         self.K = K
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a tumour whose growth slows as the logarithm of the room left."""
         return System(
             self.label,
             elements=[PopulationElement('tumour', n=self.n)],
@@ -683,7 +683,7 @@ class DynamicCarryingCapacitySystem(BaseSystem):
         self.d = d
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of Gompertz growth under a carrying capacity."""
         return System(
             self.label,
             elements=[PopulationElement('tumour', n=self.n), VasculatureElement('vessels', K=self.K)],
@@ -754,7 +754,7 @@ class SkipperLogKillSystem(BaseSystem):
         self.width = width
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the log-kill system."""
         return System(
             self.label,
             elements=[PopulationElement('tumour', n=self.n)],
@@ -843,7 +843,7 @@ class NortonSimonSystem(BaseSystem):
         self.start = start
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the Norton-Simon system."""
         return System(
             self.label,
             elements=[PopulationElement('tumour', n=self.n)],

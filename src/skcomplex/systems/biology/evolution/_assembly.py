@@ -261,7 +261,7 @@ class AssemblyGrowthSystem(BaseSystem):
         self.alpha = alpha
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the numbers of objects at successive assembly indices."""
         group = GroupElement(
             'levels',
             element=AssemblyLevelElement,

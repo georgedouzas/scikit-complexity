@@ -183,7 +183,7 @@ class FitzhughNagumoSystem(BaseSystem):
         self.epsilon = epsilon
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the FitzHugh-Nagumo excitable medium."""
         rows, columns = self.shape
         u, v = np.full(self.shape, -1.2), np.full(self.shape, -0.62)
         u[: rows // 2, :] = 1.5

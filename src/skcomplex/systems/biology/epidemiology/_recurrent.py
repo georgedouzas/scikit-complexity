@@ -141,7 +141,7 @@ class DelayedSIRSSystem(BaseSystem):
         return infected
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of two cities."""
         return System(
             self.label,
             elements=[

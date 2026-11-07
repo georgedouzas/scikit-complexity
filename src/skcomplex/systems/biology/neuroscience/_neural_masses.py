@@ -326,7 +326,7 @@ class NextGenerationNeuralMassSystem(BaseSystem):
         self.nu = nu
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the exact neural mass of quadratic integrate-and-fire neurons."""
         if self.setup not in SETUPS:
             error_msg = f'The setup must be one of {", ".join(SETUPS)}, not {self.setup!r}.'
             raise ValidationError(error_msg)

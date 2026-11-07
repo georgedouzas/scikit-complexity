@@ -188,7 +188,7 @@ class SIRVaccinationSystem(BaseSystem):
         self.b = b
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of an SIR epidemic with the vaccination rate."""
         population = VaccinatedPopulationElement(
             'population',
             S=self.S,

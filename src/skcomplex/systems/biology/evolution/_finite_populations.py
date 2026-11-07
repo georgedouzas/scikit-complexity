@@ -550,7 +550,7 @@ class MoranProcessSystem(BaseSystem):
         self.mutation = mutation
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the Moran process."""
         traits = np.zeros(self.size)
         traits[: self.mutants] = 1.0
         return System(
@@ -641,7 +641,7 @@ class TangledNatureSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the Tangled Nature system."""
         genome = float(np.random.default_rng(self.random_state).integers(2**self.length))
         life_cycle = TangledNatureLifeCycleInteraction(
             'evolution',
@@ -723,7 +723,7 @@ class AdaptiveClimbingSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a finite population."""
         fitness = AdaptiveClimbingInteraction._random_fitness(0, self.seed)
         return System(
             self.label,

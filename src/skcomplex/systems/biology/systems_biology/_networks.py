@@ -554,7 +554,7 @@ class PhosphorylationOscillatorSystem(BaseSystem):
         self.K = K
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of three proteins."""
         loop = PhosphorylationLoopElement(
             'loop',
             A=self.A,
@@ -710,7 +710,7 @@ class BiochemicalSystemsTheorySystem(BaseSystem):
         self.orders = orders
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a biochemical system of power-law rates."""
         species = [SpeciesElement(f'X{index}', x=float(value)) for index, value in enumerate(self.x, start=1)]
         paths = [item.label for item in species]
         if self.form == 's-system':
@@ -810,7 +810,7 @@ class GoodwinOscillatorSystem(BaseSystem):
         self.k = k
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the Goodwin oscillator."""
         initial = [0.1 * index for index in range(1, self.variables + 1)] if self.x is None else list(self.x)
         if self.variables < MIN_GOODWIN_STAGES or len(initial) != self.variables:
             error_msg = (
@@ -886,7 +886,7 @@ class GlycolysisOscillationsSystem(BaseSystem):
         self.V4 = V4
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the glycolysis of a yeast extract in a flow reactor."""
         variables = {
             'flow': DeclaredVariableSpec(self.flow, ParameterSpec(domain=RealSet.closed_open(0, oo))),
             'V4': DeclaredVariableSpec(self.V4, ParameterSpec(domain=RealSet.closed_open(0, oo))),

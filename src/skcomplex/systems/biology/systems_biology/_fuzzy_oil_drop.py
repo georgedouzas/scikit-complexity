@@ -583,7 +583,7 @@ class FuzzyOilDropSystem(BaseSystem):
         return _read_value(structure, 'relative-distance', positions) + self._read_clashes(positions)
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of the fuzzy oil drop of a protein."""
         import_extra('Bio.PDB', 'fuzzy_oil_drop', 'structures')
         if self.dynamics not in DYNAMICS:
             error_msg = f'Unknown dynamics {self.dynamics!r}. Use one of {", ".join(DYNAMICS)}.'

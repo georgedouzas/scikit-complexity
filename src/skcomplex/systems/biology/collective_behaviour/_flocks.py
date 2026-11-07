@@ -808,7 +808,7 @@ class BirdSwarmSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of a swarm of self-propelled birds held together by a pair potential."""
         rng = np.random.default_rng(self.random_state)
         positions, velocities = rng.uniform(-3.0, 3.0, (self.n_birds, 2)), rng.normal(0.0, 1.0, (self.n_birds, 2))
         birds = GroupElement(

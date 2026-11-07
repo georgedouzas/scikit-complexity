@@ -354,7 +354,7 @@ class AntColonyOptimizationSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the parts of the system."""
+        """Return the parts of ants that find the shortest path between two points of a Delaunay road network."""
         points = np.random.default_rng(self.seed).random((self.n_points, 2))
         triangles = Delaunay(points).simplices
         pairs = {
