@@ -8,20 +8,20 @@ as the shoal turns to swim to the right.
 """
 
 # %%
-# The system is created by name from the catalog with 50 fish, of which 10% are informed with the weight
-# `omega = 0.5` of the preferred direction at angle 0, on a torus of side 50. The primary view shows the observable
-# `heading_x`, the mean of the horizontal headings, over the whole run. The view of the torus beside it draws the fish
-# larger than the system's visual does, with the informed fish in a lighter colour.
+# The system is built from its class with 50 fish, of which 10% are informed with the weight `omega = 0.5` of the
+# preferred direction at angle 0, on a torus of side 50. The primary view shows the observable `heading_x`, the mean
+# of the horizontal headings, over the whole run. The view of the torus beside it draws the fish larger than the
+# system's visual does, with the informed fish in a lighter colour.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import ObservableSpec
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.collective_behaviour import CouzinLeadershipSystem
 
 SYSTEM = 'couzin_leadership'
 SIZE = 50.0
@@ -49,11 +49,15 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, n_fish=50, informed=0.1, size=SIZE, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 heading_x = ObservableSpec('heading_x', group='shoal', variable='vx')
-simulation = (
-    Simulation(system, dt=1, observers=[observer], observables=[heading_x], random_state=0).prepare().run(until=150)
+trajectory = simulate(
+    CouzinLeadershipSystem(n_fish=50, informed=0.1, size=SIZE, random_state=0),
+    until=150,
+    dt=1,
+    observers=[observer],
+    observables=[heading_x],
+    random_state=0,
 )
 
 # %%
@@ -64,23 +68,23 @@ simulation = (
 # in the run above should approach 1, and the mean cosine over shoals of 20 fish, without informed fish near 0, should
 # rise with the informed fraction.
 
-headings = [mean_heading(simulation.trajectory_, frame) for frame in range(len(simulation.trajectory_.times))]
+headings = [mean_heading(trajectory, frame) for frame in range(len(trajectory.times))]
 fractions = [0.0, 0.1, 0.2, 0.4]
 accuracy = []
 for fraction in fractions:
     cosines = []
     for seed in range(3):
-        run = Simulation(
-            create_system(SYSTEM, n_fish=20, informed=fraction, random_state=seed),
+        run = simulate(
+            CouzinLeadershipSystem(n_fish=20, informed=fraction, random_state=seed),
+            until=120,
             dt=1,
             random_state=seed,
-        ).prepare()
-        trajectory = run.run(until=120).trajectory_
-        cosines.extend(np.cos(mean_heading(trajectory, frame)) for frame in range(80, 121))
+        )
+        cosines.extend(np.cos(mean_heading(run, frame)) for frame in range(80, 121))
     accuracy.append(np.mean(cosines))
 
 fig, (turning, accuracies) = plt.subplots(1, 2, figsize=(10, 4))
-turning.plot(simulation.trajectory_.times, np.cos(headings))
+turning.plot(trajectory.times, np.cos(headings))
 turning.set_ylim(-1.05, 1.05)
 turning.set_xlabel('step')
 turning.set_ylabel('cosine of heading to the preferred direction')

@@ -6,22 +6,21 @@ repels near, form a cohesive swarm that organizes itself into a rotating mill or
 """
 
 # %%
-# The system is created by name from the catalog with thirty birds started at random. The observer saves every frame
-# with the default blueprint, whose primary view shows the birds in the plane.
+# The system is built from its class with thirty birds started at random. The observer saves every frame with the
+# default blueprint, whose primary view shows the birds in the plane.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import alignment
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.collective_behaviour import BirdSwarmSystem
 
 SYSTEM = 'bird_swarm'
 
-system = create_system(SYSTEM, n_birds=30, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=100)
+trajectory = simulate(BirdSwarmSystem(n_birds=30, random_state=0), observers=[observer], until=100)
 
 # %%
 # Mill or flock
@@ -30,7 +29,6 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 # angular momentum about the centre, is one for a mill. As the swarm organizes, one of the two should approach one,
 # and every bird should approach the preferred speed `sqrt(alpha / beta) = sqrt(2)`.
 
-trajectory = simulation.trajectory_
 positions, velocities = trajectory.values('birds.x'), trajectory.values('birds.x_d1')
 fig, (order, path) = plt.subplots(1, 2, figsize=(11, 4))
 polar = alignment(trajectory, kind='mean-vector').order
