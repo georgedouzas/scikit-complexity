@@ -1,13 +1,13 @@
 ## 1. Preparation
 
 - [x] 1.1 Wait for `extend-topology-requests` and `add-audited-engineering-computing-systems` to merge
-- [ ] 1.2 Write the census and folding script outside the repository, and run its census on `development`
-- [ ] 1.3 Add the layout test that fails on a component module serving one system, and update the import contracts to
+- [x] 1.2 Write the census and folding script outside the repository, and run its census on `development`
+- [x] 1.3 Add the layout test that fails on a component module serving one system, and update the import contracts to
   allow only `<field>.common`
 
 ## 2. Folding by field
 
-- [ ] 2.1 Biology
+- [x] 2.1 Biology
 - [ ] 2.2 Physics
 - [ ] 2.3 Economics
 - [ ] 2.4 Social
