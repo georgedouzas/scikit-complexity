@@ -6,22 +6,145 @@
 from collections.abc import Sequence
 from functools import partial
 from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression
+from sage.all__sagemath_symbolics import NN, Expression, oo
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import LatticeElement
-from ....core.components.interactions import CascadeInteraction, MapInteraction
+from ....core.components.elements import Element, LatticeElement
+from ....core.components.interactions import CascadeInteraction, LocalRuleInteraction, MapInteraction
 from ....core.components.laws.utils import draw, either, where
-from ....core.components.spaces import DiscreteTime, LatticeSpace
+from ....core.components.spaces import DiscreteTime, LatticeSpace, VonNeumannNeighborhood
 from ....core.components.system import System
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._catalog import register_system
-from ._branching_tree import BranchingTreeElement
-from ._energy_site import EnergySiteElement
 from ._sandpile_cell import SandpileCellElement
-from ._topple import ToppleInteraction
+
+
+class BranchingTreeElement(Element):
+    """Self-organized branching process: avalanches on a binary tree whose branching probability the avalanches tune.
+
+    The probability `p` that an active site relaxes into two active sites of the next generation, the number `z` of
+    active sites of the current generation of the avalanche, and its generation `g`. Map interactions advance the
+    avalanche by one generation per step.
+
+    Args:
+        label:
+            The label of the tree.
+
+        visual:
+            How the tree is drawn, or `None` for `default_visual_`.
+
+        p:
+            The initial branching probability.
+
+        z:
+            The initial number of active sites.
+
+        g:
+            The initial generation.
+
+    Attributes:
+        default_visual_:
+            The visual of the tree when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.criticality import BranchingTreeElement
+        >>> BranchingTreeElement('tree').p
+        0.3
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        p: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.3,
+        z: Annotated[float, StateSpec(domain=NN)] = 1,
+        g: Annotated[float, StateSpec(domain=NN)] = 0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.p = p
+        self.z = z
+        self.g = g
+
+
+class EnergySiteElement(Element):
+    """Site of the Zhang sandpile, which stores a continuous energy.
+
+    A cascade loads the energy in random packets and resets the sites above the threshold.
+
+    Args:
+        label:
+            The label of the site or the lattice group.
+
+        visual:
+            How the site is drawn, or `None` for `default_visual_`.
+
+        energy:
+            The initial energy.
+
+    Attributes:
+        default_visual_:
+            The visual of the site when it sets none.
+
+    Examples:
+        >>> from skcomplex.systems.physics.criticality import EnergySiteElement
+        >>> EnergySiteElement('site').energy
+        0.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        energy: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.energy = energy
+
+
+class ToppleInteraction(LocalRuleInteraction):
+    """Parallel toppling of a sandpile without drive, where every site at or above the threshold topples once a step.
+
+    Every step, every site that holds at least `threshold` grains loses `threshold` grains, and every site gains one
+    grain from each toppling neighbour, all at once. On a periodic lattice no grain is lost, so the number of grains is
+    conserved, and the activity either dies out in an absorbing configuration or lasts forever.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        target:
+            The path of the lattice group of sites.
+
+        threshold:
+            The number of grains at which a site topples, the number of its neighbours.
+
+    Examples:
+        >>> from skcomplex.systems.physics.criticality import ToppleInteraction
+        >>> ToppleInteraction('topple', target='pile').threshold
+        4
+    """
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], threshold: int = 4) -> None:
+        super().__init__(
+            label,
+            target=target,
+            state='height',
+            rule=self._topple,
+            neighborhood=VonNeumannNeighborhood(center=True),
+        )
+        self.threshold = threshold
+
+    def _topple(self, height: Array, *around: Array) -> Array:
+        """Return the heights after every site at or above the threshold topples once."""
+        gained = np.sum([neighbor >= self.threshold for neighbor in around], axis=0)
+        return height - self.threshold * (height >= self.threshold) + gained
+
 
 THRESHOLD = 4
 
