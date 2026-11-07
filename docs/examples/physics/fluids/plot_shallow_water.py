@@ -9,7 +9,7 @@ to the left and the bore moving to the right.
 """
 
 # %%
-# The system is created by name from the catalog with 400 finite-volume cells in a channel of length 10, depths 2 and 1,
+# The system is built from its class with 400 finite-volume cells in a channel of length 10, depths 2 and 1,
 # and `g = 9.81`. The catalog registers the strong-stability-preserving Runge-Kutta stepper for this system, which keeps
 # the bore free of oscillations, so it is passed explicitly. The observer saves every frame of 0.005 with the default
 # blueprint, whose primary view is the space-time image of the depth.
@@ -18,16 +18,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import brentq
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import SSPRKSolver
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.fluids import ShallowWaterSystem
 
 SYSTEM = 'shallow_water'
 
-system = create_system(SYSTEM)
+system = ShallowWaterSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, solver=SSPRKSolver(), dt=0.005, observers=[observer]).prepare().run(until=0.6)
+trajectory = simulate(system, until=0.6, dt=0.005, observers=[observer])
 
 # %%
 # Stoker's exact solution
@@ -49,8 +48,8 @@ def bore_mismatch(middle):
 middle = brentq(bore_mismatch, downstream, upstream)
 velocity = 2 * (np.sqrt(g * upstream) - np.sqrt(g * middle))
 bore = middle * velocity / (middle - downstream)
-time = simulation.trajectory_.times[-1]
-depth = simulation.trajectory_.values('channel.h')[-1]
+time = trajectory.times[-1]
+depth = trajectory.values('channel.h')[-1]
 x = (np.arange(depth.size) + 0.5) * length / depth.size - length / 2
 speed = x / time
 exact = np.where(speed < -np.sqrt(g * upstream), upstream, (2 * np.sqrt(g * upstream) - speed) ** 2 / (9 * g))

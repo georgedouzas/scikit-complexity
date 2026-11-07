@@ -9,7 +9,7 @@ step with the earliest at the top, a chaotic pattern of ridges that split, merge
 """
 
 # %%
-# The system is created by name from the catalog with 128 Fourier modes, started from Kassam and Trefethen's
+# The system is built from its class with 128 Fourier modes, started from Kassam and Trefethen's
 # `cos(x / 16) (1 + sin(x / 16))`. The catalog registers the fourth-order exponential time differencing stepper for
 # this stiff equation, so it is passed explicitly with steps of 0.25. The observer saves every frame of 0.5 with the
 # default blueprint, whose primary view is the space-time image of the field.
@@ -17,16 +17,15 @@ step with the earliest at the top, a chaotic pattern of ridges that split, merge
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import ETDRK4Solver
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.fluids import KuramotoSivashinskySystem
 
 SYSTEM = 'kuramoto_sivashinsky'
 
-system = create_system(SYSTEM)
+system = KuramotoSivashinskySystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, solver=ETDRK4Solver(dt=0.25), dt=0.5, observers=[observer]).prepare().run(until=149.5)
+trajectory = simulate(system, until=149.5, dt=0.5, observers=[observer])
 
 # %%
 # The cell size set by the linear instability
@@ -36,8 +35,8 @@ simulation = Simulation(system, solver=ETDRK4Solver(dt=0.25), dt=0.5, observers=
 # wavenumber, set the cell size near `2 pi sqrt 2 = 8.9`, and fall off exponentially above `q = 1`, where the modes
 # decay.
 
-run = Simulation(create_system(SYSTEM), solver=ETDRK4Solver(dt=0.25), dt=1.0).prepare().run(until=1000)
-field = run.trajectory_.values('line.u')[200:]
+run = simulate(KuramotoSivashinskySystem(), until=1000)
+field = run.values('line.u')[200:]
 length = 32 * np.pi
 wavenumbers = 2 * np.pi * np.fft.rfftfreq(field.shape[1], d=length / field.shape[1])
 power = np.mean(np.abs(np.fft.rfft(field, axis=1)) ** 2, axis=0)

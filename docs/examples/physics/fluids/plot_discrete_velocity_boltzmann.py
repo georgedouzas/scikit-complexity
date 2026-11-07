@@ -10,7 +10,7 @@ top: the pulse runs to the right, spreads, and fades.
 """
 
 # %%
-# The system is created by name from the catalog on a periodic line of length 10 with 200 finite-volume cells, speed
+# The system is built from its class on a periodic line of length 10 with 200 finite-volume cells, speed
 # `c = 1`, and a slow collision rate `kappa = 0.2`, so the pulse travels far before it fades. The catalog registers
 # the strong-stability-preserving Runge-Kutta stepper for this system, so it is passed explicitly. The observer saves
 # every frame of 0.015 with the default blueprint, whose primary view is the space-time image of the right movers.
@@ -18,16 +18,15 @@ top: the pulse runs to the right, spreads, and fades.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import SSPRKSolver
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.fluids import DiscreteVelocityBoltzmannSystem
 
 SYSTEM = 'discrete_velocity_boltzmann'
 
-system = create_system(SYSTEM, kappa=0.2)
+system = DiscreteVelocityBoltzmannSystem(kappa=0.2)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, solver=SSPRKSolver(), dt=0.015, observers=[observer]).prepare().run(until=3)
+simulation = simulate(system, until=3, dt=0.015, observers=[observer])
 
 # %%
 # Conserved mass and relaxing current
@@ -36,7 +35,7 @@ simulation = Simulation(system, solver=SSPRKSolver(), dt=0.015, observers=[obser
 # initial value to round-off, while the total current `c sum(f_plus - f_minus)`, which collisions do not conserve,
 # should decay towards zero as the gas relaxes to the equilibrium `f_plus = f_minus`, over a longer run.
 
-trajectory = Simulation(create_system(SYSTEM), solver=SSPRKSolver(), dt=0.05).prepare().run(until=10).trajectory_
+trajectory = simulate(DiscreteVelocityBoltzmannSystem(), until=10, dt=0.05)
 right, left = trajectory.values('gas.f_plus'), trajectory.values('gas.f_minus')
 mass = (right + left).sum(axis=1)
 current = (right - left).sum(axis=1)
