@@ -3,9 +3,8 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems import describe
-from skcomplex.systems.biology.epidemiology import heterogeneous_mean_field_sir
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.biology.epidemiology import HeterogeneousMeanFieldSIRSystem
 
 
 def _degree_moments(exponent, k_min, k_max):
@@ -20,15 +19,10 @@ def test_heterogeneous_mean_field_sir_epidemic_threshold(factor, below):
     """Test that the final epidemic size is below 1% below the threshold <k>/<k^2> and above 5% above it."""
     _, _, first, second = _degree_moments(2.5, 3, 100)
     beta = factor * first / second
-    trajectory = (
-        Simulation(
-            built := heterogeneous_mean_field_sir(beta=beta, mu=1.0),
-            dt=1.0,
-            observables=describe('heterogeneous_mean_field_sir').observables_of(built),
-        )
-        .prepare()
-        .run(until=200)
-        .trajectory_
+    trajectory = simulate(
+        HeterogeneousMeanFieldSIRSystem(beta=beta, mu=1.0),
+        dt=1.0,
+        until=200,
     )
     final_size = trajectory.values('recovered')[-1]
     assert trajectory.values('infected')[-1] < 1e-6
@@ -39,12 +33,11 @@ def test_heterogeneous_mean_field_sir_early_growth_rate():
     """Test that theta grows at the rate (beta (<k^2> - <k>) - mu <k>) / <k> of the linearized equation (6.30)."""
     degrees, probabilities, first, second = _degree_moments(2.5, 3, 100)
     beta, mu = 0.13, 1.0
-    system = heterogeneous_mean_field_sir(beta=beta, mu=mu, infected=1e-9)
-    trajectory = (
-        Simulation(system, dt=0.5, observables=describe('heterogeneous_mean_field_sir').observables_of(system))
-        .prepare()
-        .run(until=12)
-        .trajectory_
+    system = HeterogeneousMeanFieldSIRSystem(beta=beta, mu=mu, infected=1e-9)
+    trajectory = simulate(
+        system,
+        dt=0.5,
+        until=12,
     )
     theta = trajectory.values('network.i') @ ((degrees - 1) * probabilities) / first
     selected = trajectory.times >= 4

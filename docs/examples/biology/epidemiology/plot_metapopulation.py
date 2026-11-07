@@ -6,24 +6,23 @@ connections, are reached first, and the less connected cities peak later, one wa
 """
 
 # %%
-# The system is created by name from the catalog on its default Barabási-Albert network of 30 cities, with the
-# infection starting in the first. The observer saves every day with the default blueprint, whose primary view is the
-# time series of the subpopulations.
+# The system is built from its class on its default Barabási-Albert network of 30 cities, with the infection starting
+# in the first. The observer saves every day with the default blueprint, whose primary view is the time series of the
+# subpopulations.
 
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.epidemiology import MetapopulationSystem
 
 SYSTEM = 'metapopulation'
 
 graph = nx.barabasi_albert_graph(30, 2, seed=0)
-system = create_system(SYSTEM, graph=graph)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=150)
+trajectory = simulate(MetapopulationSystem(graph=graph), observers=[observer])
 
 # %%
 # Arrival time against distance
@@ -31,7 +30,6 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(unti
 # The infection hops one edge at a time, so the day each city reaches its epidemic peak should grow with its distance
 # on the network from the first city.
 
-trajectory = simulation.trajectory_
 infected = trajectory.values('cities.I')
 peaks = trajectory.times[np.argmax(infected, axis=0)]
 distance = nx.single_source_shortest_path_length(graph, 0)

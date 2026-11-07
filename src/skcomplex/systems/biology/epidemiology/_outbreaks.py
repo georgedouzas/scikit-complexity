@@ -12,30 +12,8 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import CouplingInteraction, TransferInteraction
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
-
-
-def _edge_weight(namespace: SimpleNamespace) -> Expression:
-    """Return the share `k P(k)` of the ends of edges that another degree class holds."""
-    return namespace.other.k * namespace.other.P
-
-
-def _infection(namespace: SimpleNamespace) -> Expression:
-    """Return the infection `beta k s_k (k' - 1) i_k' / k'` of a degree class by the nodes of another class."""
-    member, other = namespace.member, namespace.other
-    return member.beta * member.k * member.s * (other.k - 1) * other.i / other.k
-
-
-def _susceptible_loss(namespace: SimpleNamespace) -> Expression:
-    """Return the loss of susceptible density of a degree class to the infection by another class."""
-    return -_infection(namespace)
-
-
-def _recovery(namespace: SimpleNamespace) -> Expression:
-    """Return the recovery `mu i_k` of a degree class."""
-    return namespace.source.mu * namespace.source.i
 
 
 def _recovered_share(member: SimpleNamespace) -> Expression:
@@ -56,7 +34,7 @@ class ImmunizingDegreeClassElement(Element):
     that a contact of a susceptible node is infected is `theta = sum_k (k - 1) P(k) i_k / <k>`, a total over the
     degree classes, since an infected neighbour of degree `k` has at most `k - 1` other contacts. The classes are the
     members of a group, and the infections and the recoveries are interactions of the group, which
-    `heterogeneous_mean_field_sir` adds.
+    `HeterogeneousMeanFieldSIRSystem` adds.
 
     Args:
         label:
@@ -120,35 +98,16 @@ class ImmunizingDegreeClassElement(Element):
         self.P = P
 
 
-@register_system(
-    field='biology/epidemiology',
-    tags=('network', 'mean field', 'ode', 'epidemic threshold', 'scale-free', 'final size'),
-    references=(
-        'Bertin 2021',
-        'Moreno, Pastor-Satorras, and Vespignani 2002',
-        'Barrat, Barthelemy, and Vespignani 2008',
-    ),
-    defaults={'until': 100.0, 'dt': 0.5},
-    observables=lambda system: [
-        ObservableSpec('infected', _infected_share, group='network', reduce='sum'),
-        ObservableSpec('recovered', _recovered_share, group='network', reduce='sum'),
-    ],
-)
-def heterogeneous_mean_field_sir(
-    exponent: float = 2.5,
-    k_min: int = 3,
-    k_max: int = 100,
-    *,
-    beta: float = 0.1,
-    mu: float = 1.0,
-    infected: float = 1e-4,
-) -> System:
-    """Return the SIR epidemic on an uncorrelated network of power-law degrees, in heterogeneous mean field.
+class HeterogeneousMeanFieldSIRSystem(BaseSystem):
+    """The SIR epidemic on an uncorrelated network of power-law degrees, in heterogeneous mean field.
 
-    The degrees run from `k_min` to `k_max` with `P(k) ~ k^-exponent`. An outbreak grows when
-    `beta / mu > <k> / (<k^2> - <k>)`, a threshold close to `<k> / <k^2>` on heterogeneous networks, which vanishes on
-    scale-free networks as `k_max` grows. Below it the epidemic dies out after infecting a share of the order of the
-    initial one, and above it a finite share of the population ends recovered. The hubs are infected first.
+    The degrees run from `k_min` to `k_max` with `P(k) ~ k^-exponent`. An outbreak grows when `beta / mu > <k> / (<k^2>
+    - <k>)`, a threshold close to `<k> / <k^2>` on heterogeneous networks, which vanishes on scale-free networks as
+    `k_max` grows. Below it the epidemic dies out after infecting a share of the order of the initial one, and above it
+    a finite share of the population ends recovered. The hubs are infected first. The system has the densities
+    `network.s`, `network.i`, and `network.r` of the degree classes from `k_min` to `k_max`, members of the group
+    `network`, and the shares `infected` and `recovered` of the whole population, the last one the final epidemic size
+    at the end of the outbreak.
 
     Args:
         exponent:
@@ -169,48 +128,116 @@ def heterogeneous_mean_field_sir(
         infected:
             The initial infected density of every class.
 
-    Returns:
-        system:
-            The system, with the densities `network.s`, `network.i`, and `network.r` of the degree classes from `k_min`
-            to `k_max`, members of the group `network`, and the shares `infected` and `recovered` of the whole
-            population, the last one the final epidemic size at the end of the outbreak.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.epidemiology import heterogeneous_mean_field_sir
-        >>> heterogeneous_mean_field_sir(k_min=2, k_max=5).elements[0].prepare().size_
+        >>> from skcomplex.systems.biology.epidemiology import HeterogeneousMeanFieldSIRSystem
+        >>> HeterogeneousMeanFieldSIRSystem(k_min=2, k_max=5).prepare().system_.elements[0].prepare().size_
         4
     """
-    degrees = np.arange(k_min, k_max + 1, dtype=float)
-    weights = degrees**-exponent / np.sum(degrees**-exponent)
-    classes = GroupElement(
-        'network',
-        element=ImmunizingDegreeClassElement,
-        size=len(degrees),
-        values={'s': 1.0 - infected, 'i': infected, 'r': 0.0, 'beta': beta, 'mu': mu, 'k': degrees, 'P': weights},
+
+    field = 'biology/epidemiology'
+    topics = ('network', 'mean field', 'ode', 'epidemic threshold', 'scale-free', 'final size')
+    references = (
+        'Bertin 2021',
+        'Moreno, Pastor-Satorras, and Vespignani 2002',
+        'Barrat, Barthelemy, and Vespignani 2008',
     )
-    interactions = [
-        CouplingInteraction(
-            'infection',
-            target='network',
-            read='i',
-            write='i',
-            function=_infection,
-            reduce='normalized-mean',
-            mode='group',
-            weights=_edge_weight,
-            include_self=True,
-        ),
-        CouplingInteraction(
-            'contagion',
-            target='network',
-            read='s',
-            write='s',
-            function=_susceptible_loss,
-            reduce='normalized-mean',
-            mode='group',
-            weights=_edge_weight,
-            include_self=True,
-        ),
-        TransferInteraction('recovery', source='network', target='network', state='i', into='r', amount=_recovery),
-    ]
-    return System(elements=[classes], interactions=interactions)
+    until = 100.0
+    dt = 0.5
+    observables = (
+        ObservableSpec('infected', _infected_share, group='network', reduce='sum'),
+        ObservableSpec('recovered', _recovered_share, group='network', reduce='sum'),
+    )
+
+    def __init__(
+        self,
+        exponent: float = 2.5,
+        k_min: int = 3,
+        k_max: int = 100,
+        *,
+        beta: float = 0.1,
+        mu: float = 1.0,
+        infected: float = 1e-4,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.exponent = exponent
+        self.k_min = k_min
+        self.k_max = k_max
+        self.beta = beta
+        self.mu = mu
+        self.infected = infected
+
+    @staticmethod
+    def _edge_weight(namespace: SimpleNamespace) -> Expression:
+        """Return the share `k P(k)` of the ends of edges that another degree class holds."""
+        return namespace.other.k * namespace.other.P
+
+    @staticmethod
+    def _infection(namespace: SimpleNamespace) -> Expression:
+        """Return the infection `beta k s_k (k' - 1) i_k' / k'` of a degree class by the nodes of another class."""
+        member, other = namespace.member, namespace.other
+        return member.beta * member.k * member.s * (other.k - 1) * other.i / other.k
+
+    def _susceptible_loss(self, namespace: SimpleNamespace) -> Expression:
+        """Return the loss of susceptible density of a degree class to the infection by another class."""
+        return -self._infection(namespace)
+
+    @staticmethod
+    def _recovery(namespace: SimpleNamespace) -> Expression:
+        """Return the recovery `mu i_k` of a degree class."""
+        return namespace.source.mu * namespace.source.i
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        degrees = np.arange(self.k_min, self.k_max + 1, dtype=float)
+        weights = degrees**-self.exponent / np.sum(degrees**-self.exponent)
+        classes = GroupElement(
+            'network',
+            element=ImmunizingDegreeClassElement,
+            size=len(degrees),
+            values={
+                's': 1.0 - self.infected,
+                'i': self.infected,
+                'r': 0.0,
+                'beta': self.beta,
+                'mu': self.mu,
+                'k': degrees,
+                'P': weights,
+            },
+        )
+        interactions = [
+            CouplingInteraction(
+                'infection',
+                target='network',
+                read='i',
+                write='i',
+                function=self._infection,
+                reduce='normalized-mean',
+                mode='group',
+                weights=self._edge_weight,
+                include_self=True,
+            ),
+            CouplingInteraction(
+                'contagion',
+                target='network',
+                read='s',
+                write='s',
+                function=self._susceptible_loss,
+                reduce='normalized-mean',
+                mode='group',
+                weights=self._edge_weight,
+                include_self=True,
+            ),
+            TransferInteraction(
+                'recovery',
+                source='network',
+                target='network',
+                state='i',
+                into='r',
+                amount=self._recovery,
+            ),
+        ]
+        return System(self.label, elements=[classes], interactions=interactions)

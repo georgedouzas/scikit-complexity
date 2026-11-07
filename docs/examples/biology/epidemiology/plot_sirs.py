@@ -6,21 +6,20 @@ outbreak, ever smaller waves follow until the infection settles at an endemic le
 """
 
 # %%
-# The system is created by name from the catalog with its default rates, an immunity that lasts 50 days on average,
-# and run for 300 days. The observer saves every second day with the default blueprint, whose primary view is the
-# time series of the three compartments.
+# The system is built from its class with its default rates, an immunity that lasts 50 days on average, and run for
+# 300 days. The observer saves every second day with the default blueprint, whose primary view is the time series of
+# the three compartments.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.epidemiology import SIRSSystem
 
 SYSTEM = 'sirs'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=300)
+trajectory = simulate(SIRSSystem(), observers=[observer])
 
 # %%
 # Damped waves to the endemic equilibrium
@@ -28,7 +27,6 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(unti
 # The endemic equilibrium has `S = gamma / beta` susceptibles and `I = xi (N - S) / (gamma + xi)` infected. In the
 # `(S, I)` plane the trajectory should spiral into that point.
 
-trajectory = simulation.trajectory_
 susceptible, infected = trajectory.values('S.n'), trajectory.values('I.n')
 beta, gamma, xi, total = 0.0003, 0.1, 0.02, 1000.0
 s_star = gamma / beta

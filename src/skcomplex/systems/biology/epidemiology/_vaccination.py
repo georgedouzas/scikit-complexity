@@ -11,10 +11,9 @@ from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import PontryaginSolver
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 MAX_RATE = 0.9
 
@@ -77,6 +76,8 @@ class VaccinatedPopulationElement(Element):
         0.01
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -120,27 +121,13 @@ class VaccinatedPopulationElement(Element):
         ]
 
 
-@register_system(
-    field='biology/epidemiology',
-    tags=('optimal control', 'vaccination', 'sir', 'pontryagin', 'ode'),
-    references=('Lenhart and Workman 2007',),
-    defaults={'until': 30.0, 'dt': 0.2, 'solver': PontryaginSolver(objective=_cost)},
-    observables=lambda system: [ObservableSpec('vaccinated', _vaccinated), ObservableSpec('cost', _cost)],
-)
-def sir_vaccination(
-    S: float = 0.99,
-    I: float = 0.01,
-    *,
-    beta: float = 0.5,
-    gamma: float = 0.1,
-    a: float = 1.0,
-    b: float = 1.0,
-) -> System:
-    """Return an SIR epidemic with the vaccination rate that minimises the burden of infections and vaccines.
+class SIRVaccinationSystem(BaseSystem):
+    """An SIR epidemic with the vaccination rate that minimises the burden of infections and vaccines.
 
     Run with an optimal control solver, vaccination is strongest early, while many are susceptible, and the epidemic
     peaks lower than without vaccination. With no weight `a` on the infections the optimal rate is 0, the epidemic
-    without control.
+    without control. The system has the fractions `population.S`, `population.I`, and `population.R`, the vaccination
+    rate `population.u`, and the observables `vaccinated` and `cost`, the running cost.
 
     Args:
         S:
@@ -161,24 +148,55 @@ def sir_vaccination(
         b:
             The weight of the squared vaccination rate in the cost.
 
-    Returns:
-        system:
-            The system, with the fractions `population.S`, `population.I`, and `population.R`, the vaccination rate
-            `population.u`, and the observables `vaccinated` and `cost`, the running cost.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.epidemiology import sir_vaccination
-        >>> sir_vaccination(beta=0.3).elements[0].beta
+        >>> from skcomplex.systems.biology.epidemiology import SIRVaccinationSystem
+        >>> SIRVaccinationSystem(beta=0.3).prepare().system_.elements[0].beta
         0.3
     """
-    population = VaccinatedPopulationElement(
-        'population',
-        S=S,
-        I=I,
-        R=max(1 - S - I, 0.0),
-        beta=beta,
-        gamma=gamma,
-        a=a,
-        b=b,
+
+    field = 'biology/epidemiology'
+    topics = ('optimal control', 'vaccination', 'sir', 'pontryagin', 'ode')
+    references = ('Lenhart and Workman 2007',)
+    until = 30.0
+    dt = 0.2
+    solver = PontryaginSolver(objective=_cost)
+    observables = (
+        ObservableSpec('vaccinated', _vaccinated),
+        ObservableSpec('cost', _cost),
     )
-    return System(elements=[population])
+
+    def __init__(
+        self,
+        S: float = 0.99,
+        I: float = 0.01,
+        *,
+        beta: float = 0.5,
+        gamma: float = 0.1,
+        a: float = 1.0,
+        b: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.S = S
+        self.I = I
+        self.beta = beta
+        self.gamma = gamma
+        self.a = a
+        self.b = b
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        population = VaccinatedPopulationElement(
+            'population',
+            S=self.S,
+            I=self.I,
+            R=max(1 - self.S - self.I, 0.0),
+            beta=self.beta,
+            gamma=self.gamma,
+            a=self.a,
+            b=self.b,
+        )
+        return System(self.label, elements=[population])

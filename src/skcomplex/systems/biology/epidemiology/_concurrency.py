@@ -16,9 +16,8 @@ from ....core.components.interactions import TopologyInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import delayed
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.networks import HostElement, SpreadingInteraction
 
 FRACTION = RealSet.closed(0, 1)
@@ -78,6 +77,8 @@ class PartnershipEpidemicElement(Element):
         1.0
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -131,27 +132,14 @@ class PartnershipEpidemicElement(Element):
         ]
 
 
-@register_system(
-    field='biology/epidemiology',
-    tags=('concurrency', 'partnerships', 'seir', 'delay', 'hiv'),
-    references=('Watts and May 1992', 'Masuda, Miller, and Holme 2021'),
-    defaults={'until': 40.0, 'dt': 0.25},
-)
-def watts_may_concurrency(
-    infected: float = 0.01,
-    *,
-    c: float = 2.0,
-    beta: float = 0.2,
-    tau: float = 1.0,
-    T: float = 0.5,
-    nu: float = 0.1,
-) -> System:
-    """Return the SEIR epidemic of Watts and May, where partnerships that last longer spread the infection faster.
+class WattsMayConcurrencySystem(BaseSystem):
+    """The SEIR epidemic of Watts and May, where partnerships that last longer spread the infection faster.
 
     A susceptible person is infected at the rate `pi(t) = c beta [I / (S + E + I) + int exp(-(t - t') / tau) pi(t' - T)
     S(t' - T) / (S + E + I)(t') dt']`, by a new partner who is infectious or by a current partner who turned infectious
     during the partnership. The mean number of current partners is `c tau`, so a longer partnership raises the mean
-    degree of the momentary network, and the infection rate grows with `tau` at fixed `c` and `beta`.
+    degree of the momentary network, and the infection rate grows with `tau` at fixed `c` and `beta`. The system has the
+    fractions `population.S`, `population.E`, `population.I`, `population.R`, and the infection memory `population.J`.
 
     Args:
         infected:
@@ -172,55 +160,65 @@ def watts_may_concurrency(
         nu:
             The rate at which the infectious develop the disease.
 
-    Returns:
-        system:
-            The system, with the fractions `population.S`, `population.E`, `population.I`, `population.R`, and the
-            infection memory `population.J`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.epidemiology import watts_may_concurrency
-        >>> watts_may_concurrency(tau=3.0).elements[0].tau
+        >>> from skcomplex.systems.biology.epidemiology import WattsMayConcurrencySystem
+        >>> WattsMayConcurrencySystem(tau=3.0).prepare().system_.elements[0].tau
         3.0
     """
-    population = PartnershipEpidemicElement(
-        'population',
-        S=1 - infected,
-        I=infected,
-        c=c,
-        beta=beta,
-        tau=tau,
-        T=T,
-        nu=nu,
-    )
-    return System(elements=[population])
+
+    field = 'biology/epidemiology'
+    topics = ('concurrency', 'partnerships', 'seir', 'delay', 'hiv')
+    references = ('Watts and May 1992', 'Masuda, Miller, and Holme 2021')
+    until = 40.0
+    dt = 0.25
+
+    def __init__(
+        self,
+        infected: float = 0.01,
+        *,
+        c: float = 2.0,
+        beta: float = 0.2,
+        tau: float = 1.0,
+        T: float = 0.5,
+        nu: float = 0.1,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.infected = infected
+        self.c = c
+        self.beta = beta
+        self.tau = tau
+        self.T = T
+        self.nu = nu
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        population = PartnershipEpidemicElement(
+            'population',
+            S=1 - self.infected,
+            I=self.infected,
+            c=self.c,
+            beta=self.beta,
+            tau=self.tau,
+            T=self.T,
+            nu=self.nu,
+        )
+        return System(self.label, elements=[population])
 
 
-@register_system(
-    field='biology/epidemiology',
-    tags=('concurrency', 'partnerships', 'temporal network', 'sis', 'jumps'),
-    references=('Morris and Kretzschmar 1997', 'Masuda, Miller, and Holme 2021'),
-    defaults={'until': 40.0, 'dt': 0.5},
-)
-def pair_formation_sis(
-    n: int = 400,
-    k: int = 2,
-    *,
-    beta: float | None = None,
-    gamma: float = 0.5,
-    sigma: float | None = None,
-    pressure: float = 1.5,
-    turnover: float = 2.0,
-    infected: float = 0.05,
-    seed: int | None = 1,
-) -> System:
-    """Return the SIS epidemic on partnerships that dissolve and are replaced at once, with `k` partners each.
+class PairFormationSISSystem(BaseSystem):
+    """The SIS epidemic on partnerships that dissolve and are replaced at once, with `k` partners each.
 
     Every person keeps `k` partners at any time, on a random regular network. A partnership dissolves at the rate
     `sigma`, and the person who keeps it finds a new partner at once, at random. An infectious person infects a
     susceptible partner at the rate `beta` and recovers at the rate `gamma`. By default the infection pressure `k beta`
     and the rate `k sigma` of new partners per person are held fixed at `pressure` and `turnover`, so `k = 1` is serial
-    monogamy and a larger `k` is concurrency at the same contact rate. Concurrency lets the infection pass on before
-    the partnership that brought it ends, so the epidemic grows faster and reaches more people.
+    monogamy and a larger `k` is concurrency at the same contact rate. Concurrency lets the infection pass on before the
+    partnership that brought it ends, so the epidemic grows faster and reaches more people. The system has the states
+    `people.i` of the variable group `people` on the nodes and the variable group `partnerships` on the edges.
 
     Args:
         n:
@@ -250,43 +248,78 @@ def pair_formation_sis(
         seed:
             The seed of the network and of the initial infections.
 
-    Returns:
-        system:
-            The system, with the states `people.i` of the variable group `people` on the nodes and the variable group
-            `partnerships` on the edges.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.epidemiology import pair_formation_sis
-        >>> pair_formation_sis(n=20, k=4).interactions[0].beta
+        >>> from skcomplex.systems.biology.epidemiology import PairFormationSISSystem
+        >>> PairFormationSISSystem(n=20, k=4).prepare().system_.interactions[0].beta
         0.375
     """
-    beta = pressure / k if beta is None else beta
-    sigma = turnover / k if sigma is None else sigma
-    space = NetworkSpace(nx.random_regular_graph(k, n, seed=seed))
-    initial = (np.random.default_rng(seed).random(n) < infected).astype(float)
-    people = GroupElement(
-        'people',
-        element=HostElement,
-        space=space,
-        on='sites',
-        variable=True,
-        capacity=n,
-        values={'i': initial},
-        visual=VisualSpec('sites', {'states': ['i'], 'low': 0, 'high': 1}),
-    )
-    partnerships = GroupElement(
-        'partnerships',
-        element=Element,
-        space=space,
-        on='edges',
-        variable=True,
-        capacity=space.graph.number_of_edges(),
-        visual=VisualSpec('sites', {'states': []}),
-    )
-    return System(
-        elements=[people, partnerships],
-        interactions=[
-            SpreadingInteraction('spreading', target='people', state='i', beta=beta, gamma=gamma),
-            TopologyInteraction('dissolution', target='people', action='rewire', rate=sigma, keep='source'),
-        ],
-    )
+
+    field = 'biology/epidemiology'
+    topics = ('concurrency', 'partnerships', 'temporal network', 'sis', 'jumps')
+    references = ('Morris and Kretzschmar 1997', 'Masuda, Miller, and Holme 2021')
+    until = 40.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        n: int = 400,
+        k: int = 2,
+        *,
+        beta: float | None = None,
+        gamma: float = 0.5,
+        sigma: float | None = None,
+        pressure: float = 1.5,
+        turnover: float = 2.0,
+        infected: float = 0.05,
+        seed: int | None = 1,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n = n
+        self.k = k
+        self.beta = beta
+        self.gamma = gamma
+        self.sigma = sigma
+        self.pressure = pressure
+        self.turnover = turnover
+        self.infected = infected
+        self.seed = seed
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        beta = self.beta
+        sigma = self.sigma
+        beta = self.pressure / self.k if beta is None else beta
+        sigma = self.turnover / self.k if sigma is None else sigma
+        space = NetworkSpace(nx.random_regular_graph(self.k, self.n, seed=self.seed))
+        initial = (np.random.default_rng(self.seed).random(self.n) < self.infected).astype(float)
+        people = GroupElement(
+            'people',
+            element=HostElement,
+            space=space,
+            on='sites',
+            variable=True,
+            capacity=self.n,
+            values={'i': initial},
+            visual=VisualSpec('sites', {'states': ['i'], 'low': 0, 'high': 1}),
+        )
+        partnerships = GroupElement(
+            'partnerships',
+            element=Element,
+            space=space,
+            on='edges',
+            variable=True,
+            capacity=space.graph.number_of_edges(),
+            visual=VisualSpec('sites', {'states': []}),
+        )
+        return System(
+            self.label,
+            elements=[people, partnerships],
+            interactions=[
+                SpreadingInteraction('spreading', target='people', state='i', beta=beta, gamma=self.gamma),
+                TopologyInteraction('dissolution', target='people', action='rewire', rate=sigma, keep='source'),
+            ],
+        )

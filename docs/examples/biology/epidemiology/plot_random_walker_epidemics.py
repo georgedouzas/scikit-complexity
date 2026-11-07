@@ -6,21 +6,26 @@ die some steps later, so the disease spreads outwards as a front, like a forest 
 """
 
 # %%
-# The system is created by name from the catalog with a thousand walkers on a 64 by 64 grid. The observer saves every
-# step with the default blueprint, whose primary view shows the walkers on the grid.
+# The system is built from its class with a thousand walkers on a 64 by 64 grid. The observer saves every step with
+# the default blueprint, whose primary view shows the walkers on the grid.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.epidemiology import RandomWalkerEpidemicsSystem
 
 SYSTEM = 'random_walker_epidemics'
 
-system = create_system(SYSTEM, walkers=1000, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=299)
+trajectory = simulate(
+    RandomWalkerEpidemicsSystem(walkers=1000, random_state=0),
+    dt=1,
+    observers=[observer],
+    random_state=0,
+    until=299,
+)
 
 # %%
 # Density threshold
@@ -31,12 +36,8 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 
 def dead_share(walkers, seed):
     """Return the share of walkers dead at the end of a run."""
-    run = (
-        Simulation(create_system(SYSTEM, walkers=walkers, random_state=seed), dt=1, random_state=seed)
-        .prepare()
-        .run(until=300)
-    )
-    final = run.trajectory_.agents('walkers', len(run.trajectory_.times) - 1)
+    run = simulate(RandomWalkerEpidemicsSystem(walkers=walkers, random_state=seed), until=300, dt=1, random_state=seed)
+    final = run.agents('walkers', len(run.times) - 1)
     return np.mean(final.values['health'] == 2)
 
 
