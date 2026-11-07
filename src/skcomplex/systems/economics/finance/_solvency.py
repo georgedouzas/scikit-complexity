@@ -16,7 +16,7 @@ from ....core.engine.solvers import SystemView
 from ....core.specs import ParameterSpec, RoleSpec
 from ....core.types import Array
 from ..._catalog import register_system
-from ._balance_sheet import DEFAULTED, DEFAULTING, SOLVENT, BalanceSheetElement, BalanceSheetView
+from ..common._balance_sheet import DEFAULTED, DEFAULTING, SOLVENT, BalanceSheetElement, BalanceSheetView
 
 
 class DefaultCascadeInteraction(FeedbackInteraction[SystemView]):
