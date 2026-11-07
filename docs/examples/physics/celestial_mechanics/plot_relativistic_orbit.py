@@ -13,15 +13,15 @@ rosette.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.celestial_mechanics import RelativisticOrbitSystem
 
 SYSTEM = 'relativistic_orbit'
 
-system = create_system(SYSTEM)
+system = RelativisticOrbitSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
-simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(until=60)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Precessing orbit
@@ -31,9 +31,9 @@ simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(unt
 
 fig, ax = plt.subplots(figsize=(6, 6))
 for epsilon in [0.0, 0.05]:
-    run = Simulation(create_system(SYSTEM, epsilon=epsilon), dt=0.02).prepare().run(until=60)
-    angle = np.asarray(run.trajectory_.times)
-    radius = 1 / np.ravel(run.trajectory_.values('planet.u'))
+    run = simulate(RelativisticOrbitSystem(epsilon=epsilon))
+    angle = np.asarray(run.times)
+    radius = 1 / np.ravel(run.values('planet.u'))
     ax.plot(radius * np.cos(angle), radius * np.sin(angle), label=f'epsilon = {epsilon}')
 ax.plot(0, 0, '*', color='orange', markersize=12)
 ax.set_aspect('equal')

@@ -14,10 +14,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import EulerLagrangeInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.laws.utils import derivative
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import ScipyODESolver
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class DumbbellElement(Element):
@@ -155,6 +154,8 @@ class RelativisticOrbitElement(Element):
         0.05
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -207,14 +208,6 @@ def _get_dumbbell_parts(d: SimpleNamespace, rates: SimpleNamespace) -> tuple[Exp
     return (orbit + spin) / 2, -(1 - d.delta) / first - d.delta / second
 
 
-def _get_dumbbell_lagrangian(s: SimpleNamespace) -> Expression:
-    """Return the Lagrangian of the Keplerian dumbbell of the target."""
-    d = s.target
-    rates = SimpleNamespace(**{name: derivative(getattr(d, name), 1) for name in COORDINATES})
-    kinetic, potential = _get_dumbbell_parts(d, rates)
-    return kinetic - potential
-
-
 def _get_dumbbell_energy(d: SimpleNamespace) -> Expression:
     """Return the energy of a dumbbell, the sum of its kinetic and potential energies."""
     rates = SimpleNamespace(**{name: getattr(d, f'{name}_d1') for name in COORDINATES})
@@ -228,56 +221,21 @@ def _get_dumbbell_momentum(d: SimpleNamespace) -> Expression:
     return d.u**2 * d.theta_d1 + inertia * sin(d.psi) ** 2 * d.phi_d1
 
 
-def _get_dumbbell_observables(system: System) -> list[ObservableSpec]:
-    """Return the energy and the angular momentum of the dumbbell."""
-    del system
-    return [
-        ObservableSpec('energy', _get_dumbbell_energy, element='dumbbell'),
-        ObservableSpec('angular_momentum', _get_dumbbell_momentum, element='dumbbell'),
-    ]
-
-
-@register_system(
-    field='physics/celestial_mechanics',
-    tags=('mechanics', 'ode', 'second order', 'gravity', 'spin-orbit coupling', 'lagrangian'),
-    references=('Dilão and Murteira 2020', 'Dilão 2023'),
-    defaults={
-        'until': 60.0,
-        'dt': 0.05,
-        'solver': ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12),
-        'invariants': {'dumbbell.energy': 1e-6, 'dumbbell.angular_momentum': 1e-6},
-    },
-    observables=_get_dumbbell_observables,
-)
-def keplerian_dumbbell(
-    u: float = 1.0,
-    vu: float = 0.0,
-    theta: float = 0.0,
-    omega: float = 1.0,
-    *,
-    phi: float = 0.0,
-    spin: float = 3.0,
-    v: float = 0.0,
-    vv: float = 0.0,
-    psi: float = 1.5707963267948966,
-    vpsi: float = 0.0,
-    delta: float = 0.5,
-    epsilon: float = 0.1,
-    mu: float = 0.9,
-) -> System:
-    """Return the Keplerian dumbbell: two masses on a rigid massless arm that orbit a primary under gravity.
+class KeplerianDumbbellSystem(BaseSystem):
+    """The Keplerian dumbbell: two masses on a rigid massless arm that orbit a primary under gravity.
 
     The centre of mass of the dumbbell at the cylindrical coordinates `(u, theta, v)` about the primary and the arm at
-    the spherical angles `(phi, psi)` move under the dimensionless Lagrangian
-    `L = (u'² + u² theta'² + v'²) / 2 + I (psi'² + sin² psi phi'²) / 2 + (1 - delta) / rho12 + delta / rho13`, with the
-    moment of inertia `I = delta (1 - delta) epsilon² / mu` of the arm. The distances of the two masses from the primary
-    are `rho12² = u² + v² + delta² epsilon² + 2 delta epsilon P` and
-    `rho13² = u² + v² + (1 - delta)² epsilon² - 2 (1 - delta) epsilon P`, with
-    `P = u sin psi cos(theta - phi) + v cos psi`. Its Euler-Lagrange equations are the equations of motion of Dilão
-    and Murteira. The gravity gradient across the arm couples the spin to the orbit, the simplest spin-orbit coupling
-    of a rigid body. For `epsilon = 0` the orbit is a Kepler orbit, of period `2π` at `u = 1`. The energy and the
-    angular momentum about the normal to the orbital plane are conserved. By default the arm spins three times faster
-    than it orbits, in the orbital plane, and its spin and orbit exchange angular momentum.
+    the spherical angles `(phi, psi)` move under the dimensionless Lagrangian `L = (u'² + u² theta'² + v'²) / 2 + I
+    (psi'² + sin² psi phi'²) / 2 + (1 - delta) / rho12 + delta / rho13`, with the moment of inertia `I = delta (1 -
+    delta) epsilon² / mu` of the arm. The distances of the two masses from the primary are `rho12² = u² + v² + delta²
+    epsilon² + 2 delta epsilon P` and `rho13² = u² + v² + (1 - delta)² epsilon² - 2 (1 - delta) epsilon P`, with `P = u
+    sin psi cos(theta - phi) + v cos psi`. Its Euler-Lagrange equations are the equations of motion of Dilão and
+    Murteira. The gravity gradient across the arm couples the spin to the orbit, the simplest spin-orbit coupling of a
+    rigid body. For `epsilon = 0` the orbit is a Kepler orbit, of period `2π` at `u = 1`. The energy and the angular
+    momentum about the normal to the orbital plane are conserved. By default the arm spins three times faster than it
+    orbits, in the orbital plane, and its spin and orbit exchange angular momentum. The system has the coordinates
+    `dumbbell.u`, `dumbbell.theta`, `dumbbell.v`, `dumbbell.phi`, and `dumbbell.psi` of order 2, and the observables
+    `dumbbell.energy` and `dumbbell.angular_momentum`.
 
     Args:
         u:
@@ -319,57 +277,105 @@ def keplerian_dumbbell(
         mu:
             The share of the primary in the mass of the three bodies.
 
-    Returns:
-        system:
-            The system, with the coordinates `dumbbell.u`, `dumbbell.theta`, `dumbbell.v`, `dumbbell.phi`, and
-            `dumbbell.psi` of order 2, and the observables `dumbbell.energy` and `dumbbell.angular_momentum`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.celestial_mechanics import keplerian_dumbbell
-        >>> keplerian_dumbbell(epsilon=0.2).elements[0].epsilon
+        >>> from skcomplex.systems.physics.celestial_mechanics import KeplerianDumbbellSystem
+        >>> KeplerianDumbbellSystem(epsilon=0.2).prepare().system_.elements[0].epsilon
         0.2
     """
-    dumbbell = DumbbellElement(
-        'dumbbell',
-        u=u,
-        u_d1=vu,
-        theta=theta,
-        theta_d1=omega,
-        v=v,
-        v_d1=vv,
-        phi=phi,
-        phi_d1=spin,
-        psi=psi,
-        psi_d1=vpsi,
-        delta=delta,
-        epsilon=epsilon,
-        mu=mu,
+
+    field = 'physics/celestial_mechanics'
+    topics = ('mechanics', 'ode', 'second order', 'gravity', 'spin-orbit coupling', 'lagrangian')
+    references = ('Dilão and Murteira 2020', 'Dilão 2023')
+    until = 60.0
+    dt = 0.05
+    solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
+    observables = (
+        ObservableSpec('energy', _get_dumbbell_energy, element='dumbbell'),
+        ObservableSpec('angular_momentum', _get_dumbbell_momentum, element='dumbbell'),
     )
-    motion = EulerLagrangeInteraction(
-        'motion',
-        target='dumbbell',
-        states=COORDINATES,
-        lagrangian=_get_dumbbell_lagrangian,
-    )
-    return System(elements=[dumbbell], interactions=[motion])
+
+    def __init__(
+        self,
+        u: float = 1.0,
+        vu: float = 0.0,
+        theta: float = 0.0,
+        omega: float = 1.0,
+        *,
+        phi: float = 0.0,
+        spin: float = 3.0,
+        v: float = 0.0,
+        vv: float = 0.0,
+        psi: float = 1.5707963267948966,
+        vpsi: float = 0.0,
+        delta: float = 0.5,
+        epsilon: float = 0.1,
+        mu: float = 0.9,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.u = u
+        self.vu = vu
+        self.theta = theta
+        self.omega = omega
+        self.phi = phi
+        self.spin = spin
+        self.v = v
+        self.vv = vv
+        self.psi = psi
+        self.vpsi = vpsi
+        self.delta = delta
+        self.epsilon = epsilon
+        self.mu = mu
+
+    @staticmethod
+    def _get_dumbbell_lagrangian(s: SimpleNamespace) -> Expression:
+        """Return the Lagrangian of the Keplerian dumbbell of the target."""
+        d = s.target
+        rates = SimpleNamespace(**{name: derivative(getattr(d, name), 1) for name in COORDINATES})
+        kinetic, potential = _get_dumbbell_parts(d, rates)
+        return kinetic - potential
+
+    def _build_system(self) -> System:
+        """Return the Keplerian dumbbell: two masses on a rigid massless arm that orbit a primary under gravity."""
+        dumbbell = DumbbellElement(
+            'dumbbell',
+            u=self.u,
+            u_d1=self.vu,
+            theta=self.theta,
+            theta_d1=self.omega,
+            v=self.v,
+            v_d1=self.vv,
+            phi=self.phi,
+            phi_d1=self.spin,
+            psi=self.psi,
+            psi_d1=self.vpsi,
+            delta=self.delta,
+            epsilon=self.epsilon,
+            mu=self.mu,
+        )
+        motion = EulerLagrangeInteraction(
+            'motion',
+            target='dumbbell',
+            states=COORDINATES,
+            lagrangian=self._get_dumbbell_lagrangian,
+        )
+        return System(self.label, elements=[dumbbell], interactions=[motion])
 
 
-@register_system(
-    field='physics/celestial_mechanics',
-    tags=('mechanics', 'ode', 'second order', 'gravity', 'general relativity', 'precession'),
-    references=('Einstein 1915', 'Dilão 2023'),
-    defaults={'until': 60.0, 'dt': 0.02},
-)
-def relativistic_orbit(u: float = 1.5, du: float = 0.0, *, alpha: float = 1.0, epsilon: float = 0.05) -> System:
-    """Return Einstein's orbit equation `u'' + u = alpha + epsilon u²` of a planet, whose perihelion precesses.
+class RelativisticOrbitSystem(BaseSystem):
+    """Einstein's orbit equation `u'' + u = alpha + epsilon u²` of a planet, whose perihelion precesses.
 
-    The inverse radius `u = 1 / r` of the planet is a function of its polar angle, which the simulation time stands
-    for, so the orbit in the plane is `(cos t / u, sin t / u)`. For `epsilon = 0` the orbit is a closed Newtonian
-    ellipse of eccentricity `|u(0) / alpha - 1|` for `u'(0) = 0`. The term `epsilon u²` is the first relativistic
-    correction, and with it the orbit is a rosette whose perihelion advances by about `2π epsilon alpha` every
-    revolution. The equation has two fixed points, the roots `(1 ∓ sqrt(1 - 4 alpha epsilon)) / (2 epsilon)` of
-    `epsilon u² - u + alpha`. The smaller one, close to `alpha`, is a centre, the stable circular orbit, and the
-    larger one is a saddle, the unstable circular orbit close to the black hole, beyond which a planet falls in.
+    The inverse radius `u = 1 / r` of the planet is a function of its polar angle, which the simulation time stands for,
+    so the orbit in the plane is `(cos t / u, sin t / u)`. For `epsilon = 0` the orbit is a closed Newtonian ellipse of
+    eccentricity `|u(0) / alpha - 1|` for `u'(0) = 0`. The term `epsilon u²` is the first relativistic correction, and
+    with it the orbit is a rosette whose perihelion advances by about `2π epsilon alpha` every revolution. The equation
+    has two fixed points, the roots `(1 ∓ sqrt(1 - 4 alpha epsilon)) / (2 epsilon)` of `epsilon u² - u + alpha`. The
+    smaller one, close to `alpha`, is a centre, the stable circular orbit, and the larger one is a saddle, the unstable
+    circular orbit close to the black hole, beyond which a planet falls in. The system has the inverse radius `planet.u`
+    of order 2 along the angle and its derivative `planet.u_d1`.
 
     Args:
         u:
@@ -384,14 +390,41 @@ def relativistic_orbit(u: float = 1.5, du: float = 0.0, *, alpha: float = 1.0, e
         epsilon:
             The strength of the relativistic correction.
 
-    Returns:
-        system:
-            The system, with the inverse radius `planet.u` of order 2 along the angle and its derivative
-            `planet.u_d1`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.celestial_mechanics import relativistic_orbit
-        >>> relativistic_orbit(epsilon=0.0).elements[0].epsilon
+        >>> from skcomplex.systems.physics.celestial_mechanics import RelativisticOrbitSystem
+        >>> RelativisticOrbitSystem(epsilon=0.0).prepare().system_.elements[0].epsilon
         0.0
     """
-    return System(elements=[RelativisticOrbitElement('planet', u=u, u_d1=du, alpha=alpha, epsilon=epsilon)])
+
+    field = 'physics/celestial_mechanics'
+    topics = ('mechanics', 'ode', 'second order', 'gravity', 'general relativity', 'precession')
+    references = ('Einstein 1915', 'Dilão 2023')
+    until = 60.0
+    dt = 0.02
+
+    def __init__(
+        self,
+        u: float = 1.5,
+        du: float = 0.0,
+        *,
+        alpha: float = 1.0,
+        epsilon: float = 0.05,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.u = u
+        self.du = du
+        self.alpha = alpha
+        self.epsilon = epsilon
+
+    def _build_system(self) -> System:
+        """Return Einstein's orbit equation `u'' + u = alpha + epsilon u²` of a planet, whose perihelion precesses."""
+        return System(
+            self.label,
+            elements=[
+                RelativisticOrbitElement('planet', u=self.u, u_d1=self.du, alpha=self.alpha, epsilon=self.epsilon),
+            ],
+        )

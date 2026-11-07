@@ -13,17 +13,17 @@ light, the effect the solar eclipse of 1919 measured.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.celestial_mechanics import LightBendingSystem
 
 SYSTEM = 'light_bending'
 
-system = create_system(SYSTEM, impact_parameter=20.0, distance=2000.0)
+system = LightBendingSystem(impact_parameter=20.0, distance=2000.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
 solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
-simulation = Simulation(system, dt=4.0, solver=solver, observers=[observer]).prepare().run(until=4000.0)
+simulation = simulate(system, solver=solver, observers=[observer])
 
 # %%
 # Deflection against the impact parameter
@@ -34,14 +34,14 @@ simulation = Simulation(system, dt=4.0, solver=solver, observers=[observer]).pre
 impacts = np.array([10.0, 20.0, 40.0, 80.0])
 deflections = []
 for impact in impacts:
-    ray = Simulation(create_system(SYSTEM, impact_parameter=impact, distance=2000.0), dt=4.0, solver=solver)
-    trajectory = ray.prepare().run(until=4000.0).trajectory_
+    ray = LightBendingSystem(impact_parameter=impact, distance=2000.0)
+    trajectory = simulate(ray, until=4000.0, dt=4.0, solver=solver)
     x = np.asarray(trajectory.values('photon.x'))[-1]
     u = np.asarray(trajectory.values('photon.x_d1'))[-1]
     vx = u[1] * np.cos(x[3]) - x[1] * np.sin(x[3]) * u[3]
     vy = u[1] * np.sin(x[3]) + x[1] * np.cos(x[3]) * u[3]
     deflections.append(-np.arctan2(vy, vx))
-x = np.asarray(simulation.trajectory_.values('photon.x'))
+x = np.asarray(simulation.values('photon.x'))
 fig, (path, angle) = plt.subplots(1, 2, figsize=(10, 4))
 path.plot(x[:, 1] * np.cos(x[:, 3]), x[:, 1] * np.sin(x[:, 3]))
 path.plot(0, 0, '*', color='black', markersize=10)
