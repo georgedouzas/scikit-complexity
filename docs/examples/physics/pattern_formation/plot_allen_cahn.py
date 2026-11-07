@@ -8,29 +8,22 @@ run: large yellow and purple domains with smooth, gently curved walls.
 """
 
 # %%
-# The system is created by name from the catalog on a periodic square of 128 sites with unit spacing, from noise of
+# The system is built from its class on a periodic square of 128 sites with unit spacing, from noise of
 # amplitude 0.05 around 0. The catalog defaults integrate it with exponential time differencing, and the default
 # blueprint shows the order parameter as an image, one frame per time unit.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import ETDRK4Solver
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.pattern_formation import AllenCahnSystem
 
 SYSTEM = 'allen_cahn'
 
-system = create_system(SYSTEM)
+system = AllenCahnSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(system, dt=1.0, solver=ETDRK4Solver(dt=0.5), observers=[observer], random_state=0)
-    .prepare()
-    .run(
-        until=100,
-    )
-)
+trajectory = simulate(system, observers=[observer], random_state=0)
 
 # %%
 # Coarsening by curvature
@@ -40,8 +33,8 @@ simulation = (
 # follow a line of slope -1/2 on log-log axes once the domains have formed. The mean of the order parameter is not
 # conserved: it wanders as domains of one sign win over the other.
 
-phi = simulation.trajectory_.lattice('mixture.phi')
-times = simulation.trajectory_.times
+phi = trajectory.lattice('mixture.phi')
+times = trajectory.times
 signs = np.sign(phi)
 walls = 0.5 * (
     (signs != np.roll(signs, 1, axis=1)).mean(axis=(1, 2)) + (signs != np.roll(signs, 1, axis=2)).mean(axis=(1, 2))
