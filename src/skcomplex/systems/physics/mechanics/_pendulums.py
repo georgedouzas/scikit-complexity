@@ -258,11 +258,16 @@ def parametric_pendulum(
     epsilon: float = 0.2,
     Omega: float = 2 * math.sqrt(9.81),
     c: float = 0.0,
+    direction: str = 'vertical',
 ) -> System:
-    """Return a pendulum whose suspension point oscillates vertically, `θ'' + c θ' + (g / l)(1 + ε cos Ω t) sin θ = 0`.
+    """Return a pendulum whose suspension point oscillates vertically or horizontally, with acceleration `ε g cos Ω t`.
 
-    The vertical acceleration of the suspension point modulates gravity. Small oscillations grow when `Ω` is close to
-    twice the natural frequency `sqrt(g / l)`, the parametric resonance of a swing.
+    Vertically, the acceleration of the suspension point modulates gravity, `θ'' + c θ' + (g / l)(1 + ε cos Ω t) sin θ
+    = 0`. Small oscillations grow when `Ω` is close to twice the natural frequency `sqrt(g / l)`, the parametric
+    resonance of a swing, while a pendulum at rest stays at rest. Horizontally, the acceleration pushes the bob
+    sideways, `θ'' + c θ' + (g / l)(sin θ + ε cos Ω t cos θ) = 0`, which for small angles is a harmonic oscillator under
+    an external force. Its amplitude grows linearly in time, as `ε Ω t / 2`, when `Ω` equals the natural frequency,
+    the linear resonance, and the pendulum starts to swing even from rest.
 
     Args:
         theta:
@@ -286,6 +291,9 @@ def parametric_pendulum(
         c:
             The friction coefficient.
 
+        direction:
+            The direction in which the suspension point oscillates, `'vertical'` or `'horizontal'`.
+
     Returns:
         system:
             The system, with the angle `swing.theta` of order 2.
@@ -308,7 +316,7 @@ def parametric_pendulum(
                 c=c,
             ),
         ],
-        interactions=[ParametricPendulumInteraction('motion', target='swing')],
+        interactions=[ParametricPendulumInteraction('motion', target='swing', direction=direction)],
     )
 
 

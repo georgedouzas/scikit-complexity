@@ -15,6 +15,7 @@ from ....core.types import Array
 from ..._catalog import register_system
 from ._active_particle import ActiveParticleElement
 from ._depot_particle import DepotParticleElement
+from ._inertial_particle import InertialActiveParticleElement
 from ._ornstein_uhlenbeck_particle import OrnsteinUhlenbeckParticleElement
 from ._self_propulsion import SelfPropulsionInteraction
 from ._tumbler import TumblerElement
@@ -319,5 +320,85 @@ def depot_brownian_particles(
         element=DepotParticleElement,
         size=n_particles,
         values={'v': velocities, 'gamma': gamma, 'q': q, 'c': c, 'd': d, 'D': D},
+    )
+    return System(elements=[group], space=ContinuousSpace(n_dim=2))
+
+
+@register_system(
+    field='physics/active_matter',
+    tags=('active matter', 'sde', 'self-propulsion', 'inertia', 'second order'),
+    references=('Löwen 2020', 'Scholz et al. 2018', 'Bechinger et al. 2016'),
+    defaults={'until': 20.0, 'dt': 0.5, 'solver': EulerMaruyamaSolver(dt=0.005)},
+)
+def inertial_active_brownian_particles(
+    n_particles: int = 200,
+    *,
+    speed: float = 3.0,
+    mass: float = 0.5,
+    moment: float = 0.1,
+    D_t: float = 0.1,
+    D_r: float = 1.0,
+    size: float = 50.0,
+    random_state: int | np.random.Generator | None = 0,
+) -> System:
+    """Return active Brownian particles with inertia, which lag behind their orientation as they speed up and turn.
+
+    With unit friction, every particle follows `m x'' = -x' + v0 n + sqrt(2 D_t) xi` and
+    `J theta'' = -theta' + sqrt(2 D_r) xi_r`, the inertial active Brownian particles of macroscopic swimmers, flyers,
+    and vibrated grains. The velocity relaxes over the time `m`, so it trails the orientation, and the mean projection
+    of the velocity on the orientation falls below `v0`. With rotational inertia alone, the orientation correlation is
+    `exp(-D_r (t - J (1 - exp(-t / J))))`, which gives the steady projection
+    `v0 / m ∫ exp(-t / m) exp(-D_r (t - J (1 - exp(-t / J)))) dt`, and `v0 / (1 + m D_r)` without rotational inertia.
+    The particles start at rest at uniform positions and orientations.
+
+    Args:
+        n_particles:
+            The number of particles.
+
+        speed:
+            The self-propulsion speed `v0`.
+
+        mass:
+            The mass `m`, in units of the friction.
+
+        moment:
+            The moment of inertia `J`, in units of the rotational friction.
+
+        D_t:
+            The translational diffusion coefficient.
+
+        D_r:
+            The rotational diffusion coefficient.
+
+        size:
+            The side of the square in which the particles start.
+
+        random_state:
+            The seed or generator of the initial positions and orientations.
+
+    Returns:
+        system:
+            The system, with the positions `swimmers.x`, the velocities `swimmers.x_d1`, the orientations
+            `swimmers.theta`, and the angular velocities `swimmers.theta_d1`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.active_matter import inertial_active_brownian_particles
+        >>> inertial_active_brownian_particles(10).elements[0].prepare().size_
+        10
+    """
+    positions, angles = _swimmers(n_particles, size, random_state)
+    group = GroupElement(
+        'swimmers',
+        element=InertialActiveParticleElement,
+        size=n_particles,
+        values={
+            'x': positions,
+            'theta': angles,
+            'speed': speed,
+            'mass': mass,
+            'moment': moment,
+            'D_t': D_t,
+            'D_r': D_r,
+        },
     )
     return System(elements=[group], space=ContinuousSpace(n_dim=2))

@@ -3,6 +3,7 @@
 
 Particles move at one speed and turn towards the mean heading of their neighbours, with a little noise. From random
 headings they align into a flock that crosses the box together: the points take one color, which shows the heading.
+Variants align with the nearest neighbours only, see only within a vision cone, or react to delayed headings.
 """
 
 # %%
@@ -72,5 +73,47 @@ transition.set_xlabel('noise eta')
 transition.set_ylabel('stationary polar order')
 transition.set_title('Order-disorder transition')
 transition.legend()
+fig.tight_layout()
+plt.show()
+
+# %%
+# Nearest neighbours and delays
+# -----------------------------
+# Aligning with the `k` nearest particles at any distance, a sparse flock should order better as `k` grows, as in
+# Fig. 8.10 of Argun et al. With a sensory delay, the particles react to the headings their neighbours had some steps
+# ago, or to headings predicted ahead for a negative delay, and a long or negative delay should leave fewer neighbours
+# around every particle than no delay, the clustering of Figs. 8.8 and 8.9.
+
+
+def neighbours(positions, size):
+    """Return the mean number of other particles within the unit distance."""
+    gaps = np.abs(positions[:, None, :] - positions[None, :, :])
+    distances = np.hypot(*np.moveaxis(np.minimum(gaps, size - gaps), -1, 0))
+    return ((distances < 1).sum(axis=1) - 1).mean()
+
+
+ks = [1, 2, 4, 8]
+topological = []
+for k in ks:
+    system_system = create_system(SYSTEM, n_particles=100, size=100.0, v0=1.0, neighbors=k, seed=0)
+    run = Simulation(system_system, dt=10.0, random_state=0, observables=describe(SYSTEM).observables_of(system_system))
+    topological.append(np.mean(np.asarray(run.prepare().run(until=300).trajectory_.values('polarization'))[-5:]))
+delays = [-4, -2, 0, 2, 5, 10, 25]
+clustering = []
+for delay in delays:
+    system_system = create_system(SYSTEM, n_particles=100, size=50.0, v0=0.15, eta=0.2 / np.pi, delay=delay, seed=0)
+    positions = np.asarray(
+        Simulation(system_system, dt=100.0, random_state=0).prepare().run(until=2000).trajectory_.values('flock.x'),
+    )
+    clustering.append(np.mean([neighbours(frame, 50.0) for frame in positions[-5:]]))
+fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))
+left.plot(ks, topological, 'o-')
+left.set_xlabel('nearest neighbours k')
+left.set_ylabel('stationary polar order')
+left.set_title('Topological alignment')
+right.plot(delays, clustering, 'o-')
+right.set_xlabel('delay h (negative: prediction)')
+right.set_ylabel('neighbours within the unit distance')
+right.set_title('Delayed alignment')
 fig.tight_layout()
 plt.show()

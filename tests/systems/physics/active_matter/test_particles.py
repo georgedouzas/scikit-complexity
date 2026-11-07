@@ -2,9 +2,11 @@
 
 import numpy as np
 import pytest
+from scipy.integrate import quad
 
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
+from skcomplex.systems import create_simulation
 from skcomplex.systems.physics.active_matter import (
     active_brownian_particles,
     active_ornstein_uhlenbeck_particles,
@@ -76,3 +78,22 @@ def test_depot_particles_reach_the_pumped_speed():
     trajectory = Simulation(depot_brownian_particles(), dt=0.5, random_state=0).prepare().run(until=10).trajectory_
     speeds = np.linalg.norm(trajectory.values('walkers.v')[-1], axis=-1)
     assert speeds.mean() == pytest.approx(np.sqrt(10 / 20 - 1 / 10), rel=0.05)
+
+
+def test_inertial_particles_trail_their_orientation_by_the_published_projection():
+    """Test the steady projection of the velocity on the orientation against its integral form (Löwen 2020)."""
+    trajectory = create_simulation('inertial_active_brownian_particles').prepare().run().trajectory_
+    velocity = np.asarray(trajectory.values('swimmers.x_d1'))
+    heading = np.asarray(trajectory.values('swimmers.theta'))
+    projection = (velocity[..., 0] * np.cos(heading) + velocity[..., 1] * np.sin(heading))[10:].mean()
+    mass, moment = 0.5, 0.1
+    expected = (
+        3.0
+        * quad(
+            lambda t: np.exp(-t / mass) / mass * np.exp(-(t - moment * (1 - np.exp(-t / moment)))),
+            0.0,
+            50.0,
+        )[0]
+    )
+    assert projection == pytest.approx(expected, rel=0.03)
+    assert projection < 3.0

@@ -30,6 +30,7 @@ from skcomplex.core.components.laws.utils import (
     integration_variable,
     inverse_helmholtz,
     laplacian,
+    mean,
     mod,
     neighbors,
     tensor_divergence,
@@ -458,6 +459,31 @@ def test_report_holds_no_degree_issue_for_operations_of_the_right_degree():
     ]
     issues = _report_of(System(elements=_cell_groups(), interactions=interactions)).issues
     assert not [issue for issue in issues if issue.code == 'law-degree']
+
+
+def test_report_holds_no_degree_issue_for_a_group_mean_of_another_degree():
+    """Test that a mean over the faces of an exterior derivative scales a link rate as a number of no degree."""
+    rate = RateInteraction(
+        'scaled',
+        target='links',
+        state='a',
+        sources=['faces'],
+        rate=lambda n: mean(cos(exterior_derivative(n.target.a)), over=n.sources[0]) * n.target.a,
+    )
+    issues = _report_of(System(elements=_cell_groups(), interactions=[rate])).issues
+    assert not [issue for issue in issues if issue.code == 'law-degree']
+
+
+def test_report_holds_a_degree_issue_for_a_misapplied_operation_inside_a_group_mean():
+    """Test that a codifferential of a site state inside a group mean is still reported."""
+    rate = RateInteraction(
+        'scaled',
+        target='sites',
+        state='u',
+        rate=lambda n: mean(codifferential(n.target.u)) * n.target.u,
+    )
+    issues = _report_of(System(elements=_cell_groups(), interactions=[rate])).issues
+    assert [issue.path for issue in issues if issue.code == 'law-degree'] == ['scaled']
 
 
 def test_report_holds_a_space_issue_for_cofaces_outside_a_cell_complex():

@@ -1,6 +1,8 @@
-"""Mechanics: pendulums, oscillators, projectiles, collisions, rotating bodies, and potential wells."""
+"""Mechanics: pendulums, oscillators, friction, projectiles, collisions, rotating bodies, wells, and beam maps."""
 
+from ._accelerators import beam_beam_map, friction_oscillator
 from ._ballistic_pendulum import BallisticPendulumElement
+from ._beam import BeamElement
 from ._bouncing_ball import BouncingBallElement
 from ._cart_pendulum import CartPendulumElement
 from ._cart_pendulum_interaction import CartPendulumInteraction
@@ -10,6 +12,7 @@ from ._disc_billiard import DiscBilliardElement
 from ._double_pendulum import DoublePendulumElement
 from ._double_pendulum_interaction import DoublePendulumInteraction
 from ._elastic_collision import ElasticCollisionInteraction
+from ._friction_oscillator import FrictionOscillatorElement
 from ._gyroscope import GyroscopeElement
 from ._gyroscope_interaction import GyroscopeInteraction
 from ._hanging_ball import HangingBallElement
@@ -47,6 +50,7 @@ from ._wells import ExponentialWellInteraction, particle_in_a_well
 
 __all__: list[str] = [
     'BallisticPendulumElement',
+    'BeamElement',
     'BouncingBallElement',
     'CartPendulumElement',
     'CartPendulumInteraction',
@@ -57,6 +61,7 @@ __all__: list[str] = [
     'DoublePendulumInteraction',
     'ElasticCollisionInteraction',
     'ExponentialWellInteraction',
+    'FrictionOscillatorElement',
     'GyroscopeElement',
     'GyroscopeInteraction',
     'HangingBallElement',
@@ -72,12 +77,14 @@ __all__: list[str] = [
     'RotatingSwingInteraction',
     'SupportSpringInteraction',
     'ballistic_pendulum',
+    'beam_beam_map',
     'bouncing_ball',
     'cart_pendulum',
     'circular_billiard',
     'coupled_pendulums',
     'double_pendulum',
     'driven_damped_oscillator',
+    'friction_oscillator',
     'gimballed_gyroscope',
     'harmonic_oscillator',
     'huygens_clocks',

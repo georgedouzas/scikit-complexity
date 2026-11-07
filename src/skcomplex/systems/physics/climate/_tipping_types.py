@@ -7,10 +7,13 @@ import math
 
 import numpy as np
 
+from ....core.components.elements import Element
+from ....core.components.interactions import RateInteraction
 from ....core.components.system import System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.errors import ValidationError
 from ..._catalog import register_system
+from ._followers import FoldFollowerElement, HopfFollowerElement
 from ._ramped_fold import RampedFoldElement
 from ._stochastic_energy_balance import C1, StochasticEnergyBalanceElement
 
@@ -28,6 +31,9 @@ def _warm_state(mu: float, b2: float, a2: float) -> float:
     """Return the warm stable equilibrium of the energy balance, the largest root of `T^4 = c1 mu (b2 T^2 - a2)`."""
     root = C1 * mu * b2 + math.sqrt((C1 * mu * b2) ** 2 - 4 * C1 * mu * a2)
     return math.sqrt(root / 2)
+
+
+FOLLOWERS = ('fold', 'hopf')
 
 
 def _lower_branch(a: float, b: float, phi: float) -> float:
@@ -157,3 +163,116 @@ def ramped_stochastic_fold(
         rate=rate,
     )
     return System(elements=[fold])
+
+
+@register_system(
+    field='physics/climate',
+    tags=('tipping points', 'cascades', 'fold', 'hopf bifurcation', 'ramp', 'sde'),
+    references=('Dekker, von der Heydt, and Dijkstra 2018', 'Fang, Wang, Kurths, and Fan 2025'),
+    defaults={'until': 500.0, 'dt': 0.5, 'solver': EulerMaruyamaSolver(dt=0.01)},
+)
+def leading_following_cascade(
+    follower: str = 'fold',
+    *,
+    coupling: float = 0.4,
+    rate: float = 0.004,
+    sigma: float = 0.02,
+    phi0: float = -1.0,
+    phi1: float = 1.0,
+    c: float = 0.0,
+    mu: float = 0.0,
+    omega: float = 1.0,
+) -> System:
+    """Return a cascade of two tipping elements, a leading fold driven by a ramp and a follower forced by the leader.
+
+    The leading element follows `dx = (-x³ + x + phi(t)) dt + sigma dW`, whose control rises as `phi = phi0 + rate t`
+    until `phi1`, and it tips from its lower to its upper branch when `phi` passes `2 / (3 √3)`. The following element
+    is forced linearly by the state of the leader, Eq. 10 of Fang et al. after Dekker et al. A fold follower obeys
+    `dy = (-y³ + y + c + coupling x) dt + sigma dW`, and it tips too, a domino cascade, when the tipped leader moves
+    its control `c + coupling x` past `2 / (3 √3)`. A Hopf follower obeys
+    `dw = ((mu + coupling x + i omega) w - |w|² w) dt + sigma dW`, and the tipped leader can carry it through its Hopf
+    bifurcation onto an oscillation of radius `sqrt(mu + coupling x)`. The follower can show rising variance and
+    autocorrelation before the leader tips even when it stays far from its own tipping point.
+
+    Args:
+        follower:
+            The normal form of the following element, `'fold'` or `'hopf'`.
+
+        coupling:
+            The strength of the linear forcing of the follower by the leader.
+
+        rate:
+            The rate at which the control of the leader rises.
+
+        sigma:
+            The amplitude of the noise of both elements.
+
+        phi0:
+            The initial control of the leader.
+
+        phi1:
+            The final control of the leader.
+
+        c:
+            The control of a fold follower, without the coupling.
+
+        mu:
+            The distance of a Hopf follower from its bifurcation, without the coupling.
+
+        omega:
+            The frequency of a Hopf follower.
+
+    Returns:
+        system:
+            The system, with the leader `leader.x` and the follower `follower.y`, and also `follower.z` for the Hopf
+            follower.
+
+    Raises:
+        ValidationError:
+            The follower is neither `'fold'` nor `'hopf'`.
+
+    Examples:
+        >>> from skcomplex.systems.physics.climate import leading_following_cascade
+        >>> leading_following_cascade('hopf').elements[1].omega
+        1.0
+    """
+    if follower not in FOLLOWERS:
+        error_msg = f'Unknown follower {follower!r}. Use one of {", ".join(FOLLOWERS)}.'
+        raise ValidationError(error_msg)
+    start = _lower_branch(-1.0, 1.0, phi0)
+    leader = RampedFoldElement('leader', x=start, sigma=sigma, phi0=phi0, phi1=phi1, rate=rate)
+    if follower == 'fold':
+        follows: Element = FoldFollowerElement(
+            'follower',
+            y=_lower_branch(-1.0, 1.0, c + coupling * start),
+            c=c,
+            sigma=sigma,
+        )
+        forcing = [
+            RateInteraction(
+                'forcing',
+                target='follower',
+                state='y',
+                sources=['leader'],
+                rate=lambda s: coupling * s.sources[0].x,
+            ),
+        ]
+    else:
+        follows = HopfFollowerElement('follower', mu=mu, omega=omega, sigma=sigma)
+        forcing = [
+            RateInteraction(
+                'forcing_y',
+                target='follower',
+                state='y',
+                sources=['leader'],
+                rate=lambda s: coupling * s.sources[0].x * s.target.y,
+            ),
+            RateInteraction(
+                'forcing_z',
+                target='follower',
+                state='z',
+                sources=['leader'],
+                rate=lambda s: coupling * s.sources[0].x * s.target.z,
+            ),
+        ]
+    return System(elements=[leader, follows], interactions=forcing)

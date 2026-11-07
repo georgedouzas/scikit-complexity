@@ -1,5 +1,6 @@
 """Active matter: self-propelled particles, flocking, polar fluids, chemotaxis, squirmers, and Active System B+."""
 
+from ._active_bead import ActiveBeadElement
 from ._active_particle import ActiveParticleElement
 from ._active_passive import FlockingAgentElement, active_passive_flocking
 from ._alignment import PolarAlignmentInteraction, aligning_active_brownian_particles
@@ -13,12 +14,16 @@ from ._collective import cucker_smale_flocking, living_crystals, motility_induce
 from ._collisions import binary_collision_flocking
 from ._contractile_gel_site import ContractileGelSiteElement
 from ._cucker_smale_alignment import CuckerSmaleAlignmentInteraction
+from ._deformable import deformable_active_particles
+from ._deformable_particle import DeformableParticleElement
+from ._delayed_vicsek_particle import DelayedVicsekParticleElement
 from ._depot_particle import DepotParticleElement
 from ._flocker import FlockerElement
 from ._flocker_view import FlockerView
 from ._flocks import ginelli_nematics, gregoire_chate, vicsek
 from ._gels import active_viscoelastic_gel
 from ._heading_alignment import HeadingAlignmentInteraction
+from ._inertial_particle import InertialActiveParticleElement
 from ._kinetic_flocks import bertin_droz_gregoire
 from ._landau_de_gennes_energy import LandauDeGennesEnergyInteraction
 from ._nematic_density_site import NematicDensitySiteElement
@@ -32,11 +37,13 @@ from ._particles import (
     active_ornstein_uhlenbeck_particles,
     chiral_active_particles,
     depot_brownian_particles,
+    inertial_active_brownian_particles,
     run_and_tumble,
 )
 from ._phoretic_attraction import PhoreticAttractionInteraction
 from ._polar_fluid import PolarFluidElement
 from ._polar_gel_site import PolarGelSiteElement
+from ._polymers import active_polymer
 from ._propulsion_step import PropulsionStepInteraction
 from ._self_propulsion import SelfPropulsionInteraction
 from ._squirmer import SquirmerElement
@@ -48,6 +55,7 @@ from ._tumbler_view import TumblerView
 from ._vicsek_particle import VicsekParticleElement
 
 __all__: list[str] = [
+    'ActiveBeadElement',
     'ActiveParticleElement',
     'ActiveScalarElement',
     'AngularAlignmentInteraction',
@@ -57,11 +65,14 @@ __all__: list[str] = [
     'CohesiveParticleElement',
     'ContractileGelSiteElement',
     'CuckerSmaleAlignmentInteraction',
+    'DeformableParticleElement',
+    'DelayedVicsekParticleElement',
     'DepotParticleElement',
     'FlockerElement',
     'FlockerView',
     'FlockingAgentElement',
     'HeadingAlignmentInteraction',
+    'InertialActiveParticleElement',
     'LandauDeGennesEnergyInteraction',
     'MotileCellElement',
     'NematicDensitySiteElement',
@@ -84,6 +95,7 @@ __all__: list[str] = [
     'active_gels',
     'active_ornstein_uhlenbeck_particles',
     'active_passive_flocking',
+    'active_polymer',
     'active_system_b',
     'active_viscoelastic_gel',
     'aligning_active_brownian_particles',
@@ -91,10 +103,12 @@ __all__: list[str] = [
     'binary_collision_flocking',
     'chiral_active_particles',
     'cucker_smale_flocking',
+    'deformable_active_particles',
     'depot_brownian_particles',
     'dry_active_nematics',
     'ginelli_nematics',
     'gregoire_chate',
+    'inertial_active_brownian_particles',
     'keller_segel',
     'living_crystals',
     'motility_induced_phase_separation',
