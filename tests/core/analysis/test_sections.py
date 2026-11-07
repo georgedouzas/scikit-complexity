@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.analysis import section
-from skcomplex.core.errors import AnalysisError
+from skcomplex.core.errors import AnalysisError, TagError
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
 from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
@@ -81,7 +81,7 @@ def test_section_reads_the_named_variables():
 
 def test_section_rejects_maps_and_unknown_states():
     """Test that maps and names that are not scalar states are rejected."""
-    with pytest.raises(AnalysisError, match='continuous time'):
+    with pytest.raises(TagError, match='needs the time continuous, but the system has the time discrete'):
         _section('stroboscopic', LogisticMapSystem(), period=1.0)
     with pytest.raises(AnalysisError, match='not a scalar state'):
         _section('poincare', LogisticGrowthSystem().prepare().system_, state='population.r')

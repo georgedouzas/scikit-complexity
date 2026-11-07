@@ -17,8 +17,9 @@ from ..engine._utils import symbols_of
 from ..engine.problems import ExpressionPrinter, LoopTermSpec, ProblemSpec
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
+from ..specs import AnalysisTags
 from ..specs._loop_spec import _LoopSpec
-from ..types import Array
+from ..types import Array, DataKind
 from ._base import _check_choice, _check_settings, _compiled_problem, _composite, _read_system
 from ._stability import _dynamics_of
 from ._symbolic import _transfer_network
@@ -33,6 +34,8 @@ SETTINGS = {
 """Settings every kind reads, besides `kind`."""
 
 POLARITIES = {1: 'reinforcing', -1: 'balancing', 0: 'neutral'}
+
+TAGS = AnalysisTags(DataKind.SYSTEM)
 
 
 class _Graph:

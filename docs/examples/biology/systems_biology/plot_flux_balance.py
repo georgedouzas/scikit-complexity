@@ -15,7 +15,7 @@ import numpy as np
 
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.experiments import Experiment, GridDesign
+from skcomplex.core.experiments import sweep
 from skcomplex.systems.biology.common.metabolism import flux_variability
 from skcomplex.systems.biology.systems_biology import FluxBalanceSystem
 
@@ -50,19 +50,15 @@ plt.show()
 # %%
 # Growth against oxygen
 # ---------------------
-# On the E. coli core system, which needs the extra `metabolism`, an `Experiment` over a `GridDesign` of the oxygen
+# On the E. coli core system, which needs the extra `metabolism`, a `sweep` over a grid of the oxygen
 # uptake bound should give growth 0.2117 h⁻¹ without oxygen, a rise with oxygen, and 0.8739 h⁻¹ once oxygen no longer
 # limits.
 
 oxygen = np.linspace(0.0, 25.0, 11)
-experiment = Experiment(
-    FluxBalanceSystem,
-    GridDesign(),
-    {'oxygen': oxygen.tolist(), 'network': ['ecoli']},
-    until=0.0,
-    outputs=['cell.objective_0'],
+result = sweep(
+    FluxBalanceSystem, {'oxygen': oxygen.tolist(), 'network': ['ecoli']}, until=0.0, outputs=['cell.objective_0'],
 )
-rows = experiment.prepare().run().result_.rows
+rows = result.rows
 growth_rates = [float(np.ravel(row['cell.objective_0'])[-1]) for row in rows]
 fig, ax = plt.subplots(figsize=(9, 4))
 ax.plot(oxygen, growth_rates, 'o-')

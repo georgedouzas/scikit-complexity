@@ -4,6 +4,7 @@
 # License: MIT
 
 import inspect
+import sys
 from collections.abc import Callable, Sequence, Set
 from functools import cache, partial
 from importlib import import_module
@@ -19,8 +20,16 @@ from ..components.system import BaseSystem, System
 from ..engine.compile import PassCompiler
 from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.runtime import Trajectory
-from ..errors import AnalysisError, ValidationError
-from ..specs import JumpPathSpec, NetworkSnapshotSpec, SamplesSpec, SeriesSpec, SnapshotsSpec
+from ..errors import AnalysisError, TagError, ValidationError
+from ..specs import (
+    AnalysisTags,
+    JumpPathSpec,
+    NetworkSnapshotSpec,
+    SamplesSpec,
+    SeriesSpec,
+    SnapshotsSpec,
+    Tags,
+)
 from ..types import Array, DataKind, DomainKind, FormKind
 from .types import Run, Runs, Source
 
@@ -68,6 +77,83 @@ def bind_analysis[ResultT](analysis: Callable[..., ResultT], **settings: object)
         error_msg = f'{getattr(analysis, "__name__", analysis)!r} does not take these settings: {error}.'
         raise AnalysisError(error_msg) from error
     return partial(analysis, **settings)
+
+
+def _get_analysis_tags(analysis: Callable[..., object], kind: str | None = None) -> AnalysisTags:
+    """Return the tags an analysis needs, those of its kind when its module declares them, or else its module's.
+
+    Args:
+        analysis:
+            The analysis function.
+
+        kind:
+            The kind of a family, or `None`.
+
+    Returns:
+        tags:
+            The tags the analysis needs.
+
+    Examples:
+        >>> from skcomplex.core.analysis import lyapunov
+        >>> from skcomplex.core.analysis._base import _get_analysis_tags
+        >>> _get_analysis_tags(lyapunov, 'largest').data
+        <DataKind.SERIES: 'series'>
+    """
+    module = sys.modules[analysis.__module__]
+    by_kind: dict[str, AnalysisTags] = getattr(module, 'KIND_TAGS', {})
+    tags: AnalysisTags = by_kind.get(kind, module.TAGS) if kind is not None else module.TAGS
+    return tags
+
+
+def _get_source_tags(source: object) -> Tags | None:
+    """Return the tags of a system, or of the system behind a trajectory or a problem, or `None` for other sources.
+
+    Args:
+        source:
+            The source of an analysis.
+
+    Returns:
+        tags:
+            The tags of the system, or `None` when the source carries none.
+    """
+    if isinstance(source, Trajectory):
+        source = source.problem
+    if isinstance(source, BaseProblemSpec):
+        source = source.system
+    return source.get_tags() if isinstance(source, BaseSystem) else None
+
+
+def _check_tags(analysis: Callable[..., object], source: object, kind: str | None = None) -> None:
+    """Raise an error when the system of a source lacks a capability tag the analysis needs.
+
+    Args:
+        analysis:
+            The analysis function.
+
+        source:
+            The source of the analysis, checked when it is a system, or a trajectory or a problem of one.
+
+        kind:
+            The kind of a family, or `None`.
+
+    Raises:
+        TagError:
+            The system lacks a tag the analysis needs, named in the message.
+    """
+    tags = _get_source_tags(source)
+    if tags is None:
+        return
+    needed = _get_analysis_tags(analysis, kind)
+    missing = needed.missing(tags)
+    if missing:
+        name, values = next(iter(missing.items()))
+        wanted = {'time': needed.time, 'space': needed.space, 'randomness': {needed.randomness}}[name]
+        of_kind = f' of kind {kind!r}' if kind is not None else ''
+        error_msg = (
+            f'{analysis.__name__}{of_kind} needs the {name} {" or ".join(sorted(map(str, wanted)))}, but the system '
+            f'has the {name} {", ".join(values)}.'
+        )
+        raise TagError(error_msg)
 
 
 def _check_choice(analysis: str, name: str, value: object, choices: tuple[object, ...]) -> None:

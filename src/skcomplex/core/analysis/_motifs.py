@@ -12,7 +12,9 @@ import numpy as np
 import numpy.typing as npt
 
 from ..errors import AnalysisError
-from ._base import _check_choice, _check_settings, _import, _read_networks
+from ..specs import AnalysisTags
+from ..types import DataKind
+from ._base import _check_choice, _check_settings, _check_tags, _import, _read_networks
 from .types import Source
 
 TRIAD_SIZE = 3
@@ -40,6 +42,8 @@ ISOCLASSES = {(3, False): 4, (3, True): 16, (4, False): 11, (4, True): 218}
 """The number of isomorphism classes of igraph of every size, undirected and directed."""
 
 PERMUTATIONS = tuple(itertools.permutations(range(4)))
+
+TAGS = AnalysisTags(DataKind.NETWORK, space=frozenset({'network'}))
 
 
 @dataclass(frozen=True)
@@ -118,6 +122,9 @@ def motifs(
             The kind, size, or null ensemble is unknown, a setting the kind does not read is changed, or the number of
             samples is below 1.
 
+        TagError:
+            The system of a trajectory has no network space.
+
     Examples:
         >>> import networkx as nx
         >>> from skcomplex.core.analysis import motifs
@@ -130,6 +137,7 @@ def motifs(
         ['path', 'triangle']
     """
     _check_choice('motifs', 'kind', kind, KINDS)
+    _check_tags(motifs, source, kind)
     _check_choice('motifs', 'size', size, SIZES)
     _check_choice('motifs', 'null', null, NULLS)
     _check_settings(

@@ -234,6 +234,43 @@ Field realizations, which call the core functions with fixed settings or replace
 | `CommunityAnalysis` | `biology.common.metabolism` | `community_growth` | `CommunityGrowthResult` |
 | `NeutralNetworkAnalysis` | `biology.evolution` | `neutral_network` | `NeutralNetworkResult` |
 
+## Experiment names
+
+Every experiment class became a function of a system, in the role of the model selection functions of scikit-learn.
+The system is the first argument: a `BaseSystem` instance, whose copies take model parameters through `set_params`, or
+a factory of systems, such as a system class. A name with a dot is an initial state or a parameter of a part, which
+keeps its value for the whole run. Every run goes through `simulate`, so the tuned run settings of the class fill what
+a call leaves out. The former settings are keyword arguments, analyses are functions or `bind_analysis` results, and
+the results are frozen values. Designs became the `design` argument of `sweep` and the `method` of `sensitivity`.
+Calibration stays an estimator, in the role of `GridSearchCV`: it fits model parameters, and `run` sets `system_`.
+
+| Old name | New name | Result |
+|---|---|---|
+| `Experiment(source, design, bounds)` | `sweep(system, parameters, design=...)` | `ExperimentResult` |
+| `Experiment(source, replicates=n)` | `ensemble(system, replicates=n)` | `ExperimentResult` |
+| `Experiment(source, scenarios=...)` | `compare_scenarios(system, scenarios)` | `ExperimentResult` |
+| `GridDesign()` | `sweep(..., design='grid')`, the default | |
+| `RowsDesign(rows)` | `sweep(system, rows)` | |
+| `RandomDesign(n)` | `sweep(..., design='random', n=n)` | |
+| `LatinHypercubeDesign(n)` | `sweep(..., design='latin_hypercube', n=n)` | |
+| `SobolDesign(n)` | `sweep(..., design='sobol', n=n)` | |
+| `OneAtATimeDesign()` | `sensitivity(..., method='oat')` | `SensitivityResult` |
+| `MorrisDesign(n)` | `sensitivity(..., method='morris', n=n)` | `SensitivityResult` |
+| `SaltelliDesign(n)` | `sensitivity(..., method='sobol', n=n)` | `SensitivityResult` |
+| `sensitivity(result, ...)` | `sensitivity(system, bounds, output=...)` | `SensitivityResult` |
+| `BasinStabilityExperiment` | `basin_stability` | `BasinStabilityResult` |
+| `OrbitDiagramExperiment` | `orbit_diagram` | `OrbitDiagramResult` |
+| `CalibrationExperiment` | `Calibration`, fitting model parameters | its `system_` |
+| `ExperimentResult` | `ExperimentResult`, now a frozen value | |
+| `BaseExperiment`, `BaseDesign` | removed, the shared runs are private | |
+
+The tags each analysis needs are the module constant `TAGS` of its module, an `AnalysisTags` of `skcomplex.core.specs`
+with the data kind it reads and the capability tags it needs, and `KIND_TAGS` for the kinds of a family that differ.
+`applicable_analyses` reads them in place of its table, and an analysis checks them with `_check_tags` against a system,
+or the system behind a trajectory, raising `TagError` naming the tag: `lyapunov` needs a deterministic system,
+`network_measures`, `motifs`, and `renormalization` a network space, and `section` continuous time. `ensemble` does not
+yet check a stochastic randomness, since the tags of many agent-based random systems say `deterministic`.
+
 ## Risks / Trade-offs
 
 - **Size:** about fifty analyses, the experiments, the catalog, every gallery example, and most tests change. The work

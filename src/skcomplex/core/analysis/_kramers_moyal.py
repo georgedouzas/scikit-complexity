@@ -10,13 +10,16 @@ import numpy as np
 from scipy.signal import convolve
 
 from ..errors import AnalysisError
-from ..types import Array
+from ..specs import AnalysisTags
+from ..types import Array, DataKind
 from ._base import _read_series
 from .types import Source
 
 MIN_SERIES_SIZE = 2
 
 ZERO_MASS = 1e-10
+
+TAGS = AnalysisTags(DataKind.SERIES)
 
 
 @dataclass(frozen=True)

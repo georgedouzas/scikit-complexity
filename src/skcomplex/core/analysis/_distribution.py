@@ -12,7 +12,8 @@ import numpy.typing as npt
 from scipy import stats
 
 from ..errors import AnalysisError
-from ..types import Array
+from ..specs import AnalysisTags
+from ..types import Array, DataKind
 from ._base import _check_choice, _check_settings, _read_real, _read_samples_of
 from .types import Source
 
@@ -47,6 +48,11 @@ POOLED = ('histogram', 'ccdf', 'gini', 'tail-index')
 
 GROUPS = 2
 UNIT_COLUMNS = 2
+
+TAGS = AnalysisTags(DataKind.SERIES)
+KIND_TAGS = {
+    'records': AnalysisTags(DataKind.ENSEMBLE),
+}
 
 
 @dataclass(frozen=True)

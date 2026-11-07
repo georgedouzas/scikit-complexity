@@ -4,6 +4,7 @@ from ._accelerated_spec import AcceleratedSpec
 from ._affine_spec import AffineSpec
 from ._agent_snapshot_spec import AgentSnapshotSpec
 from ._agent_state_spec import AgentStateSpec
+from ._analysis_tags import AnalysisTags
 from ._arguments_spec import ArgumentsSpec
 from ._axis_spec import AxisSpec
 from ._base_record_spec import BaseRecordSpec
@@ -134,6 +135,7 @@ __all__ = [
     'AffineSpec',
     'AgentSnapshotSpec',
     'AgentStateSpec',
+    'AnalysisTags',
     'ArgumentsSpec',
     'AxisSpec',
     'BaseRecordSpec',

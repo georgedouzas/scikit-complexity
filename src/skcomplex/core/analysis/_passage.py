@@ -12,7 +12,8 @@ from pydtmc import MarkovChain
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..types import Array
+from ..specs import AnalysisTags
+from ..types import Array, DataKind
 from ._base import _check_choice, _check_settings, _read_path, _read_series
 from ._markov import _stationary_distribution, _transition_matrix
 from .types import Source
@@ -29,6 +30,11 @@ SETTINGS = {
 """Settings every kind reads, besides `kind` and `variables`."""
 
 MATRIX_KINDS = ('committor', 'mean-first-passage')
+
+TAGS = AnalysisTags(DataKind.PATH)
+KIND_TAGS = {
+    'return-times': AnalysisTags(DataKind.SERIES),
+}
 
 
 @dataclass(frozen=True)

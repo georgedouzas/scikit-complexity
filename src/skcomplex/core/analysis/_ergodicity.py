@@ -10,7 +10,8 @@ import numpy as np
 import numpy.typing as npt
 
 from ..errors import AnalysisError
-from ..types import Array
+from ..specs import AnalysisTags
+from ..types import Array, DataKind
 from ._base import _check_choice, _check_settings, _read_series
 from ._markov import _stationary_distribution
 from .types import Source
@@ -32,6 +33,13 @@ BINS = {'distance': 20, 'invariant-density': 100}
 """The number of bins of every kind without `bins`."""
 
 ENSEMBLE_DIMENSIONS = 2
+
+TAGS = AnalysisTags(DataKind.SERIES)
+KIND_TAGS = {
+    'breaking': AnalysisTags(DataKind.ENSEMBLE),
+    'metric': AnalysisTags(DataKind.ENSEMBLE),
+    'distance': AnalysisTags(DataKind.ENSEMBLE),
+}
 
 
 @dataclass(frozen=True)

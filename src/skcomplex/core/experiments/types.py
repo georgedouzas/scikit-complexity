@@ -1,14 +1,14 @@
-"""Define the types of the experiments: the rows of a design and the bounds of its parameters."""
+"""Define the types of the experiments: the system they run, the rows of values, and the outputs they keep."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 from collections.abc import Callable, Mapping
 
-from ..components.system import BaseSystem, System
+from ..components.system import BaseSystem
 from ..engine.runtime import Trajectory
 
 type Row = dict[str, object]
 type Bounds = Mapping[str, object]
-type Source = Callable[..., BaseSystem] | System
+type Source = BaseSystem | Callable[..., BaseSystem]
 type Output = str | Callable[[Trajectory], object]

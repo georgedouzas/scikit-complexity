@@ -18,7 +18,7 @@ import numpy as np
 
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.core.experiments import Experiment, GridDesign
+from skcomplex.core.experiments import sweep
 from skcomplex.systems.physics.statistical_mechanics import GraphIsingSystem
 
 SYSTEM = 'graph_ising'
@@ -44,21 +44,15 @@ def magnetization(trajectory):
 
 graph = nx.random_regular_graph(4, 1000, seed=0)
 temperatures = [1.0, 1.5, 2.0, 2.4, 2.7, 2.9, 3.1, 3.5, 4.5, 6.0]
-result = (
-    Experiment(
-        lambda temperature: GraphIsingSystem(graph=graph, temperature=temperature, initial='up').prepare().system_,
-        GridDesign(),
-        {'temperature': temperatures},
-        replicates=4,
-        until=300,
-        dt=10,
-        warmup=100,
-        outputs=[magnetization],
-        random_state=0,
-    )
-    .prepare()
-    .run()
-    .result_
+result = sweep(
+    GraphIsingSystem(graph=graph, initial='up'),
+    {'temperature': temperatures},
+    replicates=4,
+    until=300,
+    dt=10,
+    warmup=100,
+    outputs=[magnetization],
+    random_state=0,
 )
 rows = sorted(result.summary(), key=lambda row: row['temperature'])
 fig, ax = plt.subplots(figsize=(7, 4))

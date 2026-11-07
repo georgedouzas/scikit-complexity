@@ -120,7 +120,7 @@ class LQCellSurvivalSystem(BaseSystem):
     """The linear-quadratic survival of cells after a total dose, with its biologically effective dose.
 
     The survival is `exp(-alpha D - beta G D^2)` (Padmanabhan et al. 2021 Eqs. 6.6-6.8), and the Lea-Catcheside factor
-    `G` holds the repair between and during fractions. A sweep of the dose through `Experiment` gives the survival
+    `G` holds the repair between and during fractions. A `sweep` of the dose gives the survival
     curve, and 30 fractions of 2 Gy at `alpha / beta = 10` give the biologically effective dose of 72 Gy. The system has
     the states `cells.survival`, `cells.protraction`, and `cells.effective_dose`.
 

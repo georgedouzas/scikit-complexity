@@ -11,9 +11,11 @@ import numpy.typing as npt
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..specs import NetworkSnapshotSpec
-from ..types import Array, Indices
+from ..specs import AnalysisTags, NetworkSnapshotSpec
+from ..types import Array, DataKind, Indices
 from .types import Source
+
+TAGS = AnalysisTags(DataKind.NETWORK)
 
 
 @dataclass(frozen=True)

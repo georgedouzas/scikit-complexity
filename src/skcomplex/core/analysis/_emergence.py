@@ -16,7 +16,8 @@ from scipy import stats
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError, UnobservedStatesWarning
-from ..types import AnyArray, Array, IntArray
+from ..specs import AnalysisTags
+from ..types import AnyArray, Array, DataKind, IntArray
 from ._base import _check_choice, _check_settings, _read_series
 from ._information import _knn_chain, _log_determinant, _row_codes
 from ._markov import _stationary_distribution
@@ -39,6 +40,12 @@ SETTINGS = {
 
 MAX_EXHAUSTIVE_STATES = 10
 TOLERANCE = 1e-12
+
+TAGS = AnalysisTags(DataKind.SERIES)
+KIND_TAGS = {
+    'effective-information': AnalysisTags(DataKind.PATH),
+    'causal': AnalysisTags(DataKind.PATH),
+}
 
 
 @dataclass(frozen=True)

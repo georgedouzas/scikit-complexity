@@ -13,10 +13,13 @@ from scipy.linalg import solve_continuous_are
 
 from ..engine.problems import ProblemSpec
 from ..errors import AnalysisError, ValidationError
-from ..types import Array, FormKind
+from ..specs import AnalysisTags
+from ..types import Array, DataKind, FormKind
 from ._base import _compiled_problem, _composite, _read_system
 from ._stability import _dynamics_of
 from .types import Source
+
+TAGS = AnalysisTags(DataKind.SYSTEM)
 
 
 @dataclass(frozen=True)

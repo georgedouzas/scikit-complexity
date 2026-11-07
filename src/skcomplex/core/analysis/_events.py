@@ -10,8 +10,8 @@ import numpy as np
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..specs import CascadeRecordSpec
-from ..types import Array
+from ..specs import AnalysisTags, CascadeRecordSpec
+from ..types import Array, DataKind
 from ._base import _check_choice, _check_settings, _import, _read_path, _read_real, _read_series
 from .types import Source
 
@@ -25,6 +25,11 @@ SETTINGS = {
 """Settings every kind reads, besides `kind` and `variables`."""
 
 KINDS = ('detect', 'counts', 'laminar-durations', 'excursions', 'branching')
+
+TAGS = AnalysisTags(DataKind.SERIES)
+KIND_TAGS = {
+    'counts': AnalysisTags(DataKind.PATH),
+}
 
 
 @dataclass(frozen=True)

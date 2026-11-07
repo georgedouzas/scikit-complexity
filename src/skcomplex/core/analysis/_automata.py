@@ -23,9 +23,9 @@ from ..components.spaces import BaseSpace, LatticeNeighborhood, LatticeSpace, Me
 from ..components.system import System
 from ..components.types import Reach
 from ..errors import AnalysisError
-from ..specs import BaseSpec, LinearRuleSpec, OuterTotalisticSpec, SubshiftSpec, TableSpec, TotalisticSpec
+from ..specs import AnalysisTags, BaseSpec, LinearRuleSpec, OuterTotalisticSpec, SubshiftSpec, TableSpec, TotalisticSpec
 from ..specs._composed_rule_spec import _ComposedRuleSpec
-from ..types import Indices, IntArray
+from ..types import DataKind, Indices, IntArray
 from ._base import _check_choice, _check_settings, _composite, _import
 from .types import Item, Source
 
@@ -35,6 +35,8 @@ SAT_SOLVER = 'cadical153'
 METHODS = ('auto', 'enumeration', 'sat')
 SYNCHRONOUS = 'synchronous'
 IDENTITY = '1'
+
+TAGS = AnalysisTags(DataKind.SYSTEM)
 
 
 class _Clauses:

@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.experiments import Experiment, GridDesign
+from skcomplex.core.experiments import sweep
 from skcomplex.systems.computer_science.neural_networks import PerceptronSatisfiabilitySystem
 
 STEPS = 26
@@ -14,8 +14,8 @@ def _satisfiable_shares(n_weights: int) -> np.ndarray:
     """Return the share of 20 seeds that are satisfiable at every number of patterns."""
     bounds = {'n_weights': [n_weights], 'random_state': list(range(20))}
     outputs = ['decide.satisfiable']
-    experiment = Experiment(PerceptronSatisfiabilitySystem, GridDesign(), bounds, until=STEPS, outputs=outputs)
-    return experiment.prepare().run().result_.series('decide.satisfiable').mean(axis=0)
+    result = sweep(PerceptronSatisfiabilitySystem, bounds, until=STEPS, outputs=outputs)
+    return result.series('decide.satisfiable').mean(axis=0)
 
 
 @pytest.mark.parametrize('n_weights', [15, 21])

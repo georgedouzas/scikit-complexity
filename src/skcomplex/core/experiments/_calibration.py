@@ -1,4 +1,4 @@
-"""Fit system parameters to observed time series."""
+"""Fit the model parameters of a system to observed time series."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -9,31 +9,38 @@ import numpy as np
 import numpy.typing as npt
 from scipy.optimize import least_squares, minimize
 
-from ..engine.runtime import Simulation
+from ..base import BaseConfig
+from ..components.system import BaseSystem
+from ..engine.runtime import simulate
+from ..engine.solvers import BaseSolver
 from ..errors import ValidationError
 from ..types import Array
-from ._base import BaseExperiment, Source
+from ._runs import _build, _check_count, _check_source
+from .types import Source
 
 LOSSES = ('squares', 'likelihood')
 
 
-class CalibrationExperiment(BaseExperiment):
-    """Fit of parameters, given by dotted path, so that a system reproduces observed time series, with SciPy.
+class Calibration(BaseConfig[None, None]):
+    """Fit of the model parameters of a system so that it reproduces observed time series, with SciPy.
 
-    Every evaluation runs the system to the last data time and interpolates its states or observables at the data
-    times. Stochastic systems average `replicates` runs with fixed streams, so the loss is smooth in the parameters.
-    Least squares use `scipy.optimize.least_squares`, and the Gaussian likelihood with an unknown variance uses
-    `scipy.optimize.minimize`.
+    Calibration is an estimator in the role of `GridSearchCV` of scikit-learn: `run` fits the model parameters and
+    sets `system_`, the system with the fitted parameters, a copy of the system with `set_params` applied or what the
+    factory builds from them. Every evaluation runs the system through `simulate` to the last data time and
+    interpolates its states or observables at the data times. Stochastic systems average `replicates` runs with fixed
+    streams, so the loss is smooth in the parameters. Least squares use `scipy.optimize.least_squares`, and the
+    Gaussian likelihood with an unknown variance uses `scipy.optimize.minimize`.
 
     Args:
-        source:
-            A factory of systems, or a system, such as one that `skcomplex.systems.create_system` returns.
+        system:
+            The system, whose copies take the model parameters through `set_params`, or a factory of systems, such as
+            a system class, which takes them as keyword arguments.
 
         data:
             A mapping from state or observable path to its observed `(times, values)`.
 
         bounds:
-            A mapping from dotted parameter or initial-state path to its `(low, high)` bounds.
+            A mapping from model parameter of the system to its `(low, high)` bounds.
 
         initial:
             The starting values of the parameters, or `None` for the midpoints of their bounds.
@@ -45,15 +52,18 @@ class CalibrationExperiment(BaseExperiment):
             The number of runs averaged per evaluation.
 
         dt:
-            The time between frames, or `None` for the default of the simulation.
+            The time between frames, or `None` for the tuned one.
+
+        solver:
+            The solver, or `None` for the tuned one.
 
         random_state:
             The seed of the runs.
 
-        arguments:
-            The factory arguments of the system, or `None`.
-
     Attributes:
+        system_:
+            The system with the fitted model parameters.
+
         estimates_:
             The fitted value of every parameter.
 
@@ -80,20 +90,20 @@ class CalibrationExperiment(BaseExperiment):
 
     Examples:
         >>> import numpy as np
-        >>> from skcomplex.core.experiments import CalibrationExperiment
+        >>> from skcomplex.core.experiments import Calibration
         >>> from skcomplex.systems.biology.ecology import LogisticGrowthSystem
         >>> times = np.arange(0, 21.0)
         >>> values = 100 / (1 + 9 * np.exp(-0.5 * times))
-        >>> bounds = {'growth.r': (0.1, 2.0), 'growth.K': (50, 200)}
-        >>> calibration = CalibrationExperiment(LogisticGrowthSystem, {'population.n': (times, values)}, bounds)
-        >>> estimates = calibration.prepare().run().estimates_
-        >>> round(estimates['growth.r'], 2), round(estimates['growth.K'])
+        >>> bounds = {'r': (0.1, 2.0), 'K': (50, 200)}
+        >>> calibration = Calibration(LogisticGrowthSystem(), {'population.n': (times, values)}, bounds)
+        >>> fitted = calibration.prepare().run().system_
+        >>> round(fitted.r, 2), round(fitted.K)
         (0.5, 100)
     """
 
     def __init__(
         self,
-        source: Source,
+        system: Source,
         data: Mapping[str, tuple[npt.ArrayLike, npt.ArrayLike]],
         bounds: Mapping[str, tuple[float, float]],
         *,
@@ -101,36 +111,39 @@ class CalibrationExperiment(BaseExperiment):
         loss: str = 'squares',
         replicates: int = 1,
         dt: float | None = None,
+        solver: BaseSolver | None = None,
         random_state: int | None = None,
-        arguments: Mapping[str, object] | None = None,
     ) -> None:
-        self.source = source
+        self.system = system
         self.data = data
         self.bounds = bounds
         self.initial = initial
         self.loss = loss
         self.replicates = replicates
         self.dt = dt
+        self.solver = solver
         self.random_state = random_state
-        self.arguments = arguments
 
     def _check(self) -> None:
-        """Raise an error for a system name as the source, an unknown loss, no data, or bad replicates."""
-        self._check_source(self.source)
+        """Raise an error for a system name, an unknown loss, no data, bad replicates, or a dotted path of bounds."""
+        _check_source(self.system)
         if self.loss not in LOSSES:
             error_msg = f'Unknown loss {self.loss!r}. Use one of {", ".join(LOSSES)}.'
             raise ValidationError(error_msg)
         if not self.data:
             error_msg = 'Calibration needs at least one observed series.'
             raise ValidationError(error_msg)
-        if isinstance(self.replicates, bool) or not isinstance(self.replicates, int) or self.replicates < 1:
-            error_msg = f'replicates = {self.replicates!r} must be a positive integer.'
+        _check_count('replicates', self.replicates)
+        dotted = sorted(name for name in self.bounds if '.' in name)
+        if dotted:
+            error_msg = (
+                f'Calibration fits model parameters of the system, which `set_params` takes, not the dotted paths '
+                f'{", ".join(dotted)}.'
+            )
             raise ValidationError(error_msg)
 
     def _prepare(self, context: None = None) -> None:
-        """Compile the system, read the data, and set the random streams."""
-        factory = self._check_source(self.source)
-        self.problem_ = self._compile(factory, self.arguments or {})
+        """Read the data and set the random streams."""
         self.series_ = {
             path: (np.asarray(times, dtype=float), np.asarray(values, dtype=float))
             for path, (times, values) in self.data.items()
@@ -139,12 +152,17 @@ class CalibrationExperiment(BaseExperiment):
 
     def _simulate(self, values: Sequence[float]) -> dict[str, Array]:
         """Return the simulated series at the data times, averaged over the replicates, for parameter values."""
-        candidate = self._with_values(self.problem_, dict(zip(self.bounds, map(float, values), strict=True)))
+        candidate = self._fitted_system(values)
         until = max(float(times.max()) for times, _ in self.series_.values())
         runs = []
         for seed in self.seeds_:
-            simulation = Simulation(candidate, dt=self.dt, random_state=np.random.default_rng(seed)).prepare()
-            trajectory = simulation.run(until).trajectory_
+            trajectory = simulate(
+                candidate,
+                until=until,
+                dt=self.dt,
+                solver=self.solver,
+                random_state=np.random.default_rng(seed),
+            )
             runs.append(
                 {
                     path: np.interp(times, trajectory.times, np.asarray(trajectory.values(path), dtype=float))
@@ -152,6 +170,10 @@ class CalibrationExperiment(BaseExperiment):
                 },
             )
         return {path: np.mean([run[path] for run in runs], axis=0) for path in self.series_}
+
+    def _fitted_system(self, values: Sequence[float]) -> BaseSystem:
+        """Return the system with model parameter values, in the order of the bounds."""
+        return _build(self.system, dict(zip(self.bounds, map(float, values), strict=True)))
 
     def _residuals(self, values: Sequence[float]) -> Array:
         """Return the simulated minus the observed values of every series, concatenated."""
@@ -192,3 +214,4 @@ class CalibrationExperiment(BaseExperiment):
         self.mape_ = float(100 * np.mean(np.abs(final[nonzero] / observed[nonzero]))) if nonzero.any() else np.nan
         self.simulated_ = self._simulate(estimate)
         self.success_ = bool(fit.success)
+        self.system_ = self._fitted_system(estimate)

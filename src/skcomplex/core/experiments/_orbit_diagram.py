@@ -5,29 +5,61 @@
 
 from collections.abc import Sequence
 from concurrent.futures import Executor
+from dataclasses import dataclass
 
 import numpy as np
+import numpy.typing as npt
 
+from ..components.specs import ScenarioSpec
 from ..errors import ValidationError
 from ..types import Array
-from ._base import BaseExperiment, Source
-from ._experiment import Experiment
-from ._grid import GridDesign
+from ._replicate import _run_replicated
+from ._runs import _check_count, _check_source, _run_experiment
+from .types import Source
 
 
-class OrbitDiagramExperiment(BaseExperiment):
+@dataclass(frozen=True)
+class OrbitDiagramResult:
     """Values an observable visits after a transient, for every value of a parameter.
+
+    Args:
+        points:
+            The kept values of the observable for every value of the parameter.
+
+        periods:
+            The number of distinct kept values for every value of the parameter, the period of periodic orbits.
+    """
+
+    points: list[Array]
+    periods: npt.NDArray[np.int64]
+
+
+def orbit_diagram(
+    system: Source,
+    parameter: str,
+    values: Sequence[float],
+    observable: str,
+    *,
+    transient: float,
+    keep: int,
+    dt: float | None = None,
+    decimals: int = 6,
+    random_state: int | None = None,
+    executor: str | Executor = 'serial',
+    vectorized: bool = False,
+) -> OrbitDiagramResult:
+    """Return the values an observable visits after a transient, for every value of a parameter.
 
     Every value of the parameter is run to `transient + (keep - 1) * dt`, and the frames from `transient` on are kept.
     With `vectorized`, all values run as the members of one simulation of the system replicated over them, which needs
     a dotted path of a state or parameter of an element, and a system of single elements and their interactions.
 
     Args:
-        source:
-            A factory of systems, or a system, such as one that `skcomplex.systems.create_system` returns.
+        system:
+            The system, or a factory of systems, such as a system class.
 
         parameter:
-            The dotted path or factory argument to sweep.
+            The model parameter or the dotted path to sweep.
 
         values:
             The values of the parameter.
@@ -42,7 +74,8 @@ class OrbitDiagramExperiment(BaseExperiment):
             The number of frames kept after the transient.
 
         dt:
-            The time between frames, or `None` for the default of the simulation, 1 for maps.
+            The time between frames, or `None` for the tuned one of the system. The kept window is counted in steps of
+            `dt`, or of 1, the step of maps, when it is `None`.
 
         decimals:
             The decimals the kept values are rounded to before counting the period of every orbit.
@@ -56,91 +89,52 @@ class OrbitDiagramExperiment(BaseExperiment):
         vectorized:
             Whether to run every value as a member of one simulation of the replicated system.
 
-    Attributes:
-        points_:
-            The kept values of the observable for every value of the parameter.
+    Returns:
+        result:
+            The kept values and the period of the orbit of every value of the parameter.
 
-        periods_:
-            The number of distinct kept values for every value of the parameter, the period of periodic orbits.
+    Raises:
+        ValidationError:
+            No value is given, or the number of kept frames is not a positive integer.
+
+        ExperimentError:
+            The system is a name.
 
     Examples:
-        >>> from skcomplex.core.experiments import OrbitDiagramExperiment
+        >>> from skcomplex.core.experiments import orbit_diagram
         >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
-        >>> diagram = OrbitDiagramExperiment(LogisticMapSystem, 'map.r', [2.9, 3.2], 'map.x', transient=1000, keep=20)
-        >>> diagram.prepare().run().periods_.tolist()
+        >>> diagram = orbit_diagram(LogisticMapSystem(), 'r', [2.9, 3.2], 'map.x', transient=1000, keep=20)
+        >>> diagram.periods.tolist()
         [1, 2]
     """
-
-    def __init__(
-        self,
-        source: Source,
-        parameter: str,
-        values: Sequence[float],
-        observable: str,
-        *,
-        transient: float,
-        keep: int,
-        dt: float | None = None,
-        decimals: int = 6,
-        random_state: int | None = None,
-        executor: str | Executor = 'serial',
-        vectorized: bool = False,
-    ) -> None:
-        self.source = source
-        self.parameter = parameter
-        self.values = values
-        self.observable = observable
-        self.transient = transient
-        self.keep = keep
-        self.dt = dt
-        self.decimals = decimals
-        self.random_state = random_state
-        self.executor = executor
-        self.vectorized = vectorized
-
-    def _check(self) -> None:
-        """Raise an error for a system name as the source, no values, or a bad number of kept frames."""
-        self._check_source(self.source)
-        if not len(self.values):
-            error_msg = 'An orbit diagram needs at least one value of the parameter.'
-            raise ValidationError(error_msg)
-        if isinstance(self.keep, bool) or not isinstance(self.keep, int) or self.keep < 1:
-            error_msg = f'keep = {self.keep!r} must be a positive integer.'
-            raise ValidationError(error_msg)
-
-    def _prepare(self, context: None = None) -> None:
-        """Set the simulated time of every run."""
-        self.until_ = self.transient + (self.keep - 1) * (self.dt if self.dt is not None else 1.0)
-
-    def _run(self, inputs: None = None) -> None:
-        """Run every value of the parameter and keep the values of the observable after the transient."""
-        self.points_ = self._replicated_points() if self.vectorized else self._separate_points()
-        self.periods_ = np.asarray(
-            [np.unique(np.round(points, self.decimals)).size for points in self.points_],
-            dtype=np.int64,
+    _check_source(system)
+    if not len(values):
+        error_msg = 'An orbit diagram needs at least one value of the parameter.'
+        raise ValidationError(error_msg)
+    _check_count('keep', keep)
+    step = dt if dt is not None else 1.0
+    until = transient + (keep - 1) * step
+    if vectorized:
+        trajectory, _ = _run_replicated(system, {parameter: list(values)}, until, step, random_state)
+        observed = np.asarray(trajectory.values(observable), dtype=np.float64)
+        series = observed[np.asarray(trajectory.times) >= transient - 1e-9]
+        points = [series[:, index] for index in range(len(values))]
+    else:
+        result = _run_experiment(
+            system,
+            [{parameter: value} for value in values],
+            [ScenarioSpec()],
+            1,
+            analyses=None,
+            until=until,
+            dt=dt,
+            solver=None,
+            outputs=[observable],
+            warmup=transient,
+            observables=(),
+            random_state=random_state,
+            executor=executor,
         )
-
-    def _separate_points(self) -> list[Array]:
-        """Return the kept values of a separate run of every value of the parameter."""
-        experiment = Experiment(
-            self.source,
-            GridDesign(),
-            {self.parameter: list(self.values)},
-            until=self.until_,
-            dt=self.dt,
-            outputs=[self.observable],
-            warmup=self.transient,
-            random_state=self.random_state,
-            executor=self.executor,
-        )
-        experiment.prepare().run()
-        return [np.asarray(run.series[self.observable], dtype=float) for run in experiment.result_.runs]
-
-    def _replicated_points(self) -> list[Array]:
-        """Return the kept values of every member of one simulation of the system replicated over the values."""
-        dt = self.dt if self.dt is not None else 1.0
-        values = {self.parameter: list(self.values)}
-        trajectory, _ = self._run_replicated(self.source, values, self.until_, dt, self.random_state)
-        observed = np.asarray(trajectory.values(self.observable), dtype=np.float64)
-        series = observed[np.asarray(trajectory.times) >= self.transient - 1e-9]
-        return [series[:, index] for index in range(len(self.values))]
+        points = [np.asarray(run.series[observable], dtype=float) for run in result.runs]
+    periods = np.asarray([np.unique(np.round(series, decimals)).size for series in points], dtype=np.int64)
+    return OrbitDiagramResult(points, periods)

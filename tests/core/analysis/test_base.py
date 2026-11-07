@@ -2,6 +2,7 @@
 
 import dataclasses
 import inspect
+import sys
 from typing import Annotated
 
 import networkx as nx
@@ -10,23 +11,28 @@ import pytest
 from sage.all__sagemath_symbolics import NN
 
 import skcomplex.core.analysis
-from skcomplex.core.analysis import bind_analysis, rolling
+from skcomplex.core.analysis import bind_analysis, lyapunov, motifs, network_measures, renormalization, rolling
 from skcomplex.core.analysis._base import (
     _composite,
+    _get_analysis_tags,
+    _get_source_tags,
     _read_fields,
     _read_networks,
     _read_path,
     _read_series,
     _read_snapshots,
 )
+from skcomplex.core.analysis._discovery import ANALYSES
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import JumpLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.errors import AnalysisError
-from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
+from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.core.errors import AnalysisError, TagError
+from skcomplex.core.specs import AnalysisTags, ParameterSpec, StateSpec, VisualSpec
 from skcomplex.systems import create_simulation
+from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.chemistry.pattern_formation import BrusselatorSystem
+from skcomplex.systems.mathematics.stochastic_processes import WeakeningOrnsteinUhlenbeckSystem
 
 
 class BirthDeathElement(Element):
@@ -276,3 +282,36 @@ def test_a_system_class_is_read_as_the_composite_of_its_parts():
     assert isinstance(composite, System)
     values = np.zeros(3)
     assert _composite(values) is values
+
+
+def test_every_analysis_declares_valid_tags():
+    """Test that the module of every analysis declares its tags, and tags of kinds only for kinds of its family."""
+    for function in ANALYSES:
+        module = sys.modules[function.__module__]
+        assert isinstance(module.TAGS.prepare(), AnalysisTags), function.__name__
+        for kind, tags in getattr(module, 'KIND_TAGS', {}).items():
+            assert kind in module.KINDS, (function.__name__, kind)
+            assert _get_analysis_tags(function, kind) is tags.prepare()
+
+
+def test_lyapunov_of_a_stochastic_system_names_the_randomness():
+    """Test that the Lyapunov exponents of a stochastic system, or of a trajectory of one, raise an error naming it."""
+    system = WeakeningOrnsteinUhlenbeckSystem(4)
+    for source in (system, simulate(system, until=1.0, random_state=0)):
+        with pytest.raises(TagError, match="lyapunov of kind 'spectrum' needs the randomness deterministic"):
+            lyapunov(source)
+
+
+def test_network_analyses_of_a_system_without_a_network_name_the_space():
+    """Test that network analyses of a trajectory of a system without a network space raise an error naming it."""
+    trajectory = simulate(LogisticGrowthSystem(), until=1.0)
+    for analysis in (network_measures, motifs, renormalization):
+        with pytest.raises(TagError, match=r'needs the space network, but the system has the space none'):
+            analysis(trajectory)
+
+
+def test_tags_are_not_checked_for_data_without_a_system():
+    """Test that arrays and graphs carry no tags, so the analyses read them whatever they need."""
+    assert _get_source_tags(np.zeros(4)) is None
+    assert network_measures(nx.cycle_graph(4)).mean_degree.tolist() == [2.0]
+    assert lyapunov([0.5, -1.0]).exponents.tolist() == [0.5, -1.0]

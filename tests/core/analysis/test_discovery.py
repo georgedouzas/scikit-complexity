@@ -3,7 +3,10 @@
 import numpy as np
 
 from skcomplex.core.analysis import ApplicableAnalysesResult, applicable_analyses, markov
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.systems import create_simulation, create_system
+from skcomplex.systems.biology.ecology import LogisticGrowthSystem
+from skcomplex.systems.mathematics.stochastic_processes import OnOffIntermittencySystem
 
 
 def _discover(source: object) -> ApplicableAnalysesResult:
@@ -76,3 +79,12 @@ def test_discovery_of_a_jump_path():
     states = np.asarray(trajectory.values(trajectory.problem.states.names[0]), dtype=int).ravel() % 3
     system = markov(np.tile(states, 20), kind='state-system')
     assert system.transition_matrix.shape[0] >= 2
+
+
+def test_discovery_leaves_out_analyses_whose_tags_the_system_lacks():
+    """Test that the Lyapunov exponents are listed for a deterministic system and left out for a stochastic one."""
+    deterministic = applicable_analyses(simulate(LogisticGrowthSystem(), until=5.0))
+    stochastic = applicable_analyses(simulate(OnOffIntermittencySystem(), until=5.0, random_state=0))
+    assert ('lyapunov', 'largest') in _names(deterministic.analyses['series'])
+    assert ('lyapunov', 'largest') not in _names(stochastic.analyses['series'])
+    assert ('entropy', 'permutation') in _names(stochastic.analyses['series'])

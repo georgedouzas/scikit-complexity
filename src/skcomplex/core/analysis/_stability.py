@@ -23,7 +23,8 @@ from ..engine._utils import bound_labels, components_of, declarations_of, defaul
 from ..engine.problems import ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..errors import AnalysisError
-from ..types import Array, FormKind, VariableKind
+from ..specs import AnalysisTags
+from ..types import Array, DataKind, FormKind, VariableKind
 from ._base import _check_choice, _check_settings, _compiled_problem, _composite, _read_system
 from ._groups import _Expansion
 from ._symbolic import _declare_domains
@@ -40,6 +41,8 @@ OPERATOR_NAMES = ('laplacian', 'partial', 'upwind', 'inverse_helmholtz', 'convol
 EIGENVALUE = symbol('_eigenvalue_')
 ZERO = 1e-9
 MEMBER_LIMIT = 64
+
+TAGS = AnalysisTags(DataKind.SYSTEM)
 
 
 @dataclass(frozen=True)

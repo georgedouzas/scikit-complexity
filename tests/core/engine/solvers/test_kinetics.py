@@ -16,7 +16,7 @@ from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import KineticSolver
 from skcomplex.core.errors import SolverError
-from skcomplex.core.experiments import Experiment
+from skcomplex.core.experiments import ensemble
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 CLASSES = 9
@@ -135,7 +135,7 @@ def _mean_error(system, particles, solution, replicates):
         """Return the L1 error of the last frame."""
         return float(np.abs(trajectory.values('wealth.f')[-1] - solution).sum())
 
-    experiment = Experiment(
+    result = ensemble(
         system,
         replicates=replicates,
         until=HORIZON,
@@ -144,7 +144,7 @@ def _mean_error(system, particles, solution, replicates):
         outputs=[error],
         random_state=0,
     )
-    return float(np.mean(experiment.prepare().run().result_.column('error')))
+    return float(np.mean(result.column('error')))
 
 
 def test_particles_converge_to_the_ode_solution():

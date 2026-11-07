@@ -11,7 +11,8 @@ import numpy as np
 from scipy import stats
 
 from ..errors import AnalysisError
-from ..types import AnyArray, Array
+from ..specs import AnalysisTags
+from ..types import AnyArray, Array, DataKind
 from ._base import _check_choice, _check_settings, _read_real, _read_series
 from ._information import _row_codes
 from .types import Source
@@ -25,6 +26,8 @@ SETTINGS = {
 """Settings every kind reads, besides `kind` and `variables`."""
 
 ESTIMATORS = ('plugin', 'gaussian')
+
+TAGS = AnalysisTags(DataKind.SERIES)
 
 
 @dataclass(frozen=True)

@@ -10,10 +10,13 @@ import numpy as np
 import ordpy
 
 from ..errors import AnalysisError
-from ..types import Array
+from ..specs import AnalysisTags
+from ..types import Array, DataKind
 from ._base import SNAPSHOT_DIMENSIONS, _read_fields, _read_series
 from ._entropy import TIES, _break_ties
 from .types import Source
+
+TAGS = AnalysisTags(DataKind.SERIES)
 
 
 @dataclass(frozen=True)

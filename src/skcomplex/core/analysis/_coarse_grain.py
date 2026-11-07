@@ -11,9 +11,12 @@ import numpy.typing as npt
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..types import Array
+from ..specs import AnalysisTags
+from ..types import Array, DataKind
 from ._base import SNAPSHOT_DIMENSIONS, _read_snapshots
 from .types import Source
+
+TAGS = AnalysisTags(DataKind.AGENTS)
 
 
 @dataclass(frozen=True)

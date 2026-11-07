@@ -14,7 +14,8 @@ from scipy.sparse import csgraph
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..types import Array
+from ..specs import AnalysisTags
+from ..types import Array, DataKind
 from ._base import _check_choice, _check_settings, _read_path
 from .types import Source
 
@@ -35,6 +36,8 @@ SETTINGS = {
 """Settings every kind reads, besides `kind` and `variables`."""
 
 MATRICES = ('transition', 'rate')
+
+TAGS = AnalysisTags(DataKind.PATH)
 
 
 @dataclass(frozen=True)

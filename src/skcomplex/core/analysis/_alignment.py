@@ -11,7 +11,7 @@ import numpy.typing as npt
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..specs import TensorSpec
+from ..specs import AnalysisTags, TensorSpec
 from ..types import Array, DataKind
 from ._base import (
     _check_choice,
@@ -43,6 +43,8 @@ SYMMETRIC_TENSORS = {
     5: TensorSpec('traceless', 3),
     6: TensorSpec('symmetric', 3),
 }
+
+TAGS = AnalysisTags(DataKind.AGENTS)
 
 
 @dataclass(frozen=True)

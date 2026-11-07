@@ -15,8 +15,8 @@ from ..components.spaces import ContinuousTime
 from ..components.system import System
 from ..engine._utils import vector
 from ..errors import AnalysisError
-from ..specs import SamplesSpec
-from ..types import Array, ComplexArray
+from ..specs import AnalysisTags, SamplesSpec
+from ..types import Array, ComplexArray, DataKind
 from ._base import _import, _read_samples
 from ._sparse_identification import (
     _check_horizon,
@@ -30,6 +30,8 @@ from ._sparse_identification import (
 from .types import Runs
 
 SMALL_EXPONENT = 1e-12
+
+TAGS = AnalysisTags(DataKind.SERIES)
 
 
 @dataclass(frozen=True)

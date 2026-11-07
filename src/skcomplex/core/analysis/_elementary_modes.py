@@ -18,15 +18,17 @@ from ..components.system import System
 from ..engine.compile import PassCompiler
 from ..engine.problems import LinearProgramKernel, ProblemSpec
 from ..errors import AnalysisError, EnumerationLimitError
-from ..specs import RunStateSpec
+from ..specs import AnalysisTags, RunStateSpec
 from ..specs._base_spec import BaseSpec
-from ..types import Array
+from ..types import Array, DataKind
 from ._base import _composite
 from .types import Source
 
 KINDS = ('modes', 'pathways')
 MAXIMUM_DENOMINATOR = 10**6
 ROUNDING_LIMIT = 1e-9
+
+TAGS = AnalysisTags(DataKind.SERIES)
 
 
 @dataclass(frozen=True)

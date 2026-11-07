@@ -110,7 +110,7 @@ class GravityUrbanScalingSystem(BaseSystem):
 
     The disc has the area `N^alpha`, so the total interaction of a city grows as `N^(2 - alpha gamma / 2)` for `gamma <
     2`, which with the population dimension `D_P = 2 / alpha` is the exponent `2 - gamma / D_P` of Ribeiro and Netto
-    (2024 §4). An `Experiment` sweeps `population` and fits the exponent with `scaling(kind='power')`. The system has
+    (2024 §4). A `sweep` varies `population` and fits the exponent with `scaling(kind='power')`. The system has
     the states `residents.x` and `residents.contacts` and the observable `total_contacts` of the catalog, which a run
     passes in `observables`.
 

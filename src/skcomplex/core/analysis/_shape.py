@@ -11,13 +11,16 @@ from scipy.spatial.transform import Rotation
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..types import Array
+from ..specs import AnalysisTags
+from ..types import Array, DataKind
 from ._base import _check_choice, _read_snapshots
 from .types import Source
 
 SHAPE_KINDS = ('gyration', 'end-to-end', 'rmsd')
 
 FRAME_DIMENSIONS = 3
+
+TAGS = AnalysisTags(DataKind.AGENTS)
 
 
 @dataclass(frozen=True)

@@ -4,7 +4,7 @@ import numpy as np
 
 from skcomplex.core.analysis import bind_analysis, clusters
 from skcomplex.core.components.system import System
-from skcomplex.core.experiments import Experiment, GridDesign
+from skcomplex.core.experiments import sweep
 from skcomplex.systems.physics.statistical_mechanics import ContinuumPercolationSystem
 
 FILLINGS = [0.8, 1.0, 1.25, 1.5]
@@ -19,15 +19,14 @@ def _disks(**parameters: object) -> System:
 def _spanning_shares(side: float) -> np.ndarray:
     """Return the share of seeds with a spanning cluster at every filling factor, for a side of the square."""
     bounds = {'side': [side], 'filling': FILLINGS, 'random_state': SEEDS}
-    experiment = Experiment(
+    result = sweep(
         _disks,
-        GridDesign(),
         bounds,
         until=1.0,
         analyses=[bind_analysis(clusters, kind='percolation', radius=1.0)],
         outputs=[],
     )
-    spans = experiment.prepare().run().result_.column('clusters.spanning').astype(float)
+    spans = result.column('clusters.spanning').astype(float)
     return spans.reshape(len(FILLINGS), len(SEEDS)).mean(axis=1)
 
 

@@ -24,7 +24,7 @@ from skcomplex.core.components.system import System
 from skcomplex.core.engine._utils import symbol
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import RoleError, ValidationError
-from skcomplex.core.experiments import Experiment
+from skcomplex.core.experiments import compare_scenarios
 from skcomplex.core.specs import (
     BaseSpec,
     BatchMatchingSpec,
@@ -716,8 +716,7 @@ def test_observable_of_an_element_rejects_a_delay_no_law_uses():
 def test_scenario_spec_changes_a_parameter_at_its_scheduled_time():
     """Test that halving the effort at time 50 changes the stock only after time 50, with the same seeds."""
     scenarios = [ScenarioSpec('baseline'), ScenarioSpec('quota', schedule=[(50.0, 'harvest.effort', 0.025)])]
-    experiment = Experiment(_harvesting, scenarios=scenarios, until=80, outputs=['land/stock.n'], random_state=0)
-    result = experiment.prepare().run().result_
+    result = compare_scenarios(_harvesting, scenarios, until=80, outputs=['land/stock.n'], random_state=0)
     baseline, quota = result.series('land/stock.n')
     times = result.runs[0].times
     assert np.array_equal(baseline[times <= 50], quota[times <= 50])
@@ -729,8 +728,7 @@ def test_scenario_spec_keeps_the_initial_value_before_its_first_change():
     """Test that a parameter keeps its initial value before its first change and the last due change after it."""
     schedule = [(50.0, 'harvest.effort', 0.025), (20.0, 'harvest.effort', 0.04)]
     scenarios = [ScenarioSpec('baseline'), ScenarioSpec('late', schedule=schedule)]
-    experiment = Experiment(_harvesting, scenarios=scenarios, until=80, outputs=['land/stock.n'], random_state=0)
-    result = experiment.prepare().run().result_
+    result = compare_scenarios(_harvesting, scenarios, until=80, outputs=['land/stock.n'], random_state=0)
     baseline, late = result.series('land/stock.n')
     times = result.runs[0].times
     assert np.array_equal(baseline[times <= 20], late[times <= 20])

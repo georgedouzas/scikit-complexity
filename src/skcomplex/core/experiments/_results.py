@@ -5,6 +5,7 @@
 
 from collections import defaultdict
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
@@ -13,23 +14,26 @@ import pandas as pd
 from ..specs._run_result_spec import _RunResultSpec
 
 
+@dataclass(frozen=True)
 class ExperimentResult:
     """Results of an experiment: one row per run, the kept series, ensembles, and summaries across replicates.
+
+    `sweep`, `ensemble`, and `compare_scenarios` return it. Its rows form a tidy table, one row per run and one column
+    per value of the run, scenario, replicate, seed, and scalar output, which `to_frame` returns as a data frame.
 
     Args:
         runs:
             The results of every run, in the experiment's order.
 
     Examples:
-        >>> from skcomplex.core.experiments import Experiment, GridDesign
+        >>> from skcomplex.core.experiments import sweep
         >>> from skcomplex.systems.biology.epidemiology import SIRSystem
-        >>> experiment = Experiment(SIRSystem, GridDesign(), {'gamma': [0.1, 0.2]}, until=10).prepare().run()
-        >>> [row['gamma'] for row in experiment.result_.rows]
+        >>> result = sweep(SIRSystem(), {'gamma': [0.1, 0.2]}, until=10)
+        >>> [row['gamma'] for row in result.rows]
         [0.1, 0.2]
     """
 
-    def __init__(self, runs: Sequence[_RunResultSpec]) -> None:
-        self.runs = list(runs)
+    runs: tuple[_RunResultSpec, ...]
 
     @property
     def rows(self) -> list[dict[str, object]]:
@@ -91,9 +95,9 @@ class ExperimentResult:
                 The seed of the run of every row.
 
         Examples:
-            >>> from skcomplex.core.experiments import Experiment
+            >>> from skcomplex.core.experiments import ensemble
             >>> from skcomplex.systems.biology.epidemiology import SIRSystem
-            >>> result = Experiment(SIRSystem, replicates=3, until=10, random_state=0).prepare().run().result_
+            >>> result = ensemble(SIRSystem(stochastic=True), replicates=3, until=10, random_state=0)
             >>> times, values, seeds = result.ensemble('I.n')
             >>> values.shape == (3, times.size), seeds.tolist()
             (True, [0, 1, 2])

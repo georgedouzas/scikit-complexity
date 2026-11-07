@@ -1,37 +1,28 @@
-"""Study systems through many runs: designs, scenarios, replicates, sensitivity analysis, and calibration."""
+"""Study systems through many runs: sweeps, ensembles, scenarios, sensitivity, basin stability, and calibration.
 
-from ._base import BaseDesign, BaseExperiment
-from ._basin_stability import BasinStabilityExperiment
-from ._calibration import CalibrationExperiment
-from ._experiment import Experiment
-from ._grid import GridDesign
-from ._latin_hypercube import LatinHypercubeDesign
-from ._morris import MorrisDesign
-from ._one_at_a_time import OneAtATimeDesign
-from ._orbit_diagram import OrbitDiagramExperiment
-from ._random import RandomDesign
+The experiments are functions of a system, in the role of the model selection functions of scikit-learn, and return
+frozen results. Calibration stays an estimator, in the role of `GridSearchCV`, since it returns a fitted system.
+"""
+
+from ._basin_stability import BasinStabilityResult, basin_stability
+from ._calibration import Calibration
+from ._ensemble import ensemble
+from ._orbit_diagram import OrbitDiagramResult, orbit_diagram
 from ._results import ExperimentResult
-from ._rows import RowsDesign
-from ._saltelli import SaltelliDesign
+from ._scenarios import compare_scenarios
 from ._sensitivity import SensitivityResult, sensitivity
-from ._sobol import SobolDesign
+from ._sweep import sweep
 
 __all__: list[str] = [
-    'BaseDesign',
-    'BaseExperiment',
-    'BasinStabilityExperiment',
-    'CalibrationExperiment',
-    'Experiment',
+    'BasinStabilityResult',
+    'Calibration',
     'ExperimentResult',
-    'GridDesign',
-    'LatinHypercubeDesign',
-    'MorrisDesign',
-    'OneAtATimeDesign',
-    'OrbitDiagramExperiment',
-    'RandomDesign',
-    'RowsDesign',
-    'SaltelliDesign',
+    'OrbitDiagramResult',
     'SensitivityResult',
-    'SobolDesign',
+    'basin_stability',
+    'compare_scenarios',
+    'ensemble',
+    'orbit_diagram',
     'sensitivity',
+    'sweep',
 ]
