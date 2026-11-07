@@ -3,7 +3,7 @@
 from ._alignment import AlignmentAnalysis
 from ._autocatalytic import AutocatalyticSetAnalysis
 from ._automata import AutomatonResult, automaton
-from ._base import BaseAnalysis
+from ._base import BaseAnalysis, bind_analysis
 from ._cell_complex import CellComplexAnalysis
 from ._clusters import ClusterAnalysis
 from ._coarse_grain import CoarseGrainAnalysis
@@ -109,6 +109,7 @@ __all__: list[str] = [
     'SurrogateTestResult',
     'SymbolicResult',
     'automaton',
+    'bind_analysis',
     'complexity',
     'elementary_modes',
     'embedding',
