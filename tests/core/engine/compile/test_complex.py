@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from sage.all__sagemath_symbolics import CC, RR, I, arg, conjugate, exp, gamma, imag_part, real_part
 
-from skcomplex.core.analysis import SpectrumAnalysis
+from skcomplex.core.analysis import spectrum
 from skcomplex.core.components.elements import Element, FieldElement, GroupElement
 from skcomplex.core.components.laws import CrossingLaw, EquationLaw, JumpLaw, LocalRuleLaw, RateLaw, RuleLaw, UpdateLaw
 from skcomplex.core.components.laws.utils import derivative, laplacian, mod, total, where
@@ -459,8 +459,8 @@ def test_power_spectrum_rejects_complex_series():
         Simulation(System(elements=[PhaseElement('osc')]), dt=0.1).prepare().run(until=5).trajectory_.values('osc.z')
     )
     with pytest.raises(ValidationError, match=r'complex.*values\.real.*values\.imag.*np\.abs.*np\.angle'):
-        SpectrumAnalysis().prepare(values).run()
-    assert SpectrumAnalysis().prepare(values.real).run().power_.size
+        spectrum(values)
+    assert spectrum(values.real).power.size
 
 
 def test_lammps_backend_rejects_complex_state():

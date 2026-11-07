@@ -12,7 +12,7 @@ less.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.analysis import distribution
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -33,7 +33,7 @@ fig, ax = plt.subplots(figsize=(8, 4))
 for label, K in [('with feedback', 50.0), ('without feedback', 1e9)]:
     trajectory = Simulation(create_system(SYSTEM, K=K), dt=1.0, random_state=1).prepare().run(until=1000).trajectory_
     protein = trajectory.values('gene.p')[trajectory.times > 100]
-    fano = DistributionAnalysis('dispersion-index').prepare(protein).run().index_[0]
+    fano = distribution(protein, kind='dispersion-index').index[0]
     ax.plot(
         trajectory.times,
         trajectory.values('gene.p'),

@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats
 
-from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.analysis import distribution
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -35,15 +35,15 @@ simulation = (
 
 counts = Simulation(create_system(SYSTEM, n_processes=2000), dt=1.0, random_state=1).prepare().run(until=50).trajectory_
 values = counts.values('counters.count')
-fig, (distribution, fano) = plt.subplots(1, 2, figsize=(11, 4))
+fig, (distribution_axes, fano) = plt.subplots(1, 2, figsize=(11, 4))
 grid = np.arange(25, 80)
-distribution.hist(values[-1], bins=np.arange(24.5, 80.5), density=True, label='simulated, t = 50')
-distribution.plot(grid, stats.poisson.pmf(grid, 50), 'k.-', label='Poisson, mean 50')
-distribution.set_xlabel('count')
-distribution.set_ylabel('probability')
-distribution.set_title('Counts at t = 50')
-distribution.legend()
-fano.plot(counts.times[1:], DistributionAnalysis('dispersion-index').prepare(values[1:].T).run().index_)
+distribution_axes.hist(values[-1], bins=np.arange(24.5, 80.5), density=True, label='simulated, t = 50')
+distribution_axes.plot(grid, stats.poisson.pmf(grid, 50), 'k.-', label='Poisson, mean 50')
+distribution_axes.set_xlabel('count')
+distribution_axes.set_ylabel('probability')
+distribution_axes.set_title('Counts at t = 50')
+distribution_axes.legend()
+fano.plot(counts.times[1:], distribution(values[1:].T, kind='dispersion-index').index)
 fano.axhline(1, color='black', linestyle=':')
 fano.set_ylim(0.5, 1.5)
 fano.set_xlabel('time')

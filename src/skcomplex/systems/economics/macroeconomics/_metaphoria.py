@@ -13,7 +13,7 @@ import numpy as np
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.real_set import RealSet
 
-from ....core.analysis import DistributionAnalysis
+from ....core.analysis import distribution
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import BaseInteraction, Interaction, MatchingInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
@@ -1000,7 +1000,8 @@ def _living(fates: object) -> float:
 
 def _money_gini(money: object) -> float:
     """Return the Gini coefficient of the money of people."""
-    return DistributionAnalysis('gini').prepare(np.asarray(money, dtype=float)).run().gini_
+    gini = distribution(np.asarray(money, dtype=float), kind='gini').gini
+    return 0.0 if gini is None else gini
 
 
 def _metaphoria_observables(system: System) -> list[ObservableSpec]:

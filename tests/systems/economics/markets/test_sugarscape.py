@@ -1,6 +1,6 @@
 """Test the `_sugarscape` module of `skcomplex.systems.economics.markets`."""
 
-from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.analysis import distribution
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.systems import describe
 from skcomplex.systems.economics.markets import sugarscape
@@ -16,8 +16,8 @@ def test_sugarscape_carrying_capacity_and_inequality():
         .trajectory_
     )
     population, inequality = trajectory.values('population'), trajectory.values('gini')
-    initial = DistributionAnalysis('gini').prepare(trajectory.agents('foragers', 0).values['sugar']).run()
+    initial = distribution(trajectory.agents('foragers', 0).values['sugar'], kind='gini')
     assert population[-1] < 200
     assert abs(population[-1] - population[-20]) <= 0.05 * population[-1]
     assert inequality[-1] > 0.3
-    assert inequality[-1] > initial.gini_ + 0.05
+    assert inequality[-1] > initial.gini + 0.05

@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.analysis import distribution
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.systems.physics.criticality import hexagonal_forest_fire, manna_sandpile, sandpile
 
@@ -25,8 +25,8 @@ def test_sandpile_avalanches_follow_power_law():
     assert observer.passed_
     assert sizes.max() > 1000
     assert {event.label for event in observer.events_} == {'avalanche'}
-    histogram = DistributionAnalysis('histogram', bins=20, log=True).prepare(sizes).run()
-    edges, density = histogram.edges_, histogram.density_
+    histogram = distribution(sizes, kind='histogram', bins=20, log=True)
+    edges, density = histogram.edges, histogram.density
     centers = np.sqrt(edges[1:] * edges[:-1])
     decades = (centers >= 1) & (centers <= 100) & (density > 0)
     exponent = -np.polyfit(np.log(centers[decades]), np.log(density[decades]), 1)[0]

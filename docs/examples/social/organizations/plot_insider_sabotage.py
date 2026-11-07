@@ -14,7 +14,7 @@ employees drift into a high-risk tail.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.analysis import distribution
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -41,8 +41,8 @@ trend.set_ylabel('risk of sabotage')
 trend.set_title('Risk creeps up over the year')
 trend.legend()
 for frame, label in [(0, 'first day'), (len(risks) - 1, 'last day')]:
-    histogram = DistributionAnalysis('histogram', bins=20).prepare(risks[frame]).run()
-    edges, density = histogram.edges_, histogram.density_
+    histogram = distribution(risks[frame], kind='histogram', bins=20)
+    edges, density = histogram.edges, histogram.density
     spread.stairs(density, edges, fill=True, alpha=0.5, label=label)
 spread.set_xlabel('risk of sabotage')
 spread.set_ylabel('probability density')

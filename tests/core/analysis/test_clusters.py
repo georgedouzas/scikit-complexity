@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import ClusterAnalysis, FitAnalysis
+from skcomplex.core.analysis import ClusterAnalysis, fit_law
 from skcomplex.core.errors import AnalysisError
 
 THRESHOLD = 0.5927
@@ -27,13 +27,13 @@ def test_cluster_sizes_at_the_threshold_on_two_kinds_of_data():
     rng = np.random.default_rng(0)
     grids = [rng.random((1024, 1024)) < THRESHOLD for _ in range(6)]
     sizes = np.concatenate([_clusters('sizes', grid, periodic=True).sizes_[1:] for grid in grids])
-    fit = FitAnalysis(minimum=100, maximum=100_000, discrete=True, bootstrap=0).prepare(sizes).run()
-    assert fit.exponent_ == pytest.approx(187 / 91, abs=0.1)
+    fit = fit_law(sizes, minimum=100, maximum=100_000, discrete=True, bootstrap=0)
+    assert fit.exponent == pytest.approx(187 / 91, abs=0.1)
     components = np.concatenate(
         [_clusters('sizes', nx.fast_gnp_random_graph(100_000, 1 / 100_000, seed=seed)).sizes_ for seed in range(5)],
     )
-    fit = FitAnalysis(minimum=5, discrete=True, bootstrap=0).prepare(components).run()
-    assert fit.exponent_ == pytest.approx(2.5, abs=0.1)
+    fit = fit_law(components, minimum=5, discrete=True, bootstrap=0)
+    assert fit.exponent == pytest.approx(2.5, abs=0.1)
 
 
 def test_percolation_forest_fire_clusters():

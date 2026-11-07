@@ -5,7 +5,7 @@ import pytest
 from sage.all__sagemath_symbolics import SR, identity_matrix, matrix, var, vector
 from scipy.integrate import solve_ivp
 
-from skcomplex.core.analysis import AlignmentAnalysis, DefectAnalysis
+from skcomplex.core.analysis import DefectAnalysis, alignment
 from skcomplex.core.components.laws.utils import laplacian, partial, symmetric_part, upwind, vector_gradient
 from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.runtime import Simulation
@@ -97,7 +97,7 @@ def test_active_gels_passive_nematic_relaxes_to_the_scalar_order():
     assert np.abs(np.asarray(trajectory.values('u_x'))).max() < 1e-8
     assert np.abs(np.asarray(trajectory.values('u_y'))).max() < 1e-8
     frames = np.asarray(trajectory.lattice('gel.Q'))
-    order = AlignmentAnalysis('principal-axis').prepare(frames).run().order_
+    order = alignment(frames, kind='principal-axis').order
     assert np.abs(order[-1] - np.sqrt(-2 * a / c)).max() < 1e-6
 
 
@@ -120,7 +120,7 @@ def test_active_gels_extensile_nematic_turbulence_conserves_the_charge():
     values = system.elements[0].values
     assert values['zeta'] > 10 * 2 * values['K'] * (2 * np.pi / 10.0) ** 2
     trajectory = _run_gel(system, until=0.5, dt=0.025, step=5e-4)
-    axes = AlignmentAnalysis('principal-axis').prepare(np.asarray(trajectory.lattice('gel.Q'))).run().axes_
+    axes = alignment(np.asarray(trajectory.lattice('gel.Q')), kind='principal-axis').axes
     angles = np.arctan2(axes[..., 1], axes[..., 0])
     defects = DefectAnalysis(period=np.pi).prepare(angles).run()
     charges = [item.sum() for item in defects.charges_]

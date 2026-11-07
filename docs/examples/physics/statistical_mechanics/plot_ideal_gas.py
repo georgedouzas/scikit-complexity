@@ -14,7 +14,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.analysis import distribution
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -49,8 +49,8 @@ simulation = Simulation(system, dt=0.01, observers=[observer]).prepare().run(unt
 velocities = simulation.trajectory_.values('gas.x_d1')[-1]
 speeds = np.linalg.norm(velocities, axis=1)
 kt = float(np.mean(np.sum(velocities**2, axis=1))) / 2
-histogram = DistributionAnalysis('histogram', bins=25).prepare(speeds).run()
-edges, density = histogram.edges_, histogram.density_
+histogram = distribution(speeds, kind='histogram', bins=25)
+edges, density = histogram.edges, histogram.density
 grid = np.linspace(0.0, speeds.max(), 200)
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.stairs(density, edges, fill=True, alpha=0.5, label='simulated speeds')

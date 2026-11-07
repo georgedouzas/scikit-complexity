@@ -17,7 +17,7 @@ of about the same size, roughened by the conserved noise.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import SpectrumAnalysis
+from skcomplex.core.analysis import spectrum
 from skcomplex.core.engine.backends import NumbaBackend
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
@@ -53,8 +53,8 @@ phi = simulation.trajectory_.lattice('fluid.phi')
 times = simulation.trajectory_.times
 sizes = []
 for field in phi[1:]:
-    factor = SpectrumAnalysis('structure-factor').prepare(field - field.mean()).run()
-    sizes.append(2 * np.pi * factor.power_.sum() / (factor.wavenumbers_ * factor.power_).sum())
+    factor = spectrum(field - field.mean(), kind='structure-factor')
+    sizes.append(2 * np.pi * factor.power.sum() / (factor.wavenumbers * factor.power).sum())
 sizes = np.array(sizes)
 early = np.searchsorted(times[1:], 300.0)
 

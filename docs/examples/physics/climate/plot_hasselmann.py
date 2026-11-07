@@ -12,7 +12,7 @@ noise, with long excursions above and below zero instead of the rapid flicker of
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import CorrelationAnalysis, DistributionAnalysis
+from skcomplex.core.analysis import correlation, distribution
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
@@ -51,22 +51,22 @@ run = (
 )
 anomaly = run.values('ocean.T')[100:]
 lags = np.arange(80) * 0.1
-histogram = DistributionAnalysis('histogram', bins=40).prepare(anomaly).run()
-edges, density = histogram.edges_, histogram.density_
+histogram = distribution(anomaly, kind='histogram', bins=40)
+edges, density = histogram.edges, histogram.density
 variance = sigma**2 / (2 * lam)
 grid = np.linspace(edges[0], edges[-1], 200)
-fig, (memory, distribution) = plt.subplots(1, 2, figsize=(10, 4))
-correlation = CorrelationAnalysis(max_lag=79).prepare(anomaly).run().correlation_[0]
-memory.plot(lags, correlation, label='simulation')
+fig, (memory, distribution_axes) = plt.subplots(1, 2, figsize=(10, 4))
+autocorrelation = correlation(anomaly, max_lag=79).correlation[0]
+memory.plot(lags, autocorrelation, label='simulation')
 memory.plot(lags, np.exp(-lam * lags), color='black', linestyle='--', label='exp(-lam t)')
 memory.set_xlabel('lag')
 memory.set_ylabel('autocorrelation')
 memory.set_title('The ocean forgets on the time 1 / lam')
 memory.legend()
-distribution.stairs(density, edges, fill=True, alpha=0.5, label='simulation')
-distribution.plot(grid, np.exp(-(grid**2) / (2 * variance)) / np.sqrt(2 * np.pi * variance), color='black')
-distribution.set_xlabel('temperature anomaly T')
-distribution.set_ylabel('probability density')
-distribution.set_title('Stationary variance sigma^2 / (2 lam)')
+distribution_axes.stairs(density, edges, fill=True, alpha=0.5, label='simulation')
+distribution_axes.plot(grid, np.exp(-(grid**2) / (2 * variance)) / np.sqrt(2 * np.pi * variance), color='black')
+distribution_axes.set_xlabel('temperature anomaly T')
+distribution_axes.set_ylabel('probability density')
+distribution_axes.set_title('Stationary variance sigma^2 / (2 lam)')
 fig.tight_layout()
 plt.show()

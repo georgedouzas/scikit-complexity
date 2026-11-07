@@ -14,7 +14,7 @@ whichever opinion starts in the majority.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import DomainAnalysis
+from skcomplex.core.analysis import domains
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -46,8 +46,8 @@ finals = [
     for density in densities
 ]
 fig, (interfaces, amplification) = plt.subplots(1, 2, figsize=(10, 4))
-domains = DomainAnalysis('interface-density', times=simulation.trajectory_.times).prepare(grids)
-interfaces.plot(domains.times_, domains.run().density_, 'o-', ms=3)
+interface = domains(grids, kind='interface-density', times=simulation.trajectory_.times)
+interfaces.plot(interface.times, interface.density, 'o-', ms=3)
 interfaces.set_xlabel('step')
 interfaces.set_ylabel('interface density')
 interfaces.set_title('Domains form and freeze')

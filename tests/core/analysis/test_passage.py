@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import FitAnalysis, PassageAnalysis
+from skcomplex.core.analysis import PassageAnalysis, fit_law
 from skcomplex.core.errors import AnalysisError
 
 RUNS = 2000
@@ -65,8 +65,8 @@ def test_return_times_of_a_random_walk():
     rng = np.random.default_rng(1)
     walk = np.cumsum(rng.choice([-1, 1], 2_000_000))
     returns = _passage('return-times', walk).return_times_ / 2
-    fit = FitAnalysis(minimum=10, discrete=True, bootstrap=0).prepare(returns).run()
-    assert fit.exponent_ == pytest.approx(1.5, abs=0.1)
+    fit = fit_law(returns, minimum=10, discrete=True, bootstrap=0)
+    assert fit.exponent == pytest.approx(1.5, abs=0.1)
 
 
 def test_hitting_probabilities_fixation_of_a_mutant():

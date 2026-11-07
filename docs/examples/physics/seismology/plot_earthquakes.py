@@ -13,7 +13,7 @@ a power law, like the Gutenberg-Richter law of real faults.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import DistributionAnalysis, FitAnalysis
+from skcomplex.core.analysis import distribution, fit_law
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -32,17 +32,17 @@ simulation = Simulation(system, dt=250, observers=[observer]).prepare().run(unti
 # sizes of a few hundred slips, and fall off beyond them, where earthquakes reach the size of the grid.
 
 sizes = np.array([event.size for event in simulation.trajectory_.events if event.time > 20000], dtype=float)
-fit = FitAnalysis(maximum=300, discrete=True, bootstrap=0, random_state=0).prepare(sizes).run()
-ccdf = DistributionAnalysis('ccdf').prepare(sizes).run()
-values, survival = ccdf.support_, ccdf.survival_
-tail = (values >= fit.minimum_) & (values <= 300)
+fit = fit_law(sizes, maximum=300, discrete=True, bootstrap=0, random_state=0)
+ccdf = distribution(sizes, kind='ccdf')
+values, survival = ccdf.support, ccdf.survival
+tail = (values >= fit.minimum) & (values <= 300)
 fig, ax = plt.subplots(figsize=(6, 4.5))
 ax.loglog(values, survival, '.', markersize=3, label=f'{len(sizes)} earthquakes')
 ax.loglog(
     values[tail],
-    survival[tail][0] * (values[tail] / fit.minimum_) ** (1 - fit.exponent_),
+    survival[tail][0] * (values[tail] / fit.minimum) ** (1 - fit.exponent),
     color='black',
-    label=f'power law, exponent {fit.exponent_:.2f}',
+    label=f'power law, exponent {fit.exponent:.2f}',
 )
 ax.set_xlabel('earthquake size (slips)')
 ax.set_ylabel('P(size >= s)')

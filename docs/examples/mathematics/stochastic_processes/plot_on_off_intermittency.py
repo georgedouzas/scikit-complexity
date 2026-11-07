@@ -13,7 +13,7 @@ by short bursts in which it rises to values of order one and falls back.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import DistributionAnalysis, EventAnalysis
+from skcomplex.core.analysis import EventAnalysis, distribution
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
@@ -53,8 +53,8 @@ events = EventAnalysis(threshold=-0.05)
 durations = step * np.concatenate(
     [events.prepare(-values[:, index]).run().durations_[1:-1] for index in range(values.shape[1])],
 )
-histogram = DistributionAnalysis('histogram', bins=12, log=True).prepare(durations[durations >= 0.5]).run()
-edges, density = histogram.edges_, histogram.density_
+histogram = distribution(durations[durations >= 0.5], kind='histogram', bins=12, log=True)
+edges, density = histogram.edges, histogram.density
 centers = np.sqrt(edges[1:] * edges[:-1])
 
 fig, (laminar, logarithm) = plt.subplots(1, 2, figsize=(10, 4))

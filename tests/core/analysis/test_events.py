@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import DistributionAnalysis, EventAnalysis, FitAnalysis
+from skcomplex.core.analysis import EventAnalysis, FitLawResult, distribution, fit_law
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems import create_simulation
 
@@ -15,9 +15,9 @@ def _events(kind: str, source: object, **settings: object) -> EventAnalysis:
     return EventAnalysis(kind, **settings).prepare(source).run()
 
 
-def _exponent(values: np.ndarray, minimum: float) -> FitAnalysis:
+def _exponent(values: np.ndarray, minimum: float) -> FitLawResult:
     """Return the discrete power law fitted above a fixed lower cutoff."""
-    return FitAnalysis('power', minimum=minimum, discrete=True, bootstrap=0).prepare(values).run()
+    return fit_law(values, law='power', minimum=minimum, discrete=True, bootstrap=0)
 
 
 def _galton_watson(rng: np.random.Generator, trees: int) -> np.ndarray:
@@ -71,7 +71,7 @@ def test_event_counts_and_dispersion_of_event_times():
     times = np.cumsum(np.random.default_rng(1).exponential(1.0, 100_000))
     counts = _events('counts', times, window=10.0).counts_
     assert counts.sum() <= times.size
-    assert DistributionAnalysis('dispersion-index').prepare(counts).run().index_[0] == pytest.approx(1, abs=0.1)
+    assert distribution(counts, kind='dispersion-index').index[0] == pytest.approx(1, abs=0.1)
 
 
 def test_laminar_durations_of_on_off_intermittency():
@@ -85,8 +85,8 @@ def test_laminar_durations_of_on_off_intermittency():
     for t in range(1, size):
         values[t] = max(factors[t] * values[t - 1] * (1 - values[t - 1]), 1e-12)
     durations = _events('laminar-durations', values, threshold=1e-3).durations_
-    fit = FitAnalysis(minimum=10, discrete=True, bootstrap=0).prepare(durations).run()
-    assert fit.exponent_ == pytest.approx(1.5, abs=0.1)
+    fit = fit_law(durations, minimum=10, discrete=True, bootstrap=0)
+    assert fit.exponent == pytest.approx(1.5, abs=0.1)
     assert _events('laminar-durations', [1, 0, 0, 1, 0, 1], threshold=0.5).durations_.tolist() == [2.0, 1.0]
 
 
@@ -105,8 +105,8 @@ def test_unknown_kind_ignored_setting_and_missing_window():
 def test_excursions_of_critical_branching():
     """Test that critical Galton-Watson excursions have size exponent 3/2 and duration exponent 2."""
     found = _events('excursions', _galton_watson(np.random.default_rng(0), 100_000))
-    assert _exponent(found.sizes_, 10).exponent_ == pytest.approx(1.5, abs=0.05)
-    assert _exponent(found.durations_, 10).exponent_ == pytest.approx(2, abs=0.1)
+    assert _exponent(found.sizes_, 10).exponent == pytest.approx(1.5, abs=0.05)
+    assert _exponent(found.durations_, 10).exponent == pytest.approx(2, abs=0.1)
 
 
 def test_excursions_of_an_activity_series():

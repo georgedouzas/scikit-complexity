@@ -3,6 +3,8 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from dataclasses import dataclass
+
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
@@ -13,9 +15,9 @@ from scipy.sparse.linalg import expm_multiply
 
 from ..engine.runtime import Trajectory
 from ..errors import AnalysisError
-from ..types import Array, DataKind
-from ._base import BaseAnalysis
-from ._networks import NetworkAnalysis
+from ..types import Array
+from ._base import _check_choice, _check_settings, _read_networks
+from ._networks import network_measures
 from .types import Source
 
 KINDS = ('laplacian', 'geometric')
@@ -34,8 +36,46 @@ LARGEST_TIME_SCALE = 10.0
 SMALLEST_PEAK = 1e-3
 
 
-class RenormalizationAnalysis(BaseAnalysis):
+@dataclass(frozen=True)
+class RenormalizationResult:
     """Network at every scale of a coarse-graining of a graph, or of the last frame of a trajectory.
+
+    Args:
+        graph:
+            The network read from the source.
+
+        graphs:
+            The network at every scale, the original first.
+
+        degrees:
+            The degree of every node at every scale.
+
+        exponents:
+            The fitted degree exponent at every scale, `nan` below 50 nodes or for a narrow distribution, as
+            `network_measures(kind='degrees')` fits it.
+
+        clustering:
+            The average clustering at every scale.
+    """
+
+    graph: nx.Graph
+    graphs: list[nx.Graph]
+    degrees: list[npt.NDArray[np.int64]]
+    exponents: Array
+    clustering: Array
+
+
+def renormalization(
+    source: Source,
+    *,
+    kind: str = 'laplacian',
+    steps: int = 3,
+    time: float | None = None,
+    block: int = 2,
+    angle: str = 'angle',
+    beta: float = 1.0,
+) -> RenormalizationResult:
+    """Return the network at every scale of a coarse-graining of a graph, or of the last frame of a trajectory.
 
     The kinds merge nodes into supernodes, and two supernodes link when any of their nodes link:
 
@@ -51,6 +91,9 @@ class RenormalizationAnalysis(BaseAnalysis):
     nodes as node attributes.
 
     Args:
+        source:
+            The trajectory, a graph, or a network snapshot.
+
         kind:
             The coarse-graining, one of the kinds above.
 
@@ -70,172 +113,153 @@ class RenormalizationAnalysis(BaseAnalysis):
             The parameter of the geometric system that the weights of the angles of `'geometric'` read, the inverse of
             its temperature.
 
-    Attributes:
-        graphs_:
-            The network at every scale, the original first.
-
-        degrees_:
-            The degree of every node at every scale.
-
-        exponents_:
-            The fitted degree exponent at every scale, `nan` below 50 nodes or for a narrow distribution, as
-            `NetworkAnalysis('degrees')` fits it.
-
-        clustering_:
-            The average clustering at every scale.
+    Returns:
+        result:
+            The network at every scale and its measures.
 
     Raises:
         AnalysisError:
             The kind is unknown, the kind does not read a changed setting, `steps` is below 1, `block` is below 2,
-            `time` or `beta` is not positive, raised by `prepare`, or a node has no angle, raised by `run`.
+            `time` or `beta` is not positive, or a node has no angle.
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.core.analysis import RenormalizationAnalysis
+        >>> from skcomplex.core.analysis import renormalization
         >>> blocks = nx.disjoint_union(nx.complete_graph(20), nx.complete_graph(20))
         >>> blocks.add_edge(0, 20)
-        >>> laplacian = RenormalizationAnalysis(steps=1).prepare(blocks).run()
-        >>> sorted(laplacian.graphs_[1].degree())
+        >>> sorted(renormalization(blocks, steps=1).graphs[1].degree())
         [(0, 1), (1, 1)]
         >>> ring = nx.cycle_graph(8)
         >>> nx.set_node_attributes(ring, {node: float(node) for node in ring}, 'angle')
-        >>> geometric = RenormalizationAnalysis('geometric', steps=2).prepare(ring).run()
-        >>> [graph.number_of_nodes() for graph in geometric.graphs_]
+        >>> [graph.number_of_nodes() for graph in renormalization(ring, kind='geometric', steps=2).graphs]
         [8, 4, 2]
     """
+    _check_choice('renormalization', 'kind', kind, KINDS)
+    _check_settings(
+        renormalization,
+        'kind',
+        SETTINGS[kind],
+        kind=kind,
+        steps=steps,
+        time=time,
+        block=block,
+        angle=angle,
+        beta=beta,
+    )
+    if steps < 1:
+        error_msg = f'renormalization has steps={steps!r}. Use 1 or more.'
+        raise AnalysisError(error_msg)
+    if block < MIN_BLOCK:
+        error_msg = f'renormalization has block={block!r}. Use {MIN_BLOCK} or more.'
+        raise AnalysisError(error_msg)
+    if time is not None and time <= 0:
+        error_msg = f'renormalization has time={time!r}. Use a positive time, or None.'
+        raise AnalysisError(error_msg)
+    if beta <= 0:
+        error_msg = f'renormalization has beta={beta!r}. Use a positive value.'
+        raise AnalysisError(error_msg)
+    graph = _read_frame(source) if isinstance(source, Trajectory) else _read_networks(source)[-1]
+    graphs = [graph.to_undirected()]
+    for _ in range(steps):
+        if kind == 'geometric':
+            graphs.append(_merge_by_angle(graphs[-1], angle, block, beta))
+        else:
+            graphs.append(_coarsen(graphs[-1], time))
+    measures = [network_measures(item, kind='degrees') for item in graphs]
+    return RenormalizationResult(
+        graph,
+        graphs,
+        degrees=[measure.degrees[0] for measure in measures if measure.degrees is not None],
+        exponents=np.asarray(
+            [measure.exponent[0] for measure in measures if measure.exponent is not None],
+            dtype=float,
+        ),
+        clustering=np.asarray([nx.average_clustering(item) for item in graphs], dtype=float),
+    )
 
-    def __init__(
-        self,
-        kind: str = 'laplacian',
-        *,
-        steps: int = 3,
-        time: float | None = None,
-        block: int = 2,
-        angle: str = 'angle',
-        beta: float = 1.0,
-    ) -> None:
-        self.kind = kind
-        self.steps = steps
-        self.time = time
-        self.block = block
-        self.angle = angle
-        self.beta = beta
 
-    def _check(self) -> None:
-        """Validate the kind, the steps, the time, the block, and that the kind reads every changed setting."""
-        self._check_choice('kind', self.kind, KINDS)
-        self._check_settings('kind', SETTINGS[self.kind])
-        if self.steps < 1:
-            error_msg = f'{type(self).__name__} has steps={self.steps!r}. Use 1 or more.'
-            raise AnalysisError(error_msg)
-        if self.block < MIN_BLOCK:
-            error_msg = f'{type(self).__name__} has block={self.block!r}. Use {MIN_BLOCK} or more.'
-            raise AnalysisError(error_msg)
-        if self.time is not None and self.time <= 0:
-            error_msg = f'{type(self).__name__} has time={self.time!r}. Use a positive time, or None.'
-            raise AnalysisError(error_msg)
-        if self.beta <= 0:
-            error_msg = f'{type(self).__name__} has beta={self.beta!r}. Use a positive value.'
-            raise AnalysisError(error_msg)
+def _read_frame(trajectory: Trajectory) -> nx.Graph:
+    """Return the network of the last frame of a trajectory with the values of the group on its nodes."""
+    topology = trajectory.problem.topology
+    if topology is None:
+        return _read_networks(trajectory)[-1]
+    graph = trajectory.network(-1).graph()
+    for name, (entry, _) in topology.networks[0].nodes[0].variables.items():
+        values = np.asarray(trajectory.values(entry.name)[-1])
+        nx.set_node_attributes(graph, {node: values[node] for node in graph}, name)
+    return graph
 
-    def _get_data_kind(self) -> DataKind:
-        """Return the network kind."""
-        return DataKind.NETWORK
 
-    def _prepare(self, source: Source) -> None:
-        """Read the graph, or the network of the last frame of a trajectory with its node states as attributes."""
-        self.graph_ = self._read_frame(source) if isinstance(source, Trajectory) else self._read_networks(source)[-1]
+def _coarsen(graph: nx.Graph, time: float | None) -> nx.Graph:
+    """Return the network of the next scale of the Laplacian coarse-graining."""
+    nodes = list(graph)
+    labels = _diffusion_labels(graph, nodes, time)
+    blocks: dict[int, set[object]] = {}
+    for node, label in zip(nodes, labels.tolist(), strict=True):
+        blocks.setdefault(label, set()).add(node)
+    return nx.quotient_graph(graph, list(blocks.values()), relabel=True)
 
-    def _read_frame(self, trajectory: Trajectory) -> nx.Graph:
-        """Return the network of the last frame of a trajectory with the values of the group on its nodes."""
-        topology = trajectory.problem.topology
-        if topology is None:
-            return self._read_networks(trajectory)[-1]
-        graph = trajectory.network(-1).graph()
-        for name, (entry, _) in topology.networks[0].nodes[0].variables.items():
-            values = np.asarray(trajectory.values(entry.name)[-1])
-            nx.set_node_attributes(graph, {node: values[node] for node in graph}, name)
-        return graph
 
-    def _run(self, inputs: object = None) -> None:
-        """Coarse-grain the network, and measure it at every scale."""
-        self.graphs_ = [self.graph_.to_undirected()]
-        for _ in range(self.steps):
-            self.graphs_.append(self._coarsen(self.graphs_[-1]))
-        measures = [NetworkAnalysis('degrees').prepare(graph).run() for graph in self.graphs_]
-        self.degrees_ = [measure.degrees_[0] for measure in measures]
-        self.exponents_ = np.asarray([measure.exponent_[0] for measure in measures], dtype=float)
-        self.clustering_ = np.asarray([nx.average_clustering(graph) for graph in self.graphs_], dtype=float)
+def _merge_by_angle(graph: nx.Graph, angle: str, block: int, beta: float) -> nx.Graph:
+    """Return the network of the blocks of consecutive nodes by angle, at their angles weighted by the degrees."""
+    missing = [node for node in graph if angle not in graph.nodes[node]]
+    if missing:
+        error_msg = f'The nodes {missing[:5]} have no attribute {angle!r}. Give it, or set `angle`.'
+        raise AnalysisError(error_msg)
+    ordered = sorted(graph, key=lambda node: float(graph.nodes[node][angle]))
+    blocks = [ordered[start : start + block] for start in range(0, len(ordered), block)]
+    merged = nx.quotient_graph(graph, [set(members) for members in blocks], relabel=True)
+    angles = [_supernode_angle(graph, members, angle, beta) for members in blocks]
+    nx.set_node_attributes(merged, dict(enumerate(angles)), angle)
+    return merged
 
-    def _coarsen(self, graph: nx.Graph) -> nx.Graph:
-        """Return the network of the next scale."""
-        if self.kind == 'geometric':
-            return self._merge_by_angle(graph)
-        nodes = list(graph)
-        labels = self._diffusion_labels(graph, nodes)
-        blocks: dict[int, set[object]] = {}
-        for node, label in zip(nodes, labels.tolist(), strict=True):
-            blocks.setdefault(label, set()).add(node)
-        return nx.quotient_graph(graph, list(blocks.values()), relabel=True)
 
-    def _merge_by_angle(self, graph: nx.Graph) -> nx.Graph:
-        """Return the network of the blocks of consecutive nodes by angle, at their angles weighted by the degrees."""
-        missing = [node for node in graph if self.angle not in graph.nodes[node]]
-        if missing:
-            error_msg = f'The nodes {missing[:5]} have no attribute {self.angle!r}. Give it, or set `angle`.'
-            raise AnalysisError(error_msg)
-        ordered = sorted(graph, key=lambda node: float(graph.nodes[node][self.angle]))
-        blocks = [ordered[start : start + self.block] for start in range(0, len(ordered), self.block)]
-        merged = nx.quotient_graph(graph, [set(block) for block in blocks], relabel=True)
-        angles = [self._supernode_angle(graph, block) for block in blocks]
-        nx.set_node_attributes(merged, dict(enumerate(angles)), self.angle)
-        return merged
+def _supernode_angle(graph: nx.Graph, block: list[object], angle: str, beta: float) -> float:
+    """Return the angle of a supernode, the plain mean when none of its nodes has an edge."""
+    angles = np.asarray([graph.nodes[node][angle] for node in block], dtype=float)
+    degrees = np.asarray([graph.degree(node) for node in block], dtype=float)
+    weights = degrees ** max(1.0, beta)
+    return float(np.average(angles, weights=weights if weights.sum() > 0 else None))
 
-    def _supernode_angle(self, graph: nx.Graph, block: list[object]) -> float:
-        """Return the angle of a supernode, the plain mean when none of its nodes has an edge."""
-        angles = np.asarray([graph.nodes[node][self.angle] for node in block], dtype=float)
-        degrees = np.asarray([graph.degree(node) for node in block], dtype=float)
-        weights = degrees ** max(1.0, self.beta)
-        return float(np.average(angles, weights=weights if weights.sum() > 0 else None))
 
-    def _diffusion_labels(self, graph: nx.Graph, nodes: list[object]) -> npt.NDArray[np.int64]:
-        """Return the supernode of every node, at the given time or at the first peak of the heat that merges nodes."""
-        laplacian = nx.laplacian_matrix(graph, nodelist=nodes).astype(float).tocsc()
-        if self.time is not None:
-            return self._join_labels(self._diffuse(laplacian, self.time))
-        singletons = np.arange(len(nodes), dtype=np.int64)
-        for time in self._heat_peaks(np.linalg.eigvalsh(laplacian.toarray())):
-            labels = self._join_labels(self._diffuse(laplacian, time))
-            if labels.max() + 1 < len(nodes):
-                return labels
-        return singletons
+def _diffusion_labels(graph: nx.Graph, nodes: list[object], time: float | None) -> npt.NDArray[np.int64]:
+    """Return the supernode of every node, at the given time or at the first peak of the heat that merges nodes."""
+    laplacian = nx.laplacian_matrix(graph, nodelist=nodes).astype(float).tocsc()
+    if time is not None:
+        return _join_labels(_diffuse(laplacian, time))
+    singletons = np.arange(len(nodes), dtype=np.int64)
+    for peak in _heat_peaks(np.linalg.eigvalsh(laplacian.toarray())):
+        labels = _join_labels(_diffuse(laplacian, peak))
+        if labels.max() + 1 < len(nodes):
+            return labels
+    return singletons
 
-    @staticmethod
-    def _diffuse(laplacian: sparse.csc_matrix, time: float) -> Array:
-        """Return the diffusion operator, with the dense exponential below a few thousand nodes."""
-        size = laplacian.shape[0]
-        if size < DENSE_NODES:
-            return np.asarray(expm(-time * laplacian.toarray()), dtype=float)
-        return np.asarray(expm_multiply(-time * laplacian, np.eye(size)), dtype=float)
 
-    @staticmethod
-    def _join_labels(operator: Array) -> npt.NDArray[np.int64]:
-        """Return the connected component of every node, where an entry at least the smaller diagonal entry joins."""
-        diagonal = np.diag(operator)
-        joins = operator >= np.minimum.outer(diagonal, diagonal)
-        return np.asarray(connected_components(sparse.csr_matrix(joins), directed=False)[1], dtype=np.int64)
+def _diffuse(laplacian: sparse.csc_matrix, time: float) -> Array:
+    """Return the diffusion operator, with the dense exponential below a few thousand nodes."""
+    size = laplacian.shape[0]
+    if size < DENSE_NODES:
+        return np.asarray(expm(-time * laplacian.toarray()), dtype=float)
+    return np.asarray(expm_multiply(-time * laplacian, np.eye(size)), dtype=float)
 
-    @staticmethod
-    def _heat_peaks(eigenvalues: Array) -> list[float]:
-        """Return the diffusion times of the local peaks of the specific heat, smallest first."""
-        positive = eigenvalues[eigenvalues > SMALLEST_EIGENVALUE]
-        if not positive.size:
-            return []
-        times = np.geomspace(SMALLEST_TIME_SCALE / positive.max(), LARGEST_TIME_SCALE / positive.min(), TIMES)
-        weights = np.exp(-np.outer(times, eigenvalues))
-        shares = weights / weights.sum(axis=1, keepdims=True)
-        entropy = -(shares * np.log(np.where(shares > 0, shares, 1.0))).sum(axis=1)
-        heat = -np.gradient(entropy, np.log(times))
-        rising = (heat[1:-1] > heat[:-2]) & (heat[1:-1] >= heat[2:])
-        tall = heat[1:-1] > SMALLEST_PEAK * heat.max()
-        return times[1:-1][rising & tall].tolist()
+
+def _join_labels(operator: Array) -> npt.NDArray[np.int64]:
+    """Return the connected component of every node, where an entry at least the smaller diagonal entry joins."""
+    diagonal = np.diag(operator)
+    joins = operator >= np.minimum.outer(diagonal, diagonal)
+    return np.asarray(connected_components(sparse.csr_matrix(joins), directed=False)[1], dtype=np.int64)
+
+
+def _heat_peaks(eigenvalues: Array) -> list[float]:
+    """Return the diffusion times of the local peaks of the specific heat, smallest first."""
+    positive = eigenvalues[eigenvalues > SMALLEST_EIGENVALUE]
+    if not positive.size:
+        return []
+    times = np.geomspace(SMALLEST_TIME_SCALE / positive.max(), LARGEST_TIME_SCALE / positive.min(), TIMES)
+    weights = np.exp(-np.outer(times, eigenvalues))
+    shares = weights / weights.sum(axis=1, keepdims=True)
+    entropy = -(shares * np.log(np.where(shares > 0, shares, 1.0))).sum(axis=1)
+    heat = -np.gradient(entropy, np.log(times))
+    rising = (heat[1:-1] > heat[:-2]) & (heat[1:-1] >= heat[2:])
+    tall = heat[1:-1] > SMALLEST_PEAK * heat.max()
+    return times[1:-1][rising & tall].tolist()

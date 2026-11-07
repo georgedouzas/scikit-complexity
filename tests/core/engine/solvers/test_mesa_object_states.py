@@ -5,7 +5,7 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import AlignmentAnalysis
+from skcomplex.core.analysis._base import _read_series, _read_snapshots
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import RuleLaw
 from skcomplex.core.components.spaces import DiscreteTime
@@ -87,7 +87,7 @@ def test_series_analysis_refuses_a_state_of_objects_by_name():
     """Test that an analysis that needs numbers names the state that holds objects."""
     trajectory = _queue_run()
     with pytest.raises(ValidationError, match='The state orders of the agents of queues holds objects'):
-        AlignmentAnalysis()._read_series(trajectory, ['queues.orders'])
+        _read_series(trajectory, ['queues.orders'])
 
 
 class PhasedElement(Element):
@@ -116,7 +116,7 @@ def test_snapshots_read_headings_from_roles_alone():
     trajectory = (
         Simulation(System(elements=[group], time=DiscreteTime()), random_state=0).prepare().run(until=2).trajectory_
     )
-    snapshots = AlignmentAnalysis(group='walkers')._read_snapshots(trajectory, 'walkers')
+    snapshots = _read_snapshots(trajectory, 'walkers')
     assert np.all(snapshots.directions == 0.5)
     assert np.all(snapshots.states['phase'] == 3.0)
 

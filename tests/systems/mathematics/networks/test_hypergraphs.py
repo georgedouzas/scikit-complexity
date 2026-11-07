@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 import xgi
 
-from skcomplex.core.analysis import FitAnalysis
+from skcomplex.core.analysis import fit_law
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
@@ -68,8 +68,8 @@ def test_growing_simplicial_complex_degrees_follow_preferential_attachment():
     graph, _ = _final_graph(growing_simplicial_complex(2003), 2000)
     assert graph.number_of_edges() == 3 + 2 * 2000
     degrees = np.array([degree for _, degree in graph.degree])
-    fit = FitAnalysis(minimum=8, discrete=True, bootstrap=0).prepare(degrees).run()
-    assert abs(fit.exponent_ - 3) < 0.4
+    fit = fit_law(degrees, minimum=8, discrete=True, bootstrap=0)
+    assert abs(fit.exponent - 3) < 0.4
 
 
 def test_growing_simplicial_complex_is_created_by_name():

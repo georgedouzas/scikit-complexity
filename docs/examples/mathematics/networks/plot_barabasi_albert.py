@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.analysis import distribution
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -49,8 +49,8 @@ simulation = Simulation(system, dt=2.0, observers=[observer], random_state=0).pr
 grown = Simulation(create_system(SYSTEM, n_nodes=5003), dt=1000.0, random_state=0).prepare().run(until=5000).trajectory_
 snapshot = grown.network(-1)
 degrees = np.bincount(np.concatenate([snapshot.sources, snapshot.targets]))
-ccdf = DistributionAnalysis('ccdf').prepare(degrees).run()
-values, shares = ccdf.support_, ccdf.survival_
+ccdf = distribution(degrees, kind='ccdf')
+values, shares = ccdf.support, ccdf.survival
 fig, axis = plt.subplots(figsize=(6, 4))
 axis.loglog(values, shares, 'o', markersize=3, label='grown network')
 axis.loglog(values, np.minimum(1.0, 4.0 / values**2), 'k--', label=r'$m^2 / k^2$')

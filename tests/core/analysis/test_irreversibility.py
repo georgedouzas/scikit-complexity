@@ -6,7 +6,7 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import CorrelationAnalysis, IrreversibilityAnalysis
+from skcomplex.core.analysis import IrreversibilityAnalysis, correlation
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import JumpLaw
 from skcomplex.core.components.system import System
@@ -201,15 +201,14 @@ def test_fluctuation_dissipation_ratio_in_equilibrium():
     rng = np.random.default_rng(0)
     lags = np.arange(31)
     unperturbed = _ornstein_uhlenbeck(rng, 1031, 0.0, 1000)
-    two_time = CorrelationAnalysis('two-time', waiting=[100, 1000], lags=lags)
-    correlation = two_time.prepare(unperturbed).run().correlation_
+    curves = correlation(unperturbed, kind='two-time', waiting=[100, 1000], lags=lags).correlation
     perturbed = _ornstein_uhlenbeck(np.random.default_rng(0), 1031, 0.1, 1000)
     ratio = _irreversibility(
         'fluctuation-dissipation',
         perturbed[:, 1000:],
         unperturbed=unperturbed[:, 1000:],
         field=0.1,
-        correlation=correlation[1],
+        correlation=curves[1],
         intensity=1.0,
     )
     assert ratio.fluctuation_dissipation_ratio_ == pytest.approx(1, abs=0.1)

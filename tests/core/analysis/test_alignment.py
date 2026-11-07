@@ -1,25 +1,25 @@
 """Test the alignment of agents, fields, and series: mean vector, mean rotation, axial order, and mean phase."""
 
 import math
+from dataclasses import FrozenInstanceError
 
 import numpy as np
 import pytest
 from scipy.spatial import cKDTree
-from sklearn.base import clone
 
-from skcomplex.core.analysis import AlignmentAnalysis
+from skcomplex.core.analysis import AlignmentResult, alignment
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems import create_simulation
 
 
-def _alignment(kind: str, source: object, **settings: object) -> AlignmentAnalysis:
+def _alignment(kind: str, source: object, **settings: object) -> AlignmentResult:
     """Return the alignment analysis of a source for one kind, run."""
-    return AlignmentAnalysis(kind, **settings).prepare(source).run()
+    return alignment(source, kind=kind, **settings)
 
 
 def _order(kind: str, source: object, **settings: object) -> np.ndarray:
     """Return the order of every frame of a source for one kind."""
-    return _alignment(kind, source, **settings).order_
+    return _alignment(kind, source, **settings).order
 
 
 def _vicsek(rng: np.random.Generator, agents: int, noise: float, steps: int) -> np.ndarray:
@@ -80,9 +80,9 @@ def test_mean_phase_same_on_oscillators_and_headings():
     rng = np.random.default_rng(1)
     for angles in (_kuramoto_phases(rng, 2000, 4.0), _vicsek(rng, 1000, 0.1, 400)):
         phases = _alignment('mean-phase', angles)
-        order = phases.order_[0]
+        order = phases.order[0]
         assert order > 0.6
-        assert order * np.exp(1j * phases.phase_[0]) == pytest.approx(np.mean(np.exp(1j * angles)), abs=1e-12)
+        assert order * np.exp(1j * phases.phase[0]) == pytest.approx(np.mean(np.exp(1j * angles)), abs=1e-12)
         vectors = np.column_stack([np.cos(angles), np.sin(angles)])
         assert order == pytest.approx(_order('mean-vector', vectors, vectors=True)[0], abs=1e-12)
         assert _order('axial', angles)[0] >= 0
@@ -105,13 +105,13 @@ def test_alignment_of_every_frame_of_a_trajectory():
 
 
 def test_alignment_checks_its_settings():
-    """Test that an unknown kind and a setting the kind ignores raise errors, and that a clone has no results."""
+    """Test that an unknown kind and a setting the kind ignores raise errors, and that the result is frozen."""
     with pytest.raises(AnalysisError, match='mean-vector, mean-rotation, axial, mean-phase'):
-        AlignmentAnalysis('swirl').prepare()
+        alignment(np.zeros(10), kind='swirl')
     with pytest.raises(AnalysisError, match='does not read vectors'):
-        AlignmentAnalysis('mean-rotation', vectors=True).prepare()
-    analysis = AlignmentAnalysis().prepare([0.0, 0.0]).run()
-    assert not hasattr(clone(analysis), 'order_')
+        alignment(np.zeros(10), kind='mean-rotation', vectors=True)
+    with pytest.raises(FrozenInstanceError):
+        alignment([0.0, 0.0]).order = np.zeros(1)
 
 
 def test_alignment_on_three_domains():
@@ -125,13 +125,13 @@ def test_alignment_on_three_domains():
         (_alignment('mean-phase', oscillators, variables=['oscillators.theta']), oscillators),
     )
     for analysis, trajectory in runs:
-        assert analysis.order_.shape == (len(trajectory.times),)
-        assert np.all((analysis.order_ >= 0) & (analysis.order_ <= 1 + 1e-12))
-    assert runs[0][0].order_ == pytest.approx(flock.values('polarization'), abs=1e-9)
+        assert analysis.order.shape == (len(trajectory.times),)
+        assert np.all((analysis.order >= 0) & (analysis.order <= 1 + 1e-12))
+    assert runs[0][0].order == pytest.approx(flock.values('polarization'), abs=1e-9)
     angles = spins.lattice('spins.theta')
-    assert runs[1][0].order_ == pytest.approx(np.abs(np.exp(1j * angles).mean(axis=(1, 2))), abs=1e-12)
+    assert runs[1][0].order == pytest.approx(np.abs(np.exp(1j * angles).mean(axis=(1, 2))), abs=1e-12)
     phases = oscillators.values('oscillators.theta')
-    assert runs[2][0].order_ == pytest.approx(np.abs(np.exp(1j * phases).mean(axis=1)), abs=1e-12)
+    assert runs[2][0].order == pytest.approx(np.abs(np.exp(1j * phases).mean(axis=1)), abs=1e-12)
 
 
 def test_alignment_of_a_field_of_vectors():
@@ -147,9 +147,9 @@ def test_alignment_of_velocities_along_a_line():
     trajectory = create_simulation('random_walk_with_memory', n_walkers=200).prepare().run(until=5.0).trajectory_
     signs = np.sign(trajectory.values('walkers.v'))
     expected = np.abs(np.where(signs == 0, 0.0, signs).mean(axis=1))
-    assert _alignment('mean-vector', trajectory).order_ == pytest.approx(expected, abs=1e-12)
+    assert _alignment('mean-vector', trajectory).order == pytest.approx(expected, abs=1e-12)
     assert (
-        _alignment('mean-phase', create_simulation('optimal_velocity').prepare().run(until=1.0).trajectory_).order_[-1]
+        _alignment('mean-phase', create_simulation('optimal_velocity').prepare().run(until=1.0).trajectory_).order[-1]
         == 1.0
     )
 
@@ -159,7 +159,7 @@ def test_alignment_reads_phases(system, state):
     """Test that particles and series with the role phase give the synchrony of their phases, not their observables."""
     trajectory = create_simulation(system).prepare().run(until=1.0).trajectory_
     expected = np.abs(np.exp(1j * trajectory.values(state)).mean(axis=1))
-    assert _alignment('mean-vector', trajectory).order_ == pytest.approx(expected, abs=1e-12)
+    assert _alignment('mean-vector', trajectory).order == pytest.approx(expected, abs=1e-12)
 
 
 def test_alignment_rejects_a_source_without_a_readable_kind():
@@ -175,9 +175,9 @@ def test_principal_axis_of_a_uniform_tensor_field():
     components = order / 2 * np.array([np.cos(2 * angle), np.sin(2 * angle)])
     field = np.tile(components, (1, 3, 4, 1))
     analysis = _alignment('principal-axis', field)
-    assert analysis.order_.shape == (1, 3, 4)
-    assert np.allclose(analysis.order_, order)
-    assert np.allclose(np.abs(analysis.axes_ @ np.array([np.cos(angle), np.sin(angle)])), 1.0)
+    assert analysis.order.shape == (1, 3, 4)
+    assert np.allclose(analysis.order, order)
+    assert np.allclose(np.abs(analysis.axes @ np.array([np.cos(angle), np.sin(angle)])), 1.0)
 
 
 def test_principal_axis_of_a_three_dimensional_tensor():
@@ -186,8 +186,8 @@ def test_principal_axis_of_a_three_dimensional_tensor():
     tensor = 0.6 * (np.outer(axis, axis) - np.eye(3) / 3)
     components = [tensor[0, 0], tensor[0, 1], tensor[0, 2], tensor[1, 1], tensor[1, 2]]
     analysis = _alignment('principal-axis', [components])
-    assert np.allclose(analysis.order_, 0.6)
-    assert np.allclose(np.abs(analysis.axes_[0, 0]), axis)
+    assert np.allclose(analysis.order, 0.6)
+    assert np.allclose(np.abs(analysis.axes[0, 0]), axis)
 
 
 def test_principal_axis_rejects_a_number_of_components_of_no_symmetric_tensor():

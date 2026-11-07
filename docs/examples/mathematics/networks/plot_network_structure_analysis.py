@@ -14,7 +14,7 @@ planted blocks, and the edges packed inside the blocks close far more triangles 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import DistributionAnalysis, MotifAnalysis, NetworkAnalysis
+from skcomplex.core.analysis import distribution, motifs, network_measures
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system, describe
@@ -43,11 +43,11 @@ trajectory = simulation.trajectory_
 # how far the triad counts lie from what the degrees alone give: the blocks pack edges together, so closed triangles
 # should be over-represented with a large positive z-score.
 
-network = NetworkAnalysis('degrees').prepare(trajectory).run()
-graph, degrees = network.graphs_[-1], network.degrees_[-1]
-ccdf = DistributionAnalysis('ccdf').prepare(degrees).run()
-values, survival = ccdf.support_, ccdf.survival_
-scores = MotifAnalysis('z-scores', samples=10, random_state=0).prepare(graph).run().z_scores_[0]
+network = network_measures(trajectory, kind='degrees')
+graph, degrees = network.graphs[-1], network.degrees[-1]
+ccdf = distribution(degrees, kind='ccdf')
+values, survival = ccdf.support, ccdf.survival
+scores = motifs(graph, kind='z-scores', samples=10, random_state=0).z_scores[0]
 fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))
 left.plot(values, survival, 'o-', markersize=3)
 left.axvline(np.mean(degrees), color='black', linestyle=':', label='mean degree')

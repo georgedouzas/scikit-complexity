@@ -14,7 +14,7 @@ Belousov-Zhabotinsky reaction.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import CorrelationAnalysis
+from skcomplex.core.analysis import correlation
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -35,21 +35,21 @@ simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=
 fields = simulation.trajectory_.lattice('cells.level')[300:]
 levels = fields.reshape(len(fields), -1)
 cells = levels[:, ::7]
-correlations = CorrelationAnalysis(max_lag=60).prepare(cells).run().correlation_.mean(axis=0)
+correlations = correlation(cells, max_lag=60).correlation.mean(axis=0)
 period = np.argmax(correlations[5:]) + 5
-fig, (cell, correlation) = plt.subplots(1, 2, figsize=(10, 4))
+fig, (cell, correlation_axes) = plt.subplots(1, 2, figsize=(10, 4))
 for index in (2020, 5070, 8030):
     cell.plot(simulation.trajectory_.times[300:400], levels[:100, index], linewidth=1, label=f'cell {index}')
 cell.set_xlabel('step')
 cell.set_ylabel('level of illness')
 cell.set_title('Cells cycle through infection and healing')
 cell.legend()
-correlation.plot(correlations)
-correlation.axvline(period, color='black', linestyle='--', label=f'period {period} steps')
-correlation.axhline(0.0, color='gray', linewidth=0.8)
-correlation.set_xlabel('lag (steps)')
-correlation.set_ylabel('autocorrelation of the level')
-correlation.set_title('Mean autocorrelation over cells')
-correlation.legend()
+correlation_axes.plot(correlations)
+correlation_axes.axvline(period, color='black', linestyle='--', label=f'period {period} steps')
+correlation_axes.axhline(0.0, color='gray', linewidth=0.8)
+correlation_axes.set_xlabel('lag (steps)')
+correlation_axes.set_ylabel('autocorrelation of the level')
+correlation_axes.set_title('Mean autocorrelation over cells')
+correlation_axes.legend()
 fig.tight_layout()
 plt.show()

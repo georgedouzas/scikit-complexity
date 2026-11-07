@@ -1,12 +1,12 @@
 """Test the correlation analysis of series, ensembles at two times, fields in space, and overlaps."""
 
 import math
+from dataclasses import FrozenInstanceError
 
 import numpy as np
 import pytest
-from sklearn.base import clone
 
-from skcomplex.core.analysis import CorrelationAnalysis
+from skcomplex.core.analysis import CorrelationResult, correlation
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.errors import AnalysisError
 from skcomplex.systems import create_system
@@ -15,9 +15,9 @@ RUNS = 20_000
 STEP = 0.1
 
 
-def _correlation(kind: str, source: object, **settings: object) -> CorrelationAnalysis:
+def _correlation(kind: str, source: object, **settings: object) -> CorrelationResult:
     """Return the correlation analysis of a source for one kind, run."""
-    return CorrelationAnalysis(kind, **settings).prepare(source).run()
+    return correlation(source, kind=kind, **settings)
 
 
 def _autoregression(coefficient: float, size: int, seed: int) -> np.ndarray:
@@ -61,21 +61,21 @@ def _reaction_diffusion_frames(rng: np.random.Generator, frames: int, side: int)
 def test_autocorrelation_of_an_autoregression():
     """Test that an AR(1) series has autocorrelation near its coefficient."""
     series = _autoregression(0.8, 20_000, 7)
-    assert _correlation('auto', series, max_lag=1).correlation_[0][1] == pytest.approx(0.8, abs=0.02)
+    assert _correlation('auto', series, max_lag=1).correlation[0][1] == pytest.approx(0.8, abs=0.02)
 
 
 def test_autocorrelation_time_of_an_autoregression():
     """Test that an autoregression with coefficient 0.9 has an autocorrelation time near 9.5."""
     series = _autoregression(0.9, 100_000, 8)
-    assert _correlation('auto', series).time_[0] == pytest.approx(9.5, rel=0.15)
+    assert _correlation('auto', series).time[0] == pytest.approx(9.5, rel=0.15)
 
 
 def test_autocorrelation_of_every_series():
     """Test that every column gets its autocorrelation and its time, with lags in time."""
     analysis = _correlation('auto', np.column_stack([[1.0, -1.0] * 4, [1.0, 1.0, -1.0, -1.0] * 2]), max_lag=2, dt=0.5)
-    assert analysis.correlation_.shape == (2, 3)
-    assert analysis.time_.shape == (2,)
-    assert analysis.lags_.tolist() == [0.0, 0.5, 1.0]
+    assert analysis.correlation.shape == (2, 3)
+    assert analysis.time.shape == (2,)
+    assert analysis.lags.tolist() == [0.0, 0.5, 1.0]
 
 
 def test_two_time_correlation_equilibrium_has_no_aging():
@@ -83,7 +83,7 @@ def test_two_time_correlation_equilibrium_has_no_aging():
     rng = np.random.default_rng(0)
     lags = np.arange(31)
     unperturbed = _ornstein_uhlenbeck(rng, 1031, 0.0, 1000)
-    correlation = _correlation('two-time', unperturbed, waiting=[100, 1000], lags=lags).correlation_
+    correlation = _correlation('two-time', unperturbed, waiting=[100, 1000], lags=lags).correlation
     np.testing.assert_allclose(correlation, np.exp(-lags * STEP)[None, :].repeat(2, axis=0), atol=0.03)
 
 
@@ -97,7 +97,7 @@ def test_correlation_function_of_smoothed_noise():
     """Test that smoothing noise over neighbours makes nearby cells correlated and distant ones not."""
     noise = np.random.default_rng(1).normal(size=(128, 128))
     smooth = sum(np.roll(np.roll(noise, dx, 0), dy, 1) for dx in range(-2, 3) for dy in range(-2, 3))
-    values = _correlation('function', smooth, max_distance=10).correlation_
+    values = _correlation('function', smooth, max_distance=10).correlation
     assert values[1] > 0.6
     assert abs(values[10]) < 0.1
     with pytest.raises(AnalysisError, match='constant'):
@@ -110,15 +110,15 @@ def test_correlation_length_ising_lattice_above_its_critical_temperature():
         system = create_system('ising', size=128, temperature=temperature, random_state=0)
         trajectory = Simulation(system, dt=1, random_state=0).prepare().run(until=1500).trajectory_
         frames = np.asarray(trajectory.lattice('spins.spin'), dtype=float)[500::5]
-        length = _correlation('length', frames, frames=True).length_
+        length = _correlation('length', frames, frames=True).length
         assert length == pytest.approx(_exact_correlation_length(temperature), rel=0.15)
 
 
 def test_correlation_length_reaction_diffusion_field():
     """Test that the stationary noisy linear reaction-diffusion field gives sqrt(D / k) = 2 within 10 percent."""
     frames = _reaction_diffusion_frames(np.random.default_rng(0), 50, 128)
-    assert _correlation('length', frames, frames=True).length_ == pytest.approx(2, rel=0.1)
-    assert 1 < _correlation('length', frames, frames=True, method='fit').length_ < 4
+    assert _correlation('length', frames, frames=True).length == pytest.approx(2, rel=0.1)
+    assert 1 < _correlation('length', frames, frames=True, method='fit').length < 4
 
 
 def test_correlation_length_of_a_trajectory_reads_the_last_frame():
@@ -130,10 +130,8 @@ def test_correlation_length_of_a_trajectory_reads_the_last_frame():
         .trajectory_
     )
     frames = np.asarray(trajectory.lattice('spins.spin'), dtype=float)
-    assert _correlation('length', trajectory).length_ == _correlation('length', frames[-1]).length_
-    assert (
-        _correlation('length', trajectory, frames=True).length_ == _correlation('length', frames, frames=True).length_
-    )
+    assert _correlation('length', trajectory).length == _correlation('length', frames[-1]).length
+    assert _correlation('length', trajectory, frames=True).length == _correlation('length', frames, frames=True).length
 
 
 def test_overlap_of_ising_replicas():
@@ -147,13 +145,13 @@ def test_overlap_of_ising_replicas():
             .trajectory_
             for seed in (0, 1)
         ]
-        overlap = _correlation('overlap', replicas).overlap_
+        overlap = _correlation('overlap', replicas).overlap
         frames = np.stack([replica.lattice('spins.spin') for replica in replicas])
-        np.testing.assert_array_equal(overlap, _correlation('overlap', frames).overlap_)
+        np.testing.assert_array_equal(overlap, _correlation('overlap', frames).overlap)
         overlaps[temperature] = float(np.mean(np.abs(overlap[100:])))
     assert overlaps[1.5] > 0.9
     assert overlaps[5.0] < 0.1
-    assert _correlation('overlap', [[1, -1], [1, -1]]).overlap_ == 1.0
+    assert _correlation('overlap', [[1, -1], [1, -1]]).overlap == 1.0
     with pytest.raises(AnalysisError, match='2 replicas'):
         _correlation('overlap', [[1, -1], [1, -1], [1, 1]])
 
@@ -161,18 +159,17 @@ def test_overlap_of_ising_replicas():
 def test_unknown_kind_method_and_ignored_setting():
     """Test that an unknown kind or method, an ignored setting, and missing waiting times raise errors."""
     with pytest.raises(AnalysisError, match='auto, two-time, function, length'):
-        CorrelationAnalysis('unknown').prepare()
+        correlation(np.zeros(10), kind='unknown')
     with pytest.raises(AnalysisError, match='moment, fit'):
-        CorrelationAnalysis('length', method='guess').prepare()
+        correlation(np.zeros(10), kind='length', method='guess')
     with pytest.raises(AnalysisError, match='does not read max_lag'):
-        CorrelationAnalysis('function', max_lag=3).prepare()
+        correlation(np.zeros(10), kind='function', max_lag=3)
     with pytest.raises(AnalysisError, match='waiting times and lags'):
-        CorrelationAnalysis('two-time').prepare()
+        correlation(np.zeros(10), kind='two-time')
 
 
-def test_cloned_analysis_has_no_results():
-    """Test that a clone keeps the settings and drops the results."""
-    analysis = _correlation('auto', np.arange(10.0), max_lag=2)
-    copy = clone(analysis)
-    assert copy.get_params() == analysis.get_params()
-    assert not hasattr(copy, 'correlation_')
+def test_result_is_frozen():
+    """Test that the result of a correlation cannot be changed."""
+    result = _correlation('auto', np.arange(10.0), max_lag=2)
+    with pytest.raises(FrozenInstanceError):
+        result.correlation = np.zeros(1)

@@ -15,7 +15,7 @@ import networkx as nx
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import RenormalizationAnalysis
+from skcomplex.core.analysis import renormalization
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -63,16 +63,16 @@ plt.show()
 # %%
 # The network across scales
 # -------------------------
-# `RenormalizationAnalysis(kind='geometric')` merges pairs of consecutive nodes by angle three times. The tail of the
+# `renormalization(kind='geometric')` merges pairs of consecutive nodes by angle three times. The tail of the
 # degree distribution keeps its slope at every scale, and the clustering stays high.
 
 run = Simulation(create_system(SYSTEM, n_nodes=2000), dt=1997.0, random_state=0).prepare().run(until=1997)
-scales = RenormalizationAnalysis('geometric', steps=3, beta=5.0).prepare(run.trajectory_).run()
+scales = renormalization(run.trajectory_, kind='geometric', steps=3, beta=5.0)
 fig, axis = plt.subplots(figsize=(6, 4))
-for level, degrees in enumerate(scales.degrees_):
+for level, degrees in enumerate(scales.degrees):
     values = np.sort(degrees)[::-1]
     shares = np.arange(1, values.size + 1) / values.size
-    label = f'{values.size} nodes: exponent {scales.exponents_[level]:.2f}, clustering {scales.clustering_[level]:.2f}'
+    label = f'{values.size} nodes: exponent {scales.exponents[level]:.2f}, clustering {scales.clustering[level]:.2f}'
     axis.loglog(values, shares, label=label)
 axis.set_xlabel('degree k')
 axis.set_ylabel('share of nodes with degree at least k')

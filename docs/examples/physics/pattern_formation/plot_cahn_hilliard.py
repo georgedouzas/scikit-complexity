@@ -15,7 +15,7 @@ run: an interpenetrating labyrinth of yellow and purple domains of equal area.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import SpectrumAnalysis
+from skcomplex.core.analysis import spectrum
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import ETDRK4Solver
 from skcomplex.core.engine.viz import RerunObserver
@@ -50,8 +50,8 @@ phi = simulation.trajectory_.lattice('mixture.phi')
 times = simulation.trajectory_.times
 sizes = []
 for field in phi[1:]:
-    factor = SpectrumAnalysis('structure-factor').prepare(field - field.mean()).run()
-    sizes.append(2 * np.pi * factor.power_.sum() / (factor.wavenumbers_ * factor.power_).sum())
+    factor = spectrum(field - field.mean(), kind='structure-factor')
+    sizes.append(2 * np.pi * factor.power.sum() / (factor.wavenumbers * factor.power).sum())
 late = times[1:] >= 100
 slope = np.polyfit(np.log(times[1:][late]), np.log(np.array(sizes)[late]), 1)[0]
 

@@ -12,7 +12,7 @@ Turing pattern that forms because the inhibitor `v` diffuses forty times faster 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import SpectrumAnalysis
+from skcomplex.core.analysis import spectrum
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
@@ -34,7 +34,7 @@ simulation = Simulation(system, dt=2.0, solver=RK4Solver(dt=0.005), observers=[o
 a, b, Du, Dv = 0.1, 0.9, 1.0, 40.0
 u0, v0 = a + b, b / (a + b) ** 2
 u = simulation.trajectory_.lattice('cells.u')[-1]
-factor = SpectrumAnalysis('structure-factor').prepare(u).run()
+factor = spectrum(u, kind='structure-factor')
 q = np.linspace(0.01, 1.5, 300)
 growth = np.array(
     [
@@ -42,19 +42,19 @@ growth = np.array(
         for k in q
     ],
 )
-fig, (field, spectrum) = plt.subplots(1, 2, figsize=(10, 4))
+fig, (field, spectrum_axes) = plt.subplots(1, 2, figsize=(10, 4))
 field.imshow(u, cmap='viridis')
 field.set_title('u at the last frame')
 field.set_axis_off()
-spectrum.plot(factor.wavenumbers_, factor.power_ / factor.power_.max(), label='structure factor of u')
-spectrum.plot(q, growth / growth.max(), color='black', label='linear growth rate')
-spectrum.axhline(0.0, color='gray', linewidth=0.8)
-spectrum.axvline(q[np.argmax(growth)], color='black', linestyle='--', linewidth=0.8)
-spectrum.set_xlim(0, 1.5)
-spectrum.set_ylim(-0.5, 1.1)
-spectrum.set_xlabel('wavenumber q')
-spectrum.set_ylabel('normalized value')
-spectrum.set_title('The pattern grows from the unstable band')
-spectrum.legend()
+spectrum_axes.plot(factor.wavenumbers, factor.power / factor.power.max(), label='structure factor of u')
+spectrum_axes.plot(q, growth / growth.max(), color='black', label='linear growth rate')
+spectrum_axes.axhline(0.0, color='gray', linewidth=0.8)
+spectrum_axes.axvline(q[np.argmax(growth)], color='black', linestyle='--', linewidth=0.8)
+spectrum_axes.set_xlim(0, 1.5)
+spectrum_axes.set_ylim(-0.5, 1.1)
+spectrum_axes.set_xlabel('wavenumber q')
+spectrum_axes.set_ylabel('normalized value')
+spectrum_axes.set_title('The pattern grows from the unstable band')
+spectrum_axes.legend()
 fig.tight_layout()
 plt.show()

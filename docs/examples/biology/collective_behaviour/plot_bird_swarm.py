@@ -12,7 +12,7 @@ repels near, form a cohesive swarm that organizes itself into a rotating mill or
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import AlignmentAnalysis
+from skcomplex.core.analysis import alignment
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -33,8 +33,8 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 trajectory = simulation.trajectory_
 positions, velocities = trajectory.values('birds.x'), trajectory.values('birds.x_d1')
 fig, (order, path) = plt.subplots(1, 2, figsize=(11, 4))
-polar = AlignmentAnalysis('mean-vector').prepare(trajectory).run().order_
-milling = AlignmentAnalysis('mean-rotation').prepare(trajectory).run().order_
+polar = alignment(trajectory, kind='mean-vector').order
+milling = alignment(trajectory, kind='mean-rotation').order
 order.plot(trajectory.times, polar, label='polar order')
 order.plot(trajectory.times, milling, label='|milling order|')
 order.plot(trajectory.times, np.linalg.norm(velocities, axis=2).mean(axis=1) / np.sqrt(2), label='speed / sqrt(2)')

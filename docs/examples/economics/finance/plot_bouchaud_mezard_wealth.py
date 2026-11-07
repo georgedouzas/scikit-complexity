@@ -18,7 +18,7 @@ import numpy as np
 import rerun.blueprint as rrb
 from scipy import stats
 
-from skcomplex.core.analysis import DistributionAnalysis
+from skcomplex.core.analysis import distribution
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import ObservableSpec
@@ -30,7 +30,7 @@ N_AGENTS, J, SIGMA, DT, UNTIL = 500, 0.5, 1.0, 0.01, 30.0
 
 def gini(wealth: np.ndarray) -> float:
     """Return the Gini coefficient of the wealth."""
-    return DistributionAnalysis('gini').prepare(wealth).run().gini_
+    return distribution(wealth, kind='gini').gini
 
 
 system = create_system(SYSTEM, n_agents=N_AGENTS, J=J, sigma=SIGMA)
@@ -65,8 +65,8 @@ relative = (wealth / wealth.mean(axis=1, keepdims=True))[trajectory.times > 10][
 mu = 1 + 2 * J / SIGMA**2
 law = stats.invgamma(mu, scale=mu - 1)
 grid = np.logspace(-1.5, 1.5, 200)
-ccdf = DistributionAnalysis('ccdf').prepare(relative).run()
-values, probabilities = ccdf.support_, ccdf.survival_
+ccdf = distribution(relative, kind='ccdf')
+values, probabilities = ccdf.support, ccdf.survival
 fig, (density, tail) = plt.subplots(1, 2, figsize=(10, 4))
 density.hist(relative, bins=np.logspace(-1.5, 1.5, 50), density=True, alpha=0.5, label='simulation')
 density.plot(grid, law.pdf(grid), 'k', label=f'inverse gamma, mu = {mu:.0f}')

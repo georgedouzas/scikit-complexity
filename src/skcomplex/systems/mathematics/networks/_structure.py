@@ -9,10 +9,11 @@ from typing import Annotated
 import networkx as nx
 import numpy as np
 
-from ....core.analysis import MotifAnalysis, NetworkAnalysis
+from ....core.analysis import motifs, network_measures
 from ....core.components.elements import Element, GroupElement
 from ....core.components.spaces import NetworkSpace
 from ....core.components.system import System
+from ....core.errors import AnalysisError
 from ....core.specs import ObservableSpec, ParameterSpec, VisualSpec
 from ..._catalog import register_system
 from ..common._network_node import NetworkNodeElement
@@ -184,14 +185,21 @@ def network_structure_analysis(
         34
     """
     network = _planted_partition(random_state) if graph is None else graph
-    found = (
-        NetworkAnalysis('communities', reference=_reference(network, reference), random_state=random_state)
-        .prepare(network)
-        .run()
+    found = network_measures(
+        network,
+        kind='communities',
+        reference=_reference(network, reference),
+        random_state=random_state,
     )
-    summary = NetworkAnalysis('summary').prepare(network).run()
+    summary = network_measures(network)
     clustering = nx.clustering(network)
-    betweenness = NetworkAnalysis('centrality', measure='betweenness').prepare(network).run().centrality_[0]
+    centrality = network_measures(network, kind='centrality', measure='betweenness').centrality
+    assortativity = network_measures(network, kind='assortativity').assortativity
+    labels, modularity, path_length = found.labels, found.modularity, summary.path_length
+    if labels is None or modularity is None or path_length is None or centrality is None or assortativity is None:
+        error_msg = 'The network measures miss the communities, the summary, the centrality, or the assortativity.'
+        raise AnalysisError(error_msg)
+    betweenness = centrality[0]
     nodes = list(network.nodes())
     group = GroupElement(
         'nodes',
@@ -201,20 +209,20 @@ def network_structure_analysis(
             'degree': np.asarray([network.degree(node) for node in nodes], dtype=float),
             'clustering': np.asarray([clustering[node] for node in nodes], dtype=float),
             'betweenness': np.asarray([betweenness[node] for node in nodes], dtype=float),
-            'community': found.labels_[0].astype(float),
+            'community': labels[0].astype(float),
         },
         location=nodes,
     )
     zscore = 0.0
     if null_samples:
-        motifs = MotifAnalysis('z-scores', samples=null_samples, random_state=random_state)
-        zscore = motifs.prepare(network).run().z_scores_[0]['triangle']
+        scores = motifs(network, kind='z-scores', samples=null_samples, random_state=random_state).z_scores
+        zscore = 0.0 if scores is None else scores[0]['triangle']
     measures = NetworkMeasuresElement(
         'measures',
-        path_length=float(summary.path_length_[0]),
-        assortativity=float(NetworkAnalysis('assortativity').prepare(network).run().assortativity_[0]),
-        modularity=float(found.modularity_[0]),
-        agreement=0.0 if found.agreement_ is None else float(found.agreement_[0]),
+        path_length=float(path_length[0]),
+        assortativity=float(assortativity[0]),
+        modularity=float(modularity[0]),
+        agreement=0.0 if found.agreement is None else float(found.agreement[0]),
         triangle_zscore=zscore,
     )
     return System(elements=[group, measures], space=NetworkSpace(network))

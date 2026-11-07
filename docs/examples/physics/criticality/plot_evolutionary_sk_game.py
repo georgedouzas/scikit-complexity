@@ -16,7 +16,7 @@ learning. The view shows the histogram of the temperatures of the agents, which 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import DistributionAnalysis, ErgodicityAnalysis, EventAnalysis, FitAnalysis
+from skcomplex.core.analysis import ErgodicityAnalysis, EventAnalysis, distribution, fit_law
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -46,9 +46,9 @@ rewards = np.asarray(trajectory.values('agents.reward')).mean(axis=1)
 
 threshold = float(np.quantile(fitness.min(axis=1), 0.97))
 sizes = EventAnalysis('excursions').prepare((fitness < threshold).sum(axis=1)).run().sizes_
-fit = FitAnalysis(discrete=True, minimum=5).prepare(sizes).run()
-histogram = DistributionAnalysis('histogram', bins=15, log=True).prepare(sizes).run()
-edges, density = histogram.edges_, histogram.density_
+fit = fit_law(sizes, discrete=True, minimum=5)
+histogram = distribution(sizes, kind='histogram', bins=15, log=True)
+edges, density = histogram.edges, histogram.density
 centers, shown = np.sqrt(edges[1:] * edges[:-1]), density > 0
 tail = shown & (centers >= 5)
 scale = np.exp(np.mean(np.log(density[tail]) + 1.5 * np.log(centers[tail])))
@@ -79,7 +79,7 @@ cascades.loglog(
     centers[shown],
     density[shown],
     'o',
-    label=f'{sizes.size} cascades, fitted exponent {fit.exponent_:.2f}',
+    label=f'{sizes.size} cascades, fitted exponent {fit.exponent:.2f}',
 )
 guide = np.logspace(0, np.log10(centers[shown][-1]), 50)
 cascades.loglog(guide, scale * guide**-1.5, color='black', label='S^-3/2')

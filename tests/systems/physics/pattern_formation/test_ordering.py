@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import SpectrumAnalysis
+from skcomplex.core.analysis import spectrum
 from skcomplex.core.components.elements import FieldElement
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
@@ -43,8 +43,8 @@ def test_conserved_field_keeps_its_mean():
 
 def _mean_domain_size(field):
     """Return the domain size `2 pi / <k>` of a field from the mean wavenumber of its structure factor."""
-    factor = SpectrumAnalysis('structure-factor').prepare(field - field.mean()).run()
-    return 2 * np.pi * factor.power_.sum() / (factor.wavenumbers_ * factor.power_).sum()
+    factor = spectrum(field - field.mean(), kind='structure-factor')
+    return 2 * np.pi * factor.power.sum() / (factor.wavenumbers * factor.power).sum()
 
 
 def test_allen_cahn_does_not_conserve_the_order_parameter():
