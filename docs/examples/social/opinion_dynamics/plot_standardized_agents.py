@@ -17,7 +17,7 @@ ordering.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems.social.opinion_dynamics import StandardizedAgentsSystem
 
@@ -35,17 +35,7 @@ def temperature_at(time):
 system = StandardizedAgentsSystem(agents=100, K=K, J=J, H=H, T=LOW, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=12)
 schedule = {'standardization.intensity': lambda time: 1 / temperature_at(time)}
-simulation = (
-    Simulation(
-        system.prepare().system_,
-        observers=[observer],
-        schedule=schedule,
-        random_state=0,
-        observables=system.get_run_settings()['observables'],
-    )
-    .prepare()
-    .run(until=END)
-)
+trajectory = simulate(system, until=END, observers=[observer], schedule=schedule, random_state=0)
 
 # %%
 # Order parameters against the temperature
@@ -77,13 +67,13 @@ for temperature in temperatures:
     best = np.unravel_index(np.argmax(values), values.shape)
     peaks.append((q_grid[best], m_grid[best]))
 maxima = np.array(peaks)
-times = simulation.trajectory_.times
+times = trajectory.times
 ramp = np.array([temperature_at(time) for time in times])
 rising = times <= PEAK
 
 fig, (share, order) = plt.subplots(1, 2, figsize=(10, 4))
 for axis, name in ((share, 'q'), (order, 'm')):
-    values = np.abs(simulation.trajectory_.values(name))
+    values = np.abs(trajectory.values(name))
     axis.plot(ramp[rising], values[rising], '.', markersize=3, label='temperature rising')
     axis.plot(ramp[~rising], values[~rising], '.', markersize=3, label='temperature falling')
     axis.plot(temperatures, maxima[:, 0 if name == 'q' else 1], color='black', label='maximum of f')
