@@ -48,10 +48,7 @@ observer.recording_.flush()
 # exponent should stay at or below 0 for strong damping and turn positive below about `a = 0.2`.
 
 dampings = np.linspace(0.12, 0.32, 11)
-largest = [
-    lyapunov(simulation.system, until=1000, parameters={'thomas.a': a}).exponents[0]
-    for a in dampings
-]
+largest = [lyapunov(simulation.system, until=1000, parameters={'thomas.a': a}).exponents[0] for a in dampings]
 fig, (orbit, exponent_axes) = plt.subplots(1, 2, figsize=(10, 4))
 orbit.plot(points[:, 0], points[:, 1], linewidth=0.3)
 orbit.set_xlabel('x')

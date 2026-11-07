@@ -71,9 +71,7 @@ observer.recording_.flush()
 # the periodic windows, and turn positive where the orbit diagram fills bands, reaching `ln 2` at `r = 4`.
 
 sample = np.linspace(2.8, 4.0, 41)
-exponents = [
-    lyapunov(simulation.system, until=1000, parameters={'map.r': r}).exponents[0] for r in sample
-]
+exponents = [lyapunov(simulation.system, until=1000, parameters={'map.r': r}).exponents[0] for r in sample]
 fig, (orbits, exponent_axes) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
 orbits.plot(points[:, 0] / 100, -points[:, 1] / 100, ',', color='C0')
 orbits.set_ylabel('long-run x')

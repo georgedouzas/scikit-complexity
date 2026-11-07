@@ -61,10 +61,7 @@ observer.recording_.flush()
 # Fig. 3.17, with dips below 0 in the periodic windows, and negative outside it.
 
 sample = np.linspace(-1.0, 0.0, 101)
-exponents = [
-    lyapunov(simulation.system, until=3000, parameters={'map.beta': beta}).exponents[0]
-    for beta in sample
-]
+exponents = [lyapunov(simulation.system, until=3000, parameters={'map.beta': beta}).exponents[0] for beta in sample]
 fig, (orbits, exponent_axes) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
 orbits.plot(points[:, 0] / 100, -points[:, 1] / 100, ',', color='C0')
 orbits.set_ylabel('long-run x')

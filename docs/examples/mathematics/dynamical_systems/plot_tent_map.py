@@ -71,10 +71,7 @@ observer.recording_.flush()
 # positive for all `mu > 1`, unlike the logistic map, whose exponent dips below 0 in periodic windows.
 
 sample = np.linspace(1.05, 1.99, 20)
-exponents = [
-    lyapunov(simulation.system, until=2000, parameters={'map.mu': mu}).exponents[0]
-    for mu in sample
-]
+exponents = [lyapunov(simulation.system, until=2000, parameters={'map.mu': mu}).exponents[0] for mu in sample]
 fig, (orbits, exponent_axes) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
 orbits.plot(points[:, 0] / 100, -points[:, 1] / 100, ',', color='C0')
 orbits.set_ylabel('long-run x')
