@@ -4,14 +4,14 @@ import numpy as np
 
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
-from skcomplex.systems.engineering.robotics import light_seeking_robots, swarmtaxis
+from skcomplex.systems.engineering.robotics import LightSeekingRobotsSystem, SwarmtaxisSystem
 
 
 def test_light_seeking_robots_avoid_light_with_delay():
     """Test that robots with a positive sensory delay spend less time in the light than robots without one."""
     intensities = []
     for delay in (0.0, 5.0):
-        system = light_seeking_robots(40, delay=delay)
+        system = LightSeekingRobotsSystem(40, delay=delay).prepare().system_
         trajectory = (
             Simulation(system, dt=0.5, solver=EulerMaruyamaSolver(dt=0.01), random_state=1).prepare().run(until=150)
         )
@@ -22,13 +22,18 @@ def test_light_seeking_robots_avoid_light_with_delay():
 
 def test_light_seeking_robots_stay_in_the_well():
     """Test that the wall keeps every robot inside the well."""
-    trajectory = Simulation(light_seeking_robots(10), dt=1.0, random_state=0).prepare().run(until=20).trajectory_
+    trajectory = (
+        Simulation(LightSeekingRobotsSystem(10).prepare().system_, dt=1.0, random_state=0)
+        .prepare()
+        .run(until=20)
+        .trajectory_
+    )
     assert np.hypot(trajectory.values('robots.x'), trajectory.values('robots.y')).max() <= 2.0 + 1e-9
 
 
 def test_swarmtaxis_moves_towards_the_beacon():
     """Test that the centre of the swarm moves towards the beacon and the swarm stays together."""
-    trajectory = Simulation(swarmtaxis(), random_state=0).prepare().run(until=300).trajectory_
+    trajectory = Simulation(SwarmtaxisSystem().prepare().system_, random_state=0).prepare().run(until=300).trajectory_
     start = np.asarray(trajectory.agents('robots', 0).locations).mean(axis=0)
     end = np.asarray(trajectory.agents('robots', 300).locations)
     assert end.mean(axis=0)[0] - start[0] > 1.0

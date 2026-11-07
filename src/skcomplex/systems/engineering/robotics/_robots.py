@@ -16,10 +16,9 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw, RuleLaw
 from ....core.components.laws.utils import delayed, where
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class LightSensitiveRobotElement(Element):
@@ -71,6 +70,8 @@ class LightSensitiveRobotElement(Element):
         >>> LightSensitiveRobotElement('robot', delay=5.0).delay
         5.0
     """
+
+    law_classes = (RateLaw, NoiseLaw, BoundaryLaw)
 
     def __init__(
         self,
@@ -212,6 +213,8 @@ class SwarmRobotElement(Element):
         2
     """
 
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -345,30 +348,16 @@ class SwarmRobotElement(Element):
 BEACON_MARGIN = 5.0
 
 
-@register_system(
-    field='engineering/robotics',
-    tags=('robotics', 'active matter', 'delay', 'sde'),
-    references=('Mijalkov et al. 2016', 'Argun et al. 2021'),
-    defaults={'until': 100.0, 'dt': 0.5},
-)
-def light_seeking_robots(
-    n_robots: int = 20,
-    *,
-    delay: float = 5.0,
-    V0: float = 1.0,
-    V_inf: float = 0.1,
-    I0: float = 1.0,
-    r0: float = 1.0,
-    tau: float = 1.0,
-    R: float = 2.0,
-) -> System:
-    """Return light-sensitive robots in a circular well, whose sensory delay decides whether they gather in the light.
+class LightSeekingRobotsSystem(BaseSystem):
+    """Light-sensitive robots in a circular well, whose sensory delay decides whether they gather in the light.
 
     Each robot moves at `V_inf + (V0 - V_inf) exp(-I(t - delay))` in a direction that diffuses with time scale `tau`,
     in the Gaussian light `I = I0 exp(-(x^2 + y^2) / r0^2)` at the centre of a well of radius `R`. The robots start
     at the centre, in directions spread around the circle, and do not interact. A positive delay drives them out of
     the light: a robot crosses the light at the fast speed it measured in the dark and lingers outside at the slow
     speed it measured in the light, so robots with a delay spend less time in the light than robots without one.
+
+    The system has the group `robots` of positions `x`, `y` and directions `phi`.
 
     Args:
         n_robots:
@@ -395,59 +384,74 @@ def light_seeking_robots(
         R:
             The radius of the well.
 
-    Returns:
-        system:
-            The system, with the group `robots` of positions `x`, `y` and directions `phi`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.robotics import light_seeking_robots
-        >>> light_seeking_robots(4).elements[0].prepare().size_
+        >>> from skcomplex.systems.engineering.robotics import LightSeekingRobotsSystem
+        >>> LightSeekingRobotsSystem(4).prepare().system_.elements[0].prepare().size_
         4
     """
-    headings = np.linspace(0.0, 2 * np.pi, n_robots, endpoint=False)
-    robots = GroupElement(
-        'robots',
-        element=LightSensitiveRobotElement,
-        size=n_robots,
-        values={
-            'x': np.zeros(n_robots),
-            'y': np.zeros(n_robots),
-            'phi': headings,
-            'V0': V0,
-            'V_inf': V_inf,
-            'I0': I0,
-            'r0': r0,
-            'tau': tau,
-            'R': R,
-            'delay': delay,
-        },
-    )
-    return System(elements=[robots])
+
+    field = 'engineering/robotics'
+    topics = ('robotics', 'active matter', 'delay', 'sde')
+    references = ('Mijalkov et al. 2016', 'Argun et al. 2021')
+    until = 100.0
+    dt = 0.5
+
+    def __init__(
+        self,
+        n_robots: int = 20,
+        *,
+        delay: float = 5.0,
+        V0: float = 1.0,
+        V_inf: float = 0.1,
+        I0: float = 1.0,
+        r0: float = 1.0,
+        tau: float = 1.0,
+        R: float = 2.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_robots = n_robots
+        self.delay = delay
+        self.V0 = V0
+        self.V_inf = V_inf
+        self.I0 = I0
+        self.r0 = r0
+        self.tau = tau
+        self.R = R
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        headings = np.linspace(0.0, 2 * np.pi, self.n_robots, endpoint=False)
+        robots = GroupElement(
+            'robots',
+            element=LightSensitiveRobotElement,
+            size=self.n_robots,
+            values={
+                'x': np.zeros(self.n_robots),
+                'y': np.zeros(self.n_robots),
+                'phi': headings,
+                'V0': self.V0,
+                'V_inf': self.V_inf,
+                'I0': self.I0,
+                'r0': self.r0,
+                'tau': self.tau,
+                'R': self.R,
+                'delay': self.delay,
+            },
+        )
+        return System(self.label, elements=[robots])
 
 
-@register_system(
-    field='engineering/robotics',
-    tags=('robotics', 'swarms', 'agents', 'taxis'),
-    references=('Bjerknes, Winfield, and Melhuish 2007', 'Varughese et al. 2019'),
-    defaults={'until': 300},
-)
-def swarmtaxis(
-    n_robots: int = 20,
-    *,
-    size: float = 100.0,
-    spread: float = 3.0,
-    speed: float = 0.2,
-    radio_range: float = 4.0,
-    avoid_illuminated: float = 1.5,
-    avoid_shadowed: float = 1.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the swarmtaxis algorithm, which moves a swarm of robots towards a beacon that only some of them see.
+class SwarmtaxisSystem(BaseSystem):
+    """The swarmtaxis algorithm, which moves a swarm of robots towards a beacon that only some of them see.
 
     The robots start in a cluster near the left edge of a square arena, with the beacon at the middle of the right edge.
     Each robot keeps radio contact with the swarm by turning around when it loses a connection, and avoids its
     neighbours. Robots that see the beacon avoid at a larger radius than shadowed robots, which moves the centre of the
-    swarm towards the beacon.
+    swarm towards the beacon. The system has the group `robots` of headings `heading` and illumination `illuminated`.
 
     Args:
         n_robots:
@@ -474,33 +478,63 @@ def swarmtaxis(
         random_state:
             The seed or generator of the initial positions and headings.
 
-    Returns:
-        system:
-            The system, with the group `robots` of headings `heading` and illumination `illuminated`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.robotics import swarmtaxis
-        >>> swarmtaxis(5).elements[0].prepare().size_
+        >>> from skcomplex.systems.engineering.robotics import SwarmtaxisSystem
+        >>> SwarmtaxisSystem(5).prepare().system_.elements[0].prepare().size_
         5
     """
-    rng = np.random.default_rng(random_state)
-    start = np.array([size / 5, size / 2])
-    points = np.clip(start + rng.normal(0.0, spread, (n_robots, 2)), 0.0, size)
-    robots = GroupElement(
-        'robots',
-        element=SwarmRobotElement,
-        size=n_robots,
-        values={
-            'heading': rng.uniform(0.0, 2 * np.pi, n_robots),
-            'speed': speed,
-            'radio_range': radio_range,
-            'alpha': float(n_robots),
-            'avoid_illuminated': avoid_illuminated,
-            'avoid_shadowed': avoid_shadowed,
-            'beacon_x': size - BEACON_MARGIN,
-            'beacon_y': size / 2,
-            'arena': size,
-        },
-        location=[tuple(map(float, point)) for point in points],
-    )
-    return System(elements=[robots], space=ContinuousSpace(extent=(size, size)))
+
+    field = 'engineering/robotics'
+    topics = ('robotics', 'swarms', 'agents', 'taxis')
+    references = ('Bjerknes, Winfield, and Melhuish 2007', 'Varughese et al. 2019')
+    until = 300
+
+    def __init__(
+        self,
+        n_robots: int = 20,
+        *,
+        size: float = 100.0,
+        spread: float = 3.0,
+        speed: float = 0.2,
+        radio_range: float = 4.0,
+        avoid_illuminated: float = 1.5,
+        avoid_shadowed: float = 1.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_robots = n_robots
+        self.size = size
+        self.spread = spread
+        self.speed = speed
+        self.radio_range = radio_range
+        self.avoid_illuminated = avoid_illuminated
+        self.avoid_shadowed = avoid_shadowed
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        start = np.array([self.size / 5, self.size / 2])
+        points = np.clip(start + rng.normal(0.0, self.spread, (self.n_robots, 2)), 0.0, self.size)
+        robots = GroupElement(
+            'robots',
+            element=SwarmRobotElement,
+            size=self.n_robots,
+            values={
+                'heading': rng.uniform(0.0, 2 * np.pi, self.n_robots),
+                'speed': self.speed,
+                'radio_range': self.radio_range,
+                'alpha': float(self.n_robots),
+                'avoid_illuminated': self.avoid_illuminated,
+                'avoid_shadowed': self.avoid_shadowed,
+                'beacon_x': self.size - BEACON_MARGIN,
+                'beacon_y': self.size / 2,
+                'arena': self.size,
+            },
+            location=[tuple(map(float, point)) for point in points],
+        )
+        return System(self.label, elements=[robots], space=ContinuousSpace(extent=(self.size, self.size)))
