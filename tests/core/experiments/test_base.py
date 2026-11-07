@@ -12,8 +12,8 @@ from skcomplex.core.errors import ExperimentError, ValidationError
 from skcomplex.core.experiments import BaseDesign, BaseExperiment, RandomDesign
 from skcomplex.systems import create_system
 from skcomplex.systems.biology.ecology import lotka_volterra
-from skcomplex.systems.mathematics.dynamical_systems import logistic_map
-from skcomplex.systems.mathematics.stochastic_processes import weakening_ornstein_uhlenbeck
+from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
+from skcomplex.systems.mathematics.stochastic_processes import WeakeningOrnsteinUhlenbeckSystem
 
 
 def test_surface_holds_classes_and_the_sensitivity_function():
@@ -53,11 +53,15 @@ def test_replicate_runs_many_initial_conditions_at_once():
     """Test that member i of a replicated logistic map follows the single map from the i-th initial value."""
     starts = np.linspace(0.05, 0.95, 100)
     ensemble = (
-        Simulation(BaseExperiment._replicate(logistic_map(r=3.7), 100, {'map.x': starts}), dt=1).prepare().run(until=50)
+        Simulation(BaseExperiment._replicate(LogisticMapSystem(r=3.7).prepare().system_, 100, {'map.x': starts}), dt=1)
+        .prepare()
+        .run(until=50)
     )
     values = np.asarray(ensemble.trajectory_.values('map.x'))
     for index in (0, 37, 99):
-        single = Simulation(logistic_map(x=float(starts[index]), r=3.7), dt=1).prepare().run(until=50)
+        single = (
+            Simulation(LogisticMapSystem(x=float(starts[index]), r=3.7).prepare().system_, dt=1).prepare().run(until=50)
+        )
         np.testing.assert_allclose(values[:, index], np.ravel(single.trajectory_.values('map.x')), atol=1e-12)
 
 
@@ -74,15 +78,15 @@ def test_replicate_runs_systems_with_interactions():
 def test_replicate_rejects_systems_with_groups():
     """Test that a system with a group does not replicate and the error says why."""
     with pytest.raises(ValidationError, match='Only systems of plain single elements and their interactions'):
-        BaseExperiment._replicate(weakening_ornstein_uhlenbeck(4), 3)
+        BaseExperiment._replicate(WeakeningOrnsteinUhlenbeckSystem(4).prepare().system_, 3)
 
 
 def test_replicate_checks_paths_and_rows():
     """Test that an unknown path and values without one row per member raise named errors."""
     with pytest.raises(ValidationError, match=r'map\.z is not a state or parameter'):
-        BaseExperiment._replicate(logistic_map(), 3, {'map.z': [1, 2, 3]})
+        BaseExperiment._replicate(LogisticMapSystem().prepare().system_, 3, {'map.z': [1, 2, 3]})
     with pytest.raises(ValidationError, match='one row per member'):
-        BaseExperiment._replicate(logistic_map(), 3, {'map.r': [3.5, 3.6]})
+        BaseExperiment._replicate(LogisticMapSystem().prepare().system_, 3, {'map.r': [3.5, 3.6]})
 
 
 @pytest.mark.parametrize(
@@ -101,6 +105,6 @@ def test_system_name_as_a_source_raises_a_named_error(experiment):
 
 def test_system_of_the_library_runs_from_its_factory_or_a_created_system():
     """Test that a catalog system runs as an experiment from its factory or from a system the catalog creates."""
-    for source in (logistic_map, create_system('logistic_map')):
+    for source in (LogisticMapSystem, create_system('logistic_map')):
         diagram = experiments.OrbitDiagramExperiment(source, 'map.r', [2.9], 'map.x', transient=1000, keep=4, dt=1)
         assert diagram.prepare().run().periods_.tolist() == [1]
