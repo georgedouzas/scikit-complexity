@@ -33,7 +33,7 @@ from skcomplex.systems.biology.ecology import HigherOrderRandomLotkaVolterraSyst
 from skcomplex.systems.computer_science.automata import GameOfLifeSystem
 from skcomplex.systems.physics.common.particles import ConstantForceInteraction, MassPointElement
 from skcomplex.systems.physics.statistical_mechanics import ideal_gas
-from skcomplex.systems.social.opinion_dynamics import VoterSystemSystem
+from skcomplex.systems.social.opinion_dynamics import VoterSystem
 from skcomplex.systems.social.segregation import SchellingSystem
 
 
@@ -325,7 +325,7 @@ def test_schelling_grid_logs_one_batch_per_frame(monkeypatch, tmp_path):
 
 def test_voter_network_logs_graph_with_opinion_colors(monkeypatch, tmp_path):
     """Test that a voter network is logged as graph edges once and colored graph nodes every frame."""
-    logged = _agent_logs(monkeypatch, tmp_path, VoterSystemSystem(nx.cycle_graph(10), random_state=0).prepare().system_)
+    logged = _agent_logs(monkeypatch, tmp_path, VoterSystem(nx.cycle_graph(10), random_state=0).prepare().system_)
     kinds = [type(archetype).__name__ for path, archetype in logged if path == 'voters']
     assert kinds.count('GraphEdges') == 1
     assert kinds.count('GraphNodes') == 3

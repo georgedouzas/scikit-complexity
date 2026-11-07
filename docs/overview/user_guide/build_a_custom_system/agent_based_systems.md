@@ -100,7 +100,7 @@ What the system gives a rule:
 What a run records: frames and trajectories hold every group's agents with their ids, states, and locations, through
 `trajectory.agents(group, frame)`, and the count of every group as the reporter `<group>.count`.
 
-The catalog has Schelling segregation as `schelling`, the voter system as `voter_system`, Boltzmann wealth exchange as
+The catalog has Schelling segregation as `schelling`, the voter system as `voter`, Boltzmann wealth exchange as
 `boltzmann_wealth`, and the wolf and sheep system as `wolf_sheep`.
 
 An interaction can hold a rule too, and read the groups bound to its roles. Here walkers drift along a periodic road

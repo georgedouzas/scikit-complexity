@@ -94,7 +94,7 @@ from ._voters import (
     VariantVotingInteraction,
     VoterElement,
     VoterImitationInteraction,
-    VoterSystemSystem,
+    VoterSystem,
     VoterVariantsSystem,
     VoterView,
 )
@@ -175,7 +175,7 @@ __all__: list[str] = [
     'VillageView',
     'VoterElement',
     'VoterImitationInteraction',
-    'VoterSystemSystem',
+    'VoterSystem',
     'VoterVariantsSystem',
     'VoterView',
     'WillingMajorityInteraction',

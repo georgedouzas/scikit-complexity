@@ -226,7 +226,7 @@ class AgentsVisual(BaseVisual):
             >>> from skcomplex.core.engine.compile import PassCompiler
             >>> from skcomplex.core.engine.viz import AgentsVisual
             >>> from skcomplex.systems import create_system
-            >>> problem = PassCompiler().prepare(create_system('voter_system')).run().problem_
+            >>> problem = PassCompiler().prepare(create_system('voter')).run().problem_
             >>> type(AgentsVisual(path=problem.agents[0].path).prepare(problem).views_[0]).__name__
             'GraphView'
         """

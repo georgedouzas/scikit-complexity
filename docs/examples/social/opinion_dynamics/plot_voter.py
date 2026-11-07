@@ -1,5 +1,5 @@
 """
-# Voter system
+# Voter
 
 Starting from random opinions on a square lattice, each voter copies the opinion of a random neighbour. Agreement
 spreads locally, so the opinions coarsen into growing domains of purple and yellow voters.
@@ -17,12 +17,12 @@ import rerun.blueprint as rrb
 
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems.social.opinion_dynamics import VoterSystemSystem
+from skcomplex.systems.social.opinion_dynamics import VoterSystem
 
-SYSTEM = 'voter_system'
+SYSTEM = 'voter'
 
 lattice = nx.convert_node_labels_to_integers(nx.grid_2d_graph(20, 20), label_attribute='pos')
-system = VoterSystemSystem(graph=lattice, random_state=0)
+system = VoterSystem(graph=lattice, random_state=0)
 blueprint = rrb.Blueprint(
     rrb.GraphView(origin='/voters', name='voters', background=rrb.archetypes.GraphBackground(color=[110, 110, 110])),
     rrb.TimePanel(state='collapsed', timeline='sim_time', play_state='following'),

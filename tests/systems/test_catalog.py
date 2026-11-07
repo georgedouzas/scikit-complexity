@@ -237,7 +237,7 @@ def test_every_system_has_one_field_path():
 
 def test_catalog_filters_by_tag():
     """Test that the catalog keeps only the systems with a tag."""
-    assert {entry.name for entry in catalog(tag='agents')} >= {'wolf_sheep', 'schelling', 'voter_system'}
+    assert {entry.name for entry in catalog(tag='agents')} >= {'wolf_sheep', 'schelling', 'voter'}
 
 
 def test_create_matches_components():

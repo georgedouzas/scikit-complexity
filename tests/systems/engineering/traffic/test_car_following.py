@@ -16,7 +16,7 @@ from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from skcomplex.systems.engineering.traffic import (
     DelayedCarFollowingSystem,
-    IntelligentDriverSystemSystem,
+    IntelligentDriverSystem,
     OptimalVelocitySystem,
 )
 
@@ -184,10 +184,7 @@ def test_optimal_velocity_below_critical_density_stays_uniform():
 def test_intelligent_drivers_reach_equilibrium_speed():
     """Test that cars at low density reach the equilibrium speed of their gap, `s = s*(v) / sqrt(1 - (v / v0)^4)`."""
     trajectory = (
-        Simulation(IntelligentDriverSystemSystem(10, 250.0).prepare().system_, dt=1.0)
-        .prepare()
-        .run(until=100)
-        .trajectory_
+        Simulation(IntelligentDriverSystem(10, 250.0).prepare().system_, dt=1.0).prepare().run(until=100).trajectory_
     )
     speed = trajectory.values('cars.v')[-1].mean()
     gap = 250.0 / 10 - 5.0
@@ -207,7 +204,7 @@ def test_ring_roads_hold_one_group_of_cars():
     ('factory', 'interaction', 'until'),
     [
         (OptimalVelocitySystem, PerCarVelocityInteraction, 200.0),
-        (IntelligentDriverSystemSystem, PerCarDriverInteraction, 100.0),
+        (IntelligentDriverSystem, PerCarDriverInteraction, 100.0),
     ],
 )
 def test_ring_roads_match_one_interaction_per_car(factory, interaction, until):

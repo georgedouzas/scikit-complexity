@@ -1,5 +1,5 @@
 """
-# Intelligent driver system
+# Intelligent driver
 
 Twenty cars start at rest on a ring road and accelerate together. Each keeps a safe time gap to the car ahead, so the
 platoon settles at the one speed where the gap that the ring leaves to every car equals the desired gap at that
@@ -18,9 +18,9 @@ from scipy.optimize import brentq
 
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems.engineering.traffic import IntelligentDriverSystemSystem
+from skcomplex.systems.engineering.traffic import IntelligentDriverSystem
 
-SYSTEM = 'intelligent_driver_system'
+SYSTEM = 'intelligent_driver'
 
 speeds = rrb.TimeSeriesView(
     origin='/cars/v',
@@ -36,7 +36,7 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = IntelligentDriverSystemSystem()
+system = IntelligentDriverSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
 trajectory = simulate(system, dt=0.5, observers=[observer])
 
@@ -56,7 +56,7 @@ def equilibrium(gap):
 
 
 counts = np.arange(10, 61, 5)
-finals = [simulate(IntelligentDriverSystemSystem(n_cars=int(n)), until=200).values('cars.v')[-1].mean() for n in counts]
+finals = [simulate(IntelligentDriverSystem(n_cars=int(n)), until=200).values('cars.v')[-1].mean() for n in counts]
 grid = np.arange(10, 61)
 fig, ax = plt.subplots(figsize=(6, 4.5))
 ax.plot(grid, [equilibrium(length / n - car_length) for n in grid], color='black', label='equilibrium of the IDM')

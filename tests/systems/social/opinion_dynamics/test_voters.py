@@ -6,7 +6,7 @@ import numpy as np
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.systems.social.opinion_dynamics import (
     MajorityRuleSystem,
-    VoterSystemSystem,
+    VoterSystem,
     VoterVariantsSystem,
 )
 
@@ -17,7 +17,7 @@ def test_voter_system_reaches_consensus():
     """Test that 20 voters on a connected network end with one opinion."""
     graph = nx.connected_watts_strogatz_graph(20, 4, 0.2, seed=0)
     trajectory = (
-        Simulation(VoterSystemSystem(graph, random_state=0).prepare().system_, random_state=0)
+        Simulation(VoterSystem(graph, random_state=0).prepare().system_, random_state=0)
         .prepare()
         .run(until=500)
         .trajectory_

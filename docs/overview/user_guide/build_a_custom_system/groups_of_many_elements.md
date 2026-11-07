@@ -301,7 +301,7 @@ member `offset` places along the group order, the member index.
 - The read compiles to an index table of the group, so one kernel runs over every member on the NumPy and the Numba
   backends.
 
-The ring roads of `optimal_velocity` and `intelligent_driver_system` read the car ahead this way, with `mod` for the
+The ring roads of `optimal_velocity` and `intelligent_driver` read the car ahead this way, with `mod` for the
 headway across the point where positions wrap.
 
 Roles of one interaction can also bind several groups of one size, and the laws read row `i` of every group together.

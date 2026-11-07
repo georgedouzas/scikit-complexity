@@ -265,7 +265,7 @@ class OptimalVelocitySystem(BaseSystem):
         return System(self.label, elements=[cars], interactions=[following])
 
 
-class IntelligentDriverSystemSystem(BaseSystem):
+class IntelligentDriverSystem(BaseSystem):
     """The intelligent driver system of cars on a ring road.
 
     Car `i` accelerates as `v' = a (1 - (v / v0)^δ - (s* / s)^2)` with the gap `s` to the car ahead and the desired gap
@@ -308,8 +308,8 @@ class IntelligentDriverSystemSystem(BaseSystem):
             The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.engineering.traffic import IntelligentDriverSystemSystem
-        >>> IntelligentDriverSystemSystem(n_cars=4).prepare().system_.interactions[0].road_length
+        >>> from skcomplex.systems.engineering.traffic import IntelligentDriverSystem
+        >>> IntelligentDriverSystem(n_cars=4).prepare().system_.interactions[0].road_length
         500.0
     """
 

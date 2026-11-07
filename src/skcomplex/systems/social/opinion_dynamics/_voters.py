@@ -329,7 +329,7 @@ class MajorityRuleSystem(BaseSystem):
         )
 
 
-class VoterSystemSystem(BaseSystem):
+class VoterSystem(BaseSystem):
     """A voter system with one voter per node of a network.
 
     The system has the group `voters`.
@@ -349,8 +349,8 @@ class VoterSystemSystem(BaseSystem):
 
     Examples:
         >>> import networkx as nx
-        >>> from skcomplex.systems.social.opinion_dynamics import VoterSystemSystem
-        >>> VoterSystemSystem(nx.cycle_graph(8), random_state=0).prepare().system_.elements[0].prepare().size_
+        >>> from skcomplex.systems.social.opinion_dynamics import VoterSystem
+        >>> VoterSystem(nx.cycle_graph(8), random_state=0).prepare().system_.elements[0].prepare().size_
         8
     """
 

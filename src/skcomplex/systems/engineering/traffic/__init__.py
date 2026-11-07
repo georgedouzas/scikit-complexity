@@ -1,6 +1,6 @@
 """Traffic: cars on roads."""
 
-from ._car_following import DelayedCarFollowingSystem, IntelligentDriverSystemSystem, OptimalVelocitySystem
+from ._car_following import DelayedCarFollowingSystem, IntelligentDriverSystem, OptimalVelocitySystem
 from ._continuum import (
     GasKineticTrafficElement,
     GktTrafficSystem,
@@ -33,7 +33,7 @@ __all__: list[str] = [
     'DriverElement',
     'GasKineticTrafficElement',
     'GktTrafficSystem',
-    'IntelligentDriverSystemSystem',
+    'IntelligentDriverSystem',
     'KernerKonhauserSystem',
     'LangevinDrivingInteraction',
     'LangevinTrafficSystem',

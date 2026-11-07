@@ -60,7 +60,7 @@ def test_views_of_builtin_visuals():
     lotka = PassCompiler().prepare(create_system('lotka_volterra')).run().problem_
     gas = PassCompiler().prepare(create_system('ideal_gas', n_molecules=10, n_dim=3)).run().problem_
     gray = PassCompiler().prepare(create_system('gray_scott', shape=(16, 16))).run().problem_
-    voters = PassCompiler().prepare(create_system('voter_system')).run().problem_
+    voters = PassCompiler().prepare(create_system('voter')).run().problem_
     views = [
         ScalarsVisual(path=lotka.elements[0].path).prepare(lotka).views_[0],
         PointsVisual(position='x', states=(), path=gas.elements[0].path).prepare(gas).views_[0],
