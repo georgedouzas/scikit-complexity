@@ -10,6 +10,7 @@ from ._alphabets import (
 from ._automata import AntCellElement, elementary_automaton, game_of_life, langtons_ant, turing_machine
 from ._binary_cell import BinaryCellElement
 from ._codes import Wolfram, life
+from ._continuous_automata import lenia
 from ._diffusion_cell import DiffusionCellElement
 from ._digit_cell import DigitCellElement
 from ._free_group_automata import life_in_a_tree, muller_automaton, surjective_linear_automaton
@@ -26,6 +27,8 @@ from ._group_automata import (
 )
 from ._group_cell import GroupCellElement
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter
+from ._lenia_site import LeniaSiteElement
+from ._lenia_update import LeniaUpdateInteraction
 from ._line_automata import involutive_automaton, nilpotent_automaton
 from ._morse_word import MorseElement
 from ._network_automata import small_world_life
@@ -53,6 +56,8 @@ __all__: list[str] = [
     'GoldenCellElement',
     'GroupCellElement',
     'LaplacianCellElement',
+    'LeniaSiteElement',
+    'LeniaUpdateInteraction',
     'MorseElement',
     'NoisyElementaryCellElement',
     'PairCellElement',
@@ -83,6 +88,7 @@ __all__: list[str] = [
     'lamplighter',
     'lamplighter_automaton',
     'langtons_ant',
+    'lenia',
     'life',
     'life_in_a_tree',
     'linear_ring_automaton',
