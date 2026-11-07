@@ -5,13 +5,13 @@ import numpy as np
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.systems import describe
 from skcomplex.systems.economics.econophysics import (
-    el_farol,
+    ElFarolSystem,
 )
 
 
 def test_el_farol_attendance_near_capacity():
     """With 100 patrons and capacity 60, the mean attendance after the transient lies within 5 of 60."""
-    system = el_farol(100, capacity=60, random_state=0)
+    system = ElFarolSystem(100, capacity=60, random_state=0).prepare().system_
     attendance = (
         Simulation(system, random_state=0, observables=describe('el_farol').observables_of(system))
         .prepare()

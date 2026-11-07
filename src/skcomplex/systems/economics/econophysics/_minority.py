@@ -21,11 +21,10 @@ from ....core.components.interactions import (
 )
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import BaseSpec, PhaseSpec, PhasesScheduleSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import IntArray
-from ..._catalog import register_system
 
 
 @dataclass(frozen=True)
@@ -181,6 +180,8 @@ class MinorityGameInteraction(Interaction):
         4
     """
 
+    law_classes = (RuleLaw,)
+
     reports: ClassVar[tuple[str, ...]] = ('attendance', 'history')
 
     def __init__(
@@ -272,22 +273,13 @@ class MinorityGameInteraction(Interaction):
 MAX_SEED = 2**31
 
 
-@register_system(
-    field='economics/econophysics',
-    tags=('minority game', 'agents', 'inductive reasoning', 'evolution'),
-    references=('Challet and Zhang 1997', 'Yakovenko and Rosser 2009', 'Carmichael and Hadzikadic 2019 ch. 9'),
-    defaults={'until': 500},
-)
-def minority_game(
-    n_agents: int = 101,
-    *,
-    memory: int = 3,
-    evolutionary: bool = False,
-    period: int = 50,
-    fraction: float = 0.1,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the minority game of an odd number of agents with two random strategies each.
+class MinorityGameSystem(BaseSystem):
+    """The minority game of an odd number of agents with two random strategies each.
+
+    The system has the group `players`, the choice `choice` of the strategy of higher virtual score, the interaction
+    `game`, which reports the attendance `game.attendance`, the cumulative reinforcement `scoring` of the virtual
+    scores, and in the evolutionary version the truncation `evolution`, which gives the poorest agents new random
+    strategies and no wealth every `period` rounds.
 
     Args:
         n_agents:
@@ -308,70 +300,94 @@ def minority_game(
         random_state:
             The seed or generator of the strategies.
 
-    Returns:
-        system:
-            The system, with the group `players`, the choice `choice` of the strategy of higher virtual score, the
-            interaction `game`, which reports the attendance `game.attendance`, the cumulative reinforcement
-            `scoring` of the virtual scores, and in the evolutionary version the truncation `evolution`, which gives
-            the poorest agents new random strategies and no wealth every `period` rounds.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValueError:
             The number of agents is even.
 
     Examples:
-        >>> from skcomplex.systems.economics.econophysics import minority_game
-        >>> minority_game(11, memory=2).interactions[1].memory
+        >>> from skcomplex.systems.economics.econophysics import MinorityGameSystem
+        >>> MinorityGameSystem(11, memory=2).prepare().system_.interactions[1].memory
         2
     """
-    if n_agents % 2 == 0:
-        error_msg = f'The minority game needs an odd number of agents, got {n_agents}.'
-        raise ValueError(error_msg)
-    codes = np.random.default_rng(random_state).integers(MAX_SEED, size=(2, n_agents)).astype(float)
-    players = GroupElement(
-        'players',
-        element=MinorityPlayerElement,
-        size=n_agents,
-        values={'first': codes[0], 'second': codes[1]},
-    )
-    choice = ChoiceInteraction(
-        'choice',
-        target='players',
-        state='strategy',
-        options=(0.0, 1.0),
-        utility=lambda agent, system, option: agent.second_score if option else agent.first_score,
-        rule='best',
-        form='agent',
-        phase='choose',
-    )
-    game = MinorityGameInteraction('game', players='players', memory=memory, phase='play')
-    scoring = ReinforcementInteraction(
-        'scoring',
-        target='players',
-        scores=('first_score', 'second_score'),
-        payoff=game.payoff,
-        rule='cumulative',
-        form='agent',
-        phase='score',
-    )
-    evolution = EvolutionInteraction(
-        'evolution',
-        target='players',
-        strategy=('first', 'second'),
-        fitness='wealth',
-        replacement='truncation',
-        fraction=fraction,
-        mutation=1.0,
-        change='any',
-        alphabet=MAX_SEED,
-        period=period,
-        reset={'first_score': 0.0, 'second_score': 0.0, 'wealth': 0.0},
-        phase='score',
-    )
-    return System(
-        elements=[players],
-        interactions=[choice, game, scoring, *([evolution] if evolutionary else [])],
-        time=DiscreteTime(
-            schedule=PhasesScheduleSpec([PhaseSpec('choose'), PhaseSpec('play'), PhaseSpec('score')]),
-        ),
-    )
+
+    field = 'economics/econophysics'
+    topics = ('minority game', 'agents', 'inductive reasoning', 'evolution')
+    references = ('Challet and Zhang 1997', 'Yakovenko and Rosser 2009', 'Carmichael and Hadzikadic 2019 ch. 9')
+    until = 500
+
+    def __init__(
+        self,
+        n_agents: int = 101,
+        *,
+        memory: int = 3,
+        evolutionary: bool = False,
+        period: int = 50,
+        fraction: float = 0.1,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+        self.memory = memory
+        self.evolutionary = evolutionary
+        self.period = period
+        self.fraction = fraction
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        if self.n_agents % 2 == 0:
+            error_msg = f'The minority game needs an odd number of agents, got {self.n_agents}.'
+            raise ValueError(error_msg)
+        codes = np.random.default_rng(self.random_state).integers(MAX_SEED, size=(2, self.n_agents)).astype(float)
+        players = GroupElement(
+            'players',
+            element=MinorityPlayerElement,
+            size=self.n_agents,
+            values={'first': codes[0], 'second': codes[1]},
+        )
+        choice = ChoiceInteraction(
+            'choice',
+            target='players',
+            state='strategy',
+            options=(0.0, 1.0),
+            utility=lambda agent, system, option: agent.second_score if option else agent.first_score,
+            rule='best',
+            form='agent',
+            phase='choose',
+        )
+        game = MinorityGameInteraction('game', players='players', memory=self.memory, phase='play')
+        scoring = ReinforcementInteraction(
+            'scoring',
+            target='players',
+            scores=('first_score', 'second_score'),
+            payoff=game.payoff,
+            rule='cumulative',
+            form='agent',
+            phase='score',
+        )
+        evolution = EvolutionInteraction(
+            'evolution',
+            target='players',
+            strategy=('first', 'second'),
+            fitness='wealth',
+            replacement='truncation',
+            fraction=self.fraction,
+            mutation=1.0,
+            change='any',
+            alphabet=MAX_SEED,
+            period=self.period,
+            reset={'first_score': 0.0, 'second_score': 0.0, 'wealth': 0.0},
+            phase='score',
+        )
+        return System(
+            self.label,
+            elements=[players],
+            interactions=[choice, game, scoring, *([evolution] if self.evolutionary else [])],
+            time=DiscreteTime(
+                schedule=PhasesScheduleSpec([PhaseSpec('choose'), PhaseSpec('play'), PhaseSpec('score')]),
+            ),
+        )

@@ -16,9 +16,8 @@ from ....core.components.elements import DensityElement, GroupElement
 from ....core.components.interactions import BaseInteraction, EncounterInteraction
 from ....core.components.laws.utils import moment, total
 from ....core.components.spaces import ContinuousTime, LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, RunSettings, System
 from ....core.specs import ObservableSpec, ParameterSpec
-from ..._catalog import register_system
 
 
 def exchange_table(classes: int, cooperation: object, competition: object) -> npt.NDArray[np.object_]:
@@ -309,22 +308,8 @@ def wealth_observables(classes: int) -> list[ObservableSpec]:
     ]
 
 
-@register_system(
-    field='economics/econophysics',
-    tags=('wealth', 'kinetic', 'distribution', 'welfare'),
-    references=WELFARE_REFERENCES,
-    defaults={'until': 100, 'dt': 1.0},
-    observables=lambda system: wealth_observables(_classes_of(system)),
-)
-def kinetic_wealth_welfare(
-    classes: int = 9,
-    *,
-    cooperation: float = 0.2,
-    competition: float = 0.3,
-    eta: float = 1.0,
-    tax: float = 0.0,
-) -> System:
-    """Return the kinetic theory of wealth classes, with a welfare policy when the tax is positive.
+class KineticWealthWelfareSystem(BaseSystem):
+    """The kinetic theory of wealth classes, with a welfare policy when the tax is positive.
 
     The population is a distribution over wealth classes, a site group on a lattice of the classes. Encounters
     between classes move particles one class up or down, with cooperation narrowing the gaps and competition widening
@@ -332,6 +317,9 @@ def kinetic_wealth_welfare(
     richest classes, and the Gini coefficient grows. A welfare policy is an encounter with a group of fixed density,
     which moves the richest third of the classes down and the poorest third up and lowers the stationary Gini
     coefficient.
+
+    The system has the distribution `wealth`, the encounters `exchange`, and with a tax the group `state` and the policy
+    `welfare`. Its standard observables are the density, the mean wealth, and the Gini coefficient of `wealth`.
 
     Args:
         classes:
@@ -349,46 +337,83 @@ def kinetic_wealth_welfare(
         tax:
             The rate of the welfare policy, 0 for none.
 
-    Returns:
-        system:
-            The system, with the distribution `wealth`, the encounters `exchange`, and with a tax the group `state` and
-            the policy `welfare`. Its standard observables are the density, the mean wealth, and the Gini coefficient
-            of `wealth`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.econophysics import kinetic_wealth_welfare
-        >>> [item.label for item in kinetic_wealth_welfare(tax=0.2).interactions]
+        >>> from skcomplex.systems.economics.econophysics import KineticWealthWelfareSystem
+        >>> [item.label for item in KineticWealthWelfareSystem(tax=0.2).prepare().system_.interactions]
         ['exchange', 'welfare']
     """
-    initial = np.exp(-((wealth_classes(classes) - 0.5) ** 2) / 0.05)
-    components: list[GroupElement] = [
-        GroupElement(
-            'wealth',
-            element=DensityElement,
-            size=classes,
-            on='sites',
-            values={'f': initial / initial.sum()},
-        ),
-    ]
-    interactions: list[BaseInteraction] = [
-        WealthExchangeInteraction(
-            'exchange',
-            candidate='wealth',
-            field='wealth',
-            classes=classes,
-            eta=eta,
-            cooperation=cooperation,
-            competition=competition,
-        ),
-    ]
-    if tax > 0:
-        components.append(GroupElement('state', element=DensityElement, size=1, values={'f': 1.0}))
-        interactions.append(
-            WelfarePolicyInteraction('welfare', candidate='wealth', field='state', classes=classes, tax=tax),
+
+    field = 'economics/econophysics'
+    topics = ('wealth', 'kinetic', 'distribution', 'welfare')
+    references = WELFARE_REFERENCES
+    until = 100
+    dt = 1.0
+
+    def __init__(
+        self,
+        classes: int = 9,
+        *,
+        cooperation: float = 0.2,
+        competition: float = 0.3,
+        eta: float = 1.0,
+        tax: float = 0.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.classes = classes
+        self.cooperation = cooperation
+        self.competition = competition
+        self.eta = eta
+        self.tax = tax
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        initial = np.exp(-((wealth_classes(self.classes) - 0.5) ** 2) / 0.05)
+        components: list[GroupElement] = [
+            GroupElement(
+                'wealth',
+                element=DensityElement,
+                size=self.classes,
+                on='sites',
+                values={'f': initial / initial.sum()},
+            ),
+        ]
+        interactions: list[BaseInteraction] = [
+            WealthExchangeInteraction(
+                'exchange',
+                candidate='wealth',
+                field='wealth',
+                classes=self.classes,
+                eta=self.eta,
+                cooperation=self.cooperation,
+                competition=self.competition,
+            ),
+        ]
+        if self.tax > 0:
+            components.append(GroupElement('state', element=DensityElement, size=1, values={'f': 1.0}))
+            interactions.append(
+                WelfarePolicyInteraction(
+                    'welfare',
+                    candidate='wealth',
+                    field='state',
+                    classes=self.classes,
+                    tax=self.tax,
+                ),
+            )
+        return System(
+            self.label,
+            elements=components,
+            interactions=interactions,
+            space=LatticeSpace(self.classes, boundary='fixed'),
+            time=ContinuousTime(),
         )
-    return System(
-        elements=components,
-        interactions=interactions,
-        space=LatticeSpace(classes, boundary='fixed'),
-        time=ContinuousTime(),
-    )
+
+    def get_run_settings(self) -> RunSettings:
+        """Return the tuned run settings, with the observables of the parts built from the model parameters."""
+        settings = super().get_run_settings()
+        system = self._build_system()
+        settings['observables'] = wealth_observables(_classes_of(system))
+        return settings

@@ -17,9 +17,9 @@ import numpy as np
 import rerun.blueprint as rrb
 from scipy import stats
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.economics.econophysics import KineticWealthExchangeSystem
 
 SYSTEM = 'kinetic_wealth_exchange'
 STEPS = 150
@@ -32,17 +32,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-system_system = create_system(SYSTEM, n_agents=500)
-simulation = (
-    Simulation(
-        system_system,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system_system),
-    )
-    .prepare()
-    .run(until=STEPS)
-)
+system_system = KineticWealthExchangeSystem(n_agents=500)
+trajectory = simulate(system_system, until=STEPS, observers=[observer], random_state=0)
 
 # %%
 # Stationary distributions
@@ -55,19 +46,14 @@ simulation = (
 
 def final_wealth(**options):
     """Return the final wealth of every agent of a run."""
-    system_system = create_system(SYSTEM, n_agents=500, **options)
-    trajectory = (
-        Simulation(system_system, random_state=0, observables=describe(SYSTEM).observables_of(system_system))
-        .prepare()
-        .run(until=STEPS)
-        .trajectory_
-    )
+    system_system = KineticWealthExchangeSystem(n_agents=500, **options)
+    trajectory = simulate(system_system, until=STEPS, random_state=0)
     return trajectory.agents('traders', STEPS).values['wealth']
 
 
 grid = np.linspace(0, 5, 200)
 fig, (saving_axis, debt_axis) = plt.subplots(1, 2, figsize=(10, 4))
-samples = {0.0: simulation.trajectory_.agents('traders', STEPS).values['wealth']}
+samples = {0.0: trajectory.agents('traders', STEPS).values['wealth']}
 samples |= {saving: final_wealth(saving=saving) for saving in (0.5, 0.8)}
 for (saving, wealth), color in zip(samples.items(), ['C0', 'C1', 'C2'], strict=True):
     shape = 1 + 3 * saving / (1 - saving)

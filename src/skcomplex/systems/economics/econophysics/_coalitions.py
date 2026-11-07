@@ -13,11 +13,10 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import FeedbackInteraction
 from ....core.components.laws import BaseLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 
 class CoalitionPatronView(AgentView):
@@ -54,6 +53,8 @@ class CoalitionPatronElement(Element):
         >>> GroupElement('patrons', element=CoalitionPatronElement, size=3).size
         3
     """
+
+    law_classes = ()
 
     def __init__(
         self,
@@ -264,23 +265,8 @@ class CoalitionBarInteraction(FeedbackInteraction[SystemView]):
         system.report('joins', float(joins))
 
 
-@register_system(
-    field='economics/econophysics',
-    tags=('el farol', 'agents', 'coalitions', 'group formation', 'cooperative game theory', 'bounded rationality'),
-    references=('Carmichael et al. 2019 ch. 9',),
-    defaults={'until': 500},
-)
-def el_farol_coalitions(
-    n_agents: int = 100,
-    *,
-    capacity: float = 60.0,
-    memory: int = 5,
-    n_strategies: int = 10,
-    smoothing: float = 0.1,
-    coalitions: bool = True,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Collins' El Farol bar with strategic group formation, whose coalitions share their best strategy.
+class ElFarolCoalitionsSystem(BaseSystem):
+    """Collins' El Farol bar with strategic group formation, whose coalitions share their best strategy.
 
     Patrons of Rand and Wilensky's El Farol model predict the attendance with linear strategies of the last `memory`
     attendances and go when they predict room. In Collins' version (Carmichael et al. 2019, chapter 9) patrons form
@@ -291,6 +277,9 @@ def el_farol_coalitions(
     about half their nights, while coalitions make the attendance swing and lower the returns of all, because the
     patrons are boundedly rational. The return of a patron is exponentially smoothed with the weight `smoothing`,
     which the source leaves open.
+
+    The system has the group `patrons` and the bar `bar`, whose reporters are `bar.attendance`, the number of coalitions
+    `bar.coalitions`, the mean return `bar.mean_score`, and the splits `bar.splits` and joins `bar.joins` of the night.
 
     Args:
         n_agents:
@@ -314,31 +303,57 @@ def el_farol_coalitions(
         random_state:
             The seed or generator of the strategies.
 
-    Returns:
-        system:
-            The system, with the group `patrons` and the bar `bar`, whose reporters are `bar.attendance`, the number of
-            coalitions `bar.coalitions`, the mean return `bar.mean_score`, and the splits `bar.splits` and joins
-            `bar.joins` of the night.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.econophysics import el_farol_coalitions
-        >>> el_farol_coalitions(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.economics.econophysics import ElFarolCoalitionsSystem
+        >>> ElFarolCoalitionsSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    rng = np.random.default_rng(random_state)
-    strategies = rng.uniform(-1.0, 1.0, (n_agents, n_strategies, memory + 1))
-    patrons = GroupElement(
-        'patrons',
-        element=CoalitionPatronElement,
-        size=n_agents,
-        values={'coalition': np.arange(n_agents, dtype=float)},
-    )
-    bar = CoalitionBarInteraction(
-        'bar',
-        patrons='patrons',
-        strategies=tuple(tuple(map(tuple, rows)) for rows in strategies.tolist()),
-        capacity=capacity,
-        smoothing=smoothing,
-        coalitions=coalitions,
-    )
-    return System(elements=[patrons], interactions=[bar])
+
+    field = 'economics/econophysics'
+    topics = ('el farol', 'agents', 'coalitions', 'group formation', 'cooperative game theory', 'bounded rationality')
+    references = ('Carmichael et al. 2019 ch. 9',)
+    until = 500
+
+    def __init__(
+        self,
+        n_agents: int = 100,
+        *,
+        capacity: float = 60.0,
+        memory: int = 5,
+        n_strategies: int = 10,
+        smoothing: float = 0.1,
+        coalitions: bool = True,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+        self.capacity = capacity
+        self.memory = memory
+        self.n_strategies = n_strategies
+        self.smoothing = smoothing
+        self.coalitions = coalitions
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        strategies = rng.uniform(-1.0, 1.0, (self.n_agents, self.n_strategies, self.memory + 1))
+        patrons = GroupElement(
+            'patrons',
+            element=CoalitionPatronElement,
+            size=self.n_agents,
+            values={'coalition': np.arange(self.n_agents, dtype=float)},
+        )
+        bar = CoalitionBarInteraction(
+            'bar',
+            patrons='patrons',
+            strategies=tuple(tuple(map(tuple, rows)) for rows in strategies.tolist()),
+            capacity=self.capacity,
+            smoothing=self.smoothing,
+            coalitions=self.coalitions,
+        )
+        return System(self.label, elements=[patrons], interactions=[bar])

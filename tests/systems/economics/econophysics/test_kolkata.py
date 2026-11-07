@@ -5,7 +5,7 @@ import pytest
 
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.systems.economics.econophysics import (
-    kolkata_restaurant,
+    KolkataRestaurantSystem,
 )
 
 
@@ -13,7 +13,7 @@ def test_kolkata_utilization():
     """Random choice uses `1 - 1/e` of the restaurants and stochastic crowd avoidance about 0.8."""
     utilization = {}
     for strategy in ('random', 'crowd_avoiding'):
-        system = kolkata_restaurant(200, strategy=strategy, random_state=0)
+        system = KolkataRestaurantSystem(200, strategy=strategy, random_state=0).prepare().system_
         values = (
             Simulation(system, random_state=0).prepare().run(until=60).trajectory_.values('restaurants.utilization')
         )

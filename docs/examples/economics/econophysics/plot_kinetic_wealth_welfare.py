@@ -15,10 +15,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
-from skcomplex.systems.economics.econophysics import wealth_classes
+from skcomplex.systems.economics.econophysics import KineticWealthWelfareSystem, wealth_classes
 
 SYSTEM = 'kinetic_wealth_welfare'
 
@@ -31,19 +30,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-system = create_system(SYSTEM)
-simulation = (
-    Simulation(
-        system,
-        observers=[observer],
-        dt=1.0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(
-        until=100,
-    )
-)
+system = KineticWealthWelfareSystem()
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Stationary distributions under welfare policies
@@ -54,13 +42,9 @@ simulation = (
 
 def stationary(tax):
     """Return the stationary distribution and Gini coefficient of a run with a policy of a tax rate."""
-    system_system = create_system(SYSTEM, tax=tax)
-    run = (
-        Simulation(system_system, dt=100.0, observables=describe(SYSTEM).observables_of(system_system))
-        .prepare()
-        .run(until=200)
-    )
-    return run.trajectory_.values('wealth.f')[-1], run.trajectory_.values('gini')[-1]
+    system_system = KineticWealthWelfareSystem(tax=tax)
+    run = simulate(system_system, until=200, dt=100.0)
+    return run.values('wealth.f')[-1], run.values('gini')[-1]
 
 
 wealth = wealth_classes(9)

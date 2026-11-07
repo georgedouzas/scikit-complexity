@@ -17,11 +17,10 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import ChoiceInteraction, ReinforcementInteraction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import DiscreteTime
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 from ..common.forecasting import heuristics
 
 
@@ -131,6 +130,8 @@ class PredictorPoolElement(Element):
         1
     """
 
+    law_classes = (RuleLaw,)
+
     attendance: ClassVar[str] = 'attendance'
 
     def __init__(
@@ -239,6 +240,8 @@ class PatronElement(Element):
         100
     """
 
+    law_classes = (RuleLaw,)
+
     pool: ClassVar[str] = 'pool'
 
     def __init__(
@@ -292,27 +295,17 @@ class PatronElement(Element):
         agent.forecast = float(predicted[held[int(np.argmin(errors[held]))]])
 
 
-@register_system(
-    field='economics/econophysics',
-    tags=('el farol', 'agents', 'inductive reasoning', 'bounded rationality'),
-    references=('Arthur 1994', 'Yakovenko and Rosser 2009', 'Carmichael and Hadzikadic 2019 ch. 9'),
-    defaults={'until': 200},
-    observables=lambda system: [ObservableSpec('attendance', group='patrons', variable='attends', reduce='sum')],
-)
-def el_farol(
-    n_agents: int = 100,
-    *,
-    capacity: float = 60.0,
-    n_predictors: int = 6,
-    discount: float = 0.9,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Arthur's El Farol bar problem, whose attendance self-organizes around the capacity.
+class ElFarolSystem(BaseSystem):
+    """Arthur's El Farol bar problem, whose attendance self-organizes around the capacity.
 
     Every patron holds a random set of predictors of next week's attendance, drawn from a pool of 46, and acts on
     its currently most accurate one, going when it forecasts room in the bar. The attendance is random-looking, yet
     its mean settles near the capacity. The patrons read the past attendances from the observable `attendance` of
     the run, which the catalog lists, so a run passes it in `observables`.
+
+    The system has the group `patrons`, the one-member group `pool` of the forecasts and the errors of the predictors,
+    the reinforcement `scoring` of the errors, and the choice `choice` to go when the forecast is below the capacity of
+    the patrons.
 
     Args:
         n_agents:
@@ -330,59 +323,83 @@ def el_farol(
         random_state:
             The seed or generator of the predictors that every patron holds.
 
-    Returns:
-        system:
-            The system, with the group `patrons`, the one-member group `pool` of the forecasts and the errors of the
-            predictors, the reinforcement `scoring` of the errors, and the choice `choice` to go when the forecast is
-            below the capacity of the patrons.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.econophysics import el_farol
-        >>> el_farol(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.economics.econophysics import ElFarolSystem
+        >>> ElFarolSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    rng = np.random.default_rng(random_state)
-    masks = [
-        float(sum(1 << int(index) for index in rng.choice(len(PREDICTORS), n_predictors, replace=False)))
-        for _ in range(n_agents)
-    ]
-    patrons = GroupElement(
-        'patrons',
-        element=PatronElement,
-        size=n_agents,
-        values={'predictors': masks, 'capacity': capacity},
-    )
-    pool = GroupElement(
-        'pool',
-        element=PredictorPoolElement,
-        size=1,
-        values={'forecasts': np.zeros((1, len(PREDICTORS))), 'errors': np.zeros((1, len(PREDICTORS)))},
-    )
-    scoring = ReinforcementInteraction(
-        'scoring',
-        target='pool',
-        scores='errors',
-        payoff=PredictorPoolElement.error,
-        rate=1 - discount,
-        form='agent',
-        phase='learn',
-    )
-    choice = ChoiceInteraction(
-        'choice',
-        target='patrons',
-        state='attends',
-        options=(0.0, 1.0),
-        utility=lambda agent, system, option: option if agent.forecast < agent.capacity else -option,
-        rule='best',
-        form='agent',
-        phase='decide',
-    )
-    return System(
-        elements=[patrons, pool],
-        interactions=[scoring, choice],
-        time=DiscreteTime(
-            schedule=PhasesScheduleSpec(
-                [PhaseSpec(name) for name in ('learn', 'forecast', 'predict', 'decide')],
+
+    field = 'economics/econophysics'
+    topics = ('el farol', 'agents', 'inductive reasoning', 'bounded rationality')
+    references = ('Arthur 1994', 'Yakovenko and Rosser 2009', 'Carmichael and Hadzikadic 2019 ch. 9')
+    until = 200
+    observables = (ObservableSpec('attendance', group='patrons', variable='attends', reduce='sum'),)
+
+    def __init__(
+        self,
+        n_agents: int = 100,
+        *,
+        capacity: float = 60.0,
+        n_predictors: int = 6,
+        discount: float = 0.9,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+        self.capacity = capacity
+        self.n_predictors = n_predictors
+        self.discount = discount
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        masks = [
+            float(sum(1 << int(index) for index in rng.choice(len(PREDICTORS), self.n_predictors, replace=False)))
+            for _ in range(self.n_agents)
+        ]
+        patrons = GroupElement(
+            'patrons',
+            element=PatronElement,
+            size=self.n_agents,
+            values={'predictors': masks, 'capacity': self.capacity},
+        )
+        pool = GroupElement(
+            'pool',
+            element=PredictorPoolElement,
+            size=1,
+            values={'forecasts': np.zeros((1, len(PREDICTORS))), 'errors': np.zeros((1, len(PREDICTORS)))},
+        )
+        scoring = ReinforcementInteraction(
+            'scoring',
+            target='pool',
+            scores='errors',
+            payoff=PredictorPoolElement.error,
+            rate=1 - self.discount,
+            form='agent',
+            phase='learn',
+        )
+        choice = ChoiceInteraction(
+            'choice',
+            target='patrons',
+            state='attends',
+            options=(0.0, 1.0),
+            utility=lambda agent, system, option: option if agent.forecast < agent.capacity else -option,
+            rule='best',
+            form='agent',
+            phase='decide',
+        )
+        return System(
+            self.label,
+            elements=[patrons, pool],
+            interactions=[scoring, choice],
+            time=DiscreteTime(
+                schedule=PhasesScheduleSpec(
+                    [PhaseSpec(name) for name in ('learn', 'forecast', 'predict', 'decide')],
+                ),
             ),
-        ),
-    )
+        )

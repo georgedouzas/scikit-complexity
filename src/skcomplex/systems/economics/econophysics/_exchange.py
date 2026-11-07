@@ -9,9 +9,8 @@ from sage.all__sagemath_symbolics import NN
 
 from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import TransferInteraction
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class TraderElement(Element):
@@ -45,38 +44,53 @@ class TraderElement(Element):
         self.wealth = wealth
 
 
-@register_system(
-    field='economics/econophysics',
-    tags=('wealth', 'agents', 'exchange'),
-    references=('Dragulescu and Yakovenko 2000',),
-    defaults={'until': 100},
-)
-def boltzmann_wealth(n_agents: int = 100) -> System:
-    """Return a Boltzmann wealth exchange system where every agent starts with one unit.
+class BoltzmannWealthSystem(BaseSystem):
+    """A Boltzmann wealth exchange system where every agent starts with one unit.
 
-    Every step, every agent with any wealth gives one unit to another agent drawn at random, in random order.
+    Every step, every agent with any wealth gives one unit to another agent drawn at random, in random order. The system
+    has the group `traders` and the transfer `gifts`.
 
     Args:
         n_agents:
             The number of agents.
 
-    Returns:
-        system:
-            The system, with the group `traders` and the transfer `gifts`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.economics.econophysics import boltzmann_wealth
-        >>> boltzmann_wealth(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.economics.econophysics import BoltzmannWealthSystem
+        >>> BoltzmannWealthSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    gifts = TransferInteraction(
-        'gifts',
-        source='traders',
-        target='traders',
-        state='wealth',
-        amount=1.0,
-        pairing='random',
-        guard=lambda giver, receiver, system: giver.wealth > 0,
-        form='agent',
-    )
-    return System(elements=[GroupElement('traders', element=TraderElement, size=n_agents)], interactions=[gifts])
+
+    field = 'economics/econophysics'
+    topics = ('wealth', 'agents', 'exchange')
+    references = ('Dragulescu and Yakovenko 2000',)
+    until = 100
+
+    def __init__(
+        self,
+        n_agents: int = 100,
+        *,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+
+    def _build_system(self) -> System:
+        """Return the parts of the system built from its model parameters."""
+        gifts = TransferInteraction(
+            'gifts',
+            source='traders',
+            target='traders',
+            state='wealth',
+            amount=1.0,
+            pairing='random',
+            guard=lambda giver, receiver, system: giver.wealth > 0,
+            form='agent',
+        )
+        return System(
+            self.label,
+            elements=[GroupElement('traders', element=TraderElement, size=self.n_agents)],
+            interactions=[gifts],
+        )

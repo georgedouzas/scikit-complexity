@@ -15,9 +15,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.economics.econophysics import KolkataRestaurantSystem
 
 SYSTEM = 'kolkata_restaurant'
 EVENINGS = 100
@@ -34,8 +34,8 @@ blueprint = rrb.Blueprint(
     collapse_panels=True,
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
-system = create_system(SYSTEM, n_agents=200, strategy='crowd_avoiding', random_state=0)
-simulation = Simulation(system, observers=[observer], random_state=0).prepare().run(until=EVENINGS)
+system = KolkataRestaurantSystem(n_agents=200, strategy='crowd_avoiding', random_state=0)
+trajectory = simulate(system, until=EVENINGS, observers=[observer], random_state=0)
 
 # %%
 # Utilization of the two strategies
@@ -44,15 +44,15 @@ simulation = Simulation(system, observers=[observer], random_state=0).prepare().
 # `1 - 1/e ~ 0.632` of the restaurants. Ghosh, Chatterjee, Mitra, and Chakrabarti found about 0.8 for the stochastic
 # crowd avoiding strategy, reached within a few evenings.
 
-random = (
-    Simulation(create_system(SYSTEM, n_agents=200, strategy='random', random_state=0), random_state=0)
-    .prepare()
-    .run(EVENINGS)
+random = simulate(
+    KolkataRestaurantSystem(n_agents=200, strategy='random', random_state=0),
+    until=EVENINGS,
+    random_state=0,
 )
 fig, ax = plt.subplots(figsize=(7, 4))
-times = simulation.trajectory_.times
-for label, run in [('random', random), ('crowd avoiding', simulation)]:
-    values = run.trajectory_.values('restaurants.utilization')
+times = trajectory.times
+for label, run in [('random', random), ('crowd avoiding', trajectory)]:
+    values = run.values('restaurants.utilization')
     ax.plot(times, values, lw=0.8, label=f'{label}, mean {np.nanmean(values[20:]):.3f}')
 ax.axhline(1 - 1 / np.e, color='C0', linestyle='--', label='1 - 1/e')
 ax.axhline(0.8, color='C1', linestyle='--', label='0.8')
