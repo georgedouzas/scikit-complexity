@@ -15,9 +15,8 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import NeighborInteraction
 from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.oscillators import PhaseOscillatorElement
 
 
@@ -90,6 +89,8 @@ class AdaptiveCouplingInteraction(NeighborInteraction):
         0.01
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -128,30 +129,16 @@ class AdaptiveCouplingInteraction(NeighborInteraction):
         ]
 
 
-@register_system(
-    field='physics/synchronization',
-    tags=('synchronization', 'adaptive network', 'frequency clusters', 'phase', 'ode'),
-    references=('Berner et al. 2023', 'Berner et al. 2019', 'Kasatkin et al. 2017'),
-    defaults={'until': 2000.0, 'dt': 1.0},
-)
-def adaptive_kuramoto(
-    n_oscillators: int = 50,
-    *,
-    alpha: float = 0.3 * math.pi,
-    beta: float = 0.23 * math.pi,
-    epsilon: float = 0.01,
-    omega: float = 0.0,
-    seed: int = 0,
-) -> System:
-    """Return globally coupled phase oscillators whose coupling weights adapt to their phase differences.
+class AdaptiveKuramotoSystem(BaseSystem):
+    """Globally coupled phase oscillators whose coupling weights adapt to their phase differences.
 
     The oscillators follow the Kuramoto-Sakaguchi model `theta_i' = omega - (1 / N) Σ_j kappa_ij sin(theta_i - theta_j +
-    alpha)`, and every weight of the directed link from `j` to `i` adapts as
-    `kappa_ij' = -epsilon (kappa_ij + sin(theta_i - theta_j + beta))`, Eqs. 28-29 of Berner et al. The weights are
-    states of a group on the edges of the complete directed graph. Even identical oscillators split into frequency
-    clusters: groups whose members share one mean frequency, strongly coupled within and weakly coupled across, with
-    the weights inside a cluster near `-sin(theta_i - theta_j + beta)`. The phases and the weights start uniformly at
-    random in `[0, 2 pi)` and `[-1, 1]`.
+    alpha)`, and every weight of the directed link from `j` to `i` adapts as `kappa_ij' = -epsilon (kappa_ij +
+    sin(theta_i - theta_j + beta))`, Eqs. 28-29 of Berner et al. The weights are states of a group on the edges of the
+    complete directed graph. Even identical oscillators split into frequency clusters: groups whose members share one
+    mean frequency, strongly coupled within and weakly coupled across, with the weights inside a cluster near
+    `-sin(theta_i - theta_j + beta)`. The phases and the weights start uniformly at random in `[0, 2 pi)` and `[-1, 1]`.
+    The system has the phases `nodes.theta` and the weights `links.kappa`, one per directed link.
 
     Args:
         n_oscillators:
@@ -172,40 +159,67 @@ def adaptive_kuramoto(
         seed:
             The seed of the random initial phases and weights.
 
-    Returns:
-        system:
-            The system, with the phases `nodes.theta` and the weights `links.kappa`, one per directed link.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.synchronization import adaptive_kuramoto
-        >>> adaptive_kuramoto(5).elements[1].prepare().size_
+        >>> from skcomplex.systems.physics.synchronization import AdaptiveKuramotoSystem
+        >>> AdaptiveKuramotoSystem(5).prepare().system_.elements[1].prepare().size_
         20
     """
-    rng = np.random.default_rng(seed)
-    graph = nx.complete_graph(n_oscillators, create_using=nx.DiGraph)
-    space = NetworkSpace(graph)
-    nodes = GroupElement(
-        'nodes',
-        element=PhaseOscillatorElement,
-        space=space,
-        on='sites',
-        values={'theta': rng.uniform(0.0, 2 * math.pi, n_oscillators), 'omega': omega},
-        visual=VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi}),
-    )
-    links = GroupElement(
-        'links',
-        element=AdaptiveLinkElement,
-        space=space,
-        on='edges',
-        values={'kappa': rng.uniform(-1.0, 1.0, graph.number_of_edges())},
-    )
-    adaptation = AdaptiveCouplingInteraction(
-        'adaptation',
-        nodes='nodes',
-        links='links',
-        K=1 / n_oscillators,
-        alpha=alpha,
-        beta=beta,
-        epsilon=epsilon,
-    )
-    return System(elements=[nodes, links], interactions=[adaptation])
+
+    field = 'physics/synchronization'
+    topics = ('synchronization', 'adaptive network', 'frequency clusters', 'phase', 'ode')
+    references = ('Berner et al. 2023', 'Berner et al. 2019', 'Kasatkin et al. 2017')
+    until = 2000.0
+    dt = 1.0
+
+    def __init__(
+        self,
+        n_oscillators: int = 50,
+        *,
+        alpha: float = 0.3 * math.pi,
+        beta: float = 0.23 * math.pi,
+        epsilon: float = 0.01,
+        omega: float = 0.0,
+        seed: int = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_oscillators = n_oscillators
+        self.alpha = alpha
+        self.beta = beta
+        self.epsilon = epsilon
+        self.omega = omega
+        self.seed = seed
+
+    def _build_system(self) -> System:
+        """Return globally coupled phase oscillators whose coupling weights adapt to their phase differences."""
+        rng = np.random.default_rng(self.seed)
+        graph = nx.complete_graph(self.n_oscillators, create_using=nx.DiGraph)
+        space = NetworkSpace(graph)
+        nodes = GroupElement(
+            'nodes',
+            element=PhaseOscillatorElement,
+            space=space,
+            on='sites',
+            values={'theta': rng.uniform(0.0, 2 * math.pi, self.n_oscillators), 'omega': self.omega},
+            visual=VisualSpec('sites', {'states': ['theta'], 'low': 0.0, 'high': 2 * math.pi}),
+        )
+        links = GroupElement(
+            'links',
+            element=AdaptiveLinkElement,
+            space=space,
+            on='edges',
+            values={'kappa': rng.uniform(-1.0, 1.0, graph.number_of_edges())},
+        )
+        adaptation = AdaptiveCouplingInteraction(
+            'adaptation',
+            nodes='nodes',
+            links='links',
+            K=1 / self.n_oscillators,
+            alpha=self.alpha,
+            beta=self.beta,
+            epsilon=self.epsilon,
+        )
+        return System(self.label, elements=[nodes, links], interactions=[adaptation])

@@ -3,19 +3,16 @@
 import numpy as np
 
 from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems import describe
-from skcomplex.systems.physics.synchronization import topological_kuramoto
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.physics.synchronization import TopologicalKuramotoSystem
 
 SYNCHRONIZATION_GAP = 0.3
 
 
 def _final_order(coupling):
     """Return the mean over the last frames of the order parameter of the link phases of a run at a coupling."""
-    system = topological_kuramoto(coupling=coupling)
-    observables = describe('topological_kuramoto').observables_of(system)
-    simulation = Simulation(system, dt=0.2, observables=observables).prepare().run(until=40.0)
-    return float(np.mean(simulation.trajectory_.values('link_order')[-20:]))
+    trajectory = simulate(TopologicalKuramotoSystem(coupling=coupling), until=40.0, dt=0.2)
+    return float(np.mean(trajectory.values('link_order')[-20:]))
 
 
 def test_link_synchronization_grows_with_coupling():
@@ -28,7 +25,7 @@ def test_rates_follow_the_incidence_of_the_complex():
 
     6 of the review.
     """
-    system = topological_kuramoto(8, density=0.8, coupling=1.5)
+    system = TopologicalKuramotoSystem(8, density=0.8, coupling=1.5).prepare().system_
     problem = PassCompiler().prepare(system).run().problem_
     state = problem.initial_state
     rates = problem.drift(0.0, state, problem.initial_parameters)
@@ -51,7 +48,7 @@ def test_nodes_links_triangles_rates_follow_eq_8_of_the_review():
 
     8.
     """
-    system = topological_kuramoto(8, density=0.8, coupling=1.5, model='NLT')
+    system = TopologicalKuramotoSystem(8, density=0.8, coupling=1.5, model='NLT').prepare().system_
     problem = PassCompiler().prepare(system).run().problem_
     state = problem.initial_state
     rates = problem.drift(0.0, state, problem.initial_parameters)
@@ -72,9 +69,7 @@ def test_nodes_links_triangles_system_stays_incoherent_where_the_nodes_links_sys
     """Test that at a weak coupling the nodes synchronize in the Nodes-Links system but not with the triangles."""
     orders = {}
     for model in ('NL', 'NLT'):
-        system = topological_kuramoto(coupling=0.5, model=model)
-        observables = describe('topological_kuramoto').observables_of(system)
-        simulation = Simulation(system, dt=0.2, observables=observables).prepare().run(until=40.0)
-        orders[model] = float(np.mean(simulation.trajectory_.values('node_order')[-20:]))
+        trajectory = simulate(TopologicalKuramotoSystem(coupling=0.5, model=model), until=40.0, dt=0.2)
+        orders[model] = float(np.mean(trajectory.values('node_order')[-20:]))
     assert orders['NL'] > 0.9
     assert orders['NLT'] < 0.4

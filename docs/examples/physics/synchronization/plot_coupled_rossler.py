@@ -13,15 +13,15 @@ lock their phases: the phase difference stays bounded instead of drifting, chaot
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.synchronization import CoupledRosslerSystem
 
 SYSTEM = 'coupled_rossler'
 
-system = create_system(SYSTEM, n_oscillators=2, k=0.06, mismatch=0.02, seed=0)
+system = CoupledRosslerSystem(n_oscillators=2, k=0.06, mismatch=0.02, seed=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(until=100)
+trajectory = simulate(system, dt=0.2, observers=[observer])
 
 # %%
 # Phase difference
@@ -32,18 +32,14 @@ simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(unti
 
 fig, ax = plt.subplots(figsize=(6, 4))
 for coupling in [0.0, 0.02, 0.06]:
-    run = (
-        Simulation(create_system(SYSTEM, n_oscillators=2, k=coupling, mismatch=0.02, seed=0), dt=0.1)
-        .prepare()
-        .run(until=500)
-    )
+    run = simulate(CoupledRosslerSystem(n_oscillators=2, k=coupling, mismatch=0.02, seed=0), until=500)
     phases = [
         np.unwrap(
-            np.arctan2(np.ravel(run.trajectory_.values(f'{name}.x2')), np.ravel(run.trajectory_.values(f'{name}.x1'))),
+            np.arctan2(np.ravel(run.values(f'{name}.x2')), np.ravel(run.values(f'{name}.x1'))),
         )
         for name in ('oscillator_0', 'oscillator_1')
     ]
-    ax.plot(run.trajectory_.times, (phases[1] - phases[0]) / (2 * np.pi), label=f'k = {coupling}')
+    ax.plot(run.times, (phases[1] - phases[0]) / (2 * np.pi), label=f'k = {coupling}')
 ax.set_xlabel('time')
 ax.set_ylabel('phase difference (turns)')
 ax.set_title('Phase locking of two chaotic oscillators')
