@@ -22,6 +22,7 @@ from ._culture import (
 )
 from ._metabolic_network import MetabolicNetworkElement, metabolic_network_type
 from ._reaction_spec import ReactionSpec
+from ._toy_network import ToyNetworkElement
 
 __all__: list[str] = [
     'BaseNetworkAnalysis',
@@ -40,6 +41,7 @@ __all__: list[str] = [
     'StrainDesignAnalysis',
     'SubstrateElement',
     'SwitchInteraction',
+    'ToyNetworkElement',
     'community_medium_type',
     'from_cobra',
     'load_extra',

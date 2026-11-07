@@ -20,7 +20,8 @@ from ....core.errors import ValidationError
 from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
 from ..common.spins import SpinSamplingInteraction
-from ._fully_connected_spins import SPIN_IMAGE
+
+SPIN_IMAGE = VisualSpec('image', {'states': ('spin',), 'low': -1.0, 'high': 1.0})
 
 
 class BondSpinElement(Element):

@@ -1,6 +1,7 @@
 """Mechanics: pendulums, oscillators, friction, projectiles, collisions, rotating bodies, wells, and beam maps."""
 
 from ..common.mechanics import PendulumElement, PendulumInteraction
+from ..common.particles import HarmonicForceInteraction
 from ._accelerators import BeamElement, FrictionOscillatorElement, beam_beam_map, friction_oscillator
 from ._mechanics import (
     BouncingBallElement,
@@ -46,7 +47,7 @@ from ._rotations import (
     rotating_balls_on_rods,
     rotating_swing,
 )
-from ._springs import HarmonicForceInteraction, two_mass_spring_damper
+from ._springs import two_mass_spring_damper
 from ._wells import ExponentialWellInteraction, particle_in_a_well
 
 __all__: list[str] = [

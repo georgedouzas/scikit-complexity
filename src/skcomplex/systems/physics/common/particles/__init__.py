@@ -5,6 +5,7 @@ from ._brownian_particle import BrownianParticleElement
 from ._constant_force import ConstantForceInteraction
 from ._damping import DampingInteraction
 from ._double_well import DoubleWellElement
+from ._harmonic_force import HarmonicForceInteraction
 from ._harmonic_potential import HarmonicPotentialInteraction
 from ._lammps import LAMMPS_FIXES, LAMMPS_PAIRS
 from ._langevin_thermostat import LangevinThermostatInteraction
@@ -25,6 +26,7 @@ __all__: list[str] = [
     'ConstantForceInteraction',
     'DampingInteraction',
     'DoubleWellElement',
+    'HarmonicForceInteraction',
     'HarmonicPotentialInteraction',
     'LangevinThermostatInteraction',
     'LennardJonesInteraction',
