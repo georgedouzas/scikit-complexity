@@ -33,14 +33,25 @@ from ._supervisor import SupervisorElement
 from ._task import TaskElement
 from ._task_view import TaskView
 from ._trafficking import trafficking
-from ._traps import escalation, shifting_the_burden, success_to_the_successful
+from ._performance import PerformanceElement
+from ._standoff import StandoffElement
+from ._traps import (
+    drift_to_low_performance,
+    escalation,
+    policy_resistance,
+    shifting_the_burden,
+    success_to_the_successful,
+)
 from ._traveller import TravellerElement
 from ._traveller_view import TravellerView
 from ._urban_interactions import urban_scaling_interactions
 from ._urban_scaling import gravity_urban_scaling
+from ._watchmaker_view import WatchmakerView
+from ._watchmakers import AssemblyInteraction, WatchmakerElement, watchmakers
 
 __all__: list[str] = [
     'ArmsRaceElement',
+    'AssemblyInteraction',
     'BurdenElement',
     'CityDwellerElement',
     'CityResidentElement',
@@ -55,6 +66,7 @@ __all__: list[str] = [
     'EmployeeView',
     'ExecutionInteraction',
     'GravityContactInteraction',
+    'PerformanceElement',
     'PlaceVisitsInteraction',
     'PremisesElement',
     'PremisesView',
@@ -63,14 +75,18 @@ __all__: list[str] = [
     'RestaurantElement',
     'RestaurantView',
     'SentimentInteraction',
+    'StandoffElement',
     'SupervisorElement',
     'TaskElement',
     'TaskView',
     'TravellerElement',
     'TravellerView',
+    'WatchmakerElement',
+    'WatchmakerView',
     'WorkplaceElement',
     'basal_metabolic_rate',
     'bonabeau_hierarchies',
+    'drift_to_low_performance',
     'employment_takeover',
     'escalation',
     'gravity_urban_scaling',
@@ -79,9 +95,11 @@ __all__: list[str] = [
     'load_island_layers',
     'load_island_populations',
     'obesity',
+    'policy_resistance',
     'priority_queues',
     'shifting_the_burden',
     'success_to_the_successful',
     'trafficking',
     'urban_scaling_interactions',
+    'watchmakers',
 ]
