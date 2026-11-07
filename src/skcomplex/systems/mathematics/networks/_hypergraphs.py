@@ -13,16 +13,15 @@ from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement, LatticeElement
-from ....core.components.interactions import HyperedgeInteraction, TopologyInteraction
+from ....core.components.interactions import HyperedgeInteraction, MapInteraction, TopologyInteraction
 from ....core.components.laws import BaseLaw, RateLaw, UpdateLaw
-from ....core.components.laws.utils import total
+from ....core.components.laws.utils import neighbors, total
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.system import System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
 from ..common._link import LinkElement
 from ..common._vertex import VertexElement
-from ._growth import _get_bookkeeping
 
 
 class SimplexElement(Element):
@@ -163,6 +162,14 @@ class SizeBiasedMoveInteraction(HyperedgeInteraction):
         member = s.member
         inflow = total(s.members.p / s.members.D, over=s.members) - member.p / member.D
         return [RateLaw(member.p, weight * inflow - weight**2 * member.p / member.D)]
+
+
+def _get_bookkeeping() -> list[MapInteraction]:
+    """Return the maps that age every node and read its degree from the edges at the start of a step."""
+    return [
+        MapInteraction('ageing', target='nodes', state='age', function=lambda s: 1, mode='increment'),
+        MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1)),
+    ]
 
 
 @register_system(
