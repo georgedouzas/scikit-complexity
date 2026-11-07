@@ -1,5 +1,6 @@
 """Markets: prices, competition, retail, inventories, queues, and barter of Cobb-Douglas traders on trade networks."""
 
+from ._adaptive_auction import AdaptiveAuctionInteraction, AdaptiveTraderElement, gooding_double_auction
 from ._auction_ledger import AuctionLedgerInteraction, maximum_surplus
 from ._barter import BartererElement, barter, contract_curve
 from ._barter_networks import wilhite_trade_networks
@@ -23,11 +24,13 @@ from ._exchange import cobb_douglas, marginal_rate, trade_goods
 from ._exchange_interaction import ExchangeInteraction
 from ._factory import FactoryElement
 from ._fair_food import ConsumerElement, fair_food
+from ._fair_food_program import FairFoodMarketInteraction, ProgramMemberElement, fair_food_program
 from ._forager import ForagerElement
 from ._goods_trader import GoodsTraderElement
 from ._goods_traders import goods_traders
 from ._heuristic_pricing import HeuristicPricingInteraction
 from ._heuristic_trader import HeuristicTraderElement
+from ._household_demand import BudgetHouseholdElement, household_demand
 from ._inventory import CarDealershipElement, car_dealer
 from ._jobseeker import JobseekerElement
 from ._labour import hire, labour_market
@@ -53,16 +56,20 @@ from ._sugarscape import sugarscape
 from ._supply_chains import beer_game
 from ._supply_link import SupplyLinkInteraction
 from ._till import TillElement
+from ._toy_trader import ToyMarketInteraction, ToyTraderElement, toy_trader
 from ._washer import WasherElement
 from ._zero_intelligence_buyer import ZeroIntelligenceBuyerElement
 from ._zero_intelligence_seller import ZeroIntelligenceSellerElement
 
 __all__: list[str] = [
+    'AdaptiveAuctionInteraction',
+    'AdaptiveTraderElement',
     'AuctionLedgerInteraction',
     'BarterTraderElement',
     'BartererElement',
     'BilateralBarterInteraction',
     'BreweryInteraction',
+    'BudgetHouseholdElement',
     'CarDealershipElement',
     'CarElement',
     'CarWashOperationInteraction',
@@ -77,6 +84,7 @@ __all__: list[str] = [
     'EmployerElement',
     'ExchangeInteraction',
     'FactoryElement',
+    'FairFoodMarketInteraction',
     'ForagerElement',
     'GoodsTraderElement',
     'HeuristicPricingInteraction',
@@ -87,6 +95,7 @@ __all__: list[str] = [
     'PricingFirmElement',
     'PricingGameSpec',
     'ProductElement',
+    'ProgramMemberElement',
     'QuadraticSupplyMarketElement',
     'ResidentElement',
     'RetailDemandInteraction',
@@ -97,6 +106,8 @@ __all__: list[str] = [
     'SugarPatchElement',
     'SupplyLinkInteraction',
     'TillElement',
+    'ToyMarketInteraction',
+    'ToyTraderElement',
     'WasherElement',
     'ZeroIntelligenceBuyerElement',
     'ZeroIntelligenceSellerElement',
@@ -112,8 +123,11 @@ __all__: list[str] = [
     'cournot_duopoly',
     'double_auction',
     'fair_food',
+    'fair_food_program',
+    'gooding_double_auction',
     'goods_traders',
     'hire',
+    'household_demand',
     'labour_market',
     'marginal_rate',
     'maximum_surplus',
@@ -123,6 +137,7 @@ __all__: list[str] = [
     'riccati_prices',
     'shops',
     'sugarscape',
+    'toy_trader',
     'trade_goods',
     'wilhite_trade_networks',
 ]
