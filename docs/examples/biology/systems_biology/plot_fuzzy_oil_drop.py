@@ -14,7 +14,7 @@ how far the environment departs from water.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import ShapeAnalysis
+from skcomplex.core.analysis import chain_shape
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system, describe
@@ -71,7 +71,7 @@ folded = Simulation(folding, random_state=0).prepare().run(until=200).trajectory
 geometry = BackboneGeometry(structure).prepare()
 angles = folded.lattice('chain.angle').astype(float)[:, 0]
 chains = np.array([geometry.run(row).read_effective_atoms() for row in angles[::20]])
-radii = ShapeAnalysis().prepare(chains).run().values_
+radii = chain_shape(chains).values
 
 fig, (score, size) = plt.subplots(1, 2, figsize=(11, 4))
 score.plot(folded.times, folded.values('folding.score')[:, 0])

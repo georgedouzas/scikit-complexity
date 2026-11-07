@@ -16,7 +16,7 @@ from scipy.optimize import lsq_linear
 from sklearn.base import TransformerMixin
 from sklearn.preprocessing import PolynomialFeatures
 
-from ....core.analysis import ModeDecompositionAnalysis
+from ....core.analysis import ModeDecompositionResult, mode_decomposition
 from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction, RateInteraction
 from ....core.components.spaces import ContinuousTime, DiscreteTime
@@ -192,7 +192,7 @@ class _PredictiveProblem:
 
     def __init__(
         self,
-        surrogate: ModeDecompositionAnalysis,
+        surrogate: ModeDecompositionResult,
         *,
         output: int,
         horizon: int,
@@ -214,7 +214,7 @@ class _PredictiveProblem:
             problem:
                 The problem.
         """
-        operator, input_matrix = self.surrogate.operator_, self.surrogate.input_matrix_
+        operator, input_matrix = self.surrogate.operator, self.surrogate.input_matrix
         readout = np.eye(len(operator))[self.output]
         free = np.zeros((self.horizon, len(operator)))
         forced = np.zeros((self.horizon, self.horizon))
@@ -242,7 +242,7 @@ class _PredictiveProblem:
                 The first input, between -1 and 1.
         """
         lifted = np.asarray(states, dtype=float)[None, :]
-        dictionary = self.surrogate.dictionary_
+        dictionary = self.surrogate.dictionary
         current = lifted[0] if dictionary is None else np.asarray(dictionary.transform(lifted), dtype=float)[0]
         goals = np.asarray([self.reference((t + index + 1) * self.step) for index in range(self.horizon)])
         problem = np.vstack([self.forced_, math.sqrt(self.weight) * np.eye(self.horizon)])
@@ -340,7 +340,7 @@ def koopman_model_predictive_control(
     """Return a plant that a discrete-time controller steers with model predictive control on a fitted surrogate.
 
     The factory runs the plant under a random binary input at the limits of its range, drawn every sample, and fits
-    `ModeDecompositionAnalysis` with the input to the runs. The controller lifts the states with the dictionary,
+    `mode_decomposition` with the input to the runs. The controller lifts the states with the dictionary,
     condenses the quadratic tracking cost over the horizon with the matrices of the surrogate, solves the bounded least
     squares problem with `scipy.optimize.lsq_linear`, and sets the input to the first value of the solution. The
     plant reads the input through a role, and `CoSimulationSolver` holds it between samples. The plants are those of
@@ -422,14 +422,14 @@ def _fit_problem(
 ) -> _PredictiveProblem:
     """Return the tracking problem of a plant on the surrogate fitted to its training runs."""
     rng = np.random.default_rng(random_state)
-    surrogate = ModeDecompositionAnalysis(
-        ['plant.x', 'plant.y'],
+    surrogate = mode_decomposition(
+        [_run_training(case, duration, rng) for _ in range(n_runs)],
+        variables=['plant.x', 'plant.y'],
         inputs=['input.u'],
         dictionary=PolynomialFeatures(3, include_bias=False) if dictionary is None else dictionary,
         validation=0.0,
     )
-    surrogate.prepare([_run_training(case, duration, rng) for _ in range(n_runs)]).run()
-    output = surrogate.labels_.index('plant.y')
+    output = surrogate.labels.index('plant.y')
     return _PredictiveProblem(
         surrogate,
         output=output,

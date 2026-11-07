@@ -52,7 +52,7 @@ def tap_catalysis(
     other good catalyses its production, each with the probability `pc`, as directed edges from the catalyst to the
     good. Algorithm 1 draws a Poisson number of goods of every order per step from the rates at its start, and the
     process here draws them one at a time from the rates at that time. The initial goods are the food set, and
-    `AutocatalyticSetAnalysis` finds the largest autocatalytic set of the production functions, which exists in about
+    `autocatalytic_sets` finds the largest autocatalytic set of the production functions, which exists in about
     half the runs at `pc = 0.0044` and then tends to hold most of the network.
 
     Args:

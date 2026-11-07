@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import AutocatalyticSetAnalysis
+from skcomplex.core.analysis import autocatalytic_sets
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import TopologyInteraction
 from skcomplex.core.components.spaces import DiscreteTime, NetworkSpace
@@ -24,26 +24,26 @@ def _snapshot(sources, targets):
 
 def test_largest_raf_holds_the_catalysed_reactions_reachable_from_the_food_set():
     """Test that the largest RAF holds the reactions catalysed within it, and leaves out one without a catalyst."""
-    analysis = AutocatalyticSetAnalysis().prepare(_snapshot([3, 4, 0], [2, 3, 4])).run()
-    assert analysis.reactions_[0].tolist() == [0, 1, 2]
-    assert analysis.products_[0].tolist() == [2, 3, 4]
-    assert analysis.sizes_.tolist() == [3]
-    assert analysis.fractions_.tolist() == [0.75]
-    assert analysis.exists_.tolist() == [True]
+    analysis = autocatalytic_sets(_snapshot([3, 4, 0], [2, 3, 4]))
+    assert analysis.reactions[0].tolist() == [0, 1, 2]
+    assert analysis.products[0].tolist() == [2, 3, 4]
+    assert analysis.sizes.tolist() == [3]
+    assert analysis.fractions.tolist() == [0.75]
+    assert analysis.exists.tolist() == [True]
 
 
 def test_largest_raf_removes_reactions_whose_catalyst_is_lost():
     """Test that a reaction without a catalyst takes the reactions that need its product with it."""
-    analysis = AutocatalyticSetAnalysis().prepare(_snapshot([3, 4], [2, 3])).run()
-    assert analysis.sizes_.tolist() == [0]
-    assert analysis.exists_.tolist() == [False]
+    analysis = autocatalytic_sets(_snapshot([3, 4], [2, 3]))
+    assert analysis.sizes.tolist() == [0]
+    assert analysis.exists.tolist() == [False]
 
 
 def test_food_set_can_be_given():
     """Test that a given food set replaces the nodes that no reaction produces."""
     snapshot = _snapshot([3, 4, 0, 1], [2, 3, 4, 6])
-    assert AutocatalyticSetAnalysis().prepare(snapshot).run().reactions_[0].tolist() == [0, 1, 2, 3]
-    assert AutocatalyticSetAnalysis(food=[0, 1]).prepare(snapshot).run().reactions_[0].tolist() == [0, 1, 2]
+    assert autocatalytic_sets(snapshot).reactions[0].tolist() == [0, 1, 2, 3]
+    assert autocatalytic_sets(snapshot, food=[0, 1]).reactions[0].tolist() == [0, 1, 2]
 
 
 def test_reads_the_frames_of_a_trajectory_and_rejects_other_sources():
@@ -62,8 +62,8 @@ def test_reads_the_frames_of_a_trajectory_and_rejects_other_sources():
     space = NetworkSpace(nx.empty_graph(3, create_using=nx.DiGraph))
     system = System(elements=[nodes, links, groups], interactions=[growth], space=space, time=DiscreteTime())
     trajectory = Simulation(system, random_state=0).prepare().run(until=20).trajectory_
-    analysis = AutocatalyticSetAnalysis(frames=[0, -1]).prepare(trajectory).run()
-    assert analysis.sizes_[0] == 0
-    assert analysis.sizes_[1] > 10
+    analysis = autocatalytic_sets(trajectory, frames=[0, -1])
+    assert analysis.sizes[0] == 0
+    assert analysis.sizes[1] > 10
     with pytest.raises(AnalysisError, match='network snapshot'):
-        AutocatalyticSetAnalysis().prepare(nx.path_graph(3))
+        autocatalytic_sets(nx.path_graph(3))

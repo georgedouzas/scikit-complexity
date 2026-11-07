@@ -126,7 +126,7 @@ def gravity_urban_scaling(
 
     The disc has the area `N^alpha`, so the total interaction of a city grows as `N^(2 - alpha gamma / 2)` for
     `gamma < 2`, which with the population dimension `D_P = 2 / alpha` is the exponent `2 - gamma / D_P` of Ribeiro and
-    Netto (2024 §4). An `Experiment` sweeps `population` and fits the exponent with `ScalingAnalysis(kind='power')`.
+    Netto (2024 §4). An `Experiment` sweeps `population` and fits the exponent with `scaling(kind='power')`.
 
     Args:
         population:

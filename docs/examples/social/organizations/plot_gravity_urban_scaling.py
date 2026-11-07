@@ -13,7 +13,7 @@ increasing returns of urban scaling.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import ScalingAnalysis
+from skcomplex.core.analysis import scaling
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import Experiment, GridDesign
@@ -30,7 +30,7 @@ simulation = Simulation(system, observers=[observer], observables=observables).p
 # %%
 # Total interaction against the population
 # ----------------------------------------
-# An `Experiment` sweeps the population, and `ScalingAnalysis(kind='power')` fits the exponent.
+# An `Experiment` sweeps the population, and `scaling(kind='power')` fits the exponent.
 
 populations = [100, 200, 400, 800]
 bounds = {'population': populations, 'gamma': [1.0]}
@@ -43,8 +43,8 @@ experiment = Experiment(
     observables=observables,
 )
 totals = experiment.prepare().run().result_.series('total_contacts')[:, 0]
-scaling = ScalingAnalysis('power', parameters=populations, critical=0.0, above=True)
-exponent = float(np.ravel(scaling.prepare(totals).run().exponent_)[0])
+fit = scaling(totals, kind='power', parameters=populations, critical=0.0, above=True)
+exponent = float(np.ravel(fit.exponent)[0])
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.loglog(populations, totals, 'o', label=f'fitted exponent {exponent:.2f}')
 ax.loglog(populations, totals[0] * (np.array(populations) / populations[0]) ** 1.5, color='black', label='exponent 1.5')

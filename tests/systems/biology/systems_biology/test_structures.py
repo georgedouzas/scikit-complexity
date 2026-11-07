@@ -6,7 +6,7 @@ import warnings
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import ShapeAnalysis
+from skcomplex.core.analysis import chain_shape
 from skcomplex.core.errors import AnalysisError, ValidationError
 from skcomplex.systems.biology.systems_biology import (
     BackboneGeometry,
@@ -125,7 +125,7 @@ def test_backbone_round_trip_through_internal_coordinates():
     structure = read_structure('1UBQ')
     geometry = BackboneGeometry(structure).prepare()
     positions = geometry.run(geometry.angles_).positions_
-    deviation = ShapeAnalysis('rmsd', reference=structure.coordinates[0]).prepare(positions[None]).run().values_
+    deviation = chain_shape(positions[None], kind='rmsd', reference=structure.coordinates[0]).values
     assert deviation[0] < 0.01
 
 

@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import CellComplexAnalysis
+from skcomplex.core.analysis import cell_complex
 from skcomplex.core.errors import ValidationError
 from skcomplex.systems import create_simulation, create_system
 from skcomplex.systems.social.opinion_dynamics import gauge_network_agents
@@ -27,9 +27,9 @@ def test_curvature_and_betti_numbers_read_the_connection():
         system = create_system('gauge_network_agents', flux=flux)
         links = system.elements[1]
         space = links.space
-        curvature = CellComplexAnalysis('curvature', space=space).prepare(links.values['A']).run()
-        assert curvature.share_[0] == curved
-    assert CellComplexAnalysis('betti', space=space).prepare().run().betti_ == (1, 0, 0)
+        curvature = cell_complex(links.values['A'], kind='curvature', space=space)
+        assert curvature.share[0] == curved
+    assert cell_complex(None, kind='betti', space=space).betti == (1, 0, 0)
 
 
 def test_flux_needs_a_loop():

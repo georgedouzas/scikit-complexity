@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 import shapely
 
-from skcomplex.core.analysis import ScalingAnalysis
+from skcomplex.core.analysis import scaling
 from skcomplex.core.components.elements import PatchElement, WordElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import BaseLaw, ProductionLaw, SubstitutionLaw
@@ -466,8 +466,8 @@ def test_sierpinski_triangle_area():
 def test_gasket_box_counting():
     """Test the box-counting dimension of the raster of the Sierpiński triangle at generation 8."""
     grid = _sierpinski(8).structure('gasket', 8).raster(1024)
-    boxes = ScalingAnalysis('box-counting', scales=[4, 8, 16, 32, 64, 128]).prepare(grid).run()
-    assert boxes.exponent_ == pytest.approx(np.log(3) / np.log(2), abs=0.05)
+    boxes = scaling(grid, kind='box-counting', scales=[4, 8, 16, 32, 64, 128])
+    assert boxes.exponent == pytest.approx(np.log(3) / np.log(2), abs=0.05)
 
 
 def test_measures_and_raster_errors():

@@ -12,7 +12,7 @@ import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_symbolics import Expression
 
-from ....core.analysis import ReservoirAnalysis
+from ....core.analysis import ReservoirResult, reservoir
 from ....core.components.elements import DeclaredElement, Element
 from ....core.components.interactions import MapInteraction, RateInteraction
 from ....core.components.laws.utils import lag
@@ -135,11 +135,12 @@ def _fit_reservoir(
     standardize: bool,
     samples: int,
     step: float,
-) -> ReservoirAnalysis:
-    """Return the next-generation reservoir analysis fitted to a series, or to samples of the Lorenz flow."""
+) -> ReservoirResult:
+    """Return the next-generation reservoir fitted to a series, or to samples of the Lorenz flow."""
     values = _lorenz_series(samples, step) if series is None else series
-    analysis = ReservoirAnalysis(
-        list(variables),
+    return reservoir(
+        values,
+        variables=list(variables),
         kind=REQUIRED_KIND,
         delay=delay,
         order=order,
@@ -148,7 +149,6 @@ def _fit_reservoir(
         validation=0.0,
         dt=step,
     )
-    return analysis.prepare(values).run()
 
 
 @register_system(
@@ -160,7 +160,7 @@ def _fit_reservoir(
 def next_generation_reservoir(
     series: Array | None = None,
     *,
-    analysis: ReservoirAnalysis | None = None,
+    result: ReservoirResult | None = None,
     variables: Sequence[str] = LORENZ_VARIABLES,
     delay: int = 2,
     order: int = 2,
@@ -172,8 +172,8 @@ def next_generation_reservoir(
     """Return a next-generation reservoir computer whose variables follow the ridge readout of their monomials.
 
     Every variable keeps `delay - 1` lags, and one map in the increment mode adds to it the readout of the constant, the
-    variables with their lags, and the monomials of degree `order` of those. The readout comes from a fitted
-    `ReservoirAnalysis(kind='next_generation')`, and the variables start at the end of its last series, so a run is the
+    variables with their lags, and the monomials of degree `order` of those. The readout comes from the result of
+    `reservoir(kind='next_generation')`, and the variables start at the end of its last series, so a run is the
     autonomous forecast from there. One step of the system stands for one sample of the series. The defaults are those
     of Gauthier et al. (2021) for the Lorenz flow: 400 training samples after a warmup of 2, one sample every 0.025 from
     an explicit Runge-Kutta 3(2) integrator, and the ridge 2.5e-6 on features that are not standardized. A ridge this
@@ -185,8 +185,8 @@ def next_generation_reservoir(
             The training series, one row per sample and one column per variable, or `None` for `samples` samples of the
             Lorenz flow every `step`.
 
-        analysis:
-            A fitted next-generation reservoir analysis to take the readout from, which replaces the fit.
+        result:
+            The result of a next-generation `reservoir` to take the readout from, which replaces the fit.
 
         variables:
             The names of the columns of the series.
@@ -215,7 +215,7 @@ def next_generation_reservoir(
 
     Raises:
         ValidationError:
-            The analysis is not a next-generation reservoir.
+            The result is not that of a next-generation reservoir.
 
     Examples:
         >>> import numpy as np
@@ -225,7 +225,7 @@ def next_generation_reservoir(
         >>> [interaction.mode for interaction in system.interactions]
         ['increment']
     """
-    fitted = analysis or _fit_reservoir(
+    fitted = result or _fit_reservoir(
         series,
         variables,
         delay=delay,
@@ -235,16 +235,17 @@ def next_generation_reservoir(
         samples=samples,
         step=step,
     )
-    if fitted.kind != REQUIRED_KIND:
-        error_msg = f'The readout comes from a {REQUIRED_KIND!r} reservoir analysis, not from a {fitted.kind!r} one.'
+    if fitted.step.kind != REQUIRED_KIND:
+        error_msg = f'The readout comes from a {REQUIRED_KIND!r} reservoir, not from a {fitted.step.kind!r} one.'
         raise ValidationError(error_msg)
-    names = fitted.states_[: len(fitted.labels_)]
-    reservoir = fitted.step_
-    memory = fitted.samples_.series[-1][-fitted.delay :][::-1]
+    names = fitted.states[: len(fitted.labels)]
+    readout = fitted.step
+    delay = (len(fitted.states) - len(names)) // len(names)
+    memory = fitted.samples.series[-1][-delay:][::-1]
     initial = {name: memory[:, index].tolist() for index, name in enumerate(names)}
     element = _reservoir_element(initial)
-    weights = np.asarray(reservoir.readout.Wout, dtype=float)
-    bias = np.ravel(np.asarray(reservoir.readout.bias, dtype=float))
+    weights = np.asarray(readout.readout.Wout, dtype=float)
+    bias = np.ravel(np.asarray(readout.readout.bias, dtype=float))
     maps = [
         MapInteraction(
             name,
@@ -254,13 +255,13 @@ def next_generation_reservoir(
             function=functools.partial(
                 _increment,
                 names=names,
-                delay=fitted.delay,
-                powers=reservoir.monomials(),
+                delay=delay,
+                powers=readout.monomials(),
                 weights=weights[:, index],
                 bias=float(bias[index]),
-                mean=reservoir.mean,
-                scale=reservoir.scale,
-                spread=float(reservoir.scale[index]),
+                mean=readout.mean,
+                scale=readout.scale,
+                spread=float(readout.scale[index]),
             ),
         )
         for index, name in enumerate(names)

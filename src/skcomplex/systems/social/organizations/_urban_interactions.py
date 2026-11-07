@@ -120,7 +120,7 @@ def urban_scaling_interactions(
     constant.
     Every resident meets each neighbour with the probability `meeting` per step. The growth and the internal links stop
     when the city holds `population` residents, so one run time reaches every size. An `Experiment` sweeps `population`,
-    and `ScalingAnalysis(kind='allometric')` fits the exponent of the meetings, which Ribeiro and Netto (2024) review
+    and `scaling(kind='allometric')` fits the exponent of the meetings, which Ribeiro and Netto (2024) review
     near 1.15 for socioeconomic quantities, and which the rate `internal` sets here.
 
     Args:

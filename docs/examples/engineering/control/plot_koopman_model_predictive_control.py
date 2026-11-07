@@ -7,7 +7,7 @@ bounded least-squares problem at every sample. The primary view shows the forced
 """
 
 # %%
-# The factory fits `ModeDecompositionAnalysis(dictionary=PolynomialFeatures(3), inputs=['input.u'])` to 100 runs of
+# The factory fits `mode_decomposition(runs, dictionary=PolynomialFeatures(3), inputs=['input.u'])` to 100 runs of
 # 1000 samples each under a random binary input, as the review of Brunton et al. does. The system then nests the
 # controller under discrete time and the plant under continuous time, and `CoSimulationSolver` holds the input between
 # samples. One time unit of a run is one sample, 0.1 time units of the Duffing oscillator.

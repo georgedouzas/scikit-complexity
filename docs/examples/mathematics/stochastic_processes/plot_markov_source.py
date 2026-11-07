@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import EpsilonMachineAnalysis, entropy
+from skcomplex.core.analysis import entropy, epsilon_machine
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -72,14 +72,14 @@ plt.show()
 # statistical complexity is then the entropy of `pi`, about 0.722 bits, and its entropy rate is `h`.
 
 source = symbols.values('source.symbol').astype(int)
-machine = EpsilonMachineAnalysis(max_length=3).prepare(source).run()
-labels = [f'last symbol {state[0][-1]}' for state in machine.histories_]
+machine = epsilon_machine(source, max_length=3)
+labels = [f'last symbol {state[0][-1]}' for state in machine.histories]
 fig, occupancy = plt.subplots(figsize=(5, 4))
-occupancy.bar(labels, machine.stationary_)
+occupancy.bar(labels, machine.stationary)
 occupancy.set_ylabel('fraction of time')
 occupancy.set_title(
-    f'{len(machine.histories_)} causal states, $C_\\mu$ = {machine.statistical_complexity_:.3f} bits, '
-    f'$h_\\mu$ = {machine.entropy_rate_:.3f} bits',
+    f'{len(machine.histories)} causal states, $C_\\mu$ = {machine.statistical_complexity:.3f} bits, '
+    f'$h_\\mu$ = {machine.entropy_rate:.3f} bits',
     fontsize=10,
 )
 fig.tight_layout()

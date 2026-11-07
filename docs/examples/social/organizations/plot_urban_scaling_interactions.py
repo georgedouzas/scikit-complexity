@@ -14,7 +14,7 @@ Netto review near the exponent 1.15.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.analysis import ScalingAnalysis
+from skcomplex.core.analysis import scaling
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.experiments import Experiment, GridDesign
@@ -31,8 +31,8 @@ simulation = Simulation(system, observers=[observer], observables=observables, r
 # %%
 # Meetings against the population
 # -------------------------------
-# An `Experiment` sweeps the size of the city at three rates of internal links, and `ScalingAnalysis(kind='allometric')`
-# fits the exponent of the meetings with a confidence interval. Without internal links the exponent stays near 1, and
+# An `Experiment` sweeps the size of the city at three rates of internal links, and `scaling(kind='allometric')` fits
+# the exponent of the meetings with a confidence interval. Without internal links the exponent stays near 1, and
 # it rises with the rate of the internal links. This rate per resident is the assumption of this system, and it sets the
 # exponent. Papadopoulos et al. (2015) add a fixed number of internal links per step, which keeps the mean degree
 # constant.
@@ -54,8 +54,8 @@ for rate in rates:
     )
     meetings = experiment.prepare().run().result_.series('total_meetings')[:, -1]
     samples = dict(zip(sizes, meetings.reshape(len(sizes), len(seeds)), strict=True))
-    fit = ScalingAnalysis('allometric', resamples=500).prepare(samples).run()
-    label = f'internal {rate}: exponent {fit.exponent_:.2f} [{fit.interval_[0]:.2f}, {fit.interval_[1]:.2f}]'
+    fit = scaling(samples, kind='allometric', resamples=500)
+    label = f'internal {rate}: exponent {fit.exponent:.2f} [{fit.interval[0]:.2f}, {fit.interval[1]:.2f}]'
     ax.loglog(sizes, [np.mean(samples[size]) for size in sizes], 'o-', label=label)
 ax.set_xlabel('population N')
 ax.set_ylabel('meetings per step')

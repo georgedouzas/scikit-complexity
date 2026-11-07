@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from skcomplex.core.analysis import SparseIdentificationAnalysis
+from skcomplex.core.analysis import sparse_identification
 from skcomplex.core.components.spaces import ContinuousTime
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.compile import PassCompiler
@@ -26,7 +26,7 @@ LORENZ_TERMS = {
 
 def _fit(source, **settings):
     """Return the sparse identification analysis fitted to a source."""
-    return SparseIdentificationAnalysis(**settings).prepare(source).run()
+    return sparse_identification(source, **settings)
 
 
 def _lorenz_trajectory():
@@ -40,8 +40,8 @@ def test_sparse_identification_rediscovers_lorenz():
     system = _fit(_lorenz_trajectory(), degree=2)
     found = {
         (row, feature): value
-        for row, values in enumerate(system.coefficients_)
-        for feature, value in zip(system.features_, values, strict=True)
+        for row, values in enumerate(system.coefficients)
+        for feature, value in zip(system.features, values, strict=True)
         if value
     }
     assert set(found) == set(LORENZ_TERMS)
@@ -51,27 +51,27 @@ def test_sparse_identification_rediscovers_lorenz():
 def test_sparse_identification_system_validates_with_ode_solver():
     """Test that a SINDy surrogate of Lorenz validates, declares continuous time, and gets an ODE solver."""
     system = _fit(_lorenz_trajectory())
-    report = PassCompiler().prepare(system.system_).report_
+    report = PassCompiler().prepare(system.system).report_
     assert not report.errors
-    assert isinstance(system.system_.time, ContinuousTime)
-    assert DEFAULT_SOLVERS[PassCompiler().prepare(system.system_).run().problem_.form] is ScipyODESolver
+    assert isinstance(system.system.time, ContinuousTime)
+    assert DEFAULT_SOLVERS[PassCompiler().prepare(system.system).run().problem_.form] is ScipyODESolver
 
 
 def test_sparse_identification_system_follows_trajectory():
     """Test that the surrogate run from the first sample follows the trajectory for a short time."""
     trajectory = _lorenz_trajectory()
     system = _fit(trajectory)
-    run = Simulation(system.system_, dt=0.002).prepare().run(until=0.5).trajectory_
+    run = Simulation(system.system, dt=0.002).prepare().run(until=0.5).trajectory_
     assert np.allclose(run.values('surrogate.x'), trajectory.values('lorenz.x')[:251], atol=0.05)
-    assert system.training_error_ < 1e-3
+    assert system.training_error < 1e-3
 
 
 def test_sparse_identification_fits_series_of_measured_data():
     """Test that SINDy fits a series of measured data with a degree-one library."""
     times = np.arange(0.0, 2.0, 0.001)
     system = _fit(np.exp(-2 * times), variables=['decay.n'], degree=1, dt=0.001)
-    assert system.features_ == ['1', 'n']
-    assert system.coefficients_.round(3).tolist() == [[0.0, -2.0]]
+    assert system.features == ['1', 'n']
+    assert system.coefficients.round(3).tolist() == [[0.0, -2.0]]
 
 
 def test_sparse_identification_run_continues_lotka_volterra():
@@ -83,13 +83,13 @@ def test_sparse_identification_run_continues_lotka_volterra():
     names = ['prey.n', 'predators.n']
     values = np.column_stack([trajectory.values(name) for name in names])
     system = _fit(values[:1001], variables=names, degree=2, threshold=0.01, horizon=50, dt=0.01)
-    assert isinstance(system.system_, System)
-    assert isinstance(system.training_error_, float)
-    assert system.forecast_.shape == (50, 2)
-    assert np.allclose(system.forecast_, values[1001:1051], rtol=0.01)
+    assert isinstance(system.system, System)
+    assert isinstance(system.training_error, float)
+    assert system.forecast.shape == (50, 2)
+    assert np.allclose(system.forecast, values[1001:1051], rtol=0.01)
 
 
 def test_sparse_identification_rejects_a_negative_horizon():
     """Test that a negative horizon raises an error naming it."""
     with pytest.raises(AnalysisError, match='horizon'):
-        SparseIdentificationAnalysis(horizon=-1).prepare()
+        sparse_identification(np.zeros((10, 1)), horizon=-1)

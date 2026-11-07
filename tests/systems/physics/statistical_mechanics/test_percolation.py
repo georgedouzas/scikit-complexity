@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from skcomplex.core.analysis import ClusterAnalysis
+from skcomplex.core.analysis import bind_analysis, clusters
 from skcomplex.core.experiments import Experiment, GridDesign
 from skcomplex.systems.physics.statistical_mechanics import continuum_percolation
 
@@ -18,10 +18,10 @@ def _spanning_shares(side: float) -> np.ndarray:
         GridDesign(),
         bounds,
         until=1.0,
-        analyses=[ClusterAnalysis('percolation', radius=1.0)],
+        analyses=[bind_analysis(clusters, kind='percolation', radius=1.0)],
         outputs=[],
     )
-    spans = experiment.prepare().run().result_.column('clusteranalysis.spanning').astype(float)
+    spans = experiment.prepare().run().result_.column('clusters.spanning').astype(float)
     return spans.reshape(len(FILLINGS), len(SEEDS)).mean(axis=1)
 
 

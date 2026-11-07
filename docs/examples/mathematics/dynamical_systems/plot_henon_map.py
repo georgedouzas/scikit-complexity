@@ -15,7 +15,7 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.analysis import ScalingAnalysis
+from skcomplex.core.analysis import scaling
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.systems import create_system
@@ -56,7 +56,7 @@ observer.recording_.flush()
 orbit = np.column_stack([simulation.trajectory_.values('map.x'), simulation.trajectory_.values('map.y')])[10:]
 long_orbit = Simulation(create_system(SYSTEM), dt=1).prepare().run(until=100_000).trajectory_
 long_orbit = np.column_stack([long_orbit.values('map.x'), long_orbit.values('map.y')])[10:]
-dimension = ScalingAnalysis('correlation-dimension').prepare(long_orbit[:20000]).run().exponent_
+dimension = scaling(long_orbit[:20000], kind='correlation-dimension').exponent
 fig, (whole, zoom) = plt.subplots(1, 2, figsize=(10, 4))
 whole.plot(orbit[:, 0], orbit[:, 1], ',', color='C0')
 whole.add_patch(plt.Rectangle((0.55, 0.15), 0.15, 0.05, fill=False, color='C3'))

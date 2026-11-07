@@ -116,7 +116,7 @@ class BaseStructureSpec(BaseSpec):
         """Return a square boolean grid of the cells the geometry covers, with the first row at the top.
 
         Segments mark the cells of points spaced at most half a cell apart along them, and polygons mark the cells
-        whose centres they contain, so the grid suits `ScalingAnalysis('box-counting')`.
+        whose centres they contain, so the grid suits `scaling(kind='box-counting')`.
 
         Args:
             resolution:
