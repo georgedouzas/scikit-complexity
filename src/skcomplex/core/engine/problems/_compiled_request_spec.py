@@ -36,6 +36,9 @@ class CompiledRequestSpec(BaseSpec):
 
         toward:
             The kernel of the weight of every node row as a new end, or `None` for equal weights.
+
+        score:
+            The kernel of the score of every node row as the end of a candidate edge, or `None` for none.
     """
 
     request: TopologyRequestSpec
@@ -44,3 +47,4 @@ class CompiledRequestSpec(BaseSpec):
     rows: str
     condition: LawKernel | None = None
     toward: LawKernel | None = None
+    score: LawKernel | None = None
