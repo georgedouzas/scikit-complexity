@@ -15,11 +15,9 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import divergence, gradient, laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
-from ....core.engine.backends import NumbaBackend
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class ActiveScalarElement(Element):
@@ -61,6 +59,11 @@ class ActiveScalarElement(Element):
         4.0
     """
 
+    law_classes = (
+        NoiseLaw,
+        RateLaw,
+    )
+
     def __init__(
         self,
         label: str,
@@ -98,32 +101,17 @@ class ActiveScalarElement(Element):
         return [RateLaw(phi, laplacian(potential) - divergence(active)), NoiseLaw(phi, sqrt(2 * s.D), conserved=True)]
 
 
-@register_system(
-    field='physics/active_matter',
-    tags=('field', 'active matter', 'phase separation', 'microphase separation', 'conserved noise', 'system b', 'spde'),
-    references=('Fodor, Jack, and Cates 2022', 'Wittkowski et al. 2014', 'Tjhung, Nardini, and Cates 2018'),
-    defaults={'until': 1500.0, 'dt': 30.0, 'solver': EulerMaruyamaSolver(dt=0.02), 'backend': NumbaBackend()},
-)
-def active_system_b(
-    shape: Sequence[int] = (64, 64),
-    *,
-    mean: float = 0.4,
-    kappa: float = 1.0,
-    lam: float = 1.0,
-    zeta: float = 4.0,
-    D: float = 0.05,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Active System B+, the conserved field theory of the density of active particles.
+class ActiveSystemBSystem(BaseSystem):
+    """Active System B+, the conserved field theory of the density of active particles.
 
     The density `phi` follows `phi_t = laplacian(mu) - div(zeta laplacian(phi) grad(phi)) + div(sqrt(2 D) eta)`, with
     the chemical potential `mu = -phi + phi^3 - kappa laplacian(phi) + lam |grad(phi)|^2` and a conserved white noise
     `eta`, Equation 4 of Fodor, Jack, and Cates with unit mobility. The terms `lam` and `zeta` are the lowest-order
     active currents that no free energy gives. With `zeta = 0` it is Active System B, where `lam` shifts the coexisting
-    densities and the phases still coarsen. With `lam = 1`, `zeta = 4`, and a majority of the dense phase, the
-    Ostwald ripening of the dilute bubbles reverses, so they stop growing at a finite size, a microphase separation.
-    The noise conserves the total of `phi`, so its mean stays fixed. The lattice has unit spacing, and an explicit step
-    must stay below about 1/32.
+    densities and the phases still coarsen. With `lam = 1`, `zeta = 4`, and a majority of the dense phase, the Ostwald
+    ripening of the dilute bubbles reverses, so they stop growing at a finite size, a microphase separation. The noise
+    conserves the total of `phi`, so its mean stays fixed. The lattice has unit spacing, and an explicit step must stay
+    below about 1/32. The system has the field `fluid.phi`.
 
     Args:
         shape:
@@ -147,24 +135,63 @@ def active_system_b(
         random_state:
             The seed or generator of the initial noise of amplitude 0.05 around the mean.
 
-    Returns:
-        system:
-            The system, with the field `fluid.phi`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import active_system_b
-        >>> active_system_b((8, 8), zeta=0.0).elements[0].values['zeta']
+        >>> from skcomplex.systems.physics.active_matter import ActiveSystemBSystem
+        >>> ActiveSystemBSystem((8, 8), zeta=0.0).prepare().system_.elements[0].values['zeta']
         0.0
     """
-    shape = tuple(shape)
-    rng = np.random.default_rng(random_state)
-    values = {
-        'phi': mean + 0.05 * rng.uniform(-1.0, 1.0, shape),
-        'kappa': kappa,
-        'lam': lam,
-        'zeta': zeta,
-        'D': D,
-    }
-    return System(
-        elements=[FieldElement('fluid', element=ActiveScalarElement, space=LatticeSpace(shape), values=values)],
+
+    field = 'physics/active_matter'
+    topics = (
+        'field',
+        'active matter',
+        'phase separation',
+        'microphase separation',
+        'conserved noise',
+        'system b',
+        'spde',
     )
+    references = ('Fodor, Jack, and Cates 2022', 'Wittkowski et al. 2014', 'Tjhung, Nardini, and Cates 2018')
+    until = 1500.0
+    dt = 30.0
+    solver = EulerMaruyamaSolver(dt=0.02)
+
+    def __init__(
+        self,
+        shape: Sequence[int] = (64, 64),
+        *,
+        mean: float = 0.4,
+        kappa: float = 1.0,
+        lam: float = 1.0,
+        zeta: float = 4.0,
+        D: float = 0.05,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.mean = mean
+        self.kappa = kappa
+        self.lam = lam
+        self.zeta = zeta
+        self.D = D
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return Active System B+, the conserved field theory of the density of active particles."""
+        shape = tuple(self.shape)
+        rng = np.random.default_rng(self.random_state)
+        values = {
+            'phi': self.mean + 0.05 * rng.uniform(-1.0, 1.0, shape),
+            'kappa': self.kappa,
+            'lam': self.lam,
+            'zeta': self.zeta,
+            'D': self.D,
+        }
+        return System(
+            self.label,
+            elements=[FieldElement('fluid', element=ActiveScalarElement, space=LatticeSpace(shape), values=values)],
+        )

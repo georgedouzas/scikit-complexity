@@ -15,10 +15,9 @@ from ....core.components.elements import DensityElement, FieldElement
 from ....core.components.interactions import AdvectionInteraction, EncounterInteraction
 from ....core.components.laws.utils import coordinate
 from ....core.components.spaces import LatticeSpace, PhaseSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import AxisSpec, RoleSpec
-from ..._catalog import register_system
 
 ANTIPODAL = 1e-9
 
@@ -160,28 +159,13 @@ class AngularDiffusionInteraction(EncounterInteraction):
         return weights / weights.sum(axis=1, keepdims=True)
 
 
-@register_system(
-    field='physics/active_matter',
-    tags=('field', 'kinetic', 'phase space', 'flocking', 'pde'),
-    references=('Bertin, Droz, and Grégoire 2006', 'Bertin, Droz, and Grégoire 2009'),
-    defaults={'until': 0.5, 'dt': 0.1, 'solver': RK4Solver(dt=0.05)},
-)
-def bertin_droz_gregoire(
-    positions: int = 4,
-    angles: int = 16,
-    *,
-    density: float = 1.0,
-    speed: float = 1.0,
-    interaction_range: float = 0.5,
-    tumbling: float = 1.0,
-    noise: float = 0.5,
-    perturbation: float = 0.01,
-) -> System:
-    """Return the kinetic theory of flocking, whose polar order grows above a transition density.
+class BertinDrozGregoireSystem(BaseSystem):
+    """The kinetic theory of flocking, whose polar order grows above a transition density.
 
     Particles stream along their orientation, tumble at a rate by a wrapped normal noise, and align in binary collisions
-    at their mean angle with the same noise. A homogeneous disordered state is unstable above the density
-    `pi tumbling (1 - exp(-noise^2 / 2)) / (8 interaction_range speed (exp(-noise^2 / 2) - 2 / 3))`.
+    at their mean angle with the same noise. A homogeneous disordered state is unstable above the density `pi tumbling
+    (1 - exp(-noise^2 / 2)) / (8 interaction_range speed (exp(-noise^2 / 2) - 2 / 3))`. The system has the density
+    `flock.f`.
 
     Args:
         positions:
@@ -208,43 +192,82 @@ def bertin_droz_gregoire(
         perturbation:
             The relative amplitude of the initial polar perturbation.
 
-    Returns:
-        system:
-            The system, with the density `flock.f`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import bertin_droz_gregoire
-        >>> bertin_droz_gregoire(2, 8).elements[0].prepare().size_
+        >>> from skcomplex.systems.physics.active_matter import BertinDrozGregoireSystem
+        >>> BertinDrozGregoireSystem(2, 8).prepare().system_.elements[0].prepare().size_
         32
     """
-    axis = AxisSpec('theta', angles, 0.0, 2 * math.pi, periodic=True)
-    space = PhaseSpace(LatticeSpace((positions, positions)), [axis]).prepare()
-    theta = space.coordinates_['theta']
-    profile = density * (1.0 + perturbation * np.cos(theta)) / (2 * math.pi)
-    values = np.broadcast_to(profile, space.shape_).copy()
-    flock = FieldElement(
-        'flock',
-        element=DensityElement,
-        space=space,
-        values={'f': values},
-        discretization='finite-volume',
-    )
 
-    def drift(_: SimpleNamespace) -> list[Expression]:
-        return [speed * cos(coordinate('theta')), speed * sin(coordinate('theta')), 0]
+    field = 'physics/active_matter'
+    topics = ('field', 'kinetic', 'phase space', 'flocking', 'pde')
+    references = ('Bertin, Droz, and Grégoire 2006', 'Bertin, Droz, and Grégoire 2009')
+    until = 0.5
+    dt = 0.1
+    solver = RK4Solver(dt=0.05)
 
-    return System(
-        elements=[flock],
-        interactions=[
-            AdvectionInteraction('stream', target='flock', state='f', drift=drift),
-            AngularDiffusionInteraction('tumble', candidate='flock', angles=angles, tumbling=tumbling, noise=noise),
-            AngularAlignmentInteraction(
-                'align',
-                candidate='flock',
-                field='flock',
-                angles=angles,
-                frequency=interaction_range * speed,
-                noise=noise,
-            ),
-        ],
-    )
+    def __init__(
+        self,
+        positions: int = 4,
+        angles: int = 16,
+        *,
+        density: float = 1.0,
+        speed: float = 1.0,
+        interaction_range: float = 0.5,
+        tumbling: float = 1.0,
+        noise: float = 0.5,
+        perturbation: float = 0.01,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.positions = positions
+        self.angles = angles
+        self.density = density
+        self.speed = speed
+        self.interaction_range = interaction_range
+        self.tumbling = tumbling
+        self.noise = noise
+        self.perturbation = perturbation
+
+    def _build_system(self) -> System:
+        """Return the kinetic theory of flocking, whose polar order grows above a transition density."""
+        axis = AxisSpec('theta', self.angles, 0.0, 2 * math.pi, periodic=True)
+        space = PhaseSpace(LatticeSpace((self.positions, self.positions)), [axis]).prepare()
+        theta = space.coordinates_['theta']
+        profile = self.density * (1.0 + self.perturbation * np.cos(theta)) / (2 * math.pi)
+        values = np.broadcast_to(profile, space.shape_).copy()
+        flock = FieldElement(
+            'flock',
+            element=DensityElement,
+            space=space,
+            values={'f': values},
+            discretization='finite-volume',
+        )
+
+        def drift(_: SimpleNamespace) -> list[Expression]:
+            return [self.speed * cos(coordinate('theta')), self.speed * sin(coordinate('theta')), 0]
+
+        return System(
+            self.label,
+            elements=[flock],
+            interactions=[
+                AdvectionInteraction('stream', target='flock', state='f', drift=drift),
+                AngularDiffusionInteraction(
+                    'tumble',
+                    candidate='flock',
+                    angles=self.angles,
+                    tumbling=self.tumbling,
+                    noise=self.noise,
+                ),
+                AngularAlignmentInteraction(
+                    'align',
+                    candidate='flock',
+                    field='flock',
+                    angles=self.angles,
+                    frequency=self.interaction_range * self.speed,
+                    noise=self.noise,
+                ),
+            ],
+        )

@@ -16,9 +16,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import Simulation, simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.physics.active_matter import VicsekSystem
 
 SYSTEM = 'vicsek'
 
@@ -35,12 +35,10 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, n_particles=400, eta=0.1, seed=0)
-observables = describe(SYSTEM).observables_of(system)
+system = VicsekSystem(n_particles=400, eta=0.1, seed=0)
+observables = VicsekSystem.observables
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = (
-    Simulation(system, dt=1.0, observers=[observer], random_state=0, observables=observables).prepare().run(until=150)
-)
+trajectory = simulate(system, until=150, observers=[observer], random_state=0, observables=observables)
 
 # %%
 # Order against noise
@@ -52,16 +50,16 @@ simulation = (
 noises = np.linspace(0.05, 0.95, 10)
 orders = []
 for noise in noises:
-    system_system = create_system(SYSTEM, n_particles=400, eta=noise, seed=1)
+    system_system = VicsekSystem(n_particles=400, eta=noise, seed=1)
     run = Simulation(
-        system_system,
+        system_system.prepare().system_,
         dt=5.0,
         random_state=1,
-        observables=describe(SYSTEM).observables_of(system_system),
+        observables=VicsekSystem.observables,
     ).prepare()
     orders.append(np.mean(np.asarray(run.run(until=150).trajectory_.values('polarization'), dtype=float)[-10:]))
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(simulation.trajectory_.times, np.asarray(simulation.trajectory_.values('polarization'), dtype=float))
+series.plot(trajectory.times, np.asarray(trajectory.values('polarization'), dtype=float))
 series.set_ylim(0, 1)
 series.set_xlabel('step')
 series.set_ylabel('polar order')
@@ -95,15 +93,20 @@ def neighbours(positions, size):
 ks = [1, 2, 4, 8]
 topological = []
 for k in ks:
-    system_system = create_system(SYSTEM, n_particles=100, size=100.0, v0=1.0, neighbors=k, seed=0)
-    run = Simulation(system_system, dt=10.0, random_state=0, observables=describe(SYSTEM).observables_of(system_system))
+    system_system = VicsekSystem(n_particles=100, size=100.0, v0=1.0, neighbors=k, seed=0)
+    run = Simulation(
+        system_system.prepare().system_,
+        dt=10.0,
+        random_state=0,
+        observables=VicsekSystem.observables,
+    )
     topological.append(np.mean(np.asarray(run.prepare().run(until=300).trajectory_.values('polarization'))[-5:]))
 delays = [-4, -2, 0, 2, 5, 10, 25]
 clustering = []
 for delay in delays:
-    system_system = create_system(SYSTEM, n_particles=100, size=50.0, v0=0.15, eta=0.2 / np.pi, delay=delay, seed=0)
+    system_system = VicsekSystem(n_particles=100, size=50.0, v0=0.15, eta=0.2 / np.pi, delay=delay, seed=0)
     positions = np.asarray(
-        Simulation(system_system, dt=100.0, random_state=0).prepare().run(until=2000).trajectory_.values('flock.x'),
+        simulate(system_system, until=2000, dt=100.0, random_state=0).values('flock.x'),
     )
     clustering.append(np.mean([neighbours(frame, 50.0) for frame in positions[-5:]]))
 fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))

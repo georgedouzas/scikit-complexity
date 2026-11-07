@@ -13,13 +13,14 @@ circles, a bifurcation of their motion.
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.physics.active_matter import DeformableActiveParticlesSystem
 
 SYSTEM = 'deformable_active_particles'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run(until=100)
+simulation = simulate(DeformableActiveParticlesSystem(), until=100, observers=[observer], random_state=0)
 
 # %%
 # Straight and circular motion
@@ -31,7 +32,7 @@ simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare(
 kappas = np.linspace(0.1, 1.5, 15)
 turning = []
 for kappa in kappas:
-    trajectory = create_simulation(SYSTEM, n_particles=2, kappa=kappa).prepare().run(until=100).trajectory_
+    trajectory = simulate(DeformableActiveParticlesSystem(n_particles=2, kappa=kappa), until=100, random_state=0)
     velocity = np.asarray(trajectory.values('cells.v'))
     angle = np.unwrap(np.arctan2(velocity[..., 1], velocity[..., 0]), axis=0)
     turning.append(np.abs(angle[-1] - angle[-41]).mean() / 10.0)

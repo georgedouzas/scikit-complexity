@@ -15,11 +15,10 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw, RuleLaw
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import AgentView, EulerMaruyamaSolver, SystemView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 from ..common.particles import POINTS, ActiveParticleElement, SelfPropulsionInteraction
 
 
@@ -66,6 +65,11 @@ class DepotParticleElement(Element):
         >>> DepotParticleElement('walker').q
         10.0
     """
+
+    law_classes = (
+        NoiseLaw,
+        RateLaw,
+    )
 
     def __init__(
         self,
@@ -158,6 +162,11 @@ class InertialActiveParticleElement(Element):
         0.5
     """
 
+    law_classes = (
+        NoiseLaw,
+        RateLaw,
+    )
+
     def __init__(
         self,
         label: str,
@@ -237,6 +246,11 @@ class OrnsteinUhlenbeckParticleElement(Element):
         >>> OrnsteinUhlenbeckParticleElement('swimmer').tau
         1.0
     """
+
+    law_classes = (
+        NoiseLaw,
+        RateLaw,
+    )
 
     def __init__(
         self,
@@ -323,6 +337,8 @@ class TumblerElement(Element):
         0.1
     """
 
+    law_classes = (RuleLaw,)
+
     def __init__(
         self,
         label: str,
@@ -384,25 +400,12 @@ def _swimmers(
     return rng.uniform(0.0, size, (n_particles, 2)), rng.uniform(0.0, 2 * math.pi, n_particles)
 
 
-@register_system(
-    field='physics/active_matter',
-    tags=('active matter', 'sde', 'self-propulsion', 'diffusion'),
-    references=('Argun et al. 2021', 'Bechinger et al. 2016', 'Volpe, Gigan, and Volpe 2014'),
-    defaults={'until': 20.0, 'dt': 0.5, 'solver': EulerMaruyamaSolver(dt=0.01)},
-)
-def active_brownian_particles(
-    n_particles: int = 200,
-    *,
-    speed: float = 3.0,
-    D_t: float = 0.1,
-    D_r: float = 1.0,
-    size: float = 50.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return active Brownian particles in the plane, which swim at a constant speed in a diffusing direction.
+class ActiveBrownianParticlesSystem(BaseSystem):
+    """Active Brownian particles in the plane, which swim at a constant speed in a diffusing direction.
 
-    Their mean squared displacement is ballistic below the persistence time `1 / D_r` and diffusive above it, with
-    the effective diffusion coefficient `D_t + v^2 / (2 D_r)`.
+    Their mean squared displacement is ballistic below the persistence time `1 / D_r` and diffusive above it, with the
+    effective diffusion coefficient `D_t + v^2 / (2 D_r)`. The system has the positions `swimmers.x` and orientations
+    `swimmers.theta`.
 
     Args:
         n_particles:
@@ -423,45 +426,59 @@ def active_brownian_particles(
         random_state:
             The seed or generator of the initial positions and orientations.
 
-    Returns:
-        system:
-            The system, with the positions `swimmers.x` and orientations `swimmers.theta`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import active_brownian_particles
-        >>> active_brownian_particles(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.physics.active_matter import ActiveBrownianParticlesSystem
+        >>> ActiveBrownianParticlesSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    positions, angles = _swimmers(n_particles, size, random_state)
-    group = GroupElement(
-        'swimmers',
-        element=ActiveParticleElement,
-        size=n_particles,
-        values={'x': positions, 'theta': angles, 'D_t': D_t, 'D_r': D_r},
-    )
-    propulsion = SelfPropulsionInteraction('propulsion', target='swimmers', speed=speed)
-    return System(elements=[group], interactions=[propulsion], space=ContinuousSpace(n_dim=2))
+
+    field = 'physics/active_matter'
+    topics = ('active matter', 'sde', 'self-propulsion', 'diffusion')
+    references = ('Argun et al. 2021', 'Bechinger et al. 2016', 'Volpe, Gigan, and Volpe 2014')
+    until = 20.0
+    dt = 0.5
+    solver = EulerMaruyamaSolver(dt=0.01)
+
+    def __init__(
+        self,
+        n_particles: int = 200,
+        *,
+        speed: float = 3.0,
+        D_t: float = 0.1,
+        D_r: float = 1.0,
+        size: float = 50.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_particles = n_particles
+        self.speed = speed
+        self.D_t = D_t
+        self.D_r = D_r
+        self.size = size
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return active Brownian particles in the plane, which swim at a constant speed in a diffusing direction."""
+        positions, angles = _swimmers(self.n_particles, self.size, self.random_state)
+        group = GroupElement(
+            'swimmers',
+            element=ActiveParticleElement,
+            size=self.n_particles,
+            values={'x': positions, 'theta': angles, 'D_t': self.D_t, 'D_r': self.D_r},
+        )
+        propulsion = SelfPropulsionInteraction('propulsion', target='swimmers', speed=self.speed)
+        return System(self.label, elements=[group], interactions=[propulsion], space=ContinuousSpace(n_dim=2))
 
 
-@register_system(
-    field='physics/active_matter',
-    tags=('active matter', 'sde', 'self-propulsion', 'chirality'),
-    references=('Bechinger et al. 2016', 'van Teeffelen and Löwen 2008'),
-    defaults={'until': 20.0, 'dt': 0.5, 'solver': EulerMaruyamaSolver(dt=0.01)},
-)
-def chiral_active_particles(
-    n_particles: int = 200,
-    *,
-    speed: float = 3.0,
-    omega: float = 2.0,
-    D_t: float = 0.1,
-    D_r: float = 0.1,
-    size: float = 50.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return chiral active particles, which swim along circles of radius `v / omega` that drift by diffusion.
+class ChiralActiveParticlesSystem(BaseSystem):
+    """Chiral active particles, which swim along circles of radius `v / omega` that drift by diffusion.
 
-    Their effective diffusion coefficient at long times is `D_t + v^2 D_r / (2 (D_r^2 + omega^2))`.
+    Their effective diffusion coefficient at long times is `D_t + v^2 D_r / (2 (D_r^2 + omega^2))`. The system has the
+    positions `swimmers.x` and orientations `swimmers.theta`.
 
     Args:
         n_particles:
@@ -485,44 +502,61 @@ def chiral_active_particles(
         random_state:
             The seed or generator of the initial positions and orientations.
 
-    Returns:
-        system:
-            The system, with the positions `swimmers.x` and orientations `swimmers.theta`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import chiral_active_particles
-        >>> chiral_active_particles(10, omega=1.0).elements[0].values['omega']
+        >>> from skcomplex.systems.physics.active_matter import ChiralActiveParticlesSystem
+        >>> ChiralActiveParticlesSystem(10, omega=1.0).prepare().system_.elements[0].values['omega']
         1.0
     """
-    positions, angles = _swimmers(n_particles, size, random_state)
-    group = GroupElement(
-        'swimmers',
-        element=ActiveParticleElement,
-        size=n_particles,
-        values={'x': positions, 'theta': angles, 'omega': omega, 'D_t': D_t, 'D_r': D_r},
-    )
-    propulsion = SelfPropulsionInteraction('propulsion', target='swimmers', speed=speed)
-    return System(elements=[group], interactions=[propulsion], space=ContinuousSpace(n_dim=2))
+
+    field = 'physics/active_matter'
+    topics = ('active matter', 'sde', 'self-propulsion', 'chirality')
+    references = ('Bechinger et al. 2016', 'van Teeffelen and Löwen 2008')
+    until = 20.0
+    dt = 0.5
+    solver = EulerMaruyamaSolver(dt=0.01)
+
+    def __init__(
+        self,
+        n_particles: int = 200,
+        *,
+        speed: float = 3.0,
+        omega: float = 2.0,
+        D_t: float = 0.1,
+        D_r: float = 0.1,
+        size: float = 50.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_particles = n_particles
+        self.speed = speed
+        self.omega = omega
+        self.D_t = D_t
+        self.D_r = D_r
+        self.size = size
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return chiral active particles, which swim along circles of radius `v / omega` that drift by diffusion."""
+        positions, angles = _swimmers(self.n_particles, self.size, self.random_state)
+        group = GroupElement(
+            'swimmers',
+            element=ActiveParticleElement,
+            size=self.n_particles,
+            values={'x': positions, 'theta': angles, 'omega': self.omega, 'D_t': self.D_t, 'D_r': self.D_r},
+        )
+        propulsion = SelfPropulsionInteraction('propulsion', target='swimmers', speed=self.speed)
+        return System(self.label, elements=[group], interactions=[propulsion], space=ContinuousSpace(n_dim=2))
 
 
-@register_system(
-    field='physics/active_matter',
-    tags=('active matter', 'sde', 'self-propulsion', 'colored noise'),
-    references=('Bechinger et al. 2016', 'Fodor et al. 2016'),
-    defaults={'until': 20.0, 'dt': 0.5, 'solver': EulerMaruyamaSolver(dt=0.01)},
-)
-def active_ornstein_uhlenbeck_particles(
-    n_particles: int = 200,
-    *,
-    tau: float = 1.0,
-    D: float = 1.0,
-    D_t: float = 0.0,
-    size: float = 50.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return active Ornstein-Uhlenbeck particles in the plane, driven by exponentially correlated propulsion.
+class ActiveOrnsteinUhlenbeckParticlesSystem(BaseSystem):
+    """Active Ornstein-Uhlenbeck particles in the plane, driven by exponentially correlated propulsion.
 
-    The propulsion starts in its stationary distribution, normal with variance `D / tau` per component.
+    The propulsion starts in its stationary distribution, normal with variance `D / tau` per component. The system has
+    the positions `swimmers.x` and propulsions `swimmers.u`.
 
     Args:
         n_particles:
@@ -543,44 +577,60 @@ def active_ornstein_uhlenbeck_particles(
         random_state:
             The seed or generator of the initial positions and propulsions.
 
-    Returns:
-        system:
-            The system, with the positions `swimmers.x` and propulsions `swimmers.u`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import active_ornstein_uhlenbeck_particles
-        >>> active_ornstein_uhlenbeck_particles(10, tau=0.5).elements[0].values['tau']
+        >>> from skcomplex.systems.physics.active_matter import ActiveOrnsteinUhlenbeckParticlesSystem
+        >>> ActiveOrnsteinUhlenbeckParticlesSystem(10, tau=0.5).prepare().system_.elements[0].values['tau']
         0.5
     """
-    rng = np.random.default_rng(random_state)
-    positions = rng.uniform(0.0, size, (n_particles, 2))
-    propulsion = rng.normal(0.0, math.sqrt(D / tau), (n_particles, 2))
-    group = GroupElement(
-        'swimmers',
-        element=OrnsteinUhlenbeckParticleElement,
-        size=n_particles,
-        values={'x': positions, 'u': propulsion, 'tau': tau, 'D': D, 'D_t': D_t},
-    )
-    return System(elements=[group], space=ContinuousSpace(n_dim=2))
+
+    field = 'physics/active_matter'
+    topics = ('active matter', 'sde', 'self-propulsion', 'colored noise')
+    references = ('Bechinger et al. 2016', 'Fodor et al. 2016')
+    until = 20.0
+    dt = 0.5
+    solver = EulerMaruyamaSolver(dt=0.01)
+
+    def __init__(
+        self,
+        n_particles: int = 200,
+        *,
+        tau: float = 1.0,
+        D: float = 1.0,
+        D_t: float = 0.0,
+        size: float = 50.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_particles = n_particles
+        self.tau = tau
+        self.D = D
+        self.D_t = D_t
+        self.size = size
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return active Ornstein-Uhlenbeck particles in the plane, driven by exponentially correlated propulsion."""
+        rng = np.random.default_rng(self.random_state)
+        positions = rng.uniform(0.0, self.size, (self.n_particles, 2))
+        propulsion = rng.normal(0.0, math.sqrt(self.D / self.tau), (self.n_particles, 2))
+        group = GroupElement(
+            'swimmers',
+            element=OrnsteinUhlenbeckParticleElement,
+            size=self.n_particles,
+            values={'x': positions, 'u': propulsion, 'tau': self.tau, 'D': self.D, 'D_t': self.D_t},
+        )
+        return System(self.label, elements=[group], space=ContinuousSpace(n_dim=2))
 
 
-@register_system(
-    field='physics/active_matter',
-    tags=('active matter', 'agents', 'bacteria', 'self-propulsion'),
-    references=('Berg 2004', 'Bechinger et al. 2016'),
-    defaults={'until': 100, 'dt': 1},
-)
-def run_and_tumble(
-    n_agents: int = 100,
-    *,
-    speed: float = 0.1,
-    tumble_rate: float = 0.1,
-    size: float = 10.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return run-and-tumble agents in a periodic square, which diffuse with `v^2 (1 + q) / (4 (1 - q))` per step.
+class RunAndTumbleSystem(BaseSystem):
+    """Run-and-tumble agents in a periodic square, which diffuse with `v^2 (1 + q) / (4 (1 - q))` per step.
 
-    The persistence `q = exp(-tumble_rate)` is the probability that an agent keeps its direction for one step.
+    The persistence `q = exp(-tumble_rate)` is the probability that an agent keeps its direction for one step. The
+    system has the agent group `bacteria`.
 
     Args:
         n_agents:
@@ -598,43 +648,59 @@ def run_and_tumble(
         random_state:
             The seed or generator of the initial positions and directions.
 
-    Returns:
-        system:
-            The system, with the agent group `bacteria`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import run_and_tumble
-        >>> run_and_tumble(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.physics.active_matter import RunAndTumbleSystem
+        >>> RunAndTumbleSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    positions, angles = _swimmers(n_agents, size, random_state)
-    group = GroupElement(
-        'bacteria',
-        element=TumblerElement,
-        size=n_agents,
-        values={'theta': angles, 'speed': speed, 'tumble_rate': tumble_rate, 'width': size},
-        location=positions,
-    )
-    return System(elements=[group], space=ContinuousSpace(extent=(size, size), boundary='periodic'))
+
+    field = 'physics/active_matter'
+    topics = ('active matter', 'agents', 'bacteria', 'self-propulsion')
+    references = ('Berg 2004', 'Bechinger et al. 2016')
+    until = 100
+    dt = 1
+
+    def __init__(
+        self,
+        n_agents: int = 100,
+        *,
+        speed: float = 0.1,
+        tumble_rate: float = 0.1,
+        size: float = 10.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_agents = n_agents
+        self.speed = speed
+        self.tumble_rate = tumble_rate
+        self.size = size
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        positions, angles = _swimmers(self.n_agents, self.size, self.random_state)
+        group = GroupElement(
+            'bacteria',
+            element=TumblerElement,
+            size=self.n_agents,
+            values={'theta': angles, 'speed': self.speed, 'tumble_rate': self.tumble_rate, 'width': self.size},
+            location=positions,
+        )
+        return System(
+            self.label,
+            elements=[group],
+            space=ContinuousSpace(extent=(self.size, self.size), boundary='periodic'),
+        )
 
 
-@register_system(
-    field='physics/active_matter',
-    tags=('active matter', 'sde', 'energy depot', 'self-propulsion'),
-    references=('Schweitzer, Ebeling, and Tilch 1998', 'Helbing 2001'),
-    defaults={'until': 10.0, 'dt': 0.1, 'solver': EulerMaruyamaSolver(dt=0.001)},
-)
-def depot_brownian_particles(
-    n_particles: int = 50,
-    *,
-    gamma: float = 20.0,
-    q: float = 10.0,
-    c: float = 1.0,
-    d: float = 10.0,
-    D: float = 0.01,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Brownian particles with energy depots, which start at rest and take up the speed `sqrt(q/gamma - c/d)`.
+class DepotBrownianParticlesSystem(BaseSystem):
+    """Brownian particles with energy depots, which start at rest and take up the speed `sqrt(q/gamma - c/d)`.
+
+    The system has the positions `walkers.x`, velocities `walkers.v`, and depots `walkers.e`.
 
     Args:
         n_particles:
@@ -658,51 +724,66 @@ def depot_brownian_particles(
         random_state:
             The seed or generator of the small initial velocities.
 
-    Returns:
-        system:
-            The system, with the positions `walkers.x`, velocities `walkers.v`, and depots `walkers.e`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import depot_brownian_particles
-        >>> depot_brownian_particles(5).elements[0].values['q']
+        >>> from skcomplex.systems.physics.active_matter import DepotBrownianParticlesSystem
+        >>> DepotBrownianParticlesSystem(5).prepare().system_.elements[0].values['q']
         10.0
     """
-    velocities = np.random.default_rng(random_state).normal(0.0, 0.01, (n_particles, 2))
-    group = GroupElement(
-        'walkers',
-        element=DepotParticleElement,
-        size=n_particles,
-        values={'v': velocities, 'gamma': gamma, 'q': q, 'c': c, 'd': d, 'D': D},
-    )
-    return System(elements=[group], space=ContinuousSpace(n_dim=2))
+
+    field = 'physics/active_matter'
+    topics = ('active matter', 'sde', 'energy depot', 'self-propulsion')
+    references = ('Schweitzer, Ebeling, and Tilch 1998', 'Helbing 2001')
+    until = 10.0
+    dt = 0.1
+    solver = EulerMaruyamaSolver(dt=0.001)
+
+    def __init__(
+        self,
+        n_particles: int = 50,
+        *,
+        gamma: float = 20.0,
+        q: float = 10.0,
+        c: float = 1.0,
+        d: float = 10.0,
+        D: float = 0.01,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_particles = n_particles
+        self.gamma = gamma
+        self.q = q
+        self.c = c
+        self.d = d
+        self.D = D
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        velocities = np.random.default_rng(self.random_state).normal(0.0, 0.01, (self.n_particles, 2))
+        group = GroupElement(
+            'walkers',
+            element=DepotParticleElement,
+            size=self.n_particles,
+            values={'v': velocities, 'gamma': self.gamma, 'q': self.q, 'c': self.c, 'd': self.d, 'D': self.D},
+        )
+        return System(self.label, elements=[group], space=ContinuousSpace(n_dim=2))
 
 
-@register_system(
-    field='physics/active_matter',
-    tags=('active matter', 'sde', 'self-propulsion', 'inertia', 'second order'),
-    references=('Löwen 2020', 'Scholz et al. 2018', 'Bechinger et al. 2016'),
-    defaults={'until': 20.0, 'dt': 0.5, 'solver': EulerMaruyamaSolver(dt=0.005)},
-)
-def inertial_active_brownian_particles(
-    n_particles: int = 200,
-    *,
-    speed: float = 3.0,
-    mass: float = 0.5,
-    moment: float = 0.1,
-    D_t: float = 0.1,
-    D_r: float = 1.0,
-    size: float = 50.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return active Brownian particles with inertia, which lag behind their orientation as they speed up and turn.
+class InertialActiveBrownianParticlesSystem(BaseSystem):
+    """Active Brownian particles with inertia, which lag behind their orientation as they speed up and turn.
 
-    With unit friction, every particle follows `m x'' = -x' + v0 n + sqrt(2 D_t) xi` and
-    `J theta'' = -theta' + sqrt(2 D_r) xi_r`, the inertial active Brownian particles of macroscopic swimmers, flyers,
-    and vibrated grains. The velocity relaxes over the time `m`, so it trails the orientation, and the mean projection
-    of the velocity on the orientation falls below `v0`. With rotational inertia alone, the orientation correlation is
-    `exp(-D_r (t - J (1 - exp(-t / J))))`, which gives the steady projection
-    `v0 / m ∫ exp(-t / m) exp(-D_r (t - J (1 - exp(-t / J)))) dt`, and `v0 / (1 + m D_r)` without rotational inertia.
-    The particles start at rest at uniform positions and orientations.
+    With unit friction, every particle follows `m x'' = -x' + v0 n + sqrt(2 D_t) xi` and `J theta'' = -theta' + sqrt(2
+    D_r) xi_r`, the inertial active Brownian particles of macroscopic swimmers, flyers, and vibrated grains. The
+    velocity relaxes over the time `m`, so it trails the orientation, and the mean projection of the velocity on the
+    orientation falls below `v0`. With rotational inertia alone, the orientation correlation is `exp(-D_r (t - J (1 -
+    exp(-t / J))))`, which gives the steady projection `v0 / m ∫ exp(-t / m) exp(-D_r (t - J (1 - exp(-t / J)))) dt`,
+    and `v0 / (1 + m D_r)` without rotational inertia. The particles start at rest at uniform positions and
+    orientations. The system has the positions `swimmers.x`, the velocities `swimmers.x_d1`, the orientations
+    `swimmers.theta`, and the angular velocities `swimmers.theta_d1`.
 
     Args:
         n_particles:
@@ -729,29 +810,60 @@ def inertial_active_brownian_particles(
         random_state:
             The seed or generator of the initial positions and orientations.
 
-    Returns:
-        system:
-            The system, with the positions `swimmers.x`, the velocities `swimmers.x_d1`, the orientations
-            `swimmers.theta`, and the angular velocities `swimmers.theta_d1`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import inertial_active_brownian_particles
-        >>> inertial_active_brownian_particles(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.physics.active_matter import InertialActiveBrownianParticlesSystem
+        >>> InertialActiveBrownianParticlesSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    positions, angles = _swimmers(n_particles, size, random_state)
-    group = GroupElement(
-        'swimmers',
-        element=InertialActiveParticleElement,
-        size=n_particles,
-        values={
-            'x': positions,
-            'theta': angles,
-            'speed': speed,
-            'mass': mass,
-            'moment': moment,
-            'D_t': D_t,
-            'D_r': D_r,
-        },
-    )
-    return System(elements=[group], space=ContinuousSpace(n_dim=2))
+
+    field = 'physics/active_matter'
+    topics = ('active matter', 'sde', 'self-propulsion', 'inertia', 'second order')
+    references = ('Löwen 2020', 'Scholz et al. 2018', 'Bechinger et al. 2016')
+    until = 20.0
+    dt = 0.5
+    solver = EulerMaruyamaSolver(dt=0.005)
+
+    def __init__(
+        self,
+        n_particles: int = 200,
+        *,
+        speed: float = 3.0,
+        mass: float = 0.5,
+        moment: float = 0.1,
+        D_t: float = 0.1,
+        D_r: float = 1.0,
+        size: float = 50.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_particles = n_particles
+        self.speed = speed
+        self.mass = mass
+        self.moment = moment
+        self.D_t = D_t
+        self.D_r = D_r
+        self.size = size
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        positions, angles = _swimmers(self.n_particles, self.size, self.random_state)
+        group = GroupElement(
+            'swimmers',
+            element=InertialActiveParticleElement,
+            size=self.n_particles,
+            values={
+                'x': positions,
+                'theta': angles,
+                'speed': self.speed,
+                'mass': self.mass,
+                'moment': self.moment,
+                'D_t': self.D_t,
+                'D_r': self.D_r,
+            },
+        )
+        return System(self.label, elements=[group], space=ContinuousSpace(n_dim=2))

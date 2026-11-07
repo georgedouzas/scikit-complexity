@@ -9,7 +9,7 @@ turned by the flows of all the others.
 """
 
 # %%
-# The system is created by name from the catalog: 27 squirmers with `B1 = 1.5` and `beta = -3` on a jittered cubic
+# The system is built from its class: 27 squirmers with `B1 = 1.5` and `beta = -3` on a jittered cubic
 # lattice of spacing 5 radii, with random orientations. The flows of the other squirmers enter through the mobility of
 # `MobilityInteraction`, so the run is a set of ordinary differential equations for the positions and orientations,
 # which the default solver integrates. The observer saves every frame of 0.5 with the default blueprint.
@@ -20,15 +20,14 @@ import numpy as np
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import Simulation, simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
-from skcomplex.systems.physics.active_matter import SquirmerElement, SquirmerSlipInteraction
+from skcomplex.systems.physics.active_matter import SquirmerElement, SquirmerSlipInteraction, SquirmersSystem
 
 SYSTEM = 'squirmers'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(create_system(SYSTEM), dt=0.5, observers=[observer]).prepare().run(until=40)
+simulation = simulate(SquirmersSystem(), observers=[observer])
 
 # %%
 # Pushers attract side by side, pullers repel

@@ -14,10 +14,9 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import AdvectionInteraction, DiffusionInteraction, RateInteraction
 from ....core.components.laws.utils import inverse_helmholtz, partial
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import RK4Solver
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class ContractileGelSiteElement(Element):
@@ -96,44 +95,13 @@ def _gel_velocity(s: SimpleNamespace) -> Expression:
     return velocity
 
 
-def _transport(s: SimpleNamespace) -> Expression:
-    """Return the velocity of a site of the target gel."""
-    return _gel_velocity(s.target)
-
-
-def _diffusion(s: SimpleNamespace) -> Expression:
-    """Return the diffusion coefficient of the cells."""
-    diffusion: Expression = s.target.D
-    return diffusion
-
-
 def _sites(values: np.ndarray) -> np.ndarray:
     """Return the values of every site, the observed field itself."""
     return np.array(values)
 
 
-@register_system(
-    field='physics/active_matter',
-    tags=('active gel', 'contractile', 'viscoelastic', 'field', 'inversion', 'pattern formation', 'pde'),
-    references=('Brauns and Marchetti 2024', 'arXiv:2306.08868'),
-    defaults={'until': 30.0, 'dt': 0.1, 'solver': RK4Solver(dt=0.005)},
-    observables=lambda system: [ObservableSpec('v', _gel_velocity, group='gel', reduce=_sites)],
-)
-def active_viscoelastic_gel(
-    n_sites: int = 128,
-    *,
-    length: float = 10.0,
-    density: float = 1.0,
-    perturbation: float = 0.01,
-    D: float = 0.1,
-    gamma: float = 1.0,
-    eta: float = 1.0,
-    E: float = 0.1,
-    T0: float = 4.0,
-    c_sat: float = 1.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return a one-dimensional active viscoelastic gel, where contractile cells concentrate by dragging the gel.
+class ActiveViscoelasticGelSystem(BaseSystem):
+    """A one-dimensional active viscoelastic gel, where contractile cells concentrate by dragging the gel.
 
     On a periodic line, the density `c` of the cells and the displacement `u` of a Kelvin-Voigt gel follow
 
@@ -143,7 +111,8 @@ def active_viscoelastic_gel(
     Helmholtz inversion of the stress gradient with the screening `sqrt(gamma / eta)`. Without stiffness the uniform
     state loses stability at long wavelengths above the contractile threshold `c Ta'(c) > gamma D`, and the density
     concentrates into peaks. The source leaves the active stress open, and the saturating one keeps the peaks finite.
-    The catalog entry streams the velocity as the observable `v`.
+    The catalog entry streams the velocity as the observable `v`. The system has the density `gel.c` and the
+    displacement `gel.u`.
 
     Args:
         n_sites:
@@ -179,33 +148,90 @@ def active_viscoelastic_gel(
         random_state:
             The seed or generator of the initial density.
 
-    Returns:
-        system:
-            The system, with the density `gel.c` and the displacement `gel.u`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.active_matter import active_viscoelastic_gel
-        >>> active_viscoelastic_gel(16).elements[0].values['eta']
+        >>> from skcomplex.systems.physics.active_matter import ActiveViscoelasticGelSystem
+        >>> ActiveViscoelasticGelSystem(16).prepare().system_.elements[0].values['eta']
         1.0
     """
-    rng = np.random.default_rng(random_state)
-    values = {
-        'c': density + perturbation * rng.standard_normal(n_sites),
-        'u': 0.0,
-        'D': D,
-        'gamma': gamma,
-        'eta': eta,
-        'E': E,
-        'T0': T0,
-        'c_sat': c_sat,
-    }
-    gel = FieldElement(
-        'gel',
-        element=ContractileGelSiteElement,
-        space=LatticeSpace(n_sites, spacing=length / n_sites),
-        values=values,
-    )
-    transport = AdvectionInteraction('transport', target='gel', state='c', drift=_transport, limiter=None, riemann=None)
-    diffusion = DiffusionInteraction('diffusion', target='gel', state='c', coefficient=_diffusion)
-    displacement = RateInteraction('displacement', target='gel', state='u', rate=_transport)
-    return System(elements=[gel], interactions=[transport, diffusion, displacement])
+
+    field = 'physics/active_matter'
+    topics = ('active gel', 'contractile', 'viscoelastic', 'field', 'inversion', 'pattern formation', 'pde')
+    references = ('Brauns and Marchetti 2024', 'arXiv:2306.08868')
+    until = 30.0
+    dt = 0.1
+    solver = RK4Solver(dt=0.005)
+    observables = (ObservableSpec('v', _gel_velocity, group='gel', reduce=_sites),)
+
+    def __init__(
+        self,
+        n_sites: int = 128,
+        *,
+        length: float = 10.0,
+        density: float = 1.0,
+        perturbation: float = 0.01,
+        D: float = 0.1,
+        gamma: float = 1.0,
+        eta: float = 1.0,
+        E: float = 0.1,
+        T0: float = 4.0,
+        c_sat: float = 1.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_sites = n_sites
+        self.length = length
+        self.density = density
+        self.perturbation = perturbation
+        self.D = D
+        self.gamma = gamma
+        self.eta = eta
+        self.E = E
+        self.T0 = T0
+        self.c_sat = c_sat
+        self.random_state = random_state
+
+    @staticmethod
+    def _transport(s: SimpleNamespace) -> Expression:
+        """Return the velocity of a site of the target gel."""
+        return _gel_velocity(s.target)
+
+    @staticmethod
+    def _diffusion(s: SimpleNamespace) -> Expression:
+        """Return the diffusion coefficient of the cells."""
+        diffusion: Expression = s.target.D
+        return diffusion
+
+    def _build_system(self) -> System:
+        """Return a one-dimensional active viscoelastic gel, where contractile cells concentrate by dragging the gel."""
+        rng = np.random.default_rng(self.random_state)
+        values = {
+            'c': self.density + self.perturbation * rng.standard_normal(self.n_sites),
+            'u': 0.0,
+            'D': self.D,
+            'gamma': self.gamma,
+            'eta': self.eta,
+            'E': self.E,
+            'T0': self.T0,
+            'c_sat': self.c_sat,
+        }
+        gel = FieldElement(
+            'gel',
+            element=ContractileGelSiteElement,
+            space=LatticeSpace(self.n_sites, spacing=self.length / self.n_sites),
+            values=values,
+        )
+        transport = AdvectionInteraction(
+            'transport',
+            target='gel',
+            state='c',
+            drift=self._transport,
+            limiter=None,
+            riemann=None,
+        )
+        diffusion = DiffusionInteraction('diffusion', target='gel', state='c', coefficient=self._diffusion)
+        displacement = RateInteraction('displacement', target='gel', state='u', rate=self._transport)
+        return System(self.label, elements=[gel], interactions=[transport, diffusion, displacement])

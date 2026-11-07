@@ -15,9 +15,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.physics.active_matter import GregoireChateSystem
 
 SYSTEM = 'gregoire_chate'
 
@@ -34,12 +34,10 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, n_particles=200, seed=0)
-observables = describe(SYSTEM).observables_of(system)
+system = GregoireChateSystem(n_particles=200, seed=0)
+observables = GregoireChateSystem.observables
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-simulation = (
-    Simulation(system, dt=1.0, observers=[observer], random_state=0, observables=observables).prepare().run(until=300)
-)
+trajectory = simulate(system, observers=[observer], random_state=0, observables=observables)
 
 # %%
 # Spacing inside the flock
@@ -48,13 +46,13 @@ simulation = (
 # `r_e = 0.5` back up to `r_a = 0.8`. The distances of the particles to their nearest neighbour should therefore settle
 # above `r_c`, with no pair closer than the repulsive core, while the polar order grows towards one.
 
-positions = np.asarray(simulation.trajectory_.values('flock.x')[-1])
+positions = np.asarray(trajectory.values('flock.x')[-1])
 difference = positions[:, None, :] - positions[None, :, :]
 difference -= 5.0 * np.rint(difference / 5.0)
 distance = np.sqrt((difference**2).sum(axis=-1))
 np.fill_diagonal(distance, np.inf)
 fig, (series, spacing) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(simulation.trajectory_.times, np.asarray(simulation.trajectory_.values('polarization'), dtype=float))
+series.plot(trajectory.times, np.asarray(trajectory.values('polarization'), dtype=float))
 series.set_ylim(0, 1)
 series.set_xlabel('step')
 series.set_ylabel('polar order')

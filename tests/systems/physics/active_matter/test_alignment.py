@@ -2,8 +2,7 @@
 
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
-from skcomplex.systems import describe
-from skcomplex.systems.physics.active_matter import aligning_active_brownian_particles
+from skcomplex.systems.physics.active_matter import AligningActiveBrownianParticlesSystem
 
 from .conftest import _stationary_polarization
 
@@ -12,14 +11,18 @@ def test_aligning_active_brownian_particles_alignment_transition() -> None:
     """Polarization stays below 0.2 at weak alignment and exceeds 0.6 at strong alignment, at one density and noise."""
     polarizations = []
     for gamma in (0.02, 1.0):
-        system = aligning_active_brownian_particles(200, size=20.0, gamma=gamma, D_r=0.1, random_state=0)
+        system = (
+            AligningActiveBrownianParticlesSystem(200, size=20.0, gamma=gamma, D_r=0.1, random_state=0)
+            .prepare()
+            .system_
+        )
         simulation = (
             Simulation(
                 system,
                 dt=1.0,
                 solver=EulerMaruyamaSolver(dt=0.05),
                 random_state=0,
-                observables=describe('aligning_active_brownian_particles').observables_of(system),
+                observables=AligningActiveBrownianParticlesSystem.observables,
             )
             .prepare()
             .run(until=200)

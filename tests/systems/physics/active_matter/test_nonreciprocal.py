@@ -3,18 +3,18 @@
 import numpy as np
 
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.systems import create_simulation
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.physics.active_matter import NonreciprocalVicsekSystem
 
 
 def _species_headings(coupling):
     """Return the mean headings of species A and B of a nonreciprocal Vicsek run, one complex number per frame."""
-    trajectory = (
-        create_simulation('nonreciprocal_vicsek', J_ab=coupling[0], J_ba=coupling[1])
-        .set_params(backend=NumbaBackend())
-        .prepare()
-        .run()
+    trajectory = simulate(
+        NonreciprocalVicsekSystem(J_ab=coupling[0], J_ba=coupling[1]),
+        backend=NumbaBackend(),
+        random_state=0,
     )
-    return trajectory.trajectory_.values('heading_a'), trajectory.trajectory_.values('heading_b')
+    return trajectory.values('heading_a'), trajectory.values('heading_b')
 
 
 def test_nonreciprocal_vicsek_chases_and_rotates():

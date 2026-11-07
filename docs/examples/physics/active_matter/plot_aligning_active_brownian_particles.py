@@ -17,10 +17,10 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import Simulation, simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.physics.active_matter import AligningActiveBrownianParticlesSystem
 
 SYSTEM = 'aligning_active_brownian_particles'
 
@@ -37,22 +37,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, gamma=1.0, random_state=0)
+system = AligningActiveBrownianParticlesSystem(gamma=1.0, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = (
-    Simulation(
-        system,
-        dt=1.0,
-        solver=EulerMaruyamaSolver(dt=0.05),
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(
-        until=100,
-    )
-)
+trajectory = simulate(system, observers=[observer], random_state=0)
 
 # %%
 # The alignment transition
@@ -67,17 +54,17 @@ threshold = 2 * D_r / (math.pi * d0**2 * density)
 strengths = np.array([0.02, 0.05, 0.1, 0.15, 0.2, 0.3, 0.5, 1.0])
 polarizations = []
 for gamma in strengths:
-    system_system = create_system(SYSTEM, gamma=gamma, random_state=1)
+    system_system = AligningActiveBrownianParticlesSystem(gamma=gamma, random_state=1)
     run = Simulation(
-        system_system,
+        system_system.prepare().system_,
         dt=1.0,
         solver=EulerMaruyamaSolver(dt=0.05),
         random_state=1,
-        observables=describe(SYSTEM).observables_of(system_system),
+        observables=AligningActiveBrownianParticlesSystem.observables,
     ).prepare()
     polarizations.append(np.abs(run.run(until=150).trajectory_.values('polarization')[75:]).mean())
 fig, (series, transition) = plt.subplots(1, 2, figsize=(10, 4))
-series.plot(simulation.trajectory_.times, np.abs(simulation.trajectory_.values('polarization')))
+series.plot(trajectory.times, np.abs(trajectory.values('polarization')))
 series.set_ylim(0, 1)
 series.set_xlabel('time')
 series.set_ylabel('polarization')

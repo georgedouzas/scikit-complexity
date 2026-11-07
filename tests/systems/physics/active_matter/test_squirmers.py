@@ -6,9 +6,8 @@ import pytest
 from skcomplex.core.components.elements import GroupElement
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems import create_simulation
-from skcomplex.systems.physics.active_matter import SquirmerElement, SquirmerSlipInteraction
+from skcomplex.core.engine.runtime import Simulation, simulate
+from skcomplex.systems.physics.active_matter import SquirmerElement, SquirmerSlipInteraction, SquirmersSystem
 
 
 def _pair(beta, offset, until=8.0):
@@ -55,7 +54,7 @@ def test_pullers_and_pushers_turn_in_opposite_senses():
 
 def test_suspension_keeps_unit_orientations_and_separated_spheres():
     """Test that the catalog suspension keeps unit orientations and the repulsion keeps spheres from overlapping."""
-    trajectory = create_simulation('squirmers', n_squirmers=8).prepare().run(until=20.0).trajectory_
+    trajectory = simulate(SquirmersSystem(n_squirmers=8), until=20.0, random_state=0)
     orientations = trajectory.values('squirmers.p')
     positions = trajectory.values('squirmers.x')[-1]
     assert np.linalg.norm(orientations, axis=-1) == pytest.approx(1.0, abs=1e-3)

@@ -14,13 +14,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import quad
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.physics.active_matter import InertialActiveBrownianParticlesSystem
 
 SYSTEM = 'inertial_active_brownian_particles'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run(until=20)
+simulation = simulate(InertialActiveBrownianParticlesSystem(), until=20, observers=[observer], random_state=0)
 
 # %%
 # Velocity along the orientation
@@ -32,7 +33,7 @@ simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare(
 masses = [0.05, 0.2, 0.5, 1.0, 2.0]
 measured, expected = [], []
 for mass in masses:
-    trajectory = create_simulation(SYSTEM, mass=mass).prepare().run(until=20).trajectory_
+    trajectory = simulate(InertialActiveBrownianParticlesSystem(mass=mass), until=20, random_state=0)
     velocity = np.asarray(trajectory.values('swimmers.x_d1'))
     heading = np.asarray(trajectory.values('swimmers.theta'))
     measured.append((velocity[..., 0] * np.cos(heading) + velocity[..., 1] * np.sin(heading))[10:].mean())
