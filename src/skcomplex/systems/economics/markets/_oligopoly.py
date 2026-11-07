@@ -459,5 +459,5 @@ class OligopolyEquilibriaSystem(BaseSystem):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings, with the observables of the parts built from the model parameters."""
         settings = super().get_run_settings()
-        settings['observables'] = _price_observables(self._build_system())
+        settings['observables'] = _price_observables(self._pass_parameters())
         return settings

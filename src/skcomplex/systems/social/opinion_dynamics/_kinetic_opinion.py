@@ -302,6 +302,6 @@ class KineticOpinionSystem(BaseSystem):
     def get_run_settings(self) -> RunSettings:
         """Return the tuned run settings, with the observables of the parts built from the model parameters."""
         settings = super().get_run_settings()
-        system = self._build_system()
+        system = self._pass_parameters()
         settings['observables'] = opinion_observables(_levels_of(system))
         return settings

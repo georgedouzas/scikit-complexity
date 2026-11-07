@@ -12,6 +12,9 @@ from dataclasses import replace
 from types import SimpleNamespace
 from typing import ClassVar, TypedDict
 
+import numpy as np
+from sklearn.base import BaseEstimator
+
 from ..base import BaseConfig
 from ..errors import RoleElementError, TagError, ValidationError
 from ..specs import ObservableSpec, Tags
@@ -38,8 +41,9 @@ class BaseSystem(BasePart[BaseSpace, SimpleNamespace]):
     name, as in scikit-learn, so `get_params`, `set_params`, and `clone` work on them. It builds its parts in the hook
     `_build_system`, which returns the generic composite `System` of its elements, interactions, nested systems, space,
     and time, written in terms of the model parameters. `prepare` passes the current model parameters down to the parts
-    by building them again, and prepares them as `system_`, so a parameter changed with `set_params` changes the parts
-    of the next `prepare`. The tags of a system are derived from its parts and never declared.
+    by building them again when a parameter differs by value from those of the last build, and prepares them as
+    `system_`, so a parameter changed with `set_params` changes the parts of the next `prepare`. The tags of a system
+    are derived from its parts and never declared.
 
     A subclass may give tuned run settings as class variables, which `simulate` reads for the arguments a call leaves
     out: `until`, the end time, `dt`, the time between frames, `solver`, the solver, `observables`, the observables,
@@ -100,8 +104,47 @@ class BaseSystem(BasePart[BaseSpace, SimpleNamespace]):
     def _build_system(self) -> System:
         """Return the composite of the parts of the system, built from its model parameters."""
 
+    def _is_equal(self, old: object, new: object) -> bool:
+        """Return whether two values of a model parameter are equal by value.
+
+        Estimators are equal when they have the same class and equal parameters, sequences and mappings when their
+        items are equal, and arrays when they have the same shape and entries. A value that cannot be compared is
+        taken as changed.
+
+        Args:
+            old:
+                The value the parts were last built from.
+
+            new:
+                The current value.
+
+        Returns:
+            equal:
+                Whether the values are equal.
+        """
+        if old is new:
+            return True
+        if type(old) is not type(new):
+            return False
+        if isinstance(old, BaseEstimator) and isinstance(new, BaseEstimator):
+            return self._is_equal(old.get_params(deep=False), new.get_params(deep=False))
+        if isinstance(old, Mapping) and isinstance(new, Mapping):
+            return old.keys() == new.keys() and all(self._is_equal(old[key], new[key]) for key in old)
+        if isinstance(old, list | tuple) and isinstance(new, list | tuple):
+            return len(old) == len(new) and all(self._is_equal(*pair) for pair in zip(old, new, strict=True))
+        if isinstance(old, np.ndarray) and isinstance(new, np.ndarray):
+            return old.shape == new.shape and bool(np.array_equal(old, new))
+        try:
+            return bool(old == new)
+        except (TypeError, ValueError):
+            return False
+
     def _pass_parameters(self) -> System:
         """Return the parts of the system built from its current model parameters.
+
+        The parts are built again only when a model parameter differs by value from those of the last build, so a
+        system that fits or generates data when it builds its parts does so once per set of parameters, however often
+        `get_tags`, `_check`, and `prepare` read them.
 
         Returns:
             system:
@@ -111,10 +154,15 @@ class BaseSystem(BasePart[BaseSpace, SimpleNamespace]):
             ValidationError:
                 The hook `_build_system` returns no `System`.
         """
+        params = self.get_params(deep=False)
+        built: tuple[dict[str, object], System] | None = getattr(self, '_built_from', None)
+        if built is not None and self._is_equal(built[0], params):
+            return built[1]
         system = self._build_system()
         if not isinstance(system, System):
             error_msg = f'{type(self).__name__} builds its parts as a System, not as {type(system).__name__}.'
             raise ValidationError(error_msg)
+        self._built_from = (params, system)
         return system
 
     def _check(self) -> None:

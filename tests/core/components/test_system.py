@@ -383,6 +383,36 @@ def test_base_system_passes_model_parameters_down_to_its_parts():
     assert system.get_tags().laws == {'rate'}
 
 
+class CountingSystem(GrowthSystem):
+    """System of exponential growth that counts how often it builds its parts."""
+
+    def __init__(self, label: str = 'growth', r: float = 1.0, weights: object = None) -> None:
+        super().__init__(label, r)
+        self.weights = weights
+        self.n_builds = 0
+
+    def _build_system(self) -> System:
+        self.n_builds += 1
+        return super()._build_system()
+
+
+def test_base_system_builds_its_parts_once_per_set_of_parameters():
+    """Test that tags, checks, and prepares reuse the built parts until a parameter changes by value."""
+    system = CountingSystem(r=0.3, weights=np.ones(3))
+    system.get_tags()
+    system.prepare().prepare()
+    system.get_tags()
+    assert system.n_builds == 1
+    system.set_params(r=0.3, weights=np.ones(3)).prepare()
+    assert system.n_builds == 1
+    system.set_params(weights=np.zeros(3)).prepare()
+    assert system.n_builds == 2
+    system.set_params(r=0.5).prepare()
+    assert (system.n_builds, system.system_.interactions[0].rate) == (3, 0.5)
+    system.get_tags()
+    assert system.n_builds == 3
+
+
 def test_base_system_rejects_parts_that_are_no_system():
     """Test that a system subclass whose hook returns no `System` fails to prepare."""
 
