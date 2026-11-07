@@ -15,6 +15,8 @@ from ....core.specs import PhaseSpec, PhasesScheduleSpec
 from ....core.types import Array
 from ..._catalog import register_system
 from ._contributor import ContributorElement
+from ._iterated_dilemma import IteratedDilemmaInteraction
+from ._iterated_prisoner import IteratedPrisonerElement
 from ._prisoner import PrisonerElement
 from ._prisoners_dilemma import PrisonersDilemmaInteraction
 from ._public_goods import PublicGoodsInteraction
@@ -157,3 +159,95 @@ def public_goods_game(
         interactions=[PublicGoodsInteraction('play', target='players', phase='play'), imitation],
         time=time,
     )
+
+
+@register_system(
+    field='social/cooperation',
+    tags=('lattice', 'games', 'cooperation', 'iterated', 'mutation'),
+    references=('Argun et al. 2021', 'Axelrod and Hamilton 1981'),
+    defaults={'until': 100, 'dt': 1},
+)
+def iterated_lattice_dilemma(
+    shape: Sequence[int] = (30, 30),
+    *,
+    rounds: int = 7,
+    reward: float = 0.6,
+    sucker: float = 1.5,
+    temptation: float = 0.0,
+    punishment: float = 1.0,
+    mutation: float = 0.01,
+    extremes: bool = False,
+    random_state: int | np.random.Generator | None = 0,
+) -> System:
+    """Return Argun's evolutionary iterated prisoner's dilemma on a lattice, with strategies of `n` cooperation rounds.
+
+    The payoffs are years in prison, `T < R < P < S`, so lower is better. A strategy `n` cooperates until round `n`
+    or until the opponent defects, and defects afterwards, so `n = 0` always defects and `n = N` always cooperates.
+    Against a strategy `m` the best reply is `n = m - 1`. Every step each player plays the `N`-round game with its four
+    von Neumann neighbours, adopts the strategy of the lowest total among itself and its neighbours, random on ties,
+    and mutates to a random strategy with the probability `mu` (Argun et al. 2021 sections 13.2 and 13.3). With every
+    strategy allowed and `S = 1.5`, cooperative strategies prevail for `R` below about 0.5, all strategies coexist and
+    cycle between about 0.5 and 0.75, and defecting strategies dominate above, so the default `R = 0.6` lies in the
+    middle of the cycling regime, where a finite lattice is not absorbed by defection. With only the two extreme
+    strategies,
+    `extremes=True`, cooperation dominates at `R = 0.82`, coexists with defection at `R = 0.84`, and vanishes at
+    `R = 0.86` (Exercise 13.3).
+
+    Args:
+        shape:
+            The number of rows and columns of the periodic lattice.
+
+        rounds:
+            The number `N` of rounds of a game.
+
+        reward:
+            The punishment `R` of mutual cooperation.
+
+        sucker:
+            The punishment `S` of a betrayed cooperator.
+
+        temptation:
+            The punishment `T` of a defector who betrays.
+
+        punishment:
+            The punishment `P` of mutual defection.
+
+        mutation:
+            The probability `mu` of a mutation to a random strategy per player and step.
+
+        extremes:
+            Whether only the strategies 0, always defect, and `N`, always cooperate, are allowed.
+
+        random_state:
+            The seed or generator of the initial strategies.
+
+    Returns:
+        system:
+            The system, with the strategies `players.strategy`.
+
+    Examples:
+        >>> from skcomplex.systems.social.cooperation import iterated_lattice_dilemma
+        >>> iterated_lattice_dilemma((10, 10)).elements[0].prepare().size_
+        100
+    """
+    rng = np.random.default_rng(random_state)
+    if extremes:
+        strategies = rounds * rng.integers(2, size=tuple(shape)).astype(float)
+    else:
+        strategies = rng.integers(rounds + 1, size=tuple(shape)).astype(float)
+    players = LatticeElement(
+        'players',
+        element=IteratedPrisonerElement,
+        space=LatticeSpace(tuple(shape), neighborhood='von_neumann'),
+        values={
+            'strategy': strategies,
+            'rounds': rounds,
+            'reward': reward,
+            'sucker': sucker,
+            'temptation': temptation,
+            'punishment': punishment,
+            'mutation': mutation,
+            'extremes': float(extremes),
+        },
+    )
+    return System(elements=[players], interactions=[IteratedDilemmaInteraction('play', target='players')])
