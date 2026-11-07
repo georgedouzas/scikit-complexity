@@ -2,13 +2,13 @@
 
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems.physics.fluids import fhp_lattice_gas
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.physics.fluids import FHPLatticeGasSystem
 
 
 def test_fhp_lattice_gas_conserves_mass_and_momentum():
     """Test that the FHP gas on a periodic 64 x 64 lattice keeps its particle number and momentum for 500 steps."""
-    trajectory = Simulation(fhp_lattice_gas((64, 64)), dt=1, random_state=0).prepare().run(until=500).trajectory_
+    trajectory = simulate(FHPLatticeGasSystem((64, 64)), until=500, random_state=0)
     occupations = np.stack([trajectory.values(f'gas.n{direction}').astype(float).sum(axis=1) for direction in range(6)])
     angles = np.arange(6) * np.pi / 3
     momentum = np.stack([np.cos(angles) @ occupations, np.sin(angles) @ occupations])

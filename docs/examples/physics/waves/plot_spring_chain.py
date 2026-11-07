@@ -13,16 +13,16 @@ sum of the string's normal modes beating together.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.waves import SpringChainSystem
 
 SYSTEM = 'spring_chain'
 N_MASSES = 15
 
-system = create_system(SYSTEM, n_masses=N_MASSES, pluck=0.05)
+system = SpringChainSystem(n_masses=N_MASSES, pluck=0.05)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(until=4)
+trajectory = simulate(system, until=4, dt=0.02, observers=[observer])
 
 # %%
 # Normal modes
@@ -31,7 +31,6 @@ simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(unt
 # own amplitude and oscillates at `2 sqrt(k / m) sin(n π / (2 (N + 1)))`. The projections of the heights on the first
 # three odd modes, which the symmetric pluck excites, should follow cosines at those frequencies.
 
-trajectory = simulation.trajectory_
 heights = np.stack([np.asarray(trajectory.values(f'mass_{index}.x'))[:, 1] for index in range(N_MASSES)], axis=1)
 sites = np.arange(1, N_MASSES + 1)
 times = np.asarray(trajectory.times)

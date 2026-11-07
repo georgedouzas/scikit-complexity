@@ -14,17 +14,17 @@ quantity of the rotating frame, although at this energy a narrow neck towards th
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.celestial_mechanics import RestrictedThreeBodySystem
 
 SYSTEM = 'restricted_three_body'
 MU = 0.01215
 
 
-system = create_system(SYSTEM, x=0.5, y=0.0, vx=0.0, vy=1.0, mu=MU)
+system = RestrictedThreeBodySystem(x=0.5, y=0.0, vx=0.0, vy=1.0, mu=MU)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=8)
-simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(until=40)
+trajectory = simulate(system, until=40, observers=[observer])
 
 # %%
 # Jacobi constant and the forbidden region
@@ -39,8 +39,8 @@ def effective(x, y):
     return x**2 + y**2 + 2 * (1 - MU) / np.hypot(x + MU, y) + 2 * MU / np.hypot(x - 1 + MU, y)
 
 
-x, y = np.ravel(simulation.trajectory_.values('body.x')), np.ravel(simulation.trajectory_.values('body.y'))
-px, py = np.ravel(simulation.trajectory_.values('body.px')), np.ravel(simulation.trajectory_.values('body.py'))
+x, y = np.ravel(trajectory.values('body.x')), np.ravel(trajectory.values('body.y'))
+px, py = np.ravel(trajectory.values('body.px')), np.ravel(trajectory.values('body.py'))
 vx, vy = px + y, py - x
 jacobi = effective(x, y) - vx**2 - vy**2
 grid_x, grid_y = np.meshgrid(np.linspace(-1.6, 1.6, 400), np.linspace(-1.6, 1.6, 400))
@@ -52,7 +52,7 @@ plane.set_aspect('equal')
 plane.set_xlabel('x')
 plane.set_ylabel('y')
 plane.set_title('Path outside the forbidden region, shaded')
-drift.plot(simulation.trajectory_.times, (jacobi - jacobi[0]) / abs(jacobi[0]))
+drift.plot(trajectory.times, (jacobi - jacobi[0]) / abs(jacobi[0]))
 drift.set_xlabel('time')
 drift.set_ylabel('relative change of C')
 drift.set_title('The Jacobi constant is conserved')

@@ -17,14 +17,15 @@ primary view.
 import matplotlib.pyplot as plt
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.backends import NumbaBackend
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation, create_system, describe
+from skcomplex.systems.physics.active_matter import ActivePassiveFlockingSystem
 
 SYSTEM = 'active_passive_flocking'
 
-system = create_system(SYSTEM)
-size = system.space.extent[0]
+system = ActivePassiveFlockingSystem()
+size = system.prepare().system_.space.extent[0]
 box = rrb.Spatial2DView(
     origin='/',
     name='agents',
@@ -37,21 +38,8 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-entry = describe(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint)
-simulation = (
-    Simulation(
-        system,
-        dt=entry.defaults['dt'],
-        solver=entry.defaults['solver'],
-        backend=entry.defaults['backend'],
-        observers=[observer],
-        random_state=0,
-        observables=entry.observables_of(system),
-    )
-    .prepare()
-    .run(until=entry.defaults['until'])
-)
+trajectory = simulate(system, backend=NumbaBackend(), observers=[observer], random_state=0)
 
 # %%
 # Snapshot and mean distances
@@ -62,8 +50,7 @@ simulation = (
 # flocking off the two should stay together. The mean distance is a coarse measure in a periodic box, so the snapshot
 # is the better guide to the flocks.
 
-SETTINGS = {'until': entry.defaults['until'], 'dt': entry.defaults['dt'], 'random_state': 0}
-trajectory = simulation.trajectory_
+SETTINGS = {'backend': NumbaBackend(), 'random_state': 0}
 positions = trajectory.values('agents.x')[-1]
 active = trajectory.values('agents.active')[-1] == 1.0
 fig, (snapshot, distance) = plt.subplots(1, 2, figsize=(10, 4.5))
@@ -74,7 +61,7 @@ snapshot.set_ylim(0.0, size)
 snapshot.set_aspect('equal')
 snapshot.set_title('Agents after 50 time units')
 snapshot.legend(loc='upper right')
-without = create_simulation(SYSTEM, alpha=0.0).set_params(**SETTINGS).prepare().run().trajectory_
+without = simulate(ActivePassiveFlockingSystem(alpha=0.0), **SETTINGS)
 distance.plot(trajectory.times, trajectory.values('active_distance'), color='tab:red', label='active, flocking on')
 distance.plot(trajectory.times, trajectory.values('passive_distance'), color='tab:green', label='passive, flocking on')
 distance.plot(

@@ -5,9 +5,8 @@ import numpy as np
 from skcomplex.core.components.elements import FieldElement
 from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import EulerMaruyamaSolver
-from skcomplex.systems.physics.active_matter import ActiveScalarElement, active_system_b
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.physics.active_matter import ActiveScalarElement, ActiveSystemBSystem
 
 
 def _bubble_areas(zeta):
@@ -18,20 +17,15 @@ def _bubble_areas(zeta):
     system = System(
         elements=[FieldElement('fluid', element=ActiveScalarElement, space=LatticeSpace((24, 48)), values=values)],
     )
-    trajectory = Simulation(system, dt=50.0, solver=EulerMaruyamaSolver(dt=0.02)).prepare().run(until=300).trajectory_
+    trajectory = simulate(system, until=300, dt=50.0)
     phi = trajectory.lattice('fluid.phi')[[1, -1]] < 0
     return phi[:, :, :24].sum(axis=(1, 2)), phi[:, :, 24:].sum(axis=(1, 2))
 
 
 def test_active_system_b_keeps_the_mean_and_phase_separates():
     """Test that Active System B+ keeps the mean of phi under its conserved noise and separates into two phases."""
-    system = active_system_b((32, 32))
-    trajectory = (
-        Simulation(system, dt=50.0, solver=EulerMaruyamaSolver(dt=0.02), random_state=0)
-        .prepare()
-        .run(until=300)
-        .trajectory_
-    )
+    system = ActiveSystemBSystem((32, 32))
+    trajectory = simulate(system, until=300, dt=50.0, random_state=0)
     phi = trajectory.lattice('fluid.phi')
     np.testing.assert_allclose(phi.mean(axis=(1, 2)), phi[0].mean(), rtol=1e-9)
     assert phi[-1].max() > 0.9

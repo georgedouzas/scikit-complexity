@@ -8,7 +8,7 @@ absorbing state.
 """
 
 # %%
-# The system is created by name from the catalog with the energy `nu = 1.05`, just above the threshold `nu_c = 1` of
+# The system is built from its class with the energy `nu = 1.05`, just above the threshold `nu_c = 1` of
 # the growth rate `a + b nu` with `a = -1` and `b = 1`, and with the noise amplitude `e = 0.5`. Without drive and
 # dissipation the energy stays fixed, so it is the control parameter. The Euler-Maruyama solver of the catalog
 # integrates the noise. The default blueprint puts the view of the active density `rho` first, with the energy beside
@@ -20,14 +20,14 @@ import numpy as np
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.criticality import DirectedPercolationLangevinSystem
 
 SYSTEM = 'directed_percolation_langevin'
 
-system = create_system(SYSTEM, energy=1.05, e=0.5)
+system = DirectedPercolationLangevinSystem(energy=1.05, e=0.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='neurons/rho', interval=1)
 simulation = Simulation(
-    system,
+    system.prepare().system_,
     dt=1.0,
     solver=EulerMaruyamaSolver(dt=0.01),
     observers=[observer],
@@ -46,7 +46,7 @@ energies = np.linspace(0.6, 1.8, 13)
 densities = []
 for energy in energies:
     run = Simulation(
-        create_system(SYSTEM, shape=(16, 16), energy=energy),
+        DirectedPercolationLangevinSystem(shape=(16, 16), energy=energy).prepare().system_,
         dt=1.0,
         solver=EulerMaruyamaSolver(dt=0.01),
     ).prepare()

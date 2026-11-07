@@ -52,6 +52,11 @@ class ActiveParticleElement(Element):
         2.0
     """
 
+    law_classes = (
+        NoiseLaw,
+        RateLaw,
+    )
+
     def __init__(
         self,
         label: str,

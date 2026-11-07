@@ -9,21 +9,21 @@ top.
 """
 
 # %%
-# The system is created by name from the catalog at `beta = 1` with attempt probability `w = 0.5`. The observer saves
+# The system is built from its class at `beta = 1` with attempt probability `w = 0.5`. The observer saves
 # every step with the default blueprint, whose primary view is the space-time image of the probabilities.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.statistical_mechanics import DiscreteMasterEquationSystem
 
 SYSTEM = 'discrete_master_equation'
 
-system = create_system(SYSTEM)
+system = DiscreteMasterEquationSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=250)
+trajectory = simulate(system, until=250, dt=1, observers=[observer])
 
 # %%
 # Relaxation to the Boltzmann distribution
@@ -35,11 +35,11 @@ simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=
 
 def divergence(beta):
     """Return the Kullback-Leibler divergence from the Boltzmann distribution at every step."""
-    run = Simulation(create_system(SYSTEM, beta=beta), dt=1).prepare().run(until=2000)
-    probabilities = np.clip(run.trajectory_.values('states.P'), 1e-300, None)
-    boltzmann = np.exp(-beta * run.trajectory_.values('states.U')[0])
+    run = simulate(DiscreteMasterEquationSystem(beta=beta), until=2000, dt=1)
+    probabilities = np.clip(run.values('states.P'), 1e-300, None)
+    boltzmann = np.exp(-beta * run.values('states.U')[0])
     boltzmann /= boltzmann.sum()
-    return run.trajectory_.times, np.sum(probabilities * np.log(probabilities / boltzmann), axis=1)
+    return run.times, np.sum(probabilities * np.log(probabilities / boltzmann), axis=1)
 
 
 fig, ax = plt.subplots(figsize=(7, 4))

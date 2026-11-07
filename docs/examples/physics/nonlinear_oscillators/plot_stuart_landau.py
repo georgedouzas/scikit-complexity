@@ -12,16 +12,16 @@ amplitude saturates at `sqrt(μ)`, the universal behaviour near the onset of any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.nonlinear_oscillators import StuartLandauSystem
 
 SYSTEM = 'stuart_landau'
 
 mu, omega, beta = 1.0, 2.0, 1.0
-system = create_system(SYSTEM, x=0.01, y=0.0, mu=mu, omega=omega, beta=beta)
+system = StuartLandauSystem(x=0.01, y=0.0, mu=mu, omega=omega, beta=beta)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=20)
+trajectory = simulate(system, until=20, observers=[observer])
 
 # %%
 # Amplitude and frequency
@@ -30,9 +30,9 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(unt
 # the cycle the phase turns at the frequency `ω - β μ`. The simulated amplitude should lie on the exact curve, and
 # the phase should advance at the predicted rate once the amplitude has saturated.
 
-times = np.asarray(simulation.trajectory_.times)
-z = np.ravel(simulation.trajectory_.values('oscillator.x')) + 1j * np.ravel(
-    simulation.trajectory_.values('oscillator.y'),
+times = np.asarray(trajectory.times)
+z = np.ravel(trajectory.values('oscillator.x')) + 1j * np.ravel(
+    trajectory.values('oscillator.y'),
 )
 exact = np.sqrt(mu / (1 + (mu / 0.01**2 - 1) * np.exp(-2 * mu * times)))
 phase = np.unwrap(np.angle(z))

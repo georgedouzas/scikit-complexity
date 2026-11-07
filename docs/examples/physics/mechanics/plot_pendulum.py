@@ -13,14 +13,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import ellipk
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.mechanics import PendulumSystem
 
 SYSTEM = 'pendulum'
-system = create_system(SYSTEM, theta=2.5, omega=0.0)
+system = PendulumSystem(theta=2.5, omega=0.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.01, observers=[observer]).prepare().run(until=5)
+trajectory = simulate(system, until=5, observers=[observer])
 
 # %%
 # Period against amplitude
@@ -32,8 +32,8 @@ simulation = Simulation(system, dt=0.01, observers=[observer]).prepare().run(unt
 
 def measured_period(amplitude):
     """Return the mean period of a pendulum released from rest at an amplitude."""
-    run = Simulation(create_system(SYSTEM, theta=amplitude, omega=0.0), dt=0.005).prepare().run(until=30)
-    times, velocity = np.asarray(run.trajectory_.times), np.ravel(run.trajectory_.values('bob.theta_d1'))
+    run = simulate(PendulumSystem(theta=amplitude, omega=0.0), until=30, dt=0.005)
+    times, velocity = np.asarray(run.times), np.ravel(run.values('bob.theta_d1'))
     crossings = times[1:][(velocity[:-1] < 0) & (velocity[1:] >= 0)]
     return np.diff(crossings).mean()
 

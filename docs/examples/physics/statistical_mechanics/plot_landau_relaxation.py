@@ -8,21 +8,21 @@ zero. The view shows the order parameter at `T = 0.5 Tc` growing from 0.1 along 
 """
 
 # %%
-# The system is created by name from the catalog with `a = b = Gamma = 1` and `Tc = 1`. The observer saves every frame
+# The system is built from its class with `a = b = Gamma = 1` and `Tc = 1`. The observer saves every frame
 # of 0.1 with the default blueprint, whose primary view is the time series of the order parameter.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.statistical_mechanics import LandauRelaxationSystem
 
 SYSTEM = 'landau_relaxation'
 
-system = create_system(SYSTEM, T=0.5)
+system = LandauRelaxationSystem(T=0.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=20)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Critical slowing down
@@ -35,12 +35,12 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 def relaxation_time(temperature):
     """Return the relaxation time from the late exponential decay of the distance to the minimum."""
     until = 10 / abs(temperature - 1)
-    run = Simulation(create_system(SYSTEM, T=temperature), dt=until / 400).prepare().run(until=until)
-    phi = run.trajectory_.values('magnet.phi')
+    run = simulate(LandauRelaxationSystem(T=temperature), until=until, dt=until / 400)
+    phi = run.values('magnet.phi')
     target = np.sqrt(max(1 - temperature, 0))
     distance = np.abs(phi - target)
     late = slice(120, 240)
-    slope = np.polyfit(run.trajectory_.times[late], np.log(distance[late]), 1)[0]
+    slope = np.polyfit(run.times[late], np.log(distance[late]), 1)[0]
     return -1 / slope
 
 

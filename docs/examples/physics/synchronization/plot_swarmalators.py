@@ -8,17 +8,16 @@ with one jump where the phase wraps from pi to -pi.
 """
 
 # %%
-# The system is created by name from the catalog with 100 units, the attraction of like phases `J = 1`, and no phase
+# The system is built from its class with 100 units, the attraction of like phases `J = 1`, and no phase
 # coupling, `K = 0`. The units start at random in a square with random phases. The RK4 solver of the catalog
 # integrates the run, and the default blueprint shows the positions coloured by phase.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.synchronization import SwarmalatorsSystem
 
 SYSTEM = 'swarmalators'
 
@@ -31,11 +30,9 @@ def order_parameters(positions, phases):
     return plus, minus, abs(np.exp(1j * phases).mean())
 
 
-system = create_system(SYSTEM, J=1.0, K=0.0)
+system = SwarmalatorsSystem(J=1.0, K=0.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(system, dt=1.0, solver=RK4Solver(dt=0.1), observers=[observer], random_state=0).prepare().run(until=100)
-)
+trajectory = simulate(system, observers=[observer], random_state=0)
 
 # %%
 # Order parameters of the static states
@@ -45,28 +42,24 @@ simulation = (
 # 1, the static phase wave. Across the phase coupling `K`, the phase coherence should reach 1 for `K > 0`, the
 # synchronized disk, while `S±` and the coherence should all stay small for negative `K`, the asynchronous disk.
 
-positions = np.asarray(simulation.trajectory_.values('units.x'))
-phases = np.asarray(simulation.trajectory_.values('units.theta'))
+positions = np.asarray(trajectory.values('units.x'))
+phases = np.asarray(trajectory.values('units.theta'))
 history = np.array([order_parameters(position, phase) for position, phase in zip(positions, phases, strict=True)])
 couplings = [-1.0, -0.5, -0.1, 0.0, 0.5, 1.0]
 final = []
 for K in couplings:
-    run = (
-        Simulation(create_system(SYSTEM, n_units=60, J=1.0, K=K), dt=1.0, solver=RK4Solver(dt=0.1))
-        .prepare()
-        .run(until=60)
-    )
+    run = simulate(SwarmalatorsSystem(n_units=60, J=1.0, K=K), until=60)
     final.append(
         order_parameters(
-            np.asarray(run.trajectory_.values('units.x'))[-1],
-            np.asarray(run.trajectory_.values('units.theta'))[-1],
+            np.asarray(run.values('units.x'))[-1],
+            np.asarray(run.values('units.theta'))[-1],
         ),
     )
 final = np.array(final)
 
 fig, (growth, states) = plt.subplots(1, 2, figsize=(10, 4))
-growth.plot(simulation.trajectory_.times, history[:, 0], label='S+')
-growth.plot(simulation.trajectory_.times, history[:, 1], label='S-')
+growth.plot(trajectory.times, history[:, 0], label='S+')
+growth.plot(trajectory.times, history[:, 1], label='S-')
 growth.set_xlabel('time')
 growth.set_ylabel('order parameter')
 growth.set_title('A static phase wave forms at K = 0')

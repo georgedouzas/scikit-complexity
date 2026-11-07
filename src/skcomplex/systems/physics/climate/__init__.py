@@ -2,80 +2,87 @@
 
 from ._early_warning import EarlyWarningResult, early_warning
 from ._energy_balance import (
+    BudykoSellersSystem,
     DaisyworldElement,
+    DaisyworldSystem,
+    EnergyBalanceSystem,
     IceAlbedoClimateElement,
     LatitudeBandElement,
-    budyko_sellers,
-    daisyworld,
-    energy_balance,
 )
-from ._forests import ForestCoverElement, MitigatorsElement, forest_dieback, social_forest_dieback
+from ._forests import ForestCoverElement, ForestDiebackSystem, MitigatorsElement, SocialForestDiebackSystem
 from ._ice_ages import (
     CarbonCycleElement,
+    CarbonCycleSystem,
+    SaltzmanGlaciationSystem,
     SaltzmanMaaschElement,
     VanDerPolIceAgesElement,
-    carbon_cycle,
-    saltzman_glaciation,
-    van_der_pol_ice_ages,
+    VanDerPolIceAgesSystem,
 )
-from ._low_order import GeodynamoElement, Lorenz84Element, Lorenz96Element, geodynamo, lorenz_84, lorenz_96
-from ._net_energy import EnergySectorElement, energy_return
-from ._pollution import PollutedRegionElement, population_pollution
-from ._soil import SoilTemperatureElement, soil_temperature
-from ._tipping import TippingElementElement, tipping_cascade_network
+from ._low_order import (
+    GeodynamoElement,
+    GeodynamoSystem,
+    Lorenz84Element,
+    Lorenz84System,
+    Lorenz96Element,
+    Lorenz96System,
+)
+from ._net_energy import EnergyReturnSystem, EnergySectorElement
+from ._pollution import PollutedRegionElement, PopulationPollutionSystem
+from ._soil import SoilTemperatureElement, SoilTemperatureSystem
+from ._tipping import TippingCascadeNetworkSystem, TippingElementElement
 from ._tipping_types import (
     FoldFollowerElement,
     HopfFollowerElement,
+    LeadingFollowingCascadeSystem,
     RampedFoldElement,
+    RampedStochasticFoldSystem,
     StochasticEnergyBalanceElement,
-    leading_following_cascade,
-    ramped_stochastic_fold,
-    sutera_fraedrich_tipping,
+    SuteraFraedrichTippingSystem,
 )
-from ._variability import ClimateAnomalyElement, DelayedOscillatorElement, enso, hasselmann
+from ._variability import ClimateAnomalyElement, DelayedOscillatorElement, ENSOSystem, HasselmannSystem
 
 __all__: list[str] = [
+    'BudykoSellersSystem',
     'CarbonCycleElement',
+    'CarbonCycleSystem',
     'ClimateAnomalyElement',
     'DaisyworldElement',
+    'DaisyworldSystem',
     'DelayedOscillatorElement',
+    'ENSOSystem',
     'EarlyWarningResult',
+    'EnergyBalanceSystem',
+    'EnergyReturnSystem',
     'EnergySectorElement',
     'FoldFollowerElement',
     'ForestCoverElement',
+    'ForestDiebackSystem',
     'GeodynamoElement',
+    'GeodynamoSystem',
+    'HasselmannSystem',
     'HopfFollowerElement',
     'IceAlbedoClimateElement',
     'LatitudeBandElement',
+    'LeadingFollowingCascadeSystem',
     'Lorenz84Element',
+    'Lorenz84System',
     'Lorenz96Element',
+    'Lorenz96System',
     'MitigatorsElement',
     'PollutedRegionElement',
+    'PopulationPollutionSystem',
     'RampedFoldElement',
+    'RampedStochasticFoldSystem',
+    'SaltzmanGlaciationSystem',
     'SaltzmanMaaschElement',
+    'SocialForestDiebackSystem',
     'SoilTemperatureElement',
+    'SoilTemperatureSystem',
     'StochasticEnergyBalanceElement',
+    'SuteraFraedrichTippingSystem',
+    'TippingCascadeNetworkSystem',
     'TippingElementElement',
     'VanDerPolIceAgesElement',
-    'budyko_sellers',
-    'carbon_cycle',
-    'daisyworld',
+    'VanDerPolIceAgesSystem',
     'early_warning',
-    'energy_balance',
-    'energy_return',
-    'enso',
-    'forest_dieback',
-    'geodynamo',
-    'hasselmann',
-    'leading_following_cascade',
-    'lorenz_84',
-    'lorenz_96',
-    'population_pollution',
-    'ramped_stochastic_fold',
-    'saltzman_glaciation',
-    'social_forest_dieback',
-    'soil_temperature',
-    'sutera_fraedrich_tipping',
-    'tipping_cascade_network',
-    'van_der_pol_ice_ages',
 ]

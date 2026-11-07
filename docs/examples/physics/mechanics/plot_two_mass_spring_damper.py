@@ -14,15 +14,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import spectrum
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.mechanics import TwoMassSpringDamperSystem
 
 SYSTEM = 'two_mass_spring_damper'
 
-system = create_system(SYSTEM, x1=1.2, x2=2.0)
+system = TwoMassSpringDamperSystem(x1=1.2, x2=2.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=50)
+trajectory = simulate(system, until=50, dt=0.1, observers=[observer])
 
 # %%
 # Normal-mode spectrum
@@ -30,8 +30,8 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 # The power spectrum of a long run of the first mass should show two sharp peaks, at the angular frequencies 1 and
 # `sqrt(3)` of the normal modes, dashed, and nothing else since the system is linear and undamped.
 
-run = Simulation(create_system(SYSTEM, x1=1.2, x2=2.0), dt=0.1).prepare().run(until=2000)
-power = spectrum(np.ravel(run.trajectory_.values('first.x')) - 1.0, dt=0.1)
+run = simulate(TwoMassSpringDamperSystem(x1=1.2, x2=2.0), until=2000, dt=0.1)
+power = spectrum(np.ravel(run.values('first.x')) - 1.0, dt=0.1)
 frequencies, density = power.frequencies, power.power[0]
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.semilogy(2 * np.pi * frequencies, density)

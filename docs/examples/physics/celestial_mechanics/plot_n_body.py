@@ -12,16 +12,16 @@ star crosses the middle in turn, and after one period every star is back where i
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.celestial_mechanics import NBodySystem
 
 SYSTEM = 'n_body'
 PERIOD = 6.3259
 
-system = create_system(SYSTEM, preset='figure_eight')
+system = NBodySystem(preset='figure_eight')
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
-simulation = Simulation(system, dt=0.01, observers=[observer]).prepare().run(until=PERIOD)
+trajectory = simulate(system, until=PERIOD, observers=[observer])
 
 # %%
 # Return after one period
@@ -29,8 +29,8 @@ simulation = Simulation(system, dt=0.01, observers=[observer]).prepare().run(unt
 # Over three periods, the distance of the configuration from its initial state should fall back to almost zero at
 # every multiple of the period, and the three stars should share a single figure-eight path.
 
-run = Simulation(create_system(SYSTEM, preset='figure_eight'), dt=0.005).prepare().run(until=3 * PERIOD)
-positions = np.stack([np.asarray(run.trajectory_.values(f'body_{index}.x')) for index in range(3)], axis=1)
+run = simulate(NBodySystem(preset='figure_eight'), until=3 * PERIOD, dt=0.005)
+positions = np.stack([np.asarray(run.values(f'body_{index}.x')) for index in range(3)], axis=1)
 distance = np.linalg.norm(positions - positions[0], axis=(1, 2))
 fig, (paths, returns) = plt.subplots(1, 2, figsize=(10, 4))
 for index in range(3):
@@ -40,7 +40,7 @@ paths.set_xlabel('x')
 paths.set_ylabel('y')
 paths.set_title('One shared figure-eight path')
 paths.legend()
-returns.plot(run.trajectory_.times, distance)
+returns.plot(run.times, distance)
 for multiple in range(1, 4):
     returns.axvline(multiple * PERIOD, linestyle='--', color='grey')
 returns.set_xlabel('time')

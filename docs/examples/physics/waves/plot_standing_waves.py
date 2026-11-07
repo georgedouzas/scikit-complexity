@@ -13,15 +13,15 @@ where the string never moves, and only swells and flips with the mode frequency 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.waves import StandingWavesSystem
 
 SYSTEM = 'standing_waves'
 
-system = create_system(SYSTEM, n_sites=99, length=2.0, c=1.0, mode=3, amplitude=1.0)
+system = StandingWavesSystem(n_sites=99, length=2.0, c=1.0, mode=3, amplitude=1.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=4.0)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Nodes and frequency
@@ -29,8 +29,8 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(unt
 # The exact solution is `u(x, t) = sin(m π x / L) cos(ω t)` with `ω = c m π / L`. Snapshots of the string should all
 # share the nodes at `x = L / 3` and `2 L / 3`, and the displacement at an antinode should follow `cos(ω t)`.
 
-displacement = simulation.trajectory_.lattice('string.u')
-times = np.asarray(simulation.trajectory_.times)
+displacement = trajectory.lattice('string.u')
+times = np.asarray(trajectory.times)
 positions = 2.0 / 100 * np.arange(1, 100)
 omega = 3 * np.pi / 2.0
 fig, (shapes, antinode) = plt.subplots(1, 2, figsize=(10, 4))

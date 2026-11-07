@@ -7,20 +7,21 @@ of currents such as the Gulf Stream. The state is the potential vorticity, inver
 """
 
 # %%
-# The system is created by name from the catalog on a square basin of 64 by 64 sites with walls, in its viscous steady
+# The system is built from its class on a square basin of 64 by 64 sites with walls, in its viscous steady
 # regime, and integrated with RK4 for 400 time units. The catalog entry streams the streamfunction as the observable
 # `psi`, and the default blueprint shows it as an image.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.physics.oceanography import DoubleGyreSystem
 
 SYSTEM = 'double_gyre'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=50)
-simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run()
+trajectory = simulate(DoubleGyreSystem(), observers=[observer], random_state=0)
 
 # %%
 # Western intensification
@@ -29,7 +30,7 @@ simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare(
 # western wall. Along the central latitude of each gyre, it should follow the Sverdrup balance `beta psi_x = curl(tau)`
 # away from the boundary layer.
 
-psi = np.asarray(simulation.trajectory_.values('psi'))[-1].reshape(64, 64)
+psi = np.asarray(trajectory.values('psi'))[-1].reshape(64, 64)
 positions = (np.arange(64) + 0.5) / 64
 sverdrup = 1e-5 * 2 * np.pi * np.sin(2 * np.pi * positions[16]) * (1 - positions)
 

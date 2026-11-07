@@ -12,8 +12,8 @@ from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.components.system import System
 from skcomplex.core.errors import AnalysisError
 from skcomplex.core.specs import ObservableSpec, StateSpec, SymmetrySpec
-from skcomplex.systems.physics.celestial_mechanics import sitnikov, two_body_orbit
-from skcomplex.systems.physics.nonlinear_oscillators import henon_heiles
+from skcomplex.systems.physics.celestial_mechanics import SitnikovSystem, TwoBodyOrbitSystem
+from skcomplex.systems.physics.nonlinear_oscillators import HenonHeilesSystem
 
 MU = 0.01215
 
@@ -83,7 +83,7 @@ def _kepler_expressions() -> list[ObservableSpec]:
 
 def test_run_reports_the_energy_and_angular_momentum_of_kepler_conserved():
     """Test that the energy and angular momentum of the Kepler problem are conserved and a momentum is not."""
-    analysis = invariants(two_body_orbit(), expressions=_kepler_expressions())
+    analysis = invariants(TwoBodyOrbitSystem().prepare().system_, expressions=_kepler_expressions())
     assert analysis.conserved == {'energy': True, 'angular_momentum': True, 'px': False}
     assert analysis.methods['energy'] == 'symbolic'
     namespace = analysis.namespace.planet
@@ -105,7 +105,7 @@ def test_run_brackets_the_components_of_the_angular_momentum():
         ObservableSpec('px', lambda s: s.planet.px),
         ObservableSpec('angular_momentum', lambda s: s.planet.x * s.planet.py - s.planet.y * s.planet.px),
     ]
-    analysis = invariants(two_body_orbit(), kind='brackets', expressions=expressions)
+    analysis = invariants(TwoBodyOrbitSystem().prepare().system_, kind='brackets', expressions=expressions)
     namespace = analysis.namespace.planet
     assert analysis.brackets[('x', 'px')] == 1
     assert bool(analysis.brackets[('x', 'angular_momentum')] == -namespace.y)
@@ -114,13 +114,17 @@ def test_run_brackets_the_components_of_the_angular_momentum():
 def test_run_rejects_brackets_without_canonical_pairs():
     """Test that brackets of a system without a Hamiltonian interaction raise an error naming it."""
     with pytest.raises(AnalysisError, match='HamiltonianInteraction'):
-        invariants(sitnikov(), kind='brackets', expressions=[ObservableSpec('z', lambda s: s.body.z)])
+        invariants(
+            SitnikovSystem().prepare().system_,
+            kind='brackets',
+            expressions=[ObservableSpec('z', lambda s: s.body.z)],
+        )
 
 
 def test_run_confirms_the_rotation_invariance_of_kepler_with_its_charge():
     """Test that the rotation of the plane keeps the Kepler Hamiltonian, with the angular momentum as charge."""
     rotation = SymmetrySpec('rotation', lambda s: {'planet.x': -s.planet.y, 'planet.y': s.planet.x})
-    analysis = invariants(two_body_orbit(), kind='symmetry', symmetry=rotation)
+    analysis = invariants(TwoBodyOrbitSystem().prepare().system_, kind='symmetry', symmetry=rotation)
     namespace = analysis.namespace.planet
     assert analysis.invariant
     assert analysis.remainder == 0
@@ -140,7 +144,7 @@ def test_run_reports_the_rotation_charge_of_a_lagrangian():
 def test_run_reports_a_broken_translation_of_henon_heiles():
     """Test that a translation of the first coordinate changes the Hénon-Heiles Hamiltonian by `x + 2 x y`."""
     translation = SymmetrySpec('translation', lambda s: {'star.x': 1})
-    analysis = invariants(henon_heiles(), kind='symmetry', symmetry=translation)
+    analysis = invariants(HenonHeilesSystem().prepare().system_, kind='symmetry', symmetry=translation)
     namespace = analysis.namespace.star
     assert not analysis.invariant
     assert bool((analysis.remainder - (namespace.x + 2 * namespace.x * namespace.y)).simplify_full() == 0)
@@ -150,4 +154,4 @@ def test_run_reports_a_broken_translation_of_henon_heiles():
 def test_check_rejects_a_symmetry_kind_without_a_symmetry():
     """Test that the symmetry kind needs a `SymmetrySpec`."""
     with pytest.raises(AnalysisError, match='SymmetrySpec'):
-        invariants(henon_heiles(), kind='symmetry')
+        invariants(HenonHeilesSystem().prepare().system_, kind='symmetry')

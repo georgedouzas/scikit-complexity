@@ -12,15 +12,15 @@ value when the detuning is smaller than the coupling, and slips by full turns at
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.nonlinear_oscillators import AdlerEquationSystem
 
 SYSTEM = 'adler_equation'
 
-system = create_system(SYSTEM, phi=0.0, detuning=0.5, epsilon=1.0)
+system = AdlerEquationSystem(phi=0.0, detuning=0.5, epsilon=1.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=20)
+trajectory = simulate(system, until=20, observers=[observer])
 
 # %%
 # Locking and phase slips
@@ -32,9 +32,9 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 detunings = np.linspace(0.0, 3.0, 25)
 rates = []
 for detuning in detunings:
-    run = Simulation(create_system(SYSTEM, phi=0.0, detuning=detuning, epsilon=1.0), dt=0.05).prepare().run(until=400)
-    phase = np.unwrap(np.ravel(run.trajectory_.values('difference.phi')))
-    times = np.asarray(run.trajectory_.times)
+    run = simulate(AdlerEquationSystem(phi=0.0, detuning=detuning, epsilon=1.0), until=400, dt=0.05)
+    phase = np.unwrap(np.ravel(run.values('difference.phi')))
+    times = np.asarray(run.times)
     half = times > 200
     rates.append(np.polyfit(times[half], phase[half], 1)[0])
 grid = np.linspace(0.0, 3.0, 300)

@@ -9,7 +9,7 @@ vanishes, and returns as a sound wave.
 """
 
 # %%
-# The system is created by name from the catalog with 16 positions, 16 points on each of the two velocity axes, and the
+# The system is built from its class with 16 positions, 16 points on each of the two velocity axes, and the
 # Knudsen number 0.02. The catalog registers a Strang splitting of semi-Lagrangian streaming and of collisions by the
 # fast spectral method, advanced by RK4. The observable `density_wave` is the component of wave number 1 of the density
 # over position, computed at every frame of 0.1 up to `t = 5.5`, and the default blueprint shows the observables first.
@@ -17,11 +17,11 @@ vanishes, and returns as a sound wave.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver, SemiLagrangianSolver, StrangSplittingSolver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import ObservableSpec
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.fluids import BoltzmannEquationSystem
 
 SYSTEM = 'boltzmann_equation'
 POSITIONS, VELOCITIES = 16, 16
@@ -40,13 +40,9 @@ def solver_of(step):
 
 
 observables = [ObservableSpec('density_wave', function=density_wave)]
-system = create_system(SYSTEM, positions=POSITIONS, velocities=VELOCITIES, knudsen=0.02)
+system = BoltzmannEquationSystem(positions=POSITIONS, velocities=VELOCITIES, knudsen=0.02)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
-simulation = (
-    Simulation(system, solver=solver_of(0.02), dt=0.1, observers=[observer], observables=observables)
-    .prepare()
-    .run(until=5.5)
-)
+trajectory = simulate(system, until=5.5, solver=solver_of(0.02), observers=[observer], observables=observables)
 
 # %%
 # From free streaming to sound
@@ -60,10 +56,10 @@ simulation = (
 times = np.linspace(0, 5.5, 100)
 fig, axis = plt.subplots(figsize=(7, 4))
 for knudsen, step in ((1000.0, 0.05), (1.0, 0.05), (0.2, 0.05), (0.02, 0.02)):
-    gas = create_system(SYSTEM, positions=POSITIONS, velocities=VELOCITIES, knudsen=knudsen)
-    run = Simulation(gas, solver=solver_of(step), dt=0.1, observables=observables).prepare().run(until=5.5)
-    wave = run.trajectory_.values('density_wave')
-    axis.plot(run.trajectory_.times, wave / wave[0], label=f'Knudsen {knudsen:g}')
+    gas = BoltzmannEquationSystem(positions=POSITIONS, velocities=VELOCITIES, knudsen=knudsen)
+    run = simulate(gas, until=5.5, solver=solver_of(step), observables=observables)
+    wave = run.values('density_wave')
+    axis.plot(run.times, wave / wave[0], label=f'Knudsen {knudsen:g}')
 axis.plot(times, np.exp(-(times**2) / 2), 'k--', label='free streaming')
 axis.plot(times, (1 + np.cos(np.sqrt(2) * times)) / 2, 'k:', label='Euler fluid')
 axis.set_xlabel('time t')

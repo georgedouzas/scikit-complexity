@@ -15,11 +15,10 @@ from sage.structure.element import Matrix
 from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import EinsteinInteraction
 from ....core.components.spaces import LatticeSpace, PseudoRiemannianSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 COUPLING = 8 * math.pi
 """The coupling `κ = 8 π G / c⁴` of the Einstein equations in units with `G = c = 1`."""
@@ -199,32 +198,8 @@ class DustShellElement(Element):
         self.energy = energy
 
 
-def _get_perfect_fluid(s: SimpleNamespace) -> Matrix:
-    """Return the mixed energy-momentum tensor `diag(-rho, p, p, p)` of matter, radiation, and vacuum energy at rest."""
-    universe = s.target
-    critical = 3 * universe.H0**2 / COUPLING
-    matter = universe.omega_matter / universe.a**3
-    radiation = universe.omega_radiation / universe.a**4
-    density = critical * (matter + radiation + universe.omega_lambda)
-    pressure = critical * (radiation / 3 - universe.omega_lambda)
-    return diagonal_matrix(SR, [-density, pressure, pressure, pressure])
-
-
-@register_system(
-    field='physics/cosmology',
-    tags=('cosmology', 'general relativity', 'ode', 'second order', 'gravity', 'dark energy'),
-    references=('Schwichtenberg 2020', 'Satz 2022', 'Friedmann 1922', 'Lemaître 1927', 'Carroll 2004'),
-    defaults={'until': 2.0, 'dt': 0.02, 'solver': ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)},
-)
-def flrw_cosmology(
-    a: float = 0.3,
-    *,
-    H0: float = 1.0,
-    omega_matter: float = 0.3,
-    omega_radiation: float = 0.0,
-    omega_lambda: float = 0.7,
-) -> System:
-    """Return a homogeneous universe whose expansion follows from the Einstein equations of the Robertson-Walker metric.
+class FLRWCosmologySystem(BaseSystem):
+    """A homogeneous universe whose expansion follows from the Einstein equations of the Robertson-Walker metric.
 
     The metric of `RobertsonWalkerSpace` gives, through its Einstein tensor, the two Friedmann equations of a perfect
     fluid of density `rho` and pressure `p`. The space-space component `G^r_r = -(2 a a'' + a'² + k) / a² = κ p` is the
@@ -232,7 +207,7 @@ def flrw_cosmology(
     = κ rho / 3 - k / a²`, which sets the initial rate and which the evolution keeps. The fluid holds matter of pressure
     0, radiation of pressure `rho / 3`, and the vacuum energy of a cosmological constant of pressure `-rho`, with the
     density parameters today, at `a = 1`, and the curvature `k = -Ω_k H0²` of the remainder `Ω_k = 1 - Ω_m - Ω_r - Ω_Λ`.
-    Units have `G = c = 1`.
+    Units have `G = c = 1`. The system has the scale factor `universe.a` of order 2 and its rate `universe.a_d1`.
 
     Args:
         a:
@@ -250,70 +225,99 @@ def flrw_cosmology(
         omega_lambda:
             The density parameter of the cosmological constant.
 
-    Returns:
-        system:
-            The system, with the scale factor `universe.a` of order 2 and its rate `universe.a_d1`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The universe does not expand at the initial scale factor.
 
     Examples:
-        >>> from skcomplex.systems.physics.cosmology import flrw_cosmology
-        >>> flrw_cosmology(1.0, omega_matter=1.0, omega_lambda=0.0).elements[0].a_d1
+        >>> from skcomplex.systems.physics.cosmology import FLRWCosmologySystem
+        >>> FLRWCosmologySystem(1.0, omega_matter=1.0, omega_lambda=0.0).prepare().system_.elements[0].a_d1
         1.0
     """
-    curvature = 1 - omega_matter - omega_radiation - omega_lambda
-    square = H0**2 * (omega_matter / a + omega_radiation / a**2 + omega_lambda * a**2 + curvature)
-    if square < 0:
-        error_msg = (
-            f'The Friedmann constraint gives a negative squared expansion rate {square} at a = {a}. Choose a and the '
-            'density parameters for which it is positive.'
+
+    field = 'physics/cosmology'
+    topics = ('cosmology', 'general relativity', 'ode', 'second order', 'gravity', 'dark energy')
+    references = ('Schwichtenberg 2020', 'Satz 2022', 'Friedmann 1922', 'Lemaître 1927', 'Carroll 2004')
+    until = 2.0
+    dt = 0.02
+    solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
+
+    def __init__(
+        self,
+        a: float = 0.3,
+        *,
+        H0: float = 1.0,
+        omega_matter: float = 0.3,
+        omega_radiation: float = 0.0,
+        omega_lambda: float = 0.7,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.a = a
+        self.H0 = H0
+        self.omega_matter = omega_matter
+        self.omega_radiation = omega_radiation
+        self.omega_lambda = omega_lambda
+
+    @staticmethod
+    def _get_perfect_fluid(s: SimpleNamespace) -> Matrix:
+        """Return the mixed energy-momentum tensor `diag(-rho, p, p, p)` of matter, radiation, and vacuum at rest."""
+        universe = s.target
+        critical = 3 * universe.H0**2 / COUPLING
+        matter = universe.omega_matter / universe.a**3
+        radiation = universe.omega_radiation / universe.a**4
+        density = critical * (matter + radiation + universe.omega_lambda)
+        pressure = critical * (radiation / 3 - universe.omega_lambda)
+        return diagonal_matrix(SR, [-density, pressure, pressure, pressure])
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        curvature = 1 - self.omega_matter - self.omega_radiation - self.omega_lambda
+        square = self.H0**2 * (
+            self.omega_matter / self.a + self.omega_radiation / self.a**2 + self.omega_lambda * self.a**2 + curvature
         )
-        raise ValidationError(error_msg)
-    universe = HomogeneousUniverseElement(
-        'universe',
-        a=a,
-        a_d1=math.sqrt(square),
-        H0=H0,
-        omega_matter=omega_matter,
-        omega_radiation=omega_radiation,
-        omega_lambda=omega_lambda,
-    )
-    einstein = EinsteinInteraction(
-        'einstein',
-        target='universe',
-        states='a',
-        space=RobertsonWalkerSpace(k=-curvature * H0**2),
-        components=[(1, 1)],
-        source=_get_perfect_fluid,
-        coupling=COUPLING,
-    )
-    return System(elements=[universe], interactions=[einstein])
+        if square < 0:
+            error_msg = (
+                f'The Friedmann constraint gives a negative squared expansion rate {square} at a = {self.a}. Choose a '
+                'and the density parameters for which it is positive.'
+            )
+            raise ValidationError(error_msg)
+        universe = HomogeneousUniverseElement(
+            'universe',
+            a=self.a,
+            a_d1=math.sqrt(square),
+            H0=self.H0,
+            omega_matter=self.omega_matter,
+            omega_radiation=self.omega_radiation,
+            omega_lambda=self.omega_lambda,
+        )
+        einstein = EinsteinInteraction(
+            'einstein',
+            target='universe',
+            states='a',
+            space=RobertsonWalkerSpace(k=-curvature * self.H0**2),
+            components=[(1, 1)],
+            source=self._get_perfect_fluid,
+            coupling=COUPLING,
+        )
+        return System(self.label, elements=[universe], interactions=[einstein])
 
 
-@register_system(
-    field='physics/cosmology',
-    tags=('cosmology', 'general relativity', 'pde', 'second order', 'gravity', 'black holes'),
-    references=('Schwichtenberg 2020', 'Satz 2022', 'Oppenheimer and Snyder 1939', 'Tolman 1934', 'Bondi 1947'),
-    defaults={'until': 34.5, 'dt': 0.1, 'solver': ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)},
-)
-def oppenheimer_snyder_collapse(
-    n_shells: int = 32,
-    *,
-    radius: float = 10.0,
-    mass: float = 1.0,
-) -> System:
-    """Return a ball of dust at rest that collapses under its own gravity into a black hole, as Oppenheimer and Snyder.
+class OppenheimerSnyderCollapseSystem(BaseSystem):
+    """A ball of dust at rest that collapses under its own gravity into a black hole, as Oppenheimer and Snyder.
 
     The ball is a field of comoving shells on a radial lattice, the Lemaître-Tolman-Bondi ansatz of
     `LemaitreTolmanBondiSpace` in units with `G = c = 1`. Dust has no pressure, so the radial component of the Einstein
-    equations, `G^r_r = -(R'² + 2 R R'' - 2 E) / R² = 0` with `'` the derivative by proper time, is the law of the
-    areal radius `R` of every shell, and its first integral `R'² = 2 M(r) / R + 2 E(r)`, from `G^t_t`, holds the mass
-    `M(r)` inside the shell. A uniform ball of mass `M` and radius `R₀` at rest has `M(r) = M (r / R₀)³` and
-    `E(r) = -M(r) / r`, so every shell follows the same cycloid `R = r (1 + cos η) / 2` with
-    `t = (η + sin η) / (2 √k)` and `k = 2 M / R₀³`, as the interior of Oppenheimer and Snyder. The surface crosses its
-    Schwarzschild radius `2 M` and the ball reaches zero size at the proper time `π / (2 √k)`.
+    equations, `G^r_r = -(R'² + 2 R R'' - 2 E) / R² = 0` with `'` the derivative by proper time, is the law of the areal
+    radius `R` of every shell, and its first integral `R'² = 2 M(r) / R + 2 E(r)`, from `G^t_t`, holds the mass `M(r)`
+    inside the shell. A uniform ball of mass `M` and radius `R₀` at rest has `M(r) = M (r / R₀)³` and `E(r) = -M(r) /
+    r`, so every shell follows the same cycloid `R = r (1 + cos η) / 2` with `t = (η + sin η) / (2 √k)` and `k = 2 M /
+    R₀³`, as the interior of Oppenheimer and Snyder. The surface crosses its Schwarzschild radius `2 M` and the ball
+    reaches zero size at the proper time `π / (2 √k)`. The system has the areal radius `ball.R` of every shell and its
+    rate `ball.R_d1`.
 
     Args:
         n_shells:
@@ -325,37 +329,62 @@ def oppenheimer_snyder_collapse(
         mass:
             The mass `M` of the ball.
 
-    Returns:
-        system:
-            The system, with the areal radius `ball.R` of every shell and its rate `ball.R_d1`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The ball starts inside its Schwarzschild radius.
 
     Examples:
-        >>> from skcomplex.systems.physics.cosmology import oppenheimer_snyder_collapse
-        >>> round(float(oppenheimer_snyder_collapse(4).elements[0].values['energy'][-1]), 3)
+        >>> from skcomplex.systems.physics.cosmology import OppenheimerSnyderCollapseSystem
+        >>> round(float(OppenheimerSnyderCollapseSystem(4).prepare().system_.elements[0].values['energy'][-1]), 3)
         -0.1
     """
-    if radius <= 2 * mass:
-        error_msg = f'The radius {radius} is inside the Schwarzschild radius 2 M = {2 * mass}. Give a larger radius.'
-        raise ValidationError(error_msg)
-    radii = radius * np.arange(1, n_shells + 1) / n_shells
-    energies = -mass * radii**2 / radius**3
-    ball = FieldElement(
-        'ball',
-        element=DustShellElement,
-        space=LatticeSpace((n_shells,), spacing=radius / n_shells),
-        values={'R': radii, 'energy': energies},
-    )
-    einstein = EinsteinInteraction(
-        'einstein',
-        target='ball',
-        states='R',
-        space=LemaitreTolmanBondiSpace(),
-        components=[(1, 1)],
-        coupling=COUPLING,
-        axes={1: 0},
-    )
-    return System(elements=[ball], interactions=[einstein])
+
+    field = 'physics/cosmology'
+    topics = ('cosmology', 'general relativity', 'pde', 'second order', 'gravity', 'black holes')
+    references = ('Schwichtenberg 2020', 'Satz 2022', 'Oppenheimer and Snyder 1939', 'Tolman 1934', 'Bondi 1947')
+    until = 34.5
+    dt = 0.1
+    solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-12)
+
+    def __init__(
+        self,
+        n_shells: int = 32,
+        *,
+        radius: float = 10.0,
+        mass: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_shells = n_shells
+        self.radius = radius
+        self.mass = mass
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        if self.radius <= 2 * self.mass:
+            error_msg = (
+                f'The radius {self.radius} is inside the Schwarzschild radius 2 M = {2 * self.mass}. Give a larger '
+                'radius.'
+            )
+            raise ValidationError(error_msg)
+        radii = self.radius * np.arange(1, self.n_shells + 1) / self.n_shells
+        energies = -self.mass * radii**2 / self.radius**3
+        ball = FieldElement(
+            'ball',
+            element=DustShellElement,
+            space=LatticeSpace((self.n_shells,), spacing=self.radius / self.n_shells),
+            values={'R': radii, 'energy': energies},
+        )
+        einstein = EinsteinInteraction(
+            'einstein',
+            target='ball',
+            states='R',
+            space=LemaitreTolmanBondiSpace(),
+            components=[(1, 1)],
+            coupling=COUPLING,
+            axes={1: 0},
+        )
+        return System(self.label, elements=[ball], interactions=[einstein])

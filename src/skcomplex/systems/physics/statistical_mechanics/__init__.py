@@ -1,132 +1,137 @@
 """Statistical mechanics: gases, fluids, spin systems, lattice processes, urns, master equations, and their measures."""
 
 from ..common.spins import IsingSpinElement
-from ._absorbing_processes import ReactingParticlesElement, absorbing_birth_death
+from ._absorbing_processes import AbsorbingBirthDeathSystem, ReactingParticlesElement
 from ._driven_particles import (
+    ASEPSystem,
+    DissipativeZeroRangeSystem,
     ExclusionHopsInteraction,
     ParticleSiteElement,
     ReservoirInteraction,
     TreeNodeElement,
     ZeroRangeHopInteraction,
     ZeroRangeHopsInteraction,
-    asep,
-    dissipative_zero_range,
-    zero_range_process,
+    ZeroRangeProcessSystem,
 )
-from ._fully_connected_spins import FullyConnectedSpinElement, curie_weiss, sherrington_kirkpatrick
-from ._gases import ideal_gas, lennard_jones_fluid
-from ._graph_spins import graph_ising
+from ._fully_connected_spins import CurieWeissSystem, FullyConnectedSpinElement, SherringtonKirkpatrickSystem
+from ._gases import IdealGasSystem, LennardJonesFluidSystem
+from ._graph_spins import GraphIsingSystem
 from ._kinetic_temperature import KineticTemperatureResult, kinetic_temperature
 from ._master_equations import (
+    DiscreteMasterEquationSystem,
+    LandauRelaxationSystem,
     MicrostateElement,
     OrderParameterElement,
+    TwoPhaseZoneExchangeSystem,
     ZoneElement,
-    discrete_master_equation,
-    landau_relaxation,
-    two_phase_zone_exchange,
 )
 from ._maxwell_boltzmann import MaxwellBoltzmannResult, maxwell_boltzmann
-from ._percolation import DiskElement, continuum_percolation
+from ._percolation import ContinuumPercolationSystem, DiskElement
 from ._processes import (
+    ContactProcessSystem,
     ContactSiteElement,
+    DiffusionLimitedAggregationSystem,
     ExclusionSiteElement,
     PercolationSiteElement,
     Q2RSpinElement,
+    Q2rSystem,
+    SitePercolationSystem,
+    TASEPSystem,
     WalkerElement,
     WalkerView,
-    contact_process,
-    diffusion_limited_aggregation,
-    q2r,
-    site_percolation,
-    tasep,
 )
 from ._quantum_spins import (
     DephasingInteraction,
+    QuantumHeisenbergSystem,
     XXZExchangeInteraction,
     ZeemanFieldInteraction,
     local_magnetization,
-    quantum_heisenberg,
     total_magnetization,
 )
-from ._random_energy import BoltzmannAverageElement, BoltzmannSumInteraction, EnergyLevelElement, random_energy_system
+from ._random_energy import (
+    BoltzmannAverageElement,
+    BoltzmannSumInteraction,
+    EnergyLevelElement,
+    RandomEnergySystemSystem,
+)
 from ._spin_glasses import (
     BondSamplingInteraction,
     BondSpinElement,
+    EdwardsAndersonSystem,
     MattisSpinElement,
-    edwards_anderson,
-    mattis_spin_glass,
+    MattisSpinGlassSystem,
 )
-from ._spins import PottsSpinElement, XYSpinElement, ising, potts, xy
+from ._spins import IsingSystem, PottsSpinElement, PottsSystem, XYSpinElement, XYSystem
 from ._susceptibility import SusceptibilityResult, susceptibility
-from ._traps import TrapWalkerElement, trap_system
-from ._urns import EhrenfestUrnElement, ehrenfest_urn
+from ._traps import TrapSystemSystem, TrapWalkerElement
+from ._urns import EhrenfestUrnElement, EhrenfestUrnSystem
 
 __all__: list[str] = [
+    'ASEPSystem',
+    'AbsorbingBirthDeathSystem',
     'BoltzmannAverageElement',
     'BoltzmannSumInteraction',
     'BondSamplingInteraction',
     'BondSpinElement',
+    'ContactProcessSystem',
     'ContactSiteElement',
+    'ContinuumPercolationSystem',
+    'CurieWeissSystem',
     'DephasingInteraction',
+    'DiffusionLimitedAggregationSystem',
+    'DiscreteMasterEquationSystem',
     'DiskElement',
+    'DissipativeZeroRangeSystem',
+    'EdwardsAndersonSystem',
     'EhrenfestUrnElement',
+    'EhrenfestUrnSystem',
     'EnergyLevelElement',
     'ExclusionHopsInteraction',
     'ExclusionSiteElement',
     'FullyConnectedSpinElement',
+    'GraphIsingSystem',
+    'IdealGasSystem',
     'IsingSpinElement',
+    'IsingSystem',
     'KineticTemperatureResult',
+    'LandauRelaxationSystem',
+    'LennardJonesFluidSystem',
     'MattisSpinElement',
+    'MattisSpinGlassSystem',
     'MaxwellBoltzmannResult',
     'MicrostateElement',
     'OrderParameterElement',
     'ParticleSiteElement',
     'PercolationSiteElement',
     'PottsSpinElement',
+    'PottsSystem',
     'Q2RSpinElement',
+    'Q2rSystem',
+    'QuantumHeisenbergSystem',
+    'RandomEnergySystemSystem',
     'ReactingParticlesElement',
     'ReservoirInteraction',
+    'SherringtonKirkpatrickSystem',
+    'SitePercolationSystem',
     'SusceptibilityResult',
+    'TASEPSystem',
+    'TrapSystemSystem',
     'TrapWalkerElement',
     'TreeNodeElement',
+    'TwoPhaseZoneExchangeSystem',
     'WalkerElement',
     'WalkerView',
     'XXZExchangeInteraction',
     'XYSpinElement',
+    'XYSystem',
     'ZeemanFieldInteraction',
     'ZeroRangeHopInteraction',
     'ZeroRangeHopsInteraction',
+    'ZeroRangeProcessSystem',
     'ZoneElement',
-    'absorbing_birth_death',
-    'asep',
-    'contact_process',
-    'continuum_percolation',
-    'curie_weiss',
-    'diffusion_limited_aggregation',
-    'discrete_master_equation',
-    'dissipative_zero_range',
-    'edwards_anderson',
-    'ehrenfest_urn',
-    'graph_ising',
-    'ideal_gas',
-    'ising',
     'kinetic_temperature',
-    'landau_relaxation',
-    'lennard_jones_fluid',
     'local_magnetization',
-    'mattis_spin_glass',
     'maxwell_boltzmann',
-    'potts',
-    'q2r',
-    'quantum_heisenberg',
-    'random_energy_system',
-    'sherrington_kirkpatrick',
-    'site_percolation',
     'susceptibility',
-    'tasep',
     'total_magnetization',
-    'trap_system',
-    'two_phase_zone_exchange',
-    'xy',
-    'zero_range_process',
 ]

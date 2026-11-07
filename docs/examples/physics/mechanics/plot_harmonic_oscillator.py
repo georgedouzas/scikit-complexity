@@ -13,15 +13,15 @@ amplitude and period `2π sqrt(m / k)`, and the velocity follows a quarter of a 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
 
 SYSTEM = 'harmonic_oscillator'
 
-system = create_system(SYSTEM, x=1.0, v=0.0, k=1.0, mass=1.0)
+system = HarmonicOscillatorSystem(x=1.0, v=0.0, k=1.0, mass=1.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=20)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Exact solution and energy
@@ -29,9 +29,9 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(unt
 # The exact motion is `x(t) = cos t`. The simulated displacement should lie on it, and the energy
 # `E = m v^2 / 2 + k x^2 / 2` should stay at its initial value `1 / 2` up to the error of the solver.
 
-times = np.asarray(simulation.trajectory_.times)
-position = np.ravel(simulation.trajectory_.values('mass.x'))
-velocity = np.ravel(simulation.trajectory_.values('mass.x_d1'))
+times = np.asarray(trajectory.times)
+position = np.ravel(trajectory.values('mass.x'))
+velocity = np.ravel(trajectory.values('mass.x_d1'))
 energy = velocity**2 / 2 + position**2 / 2
 fig, (motion, drift) = plt.subplots(1, 2, figsize=(10, 4))
 motion.plot(times, position, label='simulated')

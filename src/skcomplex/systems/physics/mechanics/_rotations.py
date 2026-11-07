@@ -13,9 +13,8 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import Element
 from ....core.components.interactions import EulerLagrangeInteraction, RateInteraction
 from ....core.components.laws.utils import derivative
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class GyroscopeElement(Element):
@@ -353,31 +352,14 @@ class RotatingSwingInteraction(EulerLagrangeInteraction):
         return kinetic + chairs * p.g * p.l * cos(p.theta)
 
 
-@register_system(
-    field='physics/mechanics',
-    tags=('mechanics', 'ode', 'second order', 'rotation', 'lagrangian'),
-    references=('Ryzhov et al. 2021',),
-    defaults={'until': 20.0, 'dt': 0.05},
-)
-def rotating_swing(
-    omega: float = 2.0,
-    theta: float = 0.1,
-    *,
-    n_chairs: int = 8,
-    J: float = 10.0,
-    m: float = 1.0,
-    a: float = 1.0,
-    l: float = 1.0,
-    g: float = 9.81,
-    torque: float = 0.0,
-    friction: float = 0.0,
-) -> System:
-    """Return a rotating swing: chairs on chains hanging from the rods of a stand that turns about a vertical axis.
+class RotatingSwingSystem(BaseSystem):
+    """A rotating swing: chairs on chains hanging from the rods of a stand that turns about a vertical axis.
 
     The stand of inertia `J` turns by the angle `φ`, and the chairs, all deflected by the same angle `θ`, follow the
-    Lagrange equations `[J + n m (a + l sin θ)²] φ'' + 2 n m l φ' θ' (a + l sin θ) cos θ = M - c φ'` and
-    `l θ'' - φ'² (a + l sin θ) cos θ + g sin θ = 0`. At a steady speed `ω` the chairs settle at the angle where
-    `g tan θ = ω² (a + l sin θ)`. Without torque and friction the angular momentum of the swing is conserved.
+    Lagrange equations `[J + n m (a + l sin θ)²] φ'' + 2 n m l φ' θ' (a + l sin θ) cos θ = M - c φ'` and `l θ'' - φ'² (a
+    + l sin θ) cos θ + g sin θ = 0`. At a steady speed `ω` the chairs settle at the angle where `g tan θ = ω² (a + l sin
+    θ)`. Without torque and friction the angular momentum of the swing is conserved. The system has the angle of the
+    stand `swing.phi` and of the chains `swing.theta`, both of order 2.
 
     Args:
         omega:
@@ -410,53 +392,78 @@ def rotating_swing(
         friction:
             The friction coefficient of the stand's axis.
 
-    Returns:
-        system:
-            The system, with the angle of the stand `swing.phi` and of the chains `swing.theta`, both of order 2.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.mechanics import rotating_swing
-        >>> rotating_swing(omega=1.0).elements[0].phi_d1
+        >>> from skcomplex.systems.physics.mechanics import RotatingSwingSystem
+        >>> RotatingSwingSystem(omega=1.0).prepare().system_.elements[0].phi_d1
         1.0
     """
-    return System(
-        elements=[
-            RotatingSwingElement(
-                'swing',
-                phi_d1=omega,
-                theta=theta,
-                n_chairs=n_chairs,
-                J=J,
-                m=m,
-                a=a,
-                l=l,
-                g=g,
-                torque=torque,
-                friction=friction,
-            ),
-        ],
-        interactions=[RotatingSwingInteraction('motion', target='swing')],
-    )
+
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'second order', 'rotation', 'lagrangian')
+    references = ('Ryzhov et al. 2021',)
+    until = 20.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        omega: float = 2.0,
+        theta: float = 0.1,
+        *,
+        n_chairs: int = 8,
+        J: float = 10.0,
+        m: float = 1.0,
+        a: float = 1.0,
+        l: float = 1.0,
+        g: float = 9.81,
+        torque: float = 0.0,
+        friction: float = 0.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.omega = omega
+        self.theta = theta
+        self.n_chairs = n_chairs
+        self.J = J
+        self.m = m
+        self.a = a
+        self.l = l
+        self.g = g
+        self.torque = torque
+        self.friction = friction
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        return System(
+            self.label,
+            elements=[
+                RotatingSwingElement(
+                    'swing',
+                    phi_d1=self.omega,
+                    theta=self.theta,
+                    n_chairs=self.n_chairs,
+                    J=self.J,
+                    m=self.m,
+                    a=self.a,
+                    l=self.l,
+                    g=self.g,
+                    torque=self.torque,
+                    friction=self.friction,
+                ),
+            ],
+            interactions=[RotatingSwingInteraction('motion', target='swing')],
+        )
 
 
-@register_system(
-    field='physics/mechanics',
-    tags=('mechanics', 'ode', 'rotation', 'angular momentum'),
-    references=('Ryzhov et al. 2021',),
-    defaults={'until': 10.0, 'dt': 0.02},
-)
-def rotating_balls_on_rods(
-    omega: float = 1.0,
-    *,
-    r: float = 1.0,
-    beta: float = math.pi / 2,
-    m: float = 1.0,
-) -> System:
-    """Return two balls on rods that turn about a vertical axis and conserve their angular momentum.
+class RotatingBallsOnRodsSystem(BaseSystem):
+    """Two balls on rods that turn about a vertical axis and conserve their angular momentum.
 
     Each ball sits at the distance `r` along a rod fixed at the angle `β` to the axis, so its distance from the axis is
     `r sin β`. Its angular momentum `H = m ω r² sin² β` is fixed by the initial angular velocity, and the balls turn at
-    `θ' = H / (m r² sin² β)`, so changing `r` during a run changes the angular velocity by `1 / r²`.
+    `θ' = H / (m r² sin² β)`, so changing `r` during a run changes the angular velocity by `1 / r²`. The system has the
+    angles `right.theta` and `left.theta` of the two balls.
 
     Args:
         omega:
@@ -471,58 +478,66 @@ def rotating_balls_on_rods(
         m:
             The mass of every ball.
 
-    Returns:
-        system:
-            The system, with the angles `right.theta` and `left.theta` of the two balls.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.mechanics import rotating_balls_on_rods
-        >>> rotating_balls_on_rods(omega=2.0).elements[0].H
+        >>> from skcomplex.systems.physics.mechanics import RotatingBallsOnRodsSystem
+        >>> RotatingBallsOnRodsSystem(omega=2.0).prepare().system_.elements[0].H
         2.0
     """
-    momentum = m * omega * r**2 * math.sin(beta) ** 2
-    return System(
-        elements=[
-            RotatingBallElement('right', theta=0.0, m=m, r=r, beta=beta, H=momentum),
-            RotatingBallElement('left', theta=math.pi, m=m, r=r, beta=beta, H=momentum),
-        ],
-        interactions=[
-            RateInteraction(
-                f'{ball}_turn',
-                target=ball,
-                state='theta',
-                rate=lambda s: s.target.H / (s.target.m * s.target.r**2 * sin(s.target.beta) ** 2),
-            )
-            for ball in ('right', 'left')
-        ],
-    )
+
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'rotation', 'angular momentum')
+    references = ('Ryzhov et al. 2021',)
+    until = 10.0
+    dt = 0.02
+
+    def __init__(
+        self,
+        omega: float = 1.0,
+        *,
+        r: float = 1.0,
+        beta: float = math.pi / 2,
+        m: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.omega = omega
+        self.r = r
+        self.beta = beta
+        self.m = m
+
+    def _build_system(self) -> System:
+        """Return two balls on rods that turn about a vertical axis and conserve their angular momentum."""
+        momentum = self.m * self.omega * self.r**2 * math.sin(self.beta) ** 2
+        return System(
+            self.label,
+            elements=[
+                RotatingBallElement('right', theta=0.0, m=self.m, r=self.r, beta=self.beta, H=momentum),
+                RotatingBallElement('left', theta=math.pi, m=self.m, r=self.r, beta=self.beta, H=momentum),
+            ],
+            interactions=[
+                RateInteraction(
+                    f'{ball}_turn',
+                    target=ball,
+                    state='theta',
+                    rate=lambda s: s.target.H / (s.target.m * s.target.r**2 * sin(s.target.beta) ** 2),
+                )
+                for ball in ('right', 'left')
+            ],
+        )
 
 
-@register_system(
-    field='physics/mechanics',
-    tags=('mechanics', 'ode', 'second order', 'rotation', 'gyroscope', 'lagrangian'),
-    references=('Ryzhov et al. 2021',),
-    defaults={'until': 10.0, 'dt': 0.01},
-)
-def gimballed_gyroscope(
-    spin: float = 50.0,
-    beta: float = 0.3,
-    *,
-    A: float = 1.0,
-    C: float = 2.0,
-    A1: float = 0.5,
-    B1: float = 0.5,
-    C1: float = 0.5,
-    A2: float = 1.0,
-    torque: float = 1.0,
-) -> System:
-    """Return a gyroscope in a gimbal: a rotor in an inner ring that turns in an outer ring about a fixed axis.
+class GimballedGyroscopeSystem(BaseSystem):
+    """A gyroscope in a gimbal: a rotor in an inner ring that turns in an outer ring about a fixed axis.
 
     The outer ring turns by `alpha` about the fixed axis, the inner ring by `beta` in the outer ring, and the rotor
-    spins by `gamma` in the inner ring. The equations are the Lagrange equations of the kinetic energy
-    `[A2 + (A + A1) cos² beta + (C + C1) sin² beta] alpha'² / 2 + (A + B1) beta'² / 2 + C alpha' gamma' sin beta
-    + C gamma'² / 2`, with a torque on the axis of the inner ring, which makes the fast rotor precess about the fixed
-    axis. The momenta conjugate to `alpha` and `gamma` are conserved.
+    spins by `gamma` in the inner ring. The equations are the Lagrange equations of the kinetic energy `[A2 + (A + A1)
+    cos² beta + (C + C1) sin² beta] alpha'² / 2 + (A + B1) beta'² / 2 + C alpha' gamma' sin beta + C gamma'² / 2`, with
+    a torque on the axis of the inner ring, which makes the fast rotor precess about the fixed axis. The momenta
+    conjugate to `alpha` and `gamma` are conserved. The system has the angles `gyroscope.alpha`, `gyroscope.beta`, and
+    `gyroscope.gamma`, all of order 2.
 
     Args:
         spin:
@@ -552,29 +567,63 @@ def gimballed_gyroscope(
         torque:
             The torque on the axis of the inner ring.
 
-    Returns:
-        system:
-            The system, with the angles `gyroscope.alpha`, `gyroscope.beta`, and `gyroscope.gamma`, all of order 2.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.mechanics import gimballed_gyroscope
-        >>> gimballed_gyroscope(spin=10.0).elements[0].gamma_d1
+        >>> from skcomplex.systems.physics.mechanics import GimballedGyroscopeSystem
+        >>> GimballedGyroscopeSystem(spin=10.0).prepare().system_.elements[0].gamma_d1
         10.0
     """
-    return System(
-        elements=[
-            GyroscopeElement(
-                'gyroscope',
-                beta=beta,
-                gamma_d1=spin,
-                A=A,
-                C=C,
-                A1=A1,
-                B1=B1,
-                C1=C1,
-                A2=A2,
-                torque=torque,
-            ),
-        ],
-        interactions=[GyroscopeInteraction('motion', target='gyroscope')],
-    )
+
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'second order', 'rotation', 'gyroscope', 'lagrangian')
+    references = ('Ryzhov et al. 2021',)
+    until = 10.0
+    dt = 0.01
+
+    def __init__(
+        self,
+        spin: float = 50.0,
+        beta: float = 0.3,
+        *,
+        A: float = 1.0,
+        C: float = 2.0,
+        A1: float = 0.5,
+        B1: float = 0.5,
+        C1: float = 0.5,
+        A2: float = 1.0,
+        torque: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.spin = spin
+        self.beta = beta
+        self.A = A
+        self.C = C
+        self.A1 = A1
+        self.B1 = B1
+        self.C1 = C1
+        self.A2 = A2
+        self.torque = torque
+
+    def _build_system(self) -> System:
+        """Return a gyroscope in a gimbal: a rotor in an inner ring that turns in an outer ring about a fixed axis."""
+        return System(
+            self.label,
+            elements=[
+                GyroscopeElement(
+                    'gyroscope',
+                    beta=self.beta,
+                    gamma_d1=self.spin,
+                    A=self.A,
+                    C=self.C,
+                    A1=self.A1,
+                    B1=self.B1,
+                    C1=self.C1,
+                    A2=self.A2,
+                    torque=self.torque,
+                ),
+            ],
+            interactions=[GyroscopeInteraction('motion', target='gyroscope')],
+        )

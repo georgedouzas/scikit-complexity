@@ -11,7 +11,7 @@ from skcomplex.systems.biology.epidemiology import SIRSystem
 from skcomplex.systems.biology.systems_biology import RepressilatorSystem
 from skcomplex.systems.economics.innovation import BassDiffusionSystem
 from skcomplex.systems.mathematics.dynamical_systems import LogisticMapSystem
-from skcomplex.systems.physics.mechanics import harmonic_oscillator
+from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
 
 
 def _loops(source, **settings):
@@ -66,7 +66,7 @@ def test_repressilator_closes_one_balancing_loop_of_three_repressions():
 
 def test_states_of_second_order_link_through_their_velocity():
     """Test that the position and velocity of an oscillator close one balancing loop with the gain `-k / m`."""
-    analysis = _loops(harmonic_oscillator())
+    analysis = _loops(HarmonicOscillatorSystem().prepare().system_)
     assert _found(analysis) == {('mass.x[0]', 'mass.x_d1[0]'): 'balancing'}
     assert analysis.gains == pytest.approx([-1.0])
 
@@ -98,7 +98,7 @@ def test_members_of_a_group_are_nodes_with_the_signs_of_the_jacobian():
 
 def test_dominance_follows_the_gains_of_any_system():
     """Test that the gains of an oscillator stay `-k / m` and those of predation start at the gains of its loops."""
-    trajectory = Simulation(harmonic_oscillator(), dt=0.1).prepare().run(1).trajectory_
+    trajectory = Simulation(HarmonicOscillatorSystem().prepare().system_, dt=0.1).prepare().run(1).trajectory_
     dominance = _loops(trajectory, kind='dominance')
     assert dominance.gains == pytest.approx(np.full((len(trajectory.times), 1), -1.0))
     trajectory = Simulation(LotkaVolterraSystem().prepare().system_, dt=0.1).prepare().run(1).trajectory_

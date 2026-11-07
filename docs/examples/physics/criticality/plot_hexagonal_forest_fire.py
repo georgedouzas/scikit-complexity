@@ -7,7 +7,7 @@ every size. The view shows the cells colored by cover, empty, tree, or burning, 
 """
 
 # %%
-# The system is created by name from the catalog on a periodic 80 x 80 triangular lattice with half of the cells
+# The system is built from its class on a periodic 80 x 80 triangular lattice with half of the cells
 # forested. The observer saves every second step with the default blueprint, whose primary view shows the cells.
 
 import matplotlib.pyplot as plt
@@ -15,15 +15,15 @@ import networkx as nx
 import numpy as np
 
 from skcomplex.core.analysis import distribution
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.criticality import HexagonalForestFireSystem
 
 SYSTEM = 'hexagonal_forest_fire'
 
-system = create_system(SYSTEM, shape=(80, 80))
+system = HexagonalForestFireSystem(shape=(80, 80))
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=2, observers=[observer], random_state=0).prepare().run(until=400)
+trajectory = simulate(system, observers=[observer], random_state=0)
 
 # %%
 # Fire activity and fronts on a graph
@@ -33,8 +33,8 @@ simulation = Simulation(system, dt=2, observers=[observer], random_state=0).prep
 # lattice. On a graph, fire moves along edges, so on a fully forested Watts-Strogatz graph without growth a fire lit
 # at one node should burn, at every step, exactly the nodes at that graph distance from it.
 
-steady = Simulation(create_system(SYSTEM, shape=(64, 64)), dt=1, random_state=1).prepare().run(5000)
-burning = (steady.trajectory_.values('forest.cover')[1000:] == 2).sum(axis=1)
+steady = simulate(HexagonalForestFireSystem(shape=(64, 64)), until=5000, dt=1, random_state=1)
+burning = (steady.values('forest.cover')[1000:] == 2).sum(axis=1)
 histogram = distribution(burning[burning > 0], kind='histogram', bins=15, log=True)
 bins, density = histogram.edges, histogram.density
 centers = np.sqrt(bins[1:] * bins[:-1])
@@ -42,10 +42,8 @@ centers = np.sqrt(bins[1:] * bins[:-1])
 graph = nx.connected_watts_strogatz_graph(500, 4, 0.1, seed=0)
 start = np.ones(500)
 start[0] = 2
-spread = (
-    Simulation(create_system(SYSTEM, graph=graph, growth=0.0, lightning=0.0, cover=start), dt=1).prepare().run(until=15)
-)
-front = (spread.trajectory_.values('forest.cover') == 2).sum(axis=1)
+spread = simulate(HexagonalForestFireSystem(graph=graph, growth=0.0, lightning=0.0, cover=start), until=15, dt=1)
+front = (spread.values('forest.cover') == 2).sum(axis=1)
 distances = np.bincount(list(nx.single_source_shortest_path_length(graph, 0).values()), minlength=len(front))
 
 fig, (fires, fronts) = plt.subplots(1, 2, figsize=(10, 4))

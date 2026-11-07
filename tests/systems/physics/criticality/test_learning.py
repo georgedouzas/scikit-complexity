@@ -3,14 +3,14 @@
 import numpy as np
 
 from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems.physics.criticality import sk_game
+from skcomplex.systems.physics.criticality import SKGameSystem
 
 
 def test_sk_game_freezes_at_low_temperature():
     """Test that SK game agents freeze into a rewarding state at low temperature and explore noisily at high."""
     outcomes = []
     for temperature in (0.05, 3.0):
-        system = sk_game(128, temperature=temperature)
+        system = SKGameSystem(128, temperature=temperature).prepare().system_
         couplings = system.elements[0].values['couplings']
         actions = np.asarray(
             Simulation(

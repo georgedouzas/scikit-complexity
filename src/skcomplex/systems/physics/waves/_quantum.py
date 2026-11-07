@@ -17,11 +17,10 @@ from ....core.components.interactions import BaseInteraction, Interaction
 from ....core.components.laws import BaseLaw, DissipatorLaw, GeneratorLaw, RateLaw
 from ....core.components.laws.utils import laplacian, local_operator
 from ....core.components.spaces import BaseSpace, LatticeSpace, NetworkSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import ETDRK4Solver
 from ....core.errors import ValidationError
 from ....core.specs import HilbertSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class SiteElement(Element):
@@ -92,6 +91,8 @@ class WaveFunctionElement(Element):
         >>> WaveFunctionElement('site', V=1.0).V
         1.0
     """
+
+    law_classes = (RateLaw,)
 
     def __init__(
         self,
@@ -294,24 +295,8 @@ def site_space(space: BaseSpace, potential: npt.ArrayLike | None = None, *, proj
     return HilbertSpec(size, operators, display=None)
 
 
-@register_system(
-    field='physics/waves',
-    tags=('waves', 'field', 'pde', 'quantum', 'spectral'),
-    references=('Schrödinger 1926', 'Schwichtenberg 2020'),
-    defaults={'until': 4.0, 'dt': 0.1, 'solver': ETDRK4Solver(dt=0.01)},
-)
-def schrodinger(
-    n_sites: int = 256,
-    *,
-    length: float = 40.0,
-    D: float = 0.5,
-    momentum: float = 2.0,
-    width: float = 1.0,
-    omega: float = 0.0,
-    formulation: str = 'fields',
-    gamma: float = 0.0,
-) -> System:
-    """Return a Gaussian wave packet that follows the Schrödinger equation, as its real and imaginary parts.
+class SchrodingerSystem(BaseSystem):
+    """A Gaussian wave packet that follows the Schrödinger equation, as its real and imaginary parts.
 
     The wave function `psi = u + i w` follows `psi_t = i D laplacian(psi) - i V psi`, written as `u_t = -D laplacian(w)
     + V w` and `w_t = D laplacian(u) - V u`, on a periodic lattice with spectral derivatives. In units with `ħ = 1`,
@@ -320,8 +305,9 @@ def schrodinger(
 
     The operator formulation builds the same particle as one quantum subsystem whose basis states are the sites, with
     the Hamiltonian `-D laplacian + V` of the same spectral Laplacian, normalised so that `|psi|²` is the probability of
-    every site. It runs with the quantum solvers, and it accepts position dephasing at the rate `gamma`, which turns
-    the state into a density matrix.
+    every site. It runs with the quantum solvers, and it accepts position dephasing at the rate `gamma`, which turns the
+    state into a density matrix. The system has the real part `packet.u` and the imaginary part `packet.w` of the wave
+    function, or the quantum state `<label>.state` of the operator formulation.
 
     Args:
         n_sites:
@@ -348,51 +334,84 @@ def schrodinger(
         gamma:
             The rate of position dephasing of the operator formulation.
 
-    Returns:
-        system:
-            The system, with the real part `packet.u` and the imaginary part `packet.w` of the wave function, or the
-            quantum state `schrodinger.state` of the operator formulation.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         ValidationError:
             The formulation is unknown, or the field formulation has a dephasing rate.
 
     Examples:
-        >>> from skcomplex.systems.physics.waves import schrodinger
-        >>> schrodinger(64).elements[0].prepare().size_
+        >>> from skcomplex.systems.physics.waves import SchrodingerSystem
+        >>> SchrodingerSystem(64).prepare().system_.elements[0].prepare().size_
         64
     """
-    spacing = length / n_sites
-    positions = spacing * np.arange(n_sites) - length / 2
-    envelope = np.exp(-(positions**2) / (4 * width**2)) / (2 * np.pi * width**2) ** 0.25
-    psi = envelope * np.exp(1j * momentum * positions)
-    potential = omega**2 * positions**2 / (4 * D)
-    space = LatticeSpace(n_sites, spacing=spacing)
-    if formulation not in FORMULATIONS or (formulation == 'fields' and gamma):
-        error_msg = (
-            f'Unknown formulation {formulation!r}, or dephasing in the field formulation. Use one of '
-            f'{", ".join(FORMULATIONS)}, and gamma > 0 only with the operator formulation.'
-        )
-        raise ValidationError(error_msg)
-    if formulation == 'operators':
-        amplitudes = psi / np.linalg.norm(psi)
-        interactions: list[BaseInteraction] = [
-            LatticeHamiltonianInteraction('kinetic', target='packet', D=D),
-        ]
-        if gamma > 0:
-            interactions.append(
-                PositionDephasingInteraction('dephasing', target='packet', gamma=gamma, n_sites=n_sites),
+
+    field = 'physics/waves'
+    topics = ('waves', 'field', 'pde', 'quantum', 'spectral')
+    references = ('Schrödinger 1926', 'Schwichtenberg 2020')
+    until = 4.0
+    dt = 0.1
+    solver = ETDRK4Solver(dt=0.01)
+
+    def __init__(
+        self,
+        n_sites: int = 256,
+        *,
+        length: float = 40.0,
+        D: float = 0.5,
+        momentum: float = 2.0,
+        width: float = 1.0,
+        omega: float = 0.0,
+        formulation: str = 'fields',
+        gamma: float = 0.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_sites = n_sites
+        self.length = length
+        self.D = D
+        self.momentum = momentum
+        self.width = width
+        self.omega = omega
+        self.formulation = formulation
+        self.gamma = gamma
+
+    def _build_system(self) -> System:
+        """Return a Gaussian wave packet that follows the Schrödinger equation, as its real and imaginary parts."""
+        spacing = self.length / self.n_sites
+        positions = spacing * np.arange(self.n_sites) - self.length / 2
+        envelope = np.exp(-(positions**2) / (4 * self.width**2)) / (2 * np.pi * self.width**2) ** 0.25
+        psi = envelope * np.exp(1j * self.momentum * positions)
+        potential = self.omega**2 * positions**2 / (4 * self.D)
+        space = LatticeSpace(self.n_sites, spacing=spacing)
+        if self.formulation not in FORMULATIONS or (self.formulation == 'fields' and self.gamma):
+            error_msg = (
+                f'Unknown formulation {self.formulation!r}, or dephasing in the field formulation. Use one of '
+                f'{", ".join(FORMULATIONS)}, and gamma > 0 only with the operator formulation.'
             )
-        return System(
-            'schrodinger',
-            elements=[SiteElement('packet', amplitudes, hilbert=site_space(space, potential, projectors=gamma > 0))],
-            interactions=interactions,
+            raise ValidationError(error_msg)
+        if self.formulation == 'operators':
+            amplitudes = psi / np.linalg.norm(psi)
+            interactions: list[BaseInteraction] = [
+                LatticeHamiltonianInteraction('kinetic', target='packet', D=self.D),
+            ]
+            if self.gamma > 0:
+                interactions.append(
+                    PositionDephasingInteraction('dephasing', target='packet', gamma=self.gamma, n_sites=self.n_sites),
+                )
+            return System(
+                self.label,
+                elements=[
+                    SiteElement('packet', amplitudes, hilbert=site_space(space, potential, projectors=self.gamma > 0)),
+                ],
+                interactions=interactions,
+            )
+        packet = FieldElement(
+            'packet',
+            element=WaveFunctionElement,
+            space=space,
+            values={'u': psi.real, 'w': psi.imag, 'D': self.D, 'V': potential},
+            discretization='spectral',
         )
-    packet = FieldElement(
-        'packet',
-        element=WaveFunctionElement,
-        space=space,
-        values={'u': psi.real, 'w': psi.imag, 'D': D, 'V': potential},
-        discretization='spectral',
-    )
-    return System(elements=[packet])
+        return System(self.label, elements=[packet])

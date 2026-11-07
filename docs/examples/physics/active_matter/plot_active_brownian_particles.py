@@ -8,7 +8,7 @@ over a periodic square, each following its own persistent, wandering path.
 """
 
 # %%
-# The system is created by name from the catalog with speed `v = 3`, translational diffusion `D_t = 0.1`, and
+# The system is built from its class with speed `v = 3`, translational diffusion `D_t = 0.1`, and
 # rotational diffusion `D_r = 1` in a square of side 50. The Euler-Maruyama stepper takes steps of 0.01 and the
 # observer saves every frame of 0.1. The blueprint shows the square with the swimmers drawn larger than the system's
 # visual does, so they read in the gallery thumbnail.
@@ -18,14 +18,14 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.active_matter import ActiveBrownianParticlesSystem
 
 SYSTEM = 'active_brownian_particles'
 
-system = create_system(SYSTEM, random_state=0)
+system = ActiveBrownianParticlesSystem(random_state=0)
 view = rrb.Spatial2DView(
     origin='/swimmers',
     name='swimmers',
@@ -41,7 +41,7 @@ blueprint = rrb.Blueprint(
 )
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], random_state=0).prepare().run(until=20)
+trajectory = simulate(system, solver=solver, dt=0.1, observers=[observer], random_state=0)
 
 # %%
 # From ballistic swimming to enhanced diffusion
@@ -53,10 +53,10 @@ simulation = Simulation(system, solver=solver, dt=0.1, observers=[observer], ran
 
 fig, ax = plt.subplots(figsize=(7, 4))
 for rotation, color in ((1.0, 'tab:blue'), (0.1, 'tab:orange')):
-    system_r = create_system(SYSTEM, n_particles=500, D_r=rotation, size=1e5, random_state=1)
-    run = Simulation(system_r, solver=solver, dt=0.1, random_state=1).prepare().run(until=40)
-    positions = run.trajectory_.values('swimmers.x')
-    times = run.trajectory_.times[1:]
+    system_r = ActiveBrownianParticlesSystem(n_particles=500, D_r=rotation, size=1e5, random_state=1)
+    run = simulate(system_r, until=40, solver=solver, dt=0.1, random_state=1)
+    positions = run.values('swimmers.x')
+    times = run.times[1:]
     squared = np.mean(np.sum((positions[1:] - positions[0]) ** 2, axis=-1), axis=1)
     exact = 4 * 0.1 * times + 2 * 9 / rotation * (times - (1 - np.exp(-rotation * times)) / rotation)
     ax.loglog(times, squared, 'o', markersize=3, color=color, label=f'simulation, D_r = {rotation}')

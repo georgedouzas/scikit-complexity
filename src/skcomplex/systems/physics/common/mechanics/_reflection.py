@@ -71,6 +71,8 @@ class ReflectionInteraction(CrossingInteraction):
         [0.0, 2.0]
     """
 
+    law_classes = (CrossingLaw,)
+
     def __init__(
         self,
         label: str,

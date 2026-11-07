@@ -14,10 +14,9 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.laws import BaseLaw, BoundaryLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import laplacian
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class ActiveFieldElement(Element):
@@ -72,6 +71,12 @@ class ActiveFieldElement(Element):
         0.2
     """
 
+    law_classes = (
+        BoundaryLaw,
+        NoiseLaw,
+        RateLaw,
+    )
+
     def __init__(
         self,
         label: str,
@@ -119,35 +124,16 @@ class ActiveFieldElement(Element):
         ]
 
 
-@register_system(
-    field='physics/criticality',
-    tags=('field', 'absorbing state', 'directed percolation', 'multiplicative noise', 'spde'),
-    references=('Tian et al. 2022', 'Henkel, Hinrichsen, and Lübeck 2008', 'Bonachela and Muñoz 2009'),
-    defaults={'until': 100.0, 'dt': 1.0, 'solver': EulerMaruyamaSolver(dt=0.01)},
-)
-def directed_percolation_langevin(
-    shape: Sequence[int] = (64, 64),
-    *,
-    a: float = -1.0,
-    b: float = 1.0,
-    c: float = 1.0,
-    d: float = 1.0,
-    e: float = 0.2,
-    f: float = 0.0,
-    g: float = 0.0,
-    energy: float = 1.2,
-    density: float = 0.5,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Langevin field theory of an absorbing-state transition, an active density fed by an energy field.
+class DirectedPercolationLangevinSystem(BaseSystem):
+    """The Langevin field theory of an absorbing-state transition, an active density fed by an energy field.
 
     The active density `rho` grows at the local rate `a + b nu`, saturates through `-c rho^2`, spreads with the
     diffusivity `d`, and fluctuates with the multiplicative noise `e sqrt(rho)`, which vanishes in the absorbing state
-    `rho = 0`. The energy field `nu` diffuses, gains the drive `f`, and loses the dissipation `g rho`, so
-    `rho_t = (a + b nu) rho - c rho^2 + d laplacian(rho) + e sqrt(rho) xi` and `nu_t = laplacian(nu) + f - g rho`
-    (Tian et al., Eqs. 3-4). Both fields stay nonnegative. Without drive and dissipation the energy is a fixed control
-    parameter: below the threshold `nu_c = -a / b` activity dies out, and above it the density settles near
-    `(a + b nu) / c`.
+    `rho = 0`. The energy field `nu` diffuses, gains the drive `f`, and loses the dissipation `g rho`, so `rho_t = (a +
+    b nu) rho - c rho^2 + d laplacian(rho) + e sqrt(rho) xi` and `nu_t = laplacian(nu) + f - g rho` (Tian et al., Eqs.
+    3-4). Both fields stay nonnegative. Without drive and dissipation the energy is a fixed control parameter: below the
+    threshold `nu_c = -a / b` activity dies out, and above it the density settles near `(a + b nu) / c`. The system has
+    the activity `neurons.rho` and the energy `neurons.nu`.
 
     Args:
         shape:
@@ -183,28 +169,68 @@ def directed_percolation_langevin(
         random_state:
             The seed or generator of the initial activity.
 
-    Returns:
-        system:
-            The system, with the activity `neurons.rho` and the energy `neurons.nu`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.criticality import directed_percolation_langevin
-        >>> float(directed_percolation_langevin((8, 8), energy=0.5).elements[0].values['nu'].mean())
+        >>> from skcomplex.systems.physics.criticality import DirectedPercolationLangevinSystem
+        >>> system = DirectedPercolationLangevinSystem((8, 8), energy=0.5).prepare().system_
+        >>> float(system.elements[0].values['nu'].mean())
         0.5
     """
-    shape = tuple(shape)
-    rng = np.random.default_rng(random_state)
-    values = {
-        'rho': rng.uniform(0.0, 2 * density, shape),
-        'nu': np.full(shape, energy),
-        'a': a,
-        'b': b,
-        'c': c,
-        'd': d,
-        'e': e,
-        'f': f,
-        'g': g,
-    }
-    return System(
-        elements=[FieldElement('neurons', element=ActiveFieldElement, space=LatticeSpace(shape), values=values)],
-    )
+
+    field = 'physics/criticality'
+    topics = ('field', 'absorbing state', 'directed percolation', 'multiplicative noise', 'spde')
+    references = ('Tian et al. 2022', 'Henkel, Hinrichsen, and Lübeck 2008', 'Bonachela and Muñoz 2009')
+    until = 100.0
+    dt = 1.0
+    solver = EulerMaruyamaSolver(dt=0.01)
+
+    def __init__(
+        self,
+        shape: Sequence[int] = (64, 64),
+        *,
+        a: float = -1.0,
+        b: float = 1.0,
+        c: float = 1.0,
+        d: float = 1.0,
+        e: float = 0.2,
+        f: float = 0.0,
+        g: float = 0.0,
+        energy: float = 1.2,
+        density: float = 0.5,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.a = a
+        self.b = b
+        self.c = c
+        self.d = d
+        self.e = e
+        self.f = f
+        self.g = g
+        self.energy = energy
+        self.density = density
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        shape = tuple(self.shape)
+        rng = np.random.default_rng(self.random_state)
+        values = {
+            'rho': rng.uniform(0.0, 2 * self.density, shape),
+            'nu': np.full(shape, self.energy),
+            'a': self.a,
+            'b': self.b,
+            'c': self.c,
+            'd': self.d,
+            'e': self.e,
+            'f': self.f,
+            'g': self.g,
+        }
+        return System(
+            self.label,
+            elements=[FieldElement('neurons', element=ActiveFieldElement, space=LatticeSpace(shape), values=values)],
+        )

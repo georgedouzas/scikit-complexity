@@ -12,15 +12,15 @@ The order parameter of infinitely many Kuramoto oscillators obeys one exact equa
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.synchronization import OttAntonsenSystem
 
 SYSTEM = 'ott_antonsen'
 
-system = create_system(SYSTEM, r=0.1, K=2.0, Delta=0.5)
+system = OttAntonsenSystem(r=0.1, K=2.0, Delta=0.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=20)
+trajectory = simulate(system, until=20, observers=[observer])
 
 # %%
 # Exact growth and the bifurcation diagram
@@ -29,16 +29,16 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 # `r(t)^2 = r∞^2 / (1 + (r∞^2 / r0^2 - 1) exp(-(K - 2 Δ) t))`. The simulated growth should lie on it, and the final
 # order parameters of a sweep of `K` should follow `sqrt(1 - 2 Δ / K)` above `K_c = 1` and vanish below.
 
-times = np.asarray(simulation.trajectory_.times)
-r = np.hypot(np.ravel(simulation.trajectory_.values('field.x')), np.ravel(simulation.trajectory_.values('field.y')))
+times = np.asarray(trajectory.times)
+r = np.hypot(np.ravel(trajectory.values('field.x')), np.ravel(trajectory.values('field.y')))
 final = 1 - 2 * 0.5 / 2.0
 exact = np.sqrt(final / (1 + (final / 0.1**2 - 1) * np.exp(-(2.0 - 1.0) * times)))
 couplings = np.linspace(0.2, 5.0, 25)
 settled = []
 for coupling in couplings:
-    run = Simulation(create_system(SYSTEM, r=0.1, K=coupling, Delta=0.5), dt=0.5).prepare().run(until=200)
+    run = simulate(OttAntonsenSystem(r=0.1, K=coupling, Delta=0.5), until=200, dt=0.5)
     settled.append(
-        np.hypot(np.ravel(run.trajectory_.values('field.x'))[-1], np.ravel(run.trajectory_.values('field.y'))[-1]),
+        np.hypot(np.ravel(run.values('field.x'))[-1], np.ravel(run.values('field.y'))[-1]),
     )
 grid = np.linspace(1.0, 5.0, 200)
 fig, (growth, diagram) = plt.subplots(1, 2, figsize=(10, 4))

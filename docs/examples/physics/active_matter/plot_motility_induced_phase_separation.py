@@ -8,7 +8,7 @@ a dilute gas. The view shows 600 disks at packing fraction 0.5 that have gathere
 """
 
 # %%
-# The system is created by name from the catalog with 600 disks of unit diameter, packing fraction 0.5, speed `v = 1`,
+# The system is built from its class with 600 disks of unit diameter, packing fraction 0.5, speed `v = 1`,
 # and rotational diffusion `D_r = 0.01`, a Péclet number `v / (D_r sigma) = 100`. The Euler-Maruyama stepper takes
 # steps of 0.005 and the observer saves every frame of 0.5 with the default blueprint, whose primary view shows the
 # disks.
@@ -17,17 +17,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import cKDTree
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.active_matter import MotilityInducedPhaseSeparationSystem
 
 SYSTEM = 'motility_induced_phase_separation'
 
-system = create_system(SYSTEM, n_particles=600, random_state=0)
+system = MotilityInducedPhaseSeparationSystem(n_particles=600, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.005)
-simulation = Simulation(system, solver=solver, dt=0.5, observers=[observer], random_state=0).prepare().run(until=120)
+trajectory = simulate(system, until=120, solver=solver, dt=0.5, observers=[observer], random_state=0)
 
 # %%
 # Bimodal local density
@@ -48,7 +48,7 @@ def local_packing(positions):
     return counts * (np.pi / 4) / (np.pi * radius**2)
 
 
-positions = simulation.trajectory_.values('swimmers.x')
+positions = trajectory.values('swimmers.x')
 fig, ax = plt.subplots(figsize=(7, 4))
 bins = (np.arange(27) + 0.5) * (np.pi / 4) / (np.pi * radius**2)
 ax.hist(local_packing(positions[0]), bins=bins, density=True, alpha=0.5, label='start, uniform disks')

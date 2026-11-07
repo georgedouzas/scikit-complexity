@@ -14,17 +14,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import iv
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.physics.waves import LatticeGaugeFieldsSystem
 
 SYSTEM = 'lattice_gauge_fields'
 
-system = create_system(SYSTEM, size=16)
-observables = describe(SYSTEM).observables_of(system)
+system = LatticeGaugeFieldsSystem(size=16)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=10)
-simulation = Simulation(system, dt=1, observers=[observer], observables=observables, random_state=0).prepare()
-series = simulation.run(until=400).trajectory_.values('mean_plaquette')
+trajectory = simulate(system, until=400, observers=[observer], random_state=0)
+series = trajectory.values('mean_plaquette')
 
 # %%
 # The plaquette against the exact result

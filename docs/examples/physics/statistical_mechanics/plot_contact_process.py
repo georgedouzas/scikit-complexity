@@ -8,22 +8,22 @@ irregular clusters that keep splitting, merging, and dying out. The view shows a
 """
 
 # %%
-# The system is created by name from the catalog with half of the sites infected at the start and a time slice
+# The system is built from its class with half of the sites infected at the start and a time slice
 # `tau = 0.1` per step. The observer saves every second step with the default blueprint, whose primary view is the
 # image of the infections.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.statistical_mechanics import ContactProcessSystem
 
 SYSTEM = 'contact_process'
 
-system = create_system(SYSTEM, shape=(128, 128), rate=1.75, random_state=0)
+system = ContactProcessSystem(shape=(128, 128), rate=1.75, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=500)
+trajectory = simulate(system, until=500, observers=[observer], random_state=0)
 
 # %%
 # Absorbing-state transition
@@ -36,12 +36,8 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 rates = np.linspace(1.0, 4.0, 16)
 densities = []
 for rate in rates:
-    run = (
-        Simulation(create_system(SYSTEM, shape=(64, 64), rate=rate, random_state=1), dt=1, random_state=1)
-        .prepare()
-        .run(until=1500)
-    )
-    densities.append(run.trajectory_.values('lattice.infected')[1000:].mean())
+    run = simulate(ContactProcessSystem(shape=(64, 64), rate=rate, random_state=1), until=1500, random_state=1)
+    densities.append(run.values('lattice.infected')[1000:].mean())
 grid = np.linspace(1.0, 4.0, 200)
 fig, ax = plt.subplots(figsize=(7, 4))
 ax.plot(rates, densities, 'o-', label='simulation, 64 x 64')

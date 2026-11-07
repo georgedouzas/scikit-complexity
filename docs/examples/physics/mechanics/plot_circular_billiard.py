@@ -11,16 +11,16 @@ that never enters an inner circle, the caustic. The circular billiard is integra
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.mechanics import CircularBilliardSystem
 
 SYSTEM = 'circular_billiard'
 
 
-system = create_system(SYSTEM, x=0.3, y=0.0, vx=0.4, vy=1.0)
+system = CircularBilliardSystem(x=0.3, y=0.0, vx=0.4, vy=1.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(until=20)
+trajectory = simulate(system, dt=0.02, observers=[observer])
 
 # %%
 # The caustic
@@ -29,12 +29,12 @@ simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(unt
 # the distance `|L| / |v|` from the centre. The distance of the particle from the centre should never drop below
 # that radius, and its histogram should pile up at the caustic, where the chords are tangent.
 
-x, y = np.ravel(simulation.trajectory_.values('particle.x')), np.ravel(simulation.trajectory_.values('particle.y'))
-vx, vy = np.ravel(simulation.trajectory_.values('particle.vx')), np.ravel(simulation.trajectory_.values('particle.vy'))
+x, y = np.ravel(trajectory.values('particle.x')), np.ravel(trajectory.values('particle.y'))
+vx, vy = np.ravel(trajectory.values('particle.vx')), np.ravel(trajectory.values('particle.vy'))
 momentum = x * vy - y * vx
 caustic = abs(momentum[0]) / np.hypot(0.4, 1.0)
 fig, (conserved, radii) = plt.subplots(1, 2, figsize=(10, 4))
-conserved.plot(simulation.trajectory_.times, momentum)
+conserved.plot(trajectory.times, momentum)
 conserved.set_ylim(0, 0.5)
 conserved.set_xlabel('time')
 conserved.set_ylabel('angular momentum L')

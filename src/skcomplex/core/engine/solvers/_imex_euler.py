@@ -20,10 +20,10 @@ class IMEXEulerSolver(SplitSolver):
     Examples:
         >>> import numpy as np
         >>> from skcomplex.core.engine.compile import PassCompiler
-        >>> from skcomplex.systems.physics.heat import heat_diffusion
+        >>> from skcomplex.systems.physics.heat import HeatDiffusionSystem
         >>> from skcomplex.core.engine.solvers import IMEXEulerSolver
         >>> from skcomplex.core.specs import StepSpec
-        >>> problem = PassCompiler().prepare(heat_diffusion((16, 16))).run().problem_
+        >>> problem = PassCompiler().prepare(HeatDiffusionSystem((16, 16)).prepare().system_).run().problem_
         >>> stepper = IMEXEulerSolver(dt=1.0, random_state=0).prepare(problem)
         >>> state = stepper.run(StepSpec(0.0, problem.initial_state, problem.initial_parameters, 10.0)).state_
         >>> bool(np.isclose(state.sum(), problem.initial_state.sum()))

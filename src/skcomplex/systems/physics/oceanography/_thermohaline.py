@@ -10,9 +10,8 @@ from sage.all__sagemath_symbolics import abs_symbolic
 
 from ....core.components.elements import Element
 from ....core.components.laws import BaseLaw, RateLaw
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class StommelBoxesElement(Element):
@@ -49,6 +48,8 @@ class StommelBoxesElement(Element):
         1.2
     """
 
+    law_classes = (RateLaw,)
+
     def __init__(
         self,
         label: str,
@@ -84,26 +85,13 @@ class StommelBoxesElement(Element):
         ]
 
 
-@register_system(
-    field='physics/oceanography',
-    tags=('ode', 'bistability', 'thermohaline circulation', 'tipping'),
-    references=('Stommel 1961', 'Cessi 1994', 'Ghil and Lucarini 2020'),
-    defaults={'until': 50.0, 'dt': 0.1},
-)
-def stommel(
-    T: float = 3.0,
-    S: float = 0.0,
-    *,
-    eta1: float = 3.0,
-    eta2: float = 1.2,
-    eta3: float = 0.3,
-) -> System:
-    """Return Stommel's two-box thermohaline circulation, bistable between a thermal and a haline mode.
+class StommelSystem(BaseSystem):
+    """Stommel's two-box thermohaline circulation, bistable between a thermal and a haline mode.
 
     The dimensionless differences of temperature `T` and salinity `S` between an equatorial and a polar box relax to
-    their forcing and are mixed by a flow proportional to the density difference `|T - S|`:
-    `dT/dt = eta1 - T (1 + |T - S|)` and `dS/dt = eta2 - S (eta3 + |T - S|)`. For the default parameters a strong
-    circulation driven by temperature and a weak one driven by salinity are both stable.
+    their forcing and are mixed by a flow proportional to the density difference `|T - S|`: `dT/dt = eta1 - T (1 + |T -
+    S|)` and `dS/dt = eta2 - S (eta3 + |T - S|)`. For the default parameters a strong circulation driven by temperature
+    and a weak one driven by salinity are both stable. The system has the differences `ocean.T` and `ocean.S`.
 
     Args:
         T:
@@ -121,13 +109,41 @@ def stommel(
         eta3:
             The ratio of the relaxation times of temperature and salinity.
 
-    Returns:
-        system:
-            The system, with the differences `ocean.T` and `ocean.S`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.oceanography import stommel
-        >>> stommel(eta2=1.0).elements[0].eta2
+        >>> from skcomplex.systems.physics.oceanography import StommelSystem
+        >>> StommelSystem(eta2=1.0).prepare().system_.elements[0].eta2
         1.0
     """
-    return System(elements=[StommelBoxesElement('ocean', T=T, S=S, eta1=eta1, eta2=eta2, eta3=eta3)])
+
+    field = 'physics/oceanography'
+    topics = ('ode', 'bistability', 'thermohaline circulation', 'tipping')
+    references = ('Stommel 1961', 'Cessi 1994', 'Ghil and Lucarini 2020')
+    until = 50.0
+    dt = 0.1
+
+    def __init__(
+        self,
+        T: float = 3.0,
+        S: float = 0.0,
+        *,
+        eta1: float = 3.0,
+        eta2: float = 1.2,
+        eta3: float = 0.3,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.T = T
+        self.S = S
+        self.eta1 = eta1
+        self.eta2 = eta2
+        self.eta3 = eta3
+
+    def _build_system(self) -> System:
+        """Return Stommel's two-box thermohaline circulation, bistable between a thermal and a haline mode."""
+        return System(
+            self.label,
+            elements=[StommelBoxesElement('ocean', T=self.T, S=self.S, eta1=self.eta1, eta2=self.eta2, eta3=self.eta3)],
+        )

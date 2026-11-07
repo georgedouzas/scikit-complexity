@@ -16,9 +16,9 @@ import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.mechanics import RotatingSwingSystem
 
 SYSTEM = 'rotating_swing'
 
@@ -46,9 +46,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, omega=2.0, theta=0.1)
+system = RotatingSwingSystem(omega=2.0, theta=0.1)
 observer = SwingObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=20)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Angular momentum and the equilibrium angle
@@ -57,9 +57,9 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(unt
 # chain angle should oscillate about the steady angle at which the chains and the stand turn together with that
 # momentum, the solution of `g tan θ = φ'^2 (a + l sin θ)` with `φ' = L / [J + n m (a + l sin θ)^2]`, dashed.
 
-times = np.asarray(simulation.trajectory_.times)
-theta = np.ravel(simulation.trajectory_.values('swing.theta'))
-speed = np.ravel(simulation.trajectory_.values('swing.phi_d1'))
+times = np.asarray(trajectory.times)
+theta = np.ravel(trajectory.values('swing.theta'))
+speed = np.ravel(trajectory.values('swing.phi_d1'))
 momentum = (10.0 + 8 * (1 + np.sin(theta)) ** 2) * speed
 grid = np.linspace(0.0, 1.5, 3000)
 steady_speed = momentum[0] / (10.0 + 8 * (1 + np.sin(grid)) ** 2)

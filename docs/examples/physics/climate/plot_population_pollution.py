@@ -12,13 +12,14 @@ accumulates. Pollution then lowers births, food, and the quality of life, and ra
 import matplotlib.pyplot as plt
 import numpy as np
 
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_simulation
+from skcomplex.systems.physics.climate import PopulationPollutionSystem
 
 SYSTEM = 'population_pollution'
 
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare().run(until=50)
+trajectory = simulate(PopulationPollutionSystem(), until=50, observers=[observer], random_state=0)
 
 # %%
 # The four curves of the book
@@ -26,7 +27,6 @@ simulation = create_simulation(SYSTEM).set_params(observers=[observer]).prepare(
 # As in Fig. 4.33 of the book, the pollution should climb towards 90 million, the population double, the food per
 # capita fall towards the subsistence level of 180, and the quality of life fall below 1.
 
-trajectory = simulation.trajectory_
 times = np.asarray(trajectory.times)
 fig, axes = plt.subplots(2, 2, figsize=(9, 6), sharex=True)
 for ax, name in zip(axes.ravel(), ['pollution', 'population', 'food_per_capita', 'quality_of_life'], strict=True):

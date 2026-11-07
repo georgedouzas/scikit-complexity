@@ -23,7 +23,7 @@ from skcomplex.systems.physics.statistical_mechanics import (
     ParticleSiteElement,
     ZeroRangeHopInteraction,
     ZeroRangeHopsInteraction,
-    zero_range_process,
+    ZeroRangeProcessSystem,
 )
 
 
@@ -275,7 +275,11 @@ def test_jump_at_member_offset_matches_per_link_interactions(backend):
 def test_jump_at_member_offset_compiles_many_sites_fast():
     """Test that a zero-range process of 1000 sites compiles one group law and runs until 5 within 10 seconds."""
     start = time.perf_counter()
-    simulation = Simulation(zero_range_process(1000), backend=NumbaBackend(), random_state=0).prepare().run(until=5)
+    simulation = (
+        Simulation(ZeroRangeProcessSystem(1000).prepare().system_, backend=NumbaBackend(), random_state=0)
+        .prepare()
+        .run(until=5)
+    )
     assert time.perf_counter() - start < 10
     assert len(simulation.problem_.interactions) == 1
     assert [channels.size for channels in simulation.problem_.jumps] == [1000, 1000]

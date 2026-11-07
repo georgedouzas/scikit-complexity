@@ -9,7 +9,7 @@ density, which grows exponentially and saturates.
 """
 
 # %%
-# The system is created by name from the catalog on a single position with 32 orientations, since the initial state of
+# The system is built from its class on a single position with 32 orientations, since the initial state of
 # the system is homogeneous and streaming therefore leaves it so. With the noise 0.5, the interaction range 0.5, and the
 # unit speed and tumbling rate of the defaults, the transition density is close to 0.43. The observable `polar_order` is
 # computed from the density at every frame of 1 up to `t = 60`, and the default blueprint shows the observables first.
@@ -17,11 +17,11 @@ density, which grows exponentially and saturates.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
 from skcomplex.core.engine.viz import RerunObserver
 from skcomplex.core.specs import ObservableSpec
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.active_matter import BertinDrozGregoireSystem
 
 SYSTEM = 'bertin_droz_gregoire'
 ANGLES = 32
@@ -38,12 +38,10 @@ def polar_order(_, values):
 
 
 observables = [ObservableSpec('polar_order', function=polar_order)]
-system = create_system(SYSTEM, positions=1, angles=ANGLES, density=2 * TRANSITION)
+system = BertinDrozGregoireSystem(positions=1, angles=ANGLES, density=2 * TRANSITION)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
 solver = RK4Solver(dt=0.2)
-simulation = (
-    Simulation(system, solver=solver, dt=1.0, observers=[observer], observables=observables).prepare().run(until=60)
-)
+trajectory = simulate(system, until=60, solver=solver, dt=1.0, observers=[observer], observables=observables)
 
 # %%
 # The transition to polar order
@@ -58,16 +56,16 @@ simulation = (
 ratios = np.array([0.5, 0.8, 1.2, 1.5, 2.0, 3.0, 4.0])
 rates = []
 for ratio in ratios:
-    gas = create_system(SYSTEM, positions=1, angles=ANGLES, density=ratio * TRANSITION)
-    run = Simulation(gas, solver=solver, dt=10.0, observables=observables).prepare().run(until=10)
-    order = run.trajectory_.values('polar_order')
+    gas = BertinDrozGregoireSystem(positions=1, angles=ANGLES, density=ratio * TRANSITION)
+    run = simulate(gas, until=10, solver=solver, dt=10.0, observables=observables)
+    order = run.values('polar_order')
     rates.append(np.log(order[-1] / order[0]) / 10)
 above = ratios[ratios > 1]
 orders = []
 for ratio in above:
-    gas = create_system(SYSTEM, positions=1, angles=ANGLES, density=ratio * TRANSITION, perturbation=0.5)
-    run = Simulation(gas, solver=solver, dt=150.0, observables=observables).prepare().run(until=150)
-    orders.append(run.trajectory_.values('polar_order')[-1])
+    gas = BertinDrozGregoireSystem(positions=1, angles=ANGLES, density=ratio * TRANSITION, perturbation=0.5)
+    run = simulate(gas, until=150, solver=solver, dt=150.0, observables=observables)
+    orders.append(run.values('polar_order')[-1])
 grid = np.linspace(ratios[0], ratios[-1], 100)
 theory = 8 * 0.5 * (SURVIVAL - 2 / 3) * (grid - 1) * TRANSITION / np.pi
 

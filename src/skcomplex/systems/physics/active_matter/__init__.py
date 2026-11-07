@@ -1,121 +1,121 @@
 """Active matter: self-propelled particles, flocking, polar fluids, chemotaxis, squirmers, and Active System B+."""
 
 from ..common.particles import ActiveParticleElement, PropulsionStepInteraction, SelfPropulsionInteraction
-from ._active_passive import FlockingAgentElement, active_passive_flocking
-from ._alignment import PolarAlignmentInteraction, aligning_active_brownian_particles
-from ._cells import MotileCellElement, szabo_cells
-from ._chemotaxis import ChemotaxisElement, keller_segel
+from ._active_passive import ActivePassiveFlockingSystem, FlockingAgentElement
+from ._alignment import AligningActiveBrownianParticlesSystem, PolarAlignmentInteraction
+from ._cells import MotileCellElement, SzaboCellsSystem
+from ._chemotaxis import ChemotaxisElement, KellerSegelSystem
 from ._collective import (
     CuckerSmaleAlignmentInteraction,
+    CuckerSmaleFlockingSystem,
+    LivingCrystalsSystem,
+    MotilityInducedPhaseSeparationSystem,
     PhoreticAttractionInteraction,
     PolarFluidElement,
-    cucker_smale_flocking,
-    living_crystals,
-    motility_induced_phase_separation,
-    toner_tu,
+    TonerTuSystem,
 )
-from ._collisions import BinaryCollisionsInteraction, FlockerElement, FlockerView, binary_collision_flocking
-from ._deformable import DeformableParticleElement, deformable_active_particles
+from ._collisions import BinaryCollisionFlockingSystem, BinaryCollisionsInteraction, FlockerElement, FlockerView
+from ._deformable import DeformableActiveParticlesSystem, DeformableParticleElement
 from ._flocks import (
     CohesiveParticleElement,
     DelayedVicsekParticleElement,
+    GinelliNematicsSystem,
+    GregoireChateSystem,
     HeadingAlignmentInteraction,
     NematicParticleElement,
     VicsekParticleElement,
-    ginelli_nematics,
-    gregoire_chate,
-    vicsek,
+    VicsekSystem,
 )
-from ._gels import ContractileGelSiteElement, active_viscoelastic_gel
-from ._kinetic_flocks import AngularAlignmentInteraction, AngularDiffusionInteraction, bertin_droz_gregoire
+from ._gels import ActiveViscoelasticGelSystem, ContractileGelSiteElement
+from ._kinetic_flocks import AngularAlignmentInteraction, AngularDiffusionInteraction, BertinDrozGregoireSystem
 from ._nematics import (
+    ActiveGelsSystem,
+    DryActiveNematicsSystem,
     LandauDeGennesEnergyInteraction,
     NematicDensitySiteElement,
     NematicGelSiteElement,
     PolarGelSiteElement,
-    active_gels,
-    dry_active_nematics,
 )
-from ._nonreciprocal import NonreciprocalMoverElement, nonreciprocal_vicsek
+from ._nonreciprocal import NonreciprocalMoverElement, NonreciprocalVicsekSystem
 from ._particles import (
+    ActiveBrownianParticlesSystem,
+    ActiveOrnsteinUhlenbeckParticlesSystem,
+    ChiralActiveParticlesSystem,
+    DepotBrownianParticlesSystem,
     DepotParticleElement,
+    InertialActiveBrownianParticlesSystem,
     InertialActiveParticleElement,
     OrnsteinUhlenbeckParticleElement,
+    RunAndTumbleSystem,
     TumblerElement,
     TumblerView,
-    active_brownian_particles,
-    active_ornstein_uhlenbeck_particles,
-    chiral_active_particles,
-    depot_brownian_particles,
-    inertial_active_brownian_particles,
-    run_and_tumble,
 )
-from ._polymers import ActiveBeadElement, active_polymer
-from ._squirmers import SquirmerElement, SquirmerSlipInteraction, squirmers
-from ._system_b import ActiveScalarElement, active_system_b
+from ._polymers import ActiveBeadElement, ActivePolymerSystem
+from ._squirmers import SquirmerElement, SquirmerSlipInteraction, SquirmersSystem
+from ._system_b import ActiveScalarElement, ActiveSystemBSystem
 
 __all__: list[str] = [
     'ActiveBeadElement',
+    'ActiveBrownianParticlesSystem',
+    'ActiveGelsSystem',
+    'ActiveOrnsteinUhlenbeckParticlesSystem',
     'ActiveParticleElement',
+    'ActivePassiveFlockingSystem',
+    'ActivePolymerSystem',
     'ActiveScalarElement',
+    'ActiveSystemBSystem',
+    'ActiveViscoelasticGelSystem',
+    'AligningActiveBrownianParticlesSystem',
     'AngularAlignmentInteraction',
     'AngularDiffusionInteraction',
+    'BertinDrozGregoireSystem',
+    'BinaryCollisionFlockingSystem',
     'BinaryCollisionsInteraction',
     'ChemotaxisElement',
+    'ChiralActiveParticlesSystem',
     'CohesiveParticleElement',
     'ContractileGelSiteElement',
     'CuckerSmaleAlignmentInteraction',
+    'CuckerSmaleFlockingSystem',
+    'DeformableActiveParticlesSystem',
     'DeformableParticleElement',
     'DelayedVicsekParticleElement',
+    'DepotBrownianParticlesSystem',
     'DepotParticleElement',
+    'DryActiveNematicsSystem',
     'FlockerElement',
     'FlockerView',
     'FlockingAgentElement',
+    'GinelliNematicsSystem',
+    'GregoireChateSystem',
     'HeadingAlignmentInteraction',
+    'InertialActiveBrownianParticlesSystem',
     'InertialActiveParticleElement',
+    'KellerSegelSystem',
     'LandauDeGennesEnergyInteraction',
+    'LivingCrystalsSystem',
     'MotileCellElement',
+    'MotilityInducedPhaseSeparationSystem',
     'NematicDensitySiteElement',
     'NematicGelSiteElement',
     'NematicParticleElement',
     'NonreciprocalMoverElement',
+    'NonreciprocalVicsekSystem',
     'OrnsteinUhlenbeckParticleElement',
     'PhoreticAttractionInteraction',
     'PolarAlignmentInteraction',
     'PolarFluidElement',
     'PolarGelSiteElement',
     'PropulsionStepInteraction',
+    'RunAndTumbleSystem',
     'SelfPropulsionInteraction',
     'SquirmerElement',
     'SquirmerSlipInteraction',
+    'SquirmersSystem',
+    'SzaboCellsSystem',
+    'TonerTuSystem',
     'TumblerElement',
     'TumblerView',
     'VicsekParticleElement',
-    'active_brownian_particles',
-    'active_gels',
-    'active_ornstein_uhlenbeck_particles',
-    'active_passive_flocking',
-    'active_polymer',
-    'active_system_b',
-    'active_viscoelastic_gel',
-    'aligning_active_brownian_particles',
-    'bertin_droz_gregoire',
-    'binary_collision_flocking',
-    'chiral_active_particles',
-    'cucker_smale_flocking',
-    'deformable_active_particles',
-    'depot_brownian_particles',
-    'dry_active_nematics',
-    'ginelli_nematics',
-    'gregoire_chate',
-    'inertial_active_brownian_particles',
-    'keller_segel',
-    'living_crystals',
-    'motility_induced_phase_separation',
-    'nonreciprocal_vicsek',
-    'run_and_tumble',
-    'squirmers',
-    'szabo_cells',
-    'toner_tu',
-    'vicsek',
+    'VicsekSystem',
 ]

@@ -5,13 +5,13 @@ import scipy.fft
 
 from skcomplex.core.engine.backends import NumpyBackend
 from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.systems import create_simulation
-from skcomplex.systems.physics.oceanography import double_gyre
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems.physics.oceanography import DoubleGyreSystem
 
 
 def test_double_gyre_forms_western_intensified_gyres_in_sverdrup_balance():
     """Test that the wind spins up two gyres of opposite sign with western extrema and a Sverdrup interior."""
-    trajectory = create_simulation('double_gyre').prepare().run().trajectory_
+    trajectory = simulate(DoubleGyreSystem(), random_state=0)
     frames = np.asarray(trajectory.values('psi'))
     psi, earlier = frames[-1].reshape(64, 64), frames[-11].reshape(64, 64)
     positions = (np.arange(64) + 0.5) / 64
@@ -35,6 +35,6 @@ def test_double_gyre_inverts_its_vorticity_once_per_rate(monkeypatch):
     solves = []
     transform = scipy.fft.dstn
     monkeypatch.setattr(scipy.fft, 'dstn', lambda *args, **kwargs: solves.append(1) or transform(*args, **kwargs))
-    problem = PassCompiler(backend=NumpyBackend()).prepare(double_gyre(16)).run().problem_
+    problem = PassCompiler(backend=NumpyBackend()).prepare(DoubleGyreSystem(16).prepare().system_).run().problem_
     problem.drift(0.0, problem.initial_state, problem.initial_parameters)
     assert len(solves) == 1

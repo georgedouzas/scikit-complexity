@@ -7,7 +7,7 @@ image shows the density at the end of the run.
 """
 
 # %%
-# The system is created by name from the catalog on a periodic square of 64 sites, above the critical density, where the
+# The system is built from its class on a periodic square of 64 sites, above the critical density, where the
 # isotropic state loses stability. The catalog defaults integrate it with RK4 on the Numba backend.
 
 import matplotlib.pyplot as plt
@@ -15,20 +15,15 @@ import numpy as np
 
 from skcomplex.core.analysis import alignment
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.active_matter import DryActiveNematicsSystem
 
 SYSTEM = 'dry_active_nematics'
 
-system = create_system(SYSTEM)
+system = DryActiveNematicsSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(system, dt=5.0, solver=RK4Solver(dt=0.02), backend=NumbaBackend(), observers=[observer], random_state=0)
-    .prepare()
-    .run(until=100.0)
-)
+trajectory = simulate(system, backend=NumbaBackend(), observers=[observer], random_state=0)
 
 # %%
 # Order and conservation
@@ -36,7 +31,6 @@ simulation = (
 # The scalar order should rise from the small initial noise to a nonzero value, and the total density should stay at its
 # initial value to rounding, since the current is a divergence.
 
-trajectory = simulation.trajectory_
 tensors = alignment(trajectory.lattice('nematic.Q'), kind='principal-axis')
 density = trajectory.lattice('nematic.rho')
 

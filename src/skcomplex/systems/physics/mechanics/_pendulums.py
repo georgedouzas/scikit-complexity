@@ -16,10 +16,9 @@ from ....core.components.elements import Element
 from ....core.components.interactions import CrossingInteraction, EulerLagrangeInteraction
 from ....core.components.laws.utils import derivative
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.mechanics import PendulumElement, PendulumInteraction
 from ..common.particles import (
     DampingInteraction,
@@ -765,29 +764,13 @@ class SupportSpringInteraction(EulerLagrangeInteraction):
         return -namespace.k * (namespace.second.x - namespace.first.x) ** 2 / 2
 
 
-@register_system(
-    field='physics/mechanics',
-    tags=('mechanics', 'ode', 'second order', 'chaos', 'lagrangian'),
-    references=('Ryzhov et al. 2021', 'Argun et al. 2021'),
-    defaults={'until': 20.0, 'dt': 0.02},
-)
-def double_pendulum(
-    theta1: float = math.pi / 2,
-    theta2: float = math.pi / 2,
-    omega1: float = 0.0,
-    omega2: float = 0.0,
-    *,
-    m1: float = 1.0,
-    m2: float = 1.0,
-    l1: float = 1.0,
-    l2: float = 1.0,
-    g: float = 9.81,
-) -> System:
-    """Return a double pendulum, a pendulum hanging from the bob of another, written as its two Lagrange equations.
+class DoublePendulumSystem(BaseSystem):
+    """A double pendulum, a pendulum hanging from the bob of another, written as its two Lagrange equations.
 
-    The equations `(m1 + m2) l1 θ1'' + m2 l2 θ2'' cos(θ1 - θ2) + m2 l2 θ2'² sin(θ1 - θ2) + (m1 + m2) g sin θ1 = 0`
-    and `l2 θ2'' + l1 θ1'' cos(θ1 - θ2) - l1 θ1'² sin(θ1 - θ2) + g sin θ2 = 0` are solved jointly for the angular
-    accelerations. The motion is chaotic at large amplitudes.
+    The equations `(m1 + m2) l1 θ1'' + m2 l2 θ2'' cos(θ1 - θ2) + m2 l2 θ2'² sin(θ1 - θ2) + (m1 + m2) g sin θ1 = 0` and
+    `l2 θ2'' + l1 θ1'' cos(θ1 - θ2) - l1 θ1'² sin(θ1 - θ2) + g sin θ2 = 0` are solved jointly for the angular
+    accelerations. The motion is chaotic at large amplitudes. The system has the angles `pendulum.theta1` and
+    `pendulum.theta2` of order 2.
 
     Args:
         theta1:
@@ -817,56 +800,75 @@ def double_pendulum(
         g:
             The gravitational acceleration.
 
-    Returns:
-        system:
-            The system, with the angles `pendulum.theta1` and `pendulum.theta2` of order 2.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.mechanics import double_pendulum
-        >>> double_pendulum(m2=2.0).elements[0].m2
+        >>> from skcomplex.systems.physics.mechanics import DoublePendulumSystem
+        >>> DoublePendulumSystem(m2=2.0).prepare().system_.elements[0].m2
         2.0
     """
-    return System(
-        elements=[
-            DoublePendulumElement(
-                'pendulum',
-                theta1=theta1,
-                theta2=theta2,
-                theta1_d1=omega1,
-                theta2_d1=omega2,
-                m1=m1,
-                m2=m2,
-                l1=l1,
-                l2=l2,
-                g=g,
-            ),
-        ],
-        interactions=[DoublePendulumInteraction('motion', target='pendulum')],
-    )
+
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'second order', 'chaos', 'lagrangian')
+    references = ('Ryzhov et al. 2021', 'Argun et al. 2021')
+    until = 20.0
+    dt = 0.02
+
+    def __init__(
+        self,
+        theta1: float = math.pi / 2,
+        theta2: float = math.pi / 2,
+        omega1: float = 0.0,
+        omega2: float = 0.0,
+        *,
+        m1: float = 1.0,
+        m2: float = 1.0,
+        l1: float = 1.0,
+        l2: float = 1.0,
+        g: float = 9.81,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.theta1 = theta1
+        self.theta2 = theta2
+        self.omega1 = omega1
+        self.omega2 = omega2
+        self.m1 = m1
+        self.m2 = m2
+        self.l1 = l1
+        self.l2 = l2
+        self.g = g
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        return System(
+            self.label,
+            elements=[
+                DoublePendulumElement(
+                    'pendulum',
+                    theta1=self.theta1,
+                    theta2=self.theta2,
+                    theta1_d1=self.omega1,
+                    theta2_d1=self.omega2,
+                    m1=self.m1,
+                    m2=self.m2,
+                    l1=self.l1,
+                    l2=self.l2,
+                    g=self.g,
+                ),
+            ],
+            interactions=[DoublePendulumInteraction('motion', target='pendulum')],
+        )
 
 
-@register_system(
-    field='physics/mechanics',
-    tags=('mechanics', 'ode', 'second order', 'oscillation', 'normal modes'),
-    references=('Ryzhov et al. 2021',),
-    defaults={'until': 40.0, 'dt': 0.05},
-)
-def coupled_pendulums(
-    theta1: float = 0.2,
-    theta2: float = 0.0,
-    *,
-    k: float = 0.5,
-    m1: float = 1.0,
-    m2: float = 1.0,
-    l1: float = 1.0,
-    l2: float = 1.0,
-    g: float = 9.81,
-) -> System:
-    """Return two pendulums whose bobs are joined by a spring, which pass their energy back and forth.
+class CoupledPendulumsSystem(BaseSystem):
+    """Two pendulums whose bobs are joined by a spring, which pass their energy back and forth.
 
-    The spring stretches with the horizontal distance `l2 sin θ2 - l1 sin θ1` of the bobs and adds the torque
-    `k l1 (l2 sin θ2 - l1 sin θ1) cos θ1` to the first pendulum and the opposite one to the second. Identical pendulums
-    have the normal modes `sqrt(g / l)` in phase and `sqrt(g / l + 2 k / m)` in antiphase.
+    The spring stretches with the horizontal distance `l2 sin θ2 - l1 sin θ1` of the bobs and adds the torque `k l1 (l2
+    sin θ2 - l1 sin θ1) cos θ1` to the first pendulum and the opposite one to the second. Identical pendulums have the
+    normal modes `sqrt(g / l)` in phase and `sqrt(g / l + 2 k / m)` in antiphase. The system has the pendulums `left`
+    and `right` and their angles `left.theta` and `right.theta`.
 
     Args:
         theta1:
@@ -893,49 +895,67 @@ def coupled_pendulums(
         g:
             The gravitational acceleration.
 
-    Returns:
-        system:
-            The system, with the pendulums `left` and `right` and their angles `left.theta` and `right.theta`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.mechanics import coupled_pendulums
-        >>> coupled_pendulums(k=2.0).interactions[0].k
+        >>> from skcomplex.systems.physics.mechanics import CoupledPendulumsSystem
+        >>> CoupledPendulumsSystem(k=2.0).prepare().system_.interactions[0].k
         2.0
     """
-    return System(
-        elements=[
-            PendulumElement('left', theta=theta1, m=m1, l=l1, g=g),
-            PendulumElement('right', theta=theta2, m=m2, l=l2, g=g),
-        ],
-        interactions=[
-            PendulumSpringInteraction('spring', first='left', second='right', k=k),
-            PendulumInteraction('left_swing', target='left'),
-            PendulumInteraction('right_swing', target='right'),
-        ],
-    )
+
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'second order', 'oscillation', 'normal modes')
+    references = ('Ryzhov et al. 2021',)
+    until = 40.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        theta1: float = 0.2,
+        theta2: float = 0.0,
+        *,
+        k: float = 0.5,
+        m1: float = 1.0,
+        m2: float = 1.0,
+        l1: float = 1.0,
+        l2: float = 1.0,
+        g: float = 9.81,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.theta1 = theta1
+        self.theta2 = theta2
+        self.k = k
+        self.m1 = m1
+        self.m2 = m2
+        self.l1 = l1
+        self.l2 = l2
+        self.g = g
+
+    def _build_system(self) -> System:
+        """Return two pendulums whose bobs are joined by a spring, which pass their energy back and forth."""
+        return System(
+            self.label,
+            elements=[
+                PendulumElement('left', theta=self.theta1, m=self.m1, l=self.l1, g=self.g),
+                PendulumElement('right', theta=self.theta2, m=self.m2, l=self.l2, g=self.g),
+            ],
+            interactions=[
+                PendulumSpringInteraction('spring', first='left', second='right', k=self.k),
+                PendulumInteraction('left_swing', target='left'),
+                PendulumInteraction('right_swing', target='right'),
+            ],
+        )
 
 
-@register_system(
-    field='physics/mechanics',
-    tags=('mechanics', 'ode', 'second order', 'lagrangian', 'momentum'),
-    references=('Ryzhov et al. 2021',),
-    defaults={'until': 10.0, 'dt': 0.02},
-)
-def cart_pendulum(
-    theta: float = 0.5,
-    y: float = 0.0,
-    *,
-    m1: float = 1.0,
-    m2: float = 1.0,
-    l: float = 1.0,
-    g: float = 9.81,
-    F: float = 0.0,
-) -> System:
-    """Return a pendulum hanging from a cart that slides without friction along a horizontal track.
+class CartPendulumSystem(BaseSystem):
+    """A pendulum hanging from a cart that slides without friction along a horizontal track.
 
     The Lagrange equations `(m1 + m2) y'' + m2 l (θ'' cos θ - θ'² sin θ) = F` and `l θ'' + y'' cos θ + g sin θ = 0`
     couple the position `y` of the cart and the angle `θ` of the pendulum. Without a force the horizontal momentum is
-    conserved, so the cart swings against the pendulum.
+    conserved, so the cart swings against the pendulum. The system has the cart position `cart.y` and the angle
+    `cart.theta`, both of order 2.
 
     Args:
         theta:
@@ -959,46 +979,71 @@ def cart_pendulum(
         F:
             A constant horizontal force on the cart.
 
-    Returns:
-        system:
-            The system, with the cart position `cart.y` and the angle `cart.theta`, both of order 2.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.mechanics import cart_pendulum
-        >>> cart_pendulum(m1=5.0).elements[0].m1
+        >>> from skcomplex.systems.physics.mechanics import CartPendulumSystem
+        >>> CartPendulumSystem(m1=5.0).prepare().system_.elements[0].m1
         5.0
     """
-    return System(
-        elements=[CartPendulumElement('cart', y=y, theta=theta, m1=m1, m2=m2, l=l, g=g, F=F)],
-        interactions=[CartPendulumInteraction('motion', target='cart')],
-    )
+
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'second order', 'lagrangian', 'momentum')
+    references = ('Ryzhov et al. 2021',)
+    until = 10.0
+    dt = 0.02
+
+    def __init__(
+        self,
+        theta: float = 0.5,
+        y: float = 0.0,
+        *,
+        m1: float = 1.0,
+        m2: float = 1.0,
+        l: float = 1.0,
+        g: float = 9.81,
+        F: float = 0.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.theta = theta
+        self.y = y
+        self.m1 = m1
+        self.m2 = m2
+        self.l = l
+        self.g = g
+        self.F = F
+
+    def _build_system(self) -> System:
+        """Return a pendulum hanging from a cart that slides without friction along a horizontal track."""
+        return System(
+            self.label,
+            elements=[
+                CartPendulumElement(
+                    'cart',
+                    y=self.y,
+                    theta=self.theta,
+                    m1=self.m1,
+                    m2=self.m2,
+                    l=self.l,
+                    g=self.g,
+                    F=self.F,
+                ),
+            ],
+            interactions=[CartPendulumInteraction('motion', target='cart')],
+        )
 
 
-@register_system(
-    field='physics/mechanics',
-    tags=('mechanics', 'ode', 'second order', 'forcing', 'parametric resonance'),
-    references=('Dilão 2023',),
-    defaults={'until': 30.0, 'dt': 0.02},
-)
-def parametric_pendulum(
-    theta: float = 0.1,
-    omega: float = 0.0,
-    *,
-    g: float = 9.81,
-    l: float = 1.0,
-    epsilon: float = 0.2,
-    Omega: float = 2 * math.sqrt(9.81),
-    c: float = 0.0,
-    direction: str = 'vertical',
-) -> System:
-    """Return a pendulum whose suspension point oscillates vertically or horizontally, with acceleration `ε g cos Ω t`.
+class ParametricPendulumSystem(BaseSystem):
+    """A pendulum whose suspension point oscillates vertically or horizontally, with acceleration `ε g cos Ω t`.
 
-    Vertically, the acceleration of the suspension point modulates gravity, `θ'' + c θ' + (g / l)(1 + ε cos Ω t) sin θ
-    = 0`. Small oscillations grow when `Ω` is close to twice the natural frequency `sqrt(g / l)`, the parametric
-    resonance of a swing, while a pendulum at rest stays at rest. Horizontally, the acceleration pushes the bob
-    sideways, `θ'' + c θ' + (g / l)(sin θ + ε cos Ω t cos θ) = 0`, which for small angles is a harmonic oscillator under
-    an external force. Its amplitude grows linearly in time, as `ε Ω t / 2`, when `Ω` equals the natural frequency,
-    the linear resonance, and the pendulum starts to swing even from rest.
+    Vertically, the acceleration of the suspension point modulates gravity, `θ'' + c θ' + (g / l)(1 + ε cos Ω t) sin θ =
+    0`. Small oscillations grow when `Ω` is close to twice the natural frequency `sqrt(g / l)`, the parametric resonance
+    of a swing, while a pendulum at rest stays at rest. Horizontally, the acceleration pushes the bob sideways, `θ'' + c
+    θ' + (g / l)(sin θ + ε cos Ω t cos θ) = 0`, which for small angles is a harmonic oscillator under an external force.
+    Its amplitude grows linearly in time, as `ε Ω t / 2`, when `Ω` equals the natural frequency, the linear resonance,
+    and the pendulum starts to swing even from rest. The system has the angle `swing.theta` of order 2.
 
     Args:
         theta:
@@ -1025,52 +1070,69 @@ def parametric_pendulum(
         direction:
             The direction in which the suspension point oscillates, `'vertical'` or `'horizontal'`.
 
-    Returns:
-        system:
-            The system, with the angle `swing.theta` of order 2.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.mechanics import parametric_pendulum
-        >>> parametric_pendulum(epsilon=0.5).elements[0].epsilon
+        >>> from skcomplex.systems.physics.mechanics import ParametricPendulumSystem
+        >>> ParametricPendulumSystem(epsilon=0.5).prepare().system_.elements[0].epsilon
         0.5
     """
-    return System(
-        elements=[
-            ParametricPendulumElement(
-                'swing',
-                theta=theta,
-                theta_d1=omega,
-                g=g,
-                l=l,
-                epsilon=epsilon,
-                Omega=Omega,
-                c=c,
-            ),
-        ],
-        interactions=[ParametricPendulumInteraction('motion', target='swing', direction=direction)],
-    )
+
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'second order', 'forcing', 'parametric resonance')
+    references = ('Dilão 2023',)
+    until = 30.0
+    dt = 0.02
+
+    def __init__(
+        self,
+        theta: float = 0.1,
+        omega: float = 0.0,
+        *,
+        g: float = 9.81,
+        l: float = 1.0,
+        epsilon: float = 0.2,
+        Omega: float = 2 * math.sqrt(9.81),
+        c: float = 0.0,
+        direction: str = 'vertical',
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.theta = theta
+        self.omega = omega
+        self.g = g
+        self.l = l
+        self.epsilon = epsilon
+        self.Omega = Omega
+        self.c = c
+        self.direction = direction
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        return System(
+            self.label,
+            elements=[
+                ParametricPendulumElement(
+                    'swing',
+                    theta=self.theta,
+                    theta_d1=self.omega,
+                    g=self.g,
+                    l=self.l,
+                    epsilon=self.epsilon,
+                    Omega=self.Omega,
+                    c=self.c,
+                ),
+            ],
+            interactions=[ParametricPendulumInteraction('motion', target='swing', direction=self.direction)],
+        )
 
 
-@register_system(
-    field='physics/mechanics',
-    tags=('mechanics', 'ode', 'multistability', 'fractal basins'),
-    references=('Datseris and Parlitz 2022',),
-    defaults={'until': 50.0, 'dt': 0.05},
-)
-def magnetic_pendulum(
-    x: float = 1.0,
-    y: float = 1.5,
-    *,
-    n_magnets: int = 3,
-    omega: float = 1.0,
-    q: float = 0.2,
-    gamma: float = 1.0,
-    d: float = 0.3,
-) -> System:
-    """Return a magnetic bob on a string swinging above magnets on a circle, which comes to rest at one of them.
+class MagneticPendulumSystem(BaseSystem):
+    """A magnetic bob on a string swinging above magnets on a circle, which comes to rest at one of them.
 
     The bob follows `x'' = -ω² x - q x' - Σ gamma (x - x_i) / d_i³` with `d_i = sqrt(|x - x_i|² + d²)`. The basins of
-    the magnets have fractal boundaries.
+    the magnets have fractal boundaries. The system has the bob `bob` and its position `bob.x` in two dimensions.
 
     Args:
         x:
@@ -1094,57 +1156,74 @@ def magnetic_pendulum(
         d:
             The height of the bob above the plane of the magnets.
 
-    Returns:
-        system:
-            The system, with the bob `bob` and its position `bob.x` in two dimensions.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.mechanics import magnetic_pendulum
-        >>> len(magnetic_pendulum(n_magnets=4).interactions)
+        >>> from skcomplex.systems.physics.mechanics import MagneticPendulumSystem
+        >>> len(MagneticPendulumSystem(n_magnets=4).prepare().system_.interactions)
         6
     """
-    angles = 2 * np.pi * np.arange(n_magnets) / n_magnets
-    magnets = [
-        MagnetInteraction(
-            f'magnet_{index}',
-            target='bob',
-            center=[round(float(np.cos(angle)), 12), round(float(np.sin(angle)), 12)],
-            gamma=gamma,
-            d=d,
+
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'multistability', 'fractal basins')
+    references = ('Datseris and Parlitz 2022',)
+    until = 50.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        x: float = 1.0,
+        y: float = 1.5,
+        *,
+        n_magnets: int = 3,
+        omega: float = 1.0,
+        q: float = 0.2,
+        gamma: float = 1.0,
+        d: float = 0.3,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.x = x
+        self.y = y
+        self.n_magnets = n_magnets
+        self.omega = omega
+        self.q = q
+        self.gamma = gamma
+        self.d = d
+
+    def _build_system(self) -> System:
+        """Return a magnetic bob on a string swinging above magnets on a circle, which comes to rest at one of them."""
+        angles = 2 * np.pi * np.arange(self.n_magnets) / self.n_magnets
+        magnets = [
+            MagnetInteraction(
+                f'magnet_{index}',
+                target='bob',
+                center=[round(float(np.cos(angle)), 12), round(float(np.sin(angle)), 12)],
+                gamma=self.gamma,
+                d=self.d,
+            )
+            for index, angle in enumerate(angles)
+        ]
+        return System(
+            self.label,
+            elements=[MassPointElement('bob', x=[self.x, self.y], x_d1=[0.0, 0.0])],
+            interactions=[
+                HarmonicPotentialInteraction('string', target='bob', k=self.omega**2),
+                DampingInteraction('friction', target='bob', gamma=self.q),
+                *magnets,
+            ],
+            space=ContinuousSpace(n_dim=2),
         )
-        for index, angle in enumerate(angles)
-    ]
-    return System(
-        elements=[MassPointElement('bob', x=[x, y], x_d1=[0.0, 0.0])],
-        interactions=[
-            HarmonicPotentialInteraction('string', target='bob', k=omega**2),
-            DampingInteraction('friction', target='bob', gamma=q),
-            *magnets,
-        ],
-        space=ContinuousSpace(n_dim=2),
-    )
 
 
-@register_system(
-    field='physics/mechanics',
-    tags=('mechanics', 'events', 'impacts', 'momentum', 'hybrid'),
-    references=('Ryzhov et al. 2021',),
-    defaults={'until': 3.0, 'dt': 0.01},
-)
-def ballistic_pendulum(
-    speed: float = 200.0,
-    distance: float = 1.0,
-    *,
-    m: float = 0.01,
-    M: float = 1.0,
-    l: float = 1.0,
-    g: float = 9.81,
-) -> System:
-    """Return a bullet that sticks in the block of a pendulum at rest, which then swings up.
+class BallisticPendulumSystem(BaseSystem):
+    """A bullet that sticks in the block of a pendulum at rest, which then swings up.
 
-    The bullet flies horizontally towards the block, and the impact is an event. Momentum is conserved in the
-    perfectly inelastic collision, so the pendulum starts with the speed `m v / (m + M)` and rises to the height
-    `(m v / (m + M))² / (2 g)`. The bullet position stops at the block after the impact.
+    The bullet flies horizontally towards the block, and the impact is an event. Momentum is conserved in the perfectly
+    inelastic collision, so the pendulum starts with the speed `m v / (m + M)` and rises to the height `(m v / (m + M))²
+    / (2 g)`. The bullet position stops at the block after the impact. The system has the bullet position `pendulum.x`
+    and the angle `pendulum.theta`, both of order 2.
 
     Args:
         speed:
@@ -1165,64 +1244,85 @@ def ballistic_pendulum(
         g:
             The gravitational acceleration.
 
-    Returns:
-        system:
-            The system, with the bullet position `pendulum.x` and the angle `pendulum.theta`, both of order 2.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.mechanics import ballistic_pendulum
-        >>> ballistic_pendulum(distance=2.0).elements[0].x
+        >>> from skcomplex.systems.physics.mechanics import BallisticPendulumSystem
+        >>> BallisticPendulumSystem(distance=2.0).prepare().system_.elements[0].x
         -2.0
     """
-    swing = EulerLagrangeInteraction(
-        'swing',
-        target='pendulum',
-        states='theta',
-        lagrangian=lambda s: s.target.l * derivative(s.target.theta, 1) ** 2 / 2 + s.target.g * cos(s.target.theta),
-    )
-    impact = CrossingInteraction(
-        'impact',
-        target='pendulum',
-        guard=lambda s: s.target.x,
-        reset={
-            'x_d1': lambda s: 0,
-            'theta_d1': lambda s: s.target.m * s.target.x_d1 / ((s.target.m + s.target.M) * s.target.l),
-        },
-        direction=1,
-    )
-    return System(
-        elements=[BallisticPendulumElement('pendulum', x=-distance, x_d1=speed, m=m, M=M, l=l, g=g)],
-        interactions=[swing, impact],
-    )
+
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'events', 'impacts', 'momentum', 'hybrid')
+    references = ('Ryzhov et al. 2021',)
+    until = 3.0
+    dt = 0.01
+
+    def __init__(
+        self,
+        speed: float = 200.0,
+        distance: float = 1.0,
+        *,
+        m: float = 0.01,
+        M: float = 1.0,
+        l: float = 1.0,
+        g: float = 9.81,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.speed = speed
+        self.distance = distance
+        self.m = m
+        self.M = M
+        self.l = l
+        self.g = g
+
+    def _build_system(self) -> System:
+        """Return a bullet that sticks in the block of a pendulum at rest, which then swings up."""
+        swing = EulerLagrangeInteraction(
+            'swing',
+            target='pendulum',
+            states='theta',
+            lagrangian=lambda s: s.target.l * derivative(s.target.theta, 1) ** 2 / 2 + s.target.g * cos(s.target.theta),
+        )
+        impact = CrossingInteraction(
+            'impact',
+            target='pendulum',
+            guard=lambda s: s.target.x,
+            reset={
+                'x_d1': lambda s: 0,
+                'theta_d1': lambda s: s.target.m * s.target.x_d1 / ((s.target.m + s.target.M) * s.target.l),
+            },
+            direction=1,
+        )
+        return System(
+            self.label,
+            elements=[
+                BallisticPendulumElement(
+                    'pendulum',
+                    x=-self.distance,
+                    x_d1=self.speed,
+                    m=self.m,
+                    M=self.M,
+                    l=self.l,
+                    g=self.g,
+                ),
+            ],
+            interactions=[swing, impact],
+        )
 
 
-@register_system(
-    field='physics/mechanics',
-    tags=('mechanics', 'ode', 'second order', 'synchronization', 'limit cycle'),
-    references=('Huygens 1673', 'Dilão 2023', 'Dilão 2023'),
-    defaults={'until': 20.0, 'dt': 0.05},
-)
-def huygens_clocks(
-    n_clocks: int = 2,
-    *,
-    theta: float = 0.2,
-    k: float = 1.0,
-    m: float = 1.0,
-    l: float = 1.0,
-    M: float = 1.0,
-    g: float = 9.8,
-    rho: float = 0.1,
-    lam: float = 0.1,
-    theta_c: float = 0.1,
-) -> System:
-    """Return pendulum clocks on supports joined by springs, which synchronize through the motion of the supports.
+class HuygensClocksSystem(BaseSystem):
+    """Pendulum clocks on supports joined by springs, which synchronize through the motion of the supports.
 
     Every pendulum hangs from a support of mass `M` that moves horizontally with damping `rho`, and neighbouring
     supports are joined by springs of stiffness `k`. A pendulum follows `m l θ'' + f(θ) θ' + m g sin θ = -m x'' cos θ`
-    and its support `(M + m) x'' + 2 rho x' + m l θ'' cos θ = m l θ'² sin θ + spring forces`. The escapement
-    `f(θ) = 2 λ sgn(|θ| - θ_c)` is `-2 λ` for `|θ| < θ_c`, pumping energy in, and `2 λ` beyond, so every clock has a
-    limit cycle. With `λ = 0` the clocks are plain pendulums. Two identical clocks synchronize in antiphase. The
-    first clock starts at `theta`, away from the switch of the escapement at `θ_c`, and the others at rest.
+    and its support `(M + m) x'' + 2 rho x' + m l θ'' cos θ = m l θ'² sin θ + spring forces`. The escapement `f(θ) = 2 λ
+    sgn(|θ| - θ_c)` is `-2 λ` for `|θ| < θ_c`, pumping energy in, and `2 λ` beyond, so every clock has a limit cycle.
+    With `λ = 0` the clocks are plain pendulums. Two identical clocks synchronize in antiphase. The first clock starts
+    at `theta`, away from the switch of the escapement at `θ_c`, and the others at rest. The system has the angles
+    `clock_<i>.theta` and the support positions `clock_<i>.x`, all of order 2.
 
     Args:
         n_clocks:
@@ -1255,32 +1355,69 @@ def huygens_clocks(
         theta_c:
             The angle below which the escapement pumps energy in.
 
-    Returns:
-        system:
-            The system, with the angles `clock_<i>.theta` and the support positions `clock_<i>.x`, all of order 2.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.mechanics import huygens_clocks
-        >>> len(huygens_clocks(3).interactions)
+        >>> from skcomplex.systems.physics.mechanics import HuygensClocksSystem
+        >>> len(HuygensClocksSystem(3).prepare().system_.interactions)
         5
     """
-    clocks = [
-        ClockPendulumElement(
-            f'clock_{index}',
-            theta=theta if index == 0 else 0.0,
-            m=m,
-            l=l,
-            M=M,
-            g=g,
-            rho=rho,
-            lam=lam,
-            theta_c=theta_c,
-        )
-        for index in range(n_clocks)
-    ]
-    springs = [
-        SupportSpringInteraction(f'spring_{index}', first=f'clock_{index}', second=f'clock_{index + 1}', k=k)
-        for index in range(n_clocks - 1)
-    ]
-    motions = [ClockPendulumInteraction(f'motion_{index}', target=f'clock_{index}') for index in range(n_clocks)]
-    return System(elements=clocks, interactions=[*springs, *motions])
+
+    field = 'physics/mechanics'
+    topics = ('mechanics', 'ode', 'second order', 'synchronization', 'limit cycle')
+    references = ('Huygens 1673', 'Dilão 2023', 'Dilão 2023')
+    until = 20.0
+    dt = 0.05
+
+    def __init__(
+        self,
+        n_clocks: int = 2,
+        *,
+        theta: float = 0.2,
+        k: float = 1.0,
+        m: float = 1.0,
+        l: float = 1.0,
+        M: float = 1.0,
+        g: float = 9.8,
+        rho: float = 0.1,
+        lam: float = 0.1,
+        theta_c: float = 0.1,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_clocks = n_clocks
+        self.theta = theta
+        self.k = k
+        self.m = m
+        self.l = l
+        self.M = M
+        self.g = g
+        self.rho = rho
+        self.lam = lam
+        self.theta_c = theta_c
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        clocks = [
+            ClockPendulumElement(
+                f'clock_{index}',
+                theta=self.theta if index == 0 else 0.0,
+                m=self.m,
+                l=self.l,
+                M=self.M,
+                g=self.g,
+                rho=self.rho,
+                lam=self.lam,
+                theta_c=self.theta_c,
+            )
+            for index in range(self.n_clocks)
+        ]
+        springs = [
+            SupportSpringInteraction(f'spring_{index}', first=f'clock_{index}', second=f'clock_{index + 1}', k=self.k)
+            for index in range(self.n_clocks - 1)
+        ]
+        motions = [
+            ClockPendulumInteraction(f'motion_{index}', target=f'clock_{index}') for index in range(self.n_clocks)
+        ]
+        return System(self.label, elements=clocks, interactions=[*springs, *motions])

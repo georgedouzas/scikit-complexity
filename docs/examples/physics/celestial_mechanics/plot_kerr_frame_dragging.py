@@ -12,17 +12,17 @@ around with it, and the particle turns faster the deeper it falls.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.celestial_mechanics import KerrFrameDraggingSystem
 
 SYSTEM = 'kerr_frame_dragging'
 
-system = create_system(SYSTEM, radius=10.0, spin=0.9)
+system = KerrFrameDraggingSystem(radius=10.0, spin=0.9)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = ScipyODESolver(method='DOP853', rtol=1e-10, atol=1e-10)
-simulation = Simulation(system, dt=0.1, solver=solver, observers=[observer]).prepare().run(until=33.0)
+trajectory = simulate(system, solver=solver, observers=[observer])
 
 # %%
 # Angular velocity of the frames
@@ -30,8 +30,8 @@ simulation = Simulation(system, dt=0.1, solver=solver, observers=[observer]).pre
 # A particle without angular momentum turns with the frames at its radius, at the angular velocity
 # `dφ/dt = 2 M a / (r³ + a² r + 2 M a²)` that the term `g_tφ` of the metric sets.
 
-x = np.asarray(simulation.trajectory_.values('particle.x'))
-u = np.asarray(simulation.trajectory_.values('particle.x_d1'))
+x = np.asarray(trajectory.values('particle.x'))
+u = np.asarray(trajectory.values('particle.x_d1'))
 radius, angle = x[:, 1], x[:, 3]
 fig, (path, rate) = plt.subplots(1, 2, figsize=(10, 4))
 path.plot(radius * np.cos(angle), radius * np.sin(angle))

@@ -14,16 +14,16 @@ coexists with it, so where the oscillators end depends on where they start.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.physics.synchronization import HypergraphKuramotoSystem
 
 SYSTEM = 'hypergraph_kuramoto'
 
-system = create_system(SYSTEM, n_oscillators=40, K2=8.0, seed=0)
-observables = describe(SYSTEM).observables_of(system)
+system = HypergraphKuramotoSystem(n_oscillators=40, K2=8.0, seed=0)
+observables = HypergraphKuramotoSystem.observables
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', primary='observables', interval=1)
-simulation = Simulation(system, dt=0.5, observers=[observer], observables=observables).prepare().run(until=40)
+trajectory = simulate(system, dt=0.5, observers=[observer], observables=observables)
 
 # %%
 # Hysteresis in the three-body coupling
@@ -37,13 +37,9 @@ fig, ax = plt.subplots(figsize=(6, 4))
 for label, phases in (('from incoherent phases', None), ('from synchronized phases', np.zeros(40))):
     order = []
     for coupling in couplings:
-        system_system = create_system(SYSTEM, n_oscillators=40, K2=coupling, phases=phases, seed=0)
-        run = (
-            Simulation(system_system, dt=0.5, observables=describe(SYSTEM).observables_of(system_system))
-            .prepare()
-            .run(until=40)
-        )
-        order.append(np.mean(np.asarray(run.trajectory_.values('order'))[-20:]))
+        system_system = HypergraphKuramotoSystem(n_oscillators=40, K2=coupling, phases=phases, seed=0)
+        run = simulate(system_system, dt=0.5)
+        order.append(np.mean(np.asarray(run.values('order'))[-20:]))
     ax.plot(couplings, order, 'o-', label=label)
 branch = couplings[couplings >= 4.0]
 ax.plot(branch, np.sqrt((1 + np.sqrt(1 - 4.0 / branch)) / 2), '--', color='black', label='Ott-Antonsen branch')

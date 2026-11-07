@@ -7,32 +7,21 @@ star.
 """
 
 # %%
-# The system is created by name from the catalog with a fifth of the planet covered by each kind of daisy, at the
+# The system is built from its class with a fifth of the planet covered by each kind of daisy, at the
 # luminosity `L = 1`. The default blueprint shows the areas of white and black daisies in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.physics.climate import DaisyworldSystem
 
 SYSTEM = 'daisyworld'
 
-system = create_system(SYSTEM)
+system = DaisyworldSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = (
-    Simulation(
-        system,
-        dt=0.5,
-        observers=[observer],
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(
-        until=100,
-    )
-)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Temperature regulation across luminosities
@@ -45,13 +34,8 @@ S, sigma = 917.0, 5.67e-8
 luminosities = np.linspace(0.6, 1.6, 41)
 temperatures, whites, blacks = [], [], []
 for luminosity in luminosities:
-    system_system = create_system(SYSTEM, L=luminosity, white=0.05, black=0.05)
-    run = (
-        Simulation(system_system, dt=1.0, observables=describe(SYSTEM).observables_of(system_system))
-        .prepare()
-        .run(until=200)
-        .trajectory_
-    )
+    system_system = DaisyworldSystem(L=luminosity, white=0.05, black=0.05)
+    run = simulate(system_system, until=200, dt=1.0)
     temperatures.append(run.values('temperature')[-1] - 273.15)
     whites.append(run.values('planet.white')[-1])
     blacks.append(run.values('planet.black')[-1])

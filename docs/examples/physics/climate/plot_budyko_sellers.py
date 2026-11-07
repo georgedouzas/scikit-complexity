@@ -7,22 +7,22 @@ Earth.
 """
 
 # %%
-# The system is created by name from the catalog with 30 bands in the sine of latitude, all at 15 °C, and present
+# The system is built from its class with 30 bands in the sine of latitude, all at 15 °C, and present
 # insolation. The default blueprint puts the history of the temperature first, with the equator on the left and the pole
 # on the right, over the first 16 time units, while the pole cools from 15 °C to below -10 °C and the equator warms.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.climate import BudykoSellersSystem
 
 SYSTEM = 'budyko_sellers'
 
-system = create_system(SYSTEM)
+system = BudykoSellersSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, dt=0.25, observers=[observer]).prepare().run(until=16)
+trajectory = simulate(system, until=16, dt=0.25, observers=[observer])
 
 # %%
 # Two climates under one sun
@@ -32,8 +32,8 @@ simulation = Simulation(system, dt=0.25, observers=[observer]).prepare().run(unt
 # to keep it frozen.
 
 x = (np.arange(30) + 0.5) / 30
-warm = simulation.trajectory_.lattice('bands.T')[-1]
-cold = Simulation(create_system(SYSTEM, T=-40.0), dt=2.0).prepare().run(until=100).trajectory_.lattice('bands.T')[-1]
+warm = trajectory.lattice('bands.T')[-1]
+cold = simulate(BudykoSellersSystem(T=-40.0)).lattice('bands.T')[-1]
 latitude = np.degrees(np.arcsin(x))
 fig, ax = plt.subplots(figsize=(6, 4.5))
 ax.plot(latitude, warm, 'o-', markersize=3, color='C3', label='started at 15 °C')

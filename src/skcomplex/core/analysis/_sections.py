@@ -126,8 +126,8 @@ def section(
 
     Examples:
         >>> from skcomplex.core.analysis import section
-        >>> from skcomplex.systems.physics.mechanics import harmonic_oscillator
-        >>> len(section(harmonic_oscillator(), state='mass.x', until=20.0).times) > 2
+        >>> from skcomplex.systems.physics.mechanics import HarmonicOscillatorSystem
+        >>> len(section(HarmonicOscillatorSystem(), state='mass.x', until=20.0).times) > 2
         True
     """
     source = _composite(source)

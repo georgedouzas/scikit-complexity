@@ -6,7 +6,7 @@ few walkers make very long flights and the cloud spreads faster than diffusion, 
 """
 
 # %%
-# The system is created by name from the catalog with 500 walkers in the plane, whose flight times have the tail
+# The system is built from its class with 500 walkers in the plane, whose flight times have the tail
 # `tau^(-5/2)`, and simulated to time 500. Rate laws move the walkers between turns, and the solver stops every walker
 # at its own turns. The observer saves every frame with the default blueprint, whose primary view shows the walkers.
 
@@ -15,18 +15,15 @@ import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import RK4Solver
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.soft_matter import LevyWalkSystem
 
 SYSTEM = 'levy_walk'
 
-system = create_system(SYSTEM, n_walkers=500, sigma=1.5)
+system = LevyWalkSystem(n_walkers=500, sigma=1.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(system, solver=RK4Solver(dt=0.5), dt=2.5, observers=[observer], random_state=0).prepare().run(until=500)
-)
+trajectory = simulate(system, observers=[observer], random_state=0)
 
 # %%
 # Superdiffusion and ballistic flights
@@ -36,7 +33,6 @@ simulation = (
 # times. Between two turns a walker moves in a straight line, so its position at a turn is the position at the previous
 # turn plus the velocity times the flight time, which the renewal records confirm to rounding error.
 
-trajectory = simulation.trajectory_
 times = trajectory.times[1:]
 squared = np.mean(np.sum(trajectory.values('walkers.x')[1:] ** 2, axis=-1), axis=1)
 late = times > 50
@@ -52,7 +48,7 @@ errors = [
     for (start, _, earlier), (end, later, _) in itertools.pairwise(turns)
 ]
 fig, (displacement, path) = plt.subplots(1, 2, figsize=(10, 4))
-displacement.loglog(times, squared, label=f'simulation, slope {slope:.2f} after t = 50')
+displacement.loglog(times, squared, label=f'trajectory, slope {slope:.2f} after t = 50')
 displacement.loglog(times, squared[-1] * (times / times[-1]) ** 1.5, '--', color='black', label='slope 1.5')
 displacement.loglog(times, squared[-1] * (times / times[-1]), ':', color='gray', label='diffusion, slope 1')
 displacement.set_xlabel('time t')

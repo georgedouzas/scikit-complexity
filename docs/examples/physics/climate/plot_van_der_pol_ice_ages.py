@@ -6,22 +6,22 @@ termination: a relaxation oscillation with the sawtooth shape of the glacial cyc
 """
 
 # %%
-# The system is created by name from the catalog with the time scale separation `alpha = 30`, the asymmetry
+# The system is built from its class with the time scale separation `alpha = 30`, the asymmetry
 # `beta = 0.75`, and no orbital forcing, and runs for 400 kyr. The default blueprint shows `x` and `y` in one time
 # series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.climate import VanDerPolIceAgesSystem
 
 SYSTEM = 'van_der_pol_ice_ages'
 
-system = create_system(SYSTEM)
+system = VanDerPolIceAgesSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=400)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Slow manifold and fast jumps
@@ -30,7 +30,6 @@ simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(unti
 # slowly, and jumps across between the branches at its folds `x = -2/3` and `x = 2/3`. The limit cycle should hug the
 # outer branches and cross between them almost horizontally.
 
-trajectory = simulation.trajectory_
 settled = trajectory.times > 100
 grid = np.linspace(-2.3, 2.3, 300)
 fig, ax = plt.subplots(figsize=(6, 5))

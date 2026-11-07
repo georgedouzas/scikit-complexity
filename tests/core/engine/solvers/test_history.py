@@ -28,7 +28,7 @@ from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.ecology import HutchinsonSystem
 from skcomplex.systems.biology.physiology import MackeyGlassSystem
 from skcomplex.systems.engineering.processes import BathtubSystem
-from skcomplex.systems.physics.mechanics import bouncing_ball, huygens_clocks
+from skcomplex.systems.physics.mechanics import BouncingBallSystem, HuygensClocksSystem
 
 
 class ClockElement(Element):
@@ -255,7 +255,12 @@ def test_history_is_keyed_by_state():
 @pytest.mark.parametrize('solver', [ScipyODESolver, RK4Solver])
 def test_bouncing_ball_impact_times(solver):
     """Test that the impact times of a ball with restitution 0.8 match the analytic times within 1e-6."""
-    trajectory = Simulation(bouncing_ball(), dt=0.01, solver=solver()).prepare().run(until=3.3).trajectory_
+    trajectory = (
+        Simulation(BouncingBallSystem().prepare().system_, dt=0.01, solver=solver())
+        .prepare()
+        .run(until=3.3)
+        .trajectory_
+    )
     times = np.asarray([event.time for event in trajectory.events])
     assert times.size == 7
     assert times == pytest.approx(_impact_times(times.size), abs=1e-6)
@@ -450,7 +455,7 @@ def test_milstein_and_heun_converge_on_additive_noise():
 
 def test_steppers_without_hybrid_path_reject_events():
     """Test that velocity Verlet and Gillespie name the steppers to use for events and delays."""
-    problem = PassCompiler().prepare(bouncing_ball()).run().problem_
+    problem = PassCompiler().prepare(BouncingBallSystem().prepare().system_).run().problem_
     with pytest.raises(SolverError, match='does not integrate delays or events'):
         VelocityVerletSolver(random_state=0).prepare(problem)
     with pytest.raises(SolverError):
@@ -474,7 +479,7 @@ def test_events_are_attached_to_frames():
             if inputs is not None:
                 frames.append(inputs)
 
-    Simulation(bouncing_ball(), dt=0.5, observers=[Collector()]).prepare().run(until=1.5)
+    Simulation(BouncingBallSystem().prepare().system_, dt=0.5, observers=[Collector()]).prepare().run(until=1.5)
     assert [len(frame.events) for frame in frames] == [0, 1, 0, 1]
 
 
@@ -597,5 +602,5 @@ def test_state_conditions_compile_into_hidden_events():
 
 def test_sign_conditions_compile_into_hidden_events():
     """Test that the escapement `sign(|theta| - theta_c)` of each clock compiles into a hidden event."""
-    problem = PassCompiler().prepare(huygens_clocks()).run().problem_
+    problem = PassCompiler().prepare(HuygensClocksSystem().prepare().system_).run().problem_
     assert sum(event.hidden for event in problem.events) == 2

@@ -16,10 +16,9 @@ from ....core.components.elements import Element, LatticeElement
 from ....core.components.laws import BaseLaw, JumpLaw
 from ....core.components.laws.utils import count, mean, total, where
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
-from ..._catalog import register_system
 
 SPIN_IMAGE = VisualSpec('image', {'states': ('spin',), 'low': -1.0, 'high': 1.0})
 
@@ -71,6 +70,8 @@ class FullyConnectedSpinElement(Element):
         0.5
     """
 
+    law_classes = (JumpLaw,)
+
     def __init__(
         self,
         label: str,
@@ -110,27 +111,13 @@ class FullyConnectedSpinElement(Element):
         return [JumpLaw(where(s.spin > 0, rate, 0), {s.spin: -2}), JumpLaw(where(s.spin < 0, rate, 0), {s.spin: 2})]
 
 
-@register_system(
-    field='physics/statistical_mechanics',
-    tags=('mean field', 'phase transition', 'spins', 'jump process'),
-    references=('Bertin 2021', 'Glauber 1963'),
-    defaults={'until': 30.0, 'dt': 0.1},
-    observables=lambda system: [_magnetization()],
-)
-def curie_weiss(
-    n_spins: int = 500,
-    *,
-    temperature: float = 0.5,
-    J: float = 1.0,
-    h: float = 0.0,
-    initial: str = 'random',
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the fully connected Ising system with Glauber dynamics, ordered below the critical temperature `T_c = J`.
+class CurieWeissSystem(BaseSystem):
+    """The fully connected Ising system with Glauber dynamics, ordered below the critical temperature `T_c = J`.
 
-    The energy is `-(J / N) sum_{i<j} s_i s_j - h sum_i s_i`. In the large system limit the magnetization `m` solves
-    `m = tanh((J m + h) / T)`, which has a nonzero root below `T_c` when `h = 0`. One unit of time is one attempted
-    flip per spin. The spins are drawn in a row, which orders the drawing only.
+    The energy is `-(J / N) sum_{i<j} s_i s_j - h sum_i s_i`. In the large system limit the magnetization `m` solves `m
+    = tanh((J m + h) / T)`, which has a nonzero root below `T_c` when `h = 0`. One unit of time is one attempted flip
+    per spin. The spins are drawn in a row, which orders the drawing only. The system has the spins `spins.spin` and the
+    observable `magnetization`.
 
     Args:
         n_spins:
@@ -151,46 +138,62 @@ def curie_weiss(
         random_state:
             The seed or generator of the random initial spins.
 
-    Returns:
-        system:
-            The system, with the spins `spins.spin` and the observable `magnetization`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics import curie_weiss
-        >>> curie_weiss(10).elements[0].prepare().size_
+        >>> from skcomplex.systems.physics.statistical_mechanics import CurieWeissSystem
+        >>> CurieWeissSystem(10).prepare().system_.elements[0].prepare().size_
         10
     """
-    spins = _initial_spins(n_spins, initial, random_state)
-    group = LatticeElement(
-        'spins',
-        element=FullyConnectedSpinElement,
-        space=LatticeSpace(n_spins),
-        values={'spin': spins, 'J': J, 'h': h, 'temperature': temperature},
-        visual=SPIN_IMAGE,
-    )
-    return System(elements=[group])
+
+    field = 'physics/statistical_mechanics'
+    topics = ('mean field', 'phase transition', 'spins', 'jump process')
+    references = ('Bertin 2021', 'Glauber 1963')
+    until = 30.0
+    dt = 0.1
+    observables = (_magnetization(),)
+
+    def __init__(
+        self,
+        n_spins: int = 500,
+        *,
+        temperature: float = 0.5,
+        J: float = 1.0,
+        h: float = 0.0,
+        initial: str = 'random',
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_spins = n_spins
+        self.temperature = temperature
+        self.J = J
+        self.h = h
+        self.initial = initial
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        spins = _initial_spins(self.n_spins, self.initial, self.random_state)
+        group = LatticeElement(
+            'spins',
+            element=FullyConnectedSpinElement,
+            space=LatticeSpace(self.n_spins),
+            values={'spin': spins, 'J': self.J, 'h': self.h, 'temperature': self.temperature},
+            visual=SPIN_IMAGE,
+        )
+        return System(self.label, elements=[group])
 
 
-@register_system(
-    field='physics/statistical_mechanics',
-    tags=('spin glass', 'disorder', 'mean field', 'spins', 'jump process'),
-    references=('Sherrington and Kirkpatrick 1975', 'Bertin 2021', 'Mezard, Parisi, and Virasoro 1987'),
-    defaults={'until': 50.0, 'dt': 0.5},
-    observables=lambda system: [_magnetization()],
-)
-def sherrington_kirkpatrick(
-    n_spins: int = 200,
-    *,
-    temperature: float = 0.5,
-    J: float = 1.0,
-    h: float = 0.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return the Sherrington-Kirkpatrick spin glass with Glauber dynamics, frozen below the temperature `T_c = J`.
+class SherringtonKirkpatrickSystem(BaseSystem):
+    """The Sherrington-Kirkpatrick spin glass with Glauber dynamics, frozen below the temperature `T_c = J`.
 
-    The energy is `-sum_{i<j} J_ij s_i s_j - h sum_i s_i` with quenched Gaussian couplings `J_ij` of mean 0 and
-    variance `J^2 / N`, drawn once. Above `T_c` the energy per spin is `-J^2 / (2 T)`, and below it the spins freeze
-    in random directions, with no magnetization. The spins are drawn in a row, which orders the drawing only.
+    The energy is `-sum_{i<j} J_ij s_i s_j - h sum_i s_i` with quenched Gaussian couplings `J_ij` of mean 0 and variance
+    `J^2 / N`, drawn once. Above `T_c` the energy per spin is `-J^2 / (2 T)`, and below it the spins freeze in random
+    directions, with no magnetization. The spins are drawn in a row, which orders the drawing only. The system has the
+    spins `spins.spin`, the coupling matrix of unit scale in the values of the group, and the observable
+    `magnetization`.
 
     Args:
         n_spins:
@@ -208,25 +211,56 @@ def sherrington_kirkpatrick(
         random_state:
             The seed or generator of the couplings and of the random initial spins.
 
-    Returns:
-        system:
-            The system, with the spins `spins.spin`, the coupling matrix of unit scale in the values of the group, and
-            the observable `magnetization`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.statistical_mechanics import sherrington_kirkpatrick
-        >>> couplings = sherrington_kirkpatrick(10).elements[0].values['couplings']
+        >>> from skcomplex.systems.physics.statistical_mechanics import SherringtonKirkpatrickSystem
+        >>> couplings = SherringtonKirkpatrickSystem(10).prepare().system_.elements[0].values['couplings']
         >>> bool((couplings == couplings.T).all()), float(couplings.trace())
         (True, 0.0)
     """
-    rng = np.random.default_rng(random_state)
-    upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(n_spins), (n_spins, n_spins)), 1)
-    spins = _initial_spins(n_spins, 'random', rng)
-    group = LatticeElement(
-        'spins',
-        element=FullyConnectedSpinElement,
-        space=LatticeSpace(n_spins),
-        values={'spin': spins, 'J': J, 'h': h, 'temperature': temperature, 'couplings': upper + upper.T},
-        visual=SPIN_IMAGE,
-    )
-    return System(elements=[group])
+
+    field = 'physics/statistical_mechanics'
+    topics = ('spin glass', 'disorder', 'mean field', 'spins', 'jump process')
+    references = ('Sherrington and Kirkpatrick 1975', 'Bertin 2021', 'Mezard, Parisi, and Virasoro 1987')
+    until = 50.0
+    dt = 0.5
+    observables = (_magnetization(),)
+
+    def __init__(
+        self,
+        n_spins: int = 200,
+        *,
+        temperature: float = 0.5,
+        J: float = 1.0,
+        h: float = 0.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_spins = n_spins
+        self.temperature = temperature
+        self.J = J
+        self.h = h
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        upper = np.triu(rng.normal(0.0, 1.0 / np.sqrt(self.n_spins), (self.n_spins, self.n_spins)), 1)
+        spins = _initial_spins(self.n_spins, 'random', rng)
+        group = LatticeElement(
+            'spins',
+            element=FullyConnectedSpinElement,
+            space=LatticeSpace(self.n_spins),
+            values={
+                'spin': spins,
+                'J': self.J,
+                'h': self.h,
+                'temperature': self.temperature,
+                'couplings': upper + upper.T,
+            },
+            visual=SPIN_IMAGE,
+        )
+        return System(self.label, elements=[group])

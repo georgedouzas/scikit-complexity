@@ -25,14 +25,14 @@ from skcomplex.core.errors import SolverError, ValidationError
 from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.physics.fluids import (
-    burgers,
-    decaying_turbulence,
-    kuramoto_sivashinsky,
-    rayleigh_benard,
-    shallow_water,
+    BurgersSystem,
+    DecayingTurbulenceSystem,
+    KuramotoSivashinskySystem,
+    RayleighBenardSystem,
+    ShallowWaterSystem,
 )
-from skcomplex.systems.physics.heat import heat_l_shape
-from skcomplex.systems.physics.pattern_formation import swift_hohenberg
+from skcomplex.systems.physics.heat import HeatLShapeSystem
+from skcomplex.systems.physics.pattern_formation import SwiftHohenbergSystem
 
 
 class HeatElement(Element):
@@ -93,7 +93,7 @@ def test_spectral_accuracy():
 
 def test_kuramoto_sivashinsky_is_fourth_order():
     """Test that ETDRK4 is stable at steps 0.25 and 0.125 and its error shrinks at fourth order."""
-    problem = PassCompiler().prepare(kuramoto_sivashinsky()).run().problem_
+    problem = PassCompiler().prepare(KuramotoSivashinskySystem().prepare().system_).run().problem_
     reference = Simulation(problem, dt=1.0, solver=ETDRK4Solver(dt=1 / 256)).prepare().run(until=1).state_
     errors = [
         np.abs(
@@ -111,7 +111,7 @@ def test_kuramoto_sivashinsky_is_fourth_order():
 @pytest.mark.parametrize('stepper', [IMEXEulerSolver(dt=1e-3), IMEX2Solver(dt=1e-3), CrankNicolsonSolver(dt=1e-3)])
 def test_implicit_explicit_steppers_agree(stepper):
     """Test that the implicit-explicit steppers converge to the ETDRK4 solution of the Kuramoto-Sivashinsky equation."""
-    problem = PassCompiler().prepare(kuramoto_sivashinsky()).run().problem_
+    problem = PassCompiler().prepare(KuramotoSivashinskySystem().prepare().system_).run().problem_
     reference = Simulation(problem, dt=1.0, solver=ETDRK4Solver(dt=1 / 64)).prepare().run(until=1).state_
     values = Simulation(problem, dt=1.0, solver=stepper).prepare().run(until=1).state_
     tolerance = 1e-2 if isinstance(stepper, IMEXEulerSolver) else 1e-5
@@ -132,7 +132,7 @@ def test_steppers_need_linear_terms():
 
 def test_burgers_shock_is_conservative():
     """Test that the Burgers shock keeps its total within 1e-12 and forms no new extrema."""
-    trajectory = Simulation(burgers(), dt=0.25).prepare().run(until=2.0).trajectory_
+    trajectory = Simulation(BurgersSystem().prepare().system_, dt=0.25).prepare().run(until=2.0).trajectory_
     values = trajectory.values('line.u')
     totals = values.sum(axis=1)
     assert np.abs(totals - totals[0]).max() < 1e-12 * totals[0]
@@ -145,7 +145,12 @@ def test_burgers_shock_is_conservative():
 @pytest.mark.slow
 def test_dam_break_conserves_water():
     """Test that the dam break conserves its water and keeps the depth between the two initial depths."""
-    values = Simulation(shallow_water(), dt=0.05).prepare().run(until=0.5).trajectory_.values('channel.h')
+    values = (
+        Simulation(ShallowWaterSystem().prepare().system_, dt=0.05)
+        .prepare()
+        .run(until=0.5)
+        .trajectory_.values('channel.h')
+    )
     assert values[-1].sum() == pytest.approx(values[0].sum(), rel=1e-12)
     assert 1.0 - 1e-9 <= values[-1].min() <= values[-1].max() <= 2.0 + 1e-9
 
@@ -185,20 +190,25 @@ def test_mesh_fields_stream_as_meshes(tmp_path):
         def log(self, path, archetype):
             self.logged.append((path, type(archetype).__name__))
 
-    simulation = Simulation(heat_l_shape(1), dt=0.1).prepare().run(until=0.1)
+    simulation = Simulation(HeatLShapeSystem(1).prepare().system_, dt=0.1).prepare().run(until=0.1)
     problem, recording = simulation.problem_, Meshes()
     visual = RerunObserver().prepare(problem).visuals_[0].set_params(recording=recording).prepare(problem)
     visual.run(FrameSpec(0, 0.0, simulation.state_, simulation.parameters_, problem))
     assert recording.logged == [('plate/u', 'Mesh3D')]
     observer = RerunObserver('mesh', save_path=tmp_path / 'mesh.rrd')
-    Simulation(heat_l_shape(1), dt=0.1, observers=[observer]).prepare().run(until=0.2)
+    Simulation(HeatLShapeSystem(1).prepare().system_, dt=0.1, observers=[observer]).prepare().run(until=0.2)
     assert observer.logged_frames_ == 3
 
 
 @pytest.mark.slow
 def test_decaying_turbulence_loses_energy():
     """Test that decaying turbulence loses energy monotonically and enstrophy faster than energy."""
-    vorticity = Simulation(decaying_turbulence(), dt=1.0).prepare().run(until=20).trajectory_.lattice('flow.omega')
+    vorticity = (
+        Simulation(DecayingTurbulenceSystem().prepare().system_, dt=1.0)
+        .prepare()
+        .run(until=20)
+        .trajectory_.lattice('flow.omega')
+    )
     energy = _energies(vorticity)
     enstrophy = 0.5 * (vorticity**2).sum(axis=(1, 2))
     assert np.all(np.diff(energy) < 0)
@@ -211,7 +221,7 @@ def test_convection_onset():
     amplitudes = {}
     for rayleigh in (500.0, 1000.0):
         simulation = Simulation(
-            rayleigh_benard(rayleigh, shape=(16, 16)),
+            RayleighBenardSystem(rayleigh, shape=(16, 16)).prepare().system_,
             dt=1.0,
             solver=ETDRK4Solver(dt=0.01),
         ).prepare()
@@ -232,7 +242,11 @@ def test_symmetry_needs_periodic_lattice():
 
 def test_swift_hohenberg_rolls():
     """Test that Swift-Hohenberg above onset forms rolls with a wavelength within 5% of 2 pi."""
-    simulation = Simulation(swift_hohenberg(), dt=10.0, solver=ETDRK4Solver(dt=0.5)).prepare().run(until=200)
+    simulation = (
+        Simulation(SwiftHohenbergSystem().prepare().system_, dt=10.0, solver=ETDRK4Solver(dt=0.5))
+        .prepare()
+        .run(until=200)
+    )
     values = simulation.trajectory_.lattice('cells.u')[-1]
     n, length = values.shape[0], 16 * math.pi
     spectrum = np.abs(np.fft.fft2(values)) ** 2

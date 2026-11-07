@@ -9,7 +9,7 @@ smooth sine turning into a sharp moving jump.
 """
 
 # %%
-# The system is created by name from the catalog with 200 finite-volume cells, mean `1.5`, and amplitude `1`. The
+# The system is built from its class with 200 finite-volume cells, mean `1.5`, and amplitude `1`. The
 # catalog registers the strong-stability-preserving Runge-Kutta stepper for this system, which keeps the shock free of
 # new extrema, so it is passed explicitly. The observer saves every frame of 0.01 with the default blueprint, whose
 # primary view is the space-time image of the field.
@@ -17,16 +17,15 @@ smooth sine turning into a sharp moving jump.
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import SSPRKSolver
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.fluids import BurgersSystem
 
 SYSTEM = 'burgers'
 
-system = create_system(SYSTEM)
+system = BurgersSystem()
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, solver=SSPRKSolver(), dt=0.01, observers=[observer]).prepare().run(until=2.99)
+trajectory = simulate(system, until=2.99, dt=0.01, observers=[observer])
 
 # %%
 # Shock formation and conservation
@@ -35,14 +34,13 @@ simulation = Simulation(system, solver=SSPRKSolver(), dt=0.01, observers=[observ
 # grow as `1 / (1 - t)` until then and saturate at the resolution of the grid after it. The finite volumes conserve the
 # total of `u`, which should stay at its initial value through the shock.
 
-trajectory = simulation.trajectory_
 times = trajectory.times
 values = trajectory.values('line.u')
 spacing = 2 * np.pi / values.shape[1]
 slope = np.abs(np.diff(values, axis=1, append=values[:, :1])).max(axis=1) / spacing
 drift = np.abs(values.sum(axis=1) - values[0].sum()) / values[0].sum()
 fig, (steep, total) = plt.subplots(1, 2, figsize=(10, 4))
-steep.semilogy(times, slope, label='simulation')
+steep.semilogy(times, slope, label='trajectory')
 early = times < 0.95
 steep.semilogy(times[early], 1 / (1 - times[early]), '--', color='black', label='1 / (1 - t)')
 steep.axvline(1.0, color='gray', linestyle=':', label='shock time 1 / amplitude')

@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.mechanics import ParametricPendulumSystem
 
 SYSTEM = 'parametric_pendulum'
 
@@ -27,9 +27,9 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM, theta=0.1, omega=0.0, epsilon=0.2)
+system = ParametricPendulumSystem(theta=0.1, omega=0.0, epsilon=0.2)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=6)
-simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(until=30)
+trajectory = simulate(system, observers=[observer])
 
 # %%
 # Exponential growth at resonance
@@ -42,9 +42,9 @@ simulation = Simulation(system, dt=0.02, observers=[observer]).prepare().run(unt
 natural = np.sqrt(9.81)
 fig, ax = plt.subplots(figsize=(6, 4))
 for epsilon in [0.2, 0.0]:
-    run = Simulation(create_system(SYSTEM, theta=0.01, omega=0.0, epsilon=epsilon), dt=0.01).prepare().run(until=40)
-    times = np.asarray(run.trajectory_.times)
-    angle = np.abs(np.ravel(run.trajectory_.values('swing.theta')))
+    run = simulate(ParametricPendulumSystem(theta=0.01, omega=0.0, epsilon=epsilon), until=40, dt=0.01)
+    times = np.asarray(run.times)
+    angle = np.abs(np.ravel(run.values('swing.theta')))
     peaks = (angle[1:-1] > angle[:-2]) & (angle[1:-1] >= angle[2:])
     ax.semilogy(times[1:-1][peaks], angle[1:-1][peaks], 'o', markersize=3, label=f'ε = {epsilon}')
 ax.semilogy(times, 0.01 * np.exp(0.2 * natural / 4 * times), '--', color='black', label='0.01 exp(ε ω0 t / 4)')
@@ -64,10 +64,10 @@ plt.show()
 
 fig, ax = plt.subplots(figsize=(6, 4))
 for direction in ['horizontal', 'vertical']:
-    system = create_system(SYSTEM, theta=0.0, omega=0.0, epsilon=0.002, Omega=natural, direction=direction)
-    run = Simulation(system, dt=0.01).prepare().run(until=40)
-    times = np.asarray(run.trajectory_.times)
-    ax.plot(times, np.ravel(run.trajectory_.values('swing.theta')), label=direction)
+    system = ParametricPendulumSystem(theta=0.0, omega=0.0, epsilon=0.002, Omega=natural, direction=direction)
+    run = simulate(system, until=40, dt=0.01)
+    times = np.asarray(run.times)
+    ax.plot(times, np.ravel(run.values('swing.theta')), label=direction)
 ax.plot(times, 0.002 * natural * times / 2, '--', color='black', label='ε ω0 t / 2')
 ax.set_xlabel('time')
 ax.set_ylabel('θ (radians)')

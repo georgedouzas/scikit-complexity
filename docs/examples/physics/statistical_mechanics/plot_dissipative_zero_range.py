@@ -7,7 +7,7 @@ and every node colored by its number of quanta: the root holds the most quanta, 
 """
 
 # %%
-# The system is created by name from the catalog with five levels of two branches, transfer rates `nu_j = k_j^0.5`,
+# The system is built from its class with five levels of two branches, transfer rates `nu_j = k_j^0.5`,
 # a hot reservoir at `beta_ext = 0.2` that makes the cascade visible, and a dissipation rate 1 at the leaves. The
 # observer saves every frame with the default blueprint, whose primary view is the drawing of the tree. The Numba
 # backend runs the transfers in a compiled loop.
@@ -18,17 +18,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.statistical_mechanics import DissipativeZeroRangeSystem
 
 SYSTEM = 'dissipative_zero_range'
 
-system = create_system(SYSTEM, n_levels=5, branches=2, alpha=0.5, beta_ext=0.2)
+system = DissipativeZeroRangeSystem(n_levels=5, branches=2, alpha=0.5, beta_ext=0.2)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = (
-    Simulation(system, dt=1.0, observers=[observer], random_state=0, backend=NumbaBackend()).prepare().run(until=200)
-)
+trajectory = simulate(system, observers=[observer], random_state=0, backend=NumbaBackend())
 
 # %%
 # Temperature profile across scales
@@ -59,12 +57,8 @@ levels = np.arange(1, 6)
 starts = 2 ** np.arange(6) - 1
 fig, profile = plt.subplots(figsize=(6, 4))
 for alpha in (0.5, -2.0):
-    run = (
-        Simulation(create_system(SYSTEM, alpha=alpha), dt=1.0, random_state=0, backend=NumbaBackend())
-        .prepare()
-        .run(until=4000)
-    )
-    quanta = run.trajectory_.values('nodes.n')[100:] > 0
+    run = simulate(DissipativeZeroRangeSystem(alpha=alpha), until=4000, random_state=0, backend=NumbaBackend())
+    quanta = run.values('nodes.n')[100:] > 0
     measured = [-np.log(quanta[:, start:stop].mean()) for start, stop in itertools.pairwise(starts)]
     profile.plot(levels, measured, 'o', label=f'simulation, alpha = {alpha}')
     profile.plot(levels, balance_profile(5, 2, alpha), color='black')
