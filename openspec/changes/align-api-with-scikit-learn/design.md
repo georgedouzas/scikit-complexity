@@ -149,3 +149,18 @@ form while `simulate` reads class attributes. Static observables become an `obse
 - **Tags too fine or too coarse:** tags must stay few and orthogonal. A new tag needs a function that reads it.
 - **Functions with many arguments:** `simulate` takes several keyword arguments. That is the scikit-learn trade, and
   the tuned settings of a catalog entry keep the common case short.
+
+## Decisions after the chemistry pilot
+
+- **Listing imports only what it returns.** `all_systems` selects by field and topics statically and imports only the
+  modules of the systems it returns, as `all_estimators` imports what it lists. The zero-import listing of `catalog()`
+  goes with the registry in the removal wave.
+- **Run settings through one hook.** `simulate` reads the tuned run settings through `BaseSystem._get_run_settings()`,
+  which returns the class attributes `until`, `dt`, `solver`, `observables`, and `initial_state` by default. A system
+  whose settings depend on its parameters or its built system, such as `active_gels`, `gauge_fields`, or
+  `dynamic_fba`, overrides the hook. Class attributes stay the plain case.
+- **`simulate` takes `dt` and `observers`**, added by the pilot, so tests choose the time between frames and gallery
+  examples record runs.
+- **Names.** A class name round-trips to its catalog name by the snake-case rule. Where it cannot, such as names with
+  digits, the gallery example and the inventory key are renamed and reported. `label` is the last keyword-only
+  argument with the default `'system'`.

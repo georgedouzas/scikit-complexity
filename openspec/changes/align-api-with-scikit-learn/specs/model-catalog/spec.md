@@ -12,12 +12,12 @@ out.
 
 ### Requirement: Systems are discovered with all_systems
 `all_systems(field=None, topics=(), tags=None)` SHALL return the name and class of every ready-made system, in the role
-of `sklearn.utils.all_estimators()`. Filtering by field or topics SHALL import no system module. Filtering by capability
-tags SHALL import the systems it filters.
+of `sklearn.utils.all_estimators()`. Selecting by field or topics SHALL read the class definitions statically and import
+only the modules of the systems it returns. Filtering by capability tags SHALL import the systems it filters.
 
 #### Scenario: Listing by field without imports
-- **WHEN** a user calls `all_systems(field='physics/mechanics')` in a fresh interpreter, and lists the names
-- **THEN** the systems of that field are listed and no system module is imported
+- **WHEN** a user calls `all_systems(field='physics/mechanics')` in a fresh interpreter
+- **THEN** the systems of that field are returned, and no module of another subfield is imported
 
 #### Scenario: Filtering by capability
 - **WHEN** a user calls `all_systems(tags={'randomness': 'stochastic', 'space': 'network'})`
