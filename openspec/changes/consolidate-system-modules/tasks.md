@@ -12,9 +12,9 @@
 - [x] 2.3 Economics
 - [x] 2.4 Social
 - [ ] 2.5 Mathematics
-- [ ] 2.6 Engineering
-- [ ] 2.7 Computer science
-- [ ] 2.8 Chemistry
+- [x] 2.6 Engineering
+- [x] 2.7 Computer science
+- [x] 2.8 Chemistry
 
 ## 3. Shared components
 
