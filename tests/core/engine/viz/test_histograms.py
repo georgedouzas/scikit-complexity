@@ -200,3 +200,14 @@ def test_traits_visual_logs_the_states_of_a_group(monkeypatch, tmp_path):
     Simulation(system, observers=[observer], random_state=0).prepare().run(until=3)
     assert 'walkers/x/histogram' in logged
     assert 'walkers/x/mean' in logged
+
+
+def test_traits_visual_bins_every_trait_by_its_own_range(log_agents):
+    """Test that the color range only starts the colored trait, so an integer trait outside it keeps every value."""
+    visual, logs = HistogramVisual(color_by='strategy', color_range=(0.0, 1.0)), Logs()
+    values = {'strategy': np.array([0.0, 1.0, 1.0]), 'equity': np.array([-3.0, 0.0, 2.0])}
+    log_agents(visual, logs, 'traders', [AgentSnapshotSpec(np.arange(3), values)])
+    equity = logs.of('traders/equity/histogram')[0]
+    assert sum(equity.values.as_arrow_array()[0].as_py()['buffer']) == 3
+    assert visual.spans_['traders/equity'] == (-3.0, 2.0)
+    assert visual.spans_['traders/strategy'] == (0.0, 1.0)

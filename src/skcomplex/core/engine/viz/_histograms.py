@@ -41,7 +41,8 @@ class HistogramVisual(AgentsVisual):
             The trait whose histogram the first view shows, or `None` for the first trait of the agents.
 
         color_range:
-            The range of the histogram, or `None` for a range widened to every logged value.
+            The starting range of the histogram of the `color_by` trait, which still widens to every logged value, or
+            `None` for a range widened to every logged value. The other traits always bin by their own range.
 
         radius:
             Not used, kept for the options of agents visuals.
@@ -95,13 +96,40 @@ class HistogramVisual(AgentsVisual):
         self.spans_: dict[str, tuple[float, float]] = {}
         super()._prepare(context)
 
-    def _log_trait(self, recording: rr.RecordingStream, path: str, numbers: npt.NDArray[np.float64]) -> None:
-        """Log the histogram, the mean, and the standard deviation of the numbers of one trait."""
+    def _log_trait(
+        self,
+        recording: rr.RecordingStream,
+        path: str,
+        trait: str,
+        numbers: npt.NDArray[np.float64],
+    ) -> None:
+        """Log the histogram, the mean, and the standard deviation of the numbers of one trait.
+
+        The histogram of a trait bins by the range of its own values, widened to every value logged so far. Only the
+        `color_by` trait starts from `color_range`, so a trait whose values fall outside it, such as a negative integer
+        trait, keeps every value in its bins.
+
+        Args:
+            recording:
+                The Rerun recording.
+
+            path:
+                The entity path of the trait.
+
+            trait:
+                The name of the trait.
+
+            numbers:
+                One number per agent or member.
+        """
         if path not in self.spans_:
             for index, statistic in enumerate(_STATISTICS):
                 style = rr.SeriesLines(colors=_SERIES_COLORS[index], names=statistic)
                 recording.log(f'{path}/{statistic}', style, static=True)
-        span = self.color_range if self.color_range is not None else BaseVisual._widened(self.spans_.get(path), numbers)
+        start = self.spans_.get(path)
+        if start is None and self.color_range is not None and trait == self.color_by:
+            start = self.color_range
+        span = BaseVisual._widened(start, numbers)
         self.spans_[path] = span
         counts, centres, width = self._histogram(numbers, span, self.bins)
         recording.log(f'{path}/histogram', rr.BarChart(counts, abscissa=centres, widths=np.full(len(counts), width)))
@@ -128,7 +156,7 @@ class HistogramVisual(AgentsVisual):
         for state, name in element.states.items():
             numbers = self._numbers_of(frame.value(name))
             if numbers is not None and numbers.size:
-                self._log_trait(recording, f'{element.path}/{state}', numbers)
+                self._log_trait(recording, f'{element.path}/{state}', state, numbers)
 
     def _log_agents(
         self,
@@ -157,7 +185,7 @@ class HistogramVisual(AgentsVisual):
         for trait, values in snapshot.values.items():
             numbers = self._numbers_of(values)
             if numbers is not None and numbers.size:
-                self._log_trait(recording, f'{path}/{trait}', numbers)
+                self._log_trait(recording, f'{path}/{trait}', trait, numbers)
 
     def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
         """Return the statistics of one trait over time, its histogram, and the statistics of every trait.
