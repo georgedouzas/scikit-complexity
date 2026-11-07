@@ -4,20 +4,149 @@
 # License: MIT
 
 from types import SimpleNamespace
+from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
+from ....core.components.elements import Element
 from ....core.components.interactions import TransferInteraction
 from ....core.components.laws import Sink, Source
 from ....core.components.laws.utils import distributed_delay, lookup, where
 from ....core.components.system import System
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._arms_race import ArmsRaceElement
-from ._burden import BurdenElement
-from ._contest import ContestElement
-from ._performance import PerformanceElement
-from ._standoff import StandoffElement
+
+
+class ArmsRaceElement(Element):
+    """Arms race element."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        a: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='arms')] = 10.0,
+        b: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='arms')] = 10.5,
+        margin: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        adjustment_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        perception_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.a = a
+        self.b = b
+        self.margin = margin
+        self.adjustment_time = adjustment_time
+        self.perception_delay = perception_delay
+
+
+class BurdenElement(Element):
+    """Burden element."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        capability: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='capability')] = 0.5,
+        intervention: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='intervention')] = 0.0,
+        desired: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        fix_rate: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        build_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+        solution_delay: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        erosion: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.capability = capability
+        self.intervention = intervention
+        self.desired = desired
+        self.fix_rate = fix_rate
+        self.build_time = build_time
+        self.solution_delay = solution_delay
+        self.erosion = erosion
+
+
+class ContestElement(Element):
+    """Contest element."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        a: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='resources')] = 55.0,
+        b: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo), quantity='resources')] = 45.0,
+        budget: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 10.0,
+        lifetime: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.a = a
+        self.b = b
+        self.budget = budget
+        self.lifetime = lifetime
+
+
+class PerformanceElement(Element):
+    """Performance element."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        performance: Annotated[object, StateSpec(quantity='performance')] = 1.0,
+        perceived: Annotated[object, StateSpec(quantity='performance')] = 1.0,
+        desired: Annotated[object, StateSpec(quantity='performance')] = 1.0,
+        bias: Annotated[object, ParameterSpec(domain=RealSet.open(-oo, 1))] = 0.1,
+        perception_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        correction_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        goal_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+        erosion: Annotated[object, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.performance = performance
+        self.perceived = perceived
+        self.desired = desired
+        self.bias = bias
+        self.perception_time = perception_time
+        self.correction_time = correction_time
+        self.goal_time = goal_time
+        self.erosion = erosion
+
+
+class StandoffElement(Element):
+    """Standoff element."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        stock: Annotated[object, StateSpec(quantity='stock')] = 50.0,
+        effort_a: Annotated[object, StateSpec(quantity='effort')] = 0.0,
+        effort_b: Annotated[object, StateSpec(quantity='effort')] = 0.0,
+        effort_c: Annotated[object, StateSpec(quantity='effort')] = 0.0,
+        goal_a: Annotated[object, ParameterSpec()] = 80.0,
+        goal_b: Annotated[object, ParameterSpec()] = 20.0,
+        goal_c: Annotated[object, ParameterSpec()] = 50.0,
+        strength_a: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        strength_b: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        strength_c: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        intensification_time: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.stock = stock
+        self.effort_a = effort_a
+        self.effort_b = effort_b
+        self.effort_c = effort_c
+        self.goal_a = goal_a
+        self.goal_b = goal_b
+        self.goal_c = goal_c
+        self.strength_a = strength_a
+        self.strength_b = strength_b
+        self.strength_c = strength_c
+        self.intensification_time = intensification_time
+
 
 ACTORS = ('a', 'b', 'c')
 

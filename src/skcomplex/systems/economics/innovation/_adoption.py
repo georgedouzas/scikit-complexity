@@ -15,11 +15,25 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction
 from ....core.components.spaces import DiscreteTime, LatticeSpace
 from ....core.components.system import System
-from ....core.engine.solvers import SystemView
+from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._catalog import register_system
-from ._household_view import HouseholdView
+
+
+class HouseholdView(AgentView):
+    """Household as its rule sees it, with its income, phone, and class.
+
+    It reads its `income`, its `phone`, its `social_class`, the `growth` of its income, and the `threshold` of affording
+    a phone.
+    """
+
+    income: float
+    phone: float
+    social_class: float
+    growth: float
+    threshold: float
+
 
 UPPER = 0
 MIDDLE = 1

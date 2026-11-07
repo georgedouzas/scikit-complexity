@@ -3,15 +3,150 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import numpy as np
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.components.elements import GroupElement
+import numpy as np
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
+
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, UpdateLaw
+from ....core.components.laws.utils import uniform, where
 from ....core.components.spaces import DiscreteTime
 from ....core.components.system import System
+from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._pathogen import PathogenElement
-from ._resident import ResidentElement
-from ._resistance_infection import ResistanceInfectionInteraction
+
+
+class PathogenElement(Element):
+    """Pathogen whose strength in every season is drawn anew, uniformly from zero to one.
+
+    Args:
+        label:
+            The label of the pathogen.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        eta:
+            The strength of the strain of the current season.
+
+    Examples:
+        >>> from skcomplex.systems.biology.epidemiology import PathogenElement
+        >>> PathogenElement('pathogen').eta
+        0.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        eta: Annotated[float, StateSpec(domain=RealSet.closed_open(0, 1))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.eta = eta
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the strength of the next season, a uniform draw.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return [UpdateLaw(s.eta, uniform('eta'))]
+
+
+class ResidentElement(Element):
+    """Resident of a population with a fixed resistance to a disease, immune for good once infected.
+
+    Args:
+        label:
+            The label of the resident or of the group of residents.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        R:
+            The resistance, between 0 and 1, where 1 is immunity.
+
+        infected:
+            Whether the resident was infected in the last outbreak.
+
+    Examples:
+        >>> from skcomplex.systems.biology.epidemiology import ResidentElement
+        >>> ResidentElement('resident', R=0.3).R
+        0.3
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        R: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.5,
+        infected: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.R = R
+        self.infected = infected
+
+
+class ResistanceInfectionInteraction(Interaction):
+    """Infection of every resident whose resistance is below the strength of the season's strain, who becomes immune.
+
+    A resident with `R < eta` is infected in the season and its resistance becomes 1, so it is never infected again.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        residents:
+            The path of the group of residents.
+
+        pathogen:
+            The path of the pathogen.
+
+    Examples:
+        >>> from skcomplex.systems.biology.epidemiology import ResistanceInfectionInteraction
+        >>> ResistanceInfectionInteraction('infection', residents='people', pathogen='flu').pathogen
+        'flu'
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        residents: Annotated[str, RoleSpec()],
+        pathogen: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.residents = residents
+        self.pathogen = pathogen
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the infection and the immunity of the residents below the strength of the strain.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        resident, strength = s.residents, s.pathogen.eta
+        susceptible = strength > resident.R
+        return [
+            UpdateLaw(resident.R, where(susceptible, 1, resident.R)),
+            UpdateLaw(resident.infected, where(susceptible, 1, 0)),
+        ]
 
 
 @register_system(

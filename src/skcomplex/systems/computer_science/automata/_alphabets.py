@@ -4,25 +4,135 @@
 # License: MIT
 
 import functools
+from collections.abc import Mapping
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
 from sage.all__sagemath_gap import SymmetricGroup
+from sage.all__sagemath_symbolics import RR, ZZ
 from sage.groups.perm_gps.permgroup import PermutationGroup_generic
 
-from ....core.components.elements import LatticeElement
+from ....core.components.elements import DeclaredElement, Element, LatticeElement
 from ....core.components.interactions import LocalRuleInteraction
 from ....core.components.spaces import CayleySpace, LatticeNeighborhood, LatticeSpace, StateTranslationNeighborhood
 from ....core.components.system import System
 from ....core.errors import ParameterError
-from ....core.specs import PowerSeriesSpec
+from ....core.specs import DeclaredVariableSpec, PowerSeriesSpec, StateSpec, VisualSpec
 from ....core.types import Array, Indices
 from ..._catalog import register_system
-from ._group_cell import GroupCellElement
 from ._groups import free_group
 from ._pascal_cell import PascalCellElement
-from ._power_series_cell import PowerSeriesCellElement
-from ._real_cell import RealCellElement
+
+
+class GroupCellElement(Element):
+    """Cell of an automaton whose alphabet is a group, holding a group element by its number.
+
+    The number is the site of the element in a group space, or its position in the list of a finite group, and a
+    negative number names no element, the fill value read outside a ball.
+
+    Args:
+        label:
+            The label of the cell or the lattice group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        value:
+            The number of the initial group element, 0 for the identity.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import GroupCellElement
+        >>> GroupCellElement('cell', value=2).value
+        2
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        value: Annotated[float, StateSpec(domain=ZZ)] = 0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.value = value
+
+
+RATIONAL_SERIES = PowerSeriesSpec()
+
+
+class PowerSeriesCellElement(DeclaredElement):
+    """Cell of an automaton over a ring `K[[t]]` of formal power series truncated at an order.
+
+    The cell declares the state `value` in the ring it is given, so it holds the coefficients `a_0, ..., a_{order - 1}`
+    of a series, which a local rule reads as one row per cell.
+
+    Args:
+        label:
+            The label of the cell or the lattice group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        ring:
+            The truncated power series ring of the values.
+
+        variables:
+            Declared states and parameters besides `value`, or values that replace its default, by name.
+
+    Examples:
+        >>> from skcomplex.core.specs import PowerSeriesSpec
+        >>> from skcomplex.systems.computer_science.automata import PowerSeriesCellElement
+        >>> PowerSeriesCellElement('cell', ring=PowerSeriesSpec(3)).get_value('value').tolist()
+        [0.0, 0.0, 0.0]
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        ring: PowerSeriesSpec = RATIONAL_SERIES,
+        variables: Mapping[str, DeclaredVariableSpec] | None = None,
+    ) -> None:
+        super().__init__(label, visual=visual, variables=variables)
+        self.ring = ring
+
+    def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:
+        """Return the state `value` in the ring, with the zero series as its default, and the given variables."""
+        value = DeclaredVariableSpec(np.zeros(self.ring.order), StateSpec(domain=self.ring))
+        return {'value': value, **(self.variables or {})}
+
+
+class RealCellElement(Element):
+    """Cell of an automaton over the real numbers.
+
+    Args:
+        label:
+            The label of the cell or the lattice group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        value:
+            The initial value.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import RealCellElement
+        >>> RealCellElement('cell', value=0.5).value
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        value: Annotated[float, StateSpec(domain=RR)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.value = value
+
 
 FORWARD = LatticeNeighborhood(((0,), (1,)))
 NO_ELEMENT = -1

@@ -3,16 +3,341 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import ContinuousSpace
 from ....core.components.system import System
+from ....core.engine.solvers import AgentView, SystemView
+from ....core.errors import SimulationError
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._careless_braking import CarelessBrakingInteraction
-from ._driver import DriverElement
-from ._motorist import MotoristElement
+
+
+class MotoristView(AgentView):
+    """View of a car of Charbonneau's traffic system, with its states and parameters as attributes."""
+
+    x: float
+    v: float
+    rank: float
+    safe_distance: float
+    braking: float
+    acceleration: float
+    speed_limit: float
+
+
+class MotoristElement(Element):
+    """Car of Charbonneau's traffic system, which brakes when it is closer than a safe distance to the car ahead.
+
+    Args:
+        label:
+            The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The position along the road.
+
+        v:
+            The speed.
+
+        rank:
+            The order of the car along the road, 0 for the last car.
+
+        safe_distance:
+            The distance to the car ahead below which the driver brakes.
+
+        braking:
+            The speed lost when braking.
+
+        acceleration:
+            The speed gained when accelerating.
+
+        speed_limit:
+            The largest speed.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.systems.engineering.traffic import MotoristElement
+        >>> GroupElement('cars', element=MotoristElement, size=3, values={'x': [0.0, 10.0, 20.0]}).size
+        3
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'position': 'x', 'color_by': 'v'}),
+        *,
+        x: Annotated[float, StateSpec(role='position')] = 0.0,
+        v: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo), role='velocity')] = 0.0,
+        rank: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        safe_distance: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+        braking: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
+        acceleration: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        speed_limit: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.v = v
+        self.rank = rank
+        self.safe_distance = safe_distance
+        self.braking = braking
+        self.acceleration = acceleration
+        self.speed_limit = speed_limit
+
+    @classmethod
+    def _get_view(cls) -> type[MotoristView]:
+        """Return the view of the cars, which types their states and parameters."""
+        return MotoristView
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the speed adjustment rule.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return [RuleLaw(self.adjust)]
+
+    def adjust(self, agent: MotoristView, system: SystemView) -> None:
+        """Brake when the car ahead is closer than the safe distance and accelerate otherwise.
+
+        The lead car, which has no car ahead, keeps its distance to the car behind it instead.
+
+        Args:
+            agent:
+                The car.
+
+            system:
+                The system.
+        """
+        cars = system.agents(agent.group, MotoristView)
+        ahead = next((car for car in cars if int(car.rank) == int(agent.rank) + 1), None)
+        if ahead is None:
+            behind = next((car for car in cars if int(car.rank) == int(agent.rank) - 1), None)
+            distance = agent.x - behind.x if behind is not None else np.inf
+        else:
+            distance = ahead.x - agent.x
+        change = -agent.braking if distance < agent.safe_distance else agent.acceleration
+        agent.v = float(np.clip(agent.v + change, 0.0, agent.speed_limit))
+
+
+class DriverView(AgentView):
+    """View of a driver on a ring road, with its states and parameters as attributes."""
+
+    speed: float
+    rank: float
+    acceleration: float
+    min_acc: float
+    max_acc: float
+    speed_limit: float
+    eps: float
+
+
+class DriverElement(Element):
+    """Driver on a ring road who accelerates as much as allowed and stops when the speed would cause a collision.
+
+    The speed changes by the acceleration, bounded by `min_acc` and `max_acc`, is multiplied by a random factor between
+    `1 - eps` and `1 + eps`, and stays between 0 and the speed limit. A speed larger than the distance to the car ahead
+    becomes 0. The car then moves along the ring by its speed, and the ring is as long as the width of the space.
+
+    Args:
+        label:
+            The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        speed:
+            The speed.
+
+        rank:
+            The order of the car along the ring.
+
+        acceleration:
+            The acceleration every driver chooses.
+
+        min_acc:
+            The largest braking, as a negative acceleration.
+
+        max_acc:
+            The largest acceleration.
+
+        speed_limit:
+            The largest speed.
+
+        eps:
+            The relative amplitude of the random error of speed.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.systems.engineering.traffic import DriverElement
+        >>> GroupElement('drivers', element=DriverElement, size=2, location=[(0.0, 0.5), (10.0, 0.5)]).size
+        2
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'speed'}),
+        *,
+        speed: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        rank: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        acceleration: Annotated[float, ParameterSpec()] = 1.0,
+        min_acc: Annotated[float, ParameterSpec()] = -10.0,
+        max_acc: Annotated[float, ParameterSpec()] = 1.0,
+        speed_limit: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 40.0,
+        eps: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.speed = speed
+        self.rank = rank
+        self.acceleration = acceleration
+        self.min_acc = min_acc
+        self.max_acc = max_acc
+        self.speed_limit = speed_limit
+        self.eps = eps
+
+    @classmethod
+    def _get_view(cls) -> type[DriverView]:
+        """Return the view of the drivers, which types their states and parameters."""
+        return DriverView
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the driving rule.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return [RuleLaw(self.drive)]
+
+    def drive(self, agent: DriverView, system: SystemView) -> None:
+        """Choose the speed from the distance to the car ahead and move along the ring.
+
+        Args:
+            agent:
+                The driver.
+
+            system:
+                The system.
+        """
+        cars = system.agents(agent.group, DriverView)
+        if system.dimensions is None:
+            error_msg = 'Drivers move along a ring road, a continuous space with an extent.'
+            raise SimulationError(error_msg)
+        length = system.dimensions[0]
+        ahead = DriverElement._car_ahead(agent, system, len(cars))
+        x, y = DriverElement._position(agent)
+        distance = (DriverElement._position(ahead)[0] - x) % length if ahead is not None else length
+        acceleration = min(max(agent.acceleration, agent.min_acc), agent.max_acc)
+        speed = (agent.speed + acceleration) * system.rng.uniform(1 - agent.eps, 1 + agent.eps)
+        speed = min(max(speed, 0.0), agent.speed_limit)
+        agent.speed = 0.0 if speed > distance else speed
+        agent.move_to(((x + agent.speed) % length, y))
+
+    @staticmethod
+    def _position(agent: AgentView) -> tuple[float, float]:
+        """Return the position of an agent in a continuous space."""
+        x, y = np.asarray(agent.location, dtype=float)
+        return float(x), float(y)
+
+    @staticmethod
+    def _car_ahead(agent: DriverView, system: SystemView, n_cars: int) -> DriverView | None:
+        """Return the car whose rank follows the agent's rank on a road of `n_cars` cars, or `None` for the last car."""
+        rank = (int(agent.rank) + 1) % n_cars if n_cars else 0
+        return next(
+            (car for car in system.agents(agent.group, DriverView) if int(car.rank) == rank and car != agent),
+            None,
+        )
+
+
+class CarelessBrakingInteraction(Interaction):
+    """System rule of Charbonneau's traffic system: a random driver brakes now and then, and every car moves.
+
+    Every step, with probability `probability`, one random driver brakes by the braking of its group whatever the
+    distance to the car ahead. Then every car moves by its speed, but no closer than `gap` to the car ahead.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        cars:
+            The path of the group of cars.
+
+        probability:
+            The probability that a random driver brakes in a step.
+
+        gap:
+            The smallest distance a car keeps to the car ahead.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.traffic import CarelessBrakingInteraction
+        >>> CarelessBrakingInteraction('bozo', cars='cars').probability
+        0.1
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        cars: Annotated[str, RoleSpec()],
+        probability: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        gap: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.cars = cars
+        self.probability = probability
+        self.gap = gap
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rule of random braking and motion.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return [RuleLaw(self.drive)]
+
+    def drive(self, system: SystemView) -> None:
+        """Make a random driver brake with the interaction's probability, then move every car.
+
+        Args:
+            system:
+                The system.
+        """
+        cars = sorted(system.agents('cars', MotoristView), key=lambda car: car.rank)
+        if not cars:
+            return
+        if system.rng.random() < system.parameter('probability'):
+            careless = cars[int(system.rng.integers(len(cars)))]
+            careless.v = max(careless.v - careless.braking, 0.0)
+        gap = system.parameter('gap')
+        positions = [car.x for car in cars]
+        for index, car in enumerate(cars):
+            moved = car.x + car.v
+            car.x = min(moved, positions[index + 1] - gap) if index + 1 < len(cars) else moved
+
 
 ROAD_WIDTH = 1.0
 

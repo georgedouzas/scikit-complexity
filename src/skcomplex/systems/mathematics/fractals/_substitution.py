@@ -3,15 +3,226 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
+import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.components.elements import PatchElement, WordElement
+from ....core.components.laws import ProductionLaw, SubstitutionLaw
 from ....core.components.system import System
 from ....core.engine.compile import RewritingCompiler
 from ....core.errors import ValidationError
-from ....core.specs import GeometrySpec, PrototileSpec
+from ....core.specs import AffineSpec, GeometrySpec, ParameterSpec, PrototileSpec, VisualSpec
 from ..._catalog import register_system
-from ._cantor_element import CantorElement
-from ._koch_element import KochElement
-from ._sierpinski_element import SierpinskiElement
+
+
+class CantorElement(PatchElement):
+    """Patch of intervals, each replaced by its first and its last part of the length `ratio`.
+
+    Args:
+        label:
+            The label of the patch.
+
+        tiles:
+            Pairs of a prototile name and its placement at generation 0, or `None` for the first prototile in place.
+
+        ratio:
+            The length of each kept part relative to its interval.
+
+        prototiles:
+            The prototiles of the patch.
+
+        filled:
+            Whether the geometry visual draws polygons as a filled image instead of outlines.
+
+        max_size:
+            The largest number of tiles a generation may produce.
+
+        bounds:
+            The box `(xmin, ymin, xmax, ymax)` the geometry visual shows, or `None` for the box of the initial tiles.
+
+        visual:
+            How the patch is drawn, or `None` for `default_visual_`.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.fractals import CantorElement
+        >>> CantorElement('cantor', ratio=0.25).ratio
+        0.25
+    """
+
+    def __init__(
+        self,
+        label: str,
+        tiles: Sequence[tuple[str, AffineSpec]] | None = None,
+        *,
+        ratio: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1 / 3,
+        prototiles: Sequence[PrototileSpec] = (),
+        filled: bool = False,
+        max_size: int = 10_000_000,
+        bounds: Sequence[float] | None = None,
+        visual: VisualSpec | None = None,
+    ) -> None:
+        super().__init__(
+            label,
+            tiles,
+            prototiles=prototiles,
+            filled=filled,
+            max_size=max_size,
+            bounds=bounds,
+            visual=visual,
+        )
+        self.ratio = ratio
+
+    def _get_laws(self, s: SimpleNamespace) -> list[SubstitutionLaw]:
+        """Return the substitution of every interval by its two outer parts.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The substitution of the patch.
+        """
+        pieces = [
+            ('interval', AffineSpec(scale=s.ratio)),
+            ('interval', AffineSpec(scale=s.ratio, translation=(1 - s.ratio, 0))),
+        ]
+        return [SubstitutionLaw('interval', pieces)]
+
+
+class KochElement(WordElement):
+    """Word rewritten by the production `F → F+F--F+F` of the Koch curve.
+
+    Args:
+        label:
+            The label of the word.
+
+        axiom:
+            The word at generation 0.
+
+        geometry:
+            How the word is drawn as line segments, or `None` for no geometry.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.fractals import KochElement
+        >>> KochElement('koch', axiom='F')._get_laws(None)[0].successor
+        'F+F--F+F'
+    """
+
+    def _get_laws(self, s: SimpleNamespace) -> list[ProductionLaw]:
+        """Return the production of the Koch curve.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The production of the word.
+        """
+        del s
+        return [ProductionLaw('F', 'F+F--F+F')]
+
+
+SHAPES = ('triangle', 'carpet')
+
+
+class SierpinskiElement(PatchElement):
+    """Patch of triangles or squares, each replaced by the scaled copies of the Sierpiński triangle or carpet.
+
+    Args:
+        label:
+            The label of the patch.
+
+        tiles:
+            Pairs of a prototile name and its placement at generation 0, or `None` for the first prototile in place.
+
+        shape:
+            `'triangle'` or `'carpet'`.
+
+        prototiles:
+            The prototiles of the patch.
+
+        filled:
+            Whether the geometry visual draws polygons as a filled image instead of outlines.
+
+        max_size:
+            The largest number of tiles a generation may produce.
+
+        bounds:
+            The box `(xmin, ymin, xmax, ymax)` the geometry visual shows, or `None` for the box of the initial tiles.
+
+        visual:
+            How the patch is drawn, or `None` for `default_visual_`.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.fractals import SierpinskiElement
+        >>> len(SierpinskiElement('sierpinski', shape='carpet')._get_laws(None)[0].pieces)
+        8
+    """
+
+    def __init__(
+        self,
+        label: str,
+        tiles: Sequence[tuple[str, AffineSpec]] | None = None,
+        *,
+        shape: str = 'triangle',
+        prototiles: Sequence[PrototileSpec] = (),
+        filled: bool = False,
+        max_size: int = 10_000_000,
+        bounds: Sequence[float] | None = None,
+        visual: VisualSpec | None = None,
+    ) -> None:
+        super().__init__(
+            label,
+            tiles,
+            prototiles=prototiles,
+            filled=filled,
+            max_size=max_size,
+            bounds=bounds,
+            visual=visual,
+        )
+        self.shape = shape
+
+    def _get_laws(self, s: SimpleNamespace) -> list[SubstitutionLaw]:
+        """Return the substitution of every polygon by its scaled copies.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The substitution of the patch.
+
+        Raises:
+            ValidationError:
+                The shape is unknown.
+        """
+        del s
+        prototile, pieces = SierpinskiElement._sierpinski_tiles(self.shape)
+        return [SubstitutionLaw(prototile.name, pieces)]
+
+    @staticmethod
+    def _sierpinski_tiles(shape: str) -> tuple[PrototileSpec, list[tuple[str, AffineSpec]]]:
+        """Return the prototile of a Sierpiński shape and the scaled copies that replace it."""
+        if shape == 'triangle':
+            height = np.sqrt(3) / 2
+            corners = [(0.0, 0.0), (0.5, 0.0), (0.25, height / 2)]
+            pieces = [('triangle', AffineSpec(scale=0.5, translation=corner)) for corner in corners]
+            return PrototileSpec('triangle', [(0.0, 0.0), (1.0, 0.0), (0.5, height)]), pieces
+        if shape == 'carpet':
+            cells = [(column, row) for row in range(3) for column in range(3) if (column, row) != (1, 1)]
+            pieces = [('square', AffineSpec(scale=1 / 3, translation=(column / 3, row / 3))) for column, row in cells]
+            return PrototileSpec('square', [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]), pieces
+        error_msg = f'Unknown shape {shape!r}. Use one of {", ".join(SHAPES)}.'
+        raise ValidationError(error_msg)
+
 
 LARGEST_RATIO = 0.5
 

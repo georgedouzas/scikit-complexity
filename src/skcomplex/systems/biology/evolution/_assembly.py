@@ -3,13 +3,211 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-from ....core.components.elements import GroupElement
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.real_set import RealSet
+
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import Interaction
+from ....core.components.laws import BaseLaw, RateLaw, RuleLaw
+from ....core.components.laws.utils import shift_member
 from ....core.components.spaces import DiscreteTime
 from ....core.components.system import System
+from ....core.engine.solvers import AgentView, SystemView
+from ....core.errors import ValidationError
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._assembly_level import AssemblyLevelElement
-from ._polymer import PolymerElement
-from ._polymer_joining import PolymerJoiningInteraction
+
+MODES = ('undirected', 'directed')
+
+
+class AssemblyLevelElement(Element):
+    """Objects of one assembly index, discovered from the objects one assembly step below them.
+
+    In a group ordered by assembly index, the objects of index `a + 1` grow as `dN_{a+1}/dt = k (N_a)^alpha`, Eq. (3)
+    of Sharma et al. (2022), where the first member reads the constant pool `N_0` of building blocks. The selectivity
+    `alpha = 1` reuses every object built before, and `alpha < 1` only a subset, the signature of selection.
+
+    Args:
+        label:
+            The label of the level or of the group of levels.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        N:
+            The initial number of objects.
+
+        k:
+            The rate of discovery.
+
+        alpha:
+            The selectivity of reuse.
+
+        N0:
+            The constant number of building blocks below the first level.
+
+    Examples:
+        >>> from skcomplex.systems.biology.evolution import AssemblyLevelElement
+        >>> AssemblyLevelElement('levels', alpha=0.5).alpha
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        N: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        k: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 1.0,
+        N0: float = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.N = N
+        self.k = k
+        self.alpha = alpha
+        self.N0 = N0
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the discovery of the objects of this level from the level below.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        below = shift_member(s.N, -1, boundary='fixed', fill=self.N0)
+        return [RateLaw(s.N, s.k * below**s.alpha)]
+
+
+class PolymerView(AgentView):
+    """View of a polymer, with its states as attributes.
+
+    `PolymerElement` names this class with `_get_view`, so its rules read them with checked types.
+    """
+
+    length: float
+    born: float
+
+
+class PolymerElement(Element):
+    """Linear polymer of an assembly pool, with its length and the step it was made.
+
+    Args:
+        label:
+            The label of the polymer or of the group of polymers.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        length:
+            The number of monomers.
+
+        born:
+            The step at which the polymer was made.
+
+    Examples:
+        >>> from skcomplex.systems.biology.evolution import PolymerElement
+        >>> PolymerElement('polymer', length=3.0).length
+        3.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        length: Annotated[float, StateSpec(domain=NN)] = 1.0,
+        born: Annotated[float, StateSpec(domain=NN)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.length = length
+        self.born = born
+
+    @classmethod
+    def _get_view(cls) -> type[PolymerView]:
+        """Return the view of a polymer, `PolymerView`."""
+        return PolymerView
+
+
+class PolymerJoiningInteraction(Interaction):
+    """Joining of two polymers of an assembly pool into a new one, at random or by reuse of the newest polymer.
+
+    At every step, undirected exploration joins two polymers drawn at random from the pool, and directed exploration
+    joins the polymer made most recently with one drawn at random. The joined polymer, of the summed length, is added
+    to the pool, and its parts stay in it.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        polymers:
+            The path of the variable group of polymers.
+
+        mode:
+            `'undirected'` or `'directed'`.
+
+    Raises:
+        ValidationError:
+            The mode is unknown.
+
+    Examples:
+        >>> from skcomplex.systems.biology.evolution import PolymerJoiningInteraction
+        >>> PolymerJoiningInteraction('joining', polymers='pool', mode='directed').mode
+        'directed'
+    """
+
+    def __init__(self, label: str, *, polymers: Annotated[str, RoleSpec()], mode: str = 'undirected') -> None:
+        super().__init__(label)
+        self.polymers = polymers
+        self.mode = mode
+
+    def _check(self) -> None:
+        """Check the mode.
+
+        Raises:
+            ValidationError:
+                The mode is unknown.
+        """
+        super()._check()
+        if self.mode not in MODES:
+            error_msg = f'The mode must be one of {", ".join(MODES)}, not {self.mode!r}.'
+            raise ValidationError(error_msg)
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the joining rule.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return [RuleLaw(self.join)]
+
+    def join(self, system: SystemView) -> None:
+        """Join two polymers and add the product to the pool.
+
+        Args:
+            system:
+                The system.
+        """
+        pool = system.agents(self.polymers, PolymerView)
+        partner = pool[int(system.rng.integers(len(pool)))]
+        if self.mode == 'directed':
+            first = max(pool, key=lambda polymer: polymer.born)
+        else:
+            first = pool[int(system.rng.integers(len(pool)))]
+        born = max(polymer.born for polymer in pool) + 1
+        system.create(self.polymers, length=first.length + partner.length, born=born)
 
 
 @register_system(

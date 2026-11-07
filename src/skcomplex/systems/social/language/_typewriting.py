@@ -14,10 +14,17 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.system import System
-from ....core.engine.solvers import SystemView
+from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._typed_word_view import TypedWordView
+
+
+class TypedWordView(AgentView):
+    """View of a typed word of the random typewriting system, with its states as attributes."""
+
+    count: float
+    length: float
+    code: float
 
 
 class TypedWordElement(Element):

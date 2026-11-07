@@ -4,17 +4,289 @@
 # License: MIT
 
 
-from sage.all__sagemath_symbolics import exp
+from collections.abc import Callable
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.components.interactions import RateInteraction, ReactionInteraction
+from sage.all__sagemath_symbolics import Expression, exp, oo
+from sage.sets.real_set import RealSet
+
+from ....core.components.elements import Element
+from ....core.components.interactions import ImpulseInteraction, RateInteraction, ReactionInteraction
 from ....core.components.laws.utils import pulse_train
 from ....core.components.system import System
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._irradiated_tumour import IrradiatedTumourElement
-from ._irradiation import IrradiationInteraction
-from ._radiation_competition import RadiationCompetitionElement
 
 BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
+
+
+class IrradiatedTumourElement(Element):
+    """Tumour in six compartments under linear-quadratic radiation fractions and a radiosensitizer.
+
+    The proliferating cells follow `dA1/dt = r A1 exp(-a_gamma u_tot)`, where `u_tot` is the dose that the fractions of
+    an irradiation accumulate. The lethally irradiated cells of `A5` divide once into `A6`, `dA5/dt = -(r + m1) A5` and
+    `dA6/dt = 2 r A5 - m1 A6`, and both feed the dying chain `A2 -> A3 -> A4`, which leaves the tumour at the rate
+    `m1`. The radiosensitizer is eliminated as `dUs/dt = -du Us`.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of `lq_radiosensitizer`
+    read its parameters.
+
+    Args:
+        label:
+            The label of the tumour.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        A1:
+            The initial volume of proliferating cells.
+
+        A2:
+            The initial volume of the first dying compartment.
+
+        A3:
+            The initial volume of the second dying compartment.
+
+        A4:
+            The initial volume of the third dying compartment.
+
+        A5:
+            The initial volume of lethally irradiated cells that divide once more.
+
+        A6:
+            The initial volume of lethally irradiated cells that no longer divide.
+
+        Us:
+            The initial plasma concentration of the radiosensitizer.
+
+        u_tot:
+            The initial accumulated dose.
+
+        r:
+            The growth rate.
+
+        m1:
+            The transit rate of the damaged cells.
+
+        a_gamma:
+            The inhibition of proliferation per unit of accumulated dose.
+
+        du:
+            The elimination rate of the radiosensitizer.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import IrradiatedTumourElement
+        >>> IrradiatedTumourElement('tumour', A1=10.0).A1
+        10.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        A1: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 27.0,
+        A2: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        A3: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        A4: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        A5: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        A6: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        Us: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        u_tot: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        r: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.04,
+        m1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.26,
+        a_gamma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.004,
+        du: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.544,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.A1 = A1
+        self.A2 = A2
+        self.A3 = A3
+        self.A4 = A4
+        self.A5 = A5
+        self.A6 = A6
+        self.Us = Us
+        self.u_tot = u_tot
+        self.r = r
+        self.m1 = m1
+        self.a_gamma = a_gamma
+        self.du = du
+
+
+class RadiationCompetitionElement(Element):
+    """Normal and tumour cells in Lotka-Volterra competition under periodic irradiation.
+
+    The normal cells follow `dN/dt = r1 N (1 - b1 N) - c1 N A - epsilon N` and the tumour cells
+    `dA/dt = r2 A (1 - b2 A) - c2 N A - a2 D(t) A`, where the irradiation `D` is 1 for `width` time units every `period`
+    and 0 otherwise, and `epsilon N` is the radiation that spills over to the normal tissue.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `radiotherapy_competition` read its parameters.
+
+    Args:
+        label:
+            The label of the tissue.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        N:
+            The initial concentration of normal cells.
+
+        A:
+            The initial concentration of tumour cells.
+
+        r1:
+            The growth rate of the normal cells.
+
+        r2:
+            The growth rate of the tumour cells.
+
+        b1:
+            The reciprocal carrying capacity of the normal cells.
+
+        b2:
+            The reciprocal carrying capacity of the tumour cells.
+
+        c1:
+            The rate at which the tumour cells suppress the normal cells.
+
+        c2:
+            The rate at which the normal cells suppress the tumour cells.
+
+        a2:
+            The per capita rate at which the radiation kills tumour cells during an irradiation.
+
+        epsilon:
+            The per capita rate at which the spilled radiation kills normal cells.
+
+        period:
+            The time between the starts of irradiations.
+
+        width:
+            The duration of an irradiation.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import RadiationCompetitionElement
+        >>> RadiationCompetitionElement('tissue', N=0.5, A=0.8).A
+        0.8
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        N: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        A: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+        r1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.008,
+        r2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.4,
+        b1: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        b2: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        c1: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        c2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.15,
+        a2: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.001,
+        period: float = 7.0,
+        width: float = 5.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.N = N
+        self.A = A
+        self.r1 = r1
+        self.r2 = r2
+        self.b1 = b1
+        self.b2 = b2
+        self.c1 = c1
+        self.c2 = c2
+        self.a2 = a2
+        self.epsilon = epsilon
+        self.period = period
+        self.width = width
+
+
+class IrradiationInteraction(ImpulseInteraction):
+    """Radiation fractions of a dose `d`, which move the lethally irradiated part of the proliferating cells.
+
+    A fraction at the time `start + i period` moves the part `M = 1 - exp(-(1 + ap Us)(alpha d + beta d^2))` of the
+    proliferating cells `A1` to the lethally irradiated cells `A5` and raises the accumulated dose `u_tot` by
+    `(1 + au Us) d`, where `Us` is the radiosensitizer. Every fraction is an event labelled by the interaction.
+
+    Args:
+        label:
+            The label of the interaction and of its events.
+
+        target:
+            The path of the tumour, with the states `A1`, `A5`, `Us`, and `u_tot`.
+
+        alpha:
+            The linear coefficient of the linear-quadratic system.
+
+        beta:
+            The quadratic coefficient of the linear-quadratic system.
+
+        ap:
+            The potency of the radiosensitizer in raising the cell kill.
+
+        au:
+            The potency of the radiosensitizer in raising the accumulated dose.
+
+        dose:
+            The dose of a fraction.
+
+        period:
+            The time between fractions.
+
+        start:
+            The time of the first fraction.
+
+        fractions:
+            The number of fractions.
+
+    Raises:
+        ValidationError:
+            The times, the period, or the count of the fractions cannot be taken.
+
+    Examples:
+        >>> from skcomplex.systems.biology.oncology import IrradiationInteraction
+        >>> IrradiationInteraction('fraction', target='tumour', fractions=5).count
+        5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.054,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0054,
+        ap: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.42,
+        au: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.15,
+        dose: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        period: float = 1.0,
+        start: float = 0.125,
+        fractions: int = 10,
+    ) -> None:
+        super().__init__(label, target=target, reset=self._get_resets(), period=period, start=start, count=fractions)
+        self.alpha = alpha
+        self.beta = beta
+        self.ap = ap
+        self.au = au
+        self.dose = dose
+        self.fractions = fractions
+
+    def _get_damage(self, s: SimpleNamespace) -> Expression:
+        """Return the linear-quadratic damage `(1 + ap Us)(alpha d + beta d^2)` of a fraction."""
+        return (1 + s.ap * s.target.Us) * (s.alpha * s.dose + s.beta * s.dose**2)
+
+    def _get_resets(self) -> dict[str, Callable[[SimpleNamespace], object]]:
+        """Return the surviving proliferating cells, the lethally irradiated cells, and the accumulated dose."""
+        return {
+            'A1': lambda s: s.target.A1 * exp(-self._get_damage(s)),
+            'A5': lambda s: s.target.A5 + (1 - exp(-self._get_damage(s))) * s.target.A1,
+            'u_tot': lambda s: s.target.u_tot + (1 + s.au * s.target.Us) * s.dose,
+        }
 
 
 @register_system(

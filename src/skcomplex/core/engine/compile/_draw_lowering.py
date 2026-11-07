@@ -230,11 +230,12 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
             return
         start, flags = self.offset_, []
         ordered = sorted(self.requests_, key=lambda item: (item.draw is not None, item.owner, item.name))
+        names: dict[str, int] = {}
         for request in ordered:
             grouped = request.rows > 1
             shape = (request.rows,) if grouped else ()
             members = request.rows if grouped else None
-            entry = EntrySpec(f'{request.owner}.{request.name}~draw', start, shape, RR, members)
+            entry = EntrySpec(self._entry_name(request, names), start, shape, RR, members)
             source = ReadKind.MEMBER if grouped else ReadKind.SINGLE
             self._add_reference(request.spec, request.slot, ReferenceSpec(entry, False, 0, source))
             for (spec, name, offset, boundary, fill), slot in self.shifted_.items():
@@ -251,6 +252,30 @@ class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
                 sampled.append(SampledDrawSpec(position, request.rows, self._sampler(request)))
                 position += request.rows
         self.draws_ = DrawKernel(self.offset_, np.array(flags, dtype=bool), tuple(sampled), orders).prepare()
+
+    @staticmethod
+    def _entry_name(request: _RequestSpec, names: dict[str, int]) -> str:
+        """Return the name of the entry of the drawn values of a request, unique among the entries of the draws.
+
+        A component with several kernel specs, such as a hyperedge interaction with one spec per size of hyperedge,
+        draws one name in every spec, so the entries after the first of a name end with their number. Backends that
+        place entries by name, as Numba does, would otherwise read the values of every spec from one entry.
+
+        Args:
+            request:
+                The request of the drawn values.
+
+            names:
+                The number of entries already named after every component path and draw name, which the call updates.
+
+        Returns:
+            name:
+                The name of the entry.
+        """
+        name = f'{request.owner}.{request.name}~draw'
+        count = names.get(name, 0)
+        names[name] = count + 1
+        return name if count == 0 else f'{name}{count}'
 
     @staticmethod
     def _replacement(draw: DrawSpec, arguments: list[Expression], slot: Expression) -> Expression:

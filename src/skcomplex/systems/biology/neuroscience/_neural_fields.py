@@ -4,17 +4,73 @@
 # License: MIT
 
 from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, exp
+from sage.all__sagemath_symbolics import Expression, exp, oo
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import FieldElement
+from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import RateInteraction
 from ....core.components.laws.utils import convolve, displacement, where
 from ....core.components.spaces import LatticeSpace
 from ....core.components.system import System
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._neural_field_site import NeuralFieldSiteElement
+
+
+class NeuralFieldSiteElement(Element):
+    """Site of a neural field, the mean membrane potential of the neurons at one position.
+
+    The site holds the potential `u`, its time constant `tau`, the resting level `h`, and the amplitude `A` and the
+    range `sigma` of the lateral-inhibition kernel `w(x) = A (1 - |x| / sigma) exp(-|x| / sigma)`, which excites near
+    neighbours and inhibits distant ones.
+
+    Args:
+        label:
+            The label of the site or the field.
+
+        visual:
+            How the site is drawn, or `None` for `default_visual_`.
+
+        u:
+            The initial membrane potential.
+
+        tau:
+            The time constant of the potential.
+
+        h:
+            The resting level.
+
+        A:
+            The amplitude of the kernel.
+
+        sigma:
+            The range of the kernel.
+
+    Examples:
+        >>> from skcomplex.systems.biology.neuroscience import NeuralFieldSiteElement
+        >>> NeuralFieldSiteElement('site').h
+        -0.2
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[float, StateSpec()] = 0.0,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        h: Annotated[float, ParameterSpec()] = -0.2,
+        A: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.tau = tau
+        self.h = h
+        self.A = A
+        self.sigma = sigma
 
 
 def _amari_rate(s: SimpleNamespace) -> Expression:

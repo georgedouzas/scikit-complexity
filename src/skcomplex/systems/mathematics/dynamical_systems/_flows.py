@@ -1,21 +1,532 @@
-"""Dynamical systems systems: chaotic and conservative flows, delayed feedback, and singular growth."""
+"""Dynamical systems: chaotic and conservative flows, delayed feedback, and singular growth."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
 
+from sage.all__sagemath_symbolics import abs_symbolic, oo, sin
+from sage.sets.real_set import RealSet
+
+from ....core.components.elements import Element
+from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws.utils import delayed, derivative
 from ....core.components.system import System
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
 from ..common.flows import LorenzElement
-from ._blow_up import BlowUpElement
-from ._hyperchaotic_rossler import HyperchaoticRosslerElement
-from ._ikeda import IkedaElement
-from ._jerk import JerkElement
-from ._langford import LangfordElement
-from ._mixed_flow import MixedFlowElement
-from ._nose_hoover import NoseHooverElement
-from ._rossler import RosslerElement
-from ._thomas import ThomasElement
+from ..common.flows._rossler import RosslerElement
+
+
+class BlowUpElement(Element):
+    """Hyperbolic growth `x' = a x^p`, which diverges in finite time for `p > 1`.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial value.
+
+        a:
+            The growth coefficient.
+
+        p:
+            The growth exponent.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import BlowUpElement
+        >>> BlowUpElement('growth', p=3.0).p
+        3.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 1.0,
+        a: Annotated[object, ParameterSpec()] = 1.0,
+        p: Annotated[object, ParameterSpec()] = 2.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.a = a
+        self.p = p
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rate of the value.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
+        return [RateLaw(s.x, s.a * s.x**s.p)]
+
+
+class HyperchaoticRosslerElement(Element):
+    """Rössler's four-dimensional flow `x' = -(y + z)`, `y' = x + a y + w`, `z' = b + x z`, `w' = c w - d z`.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        z:
+            The initial third coordinate.
+
+        w:
+            The initial fourth coordinate.
+
+        a:
+            The feedback of the second coordinate on itself.
+
+        b:
+            The constant drive of the third coordinate.
+
+        c:
+            The growth of the fourth coordinate.
+
+        d:
+            The damping of the fourth coordinate by the third.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import HyperchaoticRosslerElement
+        >>> HyperchaoticRosslerElement('rossler', b=2.0).b
+        2.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = -10.0,
+        y: Annotated[object, StateSpec()] = -6.0,
+        z: Annotated[object, StateSpec()] = 0.0,
+        w: Annotated[object, StateSpec()] = 10.0,
+        a: Annotated[object, ParameterSpec()] = 0.25,
+        b: Annotated[object, ParameterSpec()] = 3.0,
+        c: Annotated[object, ParameterSpec()] = 0.05,
+        d: Annotated[object, ParameterSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.w = w
+        self.a = a
+        self.b = b
+        self.c = c
+        self.d = d
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rates of the four coordinates.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
+        return [
+            RateLaw(s.x, -(s.y + s.z)),
+            RateLaw(s.y, s.x + s.a * s.y + s.w),
+            RateLaw(s.z, s.b + s.x * s.z),
+            RateLaw(s.w, s.c * s.w - s.d * s.z),
+        ]
+
+
+class IkedaElement(Element):
+    """Ikeda delay equation `x' = a sin x(t - tau)`, which oscillates about its stable rest point once `a tau > π / 2`.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial value, also its history.
+
+        a:
+            The gain of the delayed feedback.
+
+        tau:
+            The delay.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import IkedaElement
+        >>> IkedaElement('ikeda', tau=2.0).tau
+        2.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec()] = 2.0,
+        a: Annotated[float, ParameterSpec()] = 1.0,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.a = a
+        self.tau = tau
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the delayed feedback of the state.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
+        return [RateLaw(s.x, s.a * sin(delayed(s.x, s.tau)))]
+
+
+class JerkElement(Element):
+    """Sprott's jerk flow `x''' = -A x'' - x' + |x| - 1` of a state of order 3.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial position.
+
+        x_d2:
+            The initial second derivative.
+
+        x_d1:
+            The initial first derivative.
+
+        A:
+            The damping of the second derivative.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import JerkElement
+        >>> JerkElement('jerk', A=0.5).A
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(order=3, initial=(0.0, 1.0))] = 0.0,
+        x_d2: float = 1.0,
+        x_d1: float = 0.0,
+        A: Annotated[object, ParameterSpec()] = 0.6,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d2 = x_d2
+        self.x_d1 = x_d1
+        self.A = A
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the third derivative of the position.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
+        return [RateLaw(s.x, -s.A * derivative(s.x, 2) - derivative(s.x, 1) + abs_symbolic(s.x) - 1)]
+
+
+class LangfordElement(Element):
+    """Langford flow, a rotation in `x, y` whose radius and height `z` couple into a torus that breaks into chaos.
+
+    The flow is `x' = (z - b) x - d y`, `y' = d x + (z - b) y`, and
+    `z' = c + a z - z³ / 3 - (x² + y²)(1 + e z) + f z x³`.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        z:
+            The initial height.
+
+        a:
+            The linear growth of the height.
+
+        b:
+            The height above which the rotation grows.
+
+        c:
+            The constant drive of the height.
+
+        d:
+            The angular frequency of the rotation.
+
+        e:
+            The coupling of the radius and the height.
+
+        f:
+            The term that breaks the rotational symmetry.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import LangfordElement
+        >>> LangfordElement('langford', d=3.0).d
+        3.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.1,
+        y: Annotated[object, StateSpec()] = 0.0,
+        z: Annotated[object, StateSpec()] = 0.0,
+        a: Annotated[object, ParameterSpec()] = 0.95,
+        b: Annotated[object, ParameterSpec()] = 0.7,
+        c: Annotated[object, ParameterSpec()] = 0.6,
+        d: Annotated[object, ParameterSpec()] = 3.5,
+        e: Annotated[object, ParameterSpec()] = 0.25,
+        f: Annotated[object, ParameterSpec()] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.a = a
+        self.b = b
+        self.c = c
+        self.d = d
+        self.e = e
+        self.f = f
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rates of the three coordinates.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
+        radius = s.x**2 + s.y**2
+        return [
+            RateLaw(s.x, (s.z - s.b) * s.x - s.d * s.y),
+            RateLaw(s.y, s.d * s.x + (s.z - s.b) * s.y),
+            RateLaw(s.z, s.c + s.a * s.z - s.z**3 / 3 - radius * (1 + s.e * s.z) + s.f * s.z * s.x**3),
+        ]
+
+
+class MixedFlowElement(Element):
+    """Sprott's flow `x' = y + 2xy + xz`, `y' = 1 - 2x² + yz`, `z' = x - x² - y²`, conservative and dissipative at once.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        z:
+            The initial third coordinate.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import MixedFlowElement
+        >>> MixedFlowElement('flow', x=2.0).x
+        2.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 1.0,
+        y: Annotated[object, StateSpec()] = 0.0,
+        z: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.z = z
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rates of the three coordinates.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
+        return [
+            RateLaw(s.x, s.y + 2 * s.x * s.y + s.x * s.z),
+            RateLaw(s.y, 1 - 2 * s.x**2 + s.y * s.z),
+            RateLaw(s.z, s.x - s.x**2 - s.y**2),
+        ]
+
+
+class NoseHooverElement(Element):
+    """Nosé-Hoover oscillator `x' = y`, `y' = y z - x`, `z' = 1 - y²`, a conservative flow with tori and chaos.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial position.
+
+        y:
+            The initial momentum.
+
+        z:
+            The initial friction of the thermostat.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import NoseHooverElement
+        >>> NoseHooverElement('oscillator', y=1.0).y
+        1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+        y: Annotated[object, StateSpec()] = 0.1,
+        z: Annotated[object, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.z = z
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rates of the position, the momentum, and the friction.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
+        return [RateLaw(s.x, s.y), RateLaw(s.y, s.y * s.z - s.x), RateLaw(s.z, 1 - s.y**2)]
+
+
+class ThomasElement(Element):
+    """Thomas flow `x' = -a x + sin y`, `y' = -a y + sin z`, `z' = -a z + sin x`, cyclically symmetric and damped.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        z:
+            The initial third coordinate.
+
+        a:
+            The damping of every coordinate.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import ThomasElement
+        >>> ThomasElement('thomas', a=0.2).a
+        0.2
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.1,
+        y: Annotated[object, StateSpec()] = 0.0,
+        z: Annotated[object, StateSpec()] = 0.0,
+        a: Annotated[object, ParameterSpec()] = 0.18,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.a = a
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rates of the three coordinates.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the element.
+        """
+        return [
+            RateLaw(s.x, -s.a * s.x + sin(s.y)),
+            RateLaw(s.y, -s.a * s.y + sin(s.z)),
+            RateLaw(s.z, -s.a * s.z + sin(s.x)),
+        ]
 
 
 @register_system(

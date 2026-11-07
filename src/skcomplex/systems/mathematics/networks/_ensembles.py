@@ -5,10 +5,14 @@
 
 from collections.abc import Sequence
 from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
 import numpy.typing as npt
+from sage.all__sagemath_symbolics import oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
 from ....core.components.elements import Element, GroupElement, LatticeElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
@@ -16,14 +20,125 @@ from ....core.components.laws.utils import components, maximum, mod, neighbors, 
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.system import System
 from ....core.errors import ValidationError
-from ....core.specs import LayerSpec
+from ....core.specs import LayerSpec, ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._dependent_node import DependentNodeElement
-from ._ensemble_node import EnsembleNodeElement
-from ._failing import FailingElement
-from ._link import LinkElement
-from ._network_node import NetworkNodeElement
-from ._vertex import DEGREE_VISUAL
+from ..common._link import LinkElement
+from ..common._network_node import NetworkNodeElement
+from ..common._regulated_node import ACTIVITY_VISUAL
+from ..common._vertex import DEGREE_VISUAL
+
+
+class DependentNodeElement(Element):
+    """Node of two interdependent networks, functional while it belongs to the giant component of both.
+
+    The node stands for a pair of nodes, one of each network, that depend on each other, so it fails when either of
+    them leaves the giant component of the functional nodes of its network.
+
+    Args:
+        label:
+            The label of the node group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        active:
+            Whether the node is functional, 1 or 0.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.networks import DependentNodeElement
+        >>> DependentNodeElement('nodes', active=0.0).active
+        0.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = ACTIVITY_VISUAL,
+        *,
+        active: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.active = active
+
+
+class EnsembleNodeElement(Element):
+    """Node of a random graph, with its degree and the probability that it adds an edge to a random node per step.
+
+    Args:
+        label:
+            The label of the node group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        degree:
+            The number of edges of the node, read at the start of every step.
+
+        rate:
+            The probability that the node adds an edge to a random node in a step.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.networks import EnsembleNodeElement
+        >>> EnsembleNodeElement('nodes', rate=0.1).rate
+        0.1
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = DEGREE_VISUAL,
+        *,
+        degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.degree = degree
+        self.rate = rate
+
+
+class FailingElement(Element):
+    """Node of a network under failures or attacks, with its degree and the parameters of its removal.
+
+    The removal of the system reads the parameters: every step a node fails with probability `rate` under random
+    failures, and under a targeted attack the nodes of the largest degree are removed, one degree class per step.
+
+    Args:
+        label:
+            The label of the node group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        degree:
+            The number of edges of the node, read at the start of every step.
+
+        rate:
+            The probability that a node fails in a step under random failures.
+
+        targeted:
+            1 for a targeted attack on the nodes of the largest degree and 0 for random failures.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.networks import FailingElement
+        >>> FailingElement('nodes', targeted=1).targeted
+        1
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = DEGREE_VISUAL,
+        *,
+        degree: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        rate: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+        targeted: Annotated[float, ParameterSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.degree = degree
+        self.rate = rate
+
+        self.targeted = targeted
+
 
 ENSEMBLES = ('erdos_renyi', 'watts_strogatz')
 
@@ -61,6 +176,54 @@ def _variable_network(
     )
     links = GroupElement('links', element=LinkElement, on='edges', variable=True, capacity=capacity)
     return [nodes, links]
+
+
+def _node_group(graph: nx.Graph) -> GroupElement:
+    """Return the group on the nodes of a static network with the degree and the clustering of every node."""
+    clustering = nx.clustering(graph)
+    nodes = list(graph.nodes())
+    return GroupElement(
+        'nodes',
+        element=NetworkNodeElement,
+        size=len(nodes),
+        values={
+            'degree': np.asarray([graph.degree(node) for node in nodes], dtype=float),
+            'clustering': np.asarray([clustering[node] for node in nodes], dtype=float),
+        },
+        location=nodes,
+    )
+
+
+def _matched_stubs(degrees: npt.NDArray[np.int64], rng: np.random.Generator) -> list[tuple[int, int]]:
+    """Return the links of a uniformly random pairing of the half-links of the nodes, with self-loops and multilinks."""
+    stubs = rng.permutation(np.repeat(np.arange(degrees.size), degrees))
+    return [(int(first), int(second)) for first, second in stubs.reshape(-1, 2)]
+
+
+def _simple(links: list[tuple[int, int]], rng: np.random.Generator) -> list[tuple[int, int]]:
+    """Return the links rewired until no self-loop or multilink is left, keeping every degree.
+
+    A self-loop or a repeated link and a link drawn at random are cut and their ends glued crosswise, as in the rewiring
+    of Thurner et al. (2018, section 4.5.1.1).
+    """
+    links = [(min(link), max(link)) for link in links]
+    for _ in range(100 * len(links)):
+        seen: set[tuple[int, int]] = set()
+        bad = []
+        for index, link in enumerate(links):
+            if link[0] == link[1] or link in seen:
+                bad.append(index)
+            seen.add(link)
+        if not bad:
+            return links
+        first = bad[int(rng.integers(len(bad)))]
+        second = int(rng.integers(len(links)))
+        (a, b), (c, d) = links[first], links[second]
+        crossed = [(min(a, c), max(a, c)), (min(b, d), max(b, d))]
+        if first != second and all(x != y and (x, y) not in seen for x, y in crossed):
+            links[first], links[second] = crossed[0], crossed[1]
+    error_msg = 'The degree sequence admits no simple graph reachable by rewiring. Give a sparser degree sequence.'
+    raise ValidationError(error_msg)
 
 
 @register_system(
@@ -200,22 +363,6 @@ def random_graph_ensembles(
     return System(elements=groups, interactions=[_get_degree(), rewiring], space=space, time=DiscreteTime())
 
 
-def _node_group(graph: nx.Graph) -> GroupElement:
-    """Return the group on the nodes of a static network with the degree and the clustering of every node."""
-    clustering = nx.clustering(graph)
-    nodes = list(graph.nodes())
-    return GroupElement(
-        'nodes',
-        element=NetworkNodeElement,
-        size=len(nodes),
-        values={
-            'degree': np.asarray([graph.degree(node) for node in nodes], dtype=float),
-            'clustering': np.asarray([clustering[node] for node in nodes], dtype=float),
-        },
-        location=nodes,
-    )
-
-
 @register_system(
     field='mathematics/networks',
     tags=('network', 'kronecker product', 'random graph', 'degree distribution'),
@@ -259,38 +406,6 @@ def kronecker_graph(
     second = nx.barabasi_albert_graph(20, 1, seed=int(rng.integers(2**31))) if second is None else second
     graph = nx.convert_node_labels_to_integers(nx.tensor_product(first, second), label_attribute='pair')
     return System(elements=[_node_group(graph)], space=NetworkSpace(graph))
-
-
-def _matched_stubs(degrees: npt.NDArray[np.int64], rng: np.random.Generator) -> list[tuple[int, int]]:
-    """Return the links of a uniformly random pairing of the half-links of the nodes, with self-loops and multilinks."""
-    stubs = rng.permutation(np.repeat(np.arange(degrees.size), degrees))
-    return [(int(first), int(second)) for first, second in stubs.reshape(-1, 2)]
-
-
-def _simple(links: list[tuple[int, int]], rng: np.random.Generator) -> list[tuple[int, int]]:
-    """Return the links rewired until no self-loop or multilink is left, keeping every degree.
-
-    A self-loop or a repeated link and a link drawn at random are cut and their ends glued crosswise, as in the rewiring
-    of Thurner et al. (2018, section 4.5.1.1).
-    """
-    links = [(min(link), max(link)) for link in links]
-    for _ in range(100 * len(links)):
-        seen: set[tuple[int, int]] = set()
-        bad = []
-        for index, link in enumerate(links):
-            if link[0] == link[1] or link in seen:
-                bad.append(index)
-            seen.add(link)
-        if not bad:
-            return links
-        first = bad[int(rng.integers(len(bad)))]
-        second = int(rng.integers(len(links)))
-        (a, b), (c, d) = links[first], links[second]
-        crossed = [(min(a, c), max(a, c)), (min(b, d), max(b, d))]
-        if first != second and all(x != y and (x, y) not in seen for x, y in crossed):
-            links[first], links[second] = crossed[0], crossed[1]
-    error_msg = 'The degree sequence admits no simple graph reachable by rewiring. Give a sparser degree sequence.'
-    raise ValidationError(error_msg)
 
 
 @register_system(

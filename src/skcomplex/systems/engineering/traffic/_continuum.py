@@ -4,21 +4,179 @@
 # License: MIT
 
 from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
-from sage.all__sagemath_symbolics import Expression, erf, exp, pi, sqrt, tanh
+from sage.all__sagemath_symbolics import Expression, erf, exp, oo, pi, sqrt, tanh
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import FieldElement
+from ....core.components.elements import Element, FieldElement
 from ....core.components.interactions import ConservationInteraction, RateInteraction, RelaxationInteraction
 from ....core.components.laws.utils import laplacian, shifted
 from ....core.components.spaces import LatticeSpace
 from ....core.components.system import System
 from ....core.engine.solvers import SSPRKSolver
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._gas_kinetic_traffic import GasKineticTrafficElement
-from ._kerner_konhauser import KernerKonhauserElement
-from ._lighthill_whitham_richards import LighthillWhithamRichardsElement
-from ._payne import PayneElement
+
+
+class GasKineticTrafficElement(Element):
+    """Cell of a road with the traffic density `rho` and the flow `Q` of the gas-kinetic-based traffic system.
+
+    The density and the flow are conserved by conservation interactions, and the flow relaxes to a dynamic equilibrium
+    speed that brakes on the density and the speed read ahead at the interaction point. Lengths are in kilometres and
+    times in hours, so `T` and `tau` are fractions of an hour.
+
+    Args:
+        label:
+            The label of the cell or the road.
+
+        visual:
+            How the cell is drawn, or `None` for `default_visual_`.
+
+        rho:
+            The initial density in vehicles per kilometre.
+
+        Q:
+            The initial flow in vehicles per hour.
+
+        V0:
+            The desired speed.
+
+        T:
+            The safe time headway.
+
+        tau:
+            The relaxation time of the speed.
+
+        rho_max:
+            The maximum density.
+
+        gamma:
+            The anticipation factor, the interaction distance in units of the safe distance `1 / rho_max + T V`.
+
+        A0:
+            The variance prefactor of free traffic.
+
+        dA:
+            The increase of the variance prefactor from free to congested traffic, halved.
+
+        rho_c:
+            The density of the transition of the variance prefactor.
+
+        d_rho:
+            The width of the transition of the variance prefactor.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.traffic import GasKineticTrafficElement
+        >>> GasKineticTrafficElement('cell').gamma
+        1.2
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        rho: Annotated[float, StateSpec(domain=RealSet.open(0, oo))] = 20.0,
+        Q: Annotated[float, StateSpec()] = 1800.0,
+        V0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 110.0,
+        T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.8 / 3600,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 35 / 3600,
+        rho_max: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 160.0,
+        gamma: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.2,
+        A0: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.008,
+        dA: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
+        rho_c: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.27 * 160,
+        d_rho: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.05 * 160,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.rho = rho
+        self.Q = Q
+        self.V0 = V0
+        self.T = T
+        self.tau = tau
+        self.rho_max = rho_max
+        self.gamma = gamma
+        self.A0 = A0
+        self.dA = dA
+        self.rho_c = rho_c
+        self.d_rho = d_rho
+
+
+class KernerKonhauserElement(Element):
+    """Cell of a road with the traffic density `rho` and the flow `q` of the Kerner-Konhäuser system.
+
+    The density and the flow are conserved by conservation interactions, the flow relaxes to the equilibrium flow by a
+    relaxation interaction, and the viscosity adds the rate `mu laplacian(q / rho)` to the flow.
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        q: Annotated[object, StateSpec()] = 0.21,
+        V0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        tau: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        c0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.3,
+        mu: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.rho = rho
+        self.q = q
+        self.V0 = V0
+        self.rho_max = rho_max
+        self.tau = tau
+        self.c0 = c0
+        self.mu = mu
+
+
+class LighthillWhithamRichardsElement(Element):
+    """Cell of a road with the traffic density `rho`, the free speed `vmax`, and the jam density `rho_max`."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        vmax: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.rho = rho
+        self.vmax = vmax
+        self.rho_max = rho_max
+
+
+class PayneElement(Element):
+    """Cell of a road with the traffic density `rho` and the flow `q` of the Payne system.
+
+    The density and the flow are conserved by conservation interactions, and the flow relaxes to the Greenshields flow
+    by a relaxation interaction.
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        rho: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        q: Annotated[object, StateSpec()] = 0.21,
+        vmax: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        rho_max: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        tau: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.rho = rho
+        self.q = q
+        self.vmax = vmax
+        self.rho_max = rho_max
+        self.tau = tau
+
 
 KERNER_KONHAUSER_OFFSET = 3.72e-6
 

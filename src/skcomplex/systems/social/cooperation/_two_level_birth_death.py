@@ -14,11 +14,17 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.system import System
-from ....core.engine.solvers import SystemView
+from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._catalog import register_system
-from ._punisher_group_view import PunisherGroupView
+
+
+class PunisherGroupView(AgentView):
+    """View of a group of the two-level birth-death process, with its states as attributes."""
+
+    punishers: float
+
 
 PAIR = 2
 

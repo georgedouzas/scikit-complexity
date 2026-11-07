@@ -3,16 +3,126 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import numpy as np
+from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
-from ....core.components.elements import GroupElement
+import numpy as np
+from sage.all__sagemath_symbolics import exp
+
+from ....core.components.base import BasePart
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import Interaction
+from ....core.components.laws import EquationLaw
+from ....core.components.laws.utils import log_sum_exp
 from ....core.components.spaces import StaticTime
 from ....core.components.system import System
-from ....core.specs import VisualSpec
+from ....core.specs import RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._language import LanguageElement
-from ._least_effort import LeastEffortInteraction
-from ._word import WordElement
+
+
+class LanguageElement(Element):
+    """Language with the exponent `lambda` of its word frequencies.
+
+    Args:
+        label:
+            The label of the language.
+
+        exponent:
+            The initial guess of the exponent, from which it is solved.
+
+    Examples:
+        >>> from skcomplex.systems.social.language import LanguageElement
+        >>> LanguageElement('language').exponent
+        1.0
+    """
+
+    def __init__(self, label: str, exponent: Annotated[float, StateSpec()] = 1.0) -> None:
+        super().__init__(label)
+        self.exponent = exponent
+
+
+class WordElement(Element):
+    """Word with a quenched cost and the probability of its use.
+
+    Args:
+        label:
+            The label of the word or the group.
+
+        cost:
+            The cost of the word.
+
+        probability:
+            The initial guess of the probability, which the equation replaces.
+
+    Examples:
+        >>> from skcomplex.systems.social.language import WordElement
+        >>> WordElement('word', cost=1.0).cost
+        1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        cost: Annotated[float, StateSpec()] = 1.0,
+        probability: Annotated[float, StateSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.cost = cost
+        self.probability = probability
+
+
+class LeastEffortInteraction(Interaction):
+    """Probabilities of words that minimise the ratio of the mean cost `C` to the entropy `H`.
+
+    The probabilities that are stationary for `C / H` on the simplex are `p_i = exp(-lambda c_i) / Z`, for which
+    `H = lambda C + ln Z`. The ratio is stationary in `lambda` where `H = lambda C`, that is where `ln Z = 0`, which
+    solves the exponent. The sum reduces in log space.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the element that holds `exponent`.
+
+        words:
+            The path of the group of words, which hold `cost` and `probability`.
+
+    Examples:
+        >>> from skcomplex.systems.social.language import LeastEffortInteraction
+        >>> LeastEffortInteraction('effort', target='language', words='words').words
+        'words'
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        words: Annotated[str, RoleSpec()],
+    ) -> None:
+        super().__init__(label)
+        self.target = target
+        self.words = words
+
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+        """Return the equations of the exponent and of the probabilities.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The stationarity of the ratio and the probability of a word.
+        """
+        weight = -s.target.exponent * s.words.cost
+        log_partition = log_sum_exp(weight, over=s.words)
+        return [
+            EquationLaw(log_partition == 0, target=s.target.exponent),
+            EquationLaw(s.words.probability == exp(weight - log_partition), target=s.words.probability),
+        ]
 
 
 @register_system(

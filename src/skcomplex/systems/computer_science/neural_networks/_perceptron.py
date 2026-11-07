@@ -3,16 +3,39 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import numpy as np
+from typing import Annotated
 
-from ....core.components.elements import GroupElement
+import numpy as np
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import SatisfiabilityInteraction
 from ....core.components.spaces import DiscreteTime
 from ....core.components.system import System
 from ....core.errors import ValidationError
-from ....core.specs import CardinalitySpec
+from ....core.specs import CardinalitySpec, StateSpec
 from ..._catalog import register_system
-from ._binary_weight import BinaryWeightElement
+
+
+class BinaryWeightElement(Element):
+    """Weight of a binary perceptron, where the state 1 stands for `+1` and the state 0 for `-1`.
+
+    Args:
+        label:
+            The label of the weight or the group.
+
+        on:
+            Whether the weight is `+1`.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.neural_networks import BinaryWeightElement
+        >>> BinaryWeightElement('weight', on=1.0).on
+        1.0
+    """
+
+    def __init__(self, label: str, on: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0) -> None:
+        super().__init__(label)
+        self.on = on
 
 
 @register_system(

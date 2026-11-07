@@ -4,22 +4,249 @@
 # License: MIT
 
 from collections.abc import Sequence
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
+from sage.all__sagemath_symbolics import NN, oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement, LatticeElement
-from ....core.components.interactions import LocalRuleInteraction
+from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.interactions import LocalRuleInteraction, MapInteraction
 from ....core.components.spaces import LatticeSpace, MooreNeighborhood, NetworkSpace
 from ....core.components.system import System
-from ....core.specs import TotalisticSpec
+from ....core.components.types import SystemViewProtocol
+from ....core.engine.solvers import AgentView
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, TotalisticSpec, VisualSpec
 from ....core.types import Array
 from ..._catalog import register_system
-from ._majority_voter import MajorityVoterElement
-from ._variant_voter import VariantVoterElement
-from ._variant_voting import VariantVotingInteraction
-from ._voter import VoterElement
-from ._voter_imitation import VoterImitationInteraction
+
+
+class MajorityVoterElement(Element):
+    """Cell that takes the majority opinion of its Moore neighbourhood, itself included.
+
+    The majority rule is a `LocalRuleInteraction` of the lattice, which `majority_rule` adds.
+
+    Args:
+        label:
+            The label of the cell or the lattice group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
+        opinion:
+            The initial opinion, 0 or 1.
+
+    Examples:
+        >>> from skcomplex.systems.social.opinion_dynamics import MajorityVoterElement
+        >>> MajorityVoterElement('cell', opinion=1).opinion
+        1
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        opinion: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.opinion = opinion
+
+
+class VariantVoterView(AgentView):
+    """View of an agent of the voter system variants, with its states and parameters as attributes."""
+
+    opinion: float
+    contrarian: float
+    threshold: float
+
+
+class VariantVoterElement(Element):
+    """Agent of the voter system variants: an imitator, a threshold voter, or a contrarian.
+
+    With a threshold of 0 the voting copies a random neighbour into the agent, as in the voter system. With a positive
+    threshold it gives the agent the opinion opposite to its own when the share of neighbours that hold it exceeds the
+    threshold, so a threshold of 0.5 gives the majority rule. A contrarian adopts the opposite of what it would
+    otherwise adopt.
+
+    Args:
+        label:
+            The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
+        opinion:
+            The initial opinion, 0 or 1.
+
+        contrarian:
+            Whether the agent is a contrarian, 1, or not, 0.
+
+        threshold:
+            The share of disagreeing neighbours above which the agent changes its opinion, or 0 to copy a random
+            neighbour.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.systems.social.opinion_dynamics import VariantVoterElement
+        >>> group = GroupElement('voters', element=VariantVoterElement, size=10, values={'threshold': 0.5})
+        >>> group.label, group.element.__name__, group.size
+        ('voters', 'VariantVoterElement', 10)
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)}),
+        *,
+        opinion: Annotated[float, StateSpec(domain=NN)] = 0.0,
+        contrarian: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1]))] = 0.0,
+        threshold: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.opinion = opinion
+        self.contrarian = contrarian
+        self.threshold = threshold
+
+    @classmethod
+    def _get_view(cls) -> type[VariantVoterView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return VariantVoterView
+
+
+class VoterView(AgentView):
+    """View of an agent of the voter system, with its states and parameters as attributes."""
+
+    opinion: float
+
+
+class VoterElement(Element):
+    """Agent of the voter system, whose opinion the imitation sets to that of a random neighbour on a network.
+
+    Args:
+        label:
+            The label of the agent or group.
+
+        visual:
+            How the agent is drawn, or `None` for `default_visual_`.
+
+        opinion:
+            The initial opinion, 0 or 1.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.systems.social.opinion_dynamics import VoterElement
+        >>> group = GroupElement('voters', element=VoterElement, size=20, values={'opinion': 1.0})
+        >>> group.label, group.element.__name__, group.size
+        ('voters', 'VoterElement', 20)
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'opinion', 'color_range': (0.0, 1.0)}),
+        *,
+        opinion: Annotated[float, StateSpec(domain=NN)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.opinion = opinion
+
+    @classmethod
+    def _get_view(cls) -> type[VoterView]:
+        """Return the class of the views of the agents, whose attributes are the states and parameters."""
+        return VoterView
+
+
+class VariantVotingInteraction(MapInteraction):
+    """Voting of the voter system variants, where every voter in turn takes the opinion of its variant.
+
+    A voter of threshold 0 copies a random neighbour. A voter of positive threshold adopts the opinion opposite to its
+    own when the share of neighbours that hold it exceeds the threshold. A contrarian adopts the opposite of what it
+    would otherwise adopt. The voters update one after the other in a new random order every step, each reading the
+    opinions the voters before it set, and a voter without a neighbouring voter keeps its opinion.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of voters.
+
+    Examples:
+        >>> from skcomplex.systems.social.opinion_dynamics import VariantVotingInteraction
+        >>> VariantVotingInteraction('voting', target='voters').schedule
+        'random-sequential'
+    """
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
+        super().__init__(
+            label,
+            target=target,
+            state='opinion',
+            function=self._get_opinion,
+            schedule='random-sequential',
+            form='agent',
+        )
+
+    def _get_choice(
+        self,
+        agent: VariantVoterView,
+        neighbors: list[VariantVoterView],
+        system: SystemViewProtocol,
+    ) -> float:
+        """Return the opinion a voter that conforms would take."""
+        if agent.threshold <= 0:
+            return float(neighbors[int(system.rng.integers(len(neighbors)))].opinion)
+        disagreeing = sum(neighbor.opinion != agent.opinion for neighbor in neighbors) / len(neighbors)
+        return float(1 - agent.opinion) if disagreeing > agent.threshold else float(agent.opinion)
+
+    def _get_opinion(self, agent: VariantVoterView, system: SystemViewProtocol) -> float:
+        """Return the opinion of the voter's variant, inverted for a contrarian."""
+        neighbors = [item for item in agent.neighbors() if isinstance(item, VariantVoterView)]
+        if not neighbors:
+            return float(agent.opinion)
+        choice = self._get_choice(agent, neighbors, system)
+        return 1 - choice if agent.contrarian else choice
+
+
+class VoterImitationInteraction(MapInteraction):
+    """Imitation of the voter system, where every voter in turn adopts the opinion of a random neighbour.
+
+    The voters update one after the other in a new random order every step, each reading the opinions the voters before
+    it set. A voter without a neighbouring voter keeps its opinion.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of voters.
+
+    Examples:
+        >>> from skcomplex.systems.social.opinion_dynamics import VoterImitationInteraction
+        >>> VoterImitationInteraction('imitation', target='voters').schedule
+        'random-sequential'
+    """
+
+    def __init__(self, label: str, *, target: Annotated[str, RoleSpec()]) -> None:
+        super().__init__(
+            label,
+            target=target,
+            state='opinion',
+            function=self._get_opinion,
+            schedule='random-sequential',
+            form='agent',
+        )
+
+    def _get_opinion(self, agent: VoterView, system: SystemViewProtocol) -> float:
+        """Return the opinion of a random neighbouring voter, or the voter's own without one."""
+        neighbors = [item for item in agent.neighbors() if isinstance(item, VoterView)]
+        if not neighbors:
+            return float(agent.opinion)
+        return float(neighbors[int(system.rng.integers(len(neighbors)))].opinion)
+
 
 MAJORITY = 5
 

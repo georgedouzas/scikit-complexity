@@ -5,6 +5,26 @@ modules for its elements, interactions, and views. A census on 2026-11-07 found 
 970 component modules: 784 serve one system, 39 serve several systems of one subfield, and 147 serve other components
 or nothing. Six fields have a `common` package with 59 modules.
 
+The census of the folding script, run on `development` once the open systems changes merged, follows imports through
+chains of components, so a component reached only through other components counts for the system that reaches it:
+
+| Private modules of the subfields | Count |
+| --- | --- |
+| Register at least one system | 408 |
+| Serve one system | 856 |
+| Serve several systems of one subfield | 45 |
+| Serve no system | 6 |
+
+| Modules of the `common` packages | Count |
+| --- | --- |
+| Serve systems of several subfields | 29 |
+| Serve several systems of one subfield | 8 |
+| Serve one system | 15 |
+| Serve no system | 5 |
+
+No component serves systems of two subfields outside `common`. One module imports across fields:
+`physics.synchronization._chaos` imports the Lorenz element of `mathematics.common.flows`.
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -45,6 +65,104 @@ or nothing. Six fields have a `common` package with 59 modules.
   per file.
 - **Lost history of moved code:** `git log --follow` does not follow a class into another file. The commit messages
   name the folded modules.
+
+## Economics
+
+- **Moved to `economics.common`:** `AssetElement` and `GeometricBrownianMotionInteraction`, which
+  `geometric_brownian_motion` and `correlated_geometric_brownian_motion` of finance use in the same way,
+  `BalanceSheetElement` with its view and status constants, which `default_cascade`, `eisenberg_noe_clearing`, and
+  `overlapping_portfolio_fire_sales` of finance share, and `ExchangeInteraction` with `cobb_douglas`, `marginal_rate`,
+  and `trade_goods`, which `barter` and `goods_traders` of markets share. Each keeps its own module directly in
+  `common`, and finance and markets still export these names.
+- **Kept in `common`:** the `forecasting` and `resources` packages, since several subfields use them.
+- **Copies:** none.
+- **Cross-field duplicates:** none in economics.
+
+## Social
+
+- **Shared modules kept in their subfield**, since social has no `common` package: `cooperation._contributor`, the
+  player of the public goods game that `public_goods_game` and `hypergraph_public_goods` use in the same way, and
+  whose docstring already names both, and `opinion_dynamics._random_pairs`, the base grouping that the encounters of
+  `deffuant` and the naming games of `naming_game` subclass, with its own test module. A copy of either would be two
+  identical classes, and for the base grouping two base classes.
+- **Copies:** none.
+- **Cross-field duplicates:** `_random_cells` of `social.opinion_dynamics._voters` has the same source as the
+  `_random_cells` helpers of `computer_science.automata._automata` and `computer_science.automata._variants`, a random
+  binary grid with a given density. It is a candidate for the core.
+
+## Mathematics
+
+- **Moved to `mathematics.common`:** `NetworkNodeElement`, which `network_structure_analysis` and the ensembles of
+  networks use in the same way, `RegulatedNodeElement` of `triadic_percolation`, whose activity visual the
+  dependent nodes of `interdependent_network_cascade` reuse, `VertexElement` with its visual, which the growing networks, the ensembles,
+  and the hypergraphs share, and `LinkElement`, which the same systems and `motter_lai_overload` share. Each keeps its
+  own module directly in `common`. `RosslerElement`, which `rossler` uses and `DrivenRosslerElement` of
+  `ou_driven_rossler` subclasses, moved beside `LorenzElement` in `common.flows`, the existing package of shared flows.
+  Networks and dynamical systems still export these names.
+- **Kept in `common`:** `common.flows` with `LorenzElement`, which `lorenz` and `fractional_lorenz` use.
+- **Kept as a shared helper in a system module:** `_get_bookkeeping` of `networks._growth`, the ageing and degree maps
+  that the growing simplicial complex of `networks._hypergraphs` reuses, as before.
+- **Copies:** none.
+- **Cross-field imports:** `physics.synchronization._chaos` imports `LorenzElement` from `mathematics.common.flows`.
+  It is left for the folding of physics, which copies it into physics.
+- **Cross-field duplicates:** none in mathematics.
+
+## Engineering
+
+- **Moved to `engineering.common`:** `CarElement` and `OptimalVelocityInteraction`, which `optimal_velocity` of
+  `traffic._car_following` and `langevin_traffic` of `traffic._langevin` use in the same way, the second also reading
+  the headway helper of the interaction. Each keeps its own module directly in `common`, which now exports both.
+- **Kept in `common`:** the `electrical` and `mechanics` packages, since several subfields use them. The capacitor,
+  Chua diode, current source, diode, and operational amplifier of `electrical._components` serve no system, but they
+  share one module with components that several systems use, so they stay with their tests.
+- **Copies:** none.
+- **Cross-field duplicates:** none in engineering.
+
+## Computer science
+
+- **Shared modules kept in their subfield**, since computer science has no `common` package: in `automata`,
+  `_binary_cell`, the cell of most automata, `_codes`, the `Wolfram` and `life` rule codes, `_groups`, the Cayley balls
+  of the group automata, and `_pascal_cell`, which `unbounded_alphabet_automaton` of `_variants` and
+  `subtraction_automaton` of `_alphabets` use in the same way. Each is a public name of the package, so a copy would be
+  two identical public classes or functions under one name.
+- **Copies:** none.
+- **Cross-field duplicates:** `_random_cells` of `computer_science.automata._automata` and `._variants` has the same
+  source as the one of `social.opinion_dynamics._voters`, a random binary grid with a given density, and
+  `_group_automata` and `_line_automata` hold a one-dimensional variant of it. It is a candidate for the core.
+
+## Chemistry
+
+- **Kept in `common`:** the `kinetics` package, whose `BrusselatorReactionElement` and `CubicAutocatalysisInteraction`
+  serve both `kinetics` and `pattern_formation`.
+- **Copies:** none.
+- **Cross-field duplicates:** `_noise` of `chemistry.pattern_formation._reaction_diffusion` has the same source as the
+  one of `physics.pattern_formation._patterns`, small uniform noise of a given shape. It is a candidate for the core.
+
+## Biology
+
+- **Folded.** 252 component modules folded into the 85 system modules that alone use them.
+- **Moved to `common`.** Components that several systems of one subfield share moved into the existing packages of
+  `skcomplex.systems.biology.common`, and their subfields re-export them under the same names:
+  `PredationInteraction` and `ReplicatorInteraction` to `populations`, `ThetaNeuronElement` and
+  `SpikeResetInteraction` to `excitable`, `SpeciesElement` and `RepressionInteraction` to `kinetics`, and
+  `HostElement`, `SpreadingInteraction`, `BooleanNodeElement`, and `BooleanFunctionInteraction` to `networks`.
+- **Moved out of `common`.** `GompertzGrowthInteraction` and `PowerLawGrowthInteraction` served only the growth laws of
+  oncology, so they moved into `oncology._growth`. `skcomplex.systems.biology.oncology` now exports them, and
+  `common.populations` no longer does.
+- **Kept as shared subfield modules.** The molecular structures of systems biology (`_structure_spec`, `_structures`,
+  and `_backbone_geometry`) serve the fuzzy oil drop and the early-stage folding intermediate. In `common` they would
+  have to be modules directly in the package, and importing any shared biology component would then load Biopython
+  and MDTraj. `oncology._tumour_immune_chemotherapy` holds the element of the de Pillis and Radunskaya model, which its
+  chemotherapy and its optimal therapy share, and is too specific to that one model for `common`.
+- **Copies.** None.
+- **Cross-field duplicates, candidates for the core.** No class or function has identical source in biology and
+  another field. Ignoring names and docstrings, two bodies match: `CatalyticLinkElement` of `evolution._networks`
+  equals `LinkElement` of `mathematics.networks`, `TieElement` of `social.opinion_dynamics`, and `SupervisorElement`
+  of `social.organizations`, an element of an edge without states. `activity_grid` of `oncology._immune_competition`
+  equals `wealth_classes` of `economics.econophysics` and `criminality_grid` of `social.crowds`, evenly spaced classes
+  on the unit interval.
+- **Left.** `common.metabolism._analyses`, `common.metabolism._community`, and `evolution._neutral_network_analysis`
+  are analyses that no system imports, so they stay where they are.
 
 ## Physics
 

@@ -1,6 +1,9 @@
 """Automata: elementary, life-like, noisy, and group automata, automata over infinite alphabets, and subshifts."""
 
 from ._alphabets import (
+    GroupCellElement,
+    PowerSeriesCellElement,
+    RealCellElement,
     group_difference_automaton,
     power_series_automaton,
     real_quadratic_automaton,
@@ -10,13 +13,11 @@ from ._alphabets import (
 from ._automata import AntCellElement, elementary_automaton, game_of_life, langtons_ant
 from ._binary_cell import BinaryCellElement
 from ._codes import Wolfram, life
-from ._diffusion_cell import DiffusionCellElement
-from ._digit_cell import DigitCellElement
 from ._dna_computation import LigationInteraction, StrandElement, dna_computation
 from ._fredkin_replicator import fredkin_replicator
-from ._free_group_automata import life_in_a_tree, muller_automaton, surjective_linear_automaton
-from ._golden_cell import GoldenCellElement
+from ._free_group_automata import PairCellElement, life_in_a_tree, muller_automaton, surjective_linear_automaton
 from ._group_automata import (
+    GoldenCellElement,
     LaplacianCellElement,
     baumslag_solitar_automaton,
     free_group_automaton,
@@ -26,21 +27,24 @@ from ._group_automata import (
     linear_ring_automaton,
     subshifts,
 )
-from ._group_cell import GroupCellElement
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter
 from ._lenia import LeniaSiteElement, LeniaUpdateInteraction, lenia
 from ._line_automata import involutive_automaton, nilpotent_automaton
-from ._morse_word import MorseElement
-from ._noisy_elementary_cell import NoisyElementaryCellElement
-from ._pair_cell import PairCellElement
 from ._pascal_cell import PascalCellElement
-from ._power_series_cell import PowerSeriesCellElement
-from ._real_cell import RealCellElement
-from ._shift_spaces import adding_machine, context_free_subshift, gap_subshift, morse_subshift
+from ._shift_spaces import (
+    DigitCellElement,
+    MorseElement,
+    TernaryCellElement,
+    adding_machine,
+    context_free_subshift,
+    gap_subshift,
+    morse_subshift,
+)
 from ._small_world_life import small_world_life
-from ._ternary_cell import TernaryCellElement
 from ._turing_machine import TapeCellElement, turing_machine
 from ._variants import (
+    DiffusionCellElement,
+    NoisyElementaryCellElement,
     diffusion_automaton,
     highlife,
     noisy_automata,

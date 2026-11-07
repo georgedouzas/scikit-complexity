@@ -5,6 +5,7 @@ import pytest
 
 from skcomplex.systems.social.opinion_dynamics import (
     cognitive_consistency,
+    settle,
 )
 
 from ..conftest import _run, _values
@@ -18,3 +19,12 @@ def test_cognitive_consistency_agrees_with_the_majority(positive, sign):
     assert np.sign(valences[:, 1]).tolist() == [sign] * len(valences)
     assert valences.std(axis=0).max() < 0.05
     assert np.abs(valences).max() <= 1
+
+
+def test_settling_lowers_the_energy():
+    """Test that settling the belief network does not raise its energy and keeps valences in range."""
+    coherence = np.array([[0.0, 0.05, 0.0], [0.05, 0.0, -0.05], [0.0, -0.05, 0.0]])
+    start = np.array([0.0, 0.5, 0.5])
+    settled = settle(start)
+    assert -settled @ coherence @ settled <= -start @ coherence @ start
+    assert np.abs(settled).max() <= 1

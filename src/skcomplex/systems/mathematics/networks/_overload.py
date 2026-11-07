@@ -4,19 +4,63 @@
 # License: MIT
 
 from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MapInteraction, TopologyInteraction
 from ....core.components.laws.utils import components, shortest_paths
 from ....core.components.spaces import DiscreteTime, NetworkSpace
 from ....core.components.system import System
 from ....core.errors import ValidationError
+from ....core.specs import StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._link import LinkElement
-from ._loaded_node import LoadedNodeElement
+from ..common._link import LinkElement
+
+
+class LoadedNodeElement(Element):
+    """Node of a network that carries a load, the shortest paths through it, and fails above its capacity.
+
+    Args:
+        label:
+            The label of the node group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        load:
+            The betweenness of the node on the network present, read at the start of every step.
+
+        capacity:
+            The largest load the node carries, a negative value for a node that fails at the first step.
+
+        giant:
+            The number of nodes of the largest connected component, the same for every node.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.networks import LoadedNodeElement
+        >>> LoadedNodeElement('nodes', capacity=12.0).capacity
+        12.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        load: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        capacity: Annotated[float, StateSpec()] = 0.0,
+        giant: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.load = load
+        self.capacity = capacity
+        self.giant = giant
+
 
 ATTACKS = ('load', 'degree', 'random')
 

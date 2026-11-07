@@ -7,8 +7,8 @@ from ....core.components.system import System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import WienerProcessSpec
 from ..._catalog import register_system
-from ._asset import AssetElement
-from ._geometric_brownian_motion import GeometricBrownianMotionInteraction
+from ..common._asset import AssetElement
+from ..common._geometric_brownian_motion import GeometricBrownianMotionInteraction
 
 
 @register_system(

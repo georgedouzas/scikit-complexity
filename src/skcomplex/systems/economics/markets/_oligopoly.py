@@ -3,20 +3,292 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-import numpy as np
+from collections.abc import Sequence
+from dataclasses import dataclass
+from types import SimpleNamespace
+from typing import Annotated, cast
 
-from ....core.components.elements import GroupElement
+import numpy as np
+import numpy.typing as npt
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
+
+from ....core.components.base import BasePart
+from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import ChoiceInteraction, ReinforcementInteraction
+from ....core.components.laws import EquationLaw
 from ....core.components.spaces import DiscreteTime, StaticTime
 from ....core.components.system import System
+from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
-from ....core.specs import ObservableSpec, PhaseSpec, PhasesScheduleSpec
+from ....core.specs import BaseSpec, ObservableSpec, ParameterSpec, PhaseSpec, PhasesScheduleSpec, StateSpec
 from ....core.types import Array
 from ..._catalog import register_system
-from ._cournot_best_response import CournotBestResponseElement
-from ._price_point import PricePointElement
-from ._pricing_firm import PricingFirmElement
-from ._pricing_game_spec import PricingGameSpec
+
+
+class CournotBestResponseElement(Element):
+    """Quantities of two firms at the best responses of a Cournot game, where each firm holds a share of the other.
+
+    The conditions are `alpha - 2 q_i - q_j = c_i / (1 + lambda_i)` and its mirror (Forrest 2018 Eq. 21.5), whose
+    solution is `q_i = (alpha - 2 c_i / (1 + lambda_i) + c_j / (1 + lambda_j)) / 3` (Eq. 21.6).
+
+    Args:
+        label:
+            The label of the element.
+
+        q_i:
+            The initial guess of the quantity of the first firm, which the equations replace.
+
+        q_j:
+            The initial guess of the quantity of the second firm, which the equations replace.
+
+        demand:
+            The intercept `alpha` of the inverse demand.
+
+        c_i:
+            The unit cost of the first firm.
+
+        c_j:
+            The unit cost of the second firm.
+
+        lambda_i:
+            The cross holding of the first firm.
+
+        lambda_j:
+            The cross holding of the second firm.
+
+    Examples:
+        >>> from skcomplex.systems.economics.markets import CournotBestResponseElement
+        >>> CournotBestResponseElement('duopoly', demand=8.0).demand
+        8.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        q_i: Annotated[float, StateSpec()] = 0.0,
+        q_j: Annotated[float, StateSpec()] = 0.0,
+        demand: Annotated[float, ParameterSpec()] = 10.0,
+        c_i: Annotated[float, ParameterSpec()] = 1.0,
+        c_j: Annotated[float, ParameterSpec()] = 2.0,
+        lambda_i: Annotated[float, ParameterSpec()] = 0.0,
+        lambda_j: Annotated[float, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.q_i = q_i
+        self.q_j = q_j
+        self.demand = demand
+        self.c_i = c_i
+        self.c_j = c_j
+        self.lambda_i = lambda_i
+        self.lambda_j = lambda_j
+
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+        """Return the two conditions of the best responses.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The equations of the two quantities.
+        """
+        return [
+            EquationLaw(s.demand - 2 * s.q_i - s.q_j == s.c_i / (1 + s.lambda_i), target=s.q_i),
+            EquationLaw(s.demand - 2 * s.q_j - s.q_i == s.c_j / (1 + s.lambda_j), target=s.q_j),
+        ]
+
+
+class PricePointElement(Element):
+    """Equilibrium distribution of prices at one price, which makes a firm indifferent among its prices.
+
+    A firm that charges `P` sells to its loyal share `alpha`, and to the switchers `beta` when it undercuts all its
+    `m - 1` rivals, each with the probability `1 - F(P)`, for the expected profit `P (alpha + beta (1 - F)^(m - 1))`.
+    In equilibrium every price gives the profit `alpha` of selling to the loyal share at the highest price 1, which
+    `F(P) = 1 - (alpha (1 - P) / (beta P))^(1 / (m - 1))` solves (Forrest 2018 Lemma 20.1).
+
+    Args:
+        label:
+            The label of the point or the group.
+
+        distribution:
+            The initial guess of `F(P)`, which the equations replace.
+
+        price:
+            The price `P`.
+
+        alpha:
+            The loyal share of every firm.
+
+        beta:
+            The share of switchers.
+
+        n_firms:
+            The number of firms `m`.
+
+    Examples:
+        >>> from skcomplex.systems.economics.markets import PricePointElement
+        >>> PricePointElement('point', price=0.5).price
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        distribution: Annotated[float, StateSpec()] = 0.5,
+        price: Annotated[float, StateSpec(domain=RealSet.open_closed(0, 1))] = 1.0,
+        alpha: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.25,
+        beta: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        n_firms: Annotated[float, ParameterSpec(domain=RealSet.closed_open(2, oo))] = 2.0,
+    ) -> None:
+        super().__init__(label)
+        self.distribution = distribution
+        self.price = price
+        self.alpha = alpha
+        self.beta = beta
+        self.n_firms = n_firms
+
+    @staticmethod
+    def get_profit(member: SimpleNamespace) -> Expression:
+        """Return the expected profit of a firm at the price of a member, for the observables of a run.
+
+        Args:
+            member:
+                The namespace of the states and parameters of the member.
+
+        Returns:
+            profit:
+                The expected profit `P (alpha + beta (1 - F)^(m - 1))`.
+        """
+        return member.price * (member.alpha + member.beta * (1 - member.distribution) ** (member.n_firms - 1))
+
+    def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
+        """Return the equation of the distribution.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The equation of the distribution.
+        """
+        distribution = 1 - (s.alpha * (1 - s.price) / (s.beta * s.price)) ** (1 / (s.n_firms - 1))
+        return [EquationLaw(s.distribution == distribution, target=s.distribution)]
+
+
+class PricingFirmView(AgentView):
+    """View of a firm of a pricing game, with its states as attributes."""
+
+    price: float
+    scores: Array
+
+
+@dataclass(frozen=True, eq=False)
+class PricingGameSpec(BaseSpec):
+    """Grid of prices of two firms, each with a loyal share, that share the switchers who pay the lower price.
+
+    Args:
+        prices:
+            The prices the firms choose among, increasing.
+
+        alpha:
+            The loyal share of every firm.
+
+        beta:
+            The share of switchers.
+
+    Examples:
+        >>> import numpy as np
+        >>> from skcomplex.systems.economics.markets import PricingGameSpec
+        >>> PricingGameSpec(np.array([0.5, 1.0]), 0.25, 0.5).beta
+        0.5
+    """
+
+    prices: Array
+    alpha: float
+    beta: float
+
+    def utility(self, agent: PricingFirmView, system: SystemView, option: float) -> float:
+        """Return what a price has earned so far against the prices of the rival, its score.
+
+        Args:
+            agent:
+                The firm.
+
+            system:
+                The system view, which the score does not read.
+
+            option:
+                The price.
+
+        Returns:
+            utility:
+                The score of the price.
+        """
+        return float(agent.scores[int(np.searchsorted(self.prices, option))])
+
+    def payoff(self, agent: PricingFirmView, system: SystemView, k: int) -> float:
+        """Return what the price of index `k` earns against the price the rival charged in this step.
+
+        Args:
+            agent:
+                The firm.
+
+            system:
+                The system view, which holds the rival.
+
+            k:
+                The index of the price.
+
+        Returns:
+            payoff:
+                The profit of the price.
+        """
+        rival = cast(PricingFirmView, next(item for item in system.agents(agent.group) if item.id != agent.id))
+        price, against = float(self.prices[k]), float(rival.price)
+        share = 1.0 if price < against else 0.5 if price == against else 0.0
+        return price * (self.alpha + self.beta * share)
+
+
+class PricingFirmElement(Element):
+    """Firm that charges one price of a grid and counts what every price would have earned.
+
+    Args:
+        label:
+            The label of the firm or the group.
+
+        price:
+            The price the firm charges.
+
+        scores:
+            The sum of the payoffs of every price of the grid against the prices of the rival so far.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.systems.economics.markets import PricingFirmElement
+        >>> GroupElement('firms', element=PricingFirmElement, size=2).size
+        2
+    """
+
+    def __init__(
+        self,
+        label: str,
+        price: Annotated[float, StateSpec()] = 1.0,
+        scores: Annotated[npt.ArrayLike, StateSpec(vector=True)] = 0.0,
+    ) -> None:
+        super().__init__(label)
+        self.price = price
+        self.scores = scores
+
+    @classmethod
+    def _get_view(cls) -> type[PricingFirmView]:
+        """Return the view of the firms, which types their states."""
+        return PricingFirmView
+
 
 DYNAMICS = ('static', 'fictitious-play')
 DUOPOLY = 2

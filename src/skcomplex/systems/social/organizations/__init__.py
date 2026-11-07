@@ -1,66 +1,53 @@
 """Organizations: hierarchies, queues, workplaces, and institutions."""
 
-from ._arms_race import ArmsRaceElement
-from ._burden import BurdenElement
-from ._city_dweller import CityDwellerElement
-from ._city_resident import CityResidentElement
-from ._commute import CommuteInteraction
-from ._contender_view import ContenderView
-from ._contest import ContestElement
-from ._daily_movements import DailyMovementsInteraction
-from ._eater import EaterElement, basal_metabolic_rate
-from ._eater_view import EaterView
-from ._employee import EmployeeElement
-from ._employee_view import EmployeeView
 from ._employment import WorkplaceElement, employment_takeover
-from ._execution import ExecutionInteraction
-from ._explorer import ExplorerElement
-from ._explorer_view import ExplorerView
-from ._farmer_view import FarmerView
-from ._gravity_contact import GravityContactInteraction
-from ._harvester_view import HarvesterView
-from ._hierarchies import ContenderElement, bonabeau_hierarchies
-from ._island import load_island_layers, load_island_populations
-from ._kauai import kauai_population
+from ._hierarchies import ContenderElement, ContenderView, bonabeau_hierarchies
+from ._kauai import (
+    CommuteInteraction,
+    PlaceVisitsInteraction,
+    ResidentElement,
+    ResidentView,
+    SentimentInteraction,
+    kauai_population,
+    load_island_layers,
+    load_island_populations,
+)
 from ._mobility import (
     ContainerMobilityInteraction,
     ExplorationInteraction,
+    ExplorerElement,
+    ExplorerView,
     container_mobility,
     exploration_preferential_return,
 )
-from ._obesity import obesity
-from ._performance import PerformanceElement
-from ._place_visits import PlaceVisitsInteraction
-from ._premises import PremisesElement
-from ._premises_view import PremisesView
-from ._queues import priority_queues
-from ._resident import ResidentElement
-from ._resident_view import ResidentView
-from ._restaurant import RestaurantElement
-from ._restaurant_view import RestaurantView
-from ._sabotage import insider_sabotage
-from ._sentiment import SentimentInteraction
-from ._standoff import StandoffElement
-from ._supervisor import SupervisorElement
-from ._supplier_view import SupplierView
-from ._supply_chains import SupplierElement, supply_chain_diffusion
-from ._task import TaskElement
-from ._task_view import TaskView
-from ._trafficking import trafficking
+from ._obesity import EaterElement, EaterView, RestaurantElement, RestaurantView, basal_metabolic_rate, obesity
+from ._queues import ExecutionInteraction, TaskElement, TaskView, priority_queues
+from ._sabotage import EmployeeElement, EmployeeView, SupervisorElement, insider_sabotage
+from ._supply_chains import SupplierElement, SupplierView, supply_chain_diffusion
+from ._trafficking import (
+    DailyMovementsInteraction,
+    PremisesElement,
+    PremisesView,
+    TravellerElement,
+    TravellerView,
+    trafficking,
+)
 from ._traps import (
+    ArmsRaceElement,
+    BurdenElement,
+    ContestElement,
+    PerformanceElement,
+    StandoffElement,
     drift_to_low_performance,
     escalation,
     policy_resistance,
     shifting_the_burden,
     success_to_the_successful,
 )
-from ._traveller import TravellerElement
-from ._traveller_view import TravellerView
-from ._urban_interactions import urban_scaling_interactions
-from ._urban_scaling import gravity_urban_scaling
-from ._wages import FarmerElement, HarvesterElement, HarvestInteraction, ajanis_choice
-from ._watchmaker_view import WatchmakerView
-from ._watchmakers import AssemblyInteraction, WatchmakerElement, watchmakers
+from ._urban_interactions import CityDwellerElement, urban_scaling_interactions
+from ._urban_scaling import CityResidentElement, GravityContactInteraction, gravity_urban_scaling
+from ._wages import FarmerElement, FarmerView, HarvesterElement, HarvesterView, HarvestInteraction, ajanis_choice
+from ._watchmakers import AssemblyInteraction, WatchmakerElement, WatchmakerView, watchmakers
 
 __all__: list[str] = [
     'ArmsRaceElement',

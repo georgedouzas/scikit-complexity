@@ -14,10 +14,16 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.system import System
-from ....core.engine.solvers import SystemView
+from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._willing_voter_view import WillingVoterView
+
+
+class WillingVoterView(AgentView):
+    """View of a voter of the majority rule with willingness, with its states as attributes."""
+
+    opinion: float
+    willingness: float
 
 
 class WillingVoterElement(Element):

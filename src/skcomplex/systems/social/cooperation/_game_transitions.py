@@ -17,12 +17,19 @@ from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import NetworkSpace
 from ....core.components.system import System
-from ....core.engine.solvers import SystemView
+from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ....core.types import Array, IntArray
 from ..._catalog import register_system
-from ._donor_view import DonorView
+
+
+class DonorView(AgentView):
+    """View of a player of the game transitions system, with its states as attributes."""
+
+    strategy: float
+    payoff: float
+
 
 UPDATES = ('death-birth', 'pairwise')
 MUTUAL_COOPERATION = 2

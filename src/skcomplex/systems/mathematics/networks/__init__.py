@@ -1,11 +1,15 @@
 """Networks: growth, turnover, ensembles, robustness, cascades, walks, diffusion, PageRank, structure, percolation."""
 
-from ._copying_vertex import CopyingVertexElement
+from ..common._link import LinkElement
+from ..common._network_node import NetworkNodeElement
+from ..common._regulated_node import RegulatedNodeElement
+from ..common._vertex import VertexElement
 from ._davidsen_ebel_bornholdt import ClosingNodeElement, davidsen_ebel_bornholdt
-from ._dependent_node import DependentNodeElement
 from ._duplication_deletion import DuplicatingNodeElement, duplication_deletion
-from ._ensemble_node import EnsembleNodeElement
 from ._ensembles import (
+    DependentNodeElement,
+    EnsembleNodeElement,
+    FailingElement,
     configuration_model,
     interdependent_network_cascade,
     kronecker_graph,
@@ -13,27 +17,35 @@ from ._ensembles import (
     random_graph_ensembles,
 )
 from ._explosive import ClusterNodeElement, explosive_percolation
-from ._failing import FailingElement
-from ._fitness_vertex import FitnessVertexElement
-from ._giant_component import GiantComponentInteraction
-from ._growth import barabasi_albert, graphlet_arrival, holme_kim, popularity_similarity_network, vertex_copying
-from ._hypergraphs import growing_simplicial_complex, hypergraph_random_walk
-from ._link import LinkElement
-from ._loaded_node import LoadedNodeElement
-from ._network_measures import NetworkMeasuresElement
-from ._network_node import NetworkNodeElement
-from ._network_walker import NetworkWalkerElement
-from ._node_content import NodeContentElement
+from ._growth import (
+    CopyingVertexElement,
+    FitnessVertexElement,
+    SimilarityVertexElement,
+    TriadVertexElement,
+    barabasi_albert,
+    graphlet_arrival,
+    holme_kim,
+    popularity_similarity_network,
+    vertex_copying,
+)
+from ._hypergraphs import (
+    SimplexAgeingInteraction,
+    SimplexElement,
+    SizeBiasedMoveInteraction,
+    WalkerDensityElement,
+    growing_simplicial_complex,
+    hypergraph_random_walk,
+)
 from ._node_merging import MergingNodeElement, node_merging
-from ._node_rank import NodeRankElement
-from ._overload import motter_lai_overload
-from ._processes import network_diffusion, network_random_walk, pagerank
-from ._regulated_link import RegulatedLinkElement
-from ._regulated_node import RegulatedNodeElement
-from ._similarity_vertex import SimilarityVertexElement
-from ._simplex import SimplexElement
-from ._simplex_ageing import SimplexAgeingInteraction
-from ._size_biased_move import SizeBiasedMoveInteraction
+from ._overload import LoadedNodeElement, motter_lai_overload
+from ._processes import (
+    NetworkWalkerElement,
+    NodeContentElement,
+    NodeRankElement,
+    network_diffusion,
+    network_random_walk,
+    pagerank,
+)
 from ._spatial_triadic import (
     PercolatingNodeElement,
     PercolationInteraction,
@@ -41,13 +53,9 @@ from ._spatial_triadic import (
     SignedRegulationInteraction,
     spatial_triadic_percolation,
 )
-from ._structure import network_structure_analysis
+from ._structure import NetworkMeasuresElement, network_structure_analysis
 from ._superposition import SuperposedNodeElement, network_superposition
-from ._triad_vertex import TriadVertexElement
-from ._triadic import triadic_percolation
-from ._triadic_regulation import TriadicRegulationInteraction
-from ._vertex import VertexElement
-from ._walker_density import WalkerDensityElement
+from ._triadic import GiantComponentInteraction, RegulatedLinkElement, TriadicRegulationInteraction, triadic_percolation
 
 __all__: list[str] = [
     'ClosingNodeElement',

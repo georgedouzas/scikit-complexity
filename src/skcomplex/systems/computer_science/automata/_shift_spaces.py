@@ -6,24 +6,127 @@
 import functools
 import itertools
 from collections.abc import Sequence
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
 import scipy.optimize
+from sage.all__sagemath_symbolics import ZZ, oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import LatticeElement
+from ....core.components.elements import Element, LatticeElement, WordElement
 from ....core.components.interactions import LocalRuleInteraction
+from ....core.components.laws import ProductionLaw
 from ....core.components.spaces import LatticeNeighborhood, LatticeSpace
 from ....core.components.system import System
 from ....core.engine.compile import RewritingCompiler
 from ....core.errors import ParameterError
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 from ....core.types import Array
 from ..._catalog import register_system
 from ._binary_cell import BinaryCellElement
-from ._digit_cell import DigitCellElement
-from ._morse_word import MorseElement
-from ._ternary_cell import TernaryCellElement
+
+
+class DigitCellElement(Element):
+    """Cell holding a digit of a q-adic integer, from 0 to `base - 1`, the label of a vertex of the q-ary tree.
+
+    Args:
+        label:
+            The label of the cell or the lattice group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        digit:
+            The initial digit.
+
+        base:
+            The base `q` of the digits, at least 2.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import DigitCellElement
+        >>> DigitCellElement('cell', digit=1).base
+        2
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        digit: Annotated[float, StateSpec(domain=ZZ)] = 0,
+        base: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.digit = digit
+        self.base = base
+
+
+class MorseElement(WordElement):
+    """Word rewritten by the Thue-Morse substitution `0 → 01`, `1 → 10`.
+
+    From the axiom `0`, generation `n` is the word `a_n = T(0) T(1) ... T(2^n - 1)` of the Thue-Morse sequence, whose
+    term `T(k)` is the parity of the number of ones in the binary expansion of `k`.
+
+    Args:
+        label:
+            The label of the word.
+
+        axiom:
+            The word at generation 0.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import MorseElement
+        >>> [law.successor for law in MorseElement('morse', axiom='0')._get_laws(None)]
+        ['01', '10']
+    """
+
+    def _get_laws(self, s: SimpleNamespace) -> list[ProductionLaw]:
+        """Return the productions of the Thue-Morse substitution.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The productions of the word.
+        """
+        del s
+        return [ProductionLaw('0', '01'), ProductionLaw('1', '10')]
+
+
+class TernaryCellElement(Element):
+    """Cell of a subshift over the alphabet `{0, 1, 2}`, such as the context-free subshift.
+
+    Args:
+        label:
+            The label of the cell or the lattice group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        symbol:
+            The initial symbol, 0, 1, or 2.
+
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import TernaryCellElement
+        >>> TernaryCellElement('cell', symbol=2).symbol
+        2
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        symbol: Annotated[float, StateSpec(domain=FiniteEnumeratedSet([0, 1, 2]))] = 0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.symbol = symbol
+
 
 OUTSIDE = -1.0
 GAP_CAP = 10

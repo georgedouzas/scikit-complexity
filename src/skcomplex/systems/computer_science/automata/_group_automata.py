@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 from typing import Annotated
 
 import numpy as np
@@ -16,48 +15,48 @@ from ....core.components.spaces import (
     BoxNeighborhood,
     CayleySpace,
     GeneratorNeighborhood,
+    LatticeNeighborhood,
     LatticeSpace,
     MemoryNeighborhood,
 )
 from ....core.components.system import System
-from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, TotalisticSpec, VisualSpec
+from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, SubshiftSpec, TotalisticSpec, VisualSpec
 from ....core.types import Array
 from ..._catalog import register_system
 from ._binary_cell import BinaryCellElement
-from ._golden_cell import GoldenCellElement
 from ._groups import baumslag_solitar, free_group, grigorchuk_group, heisenberg, lamplighter
 
-GENERATOR_MEMORY = MemoryNeighborhood(('1', 'a', 'a^-1'))
-GRIGORCHUK_MEMORY = MemoryNeighborhood(('1', 'a', 'b', 'c', 'd'))
-LAMPLIGHTER_MEMORY = MemoryNeighborhood(('1', 'a', 'b'))
-FLIP_PROBABILITY = 0.5
+GOLDEN_MEAN = SubshiftSpec(LatticeNeighborhood(((0,), (1,))), ((1, 1),))
 
 
-def _majority(center: Array, *values: Array, degree: Array) -> Array:
-    """Return the value held by more than half of a cell and its neighbours inside the space, keeping it on a tie."""
-    total = center + np.sum(values, axis=0)
-    count = degree + 1
-    return np.where(2 * total > count, 1.0, np.where(2 * total < count, 0.0, center))
+class GoldenCellElement(Element):
+    """Cell of the golden mean shift, whose state `alive` is 0 or 1 and whose configurations hold no two adjacent ones.
 
+    Args:
+        label:
+            The label of the cell or the lattice group.
 
-def _random_cells(size: int, density: float, random_state: int | np.random.Generator | None) -> Array:
-    """Return cells that are 1 with a probability and 0 otherwise."""
-    return (np.random.default_rng(random_state).random(size) < density).astype(float)
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
 
+        alive:
+            The initial value, 0 or 1.
 
-def _density_observables(system: System) -> list[ObservableSpec]:
-    """Return the density of ones of the cells."""
-    return [ObservableSpec('density', group='cells', variable='alive')]
+    Examples:
+        >>> from skcomplex.systems.computer_science.automata import GoldenCellElement
+        >>> GoldenCellElement('cell', alive=1).alive
+        1
+    """
 
-
-def _mean_observables(system: System) -> list[ObservableSpec]:
-    """Return the mean value of the cells."""
-    return [ObservableSpec('mean', group='cells', variable='value')]
-
-
-def _laplacian(left: Array, center: Array, right: Array, *, modulus: float) -> Array:
-    """Return the discrete Laplacian `x(g - 1) + x(g + 1) - 2 x(g)` modulo the field size."""
-    return (left + right - 2 * center) % modulus
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        alive: Annotated[float, StateSpec(domain=GOLDEN_MEAN)] = 0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.alive = alive
 
 
 class LaplacianCellElement(Element):
@@ -93,6 +92,39 @@ class LaplacianCellElement(Element):
         super().__init__(label, visual=visual)
         self.value = value
         self.modulus = modulus
+
+
+GENERATOR_MEMORY = MemoryNeighborhood(('1', 'a', 'a^-1'))
+GRIGORCHUK_MEMORY = MemoryNeighborhood(('1', 'a', 'b', 'c', 'd'))
+LAMPLIGHTER_MEMORY = MemoryNeighborhood(('1', 'a', 'b'))
+FLIP_PROBABILITY = 0.5
+
+
+def _majority(center: Array, *values: Array, degree: Array) -> Array:
+    """Return the value held by more than half of a cell and its neighbours inside the space, keeping it on a tie."""
+    total = center + np.sum(values, axis=0)
+    count = degree + 1
+    return np.where(2 * total > count, 1.0, np.where(2 * total < count, 0.0, center))
+
+
+def _random_cells(size: int, density: float, random_state: int | np.random.Generator | None) -> Array:
+    """Return cells that are 1 with a probability and 0 otherwise."""
+    return (np.random.default_rng(random_state).random(size) < density).astype(float)
+
+
+def _density_observables(system: System) -> list[ObservableSpec]:
+    """Return the density of ones of the cells."""
+    return [ObservableSpec('density', group='cells', variable='alive')]
+
+
+def _mean_observables(system: System) -> list[ObservableSpec]:
+    """Return the mean value of the cells."""
+    return [ObservableSpec('mean', group='cells', variable='value')]
+
+
+def _laplacian(left: Array, center: Array, right: Array, *, modulus: float) -> Array:
+    """Return the discrete Laplacian `x(g - 1) + x(g + 1) - 2 x(g)` modulo the field size."""
+    return (left + right - 2 * center) % modulus
 
 
 def _golden_move(left: Array, center: Array, right: Array, *, random: Array) -> Array:

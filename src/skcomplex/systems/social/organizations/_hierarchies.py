@@ -3,7 +3,6 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
-
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -15,10 +14,17 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.spaces import LatticeSpace
 from ....core.components.system import System
-from ....core.engine.solvers import SystemView
+from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._contender_view import ContenderView
+
+
+class ContenderView(AgentView):
+    """View of an agent of the Bonabeau hierarchy system, with its states and parameters as attributes."""
+
+    strength: float
+    eta: float
+    relaxation: float
 
 
 class ContenderElement(Element):

@@ -1,30 +1,587 @@
-"""Dynamical systems systems: discrete maps."""
+"""Dynamical systems: discrete maps."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
 import math
+from typing import Annotated
 
 from sage.all__sagemath_symbolics import abs_symbolic, cos, exp, pi, sin
 
+from ....core.components.elements import Element
 from ....core.components.interactions import MapInteraction
 from ....core.components.laws.utils import mod, where
 from ....core.components.system import System
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._baker_map import BakerMapElement
-from ._cat_map import CatMapElement
-from ._circle_map import CircleMapElement
-from ._conservative_henon_map import ConservativeHenonMapElement
-from ._fermi_ulam_map import FermiUlamMapElement
-from ._gaussian_map import GaussianMapElement
-from ._henon_map import HenonMapElement
-from ._intermittency_map import IntermittencyMapElement
-from ._logistic_map import LogisticMapElement
-from ._lozi_map import LoziMapElement
-from ._newton_map import NewtonMapElement
-from ._standard_map import GOLDEN_MEAN, StandardMapElement
-from ._tent_map import TentMapElement
-from ._towel_map import TowelMapElement
+
+
+class BakerMapElement(Element):
+    """Coordinates and parameters of the generalized baker map, which stretches the unit square and stacks it.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial stretched coordinate.
+
+        y:
+            The initial squeezed coordinate.
+
+        alpha:
+            The position of the cut.
+
+        lambda_a:
+            The height of the bottom band.
+
+        lambda_b:
+            The height of the top band.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import BakerMapElement
+        >>> BakerMapElement('map', alpha=0.4).alpha
+        0.4
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.2,
+        y: Annotated[object, StateSpec()] = 0.3,
+        alpha: Annotated[object, ParameterSpec()] = 1 / 3,
+        lambda_a: Annotated[object, ParameterSpec()] = 1 / 3,
+        lambda_b: Annotated[object, ParameterSpec()] = 2 / 3,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.alpha = alpha
+        self.lambda_a = lambda_a
+        self.lambda_b = lambda_b
+
+
+class CatMapElement(Element):
+    """Coordinates of Arnold's cat map `(x, y) -> (2 x + y, x + y) (mod 1)` of the unit torus, which maps iterate.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial first coordinate, between 0 and 1.
+
+        y:
+            The initial second coordinate, between 0 and 1.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import CatMapElement
+        >>> CatMapElement('map', x=0.5).x
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.1,
+        y: Annotated[object, StateSpec()] = 0.3,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+
+
+class CircleMapElement(Element):
+    """Angle and parameters of the sine circle map `theta' = theta + Omega - K / (2 pi) sin(2 pi theta) (mod 1)`.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        theta:
+            The initial angle, as a fraction of a turn.
+
+        Omega:
+            The bare rotation per step.
+
+        K:
+            The nonlinearity.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import CircleMapElement
+        >>> CircleMapElement('map', K=1.0).K
+        1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec()] = 0.0,
+        Omega: Annotated[object, ParameterSpec()] = 0.25,
+        K: Annotated[object, ParameterSpec()] = 0.9,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.Omega = Omega
+        self.K = K
+
+
+class ConservativeHenonMapElement(Element):
+    """Coordinates and rotation of Hénon's area-preserving map, a rotation by `2π nu` followed by a quadratic kick.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        nu:
+            The rotation number of the linear part, in turns.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import ConservativeHenonMapElement
+        >>> ConservativeHenonMapElement('map', nu=0.25).nu
+        0.25
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.1,
+        y: Annotated[object, StateSpec()] = 0.0,
+        nu: Annotated[object, ParameterSpec()] = 0.2114,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.nu = nu
+
+
+class FermiUlamMapElement(Element):
+    """Speed and wall phase of the Fermi-Ulam map of a ball bouncing between a fixed and an oscillating wall.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        u:
+            The initial speed of the ball.
+
+        theta:
+            The initial phase of the oscillating wall.
+
+        epsilon:
+            The amplitude of the speed the oscillating wall gives the ball.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import FermiUlamMapElement
+        >>> FermiUlamMapElement('map', epsilon=0.2).epsilon
+        0.2
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        u: Annotated[object, StateSpec()] = 0.5,
+        theta: Annotated[object, StateSpec()] = 1.0,
+        epsilon: Annotated[object, ParameterSpec()] = 0.1,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.u = u
+        self.theta = theta
+        self.epsilon = epsilon
+
+
+class GaussianMapElement(Element):
+    """Value and parameters of the CDN Gaussian map `x' = exp(-alpha² x²) + β` of an interval.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial value.
+
+        alpha:
+            The steepness of the Gaussian.
+
+        beta:
+            The shift of the Gaussian.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import GaussianMapElement
+        >>> GaussianMapElement('map', beta=-0.3).beta
+        -0.3
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.1,
+        alpha: Annotated[object, ParameterSpec()] = 2.8,
+        beta: Annotated[object, ParameterSpec()] = -0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.alpha = alpha
+        self.beta = beta
+
+
+class HenonMapElement(Element):
+    """Coordinates and parameters of the Hénon map `x' = 1 - a x^2 + y`, `y' = b x`, which maps iterate.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        a:
+            The nonlinearity.
+
+        b:
+            The contraction.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import HenonMapElement
+        >>> HenonMapElement('map', a=1.2).a
+        1.2
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+        y: Annotated[object, StateSpec()] = 0.0,
+        a: Annotated[object, ParameterSpec()] = 1.4,
+        b: Annotated[object, ParameterSpec()] = 0.3,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.a = a
+        self.b = b
+
+
+class IntermittencyMapElement(Element):
+    """Value and exponent of the Pomeau-Manneville map `x' = x + x^z (mod 1)`, which a `MapInteraction` iterates.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial value, between 0 and 1.
+
+        z:
+            The exponent of the tangency at 0, above 1.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import IntermittencyMapElement
+        >>> IntermittencyMapElement('map', z=1.5).z
+        1.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.01,
+        z: Annotated[object, ParameterSpec()] = 2.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.z = z
+
+
+class LogisticMapElement(Element):
+    """Value and growth rate of the logistic map `x -> r x (1 - x)`, which a `MapInteraction` iterates.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial value, between 0 and 1.
+
+        r:
+            The growth rate, between 0 and 4.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import LogisticMapElement
+        >>> LogisticMapElement('map', r=3.2).r
+        3.2
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.2,
+        r: Annotated[object, ParameterSpec()] = 3.7,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.r = r
+
+
+class LoziMapElement(Element):
+    """Coordinates and parameters of the Lozi map `x' = 1 + y - a |x|`, `y' = b x`, which maps iterate.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        a:
+            The slope of the fold.
+
+        b:
+            The contraction.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import LoziMapElement
+        >>> LoziMapElement('map', a=1.5).a
+        1.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.0,
+        y: Annotated[object, StateSpec()] = 0.0,
+        a: Annotated[object, ParameterSpec()] = 1.7,
+        b: Annotated[object, ParameterSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.a = a
+        self.b = b
+
+
+class NewtonMapElement(Element):
+    """Real and imaginary parts of Newton's method for `z^3 = 1`, `z' = (2 z^3 + 1) / (3 z^2)`, which maps iterate.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial real part.
+
+        y:
+            The initial imaginary part.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import NewtonMapElement
+        >>> NewtonMapElement('map', x=1.5).x
+        1.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.5,
+        y: Annotated[object, StateSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+
+
+GOLDEN_MEAN = (math.sqrt(5) - 1) / 2
+
+
+class StandardMapElement(Element):
+    """Angle, momentum, and kick of the standard map `p' = p + K sin(theta)`, `theta' = theta + p' (mod 2 pi)`.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        theta:
+            The initial angle.
+
+        p:
+            The initial momentum.
+
+        K:
+            The kick strength.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import StandardMapElement
+        >>> StandardMapElement('map', K=0.5).K
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        theta: Annotated[object, StateSpec()] = 0.0,
+        p: Annotated[object, StateSpec()] = 2 * math.pi * GOLDEN_MEAN,
+        K: Annotated[object, ParameterSpec()] = 1.2,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.theta = theta
+        self.p = p
+        self.K = K
+
+
+class TentMapElement(Element):
+    """Value and slope of the tent map `x' = mu min(x, 1 - x)`, which a `MapInteraction` iterates.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial value, between 0 and 1.
+
+        mu:
+            The slope, between 0 and 2.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import TentMapElement
+        >>> TentMapElement('map', mu=1.5).mu
+        1.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.3,
+        mu: Annotated[object, ParameterSpec()] = 1.99,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.mu = mu
+
+
+class TowelMapElement(Element):
+    """Coordinates and growth rates of Rössler's towel map, a three-dimensional map with two positive exponents.
+
+    Args:
+        label:
+            The label of the element.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial first coordinate.
+
+        y:
+            The initial second coordinate.
+
+        z:
+            The initial third coordinate.
+
+        a:
+            The growth rate of the first logistic coordinate.
+
+        b:
+            The growth rate of the third logistic coordinate.
+
+    Examples:
+        >>> from skcomplex.systems.mathematics.dynamical_systems import TowelMapElement
+        >>> TowelMapElement('map', a=3.7).a
+        3.7
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.085,
+        y: Annotated[object, StateSpec()] = -0.121,
+        z: Annotated[object, StateSpec()] = 0.075,
+        a: Annotated[object, ParameterSpec()] = 3.8,
+        b: Annotated[object, ParameterSpec()] = 3.78,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.a = a
+        self.b = b
 
 
 @register_system(

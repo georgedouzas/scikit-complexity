@@ -15,11 +15,27 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import Interaction
 from ....core.components.laws import BaseLaw, RuleLaw
 from ....core.components.system import System
-from ....core.engine.solvers import SystemView
+from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._farmer_view import FarmerView
-from ._harvester_view import HarvesterView
+
+
+class FarmerView(AgentView):
+    """View of an employer of Ajani's Choice, with its states as attributes."""
+
+    wage: float
+    workforce: float
+    employed: float
+    area: float
+
+
+class HarvesterView(AgentView):
+    """View of a worker of Ajani's Choice, with its states as attributes."""
+
+    slum: float
+    working: float
+    pay: float
+    total_pay: float
 
 
 class FarmerElement(Element):

@@ -4,18 +4,250 @@
 # License: MIT
 
 from types import SimpleNamespace
+from typing import Annotated
 
-from sage.all__sagemath_symbolics import Expression
+from sage.all__sagemath_symbolics import Expression, oo
+from sage.sets.real_set import RealSet
 
-from ....core.components.interactions import ConnectionInteraction, EulerLagrangeInteraction
+from ....core.components.elements import Element
+from ....core.components.interactions import ConnectionInteraction, EulerLagrangeInteraction, Interaction
+from ....core.components.laws import BaseLaw, EquationLaw, RateLaw
 from ....core.components.laws.utils import derivative, step
 from ....core.components.system import System
-from ....core.specs import ObservableSpec
+from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ..common.electrical import GroundElement, InductorElement, ResistorElement, VoltageSourceElement
+from ..common.electrical import GroundElement, InductorElement, ResistorElement, TwoPinElement, VoltageSourceElement
 from ..common.mechanics import SpringDamperInteraction
-from ._motor import ArmatureElement, InertiaElement, MotorCouplingInteraction
-from ._quarter_car import QuarterCarElement
+
+POSITIVE = RealSet.open(0, oo)
+
+
+class ArmatureElement(TwoPinElement):
+    """Winding of a motor, a two-pin element whose voltage the coupling with the inertia of the motor gives.
+
+    Args:
+        label:
+            The label of the element, unique among the parts of its system.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        p_v:
+            The potential of the positive pin.
+
+        p_i:
+            The current into the positive pin.
+
+        n_v:
+            The potential of the negative pin.
+
+        n_i:
+            The current into the negative pin.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.mechatronics import ArmatureElement
+        >>> sorted(ArmatureElement.ports)
+        ['n', 'p']
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        p_v: object = 0.0,
+        p_i: object = 0.0,
+        n_v: object = 0.0,
+        n_i: object = 0.0,
+    ) -> None:
+        super().__init__(label, visual, p_v=p_v, p_i=p_i, n_v=n_v, n_i=n_i)
+
+
+class InertiaElement(Element):
+    """Rotating inertia of the angle `phi`, a coordinate of a Lagrangian.
+
+    Args:
+        label:
+            The label of the element, unique among the parts of its system.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        phi:
+            The initial angle.
+
+        phi_d1:
+            The initial angular velocity.
+
+        J:
+            The moment of inertia.
+
+        b:
+            The coefficient of viscous friction.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.mechatronics import InertiaElement
+        >>> InertiaElement('rotor', J=0.5).J
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        phi: Annotated[object, StateSpec(order=2)] = 0.0,
+        phi_d1: object = 0.0,
+        J: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
+        b: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.phi = phi
+        self.phi_d1 = phi_d1
+        self.J = J
+        self.b = b
+
+
+class QuarterCarElement(Element):
+    """Body of displacement `y1` and wheel of displacement `y2`, with a tire between the wheel and a road step.
+
+    The element holds the tire, whose force on the wheel is `kt (road - y2)`, and a suspension interaction joins the
+    body and the wheel.
+
+    Args:
+        label:
+            The label of the element, unique among the parts of its system.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        y1:
+            The initial displacement of the body.
+
+        y1_d1:
+            The initial velocity of the body.
+
+        y2:
+            The initial displacement of the wheel.
+
+        y2_d1:
+            The initial velocity of the wheel.
+
+        m1:
+            The mass of the body.
+
+        m2:
+            The mass of the wheel.
+
+        k:
+            The stiffness of the suspension.
+
+        b:
+            The damping of the suspension.
+
+        kt:
+            The stiffness of the tire.
+
+        height:
+            The height of the road step.
+
+        at:
+            The time of the road step.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.mechatronics import QuarterCarElement
+        >>> QuarterCarElement('car', height=0.05).height
+        0.05
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        y1: Annotated[object, StateSpec(order=2)] = 0.0,
+        y1_d1: object = 0.0,
+        y2: Annotated[object, StateSpec(order=2)] = 0.0,
+        y2_d1: object = 0.0,
+        m1: Annotated[object, ParameterSpec(domain=POSITIVE)] = 250.0,
+        m2: Annotated[object, ParameterSpec(domain=POSITIVE)] = 30.0,
+        k: Annotated[object, ParameterSpec(domain=POSITIVE)] = 16000.0,
+        b: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1000.0,
+        kt: Annotated[object, ParameterSpec(domain=POSITIVE)] = 160000.0,
+        height: Annotated[object, ParameterSpec()] = 0.05,
+        at: Annotated[object, ParameterSpec()] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.y1 = y1
+        self.y1_d1 = y1_d1
+        self.y2 = y2
+        self.y2_d1 = y2_d1
+        self.m1 = m1
+        self.m2 = m2
+        self.k = k
+        self.b = b
+        self.kt = kt
+        self.height = height
+        self.at = at
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the acceleration of the wheel by the tire, the suspension apart."""
+        return [RateLaw(s.y2, s.kt * (step(s.t, s.at, s.height) - s.y2) / s.m2)]
+
+
+class MotorCouplingInteraction(Interaction):
+    """Coupling of an armature and an inertia by a motor constant `k`.
+
+    The voltage of the armature is the back electromotive force `k phi'`, and its current exerts the torque `k p_i` on
+    the angle, which adds to the Euler-Lagrange equation of the angle.
+
+    Args:
+        label:
+            The label of the interaction, unique among the parts of its system.
+
+        armature:
+            The path of the armature.
+
+        inertia:
+            The path of the inertia.
+
+        k:
+            The motor constant.
+
+    Examples:
+        >>> from skcomplex.systems.engineering.mechatronics import MotorCouplingInteraction
+        >>> MotorCouplingInteraction('motor', armature='winding', inertia='rotor', k=0.5).k
+        0.5
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        armature: Annotated[str, RoleSpec()],
+        inertia: Annotated[str, RoleSpec()],
+        k: Annotated[object, ParameterSpec(domain=POSITIVE)] = 1.0,
+    ) -> None:
+        super().__init__(label)
+        self.armature = armature
+        self.inertia = inertia
+        self.k = k
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the back electromotive force and the torque on the angle.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The equation laws of the coupling.
+        """
+        return [
+            EquationLaw(s.armature.p_v - s.armature.n_v, s.k * derivative(s.inertia.phi, 1)),
+            EquationLaw(-s.k * s.armature.p_i, 0, target=s.inertia.phi),
+        ]
 
 
 def _speed_of_rotor(s: SimpleNamespace) -> Expression:

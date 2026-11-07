@@ -3,17 +3,174 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
 
 import numpy as np
+from sage.all__sagemath_symbolics import cos, oo, sqrt
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement
+from ....core.components.elements import Element, GroupElement
+from ....core.components.interactions import RateInteraction
+from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws.utils import delayed, shift_member
 from ....core.components.system import System
+from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._car import CarElement
-from ._delayed_following import DelayedFollowingInteraction
-from ._intelligent_driver import IntelligentDriverInteraction
-from ._lead_car import LeadCarElement
-from ._optimal_velocity import OptimalVelocityInteraction
+from ..common._car import CarElement
+from ..common._optimal_velocity import OptimalVelocityInteraction
+
+
+class LeadCarElement(Element):
+    """Lead car whose speed swings about a cruising speed `u` with an amplitude and a frequency."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(role='position')] = 0.0,
+        v: Annotated[object, StateSpec(role='velocity')] = 1.0,
+        u: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        amplitude: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        omega: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.v = v
+        self.u = u
+        self.amplitude = amplitude
+        self.omega = omega
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the advance of the position and the forced swing of the speed."""
+        return [RateLaw(s.x, s.v), RateLaw(s.v, -s.u * s.amplitude * s.omega * cos(s.omega * s.t))]
+
+
+class DelayedFollowingInteraction(RateInteraction):
+    """Acceleration of a follower car by the speed difference to its leader, both seen a reaction time late.
+
+    The speed of the follower follows the Gazis-Herman-Rothery law
+    `v_f'(t) = λ (v_l - v_f)(t - T) / (x_l - x_f)(t - T)^m` of the sensitivity `λ`, the reaction time `T`, and the
+    power `m` of the gap.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the follower car.
+
+        leader:
+            The path of the car ahead of the follower.
+
+        reaction:
+            The sensitivity `λ`.
+
+        T:
+            The reaction time.
+
+        power:
+            The power `m` of the gap.
+
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        leader: Annotated[str, RoleSpec()],
+        reaction: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        T: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        power: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+    ) -> None:
+        super().__init__(label, target=target, state='v')
+        self.leader = leader
+        self.reaction = reaction
+        self.T = T
+        self.power = power
+
+    def _get_rate(self, namespace: SimpleNamespace) -> object:
+        """Return the delayed response of the follower to its leader."""
+        s, leader, follower = namespace, namespace.leader, namespace.target
+        gap = delayed(leader.x, s.T) - delayed(follower.x, s.T)
+        return s.reaction * (delayed(leader.v, s.T) - delayed(follower.v, s.T)) / gap**s.power
+
+
+class IntelligentDriverInteraction(RateInteraction):
+    """Acceleration of every car of a ring road by the intelligent driver system of its speed and the car ahead.
+
+    The speed follows `v' = a (1 - (v / v0)^δ - (s*(v, Δv) / (h - l))^2)`, with the desired gap
+    `s* = s0 + v T + v Δv / (2 sqrt(a b))`, the approach rate `Δv` to the next car, and the headway `h` less the car
+    length `l`.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        target:
+            The path of the group of cars, in the order they drive.
+
+        v0:
+            The desired speed.
+
+        T:
+            The safe time headway.
+
+        a:
+            The largest acceleration.
+
+        b:
+            The comfortable deceleration.
+
+        s0:
+            The jam distance.
+
+        delta:
+            The acceleration exponent.
+
+        length:
+            The length of a car.
+
+        road_length:
+            The length of the ring road.
+
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target: Annotated[str, RoleSpec()],
+        v0: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 30.0,
+        T: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
+        a: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        b: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.5,
+        s0: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        delta: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
+        length: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 5.0,
+        road_length: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 500.0,
+    ) -> None:
+        super().__init__(label, target=target, state='v')
+        self.v0 = v0
+        self.T = T
+        self.a = a
+        self.b = b
+        self.s0 = s0
+        self.delta = delta
+        self.length = length
+        self.road_length = road_length
+
+    def _get_rate(self, namespace: SimpleNamespace) -> object:
+        """Return the acceleration of the intelligent driver system."""
+        s, cars = namespace, namespace.target
+        gap = s.s0 + cars.v * s.T + cars.v * (cars.v - shift_member(cars.v, 1)) / (2 * sqrt(s.a * s.b))
+        return s.a * (
+            1
+            - (cars.v / s.v0) ** s.delta
+            - (gap / (OptimalVelocityInteraction._headway(cars.x, s.road_length) - s.length)) ** 2
+        )
 
 
 def _ring_positions(n_cars: int, length: float, perturbation: float) -> list[float]:

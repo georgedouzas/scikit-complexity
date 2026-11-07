@@ -18,7 +18,7 @@ from ....core.engine.solvers import AgentView, SystemView
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._balance_sheet import DEFAULTED, SOLVENT, BalanceSheetElement, BalanceSheetView
+from ..common._balance_sheet import DEFAULTED, SOLVENT, BalanceSheetElement, BalanceSheetView
 
 SELLING_RULES = ('threshold', 'leverage')
 

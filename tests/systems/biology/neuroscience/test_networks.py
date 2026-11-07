@@ -9,10 +9,13 @@ from sage.all__sagemath_symbolics import tanh
 from skcomplex.core.components.elements import FieldElement
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.laws.utils import laplacian, logistic
+from skcomplex.core.components.spaces import LatticeSpace
 from skcomplex.core.components.system import System
 from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.systems.biology.neuroscience import (
+    InhibitorDriveInteraction,
+    InhibitorElement,
     TermanWangElement,
     delayed_lif_network,
     legion,
@@ -105,3 +108,13 @@ def test_legion_short_trajectory_equals_the_coupling_written_in_the_element():
     expected = Simulation(_previous_legion(), dt=0.5).prepare().run(until=1.5).trajectory_
     assert np.abs(trajectory.values('oscillators.x') - expected.values('oscillators.x')).max() < 1e-10
     assert np.abs(trajectory.values('oscillators.y') - expected.values('oscillators.y')).max() < 1e-10
+
+
+def test_inhibitor_drive_interaction_follows_most_active_oscillator():
+    """Test that the inhibitor relaxes toward the largest activity of the oscillators, 1 when one is active."""
+    values = {'x': np.array([[2.0, -2.0]]), 'm': np.array([[1.0, 1.0]]), 'epsilon': 1e-9}
+    oscillators = FieldElement('oscillators', element=TermanWangElement, space=LatticeSpace((1, 2)), values=values)
+    drive = InhibitorDriveInteraction('drive', inhibitor='inhibitor', oscillators='oscillators')
+    system = System(elements=[oscillators, InhibitorElement('inhibitor')], interactions=[drive])
+    trajectory = Simulation(system, dt=0.01).prepare().run(until=0.1).trajectory_
+    assert trajectory.values('inhibitor.z')[-1] == pytest.approx(1 - np.exp(-0.3), rel=1e-3)

@@ -3,19 +3,264 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+from types import SimpleNamespace
+from typing import Annotated
 
+from sage.all__sagemath_symbolics import Expression, cos, oo, pi, sin
+from sage.sets.real_set import RealSet
+
+from ....core.components.elements import Element
 from ....core.components.interactions import ImpulseInteraction
+from ....core.components.laws import BaseLaw, EquationLaw, RateLaw
+from ....core.components.laws.utils import derivative, where
 from ....core.components.system import System
 from ....core.engine.solvers import ScipyODESolver
 from ....core.errors import ParameterError
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._chua_circuit import ChuaCircuitElement
-from ._circuit import CircuitElement
-from ._kicked_circuit import KickedCircuitElement
-from ._memristor_circuit import MemristorCircuitElement
-from ._mixed_mode_chua_circuit import MixedModeChuaCircuitElement
-from ._multiscroll_chua_circuit import MultiscrollChuaCircuitElement
-from ._tunnel_diode_circuit import TunnelDiodeCircuitElement
+
+
+class ChuaCircuitElement(Element):
+    """Chua circuit with the piecewise-linear current of its diode."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.1,
+        y: Annotated[object, StateSpec()] = 0.0,
+        z: Annotated[object, StateSpec()] = 0.0,
+        alpha: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 15.6,
+        beta: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 28.0,
+        m0: Annotated[object, ParameterSpec()] = -8 / 7,
+        m1: Annotated[object, ParameterSpec()] = -5 / 7,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.alpha = alpha
+        self.beta = beta
+        self.m0 = m0
+        self.m1 = m1
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rates of the states of the circuit."""
+        return [
+            RateLaw(s.x, s.alpha * (s.y - s.x - s.m1 * s.x - (s.m0 - s.m1) * (abs(s.x + 1) - abs(s.x - 1)) / 2)),
+            RateLaw(s.y, s.x - s.y + s.z),
+            RateLaw(s.z, -s.beta * s.y),
+        ]
+
+
+class CircuitElement(Element):
+    """RLC circuit whose charge follows `L q'' + R q' + q / C = V cos(ω t)`."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        q: Annotated[object, StateSpec(order=2)] = 1.0,
+        q_d1: float = 0.0,
+        L: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        R: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        V: Annotated[object, ParameterSpec()] = 0.0,
+        omega: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.q = q
+        self.q_d1 = q_d1
+        self.L = L
+        self.R = R
+        self.C = C
+        self.V = V
+        self.omega = omega
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the equation of the charge."""
+        return [
+            EquationLaw(s.L * derivative(s.q, 2) + s.R * derivative(s.q, 1) + s.q / s.C == s.V * cos(s.omega * s.t)),
+        ]
+
+
+class KickedCircuitElement(Element):
+    """RLC circuit ringing down freely between the impulses of strength `A` that kick its rate."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(order=2)] = 0.0,
+        x_d1: float = 0.0,
+        L: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        R: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        A: Annotated[object, ParameterSpec()] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.x_d1 = x_d1
+        self.L = L
+        self.R = R
+        self.C = C
+        self.A = A
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the free equation of the circuit between impulses."""
+        return [EquationLaw(s.L * s.C * derivative(s.x, 2) + s.R * s.C * derivative(s.x, 1) + s.x == 0)]
+
+
+class MemristorCircuitElement(Element):
+    """Oscillator built from a memristor, whose current depends on the flux through it."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        v: Annotated[object, StateSpec()] = 0.1,
+        i: Annotated[object, StateSpec()] = 0.0,
+        w: Annotated[object, StateSpec()] = 0.1,
+        C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        L: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+        alpha: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.6,
+        beta: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.5,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.v = v
+        self.i = i
+        self.w = w
+        self.C = C
+        self.L = L
+        self.alpha = alpha
+        self.beta = beta
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rates of the states of the circuit."""
+        return [
+            RateLaw(s.v, s.i / s.C),
+            RateLaw(s.i, -(s.v + s.beta * (s.w**2 - 1) * s.i) / s.L),
+            RateLaw(s.w, -s.i - s.alpha * s.w + s.w * s.i),
+        ]
+
+
+class MixedModeChuaCircuitElement(Element):
+    """Slow-fast Chua circuit whose oscillations mix small and large amplitudes."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 0.01,
+        y: Annotated[object, StateSpec()] = 0.0,
+        z: Annotated[object, StateSpec()] = 0.0,
+        epsilon: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.01,
+        a: Annotated[object, ParameterSpec()] = 1.5,
+        b: Annotated[object, ParameterSpec()] = -1.0,
+        alpha: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        R: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        beta: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.005,
+        c: Annotated[object, ParameterSpec()] = 0.00053,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.epsilon = epsilon
+        self.a = a
+        self.b = b
+        self.alpha = alpha
+        self.R = R
+        self.beta = beta
+        self.c = c
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rates of the states of the circuit."""
+        return [
+            RateLaw(s.x, (-s.y + (s.a + s.b * s.x) * s.x**2) / s.epsilon),
+            RateLaw(s.y, s.alpha * (s.x - s.R * s.y - s.z)),
+            RateLaw(s.z, s.c - s.beta * s.y),
+        ]
+
+
+class MultiscrollChuaCircuitElement(Element):
+    """Chua circuit with a sine nonlinearity that gives attractors of many scrolls."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec()] = 1.0,
+        y: Annotated[object, StateSpec()] = 1.0,
+        z: Annotated[object, StateSpec()] = 0.0,
+        alpha: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 10.82,
+        beta: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 14.286,
+        a: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.3,
+        b: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 0.11,
+        c: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 3.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.y = y
+        self.z = z
+        self.alpha = alpha
+        self.beta = beta
+        self.a = a
+        self.b = b
+        self.c = c
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rates of the states of the circuit."""
+        return [
+            RateLaw(s.x, s.alpha * (s.y - MultiscrollChuaCircuitElement._scroll_nonlinearity(s.x, s.a, s.b, s.c))),
+            RateLaw(s.y, s.x - s.y + s.z),
+            RateLaw(s.z, -s.beta * s.y),
+        ]
+
+    @staticmethod
+    def _scroll_nonlinearity(x: Expression, a: Expression, b: Expression, c: Expression) -> Expression:
+        """Return the sine characteristic of the multiscroll Chua circuit, continued linearly beyond `|x| = 2 a c`."""
+        edge = 2 * a * c
+        slope = b * pi / (2 * a)
+        return where(x >= edge, slope * (x - edge), where(x <= -edge, slope * (x + edge), -b * sin(pi * x / (2 * a))))
+
+
+class TunnelDiodeCircuitElement(Element):
+    """Oscillator of a tunnel diode with a cubic current, of the van der Pol type."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        V: Annotated[object, StateSpec()] = 0.1,
+        i: Annotated[object, StateSpec()] = 0.0,
+        L: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        C: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        alpha: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        gamma: Annotated[object, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.V = V
+        self.i = i
+        self.L = L
+        self.C = C
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rates of the states of the circuit."""
+        return [
+            RateLaw(s.V, -(s.gamma * s.V**3 - s.alpha * s.V + s.i) / s.C),
+            RateLaw(s.i, s.V / s.L),
+        ]
+
 
 CHUA_NONLINEARITIES = ('piecewise-linear', 'sine')
 

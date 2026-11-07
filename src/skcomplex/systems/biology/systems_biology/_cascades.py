@@ -16,7 +16,7 @@ from ....core.components.system import System
 from ....core.errors import ValidationError
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._species import SpeciesElement
+from ..common.kinetics import SpeciesElement
 
 STAGES = ('adenylate_cyclase', 'camp', 'protein_kinase_a', 'phosphorylase_kinase', 'phosphorylase')
 

@@ -5,11 +5,15 @@ import importlib
 import numpy as np
 import pytest
 
+from skcomplex.core.components.system import System
 from skcomplex.core.engine.compile import PassCompiler
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.types import FormKind
 from skcomplex.systems import create_system
 from skcomplex.systems.mathematics.fractional_dynamics import (
+    OscillatorElement,
+    RelaxationElement,
+    VanDerPolElement,
     fractional_lorenz,
     fractional_oscillator,
     fractional_relaxation,
@@ -79,3 +83,25 @@ def test_element_types_of_orders_pickle_by_reference():
     element_type = type(create_system('fractional_relaxation', order=0.37).elements[0])
     assert element_type is relaxation_type(0.37)
     assert getattr(importlib.import_module(element_type.__module__), element_type.__qualname__) is element_type
+
+
+def test_oscillator_element_follows_the_cosine_without_damping():
+    """Test that the undamped oscillator of order 1 follows `cos(omega t)`."""
+    system = System(elements=[OscillatorElement('oscillator', omega=2.0)])
+    trajectory = Simulation(system, dt=0.5).prepare().run(until=5.0).trajectory_
+    np.testing.assert_allclose(trajectory.values('oscillator.x'), np.cos(2.0 * trajectory.times), atol=1e-4)
+
+
+def test_relaxation_element_decays_exponentially():
+    """Test that relaxation of order 1 decays as `exp(-lam t)`."""
+    system = System(elements=[RelaxationElement('relaxation', x=2.0, lam=0.5)])
+    trajectory = Simulation(system, dt=1.0).prepare().run(until=4.0).trajectory_
+    np.testing.assert_allclose(trajectory.values('relaxation.x'), 2.0 * np.exp(-0.5 * trajectory.times), rtol=1e-4)
+
+
+def test_van_der_pol_element_reaches_a_cycle_of_amplitude_two():
+    """Test that the Van der Pol oscillator of order 1 started near rest grows to its cycle of amplitude near 2."""
+    system = System(elements=[VanDerPolElement('oscillator', x=0.1, mu=1.0)])
+    trajectory = Simulation(system, dt=0.1).prepare().run(until=60.0).trajectory_
+    late = trajectory.values('oscillator.x')[-200:]
+    assert np.max(np.abs(late)) == pytest.approx(2.0, abs=0.1)

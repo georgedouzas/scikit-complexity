@@ -55,8 +55,9 @@ a hyperedge, and the sign of the regulator from the link, and it cannot read sev
 - **Several regulators in one hyperedge.** Laws per hyperedge write the link through the edge of the first two
   members, so several hyperedges per link would write one link several times. One hyperedge per link lists its
   negative and then its positive regulators, the link holds their numbers, and further members pad the hyperedges to
-  one size and regulate nothing. One size keeps one kernel. Hyperedges of several sizes would write the link from one
-  kernel per size, combined update laws that the Numba backend scatters wrongly through gather tables today.
+  one size and regulate nothing. One size keeps one kernel. Hyperedges of their true sizes, written by an increment
+  from one kernel per size, give the same trajectories on every backend, but Numba then compiles a few dozen kernels
+  for every network, which makes a run about ten times slower.
 - **Links without positive regulators.** They need only their negative regulators inactive, which keeps the one
   regulator model of Sun et al. and changes the spatial model only for links without positive regulators, about
   `exp(-2 pi rho c+ dr²)` of them, below 0.1 percent at the paper's parameters.

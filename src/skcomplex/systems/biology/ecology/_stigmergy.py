@@ -6,10 +6,14 @@
 import itertools
 from collections.abc import Callable
 from functools import partial
+from typing import Annotated, ClassVar
 
 import numpy as np
+from sage.all__sagemath_symbolics import oo
+from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import FieldElement, GroupElement
+from ....core.components.elements import Element, FieldElement, GroupElement
 from ....core.components.interactions import (
     LifeCycleInteraction,
     MapInteraction,
@@ -20,29 +24,383 @@ from ....core.components.laws import Source
 from ....core.components.spaces import LatticeSpace
 from ....core.components.system import System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
+from ....core.engine.solvers import AgentView
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
 from ..common.stigmergy import EvaporationInteraction
-from ._emotion_marks import EmotionMarksElement
-from ._forager import PLANTS, ForagerElement
-from ._forager_view import ForagerView
-from ._plant import PlantElement
-from ._plant_view import PlantView
-from ._stigmergic_predator import PREY, StigmergicPredatorElement
-from ._stigmergic_prey import StigmergicPreyElement
+
+PLANTS = 'plants'
+
+PREY = 'prey'
 
 MARKS = 'ground/marks'
 
-
 PREDATORS = 'predators'
-
 
 EMOTIONS = ('prey_happiness', 'prey_fear', 'predator_happiness', 'predator_anger')
 
-
 PREY_TRAITS: dict[str, float] = {'maturity': 3.0, 'reproduction': 0.5, 'starvation': 10.0}
 
-
 PREDATOR_TRAITS: dict[str, float] = {'maturity': 20.0, 'reproduction': 0.1, 'starvation': 8.0}
+
+
+class EmotionMarksElement(Element):
+    """Marks of one cell, the happiness and fear of prey and the happiness and anger of predators.
+
+    Animals with emotions leave their feelings in the cell they stand on, and the marks evaporate at the rate `decay`,
+    which the system adds as an evaporation of every mark.
+
+    Args:
+        label:
+            The label of the element or the lattice field.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        prey_happiness:
+            The initial happiness left by prey.
+
+        prey_fear:
+            The initial fear left by prey.
+
+        predator_happiness:
+            The initial happiness left by predators.
+
+        predator_anger:
+            The initial anger left by predators.
+
+        decay:
+            The rate at which every mark evaporates.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import EmotionMarksElement
+        >>> EmotionMarksElement('marks').decay
+        0.2
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        prey_happiness: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        prey_fear: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        predator_happiness: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        predator_anger: Annotated[object, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        decay: Annotated[object, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.2,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.prey_happiness = prey_happiness
+        self.prey_fear = prey_fear
+        self.predator_happiness = predator_happiness
+        self.predator_anger = predator_anger
+        self.decay = decay
+
+
+class ForagerView(AgentView):
+    """View of a forager or a predator, with its states and parameters as attributes.
+
+    `ForagerElement` names this class with `_get_view`, so its rules read them with checked types.
+    """
+
+    age: float
+    hunger: float
+    happiness: float
+    distress: float
+    experience: float
+    maturity: float
+    reproduction: float
+    starvation: float
+    memory: float
+    communication: float
+    emotions: float
+
+
+class ForagerElement(Element):
+    """Animal that hunts its food guided by its emotions and those its kind left on the ground, and breeds.
+
+    Every step the animal ages and grows hungry, and starves when its hunger passes `starvation`. It moves to the
+    neighbouring cell, empty or holding food, of highest preference: 1 for food, plus, with emotions, the happiness
+    marked there minus its own and its own distress minus the distress marked there. It eats food it moves onto.
+    Its emotions follow `E' = (1 - memory) (X + communication C) + memory E`, with the experience `X` of the step and
+    the mean emotion `C` marked around it, and it marks its cell with them. A mature animal breeds into an empty
+    neighbouring cell with a probability that happiness raises and distress lowers, and its offspring shares its
+    hunger, so a lineage starves together when its food is gone. Subclasses name their food and the marks they read,
+    and the system adds the ageing, the hunger, the starvation, the experience of distress, the move, the meal, the
+    emotions, the marks, and the breeding as member interactions.
+
+    Args:
+        label:
+            The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        age:
+            The steps since the animal last bred.
+
+        hunger:
+            The steps since the animal last ate.
+
+        happiness:
+            The happiness, which eating raises.
+
+        distress:
+            The fear or anger.
+
+        experience:
+            The distress the animal experienced in the step, before it moved.
+
+        maturity:
+            The age at which the animal can breed.
+
+        reproduction:
+            The probability of breeding at maturity without emotions.
+
+        starvation:
+            The hunger at which the animal dies.
+
+        memory:
+            The share of its previous emotion that an animal keeps.
+
+        communication:
+            The weight of the emotions marked around the animal.
+
+        emotions:
+            Whether emotions guide the animal, 1 or 0.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.systems.biology.ecology import StigmergicPreyElement
+        >>> GroupElement('prey', element=StigmergicPreyElement, size=10).size
+        10
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'happiness', 'radius': 0.35}),
+        *,
+        age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        hunger: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        happiness: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        distress: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        experience: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        maturity: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 5.0,
+        reproduction: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        starvation: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 10.0,
+        memory: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.3,
+        communication: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        emotions: Annotated[float, ParameterSpec(domain=FiniteEnumeratedSet([0, 1]))] = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.age = age
+        self.hunger = hunger
+        self.happiness = happiness
+        self.distress = distress
+        self.experience = experience
+        self.maturity = maturity
+        self.reproduction = reproduction
+        self.starvation = starvation
+        self.memory = memory
+        self.communication = communication
+        self.emotions = emotions
+
+    food: ClassVar[str] = PLANTS
+    happiness_mark: ClassVar[str] = 'prey_happiness'
+    distress_mark: ClassVar[str] = 'prey_fear'
+
+    @classmethod
+    def _get_view(cls) -> type[ForagerView]:
+        """Return the view of a forager or a predator, `ForagerView`."""
+        return ForagerView
+
+
+class StigmergicPredatorElement(ForagerElement):
+    """Predator that eats prey and grows angry with hunger.
+
+    Args:
+        label:
+            The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        age:
+            The steps since the animal last bred.
+
+        hunger:
+            The steps since the animal last ate.
+
+        happiness:
+            The happiness, which eating raises.
+
+        distress:
+            The anger, which hunger raises.
+
+        experience:
+            The distress the animal experienced in the step, before it moved.
+
+        maturity:
+            The age at which the animal can breed.
+
+        reproduction:
+            The probability of breeding at maturity without emotions.
+
+        starvation:
+            The hunger at which the animal dies.
+
+        memory:
+            The share of its previous emotion that an animal keeps.
+
+        communication:
+            The weight of the emotions marked around the animal.
+
+        emotions:
+            Whether emotions guide the animal, 1 or 0.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import StigmergicPredatorElement
+        >>> StigmergicPredatorElement.food
+        'prey'
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'color_by': 'distress', 'radius': 0.45}),
+        *,
+        age: float = 0.0,
+        hunger: float = 0.0,
+        happiness: float = 0.0,
+        distress: float = 0.0,
+        experience: float = 0.0,
+        maturity: float = 5.0,
+        reproduction: float = 0.3,
+        starvation: float = 10.0,
+        memory: float = 0.3,
+        communication: float = 0.1,
+        emotions: float = 1.0,
+    ) -> None:
+        super().__init__(
+            label,
+            visual=visual,
+            age=age,
+            hunger=hunger,
+            happiness=happiness,
+            distress=distress,
+            experience=experience,
+            maturity=maturity,
+            reproduction=reproduction,
+            starvation=starvation,
+            memory=memory,
+            communication=communication,
+            emotions=emotions,
+        )
+
+    food: ClassVar[str] = PREY
+    happiness_mark: ClassVar[str] = 'predator_happiness'
+    distress_mark: ClassVar[str] = 'predator_anger'
+
+
+class StigmergicPreyElement(ForagerElement):
+    """Prey that eats plants and fears the predators around it.
+
+    Args:
+        label:
+            The label of the agent or group.
+
+        age:
+            The steps since the animal last bred.
+
+        hunger:
+            The steps since the animal last ate.
+
+        happiness:
+            The happiness, which eating raises.
+
+        distress:
+            The fear, which predators around it raise.
+
+        experience:
+            The distress the animal experienced in the step, before it moved.
+
+        maturity:
+            The age at which the animal can breed.
+
+        reproduction:
+            The probability of breeding at maturity without emotions.
+
+        starvation:
+            The hunger at which the animal dies.
+
+        memory:
+            The share of its previous emotion that an animal keeps.
+
+        communication:
+            The weight of the emotions marked around the animal.
+
+        emotions:
+            Whether emotions guide the animal, 1 or 0.
+
+    Examples:
+        >>> from skcomplex.systems.biology.ecology import StigmergicPreyElement
+        >>> StigmergicPreyElement.food
+        'plants'
+    """
+
+
+class PlantView(AgentView):
+    """View of a plant, with its states and parameters as attributes.
+
+    `PlantElement` names this class with `_get_view`, so its rules read them with checked types.
+    """
+
+    age: float
+    maturity: float
+
+
+class PlantElement(Element):
+    """Plant that spreads into an empty neighbouring cell whenever it reaches maturity.
+
+    The system adds the ageing and the spreading as member interactions, and a plant that spreads starts its age anew.
+
+    Args:
+        label:
+            The label of the agent or group.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        age:
+            The steps since the plant last spread.
+
+        maturity:
+            The age at which the plant spreads.
+
+    Examples:
+        >>> from skcomplex.core.components.elements import GroupElement
+        >>> from skcomplex.systems.biology.ecology import PlantElement
+        >>> GroupElement('plants', element=PlantElement, size=100).size
+        100
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = VisualSpec('agents', {'radius': 0.25}),
+        *,
+        age: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        maturity: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.age = age
+        self.maturity = maturity
+
+    @classmethod
+    def _get_view(cls) -> type[PlantView]:
+        """Return the view of a plant, `PlantView`."""
+        return PlantView
 
 
 def _kind(agent: AgentViewProtocol) -> str:
