@@ -6,21 +6,20 @@ falls. Off therapy the quotas refill and the tumour and the PSA regrow.
 """
 
 # %%
-# The system is created by name from the catalog: 15 billion androgen-dependent cells under therapy for 250 days every
-# 500 days. The observer saves every second frame with the default blueprint, whose primary view is the time series of
-# the cells, the quotas, the PSA, and the androgen.
+# The system is built from its class: 15 billion androgen-dependent cells under therapy for 250 days every 500 days.
+# The observer saves every second frame with the default blueprint, whose primary view is the time series of the
+# cells, the quotas, the PSA, and the androgen.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import ProstateCellQuotaSystem
 
 SYSTEM = 'prostate_cell_quota'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=5.0, observers=[observer]).prepare().run(until=1500)
+trajectory = simulate(ProstateCellQuotaSystem(), observers=[observer])
 
 # %%
 # Quotas set the growth
@@ -29,7 +28,6 @@ simulation = Simulation(system, dt=5.0, observers=[observer]).prepare().run(unti
 # `rm q1 / (rm - d1) = 0.75` nM and grow above it. The growth rate should change sign with the therapy, and the PSA
 # should follow the cells.
 
-trajectory = simulation.trajectory_
 times = trajectory.times
 fig, (quota, cells) = plt.subplots(1, 2, figsize=(10, 4))
 quota.plot(times, trajectory.values('tumour.Q1'), label='dependent cells Q1')

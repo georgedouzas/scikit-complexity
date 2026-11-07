@@ -6,20 +6,20 @@ dilute the infection, and the tumour regrows past its initial volume.
 """
 
 # %%
-# The system is created by name from the catalog with the book's rates of virus and dendritic cells and a tumour of
-# 60 mm³, and runs for 20 days with the stiff solver of its catalog entry. The virions and the T cells number in the
-# billions and millions, so the blueprint shows only the uninfected and infected tumour volumes, in one time series
-# view over the whole run.
+# The system is built from its class with the book's rates of virus and dendritic cells and a tumour of 60 mm³, and
+# runs for 20 days with its tuned stiff solver. The virions and the T cells number in the billions and
+# millions, so the blueprint shows only the uninfected and infected tumour volumes, in one time series view over the
+# whole run.
 
 import matplotlib.pyplot as plt
 import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import OncolyticVirusDendriticSystem
 
 SYSTEM = 'oncolytic_virus_dendritic'
 
@@ -37,10 +37,10 @@ blueprint = rrb.Blueprint(
     rrb.TopPanel(state='hidden'),
     collapse_panels=True,
 )
-system = create_system(SYSTEM)
+system = OncolyticVirusDendriticSystem().prepare().system_
 solver = ScipyODESolver(method='LSODA')
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint=blueprint, interval=2)
-simulation = Simulation(system, dt=0.1, solver=solver, observers=[observer]).prepare().run(until=20)
+trajectory = simulate(system, dt=0.1, solver=solver, observers=[observer], until=20)
 
 # %%
 # Each therapy alone and both together
@@ -50,27 +50,27 @@ simulation = Simulation(system, dt=0.1, solver=solver, observers=[observer]).pre
 # virus alone and then regrow, because the T cells raise the total `Atot` that divides the infection.
 
 arms = {
-    'untreated': create_system(SYSTEM, uv=0.0, ud=0.0),
-    'virus alone': create_system(SYSTEM, ud=0.0),
+    'untreated': OncolyticVirusDendriticSystem(uv=0.0, ud=0.0).prepare().system_,
+    'virus alone': OncolyticVirusDendriticSystem(ud=0.0).prepare().system_,
     'both': system,
 }
 fig, (volume, cells) = plt.subplots(1, 2, figsize=(10, 4))
 for name, arm in arms.items():
-    trajectory = Simulation(arm, dt=0.1, solver=solver).prepare().run(until=20).trajectory_
+    trajectory = simulate(arm, dt=0.1, solver=solver, until=20)
     volume.semilogy(
         trajectory.times,
         (trajectory.values('site.AU') + trajectory.values('site.AV')).clip(1e-6),
         label=name,
     )
-times = simulation.trajectory_.times
+times = trajectory.times
 volume.semilogy(times, 60 * np.exp(0.3198 * times), ':', color='black', label='60 exp(r1 t)')
 volume.set_ylim(1e-6, 1e6)
 volume.set_xlabel('time (days)')
 volume.set_ylabel('tumour volume (mm³)')
 volume.set_title('The virus clears the tumour, the T cells dilute it')
 volume.legend()
-cells.semilogy(times, simulation.trajectory_.values('site.V'), label='virions')
-cells.semilogy(times, simulation.trajectory_.values('site.E'), label='activated T cells')
+cells.semilogy(times, trajectory.values('site.V'), label='virions')
+cells.semilogy(times, trajectory.values('site.E'), label='activated T cells')
 cells.set_xlabel('time (days)')
 cells.set_ylabel('count')
 cells.set_title('Virions and T cells under both therapies')

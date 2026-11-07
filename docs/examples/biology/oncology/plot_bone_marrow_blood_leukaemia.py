@@ -6,24 +6,21 @@ overtake them in the bone marrow, spill into the blood, and end up outnumbering 
 """
 
 # %%
-# The system is created by name from the catalog with the initial cells of the book and rates within its ranges, and
-# runs for 3000 hours with the maturation delay of 96 hours and the conversion delay of 576 hours. The observer saves
-# every second frame with the default blueprint, whose primary view is the time series of the five populations.
+# The system is built from its class with the initial cells of the book and rates within its ranges, and runs for 3000
+# hours with the maturation delay of 96 hours and the conversion delay of 576 hours. The observer saves every second
+# frame with the default blueprint, whose primary view is the time series of the five populations.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import ScipyODESolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import BoneMarrowBloodLeukaemiaSystem
 
 SYSTEM = 'bone_marrow_blood_leukaemia'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = (
-    Simulation(system, dt=10.0, solver=ScipyODESolver(method='BDF'), observers=[observer]).prepare().run(until=3000)
-)
+simulation = simulate(BoneMarrowBloodLeukaemiaSystem(), solver=ScipyODESolver(method='BDF'), observers=[observer])
 
 # %%
 # Blasts crowd out the normal cells
@@ -31,7 +28,7 @@ simulation = (
 # On a logarithmic scale the five populations span eight orders of magnitude. The marrow blasts should overtake the
 # normal marrow cells within two weeks, and the normal blood cells should fall by more than three orders of magnitude.
 
-trajectory = simulation.trajectory_
+trajectory = simulation
 days = trajectory.times / 24
 fig, (marrow, blood) = plt.subplots(1, 2, figsize=(10, 4))
 marrow.semilogy(days, trajectory.values('patient.NBM'), label='normal')

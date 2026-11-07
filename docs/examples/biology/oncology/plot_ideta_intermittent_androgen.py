@@ -6,21 +6,20 @@ between the two thresholds.
 """
 
 # %%
-# The system is created by name from the catalog: five androgen-dependent cells at the normal androgen of 30 nmol/L.
-# The observer saves every third frame with the default blueprint, whose primary view is the time series of the cells,
-# the androgen, and the therapy.
+# The system is built from its class: five androgen-dependent cells at the normal androgen of 30 nmol/L. The observer
+# saves every third frame with the default blueprint, whose primary view is the time series of the cells, the
+# androgen, and the therapy.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import IdetaIntermittentAndrogenSystem
 
 SYSTEM = 'ideta_intermittent_androgen'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
-simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=600)
+trajectory = simulate(IdetaIntermittentAndrogenSystem(), dt=1.0, observers=[observer])
 
 # %%
 # Switching at the thresholds
@@ -29,7 +28,6 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(unti
 # follows the therapy with a delay of about `1 / du = 12.5` days, so the PSA overshoots the thresholds a little before
 # it turns.
 
-trajectory = simulation.trajectory_
 times, psa = trajectory.times, trajectory.values('tumour.AD') + trajectory.values('tumour.AI')
 fig, (level, androgen) = plt.subplots(1, 2, figsize=(10, 4))
 level.plot(times, psa, label='PSA')

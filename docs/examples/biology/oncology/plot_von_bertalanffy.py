@@ -6,23 +6,21 @@ which scales with the volume.
 """
 
 # %%
-# The system is created by name from the catalog with the exponent `p = 2/3` of a proliferating rim and run for 40 days
-# from 1 mm³. The observer saves every frame with the default blueprint, whose primary view is the time series of the
-# volume.
+# The system is built from its class with the exponent `p = 2/3` of a proliferating rim and run for 40 days from 1
+# mm³. The observer saves every frame with the default blueprint, whose primary view is the time series of the volume.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import VonBertalanffySystem
 
 SYSTEM = 'von_bertalanffy'
 
 r, p, d = 2.32, 2 / 3, 0.808
-system = create_system(SYSTEM, n=1.0, r=r, p=p, d=d)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(until=40)
+trajectory = simulate(VonBertalanffySystem(n=1.0, r=r, p=p, d=d), dt=0.2, observers=[observer], until=40)
 
 # %%
 # Closed-form solution
@@ -30,7 +28,7 @@ simulation = Simulation(system, dt=0.2, observers=[observer]).prepare().run(unti
 # The system `dn/dt = r n^p - d n` has the solution `(r / d + (n0^(1-p) - r / d) exp(-d (1-p) t))^(1/(1-p))`, which
 # tends to the equilibrium `(r / d)^(1/(1-p))`. The simulated volume should lie on it.
 
-times, volume = simulation.trajectory_.times, simulation.trajectory_.values('tumour.n')
+times, volume = trajectory.times, trajectory.values('tumour.n')
 exact = (r / d + (1.0 - r / d) * np.exp(-d * (1 - p) * times)) ** (1 / (1 - p))
 fig, (curve, error) = plt.subplots(1, 2, figsize=(10, 4))
 curve.plot(times, volume, label='simulated')

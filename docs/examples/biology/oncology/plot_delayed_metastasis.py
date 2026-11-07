@@ -6,21 +6,20 @@ day seed a secondary tumour that does the same at the second site.
 """
 
 # %%
-# The system is created by name from the catalog, untreated, from 165 tumour cells at the primary site and none at the
-# secondary site. The observer saves every frame with the default blueprint, whose primary view is the time series of
-# the cells at both sites.
+# The system is built from its class, untreated, from 165 tumour cells at the primary site and none at the secondary
+# site. The observer saves every frame with the default blueprint, whose primary view is the time series of the cells
+# at both sites.
 
 import matplotlib.pyplot as plt
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.oncology import DelayedMetastasisSystem
 
 SYSTEM = 'delayed_metastasis'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(until=6)
+trajectory = simulate(DelayedMetastasisSystem(), observers=[observer], until=6)
 
 # %%
 # Takeover at both sites
@@ -28,7 +27,6 @@ simulation = Simulation(system, dt=0.05, observers=[observer]).prepare().run(unt
 # Each tumour should settle at its logistic capacity, reduced at the primary site by the cells that leave,
 # `(1 - delta / r2) / b2`, and set by `1 / b4` at the secondary site, while the normal cells die out.
 
-trajectory = simulation.trajectory_
 times = trajectory.times
 fig, (primary, secondary) = plt.subplots(1, 2, figsize=(10, 4))
 primary.plot(times, trajectory.values('patient.Np'), label='normal cells')
