@@ -8,7 +8,7 @@ learning. The view shows the histogram of the temperatures of the agents, which 
 """
 
 # %%
-# The system is created by name from the catalog with memory 0.75, the value of Lesmana et al. Every third step
+# The system is built from its class with memory 0.75, the value of Lesmana et al. Every third step
 # replaces the least fit agent, and two steps of learning alone follow. The observer saves every 50th step with the
 # default blueprint, whose primary view is the histogram of the temperatures. Every third frame of the
 # trajectory holds the fitnesses that decide a replacement.
@@ -17,18 +17,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import distribution, ergodicity, events, fit_law
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.criticality import EvolutionarySKGameSystem
 
 SYSTEM = 'evolutionary_sk_game'
 STEPS = 14999
 TRANSIENT = 1500
 
-system = create_system(SYSTEM, memory=0.75, random_state=0)
+system = EvolutionarySKGameSystem(memory=0.75, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=50)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=STEPS)
-trajectory = simulation.trajectory_
+trajectory = simulate(system, until=STEPS, observers=[observer], random_state=0)
 temperatures = np.asarray(trajectory.values('agents.temperature'))
 fitness = np.asarray(trajectory.values('agents.fitness'))[::3][TRANSIENT // 3 :]
 rewards = np.asarray(trajectory.values('agents.reward')).mean(axis=1)
@@ -58,10 +57,12 @@ scales = np.arange(-2, 3)
 coefficients = []
 for scale in scales:
     runs = [
-        Simulation(create_system(SYSTEM, temperature=evolved * 2.0**scale, random_state=0), dt=1, random_state=run)
-        .prepare()
-        .run(until=300)
-        .trajectory_.values('agents.reward')
+        simulate(
+            EvolutionarySKGameSystem(temperature=evolved * 2.0**scale, random_state=0),
+            until=300,
+            random_state=run,
+        )
+        .values('agents.reward')
         .mean(axis=1)[150:]
         for run in range(4)
     ]

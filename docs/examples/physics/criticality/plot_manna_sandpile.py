@@ -9,7 +9,7 @@ empty (dark) or holding one grain (bright), between avalanches.
 """
 
 # %%
-# The system is created by name from the catalog from random stable heights. One unit of time is one dropped grain
+# The system is built from its class from random stable heights. One unit of time is one dropped grain
 # followed by the full avalanche it triggers. The observer saves every 30th grain with the default blueprint, whose
 # primary view is the image of the heights.
 
@@ -17,15 +17,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import distribution, events
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.criticality import MannaSandpileSystem
 
 SYSTEM = 'manna_sandpile'
 
-system = create_system(SYSTEM, shape=(32, 32), random_state=0)
+system = MannaSandpileSystem(shape=(32, 32), random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=30, observers=[observer], random_state=0).prepare().run(until=8970)
+trajectory = simulate(system, until=8970, dt=30, observers=[observer], random_state=0)
 
 # %%
 # Self-organized criticality
@@ -35,9 +35,9 @@ simulation = Simulation(system, dt=30, observers=[observer], random_state=0).pre
 # In the critical state the density of sizes should follow a power law `P(s) ~ s^-tau` with `tau` near `1.27`, the
 # Manna exponent, over two decades, up to a cutoff set by the size of the lattice where it falls off steeply.
 
-heights = simulation.trajectory_.values('pile.height').mean(axis=1)
+heights = trajectory.values('pile.height').mean(axis=1)
 found = events(
-    [record for record in simulation.trajectory_.events if record.time > 3000 and record.size > 0],
+    [record for record in trajectory.events if record.time > 3000 and record.size > 0],
     kind='excursions',
 )
 histogram = distribution(found.sizes, kind='histogram', bins=20, log=True)
