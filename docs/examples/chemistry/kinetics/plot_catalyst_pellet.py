@@ -7,22 +7,21 @@ concentration, the surface settles in the inhibited state.
 """
 
 # %%
-# The system is created by name from the catalog with the mass transfer `h = 0.1`, the rate `k = 10`, and the adsorption
+# The system is built from its class with the mass transfer `h = 0.1`, the rate `k = 10`, and the adsorption
 # constant `K = 20`, starting at the bulk concentration `c = 1`. The default blueprint shows the surface concentration
 # in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.chemistry.kinetics import CatalystPelletSystem
 
 SYSTEM = 'catalyst_pellet'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default')
-simulation = Simulation(system, dt=0.5, observers=[observer]).prepare().run(until=100)
+trajectory = simulate(CatalystPelletSystem(), dt=0.5, observers=[observer])
 
 # %%
 # Bistability
@@ -43,9 +42,9 @@ rate.set_ylabel('dc/dt')
 rate.set_title('Three steady states')
 rate.legend()
 for c0 in np.linspace(0.02, 1.0, 21):
-    run = Simulation(create_system(SYSTEM, c=c0), dt=0.5).prepare().run(until=100).trajectory_
+    run = simulate(CatalystPelletSystem(c=c0), dt=0.5)
     runs.plot(run.times, run.values('pellet.c'), color='C1' if c0 > roots[1] else 'C0', linewidth=0.8)
-runs.plot(simulation.trajectory_.times, simulation.trajectory_.values('pellet.c'), color='black', linewidth=2)
+runs.plot(trajectory.times, trajectory.values('pellet.c'), color='black', linewidth=2)
 for root in roots:
     runs.axhline(root, color='gray', linestyle='--', linewidth=0.8)
 runs.set_xlabel('time')

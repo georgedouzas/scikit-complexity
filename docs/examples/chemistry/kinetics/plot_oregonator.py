@@ -6,7 +6,7 @@ while bromous acid and the catalyst stay low, and spikes again once it falls bel
 """
 
 # %%
-# The system is created by name from the catalog with the standard parameters and integrated with LSODA, since the
+# The system is built from its class with the standard parameters and integrated with its tuned LSODA solver, since the
 # small `epsilon` and `delta` make it stiff. The run covers five periods, and the default blueprint shows the three
 # concentrations in one time series view, where the spikes of bromide dominate.
 
@@ -14,17 +14,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import EventAnalysis
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.core.engine.solvers import ScipyODESolver
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.chemistry.kinetics import OregonatorSystem
 
 SYSTEM = 'oregonator'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=3)
-solver = ScipyODESolver(method='LSODA', rtol=1e-6, atol=1e-9)
-simulation = Simulation(system, dt=0.05, solver=solver, observers=[observer]).prepare().run(until=30)
+trajectory = simulate(OregonatorSystem(), observers=[observer])
 
 # %%
 # Limit cycle and period
@@ -33,7 +30,6 @@ simulation = Simulation(system, dt=0.05, solver=solver, observers=[observer]).pr
 # axes. After the first transient spike, every spike of bromide above ten should start one period after the previous
 # one, so the intervals between spikes should be equal.
 
-trajectory = simulation.trajectory_
 times, x, y, z = (
     trajectory.times,
     trajectory.values('reactor.x'),

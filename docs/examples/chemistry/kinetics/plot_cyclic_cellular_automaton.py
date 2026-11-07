@@ -6,22 +6,21 @@ first lock into local cycles, then spiral waves form around their defects and gr
 """
 
 # %%
-# The system is created by name from the catalog on a 128 by 128 grid with 14 levels and threshold 1, from random
+# The system is built from its class on a 128 by 128 grid with 14 levels and threshold 1, from random
 # levels, and runs for 300 steps. The default blueprint shows the levels on the grid.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from skcomplex.core.analysis import CorrelationAnalysis
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.chemistry.kinetics import CyclicCellularAutomatonSystem
 
 SYSTEM = 'cyclic_cellular_automaton'
 
-system = create_system(SYSTEM, shape=(128, 128), random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=2)
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=300)
+trajectory = simulate(CyclicCellularAutomatonSystem((128, 128), random_state=0), until=300, observers=[observer])
 
 # %%
 # Self-organization into spirals
@@ -31,10 +30,10 @@ simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=
 # should rise to a plateau as the spirals take over. The waves also correlate the levels over growing distances, so
 # the spatial correlation function should decay more slowly at later steps.
 
-levels = simulation.trajectory_.lattice('cells.level')
+levels = trajectory.lattice('cells.level')
 advancing = np.mean(levels[1:] != levels[:-1], axis=(1, 2))
 fig, (activity, correlation) = plt.subplots(1, 2, figsize=(10, 4))
-activity.plot(simulation.trajectory_.times[1:], advancing)
+activity.plot(trajectory.times[1:], advancing)
 activity.set_xlabel('step')
 activity.set_ylabel('share of cells that advance')
 activity.set_title('Activity rises as the spirals take over')

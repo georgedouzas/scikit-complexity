@@ -7,21 +7,20 @@ into a periodic response locked to the pulse train.
 """
 
 # %%
-# The system is created by name from the catalog with pulses of current 5 lasting 2 time units every 10 time units, and
+# The system is built from its class with pulses of current 5 lasting 2 time units every 10 time units, and
 # runs for twelve pulses. The default blueprint shows the overpotential and the reactant in one time series view.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.chemistry.kinetics import PulsedElectrochemicalReactorSystem
 
 SYSTEM = 'pulsed_electrochemical_reactor'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=5)
-simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(until=120)
+trajectory = simulate(PulsedElectrochemicalReactorSystem(), until=120, observers=[observer])
 
 # %%
 # Locking to the pulse train
@@ -29,7 +28,6 @@ simulation = Simulation(system, dt=0.1, observers=[observer]).prepare().run(unti
 # Cut into one piece per pulse period, the response should repeat: after the first few pulses the pieces of `eta` and
 # `c` should lie on top of each other, and the reactant left at the start of each pulse should converge to one value.
 
-trajectory = simulation.trajectory_
 period = 10.0
 samples = round(period / 0.1)
 eta, c = trajectory.values('electrode.eta')[:-1], trajectory.values('electrode.c')[:-1]
