@@ -14,10 +14,9 @@ from ....core.components.elements import Element, FieldElement
 from ....core.components.laws import BaseLaw, NoiseLaw, RateLaw
 from ....core.components.laws.utils import both, laplacian, pulse_train, where
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class FrictionalBlockElement(Element):
@@ -73,6 +72,11 @@ class FrictionalBlockElement(Element):
         2.0
     """
 
+    law_classes = (
+        NoiseLaw,
+        RateLaw,
+    )
+
     def __init__(
         self,
         label: str,
@@ -126,36 +130,20 @@ class FrictionalBlockElement(Element):
         ]
 
 
-@register_system(
-    field='physics/soft_matter',
-    tags=('field', 'sde', 'friction', 'granular matter', 'blocked states'),
-    references=('Bertin 2021', 'Edwards and Oakeshott 1989', 'Bertin, Dauchot, and Droz 2004'),
-    defaults={'until': 200.0, 'dt': 10.0, 'solver': EulerMaruyamaSolver(dt=0.01)},
-)
-def shaken_spring_block(
-    n_blocks: int = 50,
-    *,
-    k: float = 1.0,
-    anchor: float = 0.0,
-    mu_s: float = 1.0,
-    mu_d: float = 0.8,
-    amplitude: float = 2.0,
-    shake_time: float = 2.0,
-    relax_time: float = 8.0,
-    v_stick: float = 0.02,
-) -> System:
-    """Return a chain of blocks joined by springs on a frictional substrate, shaken and relaxed in turn.
+class ShakenSpringBlockSystem(BaseSystem):
+    """A chain of blocks joined by springs on a frictional substrate, shaken and relaxed in turn.
 
-    Every block of unit weight feels the springs to its neighbours, `k (x_{i+1} + x_{i-1} - 2 x_i)`, an optional
-    spring of stiffness `anchor` to its rest position, and Coulomb friction. A sliding block feels the dynamic friction
-    `-mu_d sign(v)`, and a block at rest stays at rest while the spring force on it is below the static friction
-    `mu_s`. In every cycle a random force of intensity `amplitude^2` shakes the blocks for `shake_time`, and then the
-    chain relaxes for `relax_time` to a blocked configuration, where the elongations `xi_i = x_{i+1} - x_i` satisfy
-    `k |xi_{i+1} - xi_i| < mu_s`. Repeated cycles sample blocked configurations, whose energy per spring grows with
-    the shaking, and whose elongations are correlated over a length that grows with that energy. Without springs
-    between blocks and with an anchor, the blocks are independent, and their blocked positions satisfy
-    `|x_i| < mu_s / anchor`. A block counts as at rest below the speed `v_stick`, which must exceed the change of
-    speed `(mu_s + mu_d) h` of a solver step `h`. The ends of the chain are free, and the blocks start at rest.
+    Every block of unit weight feels the springs to its neighbours, `k (x_{i+1} + x_{i-1} - 2 x_i)`, an optional spring
+    of stiffness `anchor` to its rest position, and Coulomb friction. A sliding block feels the dynamic friction `-mu_d
+    sign(v)`, and a block at rest stays at rest while the spring force on it is below the static friction `mu_s`. In
+    every cycle a random force of intensity `amplitude^2` shakes the blocks for `shake_time`, and then the chain relaxes
+    for `relax_time` to a blocked configuration, where the elongations `xi_i = x_{i+1} - x_i` satisfy `k |xi_{i+1} -
+    xi_i| < mu_s`. Repeated cycles sample blocked configurations, whose energy per spring grows with the shaking, and
+    whose elongations are correlated over a length that grows with that energy. Without springs between blocks and with
+    an anchor, the blocks are independent, and their blocked positions satisfy `|x_i| < mu_s / anchor`. A block counts
+    as at rest below the speed `v_stick`, which must exceed the change of speed `(mu_s + mu_d) h` of a solver step `h`.
+    The ends of the chain are free, and the blocks start at rest. The system has the positions `chain.x` and velocities
+    `chain.v` of the blocks.
 
     Args:
         n_blocks:
@@ -185,30 +173,64 @@ def shaken_spring_block(
         v_stick:
             The speed below which a block counts as at rest.
 
-    Returns:
-        system:
-            The system, with the positions `chain.x` and velocities `chain.v` of the blocks.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import shaken_spring_block
-        >>> shaken_spring_block(5).elements[0].prepare().size_
+        >>> from skcomplex.systems.physics.soft_matter import ShakenSpringBlockSystem
+        >>> ShakenSpringBlockSystem(5).prepare().system_.elements[0].prepare().size_
         5
     """
-    chain = FieldElement(
-        'chain',
-        element=FrictionalBlockElement,
-        space=LatticeSpace(n_blocks, boundary='reflecting'),
-        boundary={'x': 'zero-flux', 'v': 'zero-flux'},
-        values={
-            'x': np.zeros(n_blocks),
-            'k': k,
-            'anchor': anchor,
-            'mu_s': mu_s,
-            'mu_d': mu_d,
-            'amplitude': amplitude,
-            'shake_time': shake_time,
-            'relax_time': relax_time,
-            'v_stick': v_stick,
-        },
-    )
-    return System(elements=[chain])
+
+    field = 'physics/soft_matter'
+    topics = ('field', 'sde', 'friction', 'granular matter', 'blocked states')
+    references = ('Bertin 2021', 'Edwards and Oakeshott 1989', 'Bertin, Dauchot, and Droz 2004')
+    until = 200.0
+    dt = 10.0
+    solver = EulerMaruyamaSolver(dt=0.01)
+
+    def __init__(
+        self,
+        n_blocks: int = 50,
+        *,
+        k: float = 1.0,
+        anchor: float = 0.0,
+        mu_s: float = 1.0,
+        mu_d: float = 0.8,
+        amplitude: float = 2.0,
+        shake_time: float = 2.0,
+        relax_time: float = 8.0,
+        v_stick: float = 0.02,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_blocks = n_blocks
+        self.k = k
+        self.anchor = anchor
+        self.mu_s = mu_s
+        self.mu_d = mu_d
+        self.amplitude = amplitude
+        self.shake_time = shake_time
+        self.relax_time = relax_time
+        self.v_stick = v_stick
+
+    def _build_system(self) -> System:
+        """Return a chain of blocks joined by springs on a frictional substrate, shaken and relaxed in turn."""
+        chain = FieldElement(
+            'chain',
+            element=FrictionalBlockElement,
+            space=LatticeSpace(self.n_blocks, boundary='reflecting'),
+            boundary={'x': 'zero-flux', 'v': 'zero-flux'},
+            values={
+                'x': np.zeros(self.n_blocks),
+                'k': self.k,
+                'anchor': self.anchor,
+                'mu_s': self.mu_s,
+                'mu_d': self.mu_d,
+                'amplitude': self.amplitude,
+                'shake_time': self.shake_time,
+                'relax_time': self.relax_time,
+                'v_stick': self.v_stick,
+            },
+        )
+        return System(self.label, elements=[chain])

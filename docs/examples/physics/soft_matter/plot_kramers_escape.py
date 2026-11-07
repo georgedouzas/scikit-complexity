@@ -9,24 +9,24 @@ times.
 """
 
 # %%
-# The system is created by name from the catalog with six particles and noise intensity `D = 0.07`. The Euler-Maruyama
+# The system is built from its class with six particles and noise intensity `D = 0.07`. The Euler-Maruyama
 # stepper takes steps of 0.01 and the observer saves every frame of 1.5 with the default blueprint, whose primary view
 # is the time series of the positions.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.soft_matter import KramersEscapeSystem
 
 SYSTEM = 'kramers_escape'
 
-system = create_system(SYSTEM, n_particles=6, D=0.07, random_state=0)
+system = KramersEscapeSystem(n_particles=6, D=0.07, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 solver = EulerMaruyamaSolver(dt=0.01)
-simulation = Simulation(system, solver=solver, dt=1.5, observers=[observer], random_state=0).prepare().run(until=300)
+trajectory = simulate(system, until=300, solver=solver, dt=1.5, observers=[observer], random_state=0)
 
 # %%
 # Exponential survival at the Kramers rate
@@ -38,13 +38,9 @@ simulation = Simulation(system, solver=solver, dt=1.5, observers=[observer], ran
 
 fig, ax = plt.subplots(figsize=(7, 4))
 for intensity, color in ((0.08, 'tab:blue'), (0.1, 'tab:orange')):
-    run = (
-        Simulation(create_system(SYSTEM, n_particles=2000, D=intensity), solver=solver, dt=1.0, random_state=1)
-        .prepare()
-        .run(400)
-    )
-    times = run.trajectory_.times
-    escaped = np.maximum.accumulate(run.trajectory_.values('particles.x') >= 1.0, axis=0)
+    run = simulate(KramersEscapeSystem(n_particles=2000, D=intensity), until=400, solver=solver, random_state=1)
+    times = run.times
+    escaped = np.maximum.accumulate(run.values('particles.x') >= 1.0, axis=0)
     rate = np.sqrt(2) / (2 * np.pi) * np.exp(-1 / (4 * intensity))
     ax.semilogy(times, 1 - escaped.mean(axis=1), color=color, label=f'simulation, D = {intensity}')
     ax.semilogy(times, np.exp(-rate * times), '--', color=color, label=f'Kramers, r = {rate:.4f}')

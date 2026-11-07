@@ -18,10 +18,9 @@ from ....core.components.interactions import BaseInteraction, GradientInteractio
 from ....core.components.laws import BaseLaw, BoundaryLaw
 from ....core.components.laws.utils import pulse_train, where
 from ....core.components.spaces import ContinuousSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import EulerMaruyamaSolver
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 from ..common.particles import (
     POINTS,
     BrownianParticleElement,
@@ -62,6 +61,8 @@ class ModulatedParticleElement(Element):
         >>> ModulatedParticleElement('bead').ds
         1.8
     """
+
+    law_classes = (BoundaryLaw,)
 
     def __init__(
         self,
@@ -288,39 +289,12 @@ def _get_double_well_drive(s: SimpleNamespace) -> Expression:
     return s.target.amplitude * cos(2 * math.pi * s.target.frequency * s.t)
 
 
-def _get_double_well_interactions(target: str) -> list[BaseInteraction]:
-    """Return the interactions of particles in a double well, the gradient of the well and the noisy forcing."""
-    return [
-        GradientInteraction('well', target=target, potential=lambda s: s.target.x**4 / 4 - s.target.x**2 / 2),
-        RateInteraction(
-            'drive',
-            target=target,
-            rate=_get_double_well_drive,
-            noise=lambda s: sqrt(2 * s.target.D),
-        ),
-    ]
-
-
-@register_system(
-    field='physics/soft_matter',
-    tags=('brownian motion', 'sde', 'diffusion', 'inertia'),
-    references=('Argun et al. 2021', 'Li et al. 2010', 'Volpe and Volpe 2013'),
-    defaults={'until': 10.0, 'dt': 0.1, 'solver': EulerMaruyamaSolver(dt=0.005)},
-)
-def brownian_motion(
-    n_particles: int = 500,
-    *,
-    inertial: bool = True,
-    m: float = 1.0,
-    gamma: float = 1.0,
-    kT: float = 1.0,
-    n_dim: int = 1,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return free Brownian particles with inertia, `m x'' = -gamma x' + sqrt(2 kT gamma) W`, or without it.
+class BrownianMotionSystem(BaseSystem):
+    """Free Brownian particles with inertia, `m x'' = -gamma x' + sqrt(2 kT gamma) W`, or without it.
 
     With inertia the motion is ballistic, `<x^2> = kT t^2 / m`, below the momentum relaxation time `m / gamma`, and
-    diffusive, `<x^2> = 2 kT t / gamma` per axis, above it. Without inertia it is diffusive at every time.
+    diffusive, `<x^2> = 2 kT t / gamma` per axis, above it. Without inertia it is diffusive at every time. The system
+    has the positions `beads.x`.
 
     Args:
         n_particles:
@@ -344,56 +318,80 @@ def brownian_motion(
         random_state:
             The seed or generator of the thermal initial velocities.
 
-    Returns:
-        system:
-            The system, with the positions `beads.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import brownian_motion
-        >>> brownian_motion(10, inertial=False).elements[0].element.__name__
+        >>> from skcomplex.systems.physics.soft_matter import BrownianMotionSystem
+        >>> BrownianMotionSystem(10, inertial=False).prepare().system_.elements[0].element.__name__
         'BrownianParticleElement'
     """
-    space = ContinuousSpace(n_dim=n_dim)
-    if not inertial:
+
+    field = 'physics/soft_matter'
+    topics = ('brownian motion', 'sde', 'diffusion', 'inertia')
+    references = ('Argun et al. 2021', 'Li et al. 2010', 'Volpe and Volpe 2013')
+    until = 10.0
+    dt = 0.1
+    solver = EulerMaruyamaSolver(dt=0.005)
+
+    def __init__(
+        self,
+        n_particles: int = 500,
+        *,
+        inertial: bool = True,
+        m: float = 1.0,
+        gamma: float = 1.0,
+        kT: float = 1.0,
+        n_dim: int = 1,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_particles = n_particles
+        self.inertial = inertial
+        self.m = m
+        self.gamma = gamma
+        self.kT = kT
+        self.n_dim = n_dim
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return free Brownian particles with inertia, `m x'' = -gamma x' + sqrt(2 kT gamma) W`, or without it."""
+        space = ContinuousSpace(n_dim=self.n_dim)
+        if not self.inertial:
+            beads = GroupElement(
+                'beads',
+                element=BrownianParticleElement,
+                size=self.n_particles,
+                values={'x': np.zeros((self.n_particles, self.n_dim)), 'gamma': self.gamma, 'temperature': self.kT},
+            )
+            return System(
+                self.label,
+                elements=[beads],
+                interactions=[ThermalNoiseInteraction('bath', target='beads')],
+                space=space,
+            )
+        velocities = np.random.default_rng(self.random_state).normal(
+            0.0,
+            math.sqrt(self.kT / self.m),
+            (self.n_particles, self.n_dim),
+        )
         beads = GroupElement(
             'beads',
-            element=BrownianParticleElement,
-            size=n_particles,
-            values={'x': np.zeros((n_particles, n_dim)), 'gamma': gamma, 'temperature': kT},
+            element=MassPointElement,
+            size=self.n_particles,
+            values={'x': np.zeros((self.n_particles, self.n_dim)), 'x_d1': velocities, 'm': self.m},
+            visual=POINTS,
         )
-        return System(elements=[beads], interactions=[ThermalNoiseInteraction('bath', target='beads')], space=space)
-    velocities = np.random.default_rng(random_state).normal(0.0, math.sqrt(kT / m), (n_particles, n_dim))
-    beads = GroupElement(
-        'beads',
-        element=MassPointElement,
-        size=n_particles,
-        values={'x': np.zeros((n_particles, n_dim)), 'x_d1': velocities, 'm': m},
-        visual=POINTS,
-    )
-    bath = LangevinThermostatInteraction('bath', target='beads', temperature=kT, gamma=gamma)
-    return System(elements=[beads], interactions=[bath], space=space)
+        bath = LangevinThermostatInteraction('bath', target='beads', temperature=self.kT, gamma=self.gamma)
+        return System(self.label, elements=[beads], interactions=[bath], space=space)
 
 
-@register_system(
-    field='physics/soft_matter',
-    tags=('brownian motion', 'sde', 'optical tweezers', 'forcing'),
-    references=('Argun et al. 2021', 'Ashkin et al. 1986', 'Jones, Maragò, and Volpe 2015'),
-    defaults={'until': 20.0, 'dt': 0.1, 'solver': EulerMaruyamaSolver(dt=0.01)},
-)
-def optical_trap(
-    n_particles: int = 200,
-    *,
-    k: Sequence[float] = (1.0, 0.25),
-    gamma: float = 1.0,
-    kT: float = 1.0,
-    amplitude: Sequence[float] = (0.0, 0.0),
-    frequency: float = 0.0,
-    blink_period: float | None = None,
-    duty: float = 0.5,
-) -> System:
-    """Return overdamped particles in a harmonic optical trap, still, oscillating, or blinking.
+class OpticalTrapSystem(BaseSystem):
+    """Overdamped particles in a harmonic optical trap, still, oscillating, or blinking.
 
-    In a still trap every coordinate is normal with variance `kT / k` and relaxes in the time `gamma / k`.
+    In a still trap every coordinate is normal with variance `kT / k` and relaxes in the time `gamma / k`. The system
+    has the positions `beads.x`.
 
     Args:
         n_particles:
@@ -420,51 +418,72 @@ def optical_trap(
         duty:
             The fraction of every blinking period during which the trap is on.
 
-    Returns:
-        system:
-            The system, with the positions `beads.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import optical_trap
-        >>> optical_trap(10, blink_period=2.0).interactions[0].blink_period
+        >>> from skcomplex.systems.physics.soft_matter import OpticalTrapSystem
+        >>> OpticalTrapSystem(10, blink_period=2.0).prepare().system_.interactions[0].blink_period
         2.0
     """
-    n_dim = len(k)
-    beads = GroupElement(
-        'beads',
-        element=BrownianParticleElement,
-        size=n_particles,
-        values={'x': np.zeros((n_particles, n_dim)), 'gamma': gamma, 'temperature': kT},
-    )
-    trap = OpticalTrapInteraction(
-        'tweezers',
-        target='beads',
-        k=list(k),
-        amplitude=list(amplitude),
-        frequency=frequency,
-        blink_period=blink_period,
-        duty=duty,
-    )
-    bath = ThermalNoiseInteraction('bath', target='beads')
-    return System(elements=[beads], interactions=[trap, bath], space=ContinuousSpace(n_dim=n_dim))
+
+    field = 'physics/soft_matter'
+    topics = ('brownian motion', 'sde', 'optical tweezers', 'forcing')
+    references = ('Argun et al. 2021', 'Ashkin et al. 1986', 'Jones, Maragò, and Volpe 2015')
+    until = 20.0
+    dt = 0.1
+    solver = EulerMaruyamaSolver(dt=0.01)
+
+    def __init__(
+        self,
+        n_particles: int = 200,
+        *,
+        k: Sequence[float] = (1.0, 0.25),
+        gamma: float = 1.0,
+        kT: float = 1.0,
+        amplitude: Sequence[float] = (0.0, 0.0),
+        frequency: float = 0.0,
+        blink_period: float | None = None,
+        duty: float = 0.5,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_particles = n_particles
+        self.k = k
+        self.gamma = gamma
+        self.kT = kT
+        self.amplitude = amplitude
+        self.frequency = frequency
+        self.blink_period = blink_period
+        self.duty = duty
+
+    def _build_system(self) -> System:
+        """Return overdamped particles in a harmonic optical trap, still, oscillating, or blinking."""
+        n_dim = len(self.k)
+        beads = GroupElement(
+            'beads',
+            element=BrownianParticleElement,
+            size=self.n_particles,
+            values={'x': np.zeros((self.n_particles, n_dim)), 'gamma': self.gamma, 'temperature': self.kT},
+        )
+        trap = OpticalTrapInteraction(
+            'tweezers',
+            target='beads',
+            k=list(self.k),
+            amplitude=list(self.amplitude),
+            frequency=self.frequency,
+            blink_period=self.blink_period,
+            duty=self.duty,
+        )
+        bath = ThermalNoiseInteraction('bath', target='beads')
+        return System(self.label, elements=[beads], interactions=[trap, bath], space=ContinuousSpace(n_dim=n_dim))
 
 
-@register_system(
-    field='physics/soft_matter',
-    tags=('noise', 'sde', 'escape', 'double well', 'rates'),
-    references=('Kramers 1940', 'Hänggi, Talkner, and Borkovec 1990', 'Gros 2015'),
-    defaults={'until': 100.0, 'dt': 1.0, 'solver': EulerMaruyamaSolver(dt=0.01)},
-)
-def kramers_escape(
-    n_particles: int = 200,
-    *,
-    D: float = 0.1,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return particles that escape over the barrier of `U = x^4 / 4 - x^2 / 2` by thermal noise of intensity `D`.
+class KramersEscapeSystem(BaseSystem):
+    """Particles that escape over the barrier of `U = x^4 / 4 - x^2 / 2` by thermal noise of intensity `D`.
 
-    The particles start in the left well, and they hop between the wells at the Kramers rate
-    `sqrt(U''(-1) |U''(0)|) / (2 pi) exp(-1 / (4 D))`, which is `sqrt(2) / (2 pi) exp(-1 / (4 D))`.
+    The particles start in the left well, and they hop between the wells at the Kramers rate `sqrt(U''(-1) |U''(0)|) /
+    (2 pi) exp(-1 / (4 D))`, which is `sqrt(2) / (2 pi) exp(-1 / (4 D))`. The system has the positions `particles.x`.
 
     Args:
         n_particles:
@@ -476,43 +495,65 @@ def kramers_escape(
         random_state:
             The seed or generator of the small initial spread in the left well.
 
-    Returns:
-        system:
-            The system, with the positions `particles.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import kramers_escape
-        >>> kramers_escape(10, D=0.2).elements[0].values['D']
+        >>> from skcomplex.systems.physics.soft_matter import KramersEscapeSystem
+        >>> KramersEscapeSystem(10, D=0.2).prepare().system_.elements[0].values['D']
         0.2
     """
-    positions = -1.0 + np.random.default_rng(random_state).normal(0.0, 0.1, n_particles)
-    group = GroupElement(
-        'particles',
-        element=DoubleWellElement,
-        size=n_particles,
-        values={'x': positions, 'amplitude': 0.0, 'D': D},
-    )
-    return System(elements=[group], interactions=_get_double_well_interactions('particles'))
+
+    field = 'physics/soft_matter'
+    topics = ('noise', 'sde', 'escape', 'double well', 'rates')
+    references = ('Kramers 1940', 'Hänggi, Talkner, and Borkovec 1990', 'Gros 2015')
+    until = 100.0
+    dt = 1.0
+    solver = EulerMaruyamaSolver(dt=0.01)
+
+    def __init__(
+        self,
+        n_particles: int = 200,
+        *,
+        D: float = 0.1,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_particles = n_particles
+        self.D = D
+        self.random_state = random_state
+
+    @staticmethod
+    def _get_double_well_interactions(target: str) -> list[BaseInteraction]:
+        """Return the interactions of particles in a double well, the gradient of the well and the noisy forcing."""
+        return [
+            GradientInteraction('well', target=target, potential=lambda s: s.target.x**4 / 4 - s.target.x**2 / 2),
+            RateInteraction(
+                'drive',
+                target=target,
+                rate=_get_double_well_drive,
+                noise=lambda s: sqrt(2 * s.target.D),
+            ),
+        ]
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        positions = -1.0 + np.random.default_rng(self.random_state).normal(0.0, 0.1, self.n_particles)
+        group = GroupElement(
+            'particles',
+            element=DoubleWellElement,
+            size=self.n_particles,
+            values={'x': positions, 'amplitude': 0.0, 'D': self.D},
+        )
+        return System(self.label, elements=[group], interactions=self._get_double_well_interactions('particles'))
 
 
-@register_system(
-    field='physics/soft_matter',
-    tags=('noise', 'sde', 'multiplicative noise', 'spurious drift'),
-    references=('Argun et al. 2021', 'Volpe and Wehr 2016'),
-    defaults={'until': 100.0, 'dt': 0.05, 'solver': EulerMaruyamaSolver(dt=0.01)},
-)
-def multiplicative_noise(
-    n_particles: int = 500,
-    *,
-    s0: float = 1.0,
-    ds: float = 1.8,
-    L: float = 100.0,
-    convention: str = 'anti-ito',
-) -> System:
-    """Return free particles in a box with position-dependent noise, read in the Itô, Stratonovich, or anti-Itô sense.
+class MultiplicativeNoiseSystem(BaseSystem):
+    """Free particles in a box with position-dependent noise, read in the Itô, Stratonovich, or anti-Itô sense.
 
-    Only the anti-Itô convention gives the flat stationary density of particles at thermal equilibrium without
-    forces. The particles start at the middle of the box.
+    Only the anti-Itô convention gives the flat stationary density of particles at thermal equilibrium without forces.
+    The particles start at the middle of the box. The system has the positions `particles.x`.
 
     Args:
         n_particles:
@@ -530,47 +571,62 @@ def multiplicative_noise(
         convention:
             The convention of the noise, `'ito'`, `'stratonovich'`, or `'anti-ito'`.
 
-    Returns:
-        system:
-            The system, with the positions `particles.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import multiplicative_noise
-        >>> multiplicative_noise(10, convention='ito').interactions[0].convention
+        >>> from skcomplex.systems.physics.soft_matter import MultiplicativeNoiseSystem
+        >>> MultiplicativeNoiseSystem(10, convention='ito').prepare().system_.interactions[0].convention
         'ito'
     """
-    group = GroupElement(
-        'particles',
-        element=ModulatedParticleElement,
-        size=n_particles,
-        values={'x': L / 2, 's0': s0, 'ds': ds, 'L': L},
-    )
-    noise = RateInteraction(
-        'noise',
-        target='particles',
-        noise=lambda s: s.target.s0 + s.target.ds * (s.target.x / s.target.L - 0.5),
-        convention=convention,
-    )
-    return System(elements=[group], interactions=[noise])
+
+    field = 'physics/soft_matter'
+    topics = ('noise', 'sde', 'multiplicative noise', 'spurious drift')
+    references = ('Argun et al. 2021', 'Volpe and Wehr 2016')
+    until = 100.0
+    dt = 0.05
+    solver = EulerMaruyamaSolver(dt=0.01)
+
+    def __init__(
+        self,
+        n_particles: int = 500,
+        *,
+        s0: float = 1.0,
+        ds: float = 1.8,
+        L: float = 100.0,
+        convention: str = 'anti-ito',
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_particles = n_particles
+        self.s0 = s0
+        self.ds = ds
+        self.L = L
+        self.convention = convention
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        group = GroupElement(
+            'particles',
+            element=ModulatedParticleElement,
+            size=self.n_particles,
+            values={'x': self.L / 2, 's0': self.s0, 'ds': self.ds, 'L': self.L},
+        )
+        noise = RateInteraction(
+            'noise',
+            target='particles',
+            noise=lambda s: s.target.s0 + s.target.ds * (s.target.x / s.target.L - 0.5),
+            convention=self.convention,
+        )
+        return System(self.label, elements=[group], interactions=[noise])
 
 
-@register_system(
-    field='physics/soft_matter',
-    tags=('anomalous diffusion', 'sde', 'non-ergodic'),
-    references=('Argun et al. 2021', 'Lim and Muniandy 2002', 'Jeon et al. 2014'),
-    defaults={'until': 10.0, 'dt': 0.1, 'solver': EulerMaruyamaSolver(dt=0.01)},
-)
-def scaled_brownian_motion(
-    n_particles: int = 500,
-    *,
-    alpha: float = 0.5,
-    K: float = 1.0,
-    t0: float = 0.01,
-) -> System:
-    """Return scaled Brownian motion, `dx = sqrt(2 K alpha (t + t0)^(alpha - 1)) dW`, with `<x^2> ~ 2 K t^alpha`.
+class ScaledBrownianMotionSystem(BaseSystem):
+    """Scaled Brownian motion, `dx = sqrt(2 K alpha (t + t0)^(alpha - 1)) dW`, with `<x^2> ~ 2 K t^alpha`.
 
     The diffusion coefficient changes deterministically in time, which is the same as running Brownian motion on the
-    rescaled clock `t^alpha`. The offset `t0` keeps the coefficient finite at the start.
+    rescaled clock `t^alpha`. The offset `t0` keeps the coefficient finite at the start. The system has the positions
+    `walkers.x`.
 
     Args:
         n_particles:
@@ -585,59 +641,69 @@ def scaled_brownian_motion(
         t0:
             The time offset of the diffusion coefficient.
 
-    Returns:
-        system:
-            The system, with the positions `walkers.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import scaled_brownian_motion
-        >>> scaled_brownian_motion(10, alpha=1.5).elements[0].values['alpha']
+        >>> from skcomplex.systems.physics.soft_matter import ScaledBrownianMotionSystem
+        >>> ScaledBrownianMotionSystem(10, alpha=1.5).prepare().system_.elements[0].values['alpha']
         1.5
     """
-    return System(
-        elements=[
-            GroupElement(
-                'walkers',
-                element=ScaledWalkerElement,
-                size=n_particles,
-                values={'K': K, 'alpha': alpha, 't0': t0},
-            ),
-        ],
-        interactions=[
-            RateInteraction(
-                'noise',
-                target='walkers',
-                noise=lambda s: sqrt(2 * s.target.K * s.target.alpha * (s.t + s.target.t0) ** (s.target.alpha - 1)),
-            ),
-        ],
-    )
+
+    field = 'physics/soft_matter'
+    topics = ('anomalous diffusion', 'sde', 'non-ergodic')
+    references = ('Argun et al. 2021', 'Lim and Muniandy 2002', 'Jeon et al. 2014')
+    until = 10.0
+    dt = 0.1
+    solver = EulerMaruyamaSolver(dt=0.01)
+
+    def __init__(
+        self,
+        n_particles: int = 500,
+        *,
+        alpha: float = 0.5,
+        K: float = 1.0,
+        t0: float = 0.01,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_particles = n_particles
+        self.alpha = alpha
+        self.K = K
+        self.t0 = t0
+
+    def _build_system(self) -> System:
+        """Return scaled Brownian motion, `dx = sqrt(2 K alpha (t + t0)^(alpha - 1)) dW`, with `<x^2> ~ 2 K t^alpha`."""
+        return System(
+            self.label,
+            elements=[
+                GroupElement(
+                    'walkers',
+                    element=ScaledWalkerElement,
+                    size=self.n_particles,
+                    values={'K': self.K, 'alpha': self.alpha, 't0': self.t0},
+                ),
+            ],
+            interactions=[
+                RateInteraction(
+                    'noise',
+                    target='walkers',
+                    noise=lambda s: sqrt(2 * s.target.K * s.target.alpha * (s.t + s.target.t0) ** (s.target.alpha - 1)),
+                ),
+            ],
+        )
 
 
-@register_system(
-    field='physics/soft_matter',
-    tags=('anomalous diffusion', 'sde', 'optical forces', 'disorder'),
-    references=('Argun et al. 2021', 'Volpe, Volpe, and Gigan 2014'),
-    defaults={'until': 60.0, 'dt': 0.5, 'solver': EulerMaruyamaSolver(dt=0.01)},
-)
-def diffusion_in_a_speckle_field(
-    n_particles: int = 100,
-    *,
-    n_hotspots: int = 50,
-    size: float = 100.0,
-    strength: float = 30.0,
-    length: float = 10.0,
-    D: float = 1.0,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return Brownian particles in a random speckle field, trapped at hotspots for longer as the field grows stronger.
+class DiffusionInASpeckleFieldSystem(BaseSystem):
+    """Brownian particles in a random speckle field, trapped at hotspots for longer as the field grows stronger.
 
     The hotspots sit at random places in a square, with intensities `r^(-1/2)` and decay lengths `length r^(-1/2)` for
     independent uniform numbers `r`. The particles start at random places in the middle half of the square.
 
-    The default strength 30 draws the particles into the hotspots over the first ten time units and lets them escape
-    now and then, so from time 10 to 60 their mean squared displacement grows as `t^0.36`, a tenth of free diffusion.
-    A strength of 100 or more traps every particle within the first frames and leaves only the rattling inside one
-    hotspot, with a flat mean squared displacement.
+    The default strength 30 draws the particles into the hotspots over the first ten time units and lets them escape now
+    and then, so from time 10 to 60 their mean squared displacement grows as `t^0.36`, a tenth of free diffusion. A
+    strength of 100 or more traps every particle within the first frames and leaves only the rattling inside one
+    hotspot, with a flat mean squared displacement. The system has the positions `beads.x`.
 
     Args:
         n_particles:
@@ -661,33 +727,63 @@ def diffusion_in_a_speckle_field(
         random_state:
             The seed or generator of the hotspots and the initial positions.
 
-    Returns:
-        system:
-            The system, with the positions `beads.x`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.physics.soft_matter import diffusion_in_a_speckle_field
-        >>> len(diffusion_in_a_speckle_field(5, n_hotspots=3).interactions[0].centers)
+        >>> from skcomplex.systems.physics.soft_matter import DiffusionInASpeckleFieldSystem
+        >>> len(DiffusionInASpeckleFieldSystem(5, n_hotspots=3).prepare().system_.interactions[0].centers)
         3
     """
-    rng = np.random.default_rng(random_state)
-    centers = rng.uniform(0.0, size, (n_hotspots, 2))
-    intensities = (1 - rng.random(n_hotspots)) ** -0.5
-    lengths = length * (1 - rng.random(n_hotspots)) ** -0.5
-    speckle = SpeckleFieldInteraction(
-        'speckle',
-        target='beads',
-        strength=strength,
-        centers=tuple((float(x), float(y)) for x, y in centers),
-        intensities=tuple(float(item) for item in intensities),
-        lengths=tuple(float(item) for item in lengths),
-    )
-    positions = rng.uniform(size / 4, 3 * size / 4, (n_particles, 2))
-    beads = GroupElement(
-        'beads',
-        element=BrownianParticleElement,
-        size=n_particles,
-        values={'x': positions, 'gamma': 1.0, 'temperature': D},
-    )
-    bath = ThermalNoiseInteraction('bath', target='beads')
-    return System(elements=[beads], interactions=[speckle, bath], space=ContinuousSpace(n_dim=2))
+
+    field = 'physics/soft_matter'
+    topics = ('anomalous diffusion', 'sde', 'optical forces', 'disorder')
+    references = ('Argun et al. 2021', 'Volpe, Volpe, and Gigan 2014')
+    until = 60.0
+    dt = 0.5
+    solver = EulerMaruyamaSolver(dt=0.01)
+
+    def __init__(
+        self,
+        n_particles: int = 100,
+        *,
+        n_hotspots: int = 50,
+        size: float = 100.0,
+        strength: float = 30.0,
+        length: float = 10.0,
+        D: float = 1.0,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.n_particles = n_particles
+        self.n_hotspots = n_hotspots
+        self.size = size
+        self.strength = strength
+        self.length = length
+        self.D = D
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system, built from its model parameters."""
+        rng = np.random.default_rng(self.random_state)
+        centers = rng.uniform(0.0, self.size, (self.n_hotspots, 2))
+        intensities = (1 - rng.random(self.n_hotspots)) ** -0.5
+        lengths = self.length * (1 - rng.random(self.n_hotspots)) ** -0.5
+        speckle = SpeckleFieldInteraction(
+            'speckle',
+            target='beads',
+            strength=self.strength,
+            centers=tuple((float(x), float(y)) for x, y in centers),
+            intensities=tuple(float(item) for item in intensities),
+            lengths=tuple(float(item) for item in lengths),
+        )
+        positions = rng.uniform(self.size / 4, 3 * self.size / 4, (self.n_particles, 2))
+        beads = GroupElement(
+            'beads',
+            element=BrownianParticleElement,
+            size=self.n_particles,
+            values={'x': positions, 'gamma': 1.0, 'temperature': self.D},
+        )
+        bath = ThermalNoiseInteraction('bath', target='beads')
+        return System(self.label, elements=[beads], interactions=[speckle, bath], space=ContinuousSpace(n_dim=2))

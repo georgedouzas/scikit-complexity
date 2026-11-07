@@ -6,7 +6,7 @@ while thermal noise spreads them out, so the cloud moves at a steady mean veloci
 """
 
 # %%
-# The system is created by name from the catalog with 20 particles in the potential `0.5 cos(2 pi x) - f x` at
+# The system is built from its class with 20 particles in the potential `0.5 cos(2 pi x) - f x` at
 # `kT = 0.5`, with the force `f = 1`, and simulated for 50 time units. The observer saves every frame with the default
 # blueprint, whose primary view holds the positions of the particles.
 
@@ -16,14 +16,14 @@ import numpy as np
 from skcomplex.core.engine.runtime import Simulation
 from skcomplex.core.engine.solvers import EulerMaruyamaSolver
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.physics.soft_matter import TiltedPeriodicPotentialSystem
 
 SYSTEM = 'tilted_periodic_potential'
 
-system = create_system(SYSTEM, n_particles=20, f=1.0, U0=0.5, L=1.0, kT=0.5)
+system = TiltedPeriodicPotentialSystem(n_particles=20, f=1.0, U0=0.5, L=1.0, kT=0.5)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
 simulation = Simulation(
-    system,
+    system.prepare().system_,
     dt=0.25,
     solver=EulerMaruyamaSolver(dt=0.005),
     observers=[observer],
@@ -57,7 +57,7 @@ forces = np.array([0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0])
 velocities = []
 for f in forces:
     run = Simulation(
-        create_system(SYSTEM, n_particles=300, f=f),
+        TiltedPeriodicPotentialSystem(n_particles=300, f=f).prepare().system_,
         dt=1.0,
         solver=EulerMaruyamaSolver(dt=0.005),
         random_state=1,
