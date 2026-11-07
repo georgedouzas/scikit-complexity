@@ -4,13 +4,361 @@
 # License: MIT
 
 
+from types import SimpleNamespace
+from typing import Annotated
+
+from sage.all__sagemath_symbolics import oo
+from sage.sets.real_set import RealSet
+
+from ....core.components.elements import Element
 from ....core.components.interactions import RateInteraction, ReactionInteraction
-from ....core.components.laws.utils import hill, pulse
+from ....core.components.laws import BaseLaw, RateLaw
+from ....core.components.laws.utils import delayed, hill, pulse
 from ....core.components.system import System
+from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._coagulation import CoagulationElement
-from ._feedback_loop import FeedbackLoopElement
-from ._glucose_control import GlucoseControlElement
+
+
+class CoagulationElement(Element):
+    """Coagulation cascade: thrombin amplified by positive feedback, switched off by protein C, and fibrinolysis.
+
+    An injury of height `injury` from `injury_time` for `duration` activates thrombin, which activates more of itself
+    through the feedback of the cascade, `dT/dt = j(t) + ka T^2 / (k_half^2 + T^2) - (d_t + k_c C) T`. Thrombin
+    activates the inhibitor protein C, `dC/dt = s_c T - d_c C`, and converts fibrinogen to fibrin,
+    `dF/dt = s_f T - k_p P F`. Fibrin activates plasmin, `dP/dt = s_p F - d_p P`, which dissolves the fibrin.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `coagulation_positive_feedback` read its parameters.
+
+    Args:
+        label:
+            The label of the blood.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        T:
+            The initial thrombin.
+
+        C:
+            The initial activated protein C.
+
+        F:
+            The initial fibrin.
+
+        P:
+            The initial plasmin.
+
+        ka:
+            The maximal rate of the positive feedback.
+
+        k_half:
+            The thrombin at which the feedback is half its maximum.
+
+        d_t:
+            The inactivation rate of thrombin by antithrombin.
+
+        k_c:
+            The inactivation of thrombin per unit of protein C.
+
+        s_c:
+            The activation of protein C per unit of thrombin.
+
+        d_c:
+            The inactivation rate of protein C.
+
+        s_f:
+            The production of fibrin per unit of thrombin.
+
+        k_p:
+            The lysis of fibrin per unit of plasmin.
+
+        s_p:
+            The activation of plasmin per unit of fibrin.
+
+        d_p:
+            The inactivation rate of plasmin.
+
+        injury:
+            The rate of thrombin activation by the injury.
+
+        injury_time:
+            The start of the injury.
+
+        duration:
+            The duration of the injury.
+
+    Examples:
+        >>> from skcomplex.systems.biology.physiology import CoagulationElement
+        >>> CoagulationElement('blood').injury_time
+        1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        T: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        C: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        F: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        P: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        ka: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 3.0,
+        k_half: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        d_t: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        k_c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        s_c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        d_c: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.05,
+        s_f: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        k_p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        s_p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.02,
+        d_p: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.1,
+        injury: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        injury_time: float = 1.0,
+        duration: float = 1.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.T = T
+        self.C = C
+        self.F = F
+        self.P = P
+        self.ka = ka
+        self.k_half = k_half
+        self.d_t = d_t
+        self.k_c = k_c
+        self.s_c = s_c
+        self.d_c = d_c
+        self.s_f = s_f
+        self.k_p = k_p
+        self.s_p = s_p
+        self.d_p = d_p
+        self.injury = injury
+        self.injury_time = injury_time
+        self.duration = duration
+
+
+class FeedbackLoopElement(Element):
+    """Receptor-effector negative feedback loop that holds a product at a set point an outside signal steers.
+
+    The product `x` is made by the effector at the rate `v e` and consumed at the rate `d x`. The receptor reads the
+    product after the transmission delay `tau` and inhibits the effector with the Hill function `1 / (1 + (x / K)^n)`,
+    where the sensitivity `K (1 + steering)` rises while a steering signal acts, from `start` for `duration`. The
+    effector follows the receptor with the response time `T`, `de/dt = (1 / (1 + (x(t - tau) / K)^n) - e) / T`.
+
+    Args:
+        label:
+            The label of the loop.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        x:
+            The initial product.
+
+        e:
+            The initial effector activity.
+
+        v:
+            The largest rate of synthesis.
+
+        d:
+            The consumption rate of the product.
+
+        K:
+            The sensitivity of the receptor, the product at which it inhibits the effector by half.
+
+        n:
+            The steepness of the receptor.
+
+        T:
+            The response time of the effector.
+
+        tau:
+            The transmission delay between the receptor and the effector.
+
+        steering:
+            The relative shift of the sensitivity by the steering signal.
+
+        start:
+            The time the steering signal starts.
+
+        duration:
+            The duration of the steering signal.
+
+    Examples:
+        >>> from skcomplex.systems.biology.physiology import FeedbackLoopElement
+        >>> FeedbackLoopElement('loop', tau=2.0).tau
+        2.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.0,
+        e: Annotated[float, StateSpec(domain=RealSet.closed(0, 1))] = 0.0,
+        v: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 2.0,
+        d: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
+        T: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        tau: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 0.5,
+        steering: Annotated[float, ParameterSpec()] = 0.0,
+        start: float = 0.0,
+        duration: float = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.e = e
+        self.v = v
+        self.d = d
+        self.K = K
+        self.n = n
+        self.T = T
+        self.tau = tau
+        self.steering = steering
+        self.start = start
+        self.duration = duration
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the synthesis and consumption of the product and the delayed response of the effector.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        sensitivity = s.K * (1 + s.steering * pulse(s.t, self.start, self.duration))
+        receptor = 1 / (1 + (delayed(s.x, s.tau) / sensitivity) ** s.n)
+        return [RateLaw(s.x, s.v * s.e - s.d * s.x), RateLaw(s.e, (receptor - s.e) / s.T)]
+
+
+class GlucoseControlElement(Element):
+    """Blood glucose held near its norm by insulin, which lowers it, and glucagon, which raises it.
+
+    The glucose follows `dG/dt = R - (k0 + k_i I) G + k_n N + u(t)`, where `u` is a meal of height `meal` from
+    `meal_time` and an exercise of height `-exercise` from `exercise_time`, each lasting `duration`. High glucose
+    secretes insulin, `dI/dt = s_i h(G) - d_i I`, and low glucose secretes glucagon, `dN/dt = s_n (1 - h(G)) - d_n N`,
+    with the Hill switch `h(G) = G^n / (G^n + K^n)`. The production `R` is set so that the norm `G = K` is a steady
+    state.
+
+    The element holds the states and parameters and has no laws of its own: the interactions of
+    `glucose_dual_hormone_control` read its parameters.
+
+    Args:
+        label:
+            The label of the organism.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        G:
+            The initial glucose, relative to the norm.
+
+        I:
+            The initial insulin.
+
+        N:
+            The initial glucagon.
+
+        R:
+            The basal production of glucose.
+
+        k0:
+            The uptake of glucose without insulin.
+
+        k_i:
+            The uptake of glucose per unit of insulin.
+
+        k_n:
+            The release of glucose per unit of glucagon, 0 without the glucagon loop.
+
+        s_i:
+            The maximal secretion of insulin.
+
+        s_n:
+            The maximal secretion of glucagon.
+
+        d_i:
+            The clearance rate of insulin.
+
+        d_n:
+            The clearance rate of glucagon.
+
+        K:
+            The norm of the glucose, where both hormones are half secreted.
+
+        n:
+            The steepness of the secretion switch.
+
+        meal:
+            The rate of glucose intake during the meal.
+
+        exercise:
+            The rate of extra glucose uptake during the exercise.
+
+        meal_time:
+            The start of the meal.
+
+        exercise_time:
+            The start of the exercise.
+
+        duration:
+            The duration of the meal and of the exercise.
+
+    Examples:
+        >>> from skcomplex.systems.biology.physiology import GlucoseControlElement
+        >>> GlucoseControlElement('organism').meal_time
+        2.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        G: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        I: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        N: Annotated[float, StateSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        R: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.75,
+        k0: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        k_i: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.5,
+        k_n: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        s_i: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 2.0,
+        s_n: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        d_i: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        d_n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        K: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        n: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 4.0,
+        meal: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        exercise: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.8,
+        meal_time: float = 2.0,
+        exercise_time: float = 12.0,
+        duration: float = 2.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.G = G
+        self.I = I
+        self.N = N
+        self.R = R
+        self.k0 = k0
+        self.k_i = k_i
+        self.k_n = k_n
+        self.s_i = s_i
+        self.s_n = s_n
+        self.d_i = d_i
+        self.d_n = d_n
+        self.K = K
+        self.n = n
+        self.meal = meal
+        self.exercise = exercise
+        self.meal_time = meal_time
+        self.exercise_time = exercise_time
+        self.duration = duration
 
 
 @register_system(

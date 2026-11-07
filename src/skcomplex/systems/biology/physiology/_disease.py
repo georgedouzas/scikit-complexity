@@ -4,19 +4,230 @@
 # License: MIT
 
 import math
+from types import SimpleNamespace
+from typing import Annotated
 
 import networkx as nx
 import numpy as np
+from sage.all__sagemath_symbolics import oo, pi, sin
+from sage.sets.real_set import RealSet
 
-from ....core.components.elements import GroupElement, LatticeElement
+from ....core.components.elements import Element, GroupElement, LatticeElement
+from ....core.components.interactions import NeighborInteraction
+from ....core.components.laws import BaseLaw, RateLaw
 from ....core.components.spaces import NetworkSpace
 from ....core.components.system import System
-from ....core.specs import LayerSpec
+from ....core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, VisualSpec
 from ..._catalog import register_system
-from ._adaptive_phase_coupling import AdaptivePhaseCouplingInteraction
-from ._cell_oscillator import CellOscillatorElement
-from ._cytokine_link import CytokineLinkElement
-from ._layer_coupling import LayerCouplingInteraction
+
+
+class CellOscillatorElement(Element):
+    """Functional unit of a tissue layer reduced to a phase, a cell oscillator `phi' = omega`.
+
+    Healthy and pathological cells differ by their metabolism, which the natural frequency `omega` stands for.
+    Couplings to other cells add to the rate of the phase.
+
+    Args:
+        label:
+            The label of the cell or of the group of cells.
+
+        visual:
+            How the element is drawn, or `None` for `default_visual_`.
+
+        phi:
+            The initial phase.
+
+        omega:
+            The natural frequency.
+
+    Examples:
+        >>> from skcomplex.systems.biology.physiology import CellOscillatorElement
+        >>> CellOscillatorElement('cell', omega=0.2).omega
+        0.2
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        phi: Annotated[float, StateSpec(period=2 * pi)] = 0.0,
+        omega: Annotated[float, ParameterSpec()] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.phi = phi
+        self.omega = omega
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the rotation of the phase.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return [RateLaw(s.phi, s.omega)]
+
+
+class CytokineLinkElement(Element):
+    """Link between two cells of a layer, a fixed connectivity `a` and an adaptive cytokine coupling `kappa`.
+
+    Args:
+        label:
+            The label of the link or of the group on the edges.
+
+        visual:
+            How the link is drawn, or `None` for `default_visual_`.
+
+        kappa:
+            The initial adaptive coupling, between -1 and 1.
+
+        a:
+            The fixed connectivity, between 0 and 1.
+
+    Examples:
+        >>> from skcomplex.systems.biology.physiology import CytokineLinkElement
+        >>> CytokineLinkElement('link', a=1.0).a
+        1.0
+    """
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        kappa: Annotated[float, StateSpec(domain=RealSet.closed(-1, 1))] = 0.0,
+        a: Annotated[float, ParameterSpec(domain=RealSet.closed(0, 1))] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.kappa = kappa
+        self.a = a
+
+
+class AdaptivePhaseCouplingInteraction(NeighborInteraction):
+    """Phase coupling of the cells of a layer through links that adapt to the phase differences they carry.
+
+    Along the link from cell `j` to cell `i`, `dphi_i/dt += -(a_ij + kappa_ij) sin(phi_i - phi_j + alpha) / N` and
+    `dkappa_ij/dt = -epsilon (kappa_ij + sin(phi_i - phi_j - beta))`. The phase lag `alpha` sets the preferred phase
+    difference of the coupling, and the age parameter `beta` the rule of the adaptation.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        cells:
+            The path of the group of cells on the nodes.
+
+        links:
+            The path of the group of links on the edges of the layer.
+
+        N:
+            The number of cells of the layer, which normalizes the coupling.
+
+        alpha:
+            The phase lag of the coupling.
+
+        beta:
+            The age parameter of the adaptation.
+
+        epsilon:
+            The adaptation rate.
+
+    Examples:
+        >>> from skcomplex.systems.biology.physiology import AdaptivePhaseCouplingInteraction
+        >>> AdaptivePhaseCouplingInteraction('coupling', cells='cells', links='links', epsilon=0.3).epsilon
+        0.3
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        cells: Annotated[str, RoleSpec()],
+        links: Annotated[str, RoleSpec()],
+        N: Annotated[float, ParameterSpec(domain=RealSet.open(0, oo))] = 1.0,
+        alpha: Annotated[float, ParameterSpec()] = 0.0,
+        beta: Annotated[float, ParameterSpec()] = 0.0,
+        epsilon: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 0.01,
+    ) -> None:
+        super().__init__(label)
+        self.cells = cells
+        self.links = links
+        self.N = N
+        self.alpha = alpha
+        self.beta = beta
+        self.epsilon = epsilon
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the coupling of the receiving cell and the adaptation of the link.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        difference = s.target.phi - s.source.phi
+        kappa = s.edge.kappa
+        return [
+            RateLaw(s.target.phi, -(s.edge.a + kappa) * sin(difference + s.alpha) / s.N),
+            RateLaw(kappa, -s.epsilon * (kappa + sin(difference - s.beta))),
+        ]
+
+
+class LayerCouplingInteraction(NeighborInteraction):
+    """Coupling of every cell to its partner in another layer, `dphi_i/dt += -sigma sin(phi_i - phi_j)`.
+
+    It runs on the edges of the layer of the network that joins the partners, both ways.
+
+    Args:
+        label:
+            The label of the interaction.
+
+        cells:
+            The path of the group of cells on the nodes.
+
+        sigma:
+            The strength of the coupling between the layers.
+
+        layer:
+            The layer of the network whose edges join the partners.
+
+    Examples:
+        >>> from skcomplex.systems.biology.physiology import LayerCouplingInteraction
+        >>> LayerCouplingInteraction('interlayer', cells='cells', sigma=0.5, layer='partners').layer
+        'partners'
+    """
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        cells: Annotated[str, RoleSpec()],
+        sigma: Annotated[float, ParameterSpec(domain=RealSet.closed_open(0, oo))] = 1.0,
+        layer: str | None = None,
+    ) -> None:
+        super().__init__(label, layer=layer)
+        self.cells = cells
+        self.sigma = sigma
+
+    def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
+        """Return the pull of the receiving cell towards its partner.
+
+        Args:
+            s:
+                The namespace of the symbols the laws can use.
+
+        Returns:
+            laws:
+                The laws of the component.
+        """
+        return [RateLaw(s.target.phi, -s.sigma * sin(s.target.phi - s.source.phi))]
 
 
 @register_system(
