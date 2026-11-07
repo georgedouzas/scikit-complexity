@@ -108,7 +108,6 @@ same numeric functions for the same system.
 - **WHEN** a user asks for a backend that is not registered
 - **THEN** a named error is raised that lists the registered backends
 
-
 ### Requirement: Backend substitutions are reported
 When the chosen backend cannot serve the form of a problem, or a compiled kernel falls back to Python, compilation
 SHALL report it with a warning that names the backend used, the part affected, and the reason, and the compiled problem
@@ -168,3 +167,14 @@ and SHALL NOT recompute them at every evaluation.
 - **WHEN** the NumPy drift of 20 populations, each with its own logistic growth interaction, is evaluated after
   compilation
 - **THEN** one evaluation takes at most 250 microseconds and returns the logistic rate of every population
+
+### Requirement: Calls over a whole group couple every member in the Jacobian pattern
+
+The Jacobian pattern of a law whose value is a call over the whole group (`CallSpec(..., vectorized=True)`) SHALL let
+the value of every member depend on the arguments of every member, since the call receives the arguments of all
+members at once.
+
+#### Scenario: Mean-field call
+
+- **WHEN** a rate law of a group of four members is a call over the whole group that returns the mean of a state
+- **THEN** every entry of the Jacobian pattern of that state is set, and finite differences of the drift stay inside it
