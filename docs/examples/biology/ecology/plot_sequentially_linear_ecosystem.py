@@ -7,21 +7,20 @@ which changes the network and starts a new linear stretch. Bursts of extinctions
 """
 
 # %%
-# The system is created by name from the catalog with 60 species that read 4 species each. The observer saves every
-# step with the default blueprint, whose primary view is the network of influences colored by the abundances.
+# The system is built from its class with 60 species that read 4 species each. The observer saves every step with the
+# default blueprint, whose primary view is the network of influences colored by the abundances.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import SequentiallyLinearEcosystemSystem
 
 SYSTEM = 'sequentially_linear_ecosystem'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer], random_state=1).prepare().run(until=299)
+trajectory = simulate(SequentiallyLinearEcosystemSystem(), observers=[observer], random_state=1, until=299)
 
 # %%
 # Extinctions and the turnover of the network
@@ -29,7 +28,6 @@ simulation = Simulation(system, dt=1.0, observers=[observer], random_state=1).pr
 # The species of age 0 count the extinctions of the previous step. Their cumulative number should rise in steps,
 # steep early and flatter later, while the abundances stay normalised and dominated by a few species.
 
-trajectory = simulation.trajectory_
 extinctions = np.nansum(trajectory.values('species.age')[1:] == 0, axis=1)
 abundances = np.sort(np.nan_to_num(trajectory.values('species.x')[-1]))[::-1]
 fig, (left, right) = plt.subplots(1, 2, figsize=(10, 4))

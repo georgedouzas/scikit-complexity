@@ -7,21 +7,25 @@ cycles irregular.
 """
 
 # %%
-# The system is created by name from the catalog with 300 prey and 60 predators on a 30 by 30 grid. The observer saves
-# every step with the default blueprint, whose primary view shows the animals on the grid.
+# The system is built from its class with 300 prey and 60 predators on a 30 by 30 grid. The observer saves every step
+# with the default blueprint, whose primary view shows the animals on the grid.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import AgentBasedLotkaVolterraSystem
 
 SYSTEM = 'agent_based_lotka_volterra'
 
-system = create_system(SYSTEM, prey=300, predators=60, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prepare().run(until=200)
+trajectory = simulate(
+    AgentBasedLotkaVolterraSystem(prey=300, predators=60, random_state=0),
+    dt=1,
+    observers=[observer],
+    random_state=0,
+)
 
 # %%
 # Cycles out of phase
@@ -29,7 +33,6 @@ simulation = Simulation(system, dt=1, observers=[observer], random_state=0).prep
 # The predators should peak after the prey, so the cross-correlation of the two counts should be largest at a
 # positive lag of the predators, and the orbit in the phase plane should circle counterclockwise.
 
-trajectory = simulation.trajectory_
 prey, predators = trajectory.values('prey.count'), trajectory.values('predators.count')
 lags = np.arange(0, 40)
 correlation = [np.corrcoef(prey[: len(prey) - lag], predators[lag:])[0, 1] for lag in lags]

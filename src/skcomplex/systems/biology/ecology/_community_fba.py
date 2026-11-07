@@ -6,8 +6,7 @@
 from collections.abc import Mapping, Sequence
 
 from ....core.components.spaces import StaticTime
-from ....core.components.system import System
-from ..._catalog import register_system
+from ....core.components.system import BaseSystem, System
 from ..common.metabolism import CommunityInteraction, community_medium_type, load_network
 
 GROWTH = 'Biomass_Ecoli_core'
@@ -15,20 +14,8 @@ CROSS_FED = ('EX_akg_e', 'EX_glu__L_e')
 OPEN_UPTAKE = -1000.0
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('community flux balance', 'SteadyCom', 'cross-feeding', 'linear program', 'metabolism', 'static'),
-    references=('Raman 2021', 'Khandelwal et al. 2013', 'Chan et al. 2017', 'Diener et al. 2020'),
-    defaults={'until': 0.0},
-)
-def community_fba(
-    knockouts: Sequence[str] = ('ICDHyr', 'NH4t'),
-    *,
-    abundances: Sequence[float] = (0.5, 0.5),
-    exchanges: Mapping[str, float] | None = None,
-    common_rate: bool = False,
-) -> System:
-    """Return two members of the E. coli core system that share a medium, which needs the extra `metabolism`.
+class CommunityFBASystem(BaseSystem):
+    """Two members of the E. coli core system that share a medium, which needs the extra `metabolism`.
 
     The programs of the members merge through a medium whose law holds the growth weighted by the abundances (Raman
     2021, Section 11.1.3). By default one member lacks isocitrate dehydrogenase and takes up 2-oxoglutarate, and the
@@ -52,45 +39,68 @@ def community_fba(
             Whether the members grow at one specific rate, as in community FBA, rather than each at its own, as in joint
             FBA.
 
-    Returns:
-        system:
-            The system.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         MissingExtraError:
             The extra is not installed.
 
     Examples:
-        >>> from skcomplex.core.engine.runtime import Simulation
-        >>> from skcomplex.systems.biology.ecology import community_fba
-        >>> trajectory = Simulation(community_fba()).prepare().run(0.0).trajectory_
+        >>> from skcomplex.core.engine.runtime import simulate
+        >>> from skcomplex.systems.biology.ecology import CommunityFBASystem
+        >>> trajectory = simulate(CommunityFBASystem(), until=0.0)
         >>> round(float(trajectory.values('medium.objective_0')[0]), 3)
         0.862
     """
-    shared = dict(exchanges) if exchanges is not None else dict.fromkeys(CROSS_FED, 0.0)
-    members = []
-    for position, knockout in enumerate(knockouts):
-        member = load_network('textbook', f'member_{position}', needed_by='community_fba')
-        member.objective = {}
-        for reaction in shared:
-            if shared[reaction] >= 0:
-                member.set_params(**{f'lower_{member._identifier(reaction)}': OPEN_UPTAKE})
-        if knockout:
-            identifier = member._identifier(knockout)
-            member.set_params(**{f'lower_{identifier}': 0.0, f'upper_{identifier}': 0.0})
-        members.append(member)
-    return System(
-        elements=[*members, community_medium_type(list(shared))('medium')],
-        interactions=[
-            CommunityInteraction(
-                'joint',
-                members=[member.label for member in members],
-                medium='medium',
-                abundances=tuple(abundances),
-                exchanges=shared,
-                growth=GROWTH,
-                common_rate=common_rate,
-            ),
-        ],
-        time=StaticTime(),
-    )
+
+    field = 'biology/ecology'
+    topics = ('community flux balance', 'SteadyCom', 'cross-feeding', 'linear program', 'metabolism', 'static')
+    references = ('Raman 2021', 'Khandelwal et al. 2013', 'Chan et al. 2017', 'Diener et al. 2020')
+    until = 0.0
+
+    def __init__(
+        self,
+        knockouts: Sequence[str] = ('ICDHyr', 'NH4t'),
+        *,
+        abundances: Sequence[float] = (0.5, 0.5),
+        exchanges: Mapping[str, float] | None = None,
+        common_rate: bool = False,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.knockouts = knockouts
+        self.abundances = abundances
+        self.exchanges = exchanges
+        self.common_rate = common_rate
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        shared = dict(self.exchanges) if self.exchanges is not None else dict.fromkeys(CROSS_FED, 0.0)
+        members = []
+        for position, knockout in enumerate(self.knockouts):
+            member = load_network('textbook', f'member_{position}', needed_by='community_fba')
+            member.objective = {}
+            for reaction in shared:
+                if shared[reaction] >= 0:
+                    member.set_params(**{f'lower_{member._identifier(reaction)}': OPEN_UPTAKE})
+            if knockout:
+                identifier = member._identifier(knockout)
+                member.set_params(**{f'lower_{identifier}': 0.0, f'upper_{identifier}': 0.0})
+            members.append(member)
+        return System(
+            self.label,
+            elements=[*members, community_medium_type(list(shared))('medium')],
+            interactions=[
+                CommunityInteraction(
+                    'joint',
+                    members=[member.label for member in members],
+                    medium='medium',
+                    abundances=tuple(self.abundances),
+                    exchanges=shared,
+                    growth=GROWTH,
+                    common_rate=self.common_rate,
+                ),
+            ],
+            time=StaticTime(),
+        )

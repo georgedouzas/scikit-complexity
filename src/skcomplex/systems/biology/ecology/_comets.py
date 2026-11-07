@@ -10,10 +10,9 @@ import numpy as np
 from ....core.components.elements import FieldElement, GroupElement
 from ....core.components.interactions import DiffusionInteraction
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.engine.solvers import IMEXEulerSolver
 from ....core.specs import VisualSpec
-from ..._catalog import register_system
 from ..common.metabolism import (
     BiomassElement,
     ExchangeInteraction,
@@ -31,26 +30,8 @@ MMOL_PER_MOL = 1000.0
 GLUCOSE_MOLAR_MASS = 180.16
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('COMETS', 'dynamic flux balance', 'lattice', 'diffusion', 'linear program', 'metabolism'),
-    references=('Raman 2021', 'Harcombe et al. 2014'),
-    defaults={'until': 14.0, 'dt': STEP, 'solver': IMEXEulerSolver(dt=STEP)},
-)
-def comets(
-    shape: tuple[int, int] = (50, 50),
-    *,
-    box: float = 0.02,
-    inoculum: float = 3e-7,
-    glucose: float = 5.0,
-    plate_glucose: float = 0.0088,
-    biomass_diffusion: float = 3e-10,
-    glucose_diffusion: float = 5e-6,
-    vmax: float = 10.0,
-    km: float = 0.01,
-    interval: float = STEP,
-) -> System:
-    """Return an expanding colony of the E. coli core system on a lattice, which needs the extra `metabolism`.
+class CometsSystem(BaseSystem):
+    """An expanding colony of the E. coli core system on a lattice, which needs the extra `metabolism`.
 
     Run with `IMEXEulerSolver`, every step is a growth step and then a diffusion step, the two steps that COMETS
     alternates (Raman 2021, Section 11.1.3.4). The growth step solves the program of every site that holds biomass and
@@ -108,76 +89,113 @@ def comets(
             The time in h over which the glucose of a site must last, by default the time step, the bound of Raman
             (2021, Section 9.6).
 
-    Returns:
-        system:
-            The system.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Raises:
         MissingExtraError:
             The extra is not installed.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import comets
-        >>> [element.label for element in comets(shape=(2, 2)).elements]
+        >>> from skcomplex.systems.biology.ecology import CometsSystem
+        >>> [element.label for element in CometsSystem(shape=(2, 2)).prepare().system_.elements]
         ['cells', 'biomass', 'glucose']
     """
-    source = load_network('textbook', 'cell', needed_by='comets')
-    plain = {name: replace(spec, rule='') for name, spec in source.reactions.items()}
-    concentration = glucose / GLUCOSE_MOLAR_MASS * MMOL_PER_MOL
-    volume = plate_glucose * box**2 / concentration
-    initial = np.zeros(shape)
-    initial[shape[0] // 2, shape[1] // 2] = inoculum / volume
-    space = LatticeSpace(shape, spacing=box)
-    images = VisualSpec('image', {'states': [MetabolicNetworkElement.flux_name(GROWTH)]})
-    cells = {
-        'name': 'ColonyCell',
-        'reactions': plain,
-        'default_objective': source.default_objective,
-        'infeasible': 'zero',
-    }
-    return System(
-        elements=[
-            GroupElement(
-                'cells',
-                element=MetabolicNetworkElement,
-                values=cells,
-                on='sites',
-                space=space,
-                visual=images,
-            ),
-            FieldElement('biomass', element=BiomassElement, space=space, values={'x': initial}),
-            FieldElement(
-                'glucose',
-                element=SubstrateElement,
-                space=space,
-                values={'c': np.full(shape, concentration)},
-            ),
-        ],
-        interactions=[
-            ExchangeInteraction(
-                'uptake',
-                cell='cells',
-                biomass='biomass',
-                substrate='glucose',
-                reaction=GLUCOSE_EXCHANGE,
-                vmax=vmax,
-                km=km,
-                interval=interval,
-                threshold=0.0,
-            ),
-            GrowthInteraction('growth', cell='cells', biomass='biomass', reaction=GROWTH),
-            DiffusionInteraction(
-                'biomass_spread',
-                target='biomass',
-                state='x',
-                coefficient=biomass_diffusion * SECONDS_PER_HOUR,
-            ),
-            DiffusionInteraction(
-                'glucose_spread',
-                target='glucose',
-                state='c',
-                coefficient=glucose_diffusion * SECONDS_PER_HOUR,
-            ),
-        ],
-        space=space,
-    )
+
+    field = 'biology/ecology'
+    topics = ('COMETS', 'dynamic flux balance', 'lattice', 'diffusion', 'linear program', 'metabolism')
+    references = ('Raman 2021', 'Harcombe et al. 2014')
+    until = 14.0
+    dt = STEP
+    solver = IMEXEulerSolver(dt=STEP)
+
+    def __init__(
+        self,
+        shape: tuple[int, int] = (50, 50),
+        *,
+        box: float = 0.02,
+        inoculum: float = 3e-7,
+        glucose: float = 5.0,
+        plate_glucose: float = 0.0088,
+        biomass_diffusion: float = 3e-10,
+        glucose_diffusion: float = 5e-6,
+        vmax: float = 10.0,
+        km: float = 0.01,
+        interval: float = STEP,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.shape = shape
+        self.box = box
+        self.inoculum = inoculum
+        self.glucose = glucose
+        self.plate_glucose = plate_glucose
+        self.biomass_diffusion = biomass_diffusion
+        self.glucose_diffusion = glucose_diffusion
+        self.vmax = vmax
+        self.km = km
+        self.interval = interval
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        source = load_network('textbook', 'cell', needed_by='comets')
+        plain = {name: replace(spec, rule='') for name, spec in source.reactions.items()}
+        concentration = self.glucose / GLUCOSE_MOLAR_MASS * MMOL_PER_MOL
+        volume = self.plate_glucose * self.box**2 / concentration
+        initial = np.zeros(self.shape)
+        initial[self.shape[0] // 2, self.shape[1] // 2] = self.inoculum / volume
+        space = LatticeSpace(self.shape, spacing=self.box)
+        images = VisualSpec('image', {'states': [MetabolicNetworkElement.flux_name(GROWTH)]})
+        cells = {
+            'name': 'ColonyCell',
+            'reactions': plain,
+            'default_objective': source.default_objective,
+            'infeasible': 'zero',
+        }
+        return System(
+            self.label,
+            elements=[
+                GroupElement(
+                    'cells',
+                    element=MetabolicNetworkElement,
+                    values=cells,
+                    on='sites',
+                    space=space,
+                    visual=images,
+                ),
+                FieldElement('biomass', element=BiomassElement, space=space, values={'x': initial}),
+                FieldElement(
+                    'glucose',
+                    element=SubstrateElement,
+                    space=space,
+                    values={'c': np.full(self.shape, concentration)},
+                ),
+            ],
+            interactions=[
+                ExchangeInteraction(
+                    'uptake',
+                    cell='cells',
+                    biomass='biomass',
+                    substrate='glucose',
+                    reaction=GLUCOSE_EXCHANGE,
+                    vmax=self.vmax,
+                    km=self.km,
+                    interval=self.interval,
+                    threshold=0.0,
+                ),
+                GrowthInteraction('growth', cell='cells', biomass='biomass', reaction=GROWTH),
+                DiffusionInteraction(
+                    'biomass_spread',
+                    target='biomass',
+                    state='x',
+                    coefficient=self.biomass_diffusion * SECONDS_PER_HOUR,
+                ),
+                DiffusionInteraction(
+                    'glucose_spread',
+                    target='glucose',
+                    state='c',
+                    coefficient=self.glucose_diffusion * SECONDS_PER_HOUR,
+                ),
+            ],
+            space=space,
+        )

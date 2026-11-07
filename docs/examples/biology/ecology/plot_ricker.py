@@ -6,21 +6,20 @@ growth, and at high growth overshoots and crashes in cycles that double their pe
 """
 
 # %%
-# The system is created by name from the catalog with the growth factor `r = 14`, in the chaotic range, and the
-# observer saves every generation with the default blueprint, whose primary view is the time series of the population.
+# The system is built from its class with the growth factor `r = 14`, in the chaotic range, and the observer saves
+# every generation with the default blueprint, whose primary view is the time series of the population.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import RickerSystem
 
 SYSTEM = 'ricker'
 
-system = create_system(SYSTEM, r=14.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, observers=[observer]).prepare().run(until=100)
+trajectory = simulate(RickerSystem(r=14.0), observers=[observer])
 
 # %%
 # Period doubling
@@ -31,12 +30,12 @@ simulation = Simulation(system, observers=[observer]).prepare().run(until=100)
 
 rates = np.linspace(1.5, 20.0, 150)
 fig, (series, diagram) = plt.subplots(1, 2, figsize=(11, 4.5))
-series.plot(simulation.trajectory_.times, simulation.trajectory_.values('population.n'), '.-')
+series.plot(trajectory.times, trajectory.values('population.n'), '.-')
 series.set_xlabel('generation')
 series.set_ylabel('population n')
 series.set_title('r = 14')
 for r in rates:
-    late = Simulation(create_system(SYSTEM, r=r)).prepare().run(until=200).trajectory_.values('population.n')[-60:]
+    late = simulate(RickerSystem(r=r), until=200).values('population.n')[-60:]
     diagram.plot(np.full(late.size, r), late, ',', color='black')
 diagram.plot(rates[rates < np.e**2], np.log(rates[rates < np.e**2]), color='tab:red', label='fixed point ln r')
 diagram.axvline(np.e**2, color='gray', linestyle='--', label='r = e^2')

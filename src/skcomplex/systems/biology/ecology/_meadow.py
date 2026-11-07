@@ -15,11 +15,10 @@ from ....core.components.elements import Element, GroupElement
 from ....core.components.interactions import MovementInteraction, TransferInteraction
 from ....core.components.laws import BaseLaw, RuleLaw, Sink
 from ....core.components.spaces import LatticeSpace
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.components.types import AgentViewProtocol, SystemViewProtocol
 from ....core.engine.solvers import AgentView, SystemView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class CowView(AgentView):
@@ -99,6 +98,8 @@ class PastureElement(Element):
         >>> GroupElement('pasture', element=PastureElement, size=4, values={'growth': 0.1}).size
         4
     """
+
+    law_classes = (RuleLaw,)
 
     def __init__(
         self,
@@ -266,30 +267,15 @@ class HerdingInteraction(MovementInteraction):
         return cells[int(np.argmin(np.where(free, distances, np.inf)))]
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('carrying capacity', 'agents', 'grid', 'grazing', 'commons'),
-    references=('Hamill and Gilbert 2016',),
-    defaults={'until': 25},
-)
-def meadow_capacity(
-    width: int = 40,
-    height: int = 40,
-    *,
-    cows: int = 80,
-    growth: float = 0.2,
-    bite: float = 0.75,
-    threshold: float = 0.9,
-    random_state: int | np.random.Generator | None = 0,
-) -> System:
-    """Return cows that graze a summer of 25 weeks on a meadow, which shows how many cows the meadow can carry.
+class MeadowCapacitySystem(BaseSystem):
+    """Cows that graze a summer of 25 weeks on a meadow, which shows how many cows the meadow can carry.
 
     Every week the grass regrows logistically, each cow eats `bite` of the grass of its patch, and each cow moves to the
     nearest patch that no other cow occupies and whose grass reaches `threshold`. A cow that finds none dies. Without
-    regrowth a cow grazes its first patch and 25 more over the summer, so the meadow feeds about
-    `width * height / 26` cows, and regrowth raises its carrying capacity.
-    The cows graze the patches down at the same pace, so a herd above the capacity runs out of grown patches all at
-    once and dies out within a week, instead of shrinking to the capacity.
+    regrowth a cow grazes its first patch and 25 more over the summer, so the meadow feeds about `width * height / 26`
+    cows, and regrowth raises its carrying capacity. The cows graze the patches down at the same pace, so a herd above
+    the capacity runs out of grown patches all at once and dies out within a week, instead of shrinking to the capacity.
+    The system has the groups `pasture` and `cows`.
 
     Args:
         width:
@@ -313,40 +299,69 @@ def meadow_capacity(
         random_state:
             The seed or generator of the initial cells of the cows.
 
-    Returns:
-        system:
-            The system, with the groups `pasture` and `cows`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import meadow_capacity
-        >>> [group.size for group in meadow_capacity(10, 10, cows=5).elements]
+        >>> from skcomplex.systems.biology.ecology import MeadowCapacitySystem
+        >>> [group.size for group in MeadowCapacitySystem(10, 10, cows=5).prepare().system_.elements]
         [100, 5]
     """
-    rng = np.random.default_rng(random_state)
-    cells = [(column, row) for column in range(width) for row in range(height)]
-    picks = rng.choice(len(cells), size=cows, replace=False)
-    return System(
-        elements=[
-            GroupElement(
-                'pasture',
-                element=PastureElement,
-                size=len(cells),
-                values={'growth': growth},
-                variable=True,
-                location=cells,
-            ),
-            GroupElement(
-                'cows',
-                element=CowElement,
-                size=cows,
-                values={'bite': bite},
-                variable=True,
-                location=[cells[int(pick)] for pick in picks],
-            ),
-        ],
-        interactions=[
-            GrazingInteraction('grazing', cows='cows', pasture='pasture'),
-            HerdingInteraction('herding', cows='cows', pasture='pasture', threshold=threshold),
-        ],
-        space=LatticeSpace((width, height), boundary='fixed'),
-    )
+
+    field = 'biology/ecology'
+    topics = ('carrying capacity', 'agents', 'grid', 'grazing', 'commons')
+    references = ('Hamill and Gilbert 2016',)
+    until = 25
+
+    def __init__(
+        self,
+        width: int = 40,
+        height: int = 40,
+        *,
+        cows: int = 80,
+        growth: float = 0.2,
+        bite: float = 0.75,
+        threshold: float = 0.9,
+        random_state: int | np.random.Generator | None = 0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.width = width
+        self.height = height
+        self.cows = cows
+        self.growth = growth
+        self.bite = bite
+        self.threshold = threshold
+        self.random_state = random_state
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        rng = np.random.default_rng(self.random_state)
+        cells = [(column, row) for column in range(self.width) for row in range(self.height)]
+        picks = rng.choice(len(cells), size=self.cows, replace=False)
+        return System(
+            self.label,
+            elements=[
+                GroupElement(
+                    'pasture',
+                    element=PastureElement,
+                    size=len(cells),
+                    values={'growth': self.growth},
+                    variable=True,
+                    location=cells,
+                ),
+                GroupElement(
+                    'cows',
+                    element=CowElement,
+                    size=self.cows,
+                    values={'bite': self.bite},
+                    variable=True,
+                    location=[cells[int(pick)] for pick in picks],
+                ),
+            ],
+            interactions=[
+                GrazingInteraction('grazing', cows='cows', pasture='pasture'),
+                HerdingInteraction('herding', cows='cows', pasture='pasture', threshold=self.threshold),
+            ],
+            space=LatticeSpace((self.width, self.height), boundary='fixed'),
+        )

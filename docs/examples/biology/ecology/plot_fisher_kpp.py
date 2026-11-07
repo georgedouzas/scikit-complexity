@@ -7,21 +7,24 @@ is at capacity, ahead of it the line is empty, and the front keeps its shape whi
 """
 
 # %%
-# The system is created by name from the catalog with the left 5% of a line of 200 units occupied. The blueprint shows
-# the space-time history of the density, where the front is a straight diagonal edge.
+# The system is built from its class with the left 5% of a line of 200 units occupied. The blueprint shows the
+# space-time history of the density, where the front is a straight diagonal edge.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import FisherKPPSystem
 
 SYSTEM = 'fisher_kpp'
 
-system = create_system(SYSTEM, length=800, D=1.0, r=1.0, spacing=0.25, front=0.05)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=80)
+trajectory = simulate(
+    FisherKPPSystem(length=800, D=1.0, r=1.0, spacing=0.25, front=0.05),
+    observers=[observer],
+    until=80,
+)
 
 # %%
 # Speed of the front
@@ -29,7 +32,6 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(unti
 # Tracking the position where the density crosses one half, the front should move along a straight line whose slope
 # approaches `2 sqrt(r D) = 2` once its shape has settled.
 
-trajectory = simulation.trajectory_
 density = trajectory.values('line.u')
 positions = np.arange(density.shape[1]) * 0.25
 front = np.array([positions[np.argmax(row < 0.5)] for row in density])

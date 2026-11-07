@@ -7,22 +7,21 @@ as in the abundances of tropical trees.
 """
 
 # %%
-# The system is created by name from the catalog with a hundred species of ten individuals each. The observer saves
-# every frame with the default blueprint, whose primary view is the time series of the abundances.
+# The system is built from its class with a hundred species of ten individuals each. The observer saves every frame
+# with the default blueprint, whose primary view is the time series of the abundances.
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import nbinom
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import NeutralMacroecologySystem
 
 SYSTEM = 'neutral_macroecology'
 
-system = create_system(SYSTEM, species=100, n=10.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer], random_state=0).prepare().run(until=100)
+trajectory = simulate(NeutralMacroecologySystem(species=100, n=10.0), observers=[observer], random_state=0)
 
 # %%
 # The negative binomial law
@@ -31,7 +30,7 @@ simulation = Simulation(system, dt=1.0, observers=[observer], random_state=0).pr
 # `b1 / d1` as its success ratio, of mean `b0 / (d1 - b1) = 10`. Pooling the abundances of the last half of the run,
 # the histogram should follow it.
 
-abundances = simulation.trajectory_.values('species.n')[50:].ravel()
+abundances = trajectory.values('species.n')[50:].ravel()
 b0, b1, d1 = 1.0, 0.9, 1.0
 counts = np.arange(abundances.max() + 1)
 law = nbinom.pmf(counts, b0 / b1, 1 - b1 / d1)

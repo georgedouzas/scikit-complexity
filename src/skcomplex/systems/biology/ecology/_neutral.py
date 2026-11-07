@@ -11,16 +11,15 @@ from sage.sets.real_set import RealSet
 from ....core.components.elements import CompartmentElement, GroupElement
 from ....core.components.interactions import JumpInteraction
 from ....core.components.laws.utils import where
-from ....core.components.system import System
+from ....core.components.system import BaseSystem, System
 from ....core.specs import ParameterSpec, StateSpec, VisualSpec
-from ..._catalog import register_system
 
 
 class NeutralSpeciesElement(CompartmentElement):
     """Species of neutral theory, a compartment of `n` individuals with birth and death rates shared by every species.
 
-    The births of `neutral_macroecology` occur at the rate `b0 + b1 n`, with immigration or speciation `b0`, and its
-    deaths at the rate `d0 + d1 n`, with emigration or extinction `d0` while the species has members.
+    The births of `NeutralMacroecologySystem` occur at the rate `b0 + b1 n`, with immigration or speciation `b0`, and
+    its deaths at the rate `d0 + d1 n`, with emigration or extinction `d0` while the species has members.
 
     Args:
         label:
@@ -69,26 +68,12 @@ class NeutralSpeciesElement(CompartmentElement):
         self.d1 = d1
 
 
-@register_system(
-    field='biology/ecology',
-    tags=('macroecology', 'neutral theory', 'jump process', 'species abundance'),
-    references=('Hubbell 2001', 'Volkov et al. 2003', 'Gros 2015'),
-    defaults={'until': 100.0, 'dt': 1.0},
-)
-def neutral_macroecology(
-    species: int = 100,
-    n: float = 10.0,
-    *,
-    b0: float = 1.0,
-    b1: float = 0.9,
-    d0: float = 0.0,
-    d1: float = 1.0,
-) -> System:
-    """Return many species under neutral birth, death, and immigration, whose abundances follow a gamma-like law.
+class NeutralMacroecologySystem(BaseSystem):
+    """Many species under neutral birth, death, and immigration, whose abundances follow a gamma-like law.
 
-    Without emigration, `d0 = 0`, the abundances settle on the negative binomial distribution of mean
-    `b0 / (d1 - b1)`, the discrete form of the gamma distribution that the Fokker-Planck equation of macroecology
-    predicts and that fits the abundances of tropical trees.
+    Without emigration, `d0 = 0`, the abundances settle on the negative binomial distribution of mean `b0 / (d1 - b1)`,
+    the discrete form of the gamma distribution that the Fokker-Planck equation of macroecology predicts and that fits
+    the abundances of tropical trees. The system has the abundances `species.n`.
 
     Args:
         species:
@@ -109,36 +94,64 @@ def neutral_macroecology(
         d1:
             The per capita death rate, above `b1`.
 
-    Returns:
-        system:
-            The system, with the abundances `species.n`.
+        label:
+            The label of the system, which names it when it is nested in another one.
 
     Examples:
-        >>> from skcomplex.systems.biology.ecology import neutral_macroecology
-        >>> neutral_macroecology(20).elements[0].prepare().size_
+        >>> from skcomplex.systems.biology.ecology import NeutralMacroecologySystem
+        >>> NeutralMacroecologySystem(20).prepare().system_.elements[0].prepare().size_
         20
     """
-    return System(
-        elements=[
-            GroupElement(
-                'species',
-                element=NeutralSpeciesElement,
-                size=species,
-                values={'n': n, 'b0': b0, 'b1': b1, 'd0': d0, 'd1': d1},
-            ),
-        ],
-        interactions=[
-            JumpInteraction(
-                'birth',
-                target='species',
-                changes={'n': 1},
-                rate=lambda s: s.target.b0 + s.target.b1 * s.target.n,
-            ),
-            JumpInteraction(
-                'death',
-                target='species',
-                changes={'n': -1},
-                rate=lambda s: where(s.target.n > 0, s.target.d0, 0) + s.target.d1 * s.target.n,
-            ),
-        ],
-    )
+
+    field = 'biology/ecology'
+    topics = ('macroecology', 'neutral theory', 'jump process', 'species abundance')
+    references = ('Hubbell 2001', 'Volkov et al. 2003', 'Gros 2015')
+    until = 100.0
+    dt = 1.0
+
+    def __init__(
+        self,
+        species: int = 100,
+        n: float = 10.0,
+        *,
+        b0: float = 1.0,
+        b1: float = 0.9,
+        d0: float = 0.0,
+        d1: float = 1.0,
+        label: str = 'system',
+    ) -> None:
+        super().__init__(label)
+        self.species = species
+        self.n = n
+        self.b0 = b0
+        self.b1 = b1
+        self.d0 = d0
+        self.d1 = d1
+
+    def _build_system(self) -> System:
+        """Return the parts of the system."""
+        return System(
+            self.label,
+            elements=[
+                GroupElement(
+                    'species',
+                    element=NeutralSpeciesElement,
+                    size=self.species,
+                    values={'n': self.n, 'b0': self.b0, 'b1': self.b1, 'd0': self.d0, 'd1': self.d1},
+                ),
+            ],
+            interactions=[
+                JumpInteraction(
+                    'birth',
+                    target='species',
+                    changes={'n': 1},
+                    rate=lambda s: s.target.b0 + s.target.b1 * s.target.n,
+                ),
+                JumpInteraction(
+                    'death',
+                    target='species',
+                    changes={'n': -1},
+                    rate=lambda s: where(s.target.n > 0, s.target.d0, 0) + s.target.d1 * s.target.n,
+                ),
+            ],
+        )

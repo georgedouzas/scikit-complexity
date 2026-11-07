@@ -7,21 +7,20 @@ succession.
 """
 
 # %%
-# The system is created by name from the catalog from a bare clear cut and run for 300 years. The observer saves every
-# year with the default blueprint, whose primary view is the time series of the three volumes.
+# The system is built from its class from a bare clear cut and run for 300 years. The observer saves every year with
+# the default blueprint, whose primary view is the time series of the three volumes.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import MangroveSuccessionSystem
 
 SYSTEM = 'mangrove_succession'
 
-system = create_system(SYSTEM)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(until=299)
+trajectory = simulate(MangroveSuccessionSystem(), observers=[observer], until=299)
 
 # %%
 # The order of dominance
@@ -29,7 +28,6 @@ simulation = Simulation(system, dt=1.0, observers=[observer]).prepare().run(unti
 # The share of the total volume held by each group shows the succession: Keora should dominate first, Gewa should
 # peak later, and Sundari should hold most of the mature forest.
 
-trajectory = simulation.trajectory_
 groups = ['keora', 'gewa', 'sundari']
 volumes = np.column_stack([trajectory.values(f'{group}.volume') for group in groups])
 shares = volumes / np.maximum(volumes.sum(axis=1, keepdims=True), 1e-12)

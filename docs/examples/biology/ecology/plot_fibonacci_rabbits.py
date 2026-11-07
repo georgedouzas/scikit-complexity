@@ -6,21 +6,20 @@ Fibonacci numbers 1, 1, 2, 3, 5, 8, ... and grows by the golden ratio every mont
 """
 
 # %%
-# The system is created by name from the catalog from one newborn pair and run for 20 months. The observer saves
-# every month with the default blueprint, whose primary view is the time series of the pairs.
+# The system is built from its class from one newborn pair and run for 20 months. The observer saves every month with
+# the default blueprint, whose primary view is the time series of the pairs.
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system
+from skcomplex.systems.biology.ecology import FibonacciRabbitsSystem
 
 SYSTEM = 'fibonacci_rabbits'
 
-system = create_system(SYSTEM, pairs=1.0, previous=0.0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=1)
-simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=20)
+trajectory = simulate(FibonacciRabbitsSystem(pairs=1.0, previous=0.0), observers=[observer])
 
 # %%
 # The golden ratio
@@ -28,8 +27,8 @@ simulation = Simulation(system, dt=1, observers=[observer]).prepare().run(until=
 # The ratio of successive Fibonacci numbers tends to the golden ratio `(1 + sqrt 5) / 2 ≈ 1.618`, alternately from
 # above and below. The simulated ratio should converge to it within a few months.
 
-pairs = simulation.trajectory_.values('rabbits.pairs')
-months = simulation.trajectory_.times
+pairs = trajectory.values('rabbits.pairs')
+months = trajectory.times
 golden = (1 + np.sqrt(5)) / 2
 fig, (counts, ratio) = plt.subplots(1, 2, figsize=(10, 4))
 counts.semilogy(months, pairs, 'o-')

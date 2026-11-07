@@ -7,33 +7,28 @@ drift.
 """
 
 # %%
-# The system is created by name from the catalog with the speciation probability `nu = 0.01` per birth. One unit of
-# time holds 200 deaths, each replaced by the offspring of another individual. The observer saves every fourth frame
-# with the default blueprint, whose primary view is the time series of the number of species.
+# The system is built from its class with the speciation probability `nu = 0.01` per birth. One unit of time holds 200
+# deaths, each replaced by the offspring of another individual. The observer saves every fourth frame with the default
+# blueprint, whose primary view is the time series of the number of species.
 
 import itertools
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
-from skcomplex.systems import create_system, describe
+from skcomplex.systems.biology.ecology import NeutralBiodiversitySystem
 
 SYSTEM = 'neutral_biodiversity'
 SIZE, NU = 200, 0.01
 
-system = create_system(SYSTEM, individuals=SIZE, nu=NU, random_state=0)
 observer = RerunObserver(SYSTEM, save_path=f'{SYSTEM}.rrd', blueprint='default', interval=4)
-simulation = (
-    Simulation(
-        system,
-        observers=[observer],
-        random_state=0,
-        observables=describe(SYSTEM).observables_of(system),
-    )
-    .prepare()
-    .run(until=1000)
+trajectory = simulate(
+    NeutralBiodiversitySystem(individuals=SIZE, nu=NU, random_state=0),
+    until=1000,
+    observers=[observer],
+    random_state=0,
 )
 
 # %%
@@ -48,16 +43,16 @@ theta = (SIZE - 1) * NU / (1 - NU)
 expected_richness = np.sum(theta / (theta + np.arange(SIZE)))
 abundances = np.arange(1, SIZE + 1)
 phi = theta / abundances * np.cumprod((SIZE - abundances + 1) / (SIZE - abundances + theta))
-times = simulation.trajectory_.times
+times = trajectory.times
 counts = np.zeros(SIZE + 1)
 for frame in np.flatnonzero(times >= 200):
-    _, sizes = np.unique(simulation.trajectory_.agents('community', int(frame)).values['species'], return_counts=True)
+    _, sizes = np.unique(trajectory.agents('community', int(frame)).values['species'], return_counts=True)
     counts += np.bincount(sizes, minlength=SIZE + 1)
 counts /= np.sum(times >= 200)
 bins = list(itertools.pairwise(2 ** np.arange(9)))
 
 fig, (richness, distribution) = plt.subplots(1, 2, figsize=(10, 4))
-richness.plot(times, simulation.trajectory_.values('richness'), label='simulated')
+richness.plot(times, trajectory.values('richness'), label='simulated')
 richness.axhline(expected_richness, color='black', linestyle='--', label='S_N')
 richness.set_xlabel('time')
 richness.set_ylabel('number of species')
