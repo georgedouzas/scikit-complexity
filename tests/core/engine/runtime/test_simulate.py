@@ -11,7 +11,7 @@ from skcomplex.core.components.interactions import JumpInteraction, RateInteract
 from skcomplex.core.components.spaces import LatticeSpace, StaticTime
 from skcomplex.core.components.system import BaseSystem, System
 from skcomplex.core.engine.backends import JaxBackend
-from skcomplex.core.engine.runtime import Simulation, Trajectory, simulate
+from skcomplex.core.engine.runtime import RecorderObserver, Simulation, Trajectory, simulate
 from skcomplex.core.engine.runtime._simulate import _choose_solver
 from skcomplex.core.engine.solvers import GillespieSolver, MonteCarloSolver, RootSolver, ScipyODESolver
 from skcomplex.core.errors import TagError, ValidationError
@@ -70,6 +70,14 @@ def test_simulate_reads_the_tuned_settings_of_the_class():
     assert trajectory.values('tank.x')[0] == 4.0
     assert trajectory.values('tank.double')[-1] == pytest.approx(8.0 * np.exp(-1.0), rel=1e-3)
     assert simulate(DecaySystem(), until=1.0, initial_state={'tank.x': 1.0}).values('tank.x')[0] == 1.0
+
+
+def test_simulate_takes_the_time_between_frames_and_observers():
+    """Test that a time between frames replaces the tuned one, and that observers receive every frame."""
+    recorder = RecorderObserver()
+    trajectory = simulate(DecaySystem(), dt=1.0, observers=[recorder])
+    assert trajectory.times.tolist() == [0.0, 1.0, 2.0]
+    assert recorder.trajectory_.times.tolist() == [0.0, 1.0, 2.0]
 
 
 def test_simulate_requires_an_end_time():

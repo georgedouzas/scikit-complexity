@@ -15,6 +15,7 @@ from ...specs import ObservableSpec, Tags
 from ..backends import BaseBackend
 from ..solvers import BaseSolver
 from ..solvers._defaults import DEFAULT_SOLVERS
+from ._base import BaseObserver
 from ._simulations import Simulation
 from ._trajectories import Trajectory
 
@@ -76,17 +77,20 @@ def simulate(
     system: BaseSystem,
     *,
     until: float | None = None,
+    dt: float | None = None,
     initial_state: Mapping[str, object] | None = None,
     solver: BaseSolver | None = None,
     backend: BaseBackend | None = None,
     observables: Sequence[ObservableSpec] = (),
+    observers: Sequence[BaseObserver] = (),
     random_state: int | np.random.Generator | None = None,
 ) -> Trajectory:
     """Simulate a system until a time and return its trajectory.
 
-    A solver takes the role of a splitter in scikit-learn, a backend the role of `n_jobs`, and observables the role of
-    `scoring`. An argument left out comes from the tuned run settings of the class of the system, its class variables
-    `until`, `solver`, `observables`, and `initial_state`, and the class variable `dt` sets the time between frames.
+    A solver takes the role of a splitter in scikit-learn, a backend the role of `n_jobs`, observables the role of
+    `scoring`, and observers, such as a Rerun recording, the role of callbacks. An argument left out comes from the
+    tuned run settings of the class of the system, its class variables `until`, `dt`, `solver`, `observables`, and
+    `initial_state`.
     Without a solver, the tags of the system choose the default solver, or the form the compiler infers when the tags
     fit several. The tags are read before any compiling, so a solver or a backend that does not support them is
     rejected first.
@@ -97,6 +101,10 @@ def simulate(
 
         until:
             The end time of the run, or `None` for the tuned end time of the class of the system.
+
+        dt:
+            The time between frames, or `None` for the tuned time of the class of the system, or else the default of
+            its form.
 
         initial_state:
             Initial values that replace those of the elements, by dotted state name, such as `{'rabbits.n': 20}`, or
@@ -111,6 +119,9 @@ def simulate(
         observables:
             The observables to compute and record at every frame, or none for the tuned observables of the class of
             the system.
+
+        observers:
+            The observers that receive every frame, such as a `RerunObserver`.
 
         random_state:
             The seed or generator of stochastic solvers.
@@ -159,7 +170,8 @@ def simulate(
         composite,
         solver=_choose_solver(tags) if stepper is None else stepper,
         backend=backend,
-        dt=settings.dt,
+        dt=settings.dt if dt is None else dt,
+        observers=observers,
         observables=observables or tuned_observables,
         initial_state=settings.initial_state if initial_state is None else initial_state,
         random_state=random_state,
