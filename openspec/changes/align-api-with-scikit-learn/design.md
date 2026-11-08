@@ -268,8 +268,24 @@ The tags each analysis needs are the module constant `TAGS` of its module, an `A
 with the data kind it reads and the capability tags it needs, and `KIND_TAGS` for the kinds of a family that differ.
 `applicable_analyses` reads them in place of its table, and an analysis checks them with `_check_tags` against a system,
 or the system behind a trajectory, raising `TagError` naming the tag: `lyapunov` needs a deterministic system,
-`network_measures`, `motifs`, and `renormalization` a network space, and `section` continuous time. `ensemble` does not
-yet check a stochastic randomness, since the tags of many agent-based random systems say `deterministic`.
+`network_measures`, `motifs`, and `renormalization` a network space, and `section` continuous time. `ensemble` needs a
+stochastic randomness, or a solver that draws such as `KineticSolver`, and raises a `TagError` naming the randomness.
+
+**Randomness from draws.** A part is stochastic when one of its law kinds draws (noise, jump, sampling), when its class
+declares `draws`, as rules that read `system.rng`, laws such as `ExtremalLaw`, and pymoo optimisation do, or when its
+private hook `_draws()` finds arguments that draw: the schedules `'random-sequential'` and `'member'`, which the agent
+stepper activates in random order, random ties and picks, chances below 1, random pairings and groups, rows of a
+transition matrix, and drives that name the generator `random`. The noise and mode hooks that subclasses write count as
+their arguments, and a group takes the draws of the class of its members. A system whose own build passes drawing
+functions to general interactions, such as a lambda that reads `system.rng` or a symbolic `bernoulli(...)`, declares
+`draws` on its class. Random places of agents without a location are not derived, since the space and the agent form
+are not known to a group before compiling.
+
+**Compiling once per experiment structure.** `_compile_problem` of the runtime compiles a system and names the solver
+of its runs, and `_simulate`, which `simulate` calls, runs such a compiled problem with its own initial state, schedule,
+and seed. Every experiment call keeps its problems in a dictionary of that call, by the source or scenario system and
+the model parameters, so runs that change only dotted paths or seeds compile once. Model parameters still compile per
+value, and a system with a compiler of its own compiles per run.
 
 ## Risks / Trade-offs
 

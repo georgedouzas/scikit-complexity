@@ -48,8 +48,8 @@
 - [x] 8.5 Fix the failures that predate the conversion: the period of `memristive_mixed_mode_oscillator` and the frozen-spec test that analysis results break
 - [x] 8.6 Add `compiler` to `RunSettings` and `simulate`, the one hook through which a system brings its own form, and convert `koch_curve`, `cantor_set`, `sierpinski_substitution`, and `morse_subshift` (rewriting) to classes
 - [x] 8.7 Make `simulate` defer the solver to the compiled form when a system nests subsystems, and stop `MonteCarloSolver` claiming tags its compiler rejects
-- [ ] 8.8 Derive the randomness tag from draws in agent rules, random parameters, and stochastic modes, so random systems such as `GaltonWatsonSystem` and `SIRSystem(stochastic=True)` are stochastic, then make `ensemble` require it
-- [ ] 8.9 Let experiments compile a system once per structure and reuse the problem across runs that change only parameters, initial states, or seeds, as before the change
+- [x] 8.8 Derive the randomness tag from draws in agent rules, random parameters, and stochastic modes, so random systems such as `GaltonWatsonSystem` and `SIRSystem(stochastic=True)` are stochastic, then make `ensemble` require it
+- [x] 8.9 Let experiments compile a system once per structure and reuse the problem across runs that change only parameters, initial states, or seeds, as before the change
 
 ## 7. Verification
 
