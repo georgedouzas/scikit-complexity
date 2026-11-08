@@ -33,7 +33,7 @@
 
 - [ ] 6.1 Map the supported SciPy prior families to numpyro distributions, and test that an unsupported family raises `ValidationError` for `'mcmc'`
 - [ ] 6.2 Add `method='abc_smc'` on pyabc with summaries, a temporary database, and restored global random state, and test the stochastic SIR interval scenario and the per-generation diagnostics
-- [ ] 6.3 Move the unroll of `GradientDescentSolver` to a method of `JaxBackend` that both callers use, and verify the learning-dynamics tests pass unchanged
+- [x] 6.3 Move the unroll of `GradientDescentSolver` to a method of `JaxBackend` that both callers use, and verify the learning-dynamics tests pass unchanged
 - [ ] 6.4 Add `method='mcmc'` with NUTS on differentiable systems and AIES with a host callback otherwise, and test R-hat and effective sample size on the logistic posterior
 - [ ] 6.5 Add `method='variational'` with numpyro SVI and the tag check, and test the error on a system without `differentiable`
 - [ ] 6.6 Add posterior predictive quantiles and the share inside the band to every posterior method, and test the well-specified logistic case

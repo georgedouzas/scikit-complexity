@@ -8,6 +8,7 @@ They run as pure functions that JAX traces, compiles, and differentiates.
 
 from collections.abc import Callable
 
+import diffrax
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -64,6 +65,116 @@ class JaxBackend(BaseBackend):
     """
 
     traced_: TracedFunction
+
+    @staticmethod
+    def advance(
+        function: TracedFunction,
+        t: TracedArray,
+        t1: TracedArray,
+        x: TracedArray,
+        p: TracedArray,
+        *,
+        form: FormKind | str,
+    ) -> TracedArray:
+        """Return the state after one step of a pure function, traced by JAX.
+
+        A discrete map applies its update once, and ordinary differential equations are solved from `t` to `t1` by
+        `diffrax.diffeqsolve` with `Tsit5`, a PID step size controller, and recursive checkpointing, so gradients flow
+        through the step.
+
+        Args:
+            function:
+                The pure function `f(t, x, p)`, the update of a map or the drift of ordinary differential equations.
+
+            t:
+                The time of the state.
+
+            t1:
+                The time after the step.
+
+            x:
+                The state.
+
+            p:
+                The parameter vector.
+
+            form:
+                The form of the function, a discrete map or ordinary differential equations.
+
+        Returns:
+            state:
+                The state at `t1`.
+        """
+        if form == FormKind.DISCRETE:
+            return function(t, x, p)
+        solution = diffrax.diffeqsolve(
+            diffrax.ODETerm(function),
+            diffrax.Tsit5(),
+            t0=t,
+            t1=t1,
+            dt0=None,
+            y0=x,
+            args=p,
+            saveat=diffrax.SaveAt(t1=True),
+            stepsize_controller=diffrax.PIDController(rtol=1e-10, atol=1e-10),
+            adjoint=diffrax.RecursiveCheckpointAdjoint(),
+            max_steps=100000,
+        )
+        return solution.ys[-1]
+
+    @staticmethod
+    def unroll(
+        function: TracedFunction,
+        form: FormKind | str,
+        times: Array,
+    ) -> Callable[[TracedArray, TracedArray], TracedArray]:
+        """Return the pure function from an initial state and a parameter vector to the states at given times.
+
+        A discrete map is unrolled over every whole step up to the last time with `jax.lax.scan`, and ordinary
+        differential equations over the intervals between the times, each solved by `advance`.
+
+        Args:
+            function:
+                The pure function `f(t, x, p)`, the update of a map or the drift of ordinary differential equations.
+
+            form:
+                The form of the function, a discrete map or ordinary differential equations.
+
+            times:
+                The increasing times, at least 0, whole numbers for a map.
+
+        Returns:
+            run:
+                The function `run(x0, p)` that returns one row of states per time.
+
+        Examples:
+            >>> import jax.numpy as jnp
+            >>> import numpy as np
+            >>> from skcomplex.core.engine.backends import JaxBackend
+            >>> from skcomplex.core.types import FormKind
+            >>> run = JaxBackend.unroll(lambda t, x, p: p * x, FormKind.DISCRETE, np.array([0.0, 2.0]))
+            >>> np.asarray(run(jnp.array([1.0]), 3.0)).ravel().tolist()
+            [1.0, 9.0]
+        """
+        times = np.asarray(times, dtype=float)
+        if form == FormKind.DISCRETE:
+            steps = np.arange(round(float(times.max()))) if times.size else np.arange(0)
+            starts, ends, indices = steps.astype(float), steps + 1.0, np.rint(times).astype(int)
+        else:
+            ends = np.unique(times[times > 0])
+            starts = np.concatenate([[0.0], ends[:-1]])
+            indices = np.searchsorted(np.concatenate([[0.0], ends]), times)
+
+        def run(x0: TracedArray, p: TracedArray) -> TracedArray:
+            def body(x: TracedArray, item: tuple[TracedArray, TracedArray]) -> tuple[TracedArray, TracedArray]:
+                following = JaxBackend.advance(function, item[0], item[1], x, p, form=form)
+                return following, following
+
+            scanned = jax.lax.scan(body, x0, (jnp.asarray(starts), jnp.asarray(ends)))[1]
+            states = jnp.concatenate([x0[None, :], scanned])
+            return states[jnp.asarray(indices)]
+
+        return run
 
     @classmethod
     def _get_support(cls) -> SupportSpec:

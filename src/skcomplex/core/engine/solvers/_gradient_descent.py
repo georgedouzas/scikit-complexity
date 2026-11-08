@@ -9,7 +9,6 @@ The solver trains the parameters of a nested system epoch by epoch.
 import math
 from collections.abc import Callable, Mapping
 
-import diffrax
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -21,6 +20,7 @@ from ...components.spaces import DiscreteTime
 from ...errors import SolverError, ValidationError
 from ...specs import StructureStateSpec, SupportSpec
 from ...types import Array, FormKind, OrderKind
+from ..backends import JaxBackend
 from ..problems._learning_problem_spec import LearningProblemSpec
 from ..types import TracedArray
 from ._base import BaseSolver
@@ -186,31 +186,14 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
         return p
 
     def _advanced(self, t: TracedArray, t1: TracedArray, x: TracedArray, p: TracedArray) -> TracedArray:
-        """Return the inner state after one inner step.
-
-        The step is an update or the solution of the ODE over the step.
-        """
+        """Return the inner state after one inner step, an update or the solution of the ODE over the step."""
         function = self.problem_.step
         if function is None:
             error_msg = 'The learning problem holds no JAX function of its inner problem.'
             raise SolverError(error_msg)
         inner = self.problem_.inner
-        if inner is not None and inner.form == FormKind.DISCRETE:
-            return function(t, x, p)
-        solution = diffrax.diffeqsolve(
-            diffrax.ODETerm(function),
-            diffrax.Tsit5(),
-            t0=t,
-            t1=t1,
-            dt0=None,
-            y0=x,
-            args=p,
-            saveat=diffrax.SaveAt(t1=True),
-            stepsize_controller=diffrax.PIDController(rtol=1e-10, atol=1e-10),
-            adjoint=diffrax.RecursiveCheckpointAdjoint(),
-            max_steps=100000,
-        )
-        return solution.ys[-1]
+        form = inner.form if inner is not None else FormKind.ODE
+        return JaxBackend.advance(function, t, t1, x, p, form=form)
 
     def _unroll(self) -> Unroll:
         """Return the function that gives every measure of one sequence.
