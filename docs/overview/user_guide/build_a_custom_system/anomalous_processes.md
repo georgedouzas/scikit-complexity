@@ -209,9 +209,10 @@ the changed state.
 Solvers and backends declare the kinds of order they integrate in the `orders` field of their `SupportSpec`,
 `'integer'` or `'fractional'`. The NumPy and Numba backends run the fractional form.
 
-`symbolic(system, kind='solve')` solves one linear fractional relaxation `D^alpha x = c x` as `x(0) E_alpha(c t^alpha)`. It
-writes the solution with the symbolic function `mittag_leffler`, which evaluates numerically. It sums the power series
-in arbitrary precision with Sage for moderate arguments, and takes the asymptotic expansion for large ones.
+`symbolic(system, kind='solve')` solves one linear fractional relaxation `D^alpha x = c x` as
+`x(0) E_alpha(c t^alpha)`. It writes the solution with the symbolic function `mittag_leffler`, which evaluates
+numerically. It sums the power series in arbitrary precision with Sage for moderate arguments, and takes the asymptotic
+expansion for large ones.
 `symbolic(system)` writes a Caputo derivative as `caputo(x(t), t, alpha)`.
 
 The order belongs to the element type, so a sweep over orders builds one system per order. These ready-made systems of

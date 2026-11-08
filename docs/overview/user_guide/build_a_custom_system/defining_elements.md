@@ -539,5 +539,5 @@ solvers.
   Fibonacci recurrence.
 
 `symbolic(system)` of `skcomplex.core.analysis` returns these equations in the order they were written.
-`symbolic(system, kind='solve', use_initial_state=True)` takes the initial values of every derivative and returns a solution
-only when it has a closed form.
+`symbolic(system, kind='solve', use_initial_state=True)` takes the initial values of every derivative and returns a
+solution only when it has a closed form.

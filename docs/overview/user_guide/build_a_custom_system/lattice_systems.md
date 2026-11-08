@@ -309,8 +309,8 @@ move `'copy'`. The state holds integer labels from 0, and the objective is
   `'weight'` weighs a contact and the node attribute `'volume'` the volume of a site, so a Voronoi tessellation of
   irregular points is a disordered lattice.
 
-The ready-made `CellularPottsSystem` of `skcomplex.systems.biology.physiology` sorts cells of two kinds by differential adhesion on square, triangular, and
-disordered lattices.
+The ready-made `CellularPottsSystem` of `skcomplex.systems.biology.physiology` sorts cells of two kinds by differential
+adhesion on square, triangular, and disordered lattices.
 
 ## Reads that follow the state, and series in the cells
 
