@@ -309,6 +309,10 @@ class CayleySpace(BaseSpace):
 
         The neighbours are by generator.
 
+        Args:
+            context:
+                Nothing, since a space is prepared alone.
+
         Raises:
             ValidationError:
                 The group is neither a Sage nor a GAP group, or the ball has a negative radius.

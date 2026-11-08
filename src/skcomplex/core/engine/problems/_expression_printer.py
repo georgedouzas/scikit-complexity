@@ -119,6 +119,10 @@ class ExpressionPrinter(BasePrinter[Sequence[Expression], Sequence[Expression]])
 
         It first raises an error for an unknown dialect or a compiled printer it cannot make.
 
+        Args:
+            context:
+                The symbols the code reads, or `None`.
+
         Raises:
             ValidationError:
                 The dialect is unknown, or a compiled printer is not a NumPy or JAX printer with a time symbol.

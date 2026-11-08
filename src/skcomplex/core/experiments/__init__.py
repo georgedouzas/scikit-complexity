@@ -1,8 +1,8 @@
 """Study systems through many runs.
 
 They are sweeps, ensembles, scenarios, sensitivity, basin stability, and calibration. The experiments are functions of a
-system, in the role of the model selection functions of scikit-learn, and return frozen results. Calibration returns
-the fitted system in its result.
+system, in the role of the model selection functions of scikit-learn, and return frozen results. Calibration returns the
+fitted system in its result.
 """
 
 from ._basin_stability import BasinStabilityResult, basin_stability

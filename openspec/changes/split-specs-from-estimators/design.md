@@ -40,6 +40,21 @@ so a spec has two public methods that do nothing. Owners call `_validated()` on 
   object itself: an estimator raises before it sets any attribute of its own. Re-preparing replaces the attributes, so
   a partly prepared system is harmless.
 
+- **Order of the checks.** A part starts its `_prepare` with `super()._prepare(context)`, so the base of the parts
+  checks its label and declared specs first, then checks its own arguments, then derives. A part that does not take
+  the `_prepare` of its parent, such as `PseudoRiemannianSpace`, which has no box, or `System`, which is its own
+  composite, calls `BasePart._prepare(self, context)`. Solvers, visuals, and compilers check their own settings before
+  `super()._prepare(context)`, since their base reads the context first: a bad setting is then reported before a
+  missing problem or system.
+- **`ContextError`.** A solver prepared without its compiled problem raises `ContextError`, a `ValidationError`. The
+  pass compiler checks the settings of a solver before any problem exists by preparing a clone of it without one, and
+  ignores only `ContextError`.
+- **Compiling kernels.** `WordKernel` and `PatchKernel` compiled their tables in `_check`, and the rewriting compiler
+  reads the tables before any run. The step is the private `_compile`, which `_prepare` calls first and the compiler
+  calls alone.
+- **Transition bridge.** While the parts of the catalog still check their arguments in `_check`, `BasePart` keeps a
+  no-op `_check`, so their `super()._check()` ends there, and `BasePart._prepare` calls `self._check()` after the label
+  and the declared specs. The bridge goes once every part of `skcomplex.systems` checks in `_prepare` (task 2.2).
 - **Calibration as a function.** `calibrate` takes the arguments of the former constructor and returns
   `CalibrationResult`. A meta-system that fits lazily, in the role of `GridSearchCV` composed in a pipeline, can be
   added later on top of `calibrate` if a need appears. Today every caller runs it once and reads the fitted system.

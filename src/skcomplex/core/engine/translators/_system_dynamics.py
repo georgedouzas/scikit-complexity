@@ -110,6 +110,10 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
 
         It first raises an error for a path of an unknown format, or a name that is no identifier.
 
+        Args:
+            context:
+                Nothing, since the translator reads its file alone.
+
         Raises:
             ValidationError:
                 The path names no file of a known format, or the name is not an identifier.

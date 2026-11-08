@@ -175,6 +175,10 @@ class LawKernel(BaseKernel):
 
         Neighbour symbols are read only inside a reduction.
 
+        Args:
+            context:
+                What the kernel serves, which it does not read.
+
         Raises:
             ValidationError:
                 If an output reads an undeclared symbol, or a neighbour symbol outside a neighbourhood reduction.
