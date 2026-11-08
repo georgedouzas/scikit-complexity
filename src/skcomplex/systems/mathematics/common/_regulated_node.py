@@ -1,4 +1,7 @@
-"""Node of a network with triadic regulation, active when it belongs to the giant component of the active links."""
+"""Node of a network with triadic regulation.
+
+The node is active when it belongs to the giant component of the active links.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +17,9 @@ ACTIVITY_VISUAL = VisualSpec('sites', {'states': ['active'], 'low': 0.0, 'high':
 
 
 class RegulatedNodeElement(Element):
-    """Node of a network with triadic regulation, active when it belongs to the giant component of the active links.
+    """Node of a network with triadic regulation.
+
+    The node is active when it belongs to the giant component of the active links.
 
     Args:
         label:
