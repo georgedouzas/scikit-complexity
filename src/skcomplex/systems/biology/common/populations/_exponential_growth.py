@@ -1,4 +1,7 @@
-"""Define exponential growth, a population that grows at a constant per capita rate."""
+"""Define exponential growth of a population.
+
+The population grows at a constant per capita rate.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +16,9 @@ from ._growth import GrowthInteraction
 
 
 class ExponentialGrowthInteraction(GrowthInteraction):
-    """Growth at a constant per capita rate, `dn/dt = r n`, the exponential form of a growth without harvest.
+    """Growth at a constant per capita rate, `dn/dt = r n`.
+
+    It is the exponential form of a growth without harvest.
 
     Args:
         label:

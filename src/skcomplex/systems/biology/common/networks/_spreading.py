@@ -1,4 +1,7 @@
-"""Define spreading of the active value of a discrete state to neighbours, with recovery and a return."""
+"""Define spreading of the active value of a discrete state to neighbours.
+
+The spreading comes with recovery and a return.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +23,9 @@ FORMS = ('number', 'fraction')
 
 
 class SpreadingInteraction(TransitionInteraction):
-    """Spreading of the active value of a discrete state along the edges of a network or the bonds of a lattice.
+    """Spreading of the active value of a discrete state to neighbours.
+
+    The neighbours are along the edges of a network or the bonds of a lattice.
 
     An inactive member becomes active at the rate `beta` times the number of its active neighbours, or times their
     fraction of its neighbours. An active member recovers at the rate `gamma`, to the inactive value, or to the removed
@@ -123,7 +128,9 @@ class SpreadingInteraction(TransitionInteraction):
             raise ValidationError(error_msg)
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the spreading from the active neighbours, the recovery, and the return of every member.
+        """Return the spreading, the recovery, and the return of every member.
+
+        The spreading comes from the active neighbours.
 
         Args:
             namespace:

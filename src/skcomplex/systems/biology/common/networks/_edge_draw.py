@@ -1,4 +1,7 @@
-"""Define edge draws, which draw the weight of every new edge of a network and let the other weights drift."""
+"""Define edge draws of the weights of a network.
+
+An edge draw draws the weight of every new edge of a network and lets the other weights drift.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,7 +20,9 @@ from .....core.specs import ParameterSpec, RoleSpec
 
 
 class EdgeDrawInteraction(NeighborInteraction):
-    """First draw of the weight of every new edge of a network, and a random drift of the weights of the other edges.
+    """First draw of the weight of every new edge of a network.
+
+    The weights of the other edges drift at random.
 
     Every step of discrete time an edge marked `fresh` draws its weight uniformly from `[low, high]` and loses its mark,
     and every other edge adds `noise` times a standard normal draw to its weight, or keeps it without noise.
@@ -80,7 +85,9 @@ class EdgeDrawInteraction(NeighborInteraction):
         return re.sub(r'\W', '_', f'{draw}_{self.label}')
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the draw or the drift of the weight of an edge, and the removal of its mark.
+        """Return the draw or the drift of the weight of an edge.
+
+        The removal of the mark of the edge comes with it.
 
         Args:
             namespace:

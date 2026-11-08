@@ -1,4 +1,7 @@
-"""Pharmacokinetics shared by the biology packages: the input of drugs in schedules of infusions."""
+"""Pharmacokinetics shared by the biology packages.
+
+It covers the input of drugs in schedules of infusions.
+"""
 
 from ._dosing import DosingInteraction
 

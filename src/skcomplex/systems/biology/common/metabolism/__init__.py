@@ -1,4 +1,7 @@
-"""Metabolism shared by the biology packages: metabolic networks, their standard formats, and their analyses."""
+"""Metabolism shared by the biology packages.
+
+It covers metabolic networks, their standard formats, and their analyses.
+"""
 
 from ._analyses import (
     CobraMeasuresResult,

@@ -1,4 +1,7 @@
-"""Define replicator dynamics, the growth of every share of a group by its fitness above the mean fitness."""
+"""Define replicator dynamics.
+
+Every share of a group grows by its fitness above the mean fitness.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +19,9 @@ from .....core.specs import RoleSpec
 
 
 class ReplicatorInteraction(RateInteraction):
-    """Replicator equation of the shares of a group, `dx_i/dt = x_i (f_i - sum_j x_j f_j)`, with a fitness `f`.
+    """Replicator equation of the shares of a group, with a fitness `f`.
+
+    The shares follow `dx_i/dt = x_i (f_i - sum_j x_j f_j)`.
 
     Every member of the group holds the share of a type, such as a strategy or a molecule. Its share grows with its
     fitness above the mean fitness of the group, so the total of the shares stays constant.
@@ -68,7 +73,10 @@ class ReplicatorInteraction(RateInteraction):
         self.fitness = fitness
 
     def _check_fitness(self) -> None:
-        """Raise an error for a fitness that is not callable, the hook a subclass that derives its fitness overrides."""
+        """Raise an error for a fitness that is not callable.
+
+        It is the hook a subclass that derives its fitness overrides.
+        """
         if not callable(self.fitness):
             error_msg = f'The fitness of {self.label!r} is {self.fitness!r}. Give a function of the namespace.'
             raise ValidationError(error_msg)
@@ -84,7 +92,10 @@ class ReplicatorInteraction(RateInteraction):
         self._check_fitness()
 
     def _get_fitness(self, namespace: SimpleNamespace) -> Expression:
-        """Return the fitness of a member, the hook a subclass overrides to derive it from its parameters."""
+        """Return the fitness of a member.
+
+        It is the hook a subclass overrides to derive it from its parameters.
+        """
         fitness = self.fitness
         if fitness is None:
             error_msg = f'The fitness of {self.label!r} is missing. Give a function of the namespace.'

@@ -1,4 +1,7 @@
-"""Analyse communities of metabolic networks: SteadyCom on the solve of the core, and the trade-off of MICOM."""
+"""Analyse communities of metabolic networks.
+
+The analyses are SteadyCom on the solve of the core, and the trade-off of MICOM.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -58,7 +61,10 @@ class _SteadyComElement(DeclaredElement):
         self.law = law
 
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[LinearProgramLaw]:
-        """Return the program of the community for a namespace of symbols, or none without a function."""
+        """Return the program of the community for a namespace of symbols.
+
+        It returns none without a function.
+        """
         return [] if self.law is None else [self.law(namespace)]
 
 
@@ -160,7 +166,10 @@ def community_growth(
 
 
 def _member_relations(s: SimpleNamespace, position: int, member: MetabolicNetworkElement) -> list[Expression]:
-    """Return the balances of a member, its bounds scaled by its abundance, and the growth at the common rate."""
+    """Return the balances of a member and its growth at the common rate.
+
+    The bounds of the member are scaled by its abundance.
+    """
     terms: dict[str, list[Expression]] = {}
     relations = []
     abundance = getattr(s, f'x_{position}')
@@ -186,7 +195,10 @@ def _community_law(
     medium: Mapping[str, float] | None,
     s: SimpleNamespace,
 ) -> LinearProgramLaw:
-    """Return the program of the abundances of the members at the common rate of a namespace."""
+    """Return the program of the abundances of the members.
+
+    The program holds at the common rate of a namespace.
+    """
     relations = [
         relation for position, member in enumerate(members) for relation in _member_relations(s, position, member)
     ]
@@ -213,7 +225,10 @@ def _community_law(
 
 
 def _community_problem(members: list[MetabolicNetworkElement], medium: Mapping[str, float] | None) -> ProblemSpec:
-    """Return the compiled problem of an element whose program sets the abundances and the scaled fluxes."""
+    """Return the compiled problem of an element.
+
+    The program of the element sets the abundances and the scaled fluxes.
+    """
     names = [f'x_{position}' for position in range(len(members))]
     names += [
         f'v_{position}_{column}' for position, member in enumerate(members) for column in range(len(member.reactions))
@@ -234,7 +249,10 @@ def _abundances_at(
     problem: ProblemSpec,
     rate: float,
 ) -> dict[str, float] | None:
-    """Return the abundances at a common rate, or `None` when they cannot reach a sum of 1."""
+    """Return the abundances at a common rate.
+
+    It returns `None` when they cannot reach a sum of 1.
+    """
     parameters = problem.initial_parameters.copy()
     parameters[problem.parameters.names.index(f'{ELEMENT_LABEL}.rate')] = rate
     solved = problem.programs[0].run(RunStateSpec(rate, problem.initial_state, parameters)).values_
@@ -246,7 +264,10 @@ def _abundances_at(
 
 
 def _largest_rate(members: list[MetabolicNetworkElement]) -> float:
-    """Return a rate no member can reach, from the upper bounds of the reactions of its growth."""
+    """Return a rate no member can reach.
+
+    The rate comes from the upper bounds of the reactions of the growth of every member.
+    """
     rates = []
     for member in members:
         weights = member.objective or member.default_objective
@@ -263,7 +284,10 @@ def _steadycom(
     members: list[MetabolicNetworkElement],
     medium: Mapping[str, float] | None,
 ) -> tuple[float, dict[str, float]]:
-    """Return the largest common growth rate and the abundances, by a bisection on the rate."""
+    """Return the largest common growth rate and the abundances.
+
+    They come from a bisection on the rate.
+    """
     problem = _community_problem(members, medium)
     low, high = 0.0, _largest_rate(members)
     best = _abundances_at(members, problem, low) or {member.label: 0.0 for member in members}
@@ -282,7 +306,10 @@ def _tradeoff(
     fraction: float,
     abundances: Sequence[float] | None,
 ) -> tuple[float, dict[str, float]]:
-    """Return the community growth rate and the growth of every member of the cooperative trade-off."""
+    """Return the community growth rate and the growth of every member.
+
+    They are the ones of the cooperative trade-off.
+    """
     cobra = load_extra('community_growth')
     micom = import_extra('micom', 'community_growth', 'metabolism')
     shares = abundances or [1.0 / len(members)] * len(members)

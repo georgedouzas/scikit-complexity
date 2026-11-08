@@ -13,7 +13,9 @@ from .....core.specs import StateSpec, VisualSpec
 
 
 class SpeciesElement(Element):
-    """Molecular species, an mRNA, an enzyme, a messenger, or a metabolite, with a nonnegative concentration `x`.
+    """Molecular species with a nonnegative concentration `x`.
+
+    It is an mRNA, an enzyme, a messenger, or a metabolite.
 
     A species has no laws of its own, and reactions synthesize, convert, and degrade it.
 

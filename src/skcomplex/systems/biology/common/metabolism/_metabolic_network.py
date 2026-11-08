@@ -1,4 +1,7 @@
-"""Define metabolic network elements, whose fluxes one linear program sets from their balances and bounds."""
+"""Define metabolic network elements.
+
+One linear program sets their fluxes from their balances and bounds.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,14 +30,19 @@ NO_OBJECTIVE: Mapping[str, float] = {}
 
 @functools.cache
 def _rule_genes(rule: str) -> tuple[str, ...]:
-    """Return the gene names in a rule, read once per rule, since compiling reads the variables of a network often."""
+    """Return the gene names in a rule, read once per rule.
+
+    Compiling reads the variables of a network often.
+    """
     if not rule.strip():
         return ()
     return tuple(node.id for node in ast.walk(ast.parse(rule, mode='eval')) if isinstance(node, ast.Name))
 
 
 class MetabolicNetworkElement(DeclaredElement):
-    """Metabolic network whose fluxes one linear program sets, with a balance per metabolite.
+    """Metabolic network whose fluxes one linear program sets.
+
+    The program has a balance per metabolite.
 
     The element declares one algebraic state `v_<reaction>` per reaction, one adaptive switch `g_<gene>` per gene, and
     the parameters `lower_<reaction>` and `upper_<reaction>` of its bounds. The rule of a reaction gates both bounds, so
@@ -101,7 +109,10 @@ class MetabolicNetworkElement(DeclaredElement):
         self.default_objective = default_objective
 
     def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the states and parameters of the reactions and genes, with the variables that replace them."""
+        """Return the states and parameters of the reactions and genes.
+
+        The variables that replace them come with them.
+        """
         flux, bound = StateSpec(algebraic=True), ParameterSpec()
         declared: dict[str, DeclaredVariableSpec] = {}
         for reaction, spec in self.reactions.items():
@@ -180,7 +191,10 @@ class MetabolicNetworkElement(DeclaredElement):
         return float(cast(float, self.get_value(name)))
 
     def _gate(self, namespace: SimpleNamespace, rule: str) -> Expression | int:
-        """Return the condition of a rule on the switches of its genes, or 1 for a reaction without genes."""
+        """Return the condition of a rule on the switches of its genes.
+
+        A reaction without genes has the condition 1.
+        """
         if not rule.strip():
             return 1
         return both(self._condition(namespace, ast.parse(rule, mode='eval').body))
@@ -216,7 +230,10 @@ class MetabolicNetworkElement(DeclaredElement):
         return relations
 
     def _objectives(self, namespace: SimpleNamespace) -> list[LinearObjectiveSpec]:
-        """Return the objective of the network and, for a parsimonious network, its total absolute flux."""
+        """Return the objective of the network.
+
+        A parsimonious network also returns its total absolute flux.
+        """
         weights = self.default_objective if self.objective is None else self.objective
         if not weights:
             return []
@@ -249,7 +266,9 @@ def metabolic_network_type(
     reactions: Mapping[str, ReactionSpec],
     objective: Mapping[str, float] | None = None,
 ) -> Callable[..., MetabolicNetworkElement]:
-    """Return a function that creates a `MetabolicNetworkElement` of a set of reactions.
+    """Return a function that creates a `MetabolicNetworkElement`.
+
+    The element has a set of reactions.
 
     Args:
         name:

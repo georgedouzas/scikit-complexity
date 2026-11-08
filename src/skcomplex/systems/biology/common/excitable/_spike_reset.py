@@ -1,4 +1,7 @@
-"""Define spike resets, crossings that reset the potential of a neuron when it reaches a threshold."""
+"""Define spike resets of the potential of a neuron.
+
+A spike reset is a crossing that resets the potential of a neuron when it reaches a threshold.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +17,7 @@ from .....core.specs import ParameterSpec, RoleSpec
 
 
 class SpikeResetInteraction(CrossingInteraction):
-    """Spike of a neuron, which resets its potential when it crosses a threshold upwards and kicks a second state.
+    """Spike of a neuron that resets its potential when it crosses a threshold upwards.
 
     When the potential `v` rises through `threshold`, it is set to `after`, and the state `kicked`, such as a recovery
     variable or a synaptic trace, grows by `kick`. Every spike is an event labelled by the interaction.

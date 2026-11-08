@@ -1,4 +1,7 @@
-"""Network realizations shared by the biology packages: weighted edges, infected hosts, and Boolean nodes."""
+"""Network realizations shared by the biology packages.
+
+They cover weighted edges, infected hosts, and Boolean nodes.
+"""
 
 from ._boolean_function import BooleanFunctionInteraction
 from ._boolean_node import BooleanNodeElement

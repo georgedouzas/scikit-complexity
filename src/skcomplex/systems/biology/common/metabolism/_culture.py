@@ -1,4 +1,7 @@
-"""Define the culture around a metabolic network: biomass, substrates, and the exchanges with them."""
+"""Define the culture around a metabolic network.
+
+The culture is the biomass, the substrates, and the exchanges with them.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -81,7 +84,9 @@ class SubstrateElement(Element):
 
 
 class GrowthInteraction(Interaction):
-    """Growth of biomass at the rate that a reaction of a metabolic network gives, `dx/dt = v x`.
+    """Growth of biomass at the rate a reaction of a metabolic network gives.
+
+    The biomass follows `dx/dt = v x`.
 
     Args:
         label:
@@ -133,7 +138,9 @@ class GrowthInteraction(Interaction):
 
 
 class ExchangeInteraction(Interaction):
-    """Exchange of a metabolite between a metabolic network and its medium, bounded by Michaelis-Menten uptake.
+    """Exchange of a metabolite between a metabolic network and its medium.
+
+    The exchange is bounded by Michaelis-Menten uptake.
 
     The law bounds the uptake, the negative flux of the exchange reaction, by `vmax c / (km + c)` and, with an interval,
     by what the medium holds per biomass over the interval (Raman 2021, Section 9.6). The medium changes at the rate
@@ -261,7 +268,10 @@ class CommunityMediumElement(DeclaredElement):
         self.exchanges = exchanges
 
     def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the state of the net exchange of every reaction, with the variables that replace them."""
+        """Return the state of the net exchange of every reaction.
+
+        The variables that replace them come with it.
+        """
         flux = StateSpec(algebraic=True)
         return {
             **{self.state_name(reaction): DeclaredVariableSpec(0.0, flux) for reaction in self.exchanges},
@@ -284,7 +294,9 @@ class CommunityMediumElement(DeclaredElement):
 
 
 class CommunityInteraction(Interaction):
-    """Joint program of a community: the medium balances the exchanges, and its law holds the objective of growth.
+    """Joint program of a community.
+
+    The medium balances the exchanges, and its law holds the objective of growth.
 
     Args:
         label:
@@ -337,7 +349,10 @@ class CommunityInteraction(Interaction):
         self.common_rate = common_rate
 
     def _weighted(self, namespace: SimpleNamespace, reaction: str) -> Expression:
-        """Return the sum over the members of the flux of a reaction weighted by the abundance."""
+        """Return the sum over the members of the flux of a reaction.
+
+        The flux of every member is weighted by its abundance.
+        """
         name = MetabolicNetworkElement.flux_name(reaction)
         terms = [
             float(share) * getattr(member, name)
@@ -371,7 +386,9 @@ class CommunityInteraction(Interaction):
 
 
 def community_medium_type(exchanges: Sequence[str]) -> Callable[..., CommunityMediumElement]:
-    """Return a function that creates a `CommunityMediumElement` with the state of the net exchange of some reactions.
+    """Return a function that creates a `CommunityMediumElement`.
+
+    The element has the state of the net exchange of some reactions.
 
     Args:
         exchanges:
@@ -395,7 +412,9 @@ def community_medium_type(exchanges: Sequence[str]) -> Callable[..., CommunityMe
 
 
 class ObjectiveFloorInteraction(Interaction):
-    """Lower bound of the objective of a metabolic network as a whole, `c' v >= f` (Raman 2021, Eq. 8.11d).
+    """Lower bound of the objective of a metabolic network as a whole.
+
+    The bound is `c' v >= f` (Raman 2021, Eq. 8.11d).
 
     Args:
         label:

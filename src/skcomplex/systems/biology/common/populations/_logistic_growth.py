@@ -14,7 +14,9 @@ from ._growth import GrowthInteraction
 
 
 class LogisticGrowthInteraction(GrowthInteraction):
-    """Verhulst's growth limited by a carrying capacity, `dn/dt = r n (1 - n(t - tau) / K)`, without harvest.
+    """Verhulst's growth limited by a carrying capacity, without harvest.
+
+    The population follows `dn/dt = r n (1 - n(t - tau) / K)`.
 
     A delay `tau` above 0 gives Hutchinson's delayed logistic equation. The generalized logistic of Richards, with an
     exponent on the crowding, is `GrowthInteraction(form='logistic', p=...)`.

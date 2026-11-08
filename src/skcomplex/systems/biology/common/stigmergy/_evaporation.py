@@ -1,4 +1,7 @@
-"""Define evaporation, the loss of a mark left in the environment at a per unit rate that its holder sets."""
+"""Define evaporation of a mark left in the environment.
+
+The mark is lost at a per unit rate that its holder sets.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +17,9 @@ from .....core.specs import RoleSpec
 
 
 class EvaporationInteraction(RateInteraction):
-    """Evaporation of a mark, `dm/dt = -e m`, where the rate `e` is a parameter of the element that holds the mark.
+    """Evaporation of a mark, `dm/dt = -e m`.
+
+    The rate `e` is a parameter of the element that holds the mark.
 
     Animals leave marks such as pheromone or emotional traces in the cells of a field, and every mark evaporates at
     the rate its cell holds, so the rate can vary from cell to cell.
@@ -69,7 +74,7 @@ class EvaporationInteraction(RateInteraction):
         self.evaporation = evaporation
 
     def _check(self) -> None:
-        """Raise an error for a name of the rate of evaporation that is not a name of a parameter.
+        """Raise an error for a name of the rate of evaporation that is no parameter.
 
         Raises:
             ValidationError:

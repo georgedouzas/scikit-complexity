@@ -1,4 +1,7 @@
-"""Analyse metabolic networks: flux variability, flux scans, COBRApy methods, and strain designs."""
+"""Analyse metabolic networks.
+
+The analyses are flux variability, flux scans, COBRApy methods, and strain designs.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -55,7 +58,9 @@ class FluxVariabilityResult:
 
 
 def flux_variability(source: Source, *, fraction: float = 1.0, network: str | None = None) -> FluxVariabilityResult:
-    """Return the range of every flux at an optimum, from the solve of the core, which runs without the extra.
+    """Return the range of every flux at an optimum.
+
+    The ranges come from the solve of the core, which runs without the extra.
 
     Every flux is maximised and minimised with the objective kept at a fraction of its optimum, `c' v >= f` (Raman 2021,
     Eq. 8.11d). A network of a genome's size is faster with `cobra_measures(system, kind='variability')`.
@@ -148,7 +153,9 @@ def production_scan(
     steps: int = 10,
     network: str | None = None,
 ) -> ProductionScanResult:
-    """Return the scan of fluxes with enforced objective flux (FSEOF), from the solve of the core, without the extra.
+    """Return the scan of fluxes with enforced objective flux (FSEOF).
+
+    The scan comes from the solve of the core, without the extra.
 
     The target flux is enforced at increasing levels from its value at the optimum to its maximum, and every level
     maximises the objective, with the total absolute flux minimised after it. The scan reports the reactions whose
@@ -260,7 +267,9 @@ def cobra_measures(
     linear: bool = False,
     network: str | None = None,
 ) -> CobraMeasuresResult:
-    """Return the analysis of a metabolic network with COBRApy, which needs the extra `metabolism`.
+    """Return the analysis of a metabolic network with COBRApy.
+
+    It needs the extra `metabolism`.
 
     - `'variability'`: the range of every flux at a fraction of the optimum.
     - `'parsimonious'`: the fluxes of the smallest total flux at the optimum.
@@ -381,7 +390,9 @@ def strain_design(
     solutions: int = 1,
     network: str | None = None,
 ) -> StrainDesignResult:
-    """Return the strain designs of a metabolic network with StrainDesign, which needs the extra `metabolism`.
+    """Return the strain designs of a metabolic network with StrainDesign.
+
+    It needs the extra `metabolism`.
 
     - `'optknock'`, `'robustknock'`, and `'optcouple'`: the knock-outs that couple a product to growth.
     - `'mcs'`: the minimal cut sets that suppress the flux states of a constraint.
@@ -513,7 +524,10 @@ def _compiled_network(
     parsimonious: bool = False,
     floor: float | None = None,
 ) -> ProblemSpec:
-    """Return the network compiled under static time, with its objective kept above a floor if one is given."""
+    """Return the network compiled under static time.
+
+    Its objective is kept above a floor if one is given.
+    """
     element = type(network)(**{**network.get_params(deep=False), 'parsimonious': parsimonious, 'infeasible': 'raise'})
     weights = network.default_objective if network.objective is None else network.objective
     kept = (
@@ -550,7 +564,9 @@ def _solved(
     *,
     sense: float = -1.0,
 ) -> tuple[float, Array]:
-    """Return the optimum of the first objective with its weights and bounds replaced, and the fluxes.
+    """Return the optimum of the first objective and the fluxes.
+
+    The optimum is solved with the weights and bounds of the objective replaced.
 
     Args:
         problem:
@@ -592,7 +608,10 @@ def _solved(
 
 
 def _deletions(model: object, target: str, order: int) -> pd.Series:
-    """Return the growth of every deletion of some size of a `cobra.Model`, by the name or the pair of names."""
+    """Return the growth of every deletion of some size of a `cobra.Model`.
+
+    The growth is keyed by the name or the pair of names.
+    """
     cobra = load_extra('cobra_measures')
     functions = {
         ('gene', 1): cobra.flux_analysis.single_gene_deletion,
@@ -606,7 +625,10 @@ def _deletions(model: object, target: str, order: int) -> pd.Series:
 
 
 def _adjusted(model: object, kind: str, knockouts: Sequence[str], *, linear: bool) -> tuple[pd.Series, float]:
-    """Return the fluxes and the growth of a knock-out adjusted against the wild-type solution."""
+    """Return the fluxes and the growth of a knock-out.
+
+    They are adjusted against the wild-type solution.
+    """
     cobra = load_extra('cobra_measures')
     if not isinstance(model, cobra.Model):
         error_msg = f'cobra_measures adjusts a `cobra.Model`, not a {type(model).__name__}.'

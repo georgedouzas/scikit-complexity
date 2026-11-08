@@ -58,7 +58,10 @@ class BooleanFunctionInteraction(MapInteraction):
         self.table = table
 
     def _get_pattern(self, inputs: Sequence[Expression], index: int) -> Expression:
-        """Return the product that is 1 when the inputs, read as bits from the most significant, spell an index."""
+        """Return the product that is 1 when the inputs spell an index.
+
+        The inputs are read as bits from the most significant.
+        """
         bits = [(index >> (len(inputs) - 1 - position)) & 1 for position in range(len(inputs))]
         return prod((value if bit else 1 - value for value, bit in zip(inputs, bits, strict=True)), start=SR(1))
 

@@ -1,4 +1,7 @@
-"""Define dosing, the input of a drug into a compartment at a constant rate or in a schedule of infusions."""
+"""Define dosing, the input of a drug into a compartment.
+
+The drug enters at a constant rate or in a schedule of infusions.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +19,9 @@ from .....core.specs import RoleSpec
 
 
 class DosingInteraction(RateInteraction):
-    """Input of a drug into a state of a target at the rate `dose`, constantly or in a schedule of infusions.
+    """Input of a drug into a state of a target at the rate `dose`.
+
+    The drug enters constantly or in a schedule of infusions.
 
     Without a period the drug enters at the constant rate `dose`. With a period it enters at the rate `dose` for `width`
     time units every `period` from `start`, `count` times or without end. The dose is a function of the namespace,

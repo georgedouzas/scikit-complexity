@@ -1,4 +1,7 @@
-"""Define Michaelis-Menten reactions, reactions whose propensity saturates in the amount of their substrate."""
+"""Define Michaelis-Menten reactions.
+
+Their propensity saturates in the amount of their substrate.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +19,9 @@ from .....core.types import Stoichiometry
 
 
 class MichaelisMentenInteraction(ReactionInteraction):
-    """Reaction at the Michaelis-Menten propensity `vmax S / (km + S)`, times every modifier to its coefficient.
+    """Reaction at the Michaelis-Menten propensity `vmax S / (km + S)`.
+
+    The propensity is multiplied by every modifier to its coefficient.
 
     The substrate `S` is a state of the target, or a function of the namespace that returns an amount that is no state
     of its own, such as the phosphorylated form `A_T - A` of a protein whose total is conserved. The modifiers are the
@@ -116,7 +121,9 @@ class MichaelisMentenInteraction(ReactionInteraction):
         return value(namespace) if callable(value) else value
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
-        """Return the saturating propensity of the substrate, times every modifier to its coefficient.
+        """Return the saturating propensity of the substrate.
+
+        The propensity is multiplied by every modifier to its coefficient.
 
         Args:
             namespace:

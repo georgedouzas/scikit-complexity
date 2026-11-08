@@ -1,4 +1,7 @@
-"""Define FitzHugh-Nagumo kinetics, a fast variable with a cubic nullcline and a slow linear recovery."""
+"""Define FitzHugh-Nagumo kinetics.
+
+They are a fast variable with a cubic nullcline and a slow linear recovery.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,7 +19,9 @@ from .....core.specs import ParameterSpec, RoleSpec
 
 
 class FitzHughNagumoInteraction(Interaction):
-    """FitzHugh-Nagumo kinetics of a fast variable `v` and a slow recovery `w` of a target.
+    """FitzHugh-Nagumo kinetics of a fast variable `v` and a slow recovery `w`.
+
+    The fast variable and the recovery are states of a target.
 
     The fast variable follows `v' = v - v³/3 - w + I` and the recovery `w' = epsilon (v + a - b w)`. On a field the
     kinetics act on every cell, and a diffusion of the fast variable makes the medium excitable.

@@ -1,4 +1,7 @@
-"""Population realizations shared by the biology packages: growth, mortality, predation, and replicators."""
+"""Population realizations shared by the biology packages.
+
+They cover growth, mortality, predation, and replicators.
+"""
 
 from ._exponential_growth import ExponentialGrowthInteraction
 from ._growth import GrowthInteraction

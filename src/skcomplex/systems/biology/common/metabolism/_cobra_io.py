@@ -1,4 +1,7 @@
-"""Convert metabolic network elements to and from COBRApy models, and read and write their standard formats."""
+"""Convert metabolic network elements to and from COBRApy models.
+
+The module also reads and writes their standard formats.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -50,7 +53,9 @@ def load_extra(owner: str) -> ModuleType:
 
 
 def from_cobra(system: object, label: str = 'network', *, needed_by: str = 'from_cobra') -> MetabolicNetworkElement:
-    """Return a metabolic network element of a COBRApy model, with its bounds, rules, and objective.
+    """Return a metabolic network element of a COBRApy model.
+
+    The element keeps the bounds, rules, and objective of the model.
 
     Args:
         system:
@@ -106,7 +111,9 @@ def from_cobra(system: object, label: str = 'network', *, needed_by: str = 'from
 
 
 def to_cobra(element: MetabolicNetworkElement, *, needed_by: str = 'to_cobra') -> object:
-    """Return the COBRApy model of a metabolic network element, with its current bounds, rules, and objective.
+    """Return the COBRApy model of a metabolic network element.
+
+    The model keeps the current bounds, rules, and objective of the element.
 
     A switch that is off knocks its gene out, and the system solves with the `hybrid` interface, which reaches HiGHS.
 
@@ -163,7 +170,9 @@ def load_network(
     *,
     needed_by: str = 'load_network',
 ) -> MetabolicNetworkElement:
-    """Return the metabolic network element of an SBML or BiGG JSON file, or of a BiGG identifier.
+    """Return the metabolic network element of a file or of a BiGG identifier.
+
+    The file is an SBML or BiGG JSON file.
 
     Args:
         source:
@@ -203,7 +212,9 @@ def load_network(
 
 
 def save_network(element: MetabolicNetworkElement, path: str | Path) -> None:
-    """Write a metabolic network element to an SBML or BiGG JSON file, by the suffix of the path.
+    """Write a metabolic network element to an SBML or BiGG JSON file.
+
+    The format follows the suffix of the path.
 
     Args:
         element:

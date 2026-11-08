@@ -19,7 +19,9 @@ LIMITED_FORMS = ('logistic', 'gompertz')
 
 
 class GrowthInteraction(RateInteraction):
-    """Growth or decay of a population `n` of a target by a growth law, with a proportional harvest.
+    """Growth or decay of a population `n` of a target by a growth law.
+
+    The growth comes with a proportional harvest.
 
     The rate of `n` is the growth of the form minus the harvest `h n`:
 
@@ -101,17 +103,26 @@ class GrowthInteraction(RateInteraction):
         self.form = form
 
     def _get_limited(self, namespace: SimpleNamespace) -> Expression:
-        """Return the population the limiting factor reads, delayed by `tau` when the delay is above 0."""
+        """Return the population the limiting factor reads.
+
+        It is delayed by `tau` when the delay is above 0.
+        """
         population = getattr(namespace.target, self.state)
         return delayed(population, namespace.tau) if self.tau else population
 
     def _get_capacity(self, namespace: SimpleNamespace) -> Expression:
-        """Return the capacity `K`, the hook a subclass overrides for a capacity that varies."""
+        """Return the capacity `K`.
+
+        It is the hook a subclass overrides for a capacity that varies.
+        """
         capacity: Expression = namespace.K
         return capacity
 
     def _get_crowding(self, namespace: SimpleNamespace) -> Expression:
-        """Return the crowding `(n / K) ** p` of the logistic form, which a subclass overrides to fix the exponent."""
+        """Return the crowding `(n / K) ** p` of the logistic form.
+
+        A subclass overrides it to fix the exponent.
+        """
         crowding: Expression = (self._get_limited(namespace) / self._get_capacity(namespace)) ** namespace.p
         return crowding
 
@@ -136,7 +147,10 @@ class GrowthInteraction(RateInteraction):
             raise ValidationError(error_msg)
 
     def _check_settings(self) -> None:
-        """Raise an error for a delay of a form without a limiting factor, or a von Bertalanffy exponent of 1."""
+        """Raise an error for settings the form cannot take.
+
+        They are a delay of a form without a limiting factor, or a von Bertalanffy exponent of 1.
+        """
         if self.tau and self.form not in LIMITED_FORMS:
             error_msg = (
                 f'Growth {self.label!r} has the delay {self.tau!r}, but the form {self.form!r} has no limiting factor '
@@ -150,7 +164,9 @@ class GrowthInteraction(RateInteraction):
             raise ValidationError(error_msg)
 
     def _check(self) -> None:
-        """Raise an error for an unknown form, a state that is no name, or a delay or exponent the form cannot take.
+        """Raise an error for an unknown form or a state that is no name.
+
+        It also raises for a delay or exponent the form cannot take.
 
         Raises:
             ValidationError:

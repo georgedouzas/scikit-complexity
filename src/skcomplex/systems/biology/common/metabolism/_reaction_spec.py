@@ -14,7 +14,9 @@ DEFAULT_BOUND = 1000.0
 
 @dataclass(frozen=True)
 class ReactionSpec(BaseSpec):
-    """Reaction of a metabolic network: its stoichiometry, its bounds, and the genes that gate them.
+    """Reaction of a metabolic network.
+
+    It has its stoichiometry, its bounds, and the genes that gate them.
 
     Args:
         coefficients:
