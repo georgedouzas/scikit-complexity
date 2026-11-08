@@ -1,4 +1,7 @@
-"""Define gradient-step laws, optimizer steps on the adaptive parameters of a nested system once per epoch."""
+"""Define gradient-step laws.
+
+They are optimizer steps on the adaptive parameters of a nested system once per epoch.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,13 +15,14 @@ from ._base import BaseLaw
 
 
 class GradientStepLaw(BaseLaw):
-    """Optimizer steps on adaptive parameters of a nested system, on the gradient of a loss over unrolled runs.
+    """Optimizer steps on adaptive parameters of a nested system.
 
-    One step of the discrete time that holds the law is one epoch. In an epoch the sequences of the dataset are shuffled
-    and split into batches, and for every batch the nested system runs from its initial states over every sequence,
-    the loss is averaged over the steps and sequences with the step weights, and the optimizer changes the trained
-    parameters by the gradient of that mean. The gradient is exact, by automatic differentiation of the unrolled runs.
-    The law records the mean batch loss of the epoch and every metric over the whole dataset at the end of the epoch.
+    The steps are on the gradient of a loss over unrolled runs. One step of the discrete time that holds the law is one
+    epoch. In an epoch the sequences of the dataset are shuffled and split into batches, and for every batch the nested
+    system runs from its initial states over every sequence, the loss is averaged over the steps and sequences with the
+    step weights, and the optimizer changes the trained parameters by the gradient of that mean. The gradient is exact,
+    by automatic differentiation of the unrolled runs. The law records the mean batch loss of the epoch and every metric
+    over the whole dataset at the end of the epoch.
 
     Args:
         trained:
@@ -86,8 +90,14 @@ class GradientStepLaw(BaseLaw):
 
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
-        """Return what the law requires of a system: discrete time, one step per epoch."""
+        """Return what the law requires of a system: discrete time.
+
+        One step is one epoch.
+        """
         return RequirementSpec(time=(DiscreteTime,))
 
     def _check(self) -> None:
-        """Accept the arguments, which the interaction that returns the law validates."""
+        """Accept the arguments.
+
+        The interaction that returns the law validates them.
+        """

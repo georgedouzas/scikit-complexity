@@ -1,4 +1,7 @@
-"""Define linear program laws, which set algebraic states to an optimal solution of a linear program."""
+"""Define linear program laws.
+
+They set algebraic states to an optimal solution of a linear program.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,11 +22,12 @@ RELATIONS = (operator.eq, operator.le, operator.ge)
 
 
 class LinearProgramLaw(BaseLaw):
-    """Optimal solution of a linear program, which sets the algebraic states that are its variables.
+    """Optimal solution of a linear program.
 
-    The laws whose variables overlap, from any element or interaction, form one program: their variables unite, their
-    constraints add, and at most one of them holds objectives. The objectives are solved in order, and each optimum is
-    kept within a relative 1e-9 while the next one is solved.
+    It sets the algebraic states that are its variables. The laws whose variables overlap, from any element or
+    interaction, form one program: their variables unite, their constraints add, and at most one of them holds
+    objectives. The objectives are solved in order, and each optimum is kept within a relative 1e-9 while the next one
+    is solved.
 
     Args:
         variables:
@@ -96,7 +100,7 @@ class LinearProgramLaw(BaseLaw):
         return RequirementSpec(time=(ContinuousTime, DiscreteTime, StaticTime))
 
     def _check(self) -> None:
-        """Raise an error for a program without variables, a malformed constraint or objective, or an unknown policy.
+        """Raise an error for no variables, a bad constraint or objective, or a bad policy.
 
         Raises:
             ValidationError:

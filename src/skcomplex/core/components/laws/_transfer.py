@@ -1,4 +1,7 @@
-"""Define transfer laws, the flows of a conserved quantity between states and the environment."""
+"""Define transfer laws.
+
+They are the flows of a conserved quantity between states and the environment.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +18,9 @@ SHIFT = 'shift_member'
 
 
 class Source:
-    """Environment a transfer draws a quantity from, outside the system, such as a bank that creates money.
+    """Environment a transfer draws a quantity from, outside the system.
+
+    An example is a bank that creates money.
 
     Args:
         label:
@@ -32,7 +37,9 @@ class Source:
 
 
 class Sink:
-    """Environment a transfer releases a quantity to, outside the system, such as a drain or the atmosphere.
+    """Environment a transfer releases a quantity to, outside the system.
+
+    Examples are a drain or the atmosphere.
 
     Args:
         label:
@@ -49,14 +56,14 @@ class Sink:
 
 
 class TransferLaw(BaseLaw):
-    """Movement of an amount of a quantity from a source holder to a sink holder, in continuous or discrete time.
+    """Movement of an amount of a quantity from a source holder to a sink holder.
 
-    A transfer is one outflow of its source and one inflow of its sink. Its amount is a rate in a system of rate laws,
-    the amount moved per step in a system of update laws, and the size of every jump when a `rate` is given. The
-    trajectory records the amount at every frame under `<path>.<label>`, the path of the part that declares the
-    transfer, or `owner` when given. One holder may be a state of a group read by `shift_member` at a member offset, so
-    every member transfers with the member that many places along the group order. Past the ends of a fixed boundary
-    no member is there, and the transfer moves nothing.
+    It runs in continuous or discrete time. A transfer is one outflow of its source and one inflow of its sink. Its
+    amount is a rate in a system of rate laws, the amount moved per step in a system of update laws, and the size of
+    every jump when a `rate` is given. The trajectory records the amount at every frame under `<path>.<label>`, the path
+    of the part that declares the transfer, or `owner` when given. One holder may be a state of a group read by
+    `shift_member` at a member offset, so every member transfers with the member that many places along the group order.
+    Past the ends of a fixed boundary no member is there, and the transfer moves nothing.
 
     Args:
         source:
@@ -110,24 +117,36 @@ class TransferLaw(BaseLaw):
         self.owner = owner
 
     def _get_targets(self) -> tuple[object, ...]:
-        """Return the states the transfer moves the quantity between, without the environment."""
+        """Return the states the transfer moves the quantity between.
+
+        It leaves out the environment.
+        """
         return tuple(holder for holder in (self.source, self.sink) if isinstance(holder, Expression))
 
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
-        """Return what the law requires of a system: nothing, since it holds in any time."""
+        """Return what the law requires of a system: nothing.
+
+        It holds in any time.
+        """
         return RequirementSpec()
 
     @staticmethod
     def _is_shifted(holder: object) -> bool:
-        """Check whether a holder is the symbol of a state read at a member offset by `shift_member`."""
+        """Check whether a holder is a state symbol read at a shifted member.
+
+        The member is offset by `shift_member`.
+        """
         if not isinstance(holder, Expression) or holder.operator() is None:
             return False
         operand = holder.operands()[0]
         return getattr(holder.operator(), 'name', lambda: '')() == SHIFT and operand.operator() is None
 
     def _check_holders(self) -> None:
-        """Raise an error for a holder that is neither a scalar state symbol nor the environment of its side."""
+        """Raise an error for a holder that is not a scalar state or the environment.
+
+        The environment is that of its side.
+        """
         for name, holder, environment in (('source', self.source, Source), ('sink', self.sink, Sink)):
             if isinstance(holder, environment) or self._is_shifted(holder):
                 continue
@@ -147,7 +166,10 @@ class TransferLaw(BaseLaw):
             raise ValidationError(error_msg)
 
     def _check(self) -> None:
-        """Raise an error for invalid holders, an array amount, a symbolic jump size, or an owner that is no string."""
+        """Raise an error for bad holders, an array amount, a symbolic jump, or bad owner.
+
+        The jump size may not be symbolic, and the owner must be a string.
+        """
         self._check_holders()
         if not isinstance(self.owner, str):
             error_msg = f'The owner of the transfer {self.label} is {self.owner!r}. Give a path, or an empty string.'

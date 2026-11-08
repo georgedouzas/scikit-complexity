@@ -1,4 +1,7 @@
-"""Define the helpers of agent rules: transfers between agents, and the pairings of match laws."""
+"""Define the helpers of agent rules.
+
+They are transfers between agents and the pairings of match laws.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -63,7 +66,9 @@ def random_pairing(
     rng: np.random.Generator,
     capacity: int,
 ) -> list[tuple[object, object]]:
-    """Return pairs drawn uniformly at random, each member in at most `capacity` pairs and never paired with itself.
+    """Return pairs drawn uniformly at random.
+
+    Each member is in at most `capacity` pairs and never paired with itself.
 
     Args:
         left:

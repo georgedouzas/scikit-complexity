@@ -11,7 +11,9 @@ from ._signals import series
 
 
 def lookup(value: object, points: Sequence[Sequence[float]]) -> Expression:
-    """Return a table function, the piecewise-linear interpolation of a value between points, flat outside them.
+    """Return a table function.
+
+    It is the piecewise-linear interpolation of a value between points, flat outside them.
 
     Args:
         value:

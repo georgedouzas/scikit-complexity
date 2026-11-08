@@ -15,10 +15,11 @@ from ._base import BaseLaw
 
 
 class CrossingLaw(BaseLaw):
-    """Event at the crossing of zero by a guard, when states take new values or the run ends.
+    """Event at the crossing of zero by a guard.
 
-    Solvers locate the crossing within their tolerance. Crossings leave the form of a system as is, so they combine with
-    rate laws, and the trajectory records every crossing with its time and the states before and after it.
+    At the event, states take new values or the run ends. Solvers locate the crossing within their tolerance. Crossings
+    leave the form of a system as is, so they combine with rate laws, and the trajectory records every crossing with its
+    time and the states before and after it.
 
     Args:
         guard:
@@ -82,7 +83,9 @@ class CrossingLaw(BaseLaw):
             raise ValidationError(error_msg)
 
     def _run(self, inputs: object) -> None:
-        """Set `value_` to the new values of the states at given values of the symbols the reset reads.
+        """Set `value_` to the new values of the states at given symbol values.
+
+        The symbols are those the reset reads.
 
         Args:
             inputs:

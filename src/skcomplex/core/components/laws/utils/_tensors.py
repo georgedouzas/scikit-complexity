@@ -1,4 +1,7 @@
-"""Define the tensor operations of fields, compositions of the field operators with Sage matrices."""
+"""Define the tensor operations of fields.
+
+They are compositions of the field operators with Sage matrices.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -38,7 +41,10 @@ def _check_matrix(utility: str, value: object) -> Matrix:
 
 
 def _check_vector(utility: str, value: object) -> FreeModuleElement:
-    """Return a vector, or a sequence as a vector, or raise an error that names the utility and the value."""
+    """Return a vector, or a sequence as a vector, or raise an error.
+
+    The error names the utility and the value.
+    """
     if isinstance(value, list | tuple):
         return vector(SR, [SR(item) for item in value])
     if not isinstance(value, FreeModuleElement):
@@ -54,12 +60,18 @@ def _derivative(expression: object, axis: int) -> Expression:
 
 
 def _advected(expression: Expression, velocity: FreeModuleElement) -> Expression:
-    """Return the advection of an entry of a matrix, 0 for a number, whose derivatives are 0."""
+    """Return the advection of an entry of a matrix.
+
+    It is 0 for a number, whose derivatives are 0.
+    """
     return SR(0) if SR(expression).is_numeric() else advection(expression, velocity)
 
 
 def _distribute_call(call: Expression, operands: list[Expression]) -> Expression:
-    """Return a call of a linear operator as a sum over the terms of its first operand, with numeric factors outside."""
+    """Return a call of a linear operator as a sum over the terms of its first operand.
+
+    The numeric factors stay outside.
+    """
     operator = call.operator()
     expanded = operands[0].expand()
     total = SR(0)
@@ -79,7 +91,9 @@ def _is_linear_call(expression: Expression) -> bool:
 
 
 def distribute_operators(expression: object) -> Expression:
-    """Return an expression with the linear field operators distributed over sums and out of numeric factors.
+    """Return an expression with the linear field operators distributed.
+
+    They are distributed over sums and out of numeric factors.
 
     Args:
         expression:
@@ -106,7 +120,9 @@ def distribute_operators(expression: object) -> Expression:
 
 
 def vector_gradient(velocity: Sequence[object] | FreeModuleElement) -> Matrix:
-    """Return the gradient of a vector, the matrix of the derivatives `partial(v_i, j)`.
+    """Return the gradient of a vector.
+
+    It is the matrix of the derivatives `partial(v_i, j)`.
 
     Args:
         velocity:
@@ -133,7 +149,9 @@ def vector_gradient(velocity: Sequence[object] | FreeModuleElement) -> Matrix:
 
 
 def tensor_divergence(tensor: Matrix) -> FreeModuleElement:
-    """Return the divergence of a rank-2 tensor, the vector of the sums of `partial(T_ij, j)` over `j`.
+    """Return the divergence of a rank-2 tensor.
+
+    It is the vector of the sums of `partial(T_ij, j)` over `j`.
 
     Args:
         tensor:
@@ -210,7 +228,9 @@ def antisymmetric_part(tensor: Matrix) -> Matrix:
 
 
 def leray_projection(field: Sequence[object] | FreeModuleElement) -> FreeModuleElement:
-    """Return the divergence-free part of a vector of field expressions, `v - grad(inverse_laplacian(div(v)))`.
+    """Return the divergence-free part of a vector of field expressions.
+
+    It is `v - grad(inverse_laplacian(div(v)))`.
 
     Args:
         field:

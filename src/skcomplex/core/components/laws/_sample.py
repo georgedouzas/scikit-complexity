@@ -1,4 +1,7 @@
-"""Define sample laws, Monte Carlo sweeps that accept moves from the change of a local objective."""
+"""Define sample laws.
+
+They are Monte Carlo sweeps that accept moves from the change of a local objective.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,7 +14,9 @@ from ._base import BaseLaw
 
 
 class SampleLaw(BaseLaw):
-    """Monte Carlo sweep that samples states by moves accepted from the change of an objective, one per unit of time.
+    """Monte Carlo sweep that samples states by moves.
+
+    The moves are accepted from the change of an objective, one sweep per unit of time.
 
     Args:
         objective:
@@ -59,7 +64,7 @@ class SampleLaw(BaseLaw):
 
     @classmethod
     def _get_requirements(cls) -> RequirementSpec:
-        """Return what the sweep requires of a system: discrete time on a lattice or a network."""
+        """Return what the sweep requires: discrete time on a lattice or a network."""
         return RequirementSpec(time=(DiscreteTime,), space=(LatticeSpace, NetworkSpace))
 
     def _check(self) -> None:

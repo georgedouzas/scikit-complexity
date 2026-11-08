@@ -1,4 +1,7 @@
-"""Define the reduction over the shortest paths of the active links between the members of a group."""
+"""Define the reduction over the shortest paths of the active links.
+
+The links are those between the members of a group.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -16,12 +19,13 @@ def shortest_paths(
     over: BaseNeighborhood | LayerSpec | None = None,
     reduce: str = 'betweenness',
 ) -> Expression:
-    """Return a reduction over the shortest paths of the active links between the members of a group.
+    """Return a reduction over the shortest paths of the active links.
 
-    The links are the pairs of neighbours of the neighbourhood, the graph of a network space by default, read without
-    direction, and a link is active when `active`, written for one link as in `components`, is not 0. The reduction
-    reads the graph of the active links at every evaluation, so it follows a network whose topology changes during a
-    run, and NetworkX computes it again only when the active links changed since the last evaluation.
+    The links are those between the members of a group. The links are the pairs of neighbours of the neighbourhood, the
+    graph of a network space by default, read without direction, and a link is active when `active`, written for one
+    link as in `components`, is not 0. The reduction reads the graph of the active links at every evaluation, so it
+    follows a network whose topology changes during a run, and NetworkX computes it again only when the active links
+    changed since the last evaluation.
 
     The reductions are `'betweenness'`, the number of shortest paths between other pairs of members that pass through
     every member, each path between a pair counted as a share of the shortest paths of the pair, as

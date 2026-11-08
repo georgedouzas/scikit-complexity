@@ -1,4 +1,7 @@
-"""Define the signals of time that laws drive states with: steps, ramps, pulses, and series."""
+"""Define the signals of time that laws drive states with.
+
+They are steps, ramps, pulses, and series.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +16,10 @@ from ._conditions import both, mod, where
 
 
 def _search(t: Expression, points: list[float], levels: list[float], kind: str, span: tuple[int, int]) -> Expression:
-    """Return the pieces of a series in a span of indices as a balanced binary search of conditions on time."""
+    """Return the pieces of a series in a span of indices as a binary search.
+
+    The search is a balanced binary search of conditions on time.
+    """
     low, high = span
     if low == high:
         if kind == 'previous' or low == len(points) - 1:
@@ -56,7 +62,9 @@ def step(t: Expression, at: float, height: float = 1.0) -> Expression:
 
 
 def ramp(t: Expression, start: float, end: float, height: float = 1.0) -> Expression:
-    """Return a ramp input, 0 before `start`, rising linearly to `height` at `end`, and constant after.
+    """Return a ramp input.
+
+    It is 0 before `start`, rises linearly to `height` at `end`, and is constant after.
 
     Args:
         t:
@@ -124,7 +132,9 @@ def pulse_train(
     *,
     count: int | None = None,
 ) -> Expression:
-    """Return a periodic train of rectangular pulses, each of a width, starting at `start`.
+    """Return a periodic train of rectangular pulses.
+
+    Each pulse has a width, and the train starts at `start`.
 
     Args:
         t:
@@ -171,9 +181,10 @@ def pulse_train(
 
 
 def series(t: Expression, times: Sequence[float], values: Sequence[float], kind: str = 'linear') -> Expression:
-    """Return an input that follows data, interpolated linearly or held from each time to the next.
+    """Return an input that follows data.
 
-    Before the first time the input takes the first value, and after the last time the last value.
+    It is interpolated linearly or held from each time to the next. Before the first time the input takes the first
+    value, and after the last time the last value.
 
     Args:
         t:

@@ -1,7 +1,8 @@
-"""Define the distributed delays of system dynamics, as Sage symbolic functions the compiler expands into stages.
+"""Define the distributed delays of system dynamics as Sage symbolic functions.
 
-Sage has no delay of an input through hidden stages, so every delay is a Sage function made by `function`, named after
-its kind and its order and kept unevaluated in expressions. The compiler adds its stages as hidden states.
+The compiler expands them into stages. Sage has no delay of an input through hidden stages, so every delay is a Sage
+function made by `function`, named after its kind and its order and kept unevaluated in expressions. The compiler adds
+its stages as hidden states.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
@@ -15,13 +16,18 @@ DELAY_NAME = re.compile(r'^(?P<kind>material|smoothing)_delay(?P<order>[1-9][0-9
 
 
 def _eval_delay(self: object, value: Expression, time: Expression) -> Expression | None:
-    """Return a constant input unchanged, since every delay of a constant is the constant, or `None` otherwise."""
+    """Return a constant input unchanged, or `None` otherwise.
+
+    Every delay of a constant is the constant.
+    """
     del self, time
     return SR(value) if SR(value).is_numeric() else None
 
 
 def delay_parts(name: str) -> tuple[bool, int] | None:
-    """Return whether a delay function conserves its input, and its order, from its name, or `None` for no delay.
+    """Return whether a delay function conserves its input, and its order.
+
+    They come from its name, or it returns `None` for no delay.
 
     Args:
         name:
@@ -41,12 +47,12 @@ def delay_parts(name: str) -> tuple[bool, int] | None:
 
 
 def distributed_delay(value: object, time: object, order: int = 1, *, conserved: bool = True) -> Expression:
-    """Return the output of a distributed delay of a value: hidden stages in series, each with a share of the time.
+    """Return the output of a distributed delay of a value.
 
-    A conserved delay passes its input through the stages like a material, so its output is the outflow of the last
-    stage, `stage / (time / order)`, and its response to a pulse is the Erlang distribution of the order with the mean
-    `time`. A delay that does not conserve its input smooths it, each stage adjusting to the previous one at
-    `gap / (time / order)`, and its output starts at the value.
+    The delay is hidden stages in series, each with a share of the time. A conserved delay passes its input through the
+    stages like a material, so its output is the outflow of the last stage, `stage / (time / order)`, and its response
+    to a pulse is the Erlang distribution of the order with the mean `time`. A delay that does not conserve its input
+    smooths it, each stage adjusting to the previous one at `gap / (time / order)`, and its output starts at the value.
 
     Args:
         value:
@@ -88,7 +94,9 @@ def distributed_delay(value: object, time: object, order: int = 1, *, conserved:
 
 
 def delay1(value: object, time: object) -> Expression:
-    """Return the outflow of a first-order material delay of an inflow, one hidden stock emptied at `stock / time`.
+    """Return the outflow of a first-order material delay of an inflow.
+
+    The delay is one hidden stock emptied at `stock / time`.
 
     Args:
         value:
@@ -115,9 +123,10 @@ def delay1(value: object, time: object) -> Expression:
 
 
 def delay3(value: object, time: object) -> Expression:
-    """Return the outflow of a third-order material delay, three hidden stocks in series each with a third of the time.
+    """Return the outflow of a third-order material delay.
 
-    The response to a pulse is the Erlang distribution of order 3 with the mean `time`.
+    The delay is three hidden stocks in series, each with a third of the time. The response to a pulse is the Erlang
+    distribution of order 3 with the mean `time`.
 
     Args:
         value:
@@ -144,7 +153,9 @@ def delay3(value: object, time: object) -> Expression:
 
 
 def smooth(value: object, time: object) -> Expression:
-    """Return the first-order exponential smoothing of a value, a hidden stock that adjusts at `gap / time`.
+    """Return the first-order exponential smoothing of a value.
+
+    The smoothing is a hidden stock that adjusts at `gap / time`.
 
     Args:
         value:

@@ -1,4 +1,7 @@
-"""Define the contraction of a coupling tensor with one expression of the members per index after the first."""
+"""Define the contraction of a coupling tensor with expressions of the members.
+
+There is one expression of the members per index after the first.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,11 +17,12 @@ CONTRACTION = function('contraction')
 
 
 def contraction(tensor: object, *expressions: object) -> Expression:
-    """Return the contraction of a tensor with one expression per index after the first, `sum_jk T_ijk a_j b_k`.
+    """Return the contraction of a tensor with one expression per later index.
 
-    The tensor is a parameter of an interaction declared `ParameterSpec(shape=(role,) * k)`, whose first index runs
-    over the reading members and every other index over the members of a group. Inside the contraction the symbols of
-    the expression of an index stand for the member of that index, so `contraction(T, x, x)` reads `x_j` and `x_k`.
+    It is `sum_jk T_ijk a_j b_k`, with one expression per index after the first. The tensor is a parameter of an
+    interaction declared `ParameterSpec(shape=(role,) * k)`, whose first index runs over the reading members and every
+    other index over the members of a group. Inside the contraction the symbols of the expression of an index stand for
+    the member of that index, so `contraction(T, x, x)` reads `x_j` and `x_k`.
 
     Args:
         tensor:
@@ -54,7 +58,9 @@ def contraction(tensor: object, *expressions: object) -> Expression:
 
 
 def contractions_in(expression: object) -> list[Expression]:
-    """Return the outermost contraction calls of an expression, whose operands are the tensor and the expressions.
+    """Return the outermost contraction calls of an expression.
+
+    Their operands are the tensor and the expressions.
 
     Args:
         expression:

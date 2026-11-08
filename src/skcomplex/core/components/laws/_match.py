@@ -1,4 +1,7 @@
-"""Define match laws, the pairings of the members of agent groups that the rules of a step read."""
+"""Define match laws.
+
+They are the pairings of the members of agent groups that the rules of a step read.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,12 +21,12 @@ from .utils import random_pairing
 
 
 class MatchLaw(BaseLaw):
-    """Pairing of the members of one agent group, or of two, every step, which the rules of the step read.
+    """Pairing of the members of one agent group, or of two, every step.
 
-    The members are paired uniformly at random by default. Any other pairing, such as stable matching, an order book,
-    or an auction, is a function given as `pairing`, and a selection of partners within reach or among neighbours is
-    a `PartnerSpec`. Rules read the pairs of the step with `matches(system, label)`. Transfers, matchings, and groupings
-    read their pairs from `get_pairs`.
+    The rules of the step read the pairs. The members are paired uniformly at random by default. Any other pairing, such
+    as stable matching, an order book, or an auction, is a function given as `pairing`, and a selection of partners
+    within reach or among neighbours is a `PartnerSpec`. Rules read the pairs of the step with `matches(system, label)`.
+    Transfers, matchings, and groupings read their pairs from `get_pairs`.
 
     Args:
         left:
@@ -80,11 +83,17 @@ class MatchLaw(BaseLaw):
         return RequirementSpec(time=(DiscreteTime,))
 
     def _get_rule(self) -> RuleLaw:
-        """Return the rule the agent stepper runs, which stores the pairs of the step in the system."""
+        """Return the rule the agent stepper runs.
+
+        The rule stores the pairs of the step in the system.
+        """
         return RuleLaw(self.run, phase=self.phase)
 
     def _check(self) -> None:
-        """Raise an error for a capacity that is not a positive integer, or an invalid selection of partners."""
+        """Raise an error for a bad capacity or an invalid selection of partners.
+
+        The capacity must be a positive integer.
+        """
         if isinstance(self.pairing, PartnerSpec):
             self.pairing._validated()
         if isinstance(self.capacity, bool) or not isinstance(self.capacity, int) or self.capacity < 1:
@@ -93,7 +102,10 @@ class MatchLaw(BaseLaw):
 
     @staticmethod
     def _get_room(spec: PartnerSpec, agent: AgentViewProtocol) -> float:
-        """Return the largest number of pairs of an agent by the capacity of a selection of partners."""
+        """Return the largest number of pairs of an agent.
+
+        It comes from the capacity of a selection of partners.
+        """
         if spec.capacity is None:
             return np.inf
         if not isinstance(spec.capacity, str):
@@ -126,7 +138,10 @@ class MatchLaw(BaseLaw):
         targets: Sequence[AgentViewProtocol],
         located: dict[object, list[AgentViewProtocol]],
     ) -> list[AgentViewProtocol]:
-        """Return the agents an agent considers, by the candidates of a selection of partners."""
+        """Return the agents an agent considers.
+
+        They come from the candidates of a selection of partners.
+        """
         if spec.candidates == 'all':
             return [target for target in targets if target is not agent]
         if spec.candidates == 'local':
@@ -147,7 +162,10 @@ class MatchLaw(BaseLaw):
         free: list[AgentViewProtocol],
         rng: np.random.Generator,
     ) -> list[AgentViewProtocol]:
-        """Return the partners an agent picks among its candidates with room, by the choice."""
+        """Return the partners an agent picks among its candidates with room.
+
+        It picks them by the choice.
+        """
         if spec.choice == 'all':
             return free
         if spec.choice == 'uniform':
@@ -167,7 +185,10 @@ class MatchLaw(BaseLaw):
         right: Sequence[object],
         rng: np.random.Generator,
     ) -> list[tuple[object, object]]:
-        """Return disjoint random pairs, of two halves of one group or of a member of each of two groups."""
+        """Return disjoint random pairs.
+
+        They pair two halves of one group or a member of each of two groups.
+        """
         first = [left[int(index)] for index in rng.permutation(len(left))]
         if left is right:
             return list(zip(first[::2], first[1::2], strict=False))
@@ -199,7 +220,10 @@ class MatchLaw(BaseLaw):
         *,
         feasible: Feasibility | None = None,
     ) -> list[AgentViewProtocol]:
-        """Return the feasible candidates of an agent with room, or else the nearest such agent under the fallback."""
+        """Return the feasible candidates of an agent with room.
+
+        Otherwise it returns the nearest such agent under the fallback.
+        """
         candidates = self._get_candidates(spec, agent, right, located)
         free = [item for item in candidates if self._is_free(spec, agent, item, taken, feasible)]
         if free or spec.fallback != 'nearest':
@@ -215,7 +239,10 @@ class MatchLaw(BaseLaw):
         rng: np.random.Generator,
         feasible: Feasibility | None = None,
     ) -> Iterator[tuple[AgentViewProtocol, AgentViewProtocol]]:
-        """Yield the pairs of every agent of one side with the partners it picks among the agents of the other."""
+        """Yield the pairs of every agent of one side with the partners it picks.
+
+        It picks them among the agents of the other side.
+        """
         within = left is right
         order = range(len(left)) if spec.capacity is None and feasible is None else rng.permutation(len(left))
         located = self._locate(right) if spec.candidates in ('cell', 'neighbors') else {}
@@ -293,9 +320,10 @@ class MatchLaw(BaseLaw):
         rng: np.random.Generator,
         feasible: Feasibility,
     ) -> Iterator[tuple[AgentViewProtocol, AgentViewProtocol]]:
-        """Yield the pairs of a selection of partners one at a time, so a caller settles each before the next one.
+        """Yield the pairs of a selection of partners one at a time.
 
-        The agents act in random order, since the first to act take what the feasibility reads.
+        A caller settles each before the next one. The agents act in random order, since the first to act take what the
+        feasibility reads.
 
         Args:
             left:

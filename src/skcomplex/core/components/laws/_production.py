@@ -13,13 +13,13 @@ from ._base import BaseLaw
 
 
 class ProductionLaw(BaseLaw):
-    """Production of a string rewriting system, which replaces every matching module of a word by a successor.
+    """Production of a string rewriting system.
 
-    A word element returns its productions from `_get_laws`, and every generation applies all of them at once. The
-    predecessor's parameters are symbols bound to the parameters of each matching module. The condition, the
-    successor's parameters, and the probability are expressions of these symbols and of the parameters of the element.
-    A production with a left or a right context matches only modules whose neighbours, skipping the ignored symbols of
-    the word and its bracketed branches, spell the context.
+    It replaces every matching module of a word by a successor. A word element returns its productions from `_get_laws`,
+    and every generation applies all of them at once. The predecessor's parameters are symbols bound to the parameters
+    of each matching module. The condition, the successor's parameters, and the probability are expressions of these
+    symbols and of the parameters of the element. A production with a left or a right context matches only modules whose
+    neighbours, skipping the ignored symbols of the word and its bracketed branches, spell the context.
 
     Args:
         predecessor:
@@ -78,7 +78,10 @@ class ProductionLaw(BaseLaw):
         self.probability = probability
 
     def _get_targets(self) -> tuple[object, ...]:
-        """Return no states, since a production rewrites the word of its element as a whole."""
+        """Return no states.
+
+        A production rewrites the word of its element as a whole.
+        """
         return ()
 
     @classmethod
@@ -87,7 +90,10 @@ class ProductionLaw(BaseLaw):
         return RequirementSpec(time=(DiscreteTime,))
 
     def _check(self) -> None:
-        """Raise an error for a predecessor that is not one module, or a numeric probability outside `[0, 1]`."""
+        """Raise an error for a predecessor not one module, or a bad numeric probability.
+
+        A numeric probability must be in `[0, 1]`.
+        """
         if len(ModuleSpec.parse_word(self.predecessor)) != 1:
             error_msg = f'The predecessor of a production is one symbol or module, not {self.predecessor!r}.'
             raise RewritingError(error_msg)

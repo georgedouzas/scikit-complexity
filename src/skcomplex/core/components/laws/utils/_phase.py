@@ -1,4 +1,7 @@
-"""Define what the laws of a phase space read: the class coordinates and the reductions over class axes."""
+"""Define what the laws of a phase space read.
+
+They read the class coordinates and the reductions over class axes.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +18,9 @@ MAXIMUM_ENTROPY = function('maximum_entropy')
 
 
 def coordinate(name: str) -> Expression:
-    """Return the coordinate of the point a law updates along a named class axis of a phase space.
+    """Return the coordinate of the point a law updates along a named class axis.
+
+    The axis is a class axis of a phase space.
 
     Args:
         name:
@@ -67,7 +72,9 @@ def coordinates_of(axes: Sequence[str]) -> list[Expression]:
 
 
 def reduce_axes(expression: object, axes: Sequence[str]) -> Expression:
-    """Return the integral of an expression over named class axes at every position of a phase space.
+    """Return the integral of an expression over named class axes.
+
+    It is taken at every position of a phase space.
 
     Args:
         expression:
@@ -90,11 +97,11 @@ def reduce_axes(expression: object, axes: Sequence[str]) -> Expression:
 
 
 def maximum_entropy(expression: object, axes: Sequence[str], order: int = 2) -> Expression:
-    """Return the density with the largest entropy whose moments up to an order equal those of an expression.
+    """Return the density of largest entropy with moments up to an order of another.
 
-    The density is `exp(a + b c)` for the order 1 and `exp(a + b c + d |c|^2)` for the order 2, with `c` the coordinates
-    of the named axes, and its parameters are found at every position so that its discrete moments equal those of the
-    expression to round-off.
+    Its moments up to an order equal those of an expression. The density is `exp(a + b c)` for the order 1 and `exp(a +
+    b c + d |c|^2)` for the order 2, with `c` the coordinates of the named axes, and its parameters are found at every
+    position so that its discrete moments equal those of the expression to round-off.
 
     Args:
         expression:

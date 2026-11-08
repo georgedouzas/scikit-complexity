@@ -1,4 +1,7 @@
-"""Define the derivatives, lags, and delayed values of states that laws read, which the compiler replaces."""
+"""Define the derivatives, lags, and delayed values of states that laws read.
+
+The compiler replaces them.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -36,7 +39,10 @@ class _Lag(BuiltinFunction):
 
 
 class _Delayed(BuiltinFunction):
-    """Value of a state a delay before the current time, `delayed(x, tau)` or `delayed(x, tau, minimum)`."""
+    """Value of a state a delay before the current time.
+
+    It is written `delayed(x, tau)` or `delayed(x, tau, minimum)`.
+    """
 
     def __init__(self) -> None:
         super().__init__('delayed', nargs=0)
@@ -136,7 +142,10 @@ Examples:
 
 
 class _Residence(BuiltinFunction):
-    """Number of whole steps a state of a discrete map has held its current value, `residence(x)`."""
+    """Number of whole steps a state of a discrete map has held its current value.
+
+    It is written `residence(x)`.
+    """
 
     def __init__(self) -> None:
         super().__init__('residence', nargs=1)

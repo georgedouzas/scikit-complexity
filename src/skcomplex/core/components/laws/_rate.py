@@ -15,10 +15,11 @@ from ._base import BaseLaw
 
 
 class RateLaw(BaseLaw):
-    """Contribution to the highest time derivative of a state, the first for states of order 1.
+    """Contribution to the highest time derivative of a state.
 
-    Rates on the same state add up, so a system with only rate laws is a system of ordinary differential equations. On
-    a state of order `k`, a rate contributes to the `k`-th derivative, so independent mechanisms superpose.
+    It is the first derivative for states of order 1. Rates on the same state add up, so a system with only rate laws is
+    a system of ordinary differential equations. On a state of order `k`, a rate contributes to the `k`-th derivative,
+    so independent mechanisms superpose.
 
     Args:
         target:
