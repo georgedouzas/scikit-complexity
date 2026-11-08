@@ -50,12 +50,12 @@
 - [x] 8.7 Make `simulate` defer the solver to the compiled form when a system nests subsystems, and stop `MonteCarloSolver` claiming tags its compiler rejects
 - [x] 8.8 Derive the randomness tag from draws in agent rules, random parameters, and stochastic modes, so random systems such as `GaltonWatsonSystem` and `SIRSystem(stochastic=True)` are stochastic, then make `ensemble` require it
 - [x] 8.9 Let experiments compile a system once per structure and reuse the problem across runs that change only parameters, initial states, or seeds, as before the change
-- [ ] 8.10 Make the module that `SystemDynamicsTranslator` writes define a system class on `BaseSystem` instead of the function `create_system()`
-- [ ] 8.11 Restore what `Simulation` offered and `simulate` lost: the `checked` option that raises when a state leaves its domain, and the validation of parameter values changed by a schedule, such as a transition probability above 1
-- [ ] 8.12 Decide whether `ParameterError` derives from `ValidationError`, so one except clause catches every validation failure of `simulate`
-- [ ] 8.13 Add `clock` to `simulate` for real-time pacing, and remove live parameter changes and background runs: drop the requirements "Parameters change while running" and "Simulations run in the background" of the `simulation` spec, keep "Runs can be paced in real time" through `clock`, and say so on the migration page
-- [ ] 8.14 Make `symbolic` raise `AnalysisError` for rewriting systems, instead of the `ValidationError` of compiling them
-- [ ] 8.15 Choose `FractionalEulerMaruyamaSolver` as the default solver of systems with fractional noise
+- [x] 8.10 Make the module that `SystemDynamicsTranslator` writes define a system class on `BaseSystem` instead of the function `create_system()`
+- [x] 8.11 Restore what `Simulation` offered and `simulate` lost: the `checked` option that raises when a state leaves its domain, and the validation of parameter values changed by a schedule, such as a transition probability above 1
+- [x] 8.12 Decide whether `ParameterError` derives from `ValidationError`, so one except clause catches every validation failure of `simulate`
+- [x] 8.13 Add `clock` to `simulate` for real-time pacing, and remove live parameter changes and background runs: drop the requirements "Parameters change while running" and "Simulations run in the background" of the `simulation` spec, keep "Runs can be paced in real time" through `clock`, and say so on the migration page
+- [x] 8.14 Make `symbolic` raise `AnalysisError` for rewriting systems, instead of the `ValidationError` of compiling them
+- [x] 8.15 Choose `FractionalEulerMaruyamaSolver` as the default solver of systems with fractional noise
 
 ## 7. Verification
 
