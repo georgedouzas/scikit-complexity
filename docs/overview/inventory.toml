@@ -93,6 +93,7 @@ hyperbolic-networks = { description = "Hyperbolic and popularity-similarity netw
 member-sets = { description = "Variable agent groups placed on network nodes, read by neighbours as sets per node that grow", change = "extend-network-dynamics" }
 hyperedge-requests = { description = "Hyperedges of every size up to a rank, added and removed by topology requests during a run", change = "extend-network-dynamics" }
 path-reductions = { description = "Shortest-path quantities, such as the betweenness, recomputed on the current topology", change = "extend-network-dynamics" }
+neighbour-hyperedges = { description = "Hyperedges that every member forms with sets of its current neighbours in a continuous space, found again at every evaluation", change = "add-many-body-neighbour-roles" }
 
 [vocabulary.components]
 element = "One entity with states, parameters, and intrinsic laws"
@@ -521,6 +522,7 @@ boids3d = { title = "Boids in three dimensions", sources = ["TC 10"], primitives
 couzin_leadership = { title = "Couzin shoal with repulsion, alignment, and informed leaders", sources = ["Mi 4.2"], primitives = ["continuous-spaces", "agents", "agent-spaces", "phases"], system = { components = ["group"], bindings = [] }, priority = "core", status = "implemented" }
 ant_colony_optimization = { title = "Ant colony optimization on a road network", sources = ["Ar 15.2", "Ar 15.3"], primitives = ["agents", "draws", "networks", "interactions"], system = { components = ["group"], bindings = ["members"] }, priority = "core", status = "implemented" }
 shepherding = { title = "Strömbom shepherding of a flock", sources = ["1912.07796 IV", "Strömbom et al. 2014"], primitives = ["agents", "agent-spaces", "continuous-spaces", "switches", "interactions"], system = { components = ["group"], bindings = ["members"] }, priority = "core", status = "implemented" }
+many_body_alignment_swarm = { title = "Swarm with many-body flanking and encirclement alignment", sources = ["2611.08314 3.1"], primitives = ["rates", "groups", "interactions", "reductions", "continuous-spaces", "neighbour-hyperedges"], system = { components = ["group"], bindings = ["members", "neighbors", "hyperedges"] }, priority = "core", status = "implemented" }
 
 [biology.oncology]
 tumour_angiogenesis = { title = "Multiscale tumour angiogenesis", sources = ["Cm 8"], primitives = ["rates", "groups", "co-simulation", "lattices", "fields", "agents", "agent-spaces"], system = { components = ["group", "site-group", "system", "variable-group"], bindings = [] }, priority = "example", status = "implemented" }
