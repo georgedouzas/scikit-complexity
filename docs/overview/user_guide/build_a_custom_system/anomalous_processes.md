@@ -16,7 +16,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.laws.utils import draw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import StateSpec
 
 
@@ -30,13 +30,13 @@ class FlierElement(Element):
 
 
 fliers = System(elements=[GroupElement('fliers', element=FlierElement, size=100)])
-flight = Simulation(fliers, dt=1.0, random_state=0).prepare().run(until=20)
-flight.trajectory_.values('fliers.x').shape
+flight = simulate(fliers, until=20, dt=1.0, random_state=0)
+flight.values('fliers.x').shape
 ```
 
 - The keywords can be expressions of states and parameters.
 - A SciPy draw follows the rules of the other named draws, and it samples with the distribution's `rvs` and the
-  simulation's random generator.
+  random generator of the run.
 - Compiling rejects a name `scipy.stats` does not provide, listing the closest names, and keywords the distribution does
   not take.
 - In update laws, a SciPy draw is sampled for every member before each step, and the map then steps in Python with the
@@ -55,7 +55,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import JumpLaw
 from skcomplex.core.components.laws.utils import draw, normal
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, StateSpec
 
 
@@ -77,8 +77,8 @@ class WalkerElement(Element):
 
 
 walkers = System(elements=[GroupElement('walkers', element=WalkerElement, size=1000)])
-walk = Simulation(walkers, dt=100.0, random_state=0).prepare().run(until=1000)
-walk.problem_.form.value, bool(walk.trajectory_.values('jumps.renewals')[-1] > 1000)
+walk = simulate(walkers, until=1000, dt=100.0, random_state=0)
+walk.problem.form.value, bool(walk.values('jumps.renewals')[-1] > 1000)
 ```
 
 - Every member of a group renews on its own clock.
@@ -111,7 +111,7 @@ from typing import Annotated
 from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.laws import FractionalNoiseLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import FractionalEulerMaruyamaSolver
 from skcomplex.core.specs import StateSpec
 
@@ -125,13 +125,9 @@ class RoughElement(Element):
         return [FractionalNoiseLaw(s.x, 1, hurst=0.3)]
 
 
-rough = Simulation(
-    System(elements=[GroupElement('walkers', element=RoughElement, size=500)]),
-    solver=FractionalEulerMaruyamaSolver(dt=0.01),
-    dt=0.1,
-    random_state=0,
-).prepare().run(until=1)
-round(float(rough.trajectory_.values('walkers.x')[-1].var()), 1)
+walkers = System(elements=[GroupElement('walkers', element=RoughElement, size=500)])
+rough = simulate(walkers, until=1, dt=0.1, solver=FractionalEulerMaruyamaSolver(dt=0.01), random_state=0)
+round(float(rough.values('walkers.x')[-1].var()), 1)
 ```
 
 - The increments anticorrelate for `H < 1/2` and correlate for `H > 1/2`.
@@ -139,12 +135,13 @@ round(float(rough.trajectory_.values('walkers.x')[-1].var()), 1)
 - `FractionalEulerMaruyamaSolver(dt, horizon)` is the stepper of systems with fractional noise. When it first advances,
   it draws the increments of the whole run on its grid, with the circulant embedding of Davies and Harte over
   `scipy.fft`. So frames must fall on multiples of `dt`.
-- A simulation passes the end of its run as the horizon, and advancing beyond it raises `HorizonError`.
+- `simulate` passes the end of the run as the horizon, and advancing beyond it raises `HorizonError`.
 - Other SDE steppers reject fractional noise with an error that names `FractionalEulerMaruyamaSolver`.
 - `fractional_gaussian_noise` returns the noise paths themselves.
 
-The catalog has these systems ready: `continuous_time_random_walk`, `levy_walk`, `annealed_transient_time_motion`,
-`fractional_brownian_motion`, and `levy_flight` in soft matter, and `trap` in statistical mechanics.
+These ready-made systems have memory: `ContinuousTimeRandomWalkSystem`, `LevyWalkSystem`,
+`AnnealedTransientTimeMotionSystem`, `FractionalBrownianMotionSystem`, and `LevyFlightSystem` of
+`skcomplex.systems.physics.soft_matter`, and `TrapSystem` of `skcomplex.systems.physics.statistical_mechanics`.
 
 ## Fractional derivatives
 
@@ -154,11 +151,11 @@ with a fractional order, `StateSpec(order=0.6)`, has a Caputo derivative of that
 ```python
 from typing import Annotated
 
-from skcomplex.core.analysis import SymbolicAnalysis
+from skcomplex.core.analysis import symbolic
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import L1Solver
 from skcomplex.core.specs import StateSpec
 
@@ -173,10 +170,10 @@ class RelaxingElement(Element):
 
 
 system = System(elements=[RelaxingElement('a')])
-relaxing = Simulation(system, solver=L1Solver(dt=0.01, memory=10.0), dt=1.0).prepare().run(until=20)
-solution = SymbolicAnalysis('solve', use_initial_state=True).prepare(system).run().solutions_['a.x'].rhs()
+relaxing = simulate(system, until=20, dt=1.0, solver=L1Solver(dt=0.01, memory=10.0))
+solution = symbolic(system, kind='solve', use_initial_state=True).solutions['a.x'].rhs()
 exact = solution.subs({solution.variables()[0]: 20.0})
-relaxing.problem_.form.value, abs(float(relaxing.trajectory_.values('a.x')[-1]) - float(exact)) < 1e-3
+relaxing.problem.form.value, abs(float(relaxing.values('a.x')[-1]) - float(exact)) < 1e-3
 ```
 
 The simulated relaxation matches the exact Mittag-Leffler solution to `1e-3` at time 20.
@@ -199,10 +196,10 @@ The two explicit schemes are of order 1. All three keep the whole history, so a 
 operations. `memory` bounds that cost. The history of the last `memory` time units enters with its exact weights, and
 the older history enters through about 40 exponential modes fitted to the weights, so every step costs the same. For
 fractional relaxation of order 0.6, a window of 10 time units stays within `1e-8` of the whole history at time 20. A
-change of a fractional state between frames, such as one the simulation's interventions make, starts a new history from
+change of a fractional state between frames, such as one a `schedule` makes, starts a new history from
 the changed state.
 
-Validation reports the misuses of fractional orders before compiling, each with the path of the state and a fix.
+`simulate` reports the misuses of fractional orders before compiling, each with the path of the state and a fix.
 
 - `fractional-order`: an order that is neither an integer nor in `(0, 1)`.
 - `fractional-time`: a fractional state in a system whose declared time is not continuous.
@@ -212,11 +209,11 @@ Validation reports the misuses of fractional orders before compiling, each with 
 Solvers and backends declare the kinds of order they integrate in the `orders` field of their `SupportSpec`,
 `'integer'` or `'fractional'`. The NumPy and Numba backends run the fractional form.
 
-`SymbolicAnalysis('solve')` solves one linear fractional relaxation `D^alpha x = c x` as `x(0) E_alpha(c t^alpha)`. It
+`symbolic(system, kind='solve')` solves one linear fractional relaxation `D^alpha x = c x` as `x(0) E_alpha(c t^alpha)`. It
 writes the solution with the symbolic function `mittag_leffler`, which evaluates numerically. It sums the power series
 in arbitrary precision with Sage for moderate arguments, and takes the asymptotic expansion for large ones.
-`SymbolicAnalysis('equations')` writes a Caputo derivative as `caputo(x(t), t, alpha)`.
+`symbolic(system)` writes a Caputo derivative as `caputo(x(t), t, alpha)`.
 
-The order belongs to the element type, so a sweep over orders builds one system per order. The catalog has these
-systems ready in fractional dynamics, each with the order as an argument: `fractional_relaxation`,
-`fractional_oscillator`, `fractional_van_der_pol`, and `fractional_lorenz`.
+The order belongs to the element type, so a sweep over orders builds one system per order. These ready-made systems of
+`skcomplex.systems.mathematics.fractional_dynamics` take the order as a model parameter: `FractionalRelaxationSystem`,
+`FractionalOscillatorSystem`, `FractionalVanDerPolSystem`, and `FractionalLorenzSystem`.
