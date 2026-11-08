@@ -16,7 +16,7 @@
 
 - [x] 3.1 Replace every `spec.prepare()` and `spec.run()` call in src, tests, docs, and gallery examples
 - [x] 3.2 Update the base tests, the guide pages that show `_check`, and the migration page
-- [ ] 3.3 Update the user guide section on writing new parts
+- [x] 3.3 Update the user guide section on writing new parts
 
 ## 4. Verification
 

@@ -214,6 +214,47 @@ velocities from these roles, not from the names of the states. So a state named 
 - `StateSpec(role='site')` does the same for a place that does not make a member a particle, such as the fixed sites of
   oscillators on a ring.
 
+### Checking arguments
+
+Check the arguments of a new part at the start of its `_prepare`. The constructor only stores its arguments, so a part
+with a bad argument is built without error, and preparing it, alone or within its system, raises the error. Start
+`_prepare` with `super()._prepare(context)`: the base of the parts checks the label and the declared specs first, then
+the part checks its own arguments before it sets any attribute that ends in `_`.
+
+```python
+from typing import Annotated
+
+from skcomplex.core.components.elements import Element
+from skcomplex.core.errors import ValidationError
+from skcomplex.core.specs import StateSpec
+
+
+class TankElement(Element):
+    def __init__(self, label, visual=None, *, level: Annotated[float, StateSpec()] = 1.0, capacity=10.0):
+        super().__init__(label, visual=visual)
+        self.level = level
+        self.capacity = capacity
+
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if self.capacity <= 0:
+            error_msg = f'The capacity of {self.label!r} is {self.capacity}. Give a positive capacity.'
+            raise ValidationError(error_msg)
+        self.free_ = self.capacity - self.level
+
+
+tank = TankElement('tank', capacity=-1.0)
+try:
+    tank.prepare()
+except ValidationError as error:
+    message = str(error)
+message, hasattr(tank, 'free_'), TankElement('tank').prepare().free_
+```
+
+A spec, such as `StateSpec`, is a frozen value, not an estimator: it has neither `prepare` nor `run`. The part that holds
+a spec checks it through its private hook `_check` when it reads it, as the base of the parts does for the specs of the
+annotated arguments.
+
 ## Package layout
 
 Find where every class lives, so you know what to import and where a part of your own belongs. The package has two
