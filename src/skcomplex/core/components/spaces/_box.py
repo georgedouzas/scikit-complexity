@@ -1,4 +1,7 @@
-"""Define box neighbourhoods, every site within a radius in lexicographic order with the site itself in place."""
+"""Define box neighbourhoods.
+
+A box neighbourhood is every site within a radius in lexicographic order with the site itself in place.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,9 +14,10 @@ from ._lattice_neighborhood import LatticeNeighborhood
 
 
 class BoxNeighborhood(LatticeNeighborhood):
-    """Every site within a radius along every dimension, the site itself in place, as one-dimensional automata read.
+    """Every site within a radius along every dimension, the site itself in place.
 
-    For radius 1 in one dimension the order is left, centre, right, the order of Wolfram's rule numbers.
+    This is how one-dimensional automata read. For radius 1 in one dimension the order is left, centre, right, the order
+    of Wolfram's rule numbers.
 
     Args:
         radius:
@@ -37,5 +41,8 @@ class BoxNeighborhood(LatticeNeighborhood):
         self.n_dim = n_dim
 
     def _get_offsets(self) -> tuple[IntTuple, ...]:
-        """Return every offset within the radius in lexicographic order, the zero offset included."""
+        """Return every offset within the radius in lexicographic order.
+
+        The zero offset is included.
+        """
         return tuple(itertools.product(range(-self.radius, self.radius + 1), repeat=self.n_dim))

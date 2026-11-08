@@ -1,4 +1,7 @@
-"""Define pseudo-Riemannian spaces, coordinate charts with a symbolic metric and the curvature it derives."""
+"""Define pseudo-Riemannian spaces.
+
+They are coordinate charts with a symbolic metric and the curvature it derives.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,13 +25,13 @@ type Derivation = tuple[Matrix, tuple[Expression, ...], bool]
 
 
 class PseudoRiemannianSpace(ContinuousSpace):
-    """Chart of coordinates with a symbolic metric `g_(mu nu)`, from which the connection and the curvature follow.
+    """Chart of coordinates with a symbolic metric `g_(mu nu)`.
 
-    The metric is a symmetric, nondegenerate Sage matrix whose entries are expressions of the coordinates, numbers,
-    and symbolic functions of the coordinates. A function stands for an unknown of an ansatz, such as the scale factor
-    `a(t)` of a homogeneous universe, which `EinsteinInteraction` solves for. The space is an unbounded continuous space
-    with one dimension per coordinate, so a point on it has one component per coordinate, as a test particle of
-    `GeodesicInteraction` does.
+    The connection and the curvature follow from the metric. The metric is a symmetric, nondegenerate Sage matrix whose
+    entries are expressions of the coordinates, numbers, and symbolic functions of the coordinates. A function stands
+    for an unknown of an ansatz, such as the scale factor `a(t)` of a homogeneous universe, which `EinsteinInteraction`
+    solves for. The space is an unbounded continuous space with one dimension per coordinate, so a point on it has one
+    component per coordinate, as a test particle of `GeodesicInteraction` does.
 
     `prepare` derives, through EinsteinPy, the Christoffel symbols
     `Γ^mu_(alpha beta) = g^(mu lambda) (∂_alpha g_(lambda beta) + ∂_beta g_(lambda alpha) - ∂_lambda g_(alpha beta))/2`
@@ -112,18 +115,24 @@ class PseudoRiemannianSpace(ContinuousSpace):
         self.curvature = curvature
 
     def _get_coordinates(self) -> tuple[Expression, ...]:
-        """Return the coordinates as Sage variables, the hook a subclass overrides to name its own."""
+        """Return the coordinates as Sage variables.
+
+        This is the hook a subclass overrides to name its own.
+        """
         return tuple(SR.var(item) if isinstance(item, str) else SR(item) for item in self.coordinates)
 
     def _get_metric(self) -> Matrix:
-        """Return the metric as a Sage matrix, the hook a subclass overrides to derive it from its parameters."""
+        """Return the metric as a Sage matrix.
+
+        This is the hook a subclass overrides to derive it from its parameters.
+        """
         if self.metric is None:
             error_msg = f'{type(self).__name__} has no metric. Give a square matrix of expressions.'
             raise ValidationError(error_msg)
         return matrix(SR, self.metric)
 
     def _check(self) -> None:
-        """Raise an error for a metric that is not symmetric, square, and nondegenerate, or for coordinates that clash.
+        """Raise an error for an invalid metric or coordinates that clash.
 
         Raises:
             ValidationError:
@@ -158,7 +167,10 @@ class PseudoRiemannianSpace(ContinuousSpace):
             yield from self._walk(operand)
 
     def _get_functions(self, metric: Matrix) -> list[SymbolicFunction]:
-        """Return the symbolic functions of the metric, those of the ansatz, in order of appearance."""
+        """Return the symbolic functions of the metric in order of appearance.
+
+        They are those of the ansatz.
+        """
         functions: list[SymbolicFunction] = []
         for entry in metric.list():
             for item in self._walk(SR(entry)):
@@ -169,17 +181,23 @@ class PseudoRiemannianSpace(ContinuousSpace):
         return functions
 
     def _rename(self, expression: Expression, pairs: Sequence[tuple[SymbolicFunction, SymbolicFunction]]) -> Expression:
-        """Return an expression with every function of a pair replaced by the other function of the pair."""
+        """Return an expression with every function of a pair replaced by the other."""
         for old, new in pairs:
             expression = expression.substitute_function(old, new)
         return expression
 
     def _to_sage(self, value: object, pairs: Sequence[tuple[SymbolicFunction, SymbolicFunction]]) -> Expression:
-        """Return a SymPy expression of EinsteinPy as a Sage expression, with the functions of the ansatz restored."""
+        """Return a SymPy expression of EinsteinPy as a Sage expression.
+
+        The functions of the ansatz are restored.
+        """
         return self._rename(SR(value), [(new, old) for old, new in pairs])
 
     def _is_derived(self, source: Derivation) -> bool:
-        """Return whether the tensors were derived from an equal metric, coordinates, and curvature flag."""
+        """Return whether the tensors were derived from an equal source.
+
+        The source is the metric, the coordinates, and the curvature flag.
+        """
         previous: Derivation | None = getattr(self, 'derived_from_', None)
         if previous is None or previous[2] != source[2] or len(previous[1]) != len(source[1]):
             return False
@@ -189,10 +207,11 @@ class PseudoRiemannianSpace(ContinuousSpace):
         return all(SR(old).is_trivially_equal(SR(new)) for old, new in pairs)
 
     def _prepare(self, context: None = None) -> None:
-        """Set the coordinates, the metric, its inverse, and the tensors, derived again only when their source changed.
+        """Set the coordinates, the metric, its inverse, and the tensors.
 
-        A space is prepared again whenever a part that reads it is prepared, so the derivation, the slow step, runs only
-        for a metric, coordinates, or a curvature flag that differ by value from those of the last derivation.
+        The tensors are derived again only when their source changed. A space is prepared again whenever a part that
+        reads it is prepared, so the derivation, the slow step, runs only for a metric, coordinates, or a curvature flag
+        that differ by value from those of the last derivation.
         """
         self.coordinates_ = self._get_coordinates()
         self.metric_ = self._get_metric()
@@ -212,7 +231,10 @@ class PseudoRiemannianSpace(ContinuousSpace):
             self.derived_from_ = source
 
     def _derive(self) -> None:
-        """Set the Christoffel symbols and, with `curvature`, the curvature tensors, through EinsteinPy."""
+        """Set the Christoffel symbols and, with `curvature`, the curvature tensors.
+
+        They are derived through EinsteinPy.
+        """
         n_dim = len(self.coordinates_)
         # SymPy reads some names of functions, such as `E` or `gamma`, as its own, so the ansatz is renamed on the way.
         functions = self._get_functions(self.metric_)

@@ -11,9 +11,10 @@ from ._lattice_neighborhood import LatticeNeighborhood
 
 
 class MooreNeighborhood(LatticeNeighborhood):
-    """Sites within a radius along every dimension, the 8 surrounding cells in two dimensions for radius 1.
+    """Sites within a radius along every dimension.
 
-    The offsets come in lexicographic order, after the site itself when it is included.
+    In two dimensions and for radius 1 they are the 8 surrounding cells. The offsets come in lexicographic order, after
+    the site itself when it is included.
 
     Args:
         radius:
@@ -43,7 +44,10 @@ class MooreNeighborhood(LatticeNeighborhood):
         self.center = center
 
     def _get_offsets(self) -> tuple[IntTuple, ...]:
-        """Return the offsets within the radius along every dimension, after the site itself when included."""
+        """Return the offsets within the radius along every dimension.
+
+        They come after the site itself when included.
+        """
         steps = range(-self.radius, self.radius + 1)
         offsets = tuple(offset for offset in itertools.product(steps, repeat=self.n_dim) if any(offset))
         return ((0,) * self.n_dim, *offsets) if self.center else offsets

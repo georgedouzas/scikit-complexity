@@ -1,4 +1,7 @@
-"""Define mesh spaces, unstructured triangular and tetrahedral meshes that finite element fields live on."""
+"""Define mesh spaces.
+
+They are unstructured triangular and tetrahedral meshes that finite element fields live on.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,10 +18,10 @@ TRIANGLE_DIMENSIONS = 2
 
 
 class MeshSpace(BaseSpace):
-    """Unstructured mesh of triangles or tetrahedra, whose nodes hold the members of finite element fields.
+    """Unstructured mesh of triangles or tetrahedra.
 
-    Build the nodes and cells with scikit-fem, such as `skfem.MeshTri.init_lshaped().refined(3)`, and pass its `p` and
-    `t` arrays.
+    Its nodes hold the members of finite element fields. Build the nodes and cells with scikit-fem, such as
+    `skfem.MeshTri.init_lshaped().refined(3)`, and pass its `p` and `t` arrays.
 
     Args:
         points:

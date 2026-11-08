@@ -1,4 +1,7 @@
-"""Define Cayley spaces, the Cayley graphs of finitely generated groups on balls or on whole finite groups."""
+"""Define Cayley spaces.
+
+They are the Cayley graphs of finitely generated groups on balls or on whole finite groups.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,12 +31,13 @@ TOKEN = re.compile(r'^([A-Za-z_]\w*)(?:\^(-?\d+))?$')
 
 
 class CayleySpace(BaseSpace):
-    """Cayley graph of a finitely generated group, on a ball of words or a whole finite group, whose sites hold cells.
+    """Cayley graph of a finitely generated group, whose sites hold cells.
 
-    The group is a native Sage or GAP group: a Sage `PermutationGroup` or `MatrixGroup`, or a GAP group from `libgap`,
-    such as the free group `libgap.FreeGroup(['a', 'b'])`, a finitely presented group `free / relators`, an automaton
-    group `libgap.AutomatonGroup('t = (1, t)(1, 2)')` of the AutomGrp package, or the finite quotient of one, such as
-    `libgap.PermGroupOnLevel(group, 3)`. Finitely presented groups are solved by Knuth-Bendix completion with KBMAG.
+    The graph is on a ball of words or a whole finite group. The group is a native Sage or GAP group: a Sage
+    `PermutationGroup` or `MatrixGroup`, or a GAP group from `libgap`, such as the free group `libgap.FreeGroup(['a',
+    'b'])`, a finitely presented group `free / relators`, an automaton group `libgap.AutomatonGroup('t = (1, t)(1, 2)')`
+    of the AutomGrp package, or the finite quotient of one, such as `libgap.PermGroupOnLevel(group, 3)`. Finitely
+    presented groups are solved by Knuth-Bendix completion with KBMAG.
 
     Sites are the distinct elements of a ball of a radius in the generators and their inverses, numbered by word length
     and then by order of discovery, so a ball is a prefix of every larger ball. Without a ball the group must be finite,
@@ -113,7 +117,9 @@ class CayleySpace(BaseSpace):
         return self.group if isinstance(self.group, GapElement) else libgap(self.group)
 
     def _get_rewriting(self, group: GapElement) -> GapElement:
-        """Return a confluent rewriting system of a finitely presented group, by the shortlex or recursive ordering.
+        """Return a confluent rewriting system of a finitely presented group.
+
+        It uses the shortlex or recursive ordering.
 
         Args:
             group:
@@ -142,18 +148,27 @@ class CayleySpace(BaseSpace):
         raise SpaceError(error_msg)
 
     def _get_level(self, group: GapElement) -> int:
-        """Return the level of the tree of an automaton group whose action keys its elements, or 0 for other groups."""
+        """Return the level of the tree of an automaton group whose action keys elements.
+
+        It returns 0 for other groups.
+        """
         if not libgap.IsTreeAutomorphismGroup(group):
             return 0
         degree = int(libgap.DegreeOfTree(group))
         return max(1, int(np.log(LEVEL_POINTS) / np.log(degree)))
 
     def _get_key(self, element: GapElement | npt.NDArray[np.intp]) -> str | bytes:
-        """Return the key of an element: its canonical text, or for an automaton its action on a level of the tree."""
+        """Return the key of an element.
+
+        It is its canonical text, or for an automaton its action on a level of the tree.
+        """
         return element.tobytes() if self.level_ else str(element)
 
     def _get_letters(self, group: GapElement) -> list[GapElement | npt.NDArray[np.intp]]:
-        """Return every generator and its inverse, as permutations of the points of a level for an automaton group."""
+        """Return every generator and its inverse.
+
+        For an automaton group they are permutations of the points of a level.
+        """
         letters = [generator**sign for generator in libgap.GeneratorsOfGroup(group) for sign in (1, -1)]
         if not self.level_:
             return letters
@@ -168,11 +183,16 @@ class CayleySpace(BaseSpace):
         element: GapElement | npt.NDArray[np.intp],
         letter: GapElement | npt.NDArray[np.intp],
     ) -> GapElement | npt.NDArray[np.intp]:
-        """Return the product of an element and a letter, composing the actions on the level for an automaton."""
+        """Return the product of an element and a letter.
+
+        For an automaton it composes the actions on the level.
+        """
         return letter[element] if self.level_ else element * letter
 
     def _parse_word(self, text: str) -> list[int]:
-        """Return a word written as `a*b^-1*a^2` as signed generator numbers, `i + 1` for generator `i`.
+        """Return a word written as `a*b^-1*a^2` as signed generator numbers.
+
+        Generator `i` is numbered `i + 1`.
 
         Args:
             text:
@@ -245,7 +265,10 @@ class CayleySpace(BaseSpace):
         return len(elements) - 1
 
     def _enumerate(self, group: GapElement) -> tuple[list[list[int]], list[list[int]], list[int]]:
-        """Return the word and the neighbours by letter of every site, and the ball sizes, by breadth-first search."""
+        """Return the word and the neighbours by letter of every site, and the ball sizes.
+
+        They come from a breadth-first search.
+        """
         rewriting = self._get_rewriting(group) if libgap.IsFpGroup(group) else None
         words_group = libgap.FreeGroupOfFpGroup(group) if rewriting is not None else group
         letters = self._get_letters(words_group)
@@ -280,7 +303,7 @@ class CayleySpace(BaseSpace):
         return words, rows, sizes
 
     def _check(self) -> None:
-        """Raise an error for a group that is not a Sage or GAP group, or a ball of negative radius.
+        """Raise an error for a group not a Sage or GAP group, or a negative ball radius.
 
         Raises:
             ValidationError:
@@ -294,7 +317,10 @@ class CayleySpace(BaseSpace):
             raise ValidationError(error_msg)
 
     def _prepare(self, context: None = None) -> None:
-        """Enumerate the sites, and set their words, their neighbours by generator, their edges, and their positions."""
+        """Enumerate the sites and set their words, neighbours, edges, and positions.
+
+        The neighbours are by generator.
+        """
         # GAP caches its current directory on first use, and a change of directory in Python does not update it. Loading
         # a package and running KBMAG both use it, so it would point to a removed folder after that folder is deleted.
         libgap.ChangeDirectoryCurrent(str(Path.cwd()))
@@ -332,11 +358,17 @@ class CayleySpace(BaseSpace):
         return frozenset({'image'})
 
     def _default_neighborhood(self) -> MemoryNeighborhood:
-        """Return the memory set of the generators and their inverses, without the site itself."""
+        """Return the memory set of the generators and their inverses.
+
+        It leaves out the site itself.
+        """
         return MemoryNeighborhood(tuple(word for name in self.generators_ for word in (name, f'{name}^-1')))
 
     def _index_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
-        """Return the site `g s` of every site `g` and element `s` of a memory set, with `size_` outside the space."""
+        """Return the site `g s` of every site `g` and element `s` of a memory set.
+
+        A site outside the space gets `size_`.
+        """
         if not isinstance(neighborhood, MemoryNeighborhood):
             error_msg = f'A Cayley space reads a memory set of group elements, but it was given {neighborhood!r}.'
             raise ValidationError(error_msg)
@@ -353,10 +385,10 @@ class CayleySpace(BaseSpace):
         return table
 
     def _translation_table(self, neighborhood: BaseNeighborhood) -> npt.NDArray[np.intp]:
-        """Return the site of `g h s` for every site `g`, site `h`, and word `s`, with `size_` outside the space.
+        """Return the site of `g h s` for every site `g`, site `h`, and word `s`.
 
-        The product walks the shortest word of `h` and then the word `s` from `g`, so on a ball a product reached
-        through a site outside it lies outside, as for a memory set.
+        A site outside the space gets `size_`. The product walks the shortest word of `h` and then the word `s` from
+        `g`, so on a ball a product reached through a site outside it lies outside, as for a memory set.
 
         Args:
             neighborhood:
@@ -392,11 +424,17 @@ class CayleySpace(BaseSpace):
         return table
 
     def _ball(self, radius: int) -> MemoryNeighborhood:
-        """Return the memory set of the shortest words of the sites within a radius, the identity first."""
+        """Return the memory set of the shortest words of the sites within a radius.
+
+        The identity comes first.
+        """
         sizes = self.ball_sizes_
         return MemoryNeighborhood(tuple(self.words_[: sizes[min(radius, len(sizes) - 1)]]))
 
     def _neighbor_pairs(self, layer: str | None = None) -> list[tuple[int, int]]:
-        """Return the pairs of distinct sites joined by an edge of the Cayley graph, each pair once."""
+        """Return the pairs of distinct sites joined by an edge of the Cayley graph.
+
+        Each pair comes once.
+        """
         found = {frozenset((first, second)): (first, second) for first, second, _ in self.edges_ if first != second}
         return list(found.values())

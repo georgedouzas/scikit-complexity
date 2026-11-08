@@ -1,4 +1,7 @@
-"""Define phase spaces, the product of a position lattice and class axes such as velocity or orientation."""
+"""Define phase spaces.
+
+A phase space is the product of a position lattice and class axes such as velocity or orientation.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,11 +21,12 @@ DEFAULT_LIMIT = 2**26
 
 
 class PhaseSpace(LatticeSpace):
-    """Product of a position lattice and class axes, a lattice whose sites are the points of the product.
+    """Product of a position lattice and class axes.
 
-    The position axes come first and sites are in row-major order, so the sites at one position are contiguous. A class
-    axis has its own cells, of width `(high - low) / size`, and its own edges, without flux for an interval and joined
-    for a periodic axis. The position axes keep the boundary of the position lattice.
+    It is a lattice whose sites are the points of the product. The position axes come first and sites are in row-major
+    order, so the sites at one position are contiguous. A class axis has its own cells, of width `(high - low) / size`,
+    and its own edges, without flux for an interval and joined for a periodic axis. The position axes keep the boundary
+    of the position lattice.
 
     Args:
         position:
@@ -90,7 +94,10 @@ class PhaseSpace(LatticeSpace):
         self.limit = limit
 
     def _check(self) -> None:
-        """Raise an error for a position that is no square lattice, no class axes, or axes that share a name."""
+        """Raise an error for a bad position, no class axes, or axes sharing a name.
+
+        The position must be a square lattice.
+        """
         super()._check()
         self.position._validated()
         if type(self.position) is not LatticeSpace or self.position.geometry != 'square':
@@ -105,7 +112,7 @@ class PhaseSpace(LatticeSpace):
             raise ValidationError(error_msg)
 
     def _prepare(self, context: None = None) -> None:
-        """Set the shape, the size, the spacings, the coordinates, and the position of every site."""
+        """Set the shape, the size, the spacings, the coordinates, and the site positions."""
         position = self.position.prepare()
         self.position_size_ = position.size_
         self.position_axes_ = tuple(range(position.n_dim_))
@@ -128,12 +135,18 @@ class PhaseSpace(LatticeSpace):
         self.default_visual_ = 'image'
 
     def _axis_boundary(self, axis: int) -> str:
-        """Return the edges of an axis, those of the position lattice or those of the class axis."""
+        """Return the edges of an axis.
+
+        They are those of the position lattice or those of the class axis.
+        """
         if axis < self.position.n_dim_:
             return self.boundary
         return 'periodic' if self.axes[axis - self.position.n_dim_].periodic else 'reflecting'
 
     def _with_edges(self, boundary: str, fill: float) -> PhaseSpace:
-        """Return the sites of the space with other edges of its position axes, the class axes keeping theirs."""
+        """Return the sites of the space with other edges of its position axes.
+
+        The class axes keep theirs.
+        """
         position = LatticeSpace(self.position.shape_, boundary=boundary, fill=fill, spacing=self.position.spacings_)
         return PhaseSpace(position, self.axes, limit=self.limit).prepare()

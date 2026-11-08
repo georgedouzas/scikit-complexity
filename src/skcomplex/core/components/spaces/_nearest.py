@@ -1,4 +1,7 @@
-"""Define nearest neighbourhoods, the members of a continuous space closest to a member."""
+"""Define nearest neighbourhoods.
+
+They are the members of a continuous space closest to a member.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -8,10 +11,10 @@ from ._base import BaseNeighborhood
 
 
 class NearestNeighborhood(BaseNeighborhood):
-    """The `k` members of a continuous space closest to a member, the topological neighbourhood.
+    """The `k` members of a continuous space closest to a member.
 
-    Distances are measured between the position states of the members, by the minimum image in a periodic box. A group
-    of at most `k` other members gives every member all the others.
+    This is the topological neighbourhood. Distances are measured between the position states of the members, by the
+    minimum image in a periodic box. A group of at most `k` other members gives every member all the others.
 
     Args:
         k:
@@ -35,7 +38,10 @@ class NearestNeighborhood(BaseNeighborhood):
         self.center = center
 
     def _check(self) -> None:
-        """Raise an error for a number of neighbours that is not a whole number of at least 1."""
+        """Raise an error for a number of neighbours that is not a whole number above 0.
+
+        The number must be at least 1.
+        """
         if int(self.k) != self.k or int(self.k) < 1:
             error_msg = f'A nearest neighbourhood needs a whole number of neighbours of at least 1, but got {self.k!r}.'
             raise ValidationError(error_msg)

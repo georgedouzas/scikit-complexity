@@ -1,4 +1,7 @@
-"""Define static time, in which a system holds only constraints and objectives and a run solves it once."""
+"""Define static time.
+
+In static time a system holds only constraints and objectives, and a run solves it once.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,7 +15,9 @@ from ._base import BaseTime
 
 
 class StaticTime(BaseTime):
-    """No time: the system holds only constraints and objectives, and a run solves it once.
+    """No time.
+
+    The system holds only constraints and objectives, and a run solves it once.
 
     Args:
         label:
