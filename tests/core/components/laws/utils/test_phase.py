@@ -185,7 +185,7 @@ def test_drift_reads_field_over_position_through_sources() -> None:
         drift=lambda s: [0, s.sources[0].f],
         sources=['force'],
     )
-    system = System(elements=[gas, force], interactions=[drift])
+    system = System(elements=[gas, force], interactions=[drift], space=space)
     final = simulate(system, until=0.5, solver=RK4Solver(dt=0.01))
     values = final.values('gas.f')[-1].reshape(2, 32)
     assert np.array_equal(values[1], start[1])
@@ -206,7 +206,7 @@ def test_rate_over_position_reads_moment_through_sources() -> None:
         rate=lambda s: moment(s.sources[0].f, 0, axes=('v',)),
         sources=['gas'],
     )
-    system = System(elements=[gas, level], interactions=[rate])
+    system = System(elements=[gas, level], interactions=[rate], space=space)
     final = simulate(system, until=1.0, solver=RK4Solver(dt=0.1))
     assert final.values('level.f')[-1] == pytest.approx([2.0, 4.0, 6.0])
 
