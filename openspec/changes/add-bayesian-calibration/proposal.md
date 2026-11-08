@@ -29,8 +29,8 @@ through differentiable runs are mature in libraries on the JAX and SciPy stack t
   and `BrockHommesSystem` serve as probes. New systems `OffLatticeTumourGrowthSystem` and `CellCycleInvasionSystem`
   after 2409.19675, and `DifferentiableCovidAbmSystem` after 2305.15340.
 - **Relaxed discrete draws.** `bernoulli` and `categorical` take `temperature` and `hard`. The JAX lowering replaces a
-  draw with a temperature by its concrete (Gumbel-softmax) relaxation, with straight-through hard values as an option,
-  so gradients flow through discrete draws. Other backends draw exactly and ignore the relaxation.
+  draw with a temperature by its concrete relaxation of the same uniform value, with straight-through hard values as an
+  option, so gradients flow through discrete draws. Other backends draw exactly and ignore the relaxation.
 - **Delaunay neighbourhoods.** `DelaunayNeighborhood` joins the members of a continuous space along the edges of their
   Delaunay triangulation, across periodic boundaries, recomputed as members move.
 - **Dependencies.** optuna, pyabc, and numpyro become runtime dependencies.

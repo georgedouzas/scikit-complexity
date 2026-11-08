@@ -106,39 +106,58 @@ noise, jump, rule, and callable laws as not differentiable.
   2601.07413). `OffLatticeTumourGrowthSystem` and `CellCycleInvasionSystem` probe ABC-SMC with summaries on spatial
   agents (2409.19675). `DifferentiableCovidAbmSystem` probes variational calibration through a differentiable agent
   run (2305.15340).
-- **Relaxed discrete draws.** `bernoulli(name, p, temperature=None, hard=False)` and `categorical(name, *weights,
-  temperature=None, hard=False)` record the two options in `DrawSpec`, so a relaxation is an option of the existing draw,
-  not a new kind. NumPy and Numba draw exactly from the uniform value of the step and ignore the options. The JAX
+- **Relaxed discrete draws.** `bernoulli(name, p, temperature=None, hard=False)` and `categorical(name, weights,
+  temperature=None, hard=False)` record the two options in `DrawSpec`, so a relaxation is an option of the existing
+  draw, not a new kind. NumPy and Numba draw exactly from the uniform value of the step and ignore the options. The JAX
   lowering, used by differentiable runs and the learning compiler, writes the concrete relaxation of the same uniform
-  value `u` in place of the exact threshold: `sigmoid((log p - log(1 - p) + log u - log(1 - u)) / T)` for a Bernoulli
-  draw, and `sum_k k softmax_k((log w_k + g_k) / T)` with `g_k = -log(-log u_k)` for a categorical draw, which draws
-  one uniform value per category. With `hard=True` the value is `exact + relaxed - stop_gradient(relaxed)`, so the
+  value `u` in place of the exact threshold: `sigmoid((logit p - logit u) / T)` for a Bernoulli draw, the binary
+  concrete relaxation of `u < p` with `p` clipped into `[1e-12, 1 - 1e-12]`, and `sum_k sigmoid((u - c_k / W) / T)` over
+  the cumulative weights `c_k` before the last and the total weight `W` for a categorical draw, the relaxation of its
+  inverse distribution function. The categorical relaxation reads the one uniform value the exact draw reads, instead of
+  one Gumbel value per category, so a hard value is the exact NumPy draw of the same uniform value and the extended
+  parameter vector keeps one value per draw. With `hard=True` the value is `exact + (relaxed - stop_gradient(relaxed))`,
+  with the difference held in a choice of the uniform value so Sage keeps it apart and it evaluates to exactly 0, so the
   forward value is exact and the gradient is the relaxation's (Bengio et al. 2013). The relaxation is a private method
   of `DrawLowering` that a JAX run selects, and `stop_gradient` is a symbolic function that the JAX printer lowers to
-  `jax.lax.stop_gradient` and every other printer to the identity. A Bernoulli or categorical draw without a
-  temperature has no gradient, so the JAX lowering reports a `not-differentiable` issue naming it. The differentiable
-  unroll of `JaxBackend` takes a JAX key, splits one key per step, and writes the uniform values of the step into the
-  extended parameter vector where the draw kernel writes them in NumPy runs. The name is the mathematical operation,
-  a relaxed draw, not a field quantity. Domains that use it: epidemic agents (infection and recovery draws), opinion
-  dynamics (stochastic adoption and Deffuant outcomes), ecology (birth and death draws of individuals), spin models
-  (Glauber flips), and discrete choice in economics, wherever a discrete stochastic model is calibrated by gradients.
+  `jax.lax.stop_gradient` and every other printer to the identity. A Bernoulli or categorical draw without a temperature
+  has no gradient, so a JAX compilation reports a `not-differentiable` warning naming it, which forward JAX runs pass
+  and the differentiable runs of calibration stop at. `JaxBackend.unroll` takes the draw kernel and returns `run(x0, p,
+  key)`, which splits one key per step and writes the uniform and normal values of the step after the parameters, where
+  the draw kernel writes them in NumPy runs. `Tags` gains `reparameterized`, which a part declares with the class
+  attribute of the same name when every draw of its laws is uniform, normal, or relaxed, and a system holds when every
+  stochastic part does, so `differentiable` covers such stochastic parts. Variational calibration draws a fresh key at
+  every step of the fit, and MCMC runs NUTS only on deterministic differentiable systems. The name is the mathematical
+  operation, a relaxed draw, not a field quantity. Domains that use it: epidemic agents (infection and recovery draws),
+  opinion dynamics (stochastic adoption and Deffuant outcomes), ecology (birth and death draws of individuals), spin
+  models (Glauber flips), and discrete choice in economics, wherever a discrete stochastic model is calibrated by
+  gradients.
 - **Delaunay neighbourhoods.** `DelaunayNeighborhood(center=False)` in a new module `_delaunay.py` of the package
   `spaces`, beside `RadiusNeighborhood`, `NearestNeighborhood`, and `ConeNeighborhood`, so neighbourhoods stay with
   spaces. The metric search of continuous spaces, which already finds radius, nearest, and cone neighbours every step,
   gains a private method that triangulates the positions with `scipy.spatial.Delaunay` and returns the pairs joined by
   an edge. In a periodic space it triangulates the positions with their eight (two dimensions) or twenty-six (three
-  dimensions) periodic images and maps the edges back to members, so neighbours connect across the boundary. The
-  search runs at every step, so the neighbours follow moving members and variable groups. Fewer than `dimension + 1`
-  members, or members in a degenerate position, give every member all the others. Domains that use it: tissues and
-  tumours (cell centres joined by springs), foams and granular packings, ecological territories and Voronoi
-  competition, spatial social models of neighbours in the plane, and meshes of moving particles.
+  dimensions) periodic images and maps the edges back to members, so neighbours connect across the boundary. The search
+  runs at every step, so the neighbours follow moving members and variable groups. Fewer than `dimension + 1` members,
+  or members in a degenerate position, give every member all the others. Domains that use it: tissues and tumours (cell
+  centres joined by springs), foams and granular packings, ecological territories and Voronoi competition, spatial
+  social models of neighbours in the plane, and meshes of moving particles. A system with a Delaunay neighbourhood and
+  no backend given runs on NumPy whatever its size, since the triangulation runs in SciPy and the Numba backend names
+  the NumPy backend instead. Agent rules read the same neighbours through `neighbors(over=DelaunayNeighborhood())` of
+  the agent view, which extends the existing method and triangulates the positions of the group once per step, or again
+  after agents are created or removed, with the same private search of `MetricSearch`.
 - **Differentiable COVID agents.** An ordinary agent group with discrete susceptible, infected, and recovered states,
-  updated by update laws that draw infection and recovery through relaxed Bernoulli draws of Eq. 6 of 2305.15340.
-  Places are membership matrices built by the module from a seeded synthetic population and read through weighted
-  reductions. The JAX lowering makes the run differentiable, and the NumPy run draws exact agents.
-- **Off-lattice tumour.** A variable group of cells in a continuous square space. Springs act along the edges of
-  `DelaunayNeighborhood` and relax by the update of Eq. 2.2. Division and invasion draw through named draws, so runs
-  record them.
+  updated by update laws that draw infection and recovery through relaxed Bernoulli draws of Eq. 6 of 2305.15340, in
+  `CovidTransmissionInteraction`, which declares its draws reparameterized. Places are households of two adults and two
+  children, schools, and companies of a seeded synthetic population, read through weighted sums whose weights
+  `1 / (n_L - 1)` give the share of infected co-members. The element `cases` counts the infections of children and of
+  adults of the day before, the states that calibration reads. The JAX lowering makes the run differentiable, and the
+  NumPy run draws exact agents.
+- **Off-lattice tumour.** A variable agent group of cells in a continuous square space, run by the Mesa solver, since
+  the positions of a variable group are agent locations rather than states. One member rule of
+  `TumourGrowthInteraction` ages every cell, divides and invades through named draws, so runs record them, and moves it
+  by the springs of Eq. 2.2 along the edges of its Delaunay neighbours. Springs longer than one and a half natural
+  lengths are cut, as in Meineke et al. (2001), a division splits a cell into two cells 0.8 natural lengths apart, and
+  a cell pushed out of the square leaves the observed tissue.
 - **Dependencies.** Checked on PyPI on 2026-11-08: optuna 5.0.0 (2026-09-07, Python 3.9 or later), pyabc 0.13.1
   (2026-10-28, Python 3.11 or later), numpyro 0.22.0 (2026-09-18, Python 3.11 or later, needs only jax, jaxlib,
   multipledispatch, numpy, and tqdm). All are within the 24-month limit of `dependency-freshness` and support the
