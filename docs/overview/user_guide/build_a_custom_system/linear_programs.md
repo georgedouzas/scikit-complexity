@@ -113,8 +113,8 @@ reaction, one adaptive switch per gene, and one lower and one upper bound parame
 
 `ElementaryFluxModesSystem` runs on the default install. The systems built on the E. coli core model, which COBRApy
 bundles, need the extra `metabolism`: `FluxBalanceSystem`, `DynamicFBASystem`, `RegulatoryFBASystem`,
-`MetabolicPerturbationsSystem`, `CommunityFBASystem`, `DynamicMultispeciesFBASystem`, and `CometsSystem`. Install it with `pip install
-'scikit-complexity[metabolism]'`. Without it they raise `MissingExtraError`.
+`MetabolicPerturbationsSystem`, `CommunityFBASystem`, `DynamicMultispeciesFBASystem`, and `CometsSystem`. Install it
+with `pip install 'scikit-complexity[metabolism]'`. Without it they raise `MissingExtraError`.
 
 The extra holds COBRApy, StrainDesign, and MICOM. COBRApy brings GLPK into the environment, which is under the GPL-3.0.
 The package imports no module of GLPK, and it points COBRApy to the `hybrid` solver interface. The extra also holds

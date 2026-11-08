@@ -44,8 +44,8 @@ heated.values('heater.power').tolist()
 
 Laws read a control input like a parameter, and trajectories record it like a state. A schedule, an optimal control
 solver, or a feedback controller supplies its value. Without one it keeps its initial value. `simulate` raises a
-`ParameterError` for an initial value outside the bounds, at the parameter, and the fix in the message names the bounds. Above, a
-power of 2 is outside the bounds `(0, 1)`.
+`ParameterError` for an initial value outside the bounds, at the parameter, and the fix in the message names the bounds.
+Above, a power of 2 is outside the bounds `(0, 1)`.
 
 ## Objectives and optimal control
 

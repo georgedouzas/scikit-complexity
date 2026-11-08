@@ -208,9 +208,9 @@ particles of one mass, with `n` particles for the largest initial density. In ev
 - a proliferation adds a Poisson number of particles, and a destruction removes a binomial number.
 
 The state holds the empirical densities, so trajectories match the ODE form, and the error against the ODE solution
-falls as one over the square root of `n`. The welfare system, whose policy is an encounter too, runs on it as well, as the
-last line shows. The solver supports continuous time, lattice spaces, site groups, and
-encounter laws only. Validation reports a rate law with it and lists the solvers that run it.
+falls as one over the square root of `n`. The welfare system, whose policy is an encounter too, runs on it as well, as
+the last line shows. The solver supports continuous time, lattice spaces, site groups, and encounter laws only.
+Validation reports a rate law with it and lists the solvers that run it.
 
 ## Levels
 
@@ -241,9 +241,9 @@ round(float(density.sum()), 6), round(float(density @ classes), 3), round(float(
   and the group's constructor builds them.
 - A system can then run one level in a partition of a co-simulation and feed another level its moments.
 
-The library has `KineticWealthWelfareSystem`, `ImmuneCompetitionSystem`, `KineticOpinionSystem`, `EvacuationSystem`,
-and `CriminalitySystem`. `EvacuationSystem` holds a crowd on a network of rooms as a site group on a two-dimensional lattice indexed by room and speed
-class, whose walking encounters read the doors of the building.
+The library has `KineticWealthWelfareSystem`, `ImmuneCompetitionSystem`, `KineticOpinionSystem`, `EvacuationSystem`, and
+`CriminalitySystem`. `EvacuationSystem` holds a crowd on a network of rooms as a site group on a two-dimensional lattice
+indexed by room and speed class, whose walking encounters read the doors of the building.
 
 ## Automata on groups
 
@@ -309,8 +309,8 @@ The group is a native Sage or GAP group. So any presentation works whose word pr
 - A Sage `PermutationGroup` or `MatrixGroup` compares its elements directly.
 
 GAP comes with the `passagemath-gap` dependency, and starts on the first ball that needs it. A ball whose size bound
-exceeds `max_sites`, 100,000 by default, raises `SpaceTooLargeError` before GAP is called. `simulate` reports it with the
-issue `space-too-large`, which names the largest radius that fits.
+exceeds `max_sites`, 100,000 by default, raises `SpaceTooLargeError` before GAP is called. `simulate` reports it with
+the issue `space-too-large`, which names the largest radius that fits.
 
 A group space lacks the regular geometry of a square lattice and an image layout. So validation reports a checkerboard
 schedule as `schedule-unsupported` and an image visual as `visual-unsupported`. Groups on group spaces stream to Rerun
@@ -485,9 +485,10 @@ the alphabet, so it runs from a configuration with a forbidden pattern, as the l
   single-cell moves.
 - `automaton(system, kind='entropy', windows=windows)` gives `log |X_F| / |F|` along windows `F`.
 - `automaton(system, kind='difference')` gives the cells where two runs differ after one cell changes.
-- `entropy(frames, kind='rate')` of the frames of a run as columns gives the spatial entropy rate of every frame, which never
-  increases under an automaton.
+- `entropy(frames, kind='rate')` of the frames of a run as columns gives the spatial entropy rate of every frame, which
+  never increases under an automaton.
 
 The library has `FreeGroupAutomatonSystem`, `LamplighterAutomatonSystem`, `HeisenbergAutomatonSystem`,
 `BaumslagSolitarAutomatonSystem`, `GrigorchukAutomatonSystem`, the Laplacian `LinearRingAutomatonSystem`, and the golden
-mean shift `SubshiftsSystem`, in `skcomplex.systems.computer_science.automata`. Their groups are written in the forms above.
+mean shift `SubshiftsSystem`, in `skcomplex.systems.computer_science.automata`. Their groups are written in the forms
+above.

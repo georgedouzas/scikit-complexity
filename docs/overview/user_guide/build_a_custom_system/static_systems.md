@@ -68,7 +68,8 @@ trajectory.values('ensemble.entropy')[0]
 
 `log_sum_exp(expression, over=None)` reduces over the members of a group like `total`, as `log sum_j exp(a_j)`, without
 overflow for values of any size. A system-level observable cannot reach a group from another element. So a quantity
-built on it is an `EquationLaw` on a scalar element, read by an interaction that binds the group. `RandomEnergySystem` above, Derrida's random energy system, computes its entropy this way.
+built on it is an `EquationLaw` on a scalar element, read by an interaction that binds the group. `RandomEnergySystem`
+above, Derrida's random energy system, computes its entropy this way.
 
 Quenched disorder is drawn when the system builds its parts, so a disorder average sweeps its `random_state` as an axis
 of `sweep`. The `replicates` of `ensemble` share one draw of the disorder and vary only the dynamics.

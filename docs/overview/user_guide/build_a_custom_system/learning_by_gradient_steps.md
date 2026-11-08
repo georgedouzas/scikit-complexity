@@ -210,5 +210,5 @@ trajectory = simulate(community, until=50, dt=0.1)
 trajectory.values('species.x')[-1].round(3).tolist()
 ```
 
-A tensor of order `k` over `N` members holds `N^k` entries, a million for order 3 over 100 members. `HigherOrderRandomLotkaVolterraSystem`
-builds the random community of Sidhom and Galla (2024) on such a tensor.
+A tensor of order `k` over `N` members holds `N^k` entries, a million for order 3 over 100 members.
+`HigherOrderRandomLotkaVolterraSystem` builds the random community of Sidhom and Galla (2024) on such a tensor.

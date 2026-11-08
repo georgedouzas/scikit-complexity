@@ -74,12 +74,12 @@ loops(monitored, kind='flow-matrix').matrix.sum(axis=1).tolist()
 ```
 
 - A rate or update law outside flows that changes a tagged state raises `ConservationError` when the system compiles.
-- `symbolic(system, kind='conservation')` returns the net inflow of every quantity from the environment, after checking that
-  the internal flows cancel.
+- `symbolic(system, kind='conservation')` returns the net inflow of every quantity from the environment, after checking
+  that the internal flows cancel.
 - The compiler accumulates that inflow in the hidden state `__boundary.<quantity>`. The observer
   `ConservationObserver` checks at every frame that each total changed only by it.
-- `loops(trajectory, kind='flow-matrix', frame=frame)` gives the transaction-flow matrix of a frame of a trajectory, with one row
-  per flow and one column per holder. Its rows sum to zero.
+- `loops(trajectory, kind='flow-matrix', frame=frame)` gives the transaction-flow matrix of a frame of a trajectory,
+  with one row per flow and one column per holder. Its rows sum to zero.
 
 `distributed_delay(value, time, order, conserved=True)` is a material delay of any order. It is a chain of hidden stocks
 in series, and it returns their outflow. With `conserved=False` it is an information smoothing. It adds hidden stocks
@@ -166,9 +166,9 @@ Agents move conserved quantities between each other inside rules. `transfer(sour
 amount between two agents at once. A negative holding is an amount owed, and total holdings stay constant.
 
 A run checks that an expression keeps its first value with `simulate(system, invariants={name: tolerance})`, where the
-name is an observable of the run. At every frame the run compares the observable with its value at the first frame. It raises
-`ConservationError`, naming the observable and the first frame that breaks it. Removing an agent that still holds a
-tagged state also raises `ConservationError`, until its holdings are settled with transfers.
+name is an observable of the run. At every frame the run compares the observable with its value at the first frame. It
+raises `ConservationError`, naming the observable and the first frame that breaks it. Removing an agent that still holds
+a tagged state also raises `ConservationError`, until its holdings are settled with transfers.
 
 ## Translating systems
 

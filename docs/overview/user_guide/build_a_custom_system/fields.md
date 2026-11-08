@@ -56,8 +56,8 @@ ordinary differential equations, so every ODE solver and backend runs it.
   field and conserves its total, and fixed edges read the given value. The lattice's own `boundary` is the default.
 - The equations keep the operators, `diff(u(t), t) == D*laplacian(u(t))`, while the backends evaluate the stencils.
   On Numba, the stencils of a lattice are fused into one compiled loop.
-- `trajectory.problem.stable_step` is the diffusive limit `h^2 / (2 d D)` of explicit steps. Fixed-step solvers whose `dt` exceeds
-  it warn before the run, with the limit.
+- `trajectory.problem.stable_step` is the diffusive limit `h^2 / (2 d D)` of explicit steps. Fixed-step solvers whose
+  `dt` exceeds it warn before the run, with the limit.
 
 Agents on a grid of the same shape couple to a field in co-simulation. A rule reads the field at a cell with
 `system.field('ground/pheromone.level', cell)` and adds to it with `system.deposit(name, cell, amount)`. The deposits

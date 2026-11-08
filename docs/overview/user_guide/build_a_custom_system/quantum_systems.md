@@ -108,8 +108,9 @@ A whole-system initial state, such as an entangled vector or `'ground'`, is give
 Choose how the state evolves, record expectations of operators, and diagonalise the generator exactly. The first block
 of this section finds the two lowest energies of a Heisenberg chain of the catalog.
 
-`simulate` compiles a system of quantum elements to the operator form. Its state is stored as complex pairs under `<system>.state`, a pure
-state for a closed system and a density matrix for an open one. Its solvers hand every frame to QuTiP:
+`simulate` compiles a system of quantum elements to the operator form. Its state is stored as complex pairs under
+`<system>.state`, a pure state for a closed system and a density matrix for an open one. Its solvers hand every frame to
+QuTiP:
 
 - `UnitarySolver` solves the Schrödinger equation.
 - `LindbladSolver`, the default, solves the master equation.

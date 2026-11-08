@@ -26,9 +26,9 @@ There are two kinds of rewritten element:
 - A `PatchElement` is a set of tiles that grows by affine substitutions.
 
 `simulate` compiles a system of words or patches to the rewriting form, and every step is one generation.
-`simulate(system, until=n)` records the generations `0` to `n`. The structure itself lives next to the state vector. The states are the count of every symbol or prototile
-that is a word, and the size `<element>.size`. `Trajectory.structure(path, frame)` returns the recorded structure of a
-frame, which later generations do not change.
+`simulate(system, until=n)` records the generations `0` to `n`. The structure itself lives next to the state vector. The
+states are the count of every symbol or prototile that is a word, and the size `<element>.size`.
+`Trajectory.structure(path, frame)` returns the recorded structure of a frame, which later generations do not change.
 
 ## Words and productions
 
@@ -66,7 +66,8 @@ simulate(plant, until=5).structure('plant', 5).text
 
 A production can take several forms:
 
-- **Stochastic.** Its probabilities sum to one per predecessor and context, and it draws from the random stream of the run.
+- **Stochastic.** Its probabilities sum to one per predecessor and context, and it draws from the random stream of the
+  run.
 - **Context-sensitive.** It depends on a left or a right context. The context skips the word's `ignore` symbols and
   treats bracketed branches as Prusinkiewicz and Lindenmayer (1990) do. A context-sensitive production takes
   precedence over context-free productions.
