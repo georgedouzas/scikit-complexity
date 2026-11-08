@@ -14,6 +14,12 @@ Two mechanisms exist and neither covers k-body terms over moving neighbours:
 
 The swarm of 2611.08314 needs the second form with the rows of the first.
 
+The core feature is cross-domain. Sets of current neighbours carry the k-body terms of flocks and fish schools, the
+three-body potentials of physics and chemistry such as Axilrod-Teller and Stillinger-Weber, and group interactions in
+crowds and social models. So the core names only the mathematical objects, hyperedges and sets of neighbours, and
+everything swarm-specific, such as the flanking and encirclement terms and the smooth cutoff, stays in the system
+module.
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -61,7 +67,12 @@ The swarm of 2611.08314 needs the second form with the rows of the first.
 
 - [Cost grows with the neighbour count to the power `size - 1`] → The guide states the cost, and the swarm keeps
   `R` at a few body lengths, as the paper does. Size 4 at 10 neighbours is 84 sets per member.
-- [Numba memory for set rows] → The Numba loop reduces each set as it visits it and stores no set table.
+- [Numba memory for set rows] → The Numba loop reduces each set as it visits it and stores no set table. The nested
+  loops are printed by `_numba_printer.py` over the neighbour rows that `_numba_neighbours.py` already returns sorted,
+  so `_numba_neighbours.py` needs no new function.
+- [The namespace needs its slots before the laws exist] → A group in a continuous space gets `others` slots for
+  hyperedges of at most `MAX_NEIGHBOR_HYPEREDGE_SIZE = 5` members, and `hyperedges` rejects a larger size over a
+  neighbourhood. Size 5 at 10 neighbours is already 210 sets per member.
 
 ## Migration Plan
 
