@@ -17,8 +17,8 @@
 - [x] 3.2 Add tests in `tests/systems/biology/collective_behaviour/` for the pairwise collective, the body-order terms against a direct evaluation of Eq. 2, and the bounded motion with defaults
 - [x] 3.3 Add the primitive `neighbour-hyperedges` and the entry `many_body_alignment_swarm` under `biology.collective_behaviour` with source `2611.08314`, and verify the inventory check passes
 - [x] 3.4 Add the gallery example `docs/examples/biology/collective_behaviour/plot_many_body_alignment_swarm.py` that compares the pairwise, 3-body, and 2+3+4-body collectives, and verify the gallery check passes
-- [ ] 3.5 Commit the work as conventional `feat` commits, and verify `nox -s changelog` lists them
+- [x] 3.5 Commit the work as conventional `feat` commits, and verify `nox -s changelog` lists them
 
 ## 4. Verification
 
-- [ ] 4.1 Run `nox -s checks`, the tests of the touched modules, and the strict docs build, and fix every finding
+- [x] 4.1 Run `nox -s checks`, the tests of the touched modules, and the strict docs build, and fix every finding
