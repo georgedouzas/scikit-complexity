@@ -20,6 +20,6 @@
 
 ## 4. Verification
 
-- [ ] 4.1 Checks, import contracts, and layout tests pass
-- [ ] 4.2 Tests and doctests pass in batches, and the inventory and gallery checks pass
-- [ ] 4.3 The full suite and the strict docs build pass in CI
+- [x] 4.1 Checks, import contracts, and layout tests pass
+- [x] 4.2 Tests and doctests pass in batches, and the inventory and gallery checks pass
+- [x] 4.3 The full suite and the strict docs build pass in CI
