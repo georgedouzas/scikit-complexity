@@ -1,4 +1,7 @@
-"""Draw the states of the groups on the edges and hyperedges of a cell complex as segments, images, and polygons."""
+"""Draw the states of the groups on the cells of a cell complex.
+
+The groups are on the edges and hyperedges, drawn as segments, images, and polygons.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,12 +24,13 @@ PLANE_AXES = 2
 
 
 class CellVisual(BaseVisual):
-    """Visual that logs a state of a group on the edges or hyperedges of a cell complex.
+    """Visual that logs a state of a group on the edges or hyperedges of a complex.
 
-    A state on edges logs under `<path>/<state>` as `LineStrips2D` colored by value, with a cyclic palette for an angle
-    state, and its oriented sums around the faces log under `<path>/<state>/faces`. A state on hyperedges logs under
-    `<path>/<state>`. Values on faces log as an image of the lattice shape on a lattice complex, and as colored closed
-    polygons on a network complex. A lattice of more than two dimensions logs the plane and the slice it selects.
+    The complex is a cell complex. A state on edges logs under `<path>/<state>` as `LineStrips2D` colored by value, with
+    a cyclic palette for an angle state, and its oriented sums around the faces log under `<path>/<state>/faces`. A
+    state on hyperedges logs under `<path>/<state>`. Values on faces log as an image of the lattice shape on a lattice
+    complex, and as colored closed polygons on a network complex. A lattice of more than two dimensions logs the plane
+    and the slice it selects.
 
     Args:
         state:
@@ -70,7 +74,10 @@ class CellVisual(BaseVisual):
         self.recording = recording
 
     def _complex_of(self, element: CompiledElementSpec) -> CellComplexSpace:
-        """Return the cell complex of a group, raising an error for a group on another space or part."""
+        """Return the cell complex of a group.
+
+        It raises an error for a group on another space or part.
+        """
         space = getattr(element.element, 'space', None)
         if not isinstance(space, CellComplexSpace) or getattr(element.element, 'on', None) not in {
             'edges',
@@ -93,14 +100,20 @@ class CellVisual(BaseVisual):
         return np.all(coordinates[others] == self.section, axis=0)
 
     def _site_points(self, lattice: LatticeSpace) -> Array:
-        """Return the position of every site in the plane, with the second axis of the plane running horizontally."""
+        """Return the position of every site in the plane.
+
+        The second axis of the plane runs horizontally.
+        """
         coordinates = np.indices(lattice.shape_).reshape(lattice.n_dim_, -1).astype(float)
         first, second = self.plane
         spacings = np.asarray(lattice.spacings_)
         return np.column_stack([coordinates[second] * spacings[second], coordinates[first] * spacings[first]])
 
     def _lattice_segments(self, space: CellComplexSpace, lattice: LatticeSpace) -> tuple[Indices, Array]:
-        """Return the links in the plane and their segments, each one spacing long from its source."""
+        """Return the links in the plane and their segments.
+
+        Each segment is one spacing long from its source.
+        """
         sources = space.edges_[None][0]
         axes = space.link_axes_
         kept = np.flatnonzero(np.isin(axes, self.plane) & self._in_slice(lattice)[sources])
@@ -113,7 +126,10 @@ class CellVisual(BaseVisual):
         return kept, np.stack([starts, starts + steps], axis=1)
 
     def _network_segments(self, space: CellComplexSpace) -> tuple[Indices, Array]:
-        """Return every edge of a network complex and its segment between the layout positions of its ends."""
+        """Return every edge of a network complex and its segment.
+
+        The segment runs between the layout positions of its ends.
+        """
         layout = self._layout(space)
         nodes = np.asarray([layout[str(node)] for node in space.graph.nodes], dtype=float)
         sources, targets = space.edges_[None]
@@ -149,7 +165,10 @@ class CellVisual(BaseVisual):
         lattice: LatticeSpace,
         faces: tuple[Array, float | None],
     ) -> None:
-        """Log the values of the faces in the plane as an image of the shape of the lattice along the plane."""
+        """Log the values of the faces in the plane as an image.
+
+        The image has the shape of the lattice along the plane.
+        """
         values, period = faces
         first, second = sorted(self.plane)
         in_plane = np.flatnonzero(np.all(space.face_planes_ == (first, second), axis=1))
@@ -187,14 +206,19 @@ class CellVisual(BaseVisual):
         values: Array,
         period: float | None,
     ) -> None:
-        """Log the values of the faces of a complex, an image on a lattice and polygons on a network."""
+        """Log the values of the faces of a complex.
+
+        They are an image on a lattice and polygons on a network.
+        """
         if isinstance(space.space, LatticeSpace):
             self._log_image(recording, path, space, space.space, (values, period))
             return
         self._log_polygons(recording, path, space, (values, period))
 
     def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
-        """Log the state of the group, and the oriented sums of a state on edges around the faces.
+        """Log the state of the group, and the face sums of a state on edges.
+
+        The face sums are the oriented sums around the faces.
 
         Args:
             recording:

@@ -23,21 +23,21 @@ THREE_DIMENSIONS = 3
 
 
 class AgentsVisual(BaseVisual):
-    """Visual that logs the agents of a group as one batch per frame, colored by a state.
+    """Visual that logs the agents of a group as one batch per frame.
 
-    Agents on a grid or in a continuous space of two dimensions are logged as `Points2D` at their cell centres or
-    positions, agents in a continuous space of three dimensions as `Points3D` at their positions, and agents
-    on a network as `GraphNodes` at their nodes, which keep the `pos` attributes of the nodes, or the positions of a
-    seeded spring layout of the network. On a grid the radius is in cells, and on a network a fraction of the spacing
-    of neighbouring nodes. Without a given radius, agents in a continuous space take a share of the side of the space,
-    smaller for larger groups. Agents in a continuous space of two dimensions are logged with their second coordinate
-    negated, so the view, bounded by the space, draws them with the vertical axis up. Every layer of regions of the
-    space is logged once as static `LineStrips2D` under `<path>/regions/<layer>`, under the points of the agents. Every
-    point carries the agent id as a hidden label, so agents keep their identity across
+    The agents are colored by a state. Agents on a grid or in a continuous space of two dimensions are logged as
+    `Points2D` at their cell centres or positions, agents in a continuous space of three dimensions as `Points3D` at
+    their positions, and agents on a network as `GraphNodes` at their nodes, which keep the `pos` attributes of the
+    nodes, or the positions of a seeded spring layout of the network. On a grid the radius is in cells, and on a network
+    a fraction of the spacing of neighbouring nodes. Without a given radius, agents in a continuous space take a share
+    of the side of the space, smaller for larger groups. Agents in a continuous space of two dimensions are logged with
+    their second coordinate negated, so the view, bounded by the space, draws them with the vertical axis up. Every
+    layer of regions of the space is logged once as static `LineStrips2D` under `<path>/regions/<layer>`, under the
+    points of the agents. Every point carries the agent id as a hidden label, so agents keep their identity across
     frames and removed agents disappear. Agents whose position is a state are logged at that state: positions of one
     coordinate, such as cars on a road, as one thin series of one color per agent under `<path>/<position>`, so their
-    time series view, without a legend, is a space-time diagram, and positions of two coordinates as `Points2D` with
-    the vertical axis up.
+    time series view, without a legend, is a space-time diagram, and positions of two coordinates as `Points2D` with the
+    vertical axis up.
 
     Args:
         color_by:
@@ -89,13 +89,19 @@ class AgentsVisual(BaseVisual):
         self.recording = recording
 
     def _prepare(self, context: BaseProblemSpec | None) -> None:
-        """Keep the agents, forget the styled series and the color range of earlier runs, and set the views."""
+        """Keep the agents, forget what earlier runs left, and set the views.
+
+        What earlier runs left is the styled series and the color range.
+        """
         self.styled_: set[str] = set()
         self.span_: tuple[float, float] | None = None
         super()._prepare(context)
 
     def _agent_colors(self, snapshot: AgentSnapshotSpec) -> npt.NDArray[np.uint8] | None:
-        """Return one color per agent over the given range, or over a range widened to every value so far."""
+        """Return one color per agent over the given range or a widened one.
+
+        Without a given range, the range widens to every value so far.
+        """
         if self.color_by is None or not len(snapshot.ids):
             return None
         values = np.asarray(snapshot.values[self.color_by], dtype=float)
@@ -105,7 +111,10 @@ class AgentsVisual(BaseVisual):
         return BaseVisual._colors_of(values, *self.span_)
 
     def _radius(self, space: BaseSpace | None, positions: npt.NDArray[np.float64]) -> float:
-        """Return the given radius, a radius in cells on grids and networks, or a share of the side of other spaces."""
+        """Return the radius of the agents.
+
+        It is the given radius, a radius in cells on grids and networks, or a share of the side of other spaces.
+        """
         if self.radius is not None:
             return float(self.radius)
         if space is None or isinstance(space, LatticeSpace | NetworkSpace):
@@ -116,7 +125,10 @@ class AgentsVisual(BaseVisual):
         return BaseVisual._radius_of(extent, len(positions))
 
     def _log_regions(self, recording: rr.RecordingStream, path: str, space: ContinuousSpace) -> None:
-        """Log every layer of regions of a space once, as static outlines with the vertical axis up."""
+        """Log every layer of regions of a space once.
+
+        They are logged as static outlines with the vertical axis up.
+        """
         for layer, index in space.regions_.items():
             entity = f'{path}/regions/{layer}'
             if entity in self.styled_:
@@ -196,7 +208,10 @@ class AgentsVisual(BaseVisual):
 
     @staticmethod
     def _continuous_view(path: str, space: ContinuousSpace) -> rrb.View:
-        """Return a 3D view of a box of three sides, or a 2D view bounded by a box of two sides."""
+        """Return a 3D view of a box of three sides, or a 2D view of a box of two sides.
+
+        The 2D view is bounded by the box.
+        """
         if space.n_dim_ == THREE_DIMENSIONS:
             return rrb.Spatial3DView(origin=path, name=path)
         width, height = space.extent_[:2]
@@ -208,7 +223,9 @@ class AgentsVisual(BaseVisual):
         return rrb.Spatial2DView(origin=path, name=path, visual_bounds=bounds)
 
     def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
-        """Return a graph view of the whole network, a 2D or 3D spatial view for agents in a space, or none without one.
+        """Return the view of the agents.
+
+        It is a graph view of the whole network, or a 2D or 3D spatial view for agents in a space, or none without one.
 
         Args:
             element:

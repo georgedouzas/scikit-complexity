@@ -1,4 +1,7 @@
-"""Draw the states of a lattice group that is not square as colored sites or network nodes."""
+"""Draw the states of a lattice group that is not square.
+
+They are drawn as colored sites or network nodes.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +27,7 @@ _CHANGING_CENTRING = 0.05
 
 
 class SiteVisual(BaseVisual):
-    """Visual that logs every state of a lattice group that is not square as colored sites.
+    """Visual that logs every state of a non-square lattice group as colored sites.
 
     A triangular lattice is logged as `Points2D` at the site positions, with radii that cover the hexagonal cells of
     the sites. A lattice group on a network is logged as `GraphNodes` colored by state, at the `pos` attributes of the
@@ -114,7 +117,10 @@ class SiteVisual(BaseVisual):
         snapshot: NetworkSnapshotSpec,
         values: npt.NDArray[np.float64],
     ) -> None:
-        """Log the nodes present of a changing network colored by value, and its edges when they change."""
+        """Log the nodes present of a changing network colored by value.
+
+        Its edges are logged when they change.
+        """
         edges = [(str(source), str(target)) for source, target in zip(snapshot.sources, snapshot.targets, strict=True)]
         key = hash(tuple(edges))
         if self.changing_.get(path) != key:
@@ -128,7 +134,9 @@ class SiteVisual(BaseVisual):
         recording.log(path, rr.GraphNodes(nodes, colors=colors, radii=radius, show_labels=False))
 
     def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
-        """Log every chosen state of a triangular lattice or a network under `<path>/<state>`.
+        """Log every chosen state of a triangular lattice or a network.
+
+        They are logged under `<path>/<state>`.
 
         Args:
             recording:
@@ -162,7 +170,9 @@ class SiteVisual(BaseVisual):
             recording.log(path, rr.Points2D(positions, colors=self._colors(values, self.low, self.high), radii=radius))
 
     def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
-        """Return one graph view per chosen state of a group on a network or a changing topology, else 2D spatial views.
+        """Return the views of the chosen states of a group.
+
+        A group on a network or a changing topology gets one graph view per state, and others 2D spatial views.
 
         Args:
             element:

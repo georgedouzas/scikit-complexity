@@ -1,4 +1,7 @@
-"""Draw the variables of a linear program as bars, its objective values as series, and its structure as a graph."""
+"""Draw the variables, objective values, and structure of a linear program.
+
+The variables are bars, the objective values series, and the structure a graph.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -81,7 +84,7 @@ class LinearProgramVisual(BaseVisual):
         self.recording = recording
 
     def _kernel_of(self, problem: BaseProblemSpec | None) -> LinearProgramKernel:
-        """Return the kernel of the linear program of the element at the path of the visual."""
+        """Return the kernel of the linear program of the element at the visual's path."""
         kernels = problem.programs if isinstance(problem, ProblemSpec) else ()
         prefix = f'{self.path}.'
         for kernel in kernels:
@@ -113,7 +116,10 @@ class LinearProgramVisual(BaseVisual):
         return len(self.kernel_.program.names) <= GRAPH_LIMIT if self.graph is None else bool(self.graph)
 
     def _edges(self) -> list[tuple[str, str, int]]:
-        """Return an edge per nonzero coefficient: its row, its variable, and the column of the variable."""
+        """Return an edge per nonzero coefficient.
+
+        An edge holds its row, its variable, and the column of the variable.
+        """
         program = self.kernel_.program
         matrix = program.matrix.tocoo()
         return [
@@ -127,7 +133,10 @@ class LinearProgramVisual(BaseVisual):
         return f'row_{row}'
 
     def _layout_graph(self) -> dict[str, npt.NDArray[np.float64]]:
-        """Return the position of every node from a seeded spring layout, scaled so nodes lie the spacing apart."""
+        """Return the position of every node from a seeded spring layout.
+
+        It is scaled so nodes lie the spacing apart.
+        """
         program = self.kernel_.program
         graph = nx.Graph()
         graph.add_nodes_from(self._row_name(row) for row in range(len(program.constraints)))
@@ -138,7 +147,10 @@ class LinearProgramVisual(BaseVisual):
         return {name: np.asarray(position, dtype=float) for name, position in layout.items()}
 
     def _graph_bounds(self) -> rrb.VisualBounds2D:
-        """Return the bounds of the laid out graph with a margin, since a graph view does not fit its nodes itself."""
+        """Return the bounds of the laid out graph with a margin.
+
+        A graph view does not fit its nodes itself.
+        """
         positions = np.stack(list(self.positions_.values()))
         low, high = positions.min(axis=0) - _NODE_SPACING, positions.max(axis=0) + _NODE_SPACING
         return rrb.VisualBounds2D(x_range=(low[0], high[0]), y_range=(low[1], high[1]))
@@ -164,7 +176,10 @@ class LinearProgramVisual(BaseVisual):
         recording.log(f'{path}/graph', edges, static=True)
 
     def _log_widths(self, recording: rr.RecordingStream, path: str, values: npt.NDArray[np.float64]) -> None:
-        """Log the edges as lines whose widths are proportional to the absolute values of their variables."""
+        """Log the edges as lines of widths proportional to the values of their variables.
+
+        The widths are proportional to the absolute values.
+        """
         edges = self._edges()
         if not edges:
             return
@@ -204,7 +219,9 @@ class LinearProgramVisual(BaseVisual):
         self._log_widths(recording, path, values)
 
     def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
-        """Return the bar chart, the series of the objective values, and with a graph its two views.
+        """Return the bar chart, the series of the objective values, and the graph views.
+
+        There are two graph views when there is a graph.
 
         Args:
             element:

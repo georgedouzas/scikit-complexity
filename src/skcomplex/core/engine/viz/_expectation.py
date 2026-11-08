@@ -1,4 +1,7 @@
-"""Draw the local expectation values of operator elements and groups as images and series."""
+"""Draw the local expectation values of operator elements and groups.
+
+They are drawn as images and series.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -79,7 +82,9 @@ class ExpectationVisual(ImageVisual):
             self._log_image(recording, path, array.reshape(shape if shape[0] > 0 else (-1,)), cyclic=False)
 
     def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
-        """Return the space-time and image views of an operator group or particle, or a series view of an element.
+        """Return the views of an operator element, group, or particle.
+
+        A group or particle gets space-time and image views, and an element a series view.
 
         Args:
             element:
@@ -106,7 +111,10 @@ class ExpectationVisual(ImageVisual):
 
     @staticmethod
     def _profile_name(element: CompiledElementSpec) -> str:
-        """Return the name of the local values of a group, its displayed operator, or `probability` for a particle."""
+        """Return the name of the local values of a group.
+
+        It is its displayed operator, or `probability` for a particle.
+        """
         if element.members is None:
             return 'probability'
         return str(ExpectationVisual._view_of(element).display)
@@ -135,7 +143,10 @@ class ExpectationVisual(ImageVisual):
 
     @staticmethod
     def _shape_of(element: CompiledElementSpec) -> tuple[int, ...] | None:
-        """Return the lattice shape of the local values of an operator group or particle, or `None` for scalars."""
+        """Return the lattice shape of the local values of an operator group or particle.
+
+        It returns `None` for scalars.
+        """
         space = getattr(element.element, 'space', None)
         if element.members is None and ExpectationVisual._view_of(element).display is not None:
             return None
@@ -149,7 +160,10 @@ class ExpectationVisual(ImageVisual):
 
     @staticmethod
     def _local_matrices(problem: OperatorProblemSpec, path: str, name: str) -> list[sp.csr_array]:
-        """Return the matrices on the whole space of one local operator of every member of an element or group."""
+        """Return the matrices on the whole space of one local operator.
+
+        There is one per member of an element or group.
+        """
         cached = problem.cache.get(f'{path}:{name}')
         if cached is None:
             lowering = problem.lowering
@@ -165,11 +179,11 @@ class ExpectationVisual(ImageVisual):
 
     @staticmethod
     def _local_values(problem: OperatorProblemSpec, path: str, x: Array) -> dict[str, npt.NDArray[np.float64] | float]:
-        """Return the local expectations of an operator element or group at a state, which the visual draws.
+        """Return the local expectations of an operator element or group at a state.
 
-        A group gives the expectation of the displayed local operator of every member. A single element without a
-        displayed operator, such as a particle on sites, gives the probability of every basis state, and one with it
-        gives the expectation of each of its Hermitian local operators.
+        The visual draws them. A group gives the expectation of the displayed local operator of every member. A single
+        element without a displayed operator, such as a particle on sites, gives the probability of every basis state,
+        and one with it gives the expectation of each of its Hermitian local operators.
 
         Args:
             problem:

@@ -20,9 +20,10 @@ _SURFACE_DIMENSION = 2
 
 
 class MeshVisual(BaseVisual):
-    """Visual that logs every state of a finite element field as a triangle mesh colored by value.
+    """Visual that logs every state of a finite element field as a triangle mesh.
 
-    Triangle meshes are drawn flat with the value as their height, and tetrahedral meshes as points.
+    The mesh is colored by value. Triangle meshes are drawn flat with the value as their height, and tetrahedral meshes
+    as points.
 
     Args:
         states:
@@ -69,7 +70,10 @@ class MeshVisual(BaseVisual):
         values: npt.NDArray[np.float64],
         colors: npt.NDArray[np.uint8],
     ) -> None:
-        """Log node values as a flat triangle mesh with the values as height, or as points of a tetrahedral mesh."""
+        """Log node values as a flat triangle mesh or as points of a tetrahedral mesh.
+
+        The triangle mesh has the values as its height.
+        """
         nodes, cells = mesh.positions_, np.asarray(mesh.cells)
         if mesh.n_dim_ != _SURFACE_DIMENSION:
             recording.log(path, rr.Points3D(nodes, colors=colors))
@@ -78,7 +82,9 @@ class MeshVisual(BaseVisual):
         recording.log(path, rr.Mesh3D(vertex_positions=positions, triangle_indices=cells.T, vertex_colors=colors))
 
     def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
-        """Log every chosen state of a finite element field under `<path>/<state>`, a complex one as modulus and phase.
+        """Log every chosen state of a finite element field under `<path>/<state>`.
+
+        A complex state is logged as modulus and phase.
 
         Args:
             recording:
@@ -111,7 +117,9 @@ class MeshVisual(BaseVisual):
             self._log_mesh(recording, f'{path}/{_PHASE}', mesh, phase, BaseVisual._phase_colors(phase))
 
     def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
-        """Return one 3D spatial view per chosen state, since meshes are drawn with the value as their height.
+        """Return one 3D spatial view per chosen state.
+
+        Meshes are drawn with the value as their height.
 
         Args:
             element:

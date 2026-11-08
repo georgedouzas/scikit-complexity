@@ -1,4 +1,7 @@
-"""Draw the variables of agents and the states of groups without a space as histograms and statistics."""
+"""Draw the variables of agents and the states of groups without a space.
+
+They are drawn as histograms and statistics.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,16 +28,17 @@ _NUMERIC_KINDS = frozenset('biuf')
 
 
 class HistogramVisual(AgentsVisual):
-    """Visual that logs the traits of agents, or the states of a group, without a space as histograms and statistics.
+    """Visual that logs histograms and statistics of agents or groups without a space.
 
-    For every trait of the agents, a number per agent is taken: the value of a numeric trait, the total of a row of
-    numbers such as the ones of a genome, or the size of a collection such as a vocabulary. The visual logs the
-    histogram of these numbers as a `BarChart` under `<path>/<trait>/histogram`, over a range that widens to every value
-    logged so far, with one bar per value when the values are few integers, and their mean and standard deviation as
-    series under `<path>/<trait>/mean` and `<path>/<trait>/std`. Integer numbers, such as type labels, also log their
-    number of distinct values under `<path>/<trait>/distinct`, and a group of at most ten agents logs the number of
-    every agent as its own series under `<path>/<trait>/agents`. Traits of other kinds are left out. The states of the
-    members of a group are logged the same way, one histogram per state.
+    It logs the traits of the agents or the states of the group. For every trait of the agents, a number per agent is
+    taken: the value of a numeric trait, the total of a row of numbers such as the ones of a genome, or the size of a
+    collection such as a vocabulary. The visual logs the histogram of these numbers as a `BarChart` under
+    `<path>/<trait>/histogram`, over a range that widens to every value logged so far, with one bar per value when the
+    values are few integers, and their mean and standard deviation as series under `<path>/<trait>/mean` and
+    `<path>/<trait>/std`. Integer numbers, such as type labels, also log their number of distinct values under
+    `<path>/<trait>/distinct`, and a group of at most ten agents logs the number of every agent as its own series under
+    `<path>/<trait>/agents`. Traits of other kinds are left out. The states of the members of a group are logged the
+    same way, one histogram per state.
 
     Args:
         color_by:
@@ -92,7 +96,10 @@ class HistogramVisual(AgentsVisual):
         self.histogram_first = histogram_first
 
     def _prepare(self, context: BaseProblemSpec | None) -> None:
-        """Keep the agents or group, forget the histogram ranges of earlier runs, and set the views."""
+        """Keep the agents or group, forget the old histogram ranges, and set the views.
+
+        The old ranges are those of earlier runs.
+        """
         self.spans_: dict[str, tuple[float, float]] = {}
         super()._prepare(context)
 
@@ -103,11 +110,11 @@ class HistogramVisual(AgentsVisual):
         trait: str,
         numbers: npt.NDArray[np.float64],
     ) -> None:
-        """Log the histogram, the mean, and the standard deviation of the numbers of one trait.
+        """Log the histogram, the mean, and the standard deviation of one trait.
 
-        The histogram of a trait bins by the range of its own values, widened to every value logged so far. Only the
-        `color_by` trait starts from `color_range`, so a trait whose values fall outside it, such as a negative integer
-        trait, keeps every value in its bins.
+        They are those of the numbers of the trait. The histogram of a trait bins by the range of its own values,
+        widened to every value logged so far. Only the `color_by` trait starts from `color_range`, so a trait whose
+        values fall outside it, such as a negative integer trait, keeps every value in its bins.
 
         Args:
             recording:
@@ -141,7 +148,9 @@ class HistogramVisual(AgentsVisual):
             recording.log(f'{path}/agents', rr.Scalars(numbers))
 
     def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
-        """Log the histogram and the statistics of every state of the members of a group at one frame.
+        """Log the histogram and the statistics of every state of a group at one frame.
+
+        The states are those of the members of the group.
 
         Args:
             recording:
@@ -165,7 +174,9 @@ class HistogramVisual(AgentsVisual):
         snapshot: AgentSnapshotSpec,
         space: BaseSpace | None,
     ) -> None:
-        """Log the histogram and the statistics of every trait of the agents of a group at one frame.
+        """Log the histogram and the statistics of every trait of agents at one frame.
+
+        The agents are those of a group.
 
         Args:
             recording:
@@ -188,7 +199,9 @@ class HistogramVisual(AgentsVisual):
                 self._log_trait(recording, f'{path}/{trait}', trait, numbers)
 
     def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
-        """Return the statistics of one trait over time, its histogram, and the statistics of every trait.
+        """Return the views of the traits.
+
+        They show the statistics of one trait over time, its histogram, and the statistics of every trait.
 
         Args:
             element:
@@ -219,7 +232,10 @@ class HistogramVisual(AgentsVisual):
 
     @staticmethod
     def _numbers_of(values: object) -> npt.NDArray[np.float64] | None:
-        """Return one number per agent: the value, the total of a row of numbers, or the size of a collection."""
+        """Return one number per agent.
+
+        It is the value, the total of a row of numbers, or the size of a collection.
+        """
         array = np.asarray(values)
         if array.dtype.kind in _NUMERIC_KINDS:
             numbers = array.astype(float)
@@ -235,7 +251,10 @@ class HistogramVisual(AgentsVisual):
         span: tuple[float, float],
         bins: int,
     ) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.float64], float]:
-        """Return the counts, bar centres, and bar width of a histogram, with one bar per value for few integers."""
+        """Return the counts, bar centres, and bar width of a histogram.
+
+        There is one bar per value for few integers.
+        """
         low, high = span
         if np.all(numbers == np.round(numbers)) and high - low < _MAX_LEVELS:
             levels = np.arange(np.floor(low), np.floor(high) + 1)

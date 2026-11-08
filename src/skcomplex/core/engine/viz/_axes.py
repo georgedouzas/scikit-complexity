@@ -1,4 +1,7 @@
-"""Draw the principal axes of a tensor state, or the arrows of a vector state, over an image of a scalar."""
+"""Draw the principal axes of a tensor state, or the arrows of a vector state.
+
+They are drawn over an image of a scalar.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,11 +21,12 @@ SEGMENT_FILL = 0.45
 
 
 class AxisVisual(BaseVisual):
-    """Visual that logs the axes of a tensor state or the arrows of a vector state at every sampled site of a lattice.
+    """Visual that logs the axes of a tensor state or the arrows of a vector state.
 
-    A tensor state logs one segment without head per sampled site along its principal axis, and a vector state one arrow
-    per sampled site, under `<path>/<state>/axes`. A scalar state logs its image under `<path>/<state>/image`, so one
-    view shows both. A site at the row and column of the lattice sits at the same pixel of the image.
+    They are logged at every sampled site of a lattice. A tensor state logs one segment without head per sampled site
+    along its principal axis, and a vector state one arrow per sampled site, under `<path>/<state>/axes`. A scalar state
+    logs its image under `<path>/<state>/image`, so one view shows both. A site at the row and column of the lattice
+    sits at the same pixel of the image.
 
     Args:
         state:
@@ -76,7 +80,9 @@ class AxisVisual(BaseVisual):
             raise ValidationError(error_msg)
 
     def _views(self, element: CompiledElementSpec | CompiledAgentsSpec, problem: BaseProblemSpec) -> list[rrb.View]:
-        """Return the 2D spatial view of the axes and the image, after finding the sampled sites.
+        """Return the 2D spatial view of the axes and the image.
+
+        The sampled sites are found first.
 
         Args:
             element:
@@ -107,7 +113,10 @@ class AxisVisual(BaseVisual):
         return [rrb.Spatial2DView(origin=f'{element.path}/{self.state}', name=self.state)]
 
     def _segments(self, axes: Array) -> list[Array]:
-        """Return the two ends of a segment through every sampled site, in pixels of the image."""
+        """Return the two ends of a segment through every sampled site.
+
+        They are in pixels of the image.
+        """
         reach = SEGMENT_FILL * self.every * axes[:, ::-1]
         centres = self.sites_[:, ::-1].astype(float)
         return list(np.stack([centres - reach, centres + reach], axis=1))

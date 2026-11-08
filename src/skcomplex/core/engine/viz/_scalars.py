@@ -65,7 +65,9 @@ class ScalarsVisual(BaseVisual):
         return array[[index for index in self.components if index < array.size]]
 
     def _log(self, recording: rr.RecordingStream, element: CompiledElementSpec, frame: FrameSpec) -> None:
-        """Log every state of the element under `<path>/<state>`, a complex one under `real` and `imag` below it.
+        """Log every state of the element under `<path>/<state>`.
+
+        A complex state is logged under `real` and `imag` below it.
 
         Args:
             recording:
@@ -115,13 +117,19 @@ class ScalarsVisual(BaseVisual):
 
     @staticmethod
     def _series_index(problem: BaseProblemSpec, path: str, state: str) -> int:
-        """Return the position of a state among the states of every element of a problem, in declaration order."""
+        """Return the position of a state among the states of every element of a problem.
+
+        The states are in declaration order.
+        """
         names = [(element.path, name) for element in problem.elements for name in element.states]
         return names.index((path, state)) if (path, state) in names else 0
 
     @staticmethod
     def _style_series(recording: rr.RecordingStream, path: str, value: object, index: int) -> None:
-        """Log static series colors for the components of a value, from the categorical palette starting at an index."""
+        """Log static series colors for the components of a value.
+
+        They come from the categorical palette starting at an index.
+        """
         values = np.ravel(np.asarray(value))
         parts = [f'{path}/{part}' for part in PARTS] if np.iscomplexobj(values) else [path]
         for offset, entity in enumerate(parts):
