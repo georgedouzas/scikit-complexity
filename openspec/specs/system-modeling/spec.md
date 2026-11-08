@@ -128,7 +128,7 @@ boxes. A frame SHALL never report a state that a boundary law would change.
 
 #### Scenario: Long frames keep particles in the box
 - **WHEN** a particle at 0.5 with velocity 1 in a reflecting box of side 1 runs one frame of duration 5 with `RK4`
-  and with `ScipyODE`
+  and with `ScipyODESolver`
 - **THEN** at time 5 its position is 0.5 and its velocity is -1 within 1e-6, after four reflections
 
 ### Requirement: Laws express conditions and remainders

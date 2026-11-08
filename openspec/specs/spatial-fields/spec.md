@@ -75,13 +75,13 @@ The spectral Laplacian SHALL give every Fourier mode, the Nyquist mode included,
 - **THEN** its amplitude equals that of the finite-difference discretization within 1e-3 and decays
 
 #### Scenario: Seeded initial fields
-- **WHEN** `complex_ginzburg_landau` is built twice with the same `random_state`
+- **WHEN** `ComplexGinzburgLandauSystem` is built twice with the same `random_state`
 - **THEN** both initial fields `u` and `v` are equal, and differ for another seed
 
 ### Requirement: Noise can conserve a field
 A noise law on a state of a field on a lattice SHALL conserve the field when declared `conserved`: it adds the
 finite-difference divergence of a random flux with one Wiener process per link, so the total of the field changes only
-by its rate laws. The library SHALL provide `active_system_b` built on it.
+by its rate laws. The library SHALL provide `ActiveSystemBSystem` built on it.
 
 #### Scenario: Total is conserved
 - **WHEN** a field on a periodic lattice runs with only a conserved noise law for 1000 steps

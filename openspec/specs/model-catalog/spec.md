@@ -15,7 +15,7 @@ uses.
 - **THEN** the next documentation build lists it in the index under its field and its tags
 
 #### Scenario: System page
-- **WHEN** a reader opens the page of `lotka_volterra`
+- **WHEN** a reader opens the page of `LotkaVolterraSystem`
 - **THEN** it shows `from skcomplex.systems.biology.ecology import LotkaVolterraSystem`, and lists the element and interaction classes of its system
 
 ### Requirement: Ready-made systems are imported from their subfield

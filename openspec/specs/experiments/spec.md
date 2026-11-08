@@ -62,8 +62,9 @@ bounds, and returns them as fields of its result.
 - **THEN** the first-order indices in `first_order` of its result match the known values within 0.05
 
 ### Requirement: Calibration fits parameters to data
-The experiments layer SHALL hold a calibration experiment that fits system parameters within bounds to observed time
-series and keeps the estimates with R², RMSE, MAE, and MAPE as fitted attributes.
+`Calibration` of `skcomplex.core.experiments` SHALL fit the model parameters of a system within bounds to observed time
+series, and its `run` SHALL keep the fitted system in `system_` and the estimates with R², RMSE, MAE, and MAPE in the
+fitted attributes `estimates_`, `r2_`, `rmse_`, `mae_`, and `mape_`.
 
 #### Scenario: Recover logistic parameters
 - **WHEN** a user runs a calibration experiment of the logistic growth system on data generated with `r = 0.8` and
@@ -101,4 +102,4 @@ parameters. Every experiment SHALL check the tags it needs, such as `stochastic`
 
 #### Scenario: Calibration fits a system
 - **WHEN** calibration runs on a system and observed data
-- **THEN** its fitted attribute holds the system with the fitted parameters
+- **THEN** `run` returns the calibration, and its `system_` holds the system with the fitted parameters

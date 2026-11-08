@@ -14,7 +14,7 @@ state in its docstring a caption of what the screenshot shows.
 
 #### Scenario: Example of a system
 - **WHEN** a user opens `docs/examples/biology/ecology/plot_lotka_volterra.py`
-- **THEN** it creates `lotka_volterra` by name, runs it with a `RerunObserver` and a blueprint, and its docstring says
+- **THEN** it creates `LotkaVolterraSystem` by name, runs it with a `RerunObserver` and a blueprint, and its docstring says
   that the prey and predator populations cycle out of phase
 
 #### Scenario: Missing example
@@ -50,7 +50,7 @@ at the size the gallery displays it.
   thumbnail at the 10:7 ratio of the configured `thumbnail_size` of 400x280
 
 #### Scenario: Primary view of a time series system
-- **WHEN** the `lotka_volterra` thumbnail is captured
+- **WHEN** the `LotkaVolterraSystem` thumbnail is captured
 - **THEN** it shows one time series view of the prey and predator populations, with no parameter views and no panels
 
 #### Scenario: No placeholder thumbnails
@@ -164,8 +164,8 @@ implemented system has no screenshot. The page of an example SHALL show the desc
 - **THEN** the page shows its class and equations, without a screenshot or a link to an example
 
 #### Scenario: Example references
-- **WHEN** a user opens the gallery page of the `wolf_sheep` example
-- **THEN** the page shows the description and the references the catalog gives for `wolf_sheep`
+- **WHEN** a user opens the gallery page of the `WolfSheepSystem` example
+- **THEN** the page shows the description and the references the catalog gives for `WolfSheepSystem`
 
 #### Scenario: Strict build without a screenshot
 - **WHEN** the strict documentation build of every example finds a registered system without a cached or captured screenshot

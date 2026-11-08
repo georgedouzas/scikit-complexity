@@ -37,13 +37,13 @@ SHALL choose a method whose storage fits the size of the state.
 #### Scenario: Many coupled states
 - **WHEN** 10 000 states coupled through their mean run with the default solver
 - **THEN** the run uses a method other than `LSODA` and matches the analytic solution within 1e-5, and
-  `ScipyODE(method='LSODA')` for the same system raises a named error that names the size of its dense matrix
+  `ScipyODESolver(method='LSODA')` for the same system raises a named error that names the size of its dense matrix
 
 #### Scenario: State resting on a discontinuity
 - **WHEN** `bathtub` with 20 gallons runs until 6 with the default solver, so the empty tub rests on its drain switch
   once the faucet opens
 - **THEN** the run warns that LSODA stalled, finishes with `RK45`, and the water drains to 0 by time 4, and
-  `ScipyODE(method='LSODA')` for the same run raises a named error that says it stalled
+  `ScipyODESolver(method='LSODA')` for the same run raises a named error that says it stalled
 
 ### Requirement: Simulations advance frame by frame
 A simulation SHALL advance in frames of a fixed simulated duration, and SHALL hand each frame, with its time, state,
@@ -121,11 +121,11 @@ Runge-Kutta stepper for ODE systems and a velocity Verlet stepper for systems of
 - **THEN** the result matches `e` within 1e-10 relative error
 
 #### Scenario: Velocity Verlet conserves energy
-- **WHEN** a harmonic oscillator is integrated with `VelocityVerlet` and step 0.01 for 1000 time units
+- **WHEN** a harmonic oscillator is integrated with `VelocityVerletSolver` and step 0.01 for 1000 time units
 - **THEN** its energy stays within 1e-3 relative error of the initial energy
 
 #### Scenario: Velocity Verlet needs position and velocity pairs
-- **WHEN** a population system is given to `VelocityVerlet`
+- **WHEN** a population system is given to `VelocityVerletSolver`
 - **THEN** a named solver error names the states that are not positions or velocities
 
 #### Scenario: Same stochastic results as before
@@ -137,7 +137,7 @@ A simulation SHALL advance a group of 100000 members with a short-range pair int
 real-time clock of speed 1 with frames every 0.01 time units.
 
 #### Scenario: Interacting gas in real time
-- **WHEN** a gas of 100000 soft spheres with cutoff pair forces runs with `VelocityVerlet` and step 0.01 for 2 seconds
+- **WHEN** a gas of 100000 soft spheres with cutoff pair forces runs with `VelocityVerletSolver` and step 0.01 for 2 seconds
   with a real-time clock
 - **THEN** the run falls behind by no more than 0.2 seconds
 
@@ -154,7 +154,7 @@ The SciPy ODE solver SHALL keep one integrator across the frames of a run, and S
 parameters change, when the state handed to it is not the state it returned, or at a breakpoint, event, or boundary.
 
 #### Scenario: Many frames
-- **WHEN** exponential decay runs with `ScipyODE` until time 10 with 1000 frames
+- **WHEN** exponential decay runs with `ScipyODESolver` until time 10 with 1000 frames
 - **THEN** the drift is evaluated at most twice as often as by one SciPy integration over the same interval, and the
   final state is the same within the solver tolerance
 
@@ -206,7 +206,7 @@ SHALL not declare support for it, so validation rejects the combination before c
 - **THEN** the two trajectories are equal
 
 #### Scenario: Unchanged seeded runs
-- **WHEN** geometric Brownian motion runs with random state 0 and `EulerMaruyama`
+- **WHEN** geometric Brownian motion runs with random state 0 and `EulerMaruyamaSolver`
 - **THEN** its trajectory equals the one stored before this change
 
 #### Scenario: Shared process on both backends

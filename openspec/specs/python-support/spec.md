@@ -85,5 +85,5 @@ Python version.
 
 #### Scenario: Hypergraph system after a fresh install
 
-- **WHEN** a user installs the package from the index into a new environment and simulates `hypergraph_kuramoto`
+- **WHEN** a user installs the package from the index into a new environment and simulates `HypergraphKuramotoSystem`
 - **THEN** the simulation runs
