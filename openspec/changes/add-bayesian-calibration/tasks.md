@@ -58,7 +58,7 @@
 - [x] 9.2 Add `CellCycleInvasionSystem` in its own module of `biology/oncology`, with tests of the scratch assay and the full lattice
 - [x] 9.3 Add `DifferentiableCovidAbmSystem` in its own module of `biology/epidemiology`, with discrete agents and relaxed draws, with tests of the gradient against finite differences and of zero transmission
 - [ ] 9.4 Test the variational recovery of the three betas of `DifferentiableCovidAbmSystem` within 0.15
-- [ ] 9.5 Add inventory entries for `off_lattice_tumour_growth`, `cell_cycle_invasion`, and `differentiable_covid_abm` with sources 2409.19675 and 2305.15340, and verify the inventory check passes
+- [x] 9.5 Add inventory entries for `off_lattice_tumour_growth`, `cell_cycle_invasion`, and `differentiable_covid_abm` with sources 2409.19675 and 2305.15340, and verify the inventory check passes
 - [ ] 9.6 Add gallery examples for the three systems, each with a calibration (ABC-SMC for the two oncology systems, variational for the epidemic), and one for the event likelihood of `DeffuantSystem`, and verify strict gallery coverage passes
 
 ## 10. Integration
