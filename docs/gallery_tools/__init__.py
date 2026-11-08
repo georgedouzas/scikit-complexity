@@ -1,4 +1,7 @@
-"""Build the system gallery: scaffold examples, capture their Rerun thumbnails, check, cache, and scrape them."""
+"""Build the system gallery.
+
+It scaffolds examples, captures their Rerun thumbnails, and checks, caches, and scrapes them.
+"""
 
 from ._build import GalleryBuild, build_from_environment
 from ._cache import ScreenshotCache, cache_key
