@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.experiments import Calibration
+from skcomplex.core.experiments import CalibrationResult, calibrate
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 
 
@@ -16,16 +16,17 @@ def test_calibration_recovers_logistic_parameters():
     data = {'population.n': (times, truth * (1 + 0.01 * rng.standard_normal(times.size)))}
     bounds = {'r': (0.1, 2.0), 'K': (100.0, 1000.0)}
     system = LogisticGrowthSystem(n=10.0)
-    calibration = Calibration(system, data, bounds).prepare().run()
-    assert calibration.estimates_['r'] == pytest.approx(0.8, rel=0.05)
-    assert calibration.estimates_['K'] == pytest.approx(500, rel=0.05)
-    assert isinstance(calibration.system_, LogisticGrowthSystem)
-    assert calibration.system_.get_params() == {**system.get_params(), **calibration.estimates_}
+    result = calibrate(system, data, bounds)
+    assert isinstance(result, CalibrationResult)
+    assert result.estimates['r'] == pytest.approx(0.8, rel=0.05)
+    assert result.estimates['K'] == pytest.approx(500, rel=0.05)
+    assert isinstance(result.system, LogisticGrowthSystem)
+    assert result.system.get_params() == {**system.get_params(), **result.estimates}
     assert system.r == 1.0
-    assert calibration.r2_ > 0.99
-    assert calibration.covariance_ is not None
-    assert 0 < calibration.mape_ < 5
-    assert calibration.rmse_ >= calibration.mae_ > 0
+    assert result.r2 > 0.99
+    assert result.covariance is not None
+    assert 0 < result.mape < 5
+    assert result.rmse >= result.mae > 0
 
 
 @pytest.mark.parametrize(
@@ -38,8 +39,8 @@ def test_calibration_recovers_logistic_parameters():
     ],
     ids=['loss', 'replicates', 'data', 'path'],
 )
-def test_calibration_check_rejects_invalid_settings(arguments, message):
-    """Test that an unknown loss, zero replicates, or no data build and fail the check with a named error."""
+def test_calibration_rejects_invalid_settings(arguments, message):
+    """Test that an unknown loss, zero replicates, no data, or a dotted path raise a named error."""
     settings = {'data': {'population.n': ([0.0, 1.0], [1.0, 2.0])}, 'bounds': {'r': (0.1, 2.0)}, **arguments}
     with pytest.raises(ValidationError, match=message):
-        Calibration(LogisticGrowthSystem(), **settings).prepare()
+        calibrate(LogisticGrowthSystem(), **settings)

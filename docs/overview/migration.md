@@ -10,9 +10,10 @@ In short:
 - `all_systems` finds the classes, in place of `catalog`, `describe`, and the registry,
 - `simulate(system, ...)` runs a system and returns its `Trajectory`, in place of `Simulation` and `create_simulation`,
 - every analysis is a function that returns a frozen result, in place of an analysis class,
-- every experiment is a function of a system, except `Calibration`, which stays an estimator,
+- every experiment is a function of a system, calibration among them,
 - the compilers and most problem classes are private,
-- every part has capability tags, from `get_tags()`.
+- every part has capability tags, from `get_tags()`,
+- specs are frozen values without `prepare` and `run`, and estimators check their settings at the start of `_prepare`.
 
 ## Ready-made systems
 
@@ -280,14 +281,14 @@ After:
 import numpy as np
 
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.experiments import Calibration, sweep
+from skcomplex.core.experiments import calibrate, sweep
 from skcomplex.systems.biology.epidemiology import SIRSystem
 
 result = sweep(SIRSystem(), {'gamma': [0.1, 0.2]}, until=60, outputs=['I.n'])
 times = np.arange(0.0, 60.0, 5.0)
 data = {'I.n': (times, simulate(SIRSystem(), until=60).values('I.n')[::5][: len(times)])}
-fit = Calibration(SIRSystem(), data, {'gamma': (0.05, 0.2)}).prepare().run()
-fit.estimates_, fit.system_.gamma
+fit = calibrate(SIRSystem(), data, {'gamma': (0.05, 0.2)})
+fit.estimates, fit.system.gamma
 ```
 
 | Old name | New name | Result |
@@ -306,7 +307,7 @@ fit.estimates_, fit.system_.gamma
 | `sensitivity(result, ...)` | `sensitivity(system, bounds, output=...)` | `SensitivityResult` |
 | `BasinStabilityExperiment` | `basin_stability` | `BasinStabilityResult` |
 | `OrbitDiagramExperiment` | `orbit_diagram` | `OrbitDiagramResult` |
-| `CalibrationExperiment` | `Calibration`, fitting model parameters | its `system_` |
+| `CalibrationExperiment` | `calibrate`, fitting model parameters | `CalibrationResult`, with the fitted `system` |
 | `ExperimentResult` | `ExperimentResult`, now a frozen value | |
 | `BaseExperiment`, `BaseDesign` | removed, the shared runs are private | |
 
@@ -323,3 +324,66 @@ from skcomplex.systems.biology.epidemiology import SIRSystem
 
 SIRSystem().get_tags()
 ```
+
+## Specs and estimators
+
+A spec, such as `StateSpec`, `RoleSpec`, or `Tags`, is a frozen value. It is no longer a configurable object, so it has
+neither `prepare` nor `run`, and `get_params` of the part that holds it no longer lists its fields. The class that owns
+a spec checks it through the private hook `_check` when it reads it, and a spec is changed with `dataclasses.replace`.
+
+An estimator checks its settings at the start of its `_prepare`, before it sets any attribute that ends in `_`. The
+hooks `_check` and `_validated` of `BaseConfig` are removed. A custom part starts its `_prepare` with
+`super()._prepare(context)`, so the base of the parts checks its label and declared specs first. A solver prepared
+without its compiled problem raises `ContextError`, a `ValidationError`, after it checks its own settings. Since every
+part checks its arguments when it is prepared, a system whose third part is invalid may have its first two parts
+prepared when the error is raised, and preparing it again replaces their attributes.
+
+Before:
+
+```python notest
+from skcomplex.core.components.elements import Element
+
+
+class StockElement(Element):
+    def __init__(self, label, n=1.0):
+        super().__init__(label)
+        self.n = n
+
+    def _check(self):
+        if self.n < 0:
+            raise ValueError('n must not be negative.')
+
+
+StateSpec(order=2).prepare()
+```
+
+After:
+
+```python
+from skcomplex.core.components.elements import Element
+from skcomplex.core.specs import StateSpec
+
+
+class StockElement(Element):
+    def __init__(self, label, n=1.0):
+        super().__init__(label)
+        self.n = n
+
+    def _prepare(self, context=None):
+        super()._prepare(context)
+        if self.n < 0:
+            error_msg = 'n must not be negative.'
+            raise ValueError(error_msg)
+
+
+StockElement('stock').prepare()
+StateSpec(order=2)._check()
+```
+
+| Old name | New name |
+|---|---|
+| `spec.prepare()`, `spec.run()` | removed, the owner of a spec calls `spec._check()` |
+| `_check` of an estimator | the start of its `_prepare` |
+| `_validated()` | `prepare(...)` for an estimator, `_check()` for a spec |
+| `Calibration(system, data, bounds).prepare().run().system_` | `calibrate(system, data, bounds).system` |
+| `ValidationError` of a solver without a problem | `ContextError`, a `ValidationError` |

@@ -395,9 +395,13 @@ class HyperedgeTables:
         if activity is None:
             return law
         if isinstance(law, RateLaw | NoiseLaw):
-            return BasePass._replaced(law, value=HyperedgeTables._scaled(spec, law, law.value, activity)).prepare(spec.owner)
+            return BasePass._replaced(law, value=HyperedgeTables._scaled(spec, law, law.value, activity)).prepare(
+                spec.owner,
+            )
         if isinstance(law, JumpLaw):
-            return BasePass._replaced(law, rate=HyperedgeTables._scaled(spec, law, law.rate, activity)).prepare(spec.owner)
+            return BasePass._replaced(law, rate=HyperedgeTables._scaled(spec, law, law.rate, activity)).prepare(
+                spec.owner,
+            )
         if isinstance(law, UpdateLaw) and spec.hyperedge == HYPEREDGE_LAWS:
             return law
         error_msg = (

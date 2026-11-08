@@ -541,18 +541,18 @@ assert 'space network' in message
 def _experiments_page() -> str:
     """Return the page of experiments.
 
-    It shows what every experiment function and calibration need of a system.
+    It shows what every experiment function needs of a system.
     """
     named = [getattr(experiments, name) for name in experiments.__all__]
-    found = [item for item in named if inspect.isfunction(item) or item is experiments.Calibration]
+    found = [item for item in named if inspect.isfunction(item)]
     rows = [
         [f'`{item.__name__}`', _summary(item), EXPERIMENT_NEEDS.get(item.__name__, 'any system')]
         for item in sorted(found, key=lambda item: item.__name__.lower())
     ]
     intro = """
 An experiment runs a system many times through `simulate`: over values of its parameters, over random streams, over
-scenarios, or over initial states. Experiments are functions of a system that return frozen results, and `Calibration`
-is an estimator that fits the model parameters of a system to observed series and sets `system_`. An experiment that
+scenarios, or over initial states. Experiments are functions of a system that return frozen results, and `calibrate`
+fits the model parameters of a system to observed series and returns the fitted system in its result. An experiment that
 repeats a system needs randomness to repeat, and the analyses an experiment applies to its runs check their own tags,
 as the [analyses](analyses.md) page lists. The table lists what every experiment needs of a system.
 """
@@ -588,37 +588,37 @@ assert 'randomness stochastic' in message
 
 ## A compatible calibration
 
-`Calibration` fits the model parameters of a logistic growth to a series it generates.
+`calibrate` fits the model parameters of a logistic growth to a series it generates.
 
 ```python
 import numpy as np
 
-from skcomplex.core.experiments import Calibration
+from skcomplex.core.experiments import calibrate
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 
 times = np.arange(0, 21.0)
 values = 100 / (1 + 9 * np.exp(-0.5 * times))
 bounds = {'r': (0.1, 2.0), 'K': (50, 200)}
-fitted = Calibration(LogisticGrowthSystem(), {'population.n': (times, values)}, bounds).prepare().run().system_
+fitted = calibrate(LogisticGrowthSystem(), {'population.n': (times, values)}, bounds).system
 round(fitted.r, 2), round(fitted.K)
 ```
 
 ## An incompatible calibration
 
 Calibration fits model parameters, which `set_params` takes. An initial state is a dotted path, not a model
-parameter, so `prepare` rejects it.
+parameter, so `calibrate` rejects it.
 
 ```python
 import numpy as np
 
 from skcomplex.core.errors import ValidationError
-from skcomplex.core.experiments import Calibration
+from skcomplex.core.experiments import calibrate
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 
 times = np.arange(0, 21.0)
 values = 100 / (1 + 9 * np.exp(-0.5 * times))
 try:
-    Calibration(LogisticGrowthSystem(), {'population.n': (times, values)}, {'population.n': (1, 20)}).prepare()
+    calibrate(LogisticGrowthSystem(), {'population.n': (times, values)}, {'population.n': (1, 20)})
 except ValidationError as error:
     message = str(error)
 message

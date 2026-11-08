@@ -63,22 +63,22 @@ Fit the parameters of a system to observed data, and rank which inputs matter mo
 ```python
 import numpy as np
 
-from skcomplex.core.experiments import Calibration, sensitivity
+from skcomplex.core.experiments import calibrate, sensitivity
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 
 times = np.arange(0.0, 21.0)
 observed = 500 / (1 + 49 * np.exp(-0.8 * times))
 bounds = {'r': (0.1, 2.0), 'K': (100, 1000)}
-fit = Calibration(LogisticGrowthSystem(), {'population.n': (times, observed)}, bounds).prepare().run()
-round(fit.estimates_['r'], 2), round(fit.r2_, 4), round(fit.system_.r, 2)
+fit = calibrate(LogisticGrowthSystem(), {'population.n': (times, observed)}, bounds)
+round(fit.estimates['r'], 2), round(fit.r2, 4), round(fit.system.r, 2)
 
 ranked = sensitivity(LogisticGrowthSystem(), bounds, output='population.n', method='oat', until=20)
 ranked.ranking
 ```
 
-- `Calibration` is the one experiment that stays an estimator, in the role of `GridSearchCV`. It fits model
-  parameters to observed series, by least squares or a Gaussian likelihood, and `run` sets `system_`, the system with
-  the fitted parameters. It keeps the estimates and their covariance, with R², RMSE, MAE, and MAPE. Above, it recovers
-  the growth rate 0.8 of the data.
+- `calibrate` fits model parameters to observed series, by least squares or a Gaussian likelihood, in the role of
+  `GridSearchCV`. It returns a frozen `CalibrationResult` whose `system` is the system with the fitted parameters,
+  with the estimates and their covariance, and R², RMSE, MAE, and MAPE. Above, it recovers the growth rate 0.8 of the
+  data.
 - `sensitivity` runs a design of its own and ranks the inputs one at a time with `method='oat'`, by Morris screening
   with `'morris'`, or by Sobol indices with SALib with `'sobol'`.

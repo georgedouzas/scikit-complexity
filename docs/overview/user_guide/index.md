@@ -26,7 +26,7 @@ The library follows scikit-learn. What you define is an estimator, and what you 
 | `n_jobs` | `backend=` |
 | `sklearn.metrics` | the analysis functions, such as `lyapunov` and `entropy` |
 | `validation_curve` and repeated cross-validation | the experiment functions, such as `sweep` and `ensemble` |
-| `GridSearchCV` | `Calibration`, the one experiment that stays an estimator |
+| `GridSearchCV` | `calibrate`, which returns the fitted system in its result |
 
 So a system is a class whose constructor takes the parameters of its model and stores them, `set_params` changes them,
 and `clone` copies them. `simulate`, the analyses, and the experiments read the system and return frozen results, and

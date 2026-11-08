@@ -14,7 +14,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.laws import UpdateLaw
 from skcomplex.core.components.system import System
 from skcomplex.core.errors import ExperimentError, ValidationError
-from skcomplex.core.experiments import Calibration, ensemble, orbit_diagram, sweep
+from skcomplex.core.experiments import calibrate, ensemble, orbit_diagram, sweep
 from skcomplex.core.specs import ParameterSpec, StateSpec, VisualSpec
 from skcomplex.systems.biology.ecology import LogisticGrowthSystem
 from skcomplex.systems.biology.epidemiology import SIRSystem
@@ -55,17 +55,23 @@ def peak(trajectory, *, variable='I.n'):
     return PeakResult(float(values.max()), float(trajectory.times[values.argmax()]))
 
 
-def test_surface_holds_functions_results_and_calibration():
-    """Test that the public names are experiment functions, frozen results, and the calibration estimator."""
+def test_surface_holds_functions_and_results():
+    """Test that the public names are experiment functions and frozen results, and none is an estimator."""
     for name in experiments.__all__:
         item = getattr(experiments, name)
         if name.endswith('Result'):
             assert item.__dataclass_params__.frozen, name
-        elif name == 'Calibration':
-            assert issubclass(item, BaseConfig)
         else:
             assert inspect.isfunction(item), name
-    for name in ('Experiment', 'GridDesign', 'BaseExperiment', 'BasinStabilityExperiment', 'CalibrationExperiment'):
+        assert not (inspect.isclass(item) and issubclass(item, BaseConfig)), name
+    for name in (
+        'Experiment',
+        'GridDesign',
+        'BaseExperiment',
+        'BasinStabilityExperiment',
+        'CalibrationExperiment',
+        'Calibration',
+    ):
         assert not hasattr(experiments, name), name
 
 
@@ -152,7 +158,7 @@ def test_thread_runs_equal_serial_runs():
     'experiment',
     [
         lambda: sweep('sir', {'gamma': [0.1]}, until=1),
-        lambda: Calibration('logistic_growth', {'population.n': ([0.0], [1.0])}, {}).prepare(),
+        lambda: calibrate('logistic_growth', {'population.n': ([0.0], [1.0])}, {}),
         lambda: orbit_diagram('logistic_map', 'r', [3.0], 'map.x', transient=1, keep=1),
     ],
 )

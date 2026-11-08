@@ -8,7 +8,7 @@ They translate it into a third-party library.
 
 from abc import abstractmethod
 
-from ...errors import BackendError, ContextError, ValidationError
+from ...errors import BackendError, ContextError
 from ..problems import ProblemSpec
 from ._solver import Solver
 

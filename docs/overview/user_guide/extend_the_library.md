@@ -226,15 +226,15 @@ parts:
 from skcomplex.core.base import BaseConfig
 from skcomplex.core.components.elements import Element
 from skcomplex.core.components.system import BaseSystem, System
-from skcomplex.core.experiments import Calibration
 from skcomplex.systems.biology.ecology import LotkaVolterraSystem
 
-[issubclass(cls, BaseConfig) for cls in (Element, System, LotkaVolterraSystem, Calibration)]
+[issubclass(cls, BaseConfig) for cls in (Element, System, LotkaVolterraSystem)]
 issubclass(LotkaVolterraSystem, BaseSystem), LotkaVolterraSystem.field
 ```
 
-Every estimator, an element, an interaction, a law, a system, and `Calibration`, derives from one root class,
-`BaseConfig`. `simulate`, the analyses, and the experiments are functions of these estimators. Every ready-made system
+Every estimator, an element, an interaction, a law, a system, and the engine that runs them, derives from one root
+class, `BaseConfig`. `simulate`, the analyses, and the experiments, calibration among them, are functions of these
+estimators. Every ready-made system
 belongs to a field and a subfield of the catalog.
 
 The parts of the core are layered, so that each imports only the parts below it. From top to bottom:
@@ -302,7 +302,7 @@ import order, so a module imports only the modules above it:
 `skcomplex.core.analysis` holds the analysis functions of systems, trajectories, and data, their frozen results, and
 `bind_analysis`, with the types that only they read in `skcomplex.core.analysis.types`. `skcomplex.core.experiments`
 holds the experiment functions over designs of parameters, scenarios, and replicates, sensitivity, basin stability, and
-orbit diagrams, and the estimator `Calibration`. Its `types` and `specs` hold the rows of a design and the runs of an
+orbit diagrams, and calibration. Its `types` and `specs` hold the rows of a design and the runs of an
 experiment.
 
 ### The systems
