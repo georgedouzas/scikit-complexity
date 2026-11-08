@@ -44,16 +44,24 @@
 - [ ] 7.1 Add `posterior_coverage` and `CoverageResult` in `src/skcomplex/core/experiments/_coverage.py`, export them, and test the coverage of the logistic posterior at levels 0.5 and 0.9
 - [ ] 7.2 Document `posterior_coverage` with a runnable docstring example and a paragraph in the user guide, and verify both run
 
-## 8. Probe systems
+## 8. Relaxed draws and Delaunay neighbourhoods
 
-- [ ] 8.1 Add `OffLatticeTumourGrowthSystem` in its own module of `biology/oncology`, with tests of biphasic growth and spring spacing
-- [ ] 8.2 Add `CellCycleInvasionSystem` in its own module of `biology/oncology`, with tests of the scratch assay and the full lattice
-- [ ] 8.3 Add `DifferentiableCovidAbmSystem` in its own module of `biology/epidemiology`, with tests of the gradient against finite differences and of zero transmission
-- [ ] 8.4 Test the variational recovery of the three betas of `DifferentiableCovidAbmSystem` within 0.15
-- [ ] 8.5 Add inventory entries for `off_lattice_tumour_growth`, `cell_cycle_invasion`, and `differentiable_covid_abm` with sources 2409.19675 and 2305.15340, and verify the inventory check passes
-- [ ] 8.6 Add gallery examples for the three systems, each with a calibration (ABC-SMC for the two oncology systems, variational for the epidemic), and one for the event likelihood of `DeffuantSystem`, and verify strict gallery coverage passes
+- [ ] 8.1 Add `temperature` and `hard` to `bernoulli`, `categorical`, and `DrawSpec`, and test that NumPy runs draw exact values with them
+- [ ] 8.2 Add the symbolic `stop_gradient`, lowered by the JAX printer to `jax.lax.stop_gradient` and by the others to the identity, and test both lowerings
+- [ ] 8.3 Lower relaxed draws on JAX to the concrete relaxation with straight-through hard values, draw the uniform values of the differentiable unroll from a JAX key, and test the gradient against finite differences and the low-temperature limit
+- [ ] 8.4 Report a `not-differentiable` issue for a Bernoulli or categorical draw without a temperature in the JAX lowering, and test its message
+- [ ] 8.5 Add `DelaunayNeighborhood` in `spaces/_delaunay.py` with the search in `_metric_search.py`, periodic images, and per-step recomputation, and test the known point set, the periodic boundary, and moving members
 
-## 9. Integration
+## 9. Probe systems
 
-- [ ] 9.1 Add a changelog entry for the new methods and the breaking fields of `CalibrationResult`, and verify the docs build includes it
-- [ ] 9.2 Run `nox` checks, tests, and the strict docs build, and fix every finding
+- [ ] 9.1 Add `OffLatticeTumourGrowthSystem` in its own module of `biology/oncology`, built on `DelaunayNeighborhood`, with tests of biphasic growth and spring spacing
+- [ ] 9.2 Add `CellCycleInvasionSystem` in its own module of `biology/oncology`, with tests of the scratch assay and the full lattice
+- [ ] 9.3 Add `DifferentiableCovidAbmSystem` in its own module of `biology/epidemiology`, with discrete agents and relaxed draws, with tests of the gradient against finite differences and of zero transmission
+- [ ] 9.4 Test the variational recovery of the three betas of `DifferentiableCovidAbmSystem` within 0.15
+- [ ] 9.5 Add inventory entries for `off_lattice_tumour_growth`, `cell_cycle_invasion`, and `differentiable_covid_abm` with sources 2409.19675 and 2305.15340, and verify the inventory check passes
+- [ ] 9.6 Add gallery examples for the three systems, each with a calibration (ABC-SMC for the two oncology systems, variational for the epidemic), and one for the event likelihood of `DeffuantSystem`, and verify strict gallery coverage passes
+
+## 10. Integration
+
+- [ ] 10.1 Add a changelog entry for the new methods and the breaking fields of `CalibrationResult`, and verify the docs build includes it
+- [ ] 10.2 Run `nox` checks, tests, and the strict docs build, and fix every finding
