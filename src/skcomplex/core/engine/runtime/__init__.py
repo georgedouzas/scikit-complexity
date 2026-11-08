@@ -1,4 +1,4 @@
-"""Run systems frame by frame with clocks, live parameter changes, observers, and trajectories."""
+"""Run systems frame by frame with clocks, schedules, observers, and trajectories."""
 
 from ._as_fast_as_possible import AsFastAsPossibleClock
 from ._base import BaseClock, BaseObserver

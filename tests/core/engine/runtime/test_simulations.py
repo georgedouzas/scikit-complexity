@@ -161,9 +161,6 @@ def test_simulation_updates_one_per_entry_weight_live():
     schedule = {'sum.weights[1]': lambda t: 1.0 if t < 1 else 10.0}
     trajectory = simulate(_summed(['a', 'b', 'c']), until=2, dt=1, schedule=schedule)
     assert trajectory.values('target.x').tolist() == [0.0, 7.0, 25.0]
-    simulation = Simulation(_summed(['a', 'b', 'c'])).prepare().run(until=1)
-    simulation.update_parameters({'sum.weights[2]': 5.0})
-    assert simulation.parameters_.tolist() == [1.0, 1.0, 5.0]
 
 
 def test_closed_economy_changes_money_only_by_lending_and_repayment():
@@ -193,13 +190,10 @@ def test_trajectory_returns_group_arrays():
     assert trajectory.values('gas.m').shape == (100, 500)
 
 
-def test_group_parameter_changes_while_running():
-    """Test that setting the mass of every member applies to the frames after the change."""
-    simulation = Simulation(_pushed_gas(), dt=0.01, clock=RealTimeClock(speed=1.0)).prepare().start(until=0.4)
-    time.sleep(0.15)
-    simulation.update_parameters({'gas.m': 2.0})
-    simulation.wait()
-    trajectory = simulation.trajectory_
+def test_group_parameter_changes_by_schedule():
+    """Test that a scheduled mass of every member applies to the frames after the change."""
+    schedule = {'gas.m': lambda t: 1.0 if t < 0.2 - 1e-9 else 2.0}
+    trajectory = simulate(_pushed_gas(), until=0.4, dt=0.01, schedule=schedule)
     changed = int(np.argmax(np.all(trajectory.values('gas.m') == 2.0, axis=1)))
     assert changed > 0
     accelerations = np.diff(trajectory.values('gas.x_d1')[:, :, 0], axis=0) / 0.01
@@ -208,17 +202,15 @@ def test_group_parameter_changes_while_running():
 
 
 def test_group_parameter_takes_per_member_values():
-    """Test that a group parameter accepts one value per member."""
-    simulation = Simulation(_pushed_gas(3), dt=0.1).prepare().run(until=0.1)
-    simulation.update_parameters({'gas.m': [1.0, 2.0, 4.0]})
-    assert simulation.problem_.parameters.read(simulation.parameters_, 'gas.m').tolist() == [1.0, 2.0, 4.0]
+    """Test that a scheduled group parameter accepts one value per member."""
+    trajectory = simulate(_pushed_gas(3), until=0.1, dt=0.1, schedule={'gas.m': lambda t: [1.0, 2.0, 4.0]})
+    assert trajectory.values('gas.m')[-1].tolist() == [1.0, 2.0, 4.0]
 
 
 def test_group_parameter_with_wrong_shape_raises_error():
-    """Test that a group parameter rejects values that do not broadcast to the group."""
-    simulation = Simulation(_pushed_gas(3), dt=0.1).prepare().run(until=0.1)
-    with pytest.raises(ValidationError, match='broadcasts'):
-        simulation.update_parameters({'gas.m': [1.0, 2.0]})
+    """Test that a scheduled group parameter rejects values that do not broadcast to the group."""
+    with pytest.raises(ValidationError, match=r'At t = 0\.0, the schedule sets gas\.m .* broadcasts'):
+        simulate(_pushed_gas(3), until=0.1, dt=0.1, schedule={'gas.m': lambda t: [1.0, 2.0]})
 
 
 def test_reflecting_box_keeps_members_inside_ode_run():
@@ -273,78 +265,36 @@ def test_simulation_real_time_paces_frames():
     """Test that a real-time run takes at least its simulated duration."""
     clock = RealTimeClock(speed=1.0)
     start = time.perf_counter()
-    Simulation(_growth(), dt=0.1, clock=clock).prepare().run(until=0.5)
+    simulate(_growth(), until=0.5, dt=0.1, clock=clock)
     assert time.perf_counter() - start >= 0.5
     assert clock.max_lag_ >= 0.0
 
 
-def test_simulation_update_parameters_while_running():
-    """Test that a live parameter change stops the growth of a background run."""
-    simulation = Simulation(_growth(), dt=0.01, clock=RealTimeClock(speed=1.0)).prepare().start(until=0.6)
-    time.sleep(0.2)
-    simulation.update_parameters({'g.r': 0.0})
-    simulation.wait()
-    trajectory = simulation.trajectory_
-    rates = trajectory.values('g.r')
-    changed = int(np.argmax(rates == 0.0))
-    assert changed > 0
-    assert np.allclose(trajectory.values('a.n')[changed:], trajectory.values('a.n')[changed])
-
-
-def test_simulation_update_unknown_parameter_raises_error():
-    """Test that only parameters of the problem can be set."""
-    simulation = Simulation(_growth()).prepare().run(until=0.1)
+def test_simulation_schedule_unknown_parameter_raises_error():
+    """Test that only parameters of the problem can be scheduled."""
     with pytest.raises(ParameterError, match=r"'g\.k'"):
-        simulation.update_parameters({'g.k': 1.0})
+        simulate(_growth(), until=0.1, schedule={'g.k': lambda t: 1.0})
 
 
-def test_simulation_update_invalid_value_raises_error():
-    """Test that parameter values are checked against their domain."""
+def test_simulation_schedule_invalid_value_raises_error():
+    """Test that scheduled values are checked against their domain, with the parameter and the time named."""
     system = System(elements=[MarketElement('m')], interactions=[CobwebInteraction('c', target='m')])
-    simulation = Simulation(system).prepare().run(until=1)
-    with pytest.raises(ValidationError, match=r'c\.b = -1\.0 is not a value .* in the domain \(0, \+oo\)'):
-        simulation.update_parameters({'c.b': -1.0})
+    schedule = {'c.b': lambda t: 1.0 if t < 3 else -1.0}
+    message = r'At t = 3\.0, the schedule sets c\.b = -1\.0, which is not a value .* in the domain \(0, \+oo\)'
+    with pytest.raises(ValidationError, match=message):
+        simulate(system, until=5, schedule=schedule)
 
 
-def test_simulation_update_after_run_applies_immediately():
-    """Test that a change outside a run applies to the current parameters."""
-    simulation = Simulation(_growth()).prepare().run(until=0.1)
-    simulation.update_parameters({'g.r': 2.5})
-    assert simulation.parameters_.tolist() == [2.5]
+def test_parameter_error_is_a_validation_error():
+    """Test that one except clause of `ValidationError` catches an unknown scheduled parameter too."""
+    with pytest.raises(ValidationError):
+        simulate(_growth(), until=0.1, schedule={'g.k': lambda t: 1.0})
 
 
-def test_simulation_stop_background_run():
-    """Test that an unbounded background run stops and keeps its frames."""
-    simulation = Simulation(_growth(r=0.0), dt=0.01, clock=RealTimeClock(speed=1.0)).prepare().start()
-    time.sleep(0.1)
-    simulation.pause()
-    simulation.resume()
-    simulation.stop()
-    assert not simulation._thread.is_alive()
-    assert len(simulation.trajectory_.times) > 1
-
-
-def test_simulation_background_error_raised_on_wait():
-    """Test that an error in the background thread is raised by wait."""
-
-    class FailingObserver(BaseObserver):
-        """Observer that fails on the second frame."""
-
-        def _run(self, inputs):
-            """Fail after the first frame."""
-            if inputs is not None and inputs.step == 1:
-                error_msg = 'failure'
-                raise RuntimeError(error_msg)
-
-    simulation = Simulation(_growth(), observers=[FailingObserver()]).prepare().start(until=1)
-    with pytest.raises(RuntimeError, match='failure'):
-        simulation.wait()
-
-
-def test_simulation_methods_before_run_raise_error():
-    """Test that control methods need a run first."""
+def test_simulation_trajectory_before_run_raises_error():
+    """Test that the trajectory needs a run first."""
     with pytest.raises(SimulationError, match='has not been run'):
-        Simulation(_growth()).update_parameters({'g.r': 1.0})
+        _ = Simulation(_growth()).trajectory_
 
 
 def test_simulation_without_recording_has_no_trajectory():
@@ -368,29 +318,17 @@ def test_simulation_same_random_state_is_reproducible():
     assert np.array_equal(first.states, second.states)
 
 
-def test_simulation_parameters_carry_over_runs():
-    """Test that a growth rate set between runs is used by the next run and recorded in every frame."""
-    simulation = Simulation(_logistic(), dt=1.0).prepare().run(until=5)
-    simulation.update_parameters({'growth.r': 0.0})
-    trajectory = simulation.run(until=10).trajectory_
-    assert np.all(trajectory.values('rabbits.n') == 10.0)
-    assert np.all(trajectory.values('growth.r') == 0.0)
-
-
-def test_simulation_agent_parameters_carry_over_runs():
-    """Test that an agent group parameter set between runs is read by the rules of the next run."""
-    simulation = (
-        Simulation(System(elements=[GroupElement('savers', element=SaverElement, size=3)])).prepare().run(until=0)
-    )
-    simulation.update_parameters({'savers.rate': 5.0})
-    trajectory = simulation.run(until=2).trajectory_
+def test_simulation_agent_parameters_follow_the_schedule():
+    """Test that a scheduled agent group parameter is read by the rules of the run."""
+    system = System(elements=[GroupElement('savers', element=SaverElement, size=3)])
+    trajectory = simulate(system, until=2, schedule={'savers.rate': lambda t: 5.0})
     assert trajectory.agents('savers', 2).values['savings'].tolist() == [10.0, 10.0, 10.0]
 
 
 def test_simulation_extend_runs_in_two_parts():
-    """Test that an extended run appends frames that follow a parameter change."""
-    simulation = Simulation(_logistic(), dt=1.0).prepare().run(until=5)
-    simulation.update_parameters({'growth.r': 0.0})
+    """Test that an extended run appends frames that follow a scheduled parameter change."""
+    schedule = {'growth.r': lambda t: 1.0 if t < 5 else 0.0}
+    simulation = Simulation(_logistic(), dt=1.0, schedule=schedule).prepare().run(until=5)
     trajectory = simulation.extend(until=10).trajectory_
     reference = simulate(_logistic(), until=5, dt=1.0).values('rabbits.n')
     assert trajectory.times.tolist() == [float(time) for time in range(11)]
@@ -506,20 +444,6 @@ def test_simulation_releases_the_solver_at_the_last_frame():
     assert simulation.trajectory_.times.size == 11
 
 
-def test_simulation_releases_the_solver_after_a_stop():
-    """Test that a stopped background run releases its solver once."""
-    simulation = Simulation(
-        _growth(r=0.0),
-        solver=_ReleaseCountingSolver(),
-        dt=0.01,
-        clock=RealTimeClock(speed=1.0),
-    ).prepare()
-    simulation.start()
-    time.sleep(0.05)
-    simulation.stop()
-    assert simulation.stepper_.releases_ == 1
-
-
 def test_simulation_prepare_compiles_and_chooses_the_solver_without_running():
     """Test that preparing a simulation takes no input, compiles the system, and runs nothing."""
     simulation = Simulation(_growth()).prepare()
@@ -541,20 +465,18 @@ def test_simulation_run_takes_the_end_time():
     assert simulation.time_ == 2.0
 
 
-def test_update_parameters_shaped_parameter_of_wrong_shape_raises_error():
-    """Test that a matrix parameter set to the transposed shape names the parameter and both shapes."""
-    simulation = Simulation(_weighted(np.ones((4, 2)), [1.0, 2.0]), dt=0.1).prepare().run(until=0.1)
+def test_schedule_shaped_parameter_of_wrong_shape_raises_error():
+    """Test that a matrix parameter scheduled with the transposed shape names the parameter and both shapes."""
+    schedule = {'input.W': lambda t: np.ones((2, 4))}
     with pytest.raises(ValidationError, match=r'(?s)input\.W = .* of shape \(4, 2\).* has shape \(2, 4\)'):
-        simulation.update_parameters({'input.W': np.ones((2, 4))})
+        simulate(_weighted(np.ones((4, 2)), [1.0, 2.0]), until=0.1, dt=0.1, schedule=schedule)
 
 
 def test_trajectory_values_shaped_parameter_has_its_shape():
     """Test that a matrix parameter is read from a trajectory with its shape after a change as a whole."""
     weights = np.arange(8.0).reshape(4, 2)
-    simulation = Simulation(_weighted(weights, [1.0, 2.0]), dt=0.1).prepare().run(until=0.2)
-    simulation.update_parameters({'input.W': 2 * weights})
-    simulation.run(until=0.3)
-    values = simulation.trajectory_.values('input.W')
+    schedule = {'input.W': lambda t: weights if t < 0.2 else 2 * weights}
+    values = simulate(_weighted(weights, [1.0, 2.0]), until=0.3, dt=0.1, schedule=schedule).values('input.W')
     assert values.shape[1:] == (4, 2)
     np.testing.assert_array_equal(values[-1], 2 * weights)
 
@@ -612,7 +534,8 @@ def test_checked_mode_catches_values_outside_alphabet():
         interactions=[ProgressionInteraction('p', target='ann')],
     )
     with pytest.raises(ValidationError, match=r'ann\.health took the values 3\.0 at t = 1\.0, outside its domain'):
-        Simulation(system, checked=True).prepare().run(until=1)
+        simulate(system, until=1, checked=True)
+    assert simulate(system, until=1).values('ann.health').shape == (2,)
 
 
 @pytest.mark.benchmark
@@ -654,14 +577,6 @@ class ChainElement(Element):
     def _get_laws(self, s):
         """Return the transition of the chain."""
         return [TransitionLaw(s.x, [[s.stay, 1 - s.stay], [0.4, 0.6]])]
-
-
-def test_transition_rejects_a_live_change_that_breaks_a_row():
-    """Test that a parameter change that makes an entry negative is rejected and the value is kept."""
-    simulation = Simulation(System(elements=[ChainElement('c')]), dt=1.0, random_state=0).prepare().run(until=10)
-    with pytest.raises(ParameterError, match=r'c\.stay.*entry \(0, 1\) of the transition law of c\.x.*below 0'):
-        simulation.update_parameters({'c.stay': 1.2})
-    assert simulation.problem_.parameters.read(simulation.parameters_, 'c.stay') == pytest.approx(0.9)
 
 
 # Default and given solvers of a simulation, moved from the tests of `skcomplex.core.engine.solvers._defaults`.

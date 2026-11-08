@@ -18,7 +18,7 @@ from ..compile import BaseCompiler
 from ..problems import BaseProblemSpec
 from ..solvers import BaseSolver
 from ..solvers._defaults import DEFAULT_SOLVERS
-from ._base import BaseObserver
+from ._base import BaseClock, BaseObserver
 from ._simulations import Simulation
 from ._trajectories import Trajectory
 
@@ -104,6 +104,8 @@ def simulate(
     schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,
     compiler: BaseCompiler | None = None,
     random_state: int | np.random.Generator | None = None,
+    checked: bool = False,
+    clock: BaseClock | None = None,
 ) -> Trajectory:
     """Simulate a system until a time and return its trajectory.
 
@@ -151,7 +153,10 @@ def simulate(
         schedule:
             A mapping from dotted parameter name to a function of time, such as a ramp of a control parameter, or
             `None` for the tuned schedule of the system. At every frame the parameter takes the value of its function
-            at the frame's time.
+            at the frame's time. A scheduled value is checked against the domain of its parameter, as an initial value
+            is, and a value outside it, or one that would make a transition or emission matrix negative or its rows
+            not sum to 1, such as a transition probability of 1.5, raises an error that names the parameter and the
+            time.
 
         compiler:
             The compiler of the system, or `None` for the tuned compiler of the system, or else the compiler of the
@@ -162,13 +167,26 @@ def simulate(
         random_state:
             The seed or generator of stochastic solvers.
 
+        checked:
+            Whether to check after every frame that every state lies in its domain, such as an alphabet of labels or a
+            nonnegative count, and raise an error naming the state and the time when it does not.
+
+        clock:
+            The clock that paces frames against wall time, or `None` to run as fast as possible. A `RealTimeClock`
+            paces the run in real time, to watch it in a Rerun viewer as it runs.
+
     Returns:
         trajectory:
             The trajectory of the system from time 0 until the end time.
 
     Raises:
         ValidationError:
-            The system is not a system, or no end time is given or tuned.
+            The system is not a system, no end time is given or tuned, a state leaves its domain in a checked run, or
+            a scheduled value is outside the domain of its parameter.
+
+        ParameterError:
+            A scheduled name is not a parameter of the system, or scheduled values would break a transition or
+            emission matrix.
 
         TagError:
             The parts of the system disagree on a tag, or the solver or the backend does not support a tag of the
@@ -199,6 +217,8 @@ def simulate(
         schedule=schedule,
         compiler=compiler,
         random_state=random_state,
+        checked=checked,
+        clock=clock,
     )
 
 
@@ -316,6 +336,8 @@ def _simulate(
     schedule: Mapping[str, Callable[[float], float | npt.ArrayLike]] | None = None,
     compiler: BaseCompiler | None = None,
     random_state: int | np.random.Generator | None = None,
+    checked: bool = False,
+    clock: BaseClock | None = None,
 ) -> Trajectory:
     """Simulate a system as `simulate` does, from a problem compiled from it by `_compile_problem` when one is given.
 
@@ -359,6 +381,12 @@ def _simulate(
         random_state:
             The seed or generator of stochastic solvers.
 
+        checked:
+            Whether to check after every frame that every state lies in its domain.
+
+        clock:
+            The clock that paces frames against wall time, or `None` to run as fast as possible.
+
     Returns:
         trajectory:
             The trajectory of the system from time 0 until the end time.
@@ -393,6 +421,8 @@ def _simulate(
         invariants=settings['invariants'] if invariants is None else invariants,
         initial_state=settings['initial_state'] if initial_state is None else initial_state,
         random_state=random_state,
+        checked=checked,
+        clock=clock,
         until=end,
     )
     trajectory: Trajectory = simulation.prepare().run().trajectory_

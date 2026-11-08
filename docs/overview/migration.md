@@ -116,18 +116,21 @@ trajectory = simulate(LotkaVolterraSystem(), until=50, dt=0.1)
 | 0.6 | 0.7 |
 | --- | --- |
 | `Simulation(system, **settings).prepare().run(until).trajectory_` | `simulate(system, until=until, **settings)` |
-| `Simulation(..., solver=..., backend=..., dt=..., observers=..., schedule=..., observables=..., invariants=..., initial_state=..., random_state=...)` | the keyword arguments of `simulate` with the same names |
+| `Simulation(..., solver=..., backend=..., dt=..., clock=..., observers=..., schedule=..., observables=..., invariants=..., initial_state=..., random_state=..., checked=...)` | the keyword arguments of `simulate` with the same names |
 | `Simulation(..., compiler=...)` | `simulate(..., compiler=...)`, for a compiler on `BaseCompiler` that a system package defines |
 | `simulation.set_params(...)` before a run | the arguments of the next `simulate` call |
 | `run(until=...)` | `simulate(..., until=...)` |
-| `update_parameters({path: value})` | `simulate(..., schedule={path: function_of_time})` |
+| `update_parameters({path: value})` | `simulate(..., schedule={path: function_of_time})`, whose values are checked against the domains of their parameters at every frame |
 | `extend(until)` | `simulate(..., initial_state=...)` from the last frame of the previous trajectory |
-| `Simulation(..., clock=...)`, `start`, `pause`, `resume`, `stop`, `wait` | no public replacement, runs go as fast as possible |
+| `Simulation(..., clock=RealTimeClock())` | `simulate(..., clock=RealTimeClock())`, which paces the run in real time to watch it in Rerun |
+| `start`, `pause`, `resume`, `stop`, `wait`, and parameter changes while running | removed, a run goes in the calling thread and its parameters change only by its schedule |
 | `problem_`, `stepper_`, `time_` | no public replacement, the trajectory holds `times` and the values |
 | `clone(simulation)` | a new `simulate` call, since `simulate` never changes the system |
 
 Validation errors that the compiler reported through `PassCompiler().prepare(system).report_` are raised by `simulate`,
-such as a `RoleElementError` that names the role, the state, and the fix. A solver or a backend that does not support
+such as a `RoleElementError` that names the role, the state, and the fix. `ParameterError` now derives from
+`ValidationError`, so `except ValidationError` catches every validation failure of `simulate`, an unknown or invalid
+scheduled parameter included. A solver or a backend that does not support
 the tags of a system raises a `TagError` before anything compiles.
 
 ## Compilers and problems

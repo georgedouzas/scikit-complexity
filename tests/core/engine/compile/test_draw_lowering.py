@@ -20,7 +20,7 @@ from skcomplex.core.components.system import System
 from skcomplex.core.engine.backends import NumbaBackend, NumpyBackend
 from skcomplex.core.engine.compile._pass_compiler import PassCompiler
 from skcomplex.core.engine.runtime import simulate
-from skcomplex.core.errors import IncompatibleLawsError, ValidationError
+from skcomplex.core.errors import IncompatibleLawsError, ParameterError, ValidationError
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 CHAIN = [[0.9, 0.1], [0.4, 0.6]]
@@ -370,6 +370,14 @@ def test_transition_follows_a_live_matrix_change():
     x = _codes(trajectory.values('c.x'))
     assert _run_lengths(x[:50000], 0).mean() == pytest.approx(10, rel=0.1)
     assert _run_lengths(x[50002:], 0).mean() == pytest.approx(2, rel=0.1)
+
+
+def test_transition_rejects_a_scheduled_probability_above_one():
+    """Test that a schedule that makes an entry negative raises an error naming the parameter and the time."""
+    schedule = {'c.stay': lambda t: 1.5 if t >= 3 else 0.9}
+    message = r'At t = 3\.0, the schedule sets c\.stay, which would make the entry \(0, 1\) of .* below 0'
+    with pytest.raises(ParameterError, match=message):
+        simulate(System(elements=[ChainElement('c')]), until=10, dt=1.0, schedule=schedule, random_state=0)
 
 
 def test_transition_rejects_a_row_that_does_not_sum_to_one():

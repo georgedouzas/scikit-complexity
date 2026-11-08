@@ -377,7 +377,10 @@ value, and a system with a compiler of its own compiles per run.
   lets a system package reach only through a public module. The problems of the other forms and their kernels are
   private.
 - **`Simulation` stays the private machinery of `simulate`** in `skcomplex.core.engine.runtime._simulations`, under its
-  name, with live parameter changes, extending runs, background runs, and clocks. Its tests live in the mirrored test
+  name, with extending runs, schedules, and clocks. Live parameter changes and background runs are removed:
+  `simulate` takes `clock` for real-time pacing and `checked` for domain checks of the states, and a schedule is the
+  one way a parameter changes during a run, with every scheduled value checked against the domain of its parameter and
+  the matrices it enters. Its tests live in the mirrored test
   module. Analyses that rerun a compiled problem, such as sections and large deviations, use it from the private module.
 - **Discovery without a registry.** `all_systems()` reads the field and topics of every system class from the sources
   with a private reader. The registry, `register_system`, `create_system`, `create_simulation`, `describe`, `catalog`,
@@ -391,3 +394,22 @@ What a user receives is public: `Trajectory`, the compiled problem a trajectory 
 makes them is private, except the bases a system package needs to bring its own form (`BaseCompiler`, `BasePass`,
 `BaseLowering`, `BaseKernel`, `BasePrinter`). Names follow the rule of `base-interfaces`: every frozen value object is a
 spec and ends in `Spec`, wherever it lives, so the compiled results keep their names.
+
+## Decisions of the follow-ups
+
+- **`ParameterError` derives from `ValidationError`.** Every other error about an invalid system or value, `LabelError`,
+  `RoleError`, `TagError`, `SpaceError`, and the rest, derives from `ValidationError`, and `ParameterError` names the
+  same kind of failure: a parameter name the problem does not have, a value outside its domain or its matrix, or a value
+  a system class rejects in `_check`. So one `except ValidationError` catches every validation failure of `simulate`,
+  scheduled parameters included. No except clause changes meaning: the clauses that catch `ValidationError` in the
+  compiler, the passes, the backends, and the documentation generators wrap code that never raises `ParameterError`,
+  the issue codes of compilers look errors up by their exact type, and the clauses that catch `SkcomplexError` caught
+  `ParameterError` already.
+- **A translated module defines a system class.** `SystemDynamicsTranslator` writes a class on `BaseSystem`, named
+  after the model with the `System` suffix, whose keyword arguments are the constants of the file with their values as
+  defaults, and whose tuned `until`, `dt`, and `observables` come from the control section and the auxiliaries. The
+  first values of the stocks are evaluated when the file is translated, so a constant changed on the class does not
+  change the first value of a stock that the file computes from it.
+- **System classes nest by their composites.** `System(systems=[...])` takes system classes, such as ready-made systems
+  of the catalog, next to composites. Preparing a composite replaces every nested system class by the composite it
+  builds, so the compilers, solvers, analyses, and trajectories read nested parts of both alike.

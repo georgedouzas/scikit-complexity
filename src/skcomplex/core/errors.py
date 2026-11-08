@@ -36,6 +36,10 @@ class RewritingError(ValidationError):
     """A rewriting system is malformed, or a generation would exceed its maximum size."""
 
 
+class ParameterError(ValidationError):
+    """A parameter name is not part of the problem, or a parameter value is not valid for its system or matrix."""
+
+
 class LabelError(ValidationError):
     """A label is missing, duplicated, or produces a name collision."""
 
@@ -90,10 +94,6 @@ class SolverError(SkcomplexError):
 
 class InfeasibleError(SolverError):
     """A linear program has no solution, and its law asks to raise an error for that."""
-
-
-class ParameterError(SkcomplexError):
-    """A parameter name is not part of the problem."""
 
 
 class SimulationError(SkcomplexError):

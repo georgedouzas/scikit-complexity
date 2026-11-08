@@ -170,7 +170,7 @@ backend. It runs in Python, though, and turns off the compiled stepper loops for
 
 ## External backends
 
-Hand a whole system to a third-party simulator, and keep the frames, trajectories, live parameters, and Rerun
+Hand a whole system to a third-party simulator, and keep the frames, trajectories, schedules, and Rerun
 visualization of the library. `LammpsSolver` runs particle systems in LAMMPS, which integrates them with velocity
 Verlet.
 
