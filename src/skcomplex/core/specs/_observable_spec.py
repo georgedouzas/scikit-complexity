@@ -14,12 +14,12 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class ObservableSpec(BaseSpec):
-    """Spec of a named value of a system that a run computes from its states and parameters at every frame.
+    """Spec of a named value of a system that a run computes at every frame.
 
-    An observable is an expression of the namespace of the system, of one element when `element` is given, or a
-    reduction over the members of a group of an expression or a variable of each member. A run records it in its
-    trajectory under `<system path>/<label>`, or `<element>.<label>` for an element, and laws of other partitions read
-    it through a role bound to its path.
+    The run computes it from the states and parameters of the system. An observable is an expression of the namespace of
+    the system, of one element when `element` is given, or a reduction over the members of a group of an expression or a
+    variable of each member. A run records it in its trajectory under `<system path>/<label>`, or `<element>.<label>`
+    for an element, and laws of other partitions read it through a role bound to its path.
 
     Args:
         label:
@@ -62,7 +62,9 @@ class ObservableSpec(BaseSpec):
     function: Callable[[float, Mapping[str, object]], object] | None = None
 
     def _check(self) -> None:
-        """Raise an error for an expression or a function reduction that cannot be pickled, such as a lambda.
+        """Raise an error for an expression or a function reduction that cannot be pickled.
+
+        An example is a lambda.
 
         Raises:
             ValidationError:

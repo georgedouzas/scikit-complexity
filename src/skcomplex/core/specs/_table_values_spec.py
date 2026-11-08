@@ -14,7 +14,9 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class TableValuesSpec(BaseSpec):
-    """Values of selected entries of a table of numbers or parameter expressions at a parameter vector.
+    """Values of selected entries of a table at a parameter vector.
+
+    The table holds numbers or parameter expressions.
 
     Args:
         table:

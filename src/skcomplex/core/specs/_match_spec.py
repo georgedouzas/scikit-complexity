@@ -10,7 +10,9 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class MatchSpec(BaseSpec):
-    """Match of a requester with a provider, of a quantity at a clearing value per unit.
+    """Match of a requester with a provider.
+
+    It is a match of a quantity at a clearing value per unit.
 
     Args:
         requester:

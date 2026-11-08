@@ -18,7 +18,9 @@ type Letters = str | ModuleSpec | Sequence[str | ModuleSpec]
 
 @dataclass(frozen=True)
 class ModuleSpec(BaseSpec):
-    """Spec of a symbol of a word with numeric or symbolic parameters, such as `A(x)` or `F(1.0)`.
+    """Spec of a symbol of a word with numeric or symbolic parameters.
+
+    Examples are `A(x)` or `F(1.0)`.
 
     Args:
         name:
@@ -49,10 +51,10 @@ class ModuleSpec(BaseSpec):
 
     @classmethod
     def parse_word(cls, value: Letters, names: Sequence[str] = ()) -> list[ModuleSpec]:
-        """Return the modules of a word given as a string of one-character symbols, a module, or a sequence of both.
+        """Return the modules of a word.
 
-        A string item of a sequence is one symbol when it is a declared name or one character long, and a string of
-        one-character symbols otherwise.
+        The word is a string of one-character symbols, a module, or a sequence of both. A string item of a sequence is
+        one symbol when it is a declared name or one character long, and a string of one-character symbols otherwise.
 
         Args:
             value:

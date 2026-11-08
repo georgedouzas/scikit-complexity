@@ -14,7 +14,9 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class SnapshotsSpec(BaseSpec):
-    """Agents of one group at every frame, aligned on the agents present in every frame.
+    """Agents of one group at every frame.
+
+    They are aligned on the agents present in every frame.
 
     Args:
         times:

@@ -26,14 +26,14 @@ TURTLE_SYMBOLS = {
 
 @dataclass(frozen=True)
 class GeometrySpec(BaseSpec):
-    r"""Spec of the geometric interpretation of a word as line segments in two or three dimensions.
+    r"""Spec of the geometric interpretation of a word as line segments.
 
-    A cursor walks the word: symbols mean `draw` (forward with a segment), `move` (forward without one), `left` and
-    `right` (turn by the angle), `reverse` (turn by 180 degrees), `push` and `pop` (save and restore the position and
-    heading), and in three dimensions `pitch_down`, `pitch_up`, `roll_left`, and `roll_right`. This is the turtle
-    interpretation of Prusinkiewicz and Lindenmayer (1990), whose symbols are the default meanings: `F`, `f`, `+`, `-`,
-    `|`, `[`, `]`, `&`, `^`, `\`, and `/`. A module's first parameter overrides the step of a move or the angle of a
-    turn.
+    The segments lie in two or three dimensions. A cursor walks the word: symbols mean `draw` (forward with a segment),
+    `move` (forward without one), `left` and `right` (turn by the angle), `reverse` (turn by 180 degrees), `push` and
+    `pop` (save and restore the position and heading), and in three dimensions `pitch_down`, `pitch_up`, `roll_left`,
+    and `roll_right`. This is the turtle interpretation of Prusinkiewicz and Lindenmayer (1990), whose symbols are the
+    default meanings: `F`, `f`, `+`, `-`, `|`, `[`, `]`, `&`, `^`, `\`, and `/`. A module's first parameter overrides
+    the step of a move or the angle of a turn.
 
     Args:
         angle:
@@ -68,7 +68,7 @@ class GeometrySpec(BaseSpec):
     heading: float = 0.0
 
     def _check(self) -> None:
-        """Raise an error for a meaning that is not an action, or a dimension that is neither 2 nor 3.
+        """Raise an error for a meaning that is no action, or a dimension not 2 or 3.
 
         Raises:
             RewritingError:

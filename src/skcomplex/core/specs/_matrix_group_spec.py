@@ -1,4 +1,7 @@
-"""Define the matrix group spec, a compact group of unitary matrices whose elements a state holds by components."""
+"""Define the matrix group spec.
+
+It is a compact group of unitary matrices whose elements a state holds by components.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,12 +23,13 @@ PARTS = 2
 
 @dataclass(frozen=True)
 class MatrixGroupSpec(BaseSpec):
-    """Compact group of unitary matrices of a degree, `SU(n)` of unit determinant or `U(n)`.
+    """Compact group of unitary matrices of a degree.
 
-    A state of the group holds every matrix by its `2 n^2` real components, the real and the imaginary part of every
-    entry in row order. The path-ordered product of the matrices along the oriented edges of a path is its holonomy, the
-    product of the matrix of every edge traversed along its orientation and of the inverse, the conjugate transpose, of
-    every edge traversed against it, from the first edge of the path to the last.
+    It is `SU(n)`, of unit determinant, or `U(n)`. A state of the group holds every matrix by its `2 n^2` real
+    components, the real and the imaginary part of every entry in row order. The path-ordered product of the matrices
+    along the oriented edges of a path is its holonomy, the product of the matrix of every edge traversed along its
+    orientation and of the inverse, the conjugate transpose, of every edge traversed against it, from the first edge of
+    the path to the last.
 
     Args:
         name:
@@ -127,10 +131,10 @@ class MatrixGroupSpec(BaseSpec):
         return np.stack([array.real, array.imag], axis=-1).reshape(*array.shape[:-2], self.size)
 
     def projection_of(self, matrices: npt.ArrayLike) -> ComplexArray:
-        """Return the nearest matrices of the group, which undo the rounding of repeated products.
+        """Return the nearest matrices of the group.
 
-        The unitary factor of the polar decomposition is the nearest unitary matrix, and for `SU(n)` it is divided by
-        the principal `n`-th root of its determinant.
+        They undo the rounding of repeated products. The unitary factor of the polar decomposition is the nearest
+        unitary matrix, and for `SU(n)` it is divided by the principal `n`-th root of its determinant.
 
         Args:
             matrices:
@@ -155,10 +159,11 @@ class MatrixGroupSpec(BaseSpec):
         return unitary / phase[..., None, None]
 
     def near_identity_of(self, rng: np.random.Generator, width: float, count: int) -> ComplexArray:
-        """Return random matrices of the group near the identity, `exp(i width H)` for random Hermitian `H`.
+        """Return random matrices of the group near the identity.
 
-        The entries of `H` are standard normal up to Hermitian symmetry, and traceless for `SU(n)`. A matrix and its
-        inverse are equally likely, so a move by these matrices is symmetric.
+        They are `exp(i width H)` for random Hermitian `H`. The entries of `H` are standard normal up to Hermitian
+        symmetry, and traceless for `SU(n)`. A matrix and its inverse are equally likely, so a move by these matrices is
+        symmetric.
 
         Args:
             rng:

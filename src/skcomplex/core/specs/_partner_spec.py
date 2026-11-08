@@ -16,12 +16,13 @@ FALLBACKS = (None, 'nearest')
 
 @dataclass(frozen=True)
 class PartnerSpec(BaseSpec):
-    """Selection of partners: the candidates of every agent, a choice among them, a fallback, and a capacity.
+    """Selection of partners.
 
-    Every agent of one side considers its candidates among the agents of the other side and picks among those that
-    still have room. With a capacity the agents act in random order, since the first to act take the room. Without one
-    they act in their order. A capacity of 1 with every agent as a candidate and a uniform choice draws disjoint random
-    pairs from one random order per side.
+    It holds the candidates of every agent, a choice among them, a fallback, and a capacity. Every agent of one side
+    considers its candidates among the agents of the other side and picks among those that still have room. With a
+    capacity the agents act in random order, since the first to act take the room. Without one they act in their order.
+    A capacity of 1 with every agent as a candidate and a uniform choice draws disjoint random pairs from one random
+    order per side.
 
     Args:
         candidates:
@@ -67,7 +68,9 @@ class PartnerSpec(BaseSpec):
     clearing: str = 'midpoint'
 
     def _check(self) -> None:
-        """Raise an error for an unknown choice, fallback, or clearing, a bad distance or capacity, or a bad score.
+        """Raise an error for an unknown or invalid setting of the selection.
+
+        The setting is an unknown choice, fallback, or clearing, a bad distance or capacity, or a bad score.
 
         Raises:
             ValidationError:

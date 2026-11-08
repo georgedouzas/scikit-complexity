@@ -21,11 +21,12 @@ type Product = tuple[Factor, ...]
 
 @dataclass(frozen=True, eq=False)
 class OperatorSpec(BaseSpec):
-    """Sum of products of local operators of subsystems, each product with a symbolic coefficient.
+    """Sum of products of local operators of subsystems.
 
-    The compiler lowers the Sage operator expressions of laws and observables to operators. Operators combine with
-    `add`, `subtract`, `multiply`, `divide`, `negate`, and `adjoint`. A coefficient is a number or a Sage expression of
-    parameters and time. A scalar operand stands for that multiple of the identity, and a product keeps its order.
+    Each product has a symbolic coefficient. The compiler lowers the Sage operator expressions of laws and observables
+    to operators. Operators combine with `add`, `subtract`, `multiply`, `divide`, `negate`, and `adjoint`. A coefficient
+    is a number or a Sage expression of parameters and time. A scalar operand stands for that multiple of the identity,
+    and a product keeps its order.
 
     Args:
         terms:
@@ -139,7 +140,7 @@ class OperatorSpec(BaseSpec):
         return OperatorSpec({key: -value for key, value in self._items().items()})
 
     def subtract(self, other: object) -> 'OperatorSpec':
-        """Return the difference of the operator and an operator or a multiple of the identity.
+        """Return the difference of the operator and an operator or a multiple of identity.
 
         Args:
             other:
@@ -197,7 +198,10 @@ class OperatorSpec(BaseSpec):
 
     @property
     def text(self) -> str:
-        """OperatorSpec in operator notation, a sum of coefficients times products of local operators."""
+        """OperatorSpec in operator notation.
+
+        It is a sum of coefficients times products of local operators.
+        """
         if not self.terms:
             return '0'
         parts = []
@@ -213,7 +217,9 @@ class OperatorSpec(BaseSpec):
         return ' + '.join(parts)
 
     def adjoint(self) -> 'OperatorSpec':
-        """Return the adjoint operator, with conjugate coefficients and reversed products of adjoint factors.
+        """Return the adjoint operator.
+
+        It has conjugate coefficients and reversed products of adjoint factors.
 
         Returns:
             adjoint:
@@ -240,7 +246,10 @@ class OperatorSpec(BaseSpec):
 
     @staticmethod
     def _coefficient(value: object) -> Expression | None:
-        """Return a number or a symbolic expression as a Sage expression, or `None` for any other value."""
+        """Return a number or a symbolic expression as a Sage expression.
+
+        It returns `None` for any other value.
+        """
         if isinstance(value, np.ndarray | OperatorSpec | str):
             return None
         if isinstance(value, np.generic):

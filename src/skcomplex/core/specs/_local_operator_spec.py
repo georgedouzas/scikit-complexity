@@ -19,7 +19,9 @@ _ADJOINT_SUFFIX = '.dag'
 
 @dataclass(frozen=True)
 class LocalOperatorSpec(BaseSpec):
-    """Operator that acts on the Hilbert space of one subsystem, identified by its name.
+    """Operator that acts on the Hilbert space of one subsystem.
+
+    It is identified by its name.
 
     Args:
         name:

@@ -21,12 +21,13 @@ STOCHASTIC_LAWS = frozenset({'noise', 'jump', 'sampling'})
 
 @dataclass(frozen=True)
 class Tags(BaseSpec):
-    """Capability tags: what a part is, what a system derives from its parts, or what a solver or a backend supports.
+    """Capability tags.
 
-    The tags of a part come from its declarations and its arguments alone, so they are known before `prepare`. A set
-    that is empty means any value for `time`, `space`, `domains`, and `laws`, and a fixed structure for `structure`.
-    Law kinds are `None` when the declarations do not show them, such as for a part that writes its laws in
-    `_get_laws` without listing their classes, and the randomness is then `None` too, unless an argument shows it.
+    They say what a part is, what a system derives from its parts, or what a solver or a backend supports. The tags of a
+    part come from its declarations and its arguments alone, so they are known before `prepare`. A set that is empty
+    means any value for `time`, `space`, `domains`, and `laws`, and a fixed structure for `structure`. Law kinds are
+    `None` when the declarations do not show them, such as for a part that writes its laws in `_get_laws` without
+    listing their classes, and the randomness is then `None` too, unless an argument shows it.
 
     Args:
         time:

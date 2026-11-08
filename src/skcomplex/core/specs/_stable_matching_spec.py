@@ -13,12 +13,13 @@ from ._random_search_spec import CLEARINGS
 
 @dataclass(frozen=True)
 class StableMatchingSpec(BaseSpec):
-    """Stable matching of Gale and Shapley, requesters proposing to providers that take as many as they offer units.
+    """Stable matching of Gale and Shapley.
 
-    Requesters rank the providers whose limit they accept by `requester_preference(requester, provider)`, by default
-    the lower limit, and providers rank the requesters by `provider_preference(provider, requester)`, by default the
-    higher limit. The requester-optimal stable matching, from the hospital-resident solver of the `matching` library,
-    pairs every requester with at most one provider, and each pair matches one unit at the value of the clearing rule.
+    Requesters propose to providers, which take as many as they offer units. Requesters rank the providers whose limit
+    they accept by `requester_preference(requester, provider)`, by default the lower limit, and providers rank the
+    requesters by `provider_preference(provider, requester)`, by default the higher limit. The requester-optimal stable
+    matching, from the hospital-resident solver of the `matching` library, pairs every requester with at most one
+    provider, and each pair matches one unit at the value of the clearing rule.
 
     Args:
         requester_preference:

@@ -48,5 +48,8 @@ class IssueSpec(BaseSpec):
 
     @property
     def text(self) -> str:
-        """IssueSpec as one line with its path, code, message, and fix."""
+        """IssueSpec as one line.
+
+        The line holds its path, code, message, and fix.
+        """
         return f'{self.path}: {self.message} {self.fix} [{self.code}]'

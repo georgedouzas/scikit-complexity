@@ -14,7 +14,10 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class _UnknownSpec(BaseSpec):
-    """State component whose equation the analysis writes in its own order, with its function of time."""
+    """State component whose equation the analysis writes in its own order.
+
+    It holds its function of time.
+    """
 
     name: str
     function: Expression

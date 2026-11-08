@@ -13,11 +13,11 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class SymmetrySpec(BaseSpec):
-    """Spec of a continuous symmetry of a system, the infinitesimal variation of the coordinates it moves.
+    """Spec of a continuous symmetry of a system.
 
-    The generator is a function of the namespace of the system, where `s.<element>.<state>` is the symbol of a state,
-    that maps the path of every coordinate it moves, such as `'body.q'`, to its infinitesimal variation `dq`, an
-    expression for a scalar state or a vector for a vector state.
+    It is the infinitesimal variation of the coordinates it moves. The generator is a function of the namespace of the
+    system, where `s.<element>.<state>` is the symbol of a state, that maps the path of every coordinate it moves, such
+    as `'body.q'`, to its infinitesimal variation `dq`, an expression for a scalar state or a vector for a vector state.
 
     Args:
         label:

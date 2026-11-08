@@ -14,7 +14,9 @@ MOVES = ('flip', 'random-value', 'rotate', 'gaussian', 'function', 'cluster')
 
 @dataclass(frozen=True)
 class MoveSpec(BaseSpec):
-    """Spec of the proposed change of the value of a lattice site in a Monte Carlo sweep.
+    """Spec of the proposed change of the value of a lattice site.
+
+    The change is proposed in a Monte Carlo sweep.
 
     Args:
         target:
@@ -55,7 +57,9 @@ class MoveSpec(BaseSpec):
     function: Callable[..., object] | None = None
 
     def _check(self) -> None:
-        """Raise an error for an unknown kind of move, or a function move without a callable function.
+        """Raise an error for an unknown kind of move, or a function move without function.
+
+        The function of a function move must be callable.
 
         Raises:
             ValidationError:

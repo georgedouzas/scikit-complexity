@@ -15,7 +15,9 @@ from ._prototile_spec import PrototileSpec
 
 @dataclass(frozen=True)
 class PatchStructureSpec(BaseStructureSpec):
-    """Patch of tiles at one generation, each a prototile under a homogeneous affine matrix.
+    """Patch of tiles at one generation.
+
+    Each tile is a prototile under a homogeneous affine matrix.
 
     Args:
         prototiles:
@@ -52,7 +54,10 @@ class PatchStructureSpec(BaseStructureSpec):
 
     @property
     def has_geometry(self) -> bool:
-        """Whether the patch has a geometry, which it always has."""
+        """Whether the patch has a geometry.
+
+        It always has one.
+        """
         return True
 
     def count(self, name: str) -> int:

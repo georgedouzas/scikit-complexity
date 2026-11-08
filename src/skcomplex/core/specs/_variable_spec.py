@@ -16,10 +16,11 @@ from ._matrix_group_spec import MatrixGroupSpec
 
 @dataclass(frozen=True)
 class VariableSpec(BaseSpec):
-    """Declaration of a state, a parameter, or a role of a part, as the compiler reads it.
+    """Declaration of a state, a parameter, or a role of a part.
 
-    A state of order `k` adds the companion states `<name>_d1` to `<name>_d<k-1>` that hold its derivatives, and a
-    state with `m` lags adds `<name>_lag1` to `<name>_lag<m>` that hold its past values.
+    It is the declaration as the compiler reads it. A state of order `k` adds the companion states `<name>_d1` to
+    `<name>_d<k-1>` that hold its derivatives, and a state with `m` lags adds `<name>_lag1` to `<name>_lag<m>` that hold
+    its past values.
 
     Args:
         kind:
@@ -119,12 +120,18 @@ class VariableSpec(BaseSpec):
 
     @property
     def is_place(self) -> bool:
-        """Whether a vector state is the place of its element in a continuous space, by its role."""
+        """Whether a vector state is the place of its element in a continuous space.
+
+        It is decided by its role.
+        """
         return self.vector and self.role in {'position', 'site'}
 
     @property
     def is_fractional(self) -> bool:
-        """Whether the order of the state is not an integer, so its rate laws give a Caputo derivative."""
+        """Whether the order of the state is not an integer.
+
+        The rate laws of such a state give a Caputo derivative.
+        """
         return not float(self.order).is_integer()
 
     @property

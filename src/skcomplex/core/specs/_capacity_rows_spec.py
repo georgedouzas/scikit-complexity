@@ -19,7 +19,9 @@ ACTIVE_THRESHOLD = 0.5
 
 @dataclass(frozen=True)
 class CapacityRowsSpec(BaseSpec):
-    """Rows of a variable group on the nodes, edges, or hyperedges of a network, with the values of a new member.
+    """Rows of a variable group on a network, with the values of a new member.
+
+    The group is on the nodes, edges, or hyperedges of the network.
 
     Args:
         path:

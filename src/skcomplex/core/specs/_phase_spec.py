@@ -11,17 +11,18 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class PhaseSpec(BaseSpec):
-    """Named part of a step, in which agents run the rules of the phase under an activation policy.
+    """Named part of a step.
 
-    The policies are `'random'`, every agent in a new random order, `'sequential'`, every agent in the order of
-    creation, `'simultaneous'`, every agent in random order reading the states of the start of the phase while its
-    writes apply at the end of the phase, `'by-type'`, group after group in the order of `groups` or of declaration,
-    each group in random order, and `'visits'`, as many visits as `visits` times the number of agents of `groups` at
-    the start of the phase, each to an agent drawn at random with replacement, which runs its rules of the phase at
-    the time `k + i / n` of visit `i` of `n` in step `k`. The rules of interactions and institutions in the phase run
-    once after the agents. A phase with `repeat` above one runs that many rounds, such as intraday rounds within a day.
-    A phase runs in the steps `k`, counted from one, for which `k - offset` is a multiple of `period`, so the default
-    period of one runs it every step and a period of seven runs it once a week.
+    In it agents run the rules of the phase under an activation policy. The policies are `'random'`, every agent in a
+    new random order, `'sequential'`, every agent in the order of creation, `'simultaneous'`, every agent in random
+    order reading the states of the start of the phase while its writes apply at the end of the phase, `'by-type'`,
+    group after group in the order of `groups` or of declaration, each group in random order, and `'visits'`, as many
+    visits as `visits` times the number of agents of `groups` at the start of the phase, each to an agent drawn at
+    random with replacement, which runs its rules of the phase at the time `k + i / n` of visit `i` of `n` in step `k`.
+    The rules of interactions and institutions in the phase run once after the agents. A phase with `repeat` above one
+    runs that many rounds, such as intraday rounds within a day. A phase runs in the steps `k`, counted from one, for
+    which `k - offset` is a multiple of `period`, so the default period of one runs it every step and a period of seven
+    runs it once a week.
 
     Args:
         name:

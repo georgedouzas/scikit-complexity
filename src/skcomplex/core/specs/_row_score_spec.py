@@ -12,7 +12,9 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class RowScoreSpec(BaseSpec):
-    """Spec of an objective that scores a whole row of a lattice state, the values along its last axis.
+    """Spec of an objective that scores a whole row of a lattice state.
+
+    The row is the values along the last axis.
 
     Args:
         function:
@@ -36,7 +38,9 @@ class RowScoreSpec(BaseSpec):
     proposals: int = 1
 
     def _check(self) -> None:
-        """Raise an error for a function that is not callable, or a number of proposals that is not positive.
+        """Raise an error for a bad function or number of proposals.
+
+        The function must be callable and the number of proposals positive.
 
         Raises:
             ValidationError:

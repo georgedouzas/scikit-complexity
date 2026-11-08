@@ -51,7 +51,9 @@ class NeighborReadSpec(BaseSpec):
     order: Indices | None = None
 
     def members(self, p: Array) -> Indices:
-        """Return the member every row reads, from the table or the parameter entry at the table, through the order.
+        """Return the member every row reads.
+
+        It reads it from the table or the parameter entry at the table, through the order.
 
         Args:
             p:

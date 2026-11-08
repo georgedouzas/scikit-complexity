@@ -12,7 +12,10 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class _SegmentSpec(BaseSpec):
-    """Accepted step of an integrator, with its states at both ends and its dense output."""
+    """Accepted step of an integrator.
+
+    It holds its states at both ends and its dense output.
+    """
 
     start: float
     end: float

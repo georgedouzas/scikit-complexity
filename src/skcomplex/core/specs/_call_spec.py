@@ -11,11 +11,12 @@ from ._base_spec import BaseSpec
 
 @dataclass(frozen=True)
 class CallSpec(BaseSpec):
-    """Law value computed by a function of time and scalar arguments, called once per member or pair.
+    """Law value computed by a function of time and scalar arguments.
 
-    The Numba backend calls a Numba-compiled function inside its compiled kernels, and the NumPy backend calls any
-    function from Python. The function returns a number for a scalar target, or one number per component for a vector
-    target. A law that sets `relative`, `random`, or `vectorized` runs in Python on every backend.
+    The function is called once per member or pair. The Numba backend calls a Numba-compiled function inside its
+    compiled kernels, and the NumPy backend calls any function from Python. The function returns a number for a scalar
+    target, or one number per component for a vector target. A law that sets `relative`, `random`, or `vectorized` runs
+    in Python on every backend.
 
     Args:
         function:
@@ -55,7 +56,10 @@ class CallSpec(BaseSpec):
     vectorized: bool = False
 
     def _check(self) -> None:
-        """Raise an error for relative names next to arguments, which are two ways to read values."""
+        """Raise an error for relative names next to arguments.
+
+        They are two ways to read values.
+        """
         if self.relative and self.arguments:
             error_msg = (
                 f'A CallSpec of {self.function!r} is relative and has the arguments {self.arguments!r}. A relative '

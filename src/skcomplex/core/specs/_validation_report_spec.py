@@ -48,7 +48,7 @@ class ValidationReportSpec(BaseSpec):
         return not self.errors
 
     def _check(self) -> None:
-        """Emit the warnings of the report and raise one error that lists every error of the report.
+        """Emit the warnings of the report and raise one error that lists its errors.
 
         Raises:
             ValidationError:

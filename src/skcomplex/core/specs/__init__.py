@@ -1,4 +1,7 @@
-"""Define the specs: frozen values that declare, record, or hold what the classes of the library read."""
+"""Define the specs.
+
+A spec is a frozen value that declares, records, or holds what the classes of the library read.
+"""
 
 from ._accelerated_spec import AcceleratedSpec
 from ._affine_spec import AffineSpec

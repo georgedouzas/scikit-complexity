@@ -13,11 +13,11 @@ CLEARINGS = ('midpoint', 'requester', 'provider')
 
 @dataclass(frozen=True)
 class RandomSearchSpec(BaseSpec):
-    """Random search: requesters in random order meet random providers and match when their limits cross.
+    """Random search of requesters for providers.
 
-    Every requester makes up to `tries` meetings with providers that still offer something, and matches at the
-    midpoint of the two limits, or at the requester's or the provider's limit, the decentralised exchange of Hamill and
-    Gilbert (2016 ch. 5).
+    Requesters in random order meet random providers and match when their limits cross. Every requester makes up to
+    `tries` meetings with providers that still offer something, and matches at the midpoint of the two limits, or at the
+    requester's or the provider's limit, the decentralised exchange of Hamill and Gilbert (2016 ch. 5).
 
     Args:
         tries:

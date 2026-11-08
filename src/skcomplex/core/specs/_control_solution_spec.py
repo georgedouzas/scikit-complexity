@@ -41,7 +41,9 @@ class ControlSolutionSpec(BaseSpec):
     iterations: int
 
     def state_at(self, t: float) -> Array:
-        """Return the state vector at a time of the run, interpolated linearly between the times of the grid.
+        """Return the state vector at a time of the run.
+
+        It is interpolated linearly between the times of the grid.
 
         Args:
             t:

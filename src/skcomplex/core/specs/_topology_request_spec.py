@@ -32,18 +32,19 @@ MIN_HYPEREDGE = 2
 
 @dataclass(frozen=True, eq=False)
 class TopologyRequestSpec(BaseSpec):
-    """Spec of a change of the topology of a network that a law requests for every member or edge it runs for.
+    """Spec of a change of the topology of a network that a law requests.
 
-    A request is the target of an `UpdateLaw`, whose value is the probability that it fires at every step for the
-    member or edge the law runs for, or of a `JumpLaw`, as `JumpLaw(rate, {request: 1})`, which fires it at the rate.
-    The stepper applies the requests that fire after the step, in the order of the members and edges. A request on
-    edges, `'add-edge'`, `'remove-edge'`, or `'rewire'`, adds or removes members of the variable group on the edges of
-    its layer, and a request on nodes, `'add-node'` or `'remove-node'`, adds or removes members of every variable group
-    on the nodes of the network. A request on hyperedges adds or removes members of the variable group on the
-    hyperedges: `'add-hyperedge'` runs for a node, which forms a new hyperedge with `hyperedge - 1` other nodes drawn by
-    `toward`, and `'remove-hyperedge'` runs for every hyperedge present and removes it. New ends are drawn among the
-    nodes present that are not yet joined to the node, with probability proportional to `toward`, or with `independent`
-    every such node becomes an end on its own with the probability `toward`, so the number of new ends is random.
+    The law requests it for every member or edge it runs for. A request is the target of an `UpdateLaw`, whose value is
+    the probability that it fires at every step for the member or edge the law runs for, or of a `JumpLaw`, as
+    `JumpLaw(rate, {request: 1})`, which fires it at the rate. The stepper applies the requests that fire after the
+    step, in the order of the members and edges. A request on edges, `'add-edge'`, `'remove-edge'`, or `'rewire'`, adds
+    or removes members of the variable group on the edges of its layer, and a request on nodes, `'add-node'` or
+    `'remove-node'`, adds or removes members of every variable group on the nodes of the network. A request on
+    hyperedges adds or removes members of the variable group on the hyperedges: `'add-hyperedge'` runs for a node, which
+    forms a new hyperedge with `hyperedge - 1` other nodes drawn by `toward`, and `'remove-hyperedge'` runs for every
+    hyperedge present and removes it. New ends are drawn among the nodes present that are not yet joined to the node,
+    with probability proportional to `toward`, or with `independent` every such node becomes an end on its own with the
+    probability `toward`, so the number of new ends is random.
 
     Further requests run for a node. `'replace-node'` removes it and adds a new node that joins new ends like
     `'add-node'`. `'close-triangle'` joins two of its neighbours that are not yet joined, drawn uniformly among such
@@ -135,7 +136,9 @@ class TopologyRequestSpec(BaseSpec):
     parent: float = 0.0
 
     def _check(self) -> None:
-        """Raise an error for an unknown kind or kept end, or a number of edges that is not a whole number.
+        """Raise an error for an unknown kind or kept end, or a bad number of edges.
+
+        The number of edges must be a whole number.
 
         Raises:
             ValidationError:
@@ -175,7 +178,9 @@ class TopologyRequestSpec(BaseSpec):
             raise ValidationError(error_msg)
 
     def _check_choice(self) -> None:
-        """Raise an error for candidates or a score that do not belong to a choice among new edges.
+        """Raise an error for candidates or a score outside a choice among new edges.
+
+        They must belong to a choice among new edges.
 
         Raises:
             ValidationError:
