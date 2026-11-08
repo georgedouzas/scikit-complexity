@@ -1,4 +1,7 @@
-"""Write the syntax structures of PySD's abstract system as the source of expressions of a system module."""
+"""Write the syntax structures of PySD's abstract system as source of expressions.
+
+The source is that of the expressions of a system module.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -77,7 +80,10 @@ UNSUPPORTED = {
 
 
 class _ExpressionWriter:
-    """Writer of expressions of the namespace `s` and the time `t`, which collects what it cannot translate."""
+    """Writer of expressions of the namespace `s` and the time `t`.
+
+    It collects what it cannot translate.
+    """
 
     def __init__(self, parts: _SystemPartsSpec, problems: list[str], imports: set[tuple[str, str]]) -> None:
         self.parts = parts
@@ -95,7 +101,10 @@ class _ExpressionWriter:
         return name
 
     def _add_problem(self, construct: str) -> str:
-        """Collect a construct without a counterpart, and return a source that stands for it."""
+        """Collect a construct without a counterpart.
+
+        It returns a source that stands for it.
+        """
         self.problems.append(f'{self.variable_}: {construct}')
         return '0'
 
@@ -116,7 +125,10 @@ class _ExpressionWriter:
         }
 
     def _get_functions(self) -> Mapping[str, Callable[..., str]]:
-        """Return the method that writes every built-in function with a counterpart, by the name PySD gives it."""
+        """Return the method that writes every built-in function with a counterpart.
+
+        They are given by the name PySD gives them.
+        """
         return {
             'abs': self._write_abs,
             'elmcount': self._write_element_count,
@@ -169,7 +181,10 @@ class _ExpressionWriter:
         return source
 
     def _write_logic(self, ast: LogicStructure) -> str:
-        """Return the source of a relation, or of a conjunction, a disjunction, or a negation of conditions."""
+        """Return the source of a relation, or of a logical combination of conditions.
+
+        The combination is a conjunction, a disjunction, or a negation.
+        """
         symbol = ast.operators[0].strip(':').lower()
         if symbol == 'not':
             where = self.add_import(UTILITIES_MODULE, 'where')
@@ -182,7 +197,10 @@ class _ExpressionWriter:
         return f'{first} {RELATIONS[symbol]} {second}'
 
     def _write_condition(self, ast: object) -> str:
-        """Return the source of a condition, a value that is not a relation holding when it is not zero."""
+        """Return the source of a condition.
+
+        A value that is not a relation holds when it is not zero.
+        """
         return self._write(ast) if isinstance(ast, LogicStructure) else f'{self._write_operand(ast)} != 0'
 
     def _write_variable(self, name: str) -> str:
@@ -198,12 +216,18 @@ class _ExpressionWriter:
         return self._add_problem(f'the unknown variable {name}')
 
     def _write_member_read(self, source: str, index: int) -> str:
-        """Return the source of a read of one member, a reduction over the member of that index."""
+        """Return the source of a read of one member.
+
+        It is a reduction over the member of that index.
+        """
         total = self.add_import(UTILITIES_MODULE, 'total')
         return f'{total}({source}, where=s.member == {index})'
 
     def _write_reference(self, ast: ReferenceStructure) -> str:
-        """Return the source of a reference, at the reading member, over a range, or at one named member."""
+        """Return the source of a reference.
+
+        The reference is at the reading member, over a range, or at one named member.
+        """
         name = _SystemPartsSpec.get_name(ast.reference)
         source = self._write_variable(name)
         subscripts = _SystemPartsSpec.get_subscripts(ast)
@@ -253,14 +277,20 @@ class _ExpressionWriter:
         return f'{lookup}({self._write(ast.argument)}, {self.write_points(ast.lookups)})'
 
     def _has_equal_values(self, first: object, second: object) -> bool:
-        """Check that two expressions are one expression, or have the same value at the start of a run."""
+        """Check that two expressions are one expression, or have the same initial value.
+
+        The initial value is the value at the start of a run.
+        """
         if first == second:
             return True
         values = self.evaluate(first, 0), self.evaluate(second, 0)
         return None not in values and values[0] == values[1]
 
     def _write_delay(self, ast: DelayStructure | DelayNStructure) -> str:
-        """Return the source of a material delay, which starts in equilibrium with its input."""
+        """Return the source of a material delay.
+
+        It starts in equilibrium with its input.
+        """
         if not self._has_equal_values(ast.initial, ast.input):
             return self._add_problem('a delay whose initial value differs from its input')
         arguments = f'{self._write(ast.input)}, {self._write(ast.delay_time)}'
@@ -272,7 +302,10 @@ class _ExpressionWriter:
         return f'{self.add_import(UTILITIES_MODULE, "distributed_delay")}({arguments}, {int(order)})'
 
     def _write_smooth(self, ast: SmoothStructure | SmoothNStructure) -> str:
-        """Return the source of a smoothing, which starts at its input."""
+        """Return the source of a smoothing.
+
+        It starts at its input.
+        """
         if not self._has_equal_values(ast.initial, ast.input):
             return self._add_problem('a smoothing whose initial value differs from its input')
         arguments = f'{self._write(ast.input)}, {self._write(ast.smooth_time)}'
@@ -285,7 +318,10 @@ class _ExpressionWriter:
         return f'{delay}({arguments}, {int(order)}, conserved=False)'
 
     def _write_delay_fixed(self, ast: DelayFixedStructure) -> str:
-        """Return the source of a fixed delay of a stock, which reads the first value of the stock before the start."""
+        """Return the source of a fixed delay of a stock.
+
+        It reads the first value of the stock before the start.
+        """
         if _SystemPartsSpec.get_reference(ast.input) not in self.parts.stocks:
             return self._add_problem('DELAY FIXED of something other than a stock')
         if not self._has_equal_values(ast.initial, ast.input):
@@ -317,7 +353,10 @@ class _ExpressionWriter:
 
     @staticmethod
     def _get_bounded(inner: object, outer: object, function: str) -> tuple[object, float, float] | None:
-        """Return the value and the bounds of a minimum of a maximum, or the reverse, with ordered numbers as bounds."""
+        """Return the value and the bounds of a minimum of a maximum, or the reverse.
+
+        The bounds are ordered numbers.
+        """
         if not isinstance(inner, CallStructure) or _SystemPartsSpec.get_name(inner.function.reference) != function:
             return None
         value, bound = inner.arguments
@@ -327,7 +366,10 @@ class _ExpressionWriter:
         return (value, low, high) if low <= high else None
 
     def _write_extreme(self, name: str, inner_name: str, first: object, second: object) -> str:
-        """Return the source of a minimum or a maximum, a limit between ordered bounds when it nests the other one."""
+        """Return the source of a minimum or a maximum.
+
+        When it nests the other one, it is a limit between ordered bounds.
+        """
         bounded = self._get_bounded(first, second, inner_name) or self._get_bounded(second, first, inner_name)
         if bounded is None:
             function = self.add_import(UTILITIES_MODULE, name)
@@ -409,7 +451,7 @@ class _ExpressionWriter:
         return self._write_guarded_division(numerator, denominator, fallback)
 
     def _write_guarded_division(self, numerator: object, denominator: object, fallback: object) -> str:
-        """Return the source of a division guarded against a denominator too small to divide by."""
+        """Return the source of a division guarded against a too small denominator."""
         where = self.add_import(UTILITIES_MODULE, 'where')
         below, divisor = self._write(denominator), self._write_operand(denominator)
         division = f'{self._write_operand(numerator)} / {divisor}'
@@ -443,7 +485,10 @@ class _ExpressionWriter:
         return f'{clip}({self._write_normal(mean, deviation)}, {self._write(low)}, {self._write(high)})'
 
     def _evaluate_reference(self, ast: ReferenceStructure, member: int) -> float | None:
-        """Return the value of a reference at the start of a run for one member, or `None` when it has none yet."""
+        """Return the value of a reference at the start of a run for one member.
+
+        It returns `None` when it has none yet.
+        """
         name = _SystemPartsSpec.get_name(ast.reference)
         subscripts = _SystemPartsSpec.get_subscripts(ast)
         if subscripts and subscripts[0] in self.parts.members:
@@ -463,7 +508,10 @@ class _ExpressionWriter:
         return None
 
     def _evaluate_arithmetic(self, ast: ArithmeticStructure, member: int) -> float | None:
-        """Return the value of arithmetic at the start of a run for one member, or `None` when it has none yet."""
+        """Return the value of arithmetic at the start of a run for one member.
+
+        It returns `None` when it has none yet.
+        """
         values = []
         for argument in ast.arguments:
             value = self.evaluate(argument, member)
@@ -478,7 +526,10 @@ class _ExpressionWriter:
         return result
 
     def evaluate(self, ast: object, member: int) -> float | None:
-        """Return the value of an expression at the start of a run for one member, or `None` when it has none yet."""
+        """Return the value of an expression at the start of a run for one member.
+
+        It returns `None` when it has none yet.
+        """
         if isinstance(ast, int | float | np.number):
             return float(ast)
         if isinstance(ast, InitialStructure):
@@ -488,7 +539,10 @@ class _ExpressionWriter:
         return self._evaluate_arithmetic(ast, member) if isinstance(ast, ArithmeticStructure) else None
 
     def write(self, ast: object, variable: str) -> str:
-        """Return the source of an expression of a variable, and collect what it cannot translate under that name."""
+        """Return the source of an expression of a variable.
+
+        It collects what it cannot translate under that name.
+        """
         self.variable_ = variable
         self.reducing_ = False
         self.draws_ = 0

@@ -1,4 +1,7 @@
-"""Translate Vensim and XMILE files into the source of system modules, through the abstract system of PySD."""
+"""Translate Vensim and XMILE files into the source of system modules.
+
+They are translated through the abstract system of PySD.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -39,17 +42,18 @@ RESERVED_NAMES = frozenset(
 
 
 class SystemDynamicsTranslator(BaseConfig[None, None]):
-    """Translator of a Vensim or XMILE file into the source of a system module of the library.
+    """Translator of a Vensim or XMILE file into the source of a system module.
 
-    The module holds one element class, whose states are the stocks and whose parameters are the constants of the
-    file, one private function per auxiliary and lookup, the constants `START`, `UNTIL`, `DT`, and `SAVE_EVERY`, and
-    one system class on `BaseSystem`, named after the element in CamelCase with the suffix `System`. The system class
-    takes the constants as keyword arguments, with the values of the file as defaults, builds its element and its
-    interactions in `_build_system`, and holds as tuned run settings `until`, the length of the run, `dt`, the saving
-    interval of the file, and `observables`, one per auxiliary and per goal-seeking stock. A flow variable of two stocks
-    becomes a `TransferInteraction` between them, a flow variable of one stock a `TransferInteraction` with `Source()`
-    or `Sink()`, and what remains of the rate of a stock a `RelaxationInteraction` or a `RateInteraction`. A system
-    whose stocks are all subscripted over one range becomes a `GroupElement` with one member per subscript.
+    The module is a system module of the library. The module holds one element class, whose states are the stocks and
+    whose parameters are the constants of the file, one private function per auxiliary and lookup, the constants
+    `START`, `UNTIL`, `DT`, and `SAVE_EVERY`, and one system class on `BaseSystem`, named after the element in CamelCase
+    with the suffix `System`. The system class takes the constants as keyword arguments, with the values of the file as
+    defaults, builds its element and its interactions in `_build_system`, and holds as tuned run settings `until`, the
+    length of the run, `dt`, the saving interval of the file, and `observables`, one per auxiliary and per goal-seeking
+    stock. A flow variable of two stocks becomes a `TransferInteraction` between them, a flow variable of one stock a
+    `TransferInteraction` with `Source()` or `Sink()`, and what remains of the rate of a stock a `RelaxationInteraction`
+    or a `RateInteraction`. A system whose stocks are all subscripted over one range becomes a `GroupElement` with one
+    member per subscript.
 
     Args:
         path:
@@ -102,7 +106,7 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
         self.name = name
 
     def _check(self) -> None:
-        """Raise an error for a path that names no file of a known format, or a name that is not an identifier.
+        """Raise an error for a path of an unknown format, or a name that is no identifier.
 
         Raises:
             ValidationError:
@@ -139,7 +143,10 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
         return any(isinstance(component.ast, IntegStructure) for component in element.components)
 
     def _read_range(self, elements: Sequence[AbstractElement], problems: list[str]) -> str:
-        """Return the one range the stocks are subscripted over, the empty string for none, and collect any other."""
+        """Return the one range the stocks are subscripted over, and collect any other.
+
+        It returns the empty string for none.
+        """
         subscripts = {
             element.name: element.components[0].subscripts[0] for element in elements if self._is_stock(element)
         }
@@ -156,7 +163,10 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
 
     @staticmethod
     def _read_constant(element: AbstractElement, members: tuple[str, ...]) -> tuple[float, ...] | None:
-        """Return the value, or the values per member, of a variable that holds only numbers, or `None` otherwise."""
+        """Return the value or values of a variable that holds only numbers.
+
+        There is one value per member when it has several. It returns `None` otherwise.
+        """
         values: list[float] = []
         for component in element.components:
             ast = component.ast
@@ -172,7 +182,10 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
 
     @staticmethod
     def _read_lookup(element: AbstractElement, lookups: dict[str, LookupsStructure], problems: list[str]) -> None:
-        """Keep the table of a lookup, and collect a lookup that holds no table of the one kind that translates."""
+        """Keep the table of a lookup, and collect a lookup that cannot translate.
+
+        Only a table of one kind translates.
+        """
         ast = element.components[0].ast
         if len(element.components) > 1 or not isinstance(ast, LookupsStructure):
             problems.append(f'{element.name}: a lookup that is not one table of numbers')
@@ -183,14 +196,17 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
 
     @staticmethod
     def _read_stock(element: AbstractElement, stocks: dict[str, IntegStructure], problems: list[str]) -> None:
-        """Keep the integral of a stock, and collect a stock defined apart for every subscript."""
+        """Keep the integral of a stock, and collect a stock defined apart per subscript."""
         if len(element.components) > 1:
             problems.append(f'{element.name}: a stock defined apart for every subscript')
         else:
             stocks[_SystemPartsSpec.get_name(element.name)] = element.components[0].ast
 
     def _read_parts(self, problems: list[str]) -> _SystemPartsSpec:
-        """Return the variables of the main section sorted by what they become, and collect what cannot become any."""
+        """Return the variables of the main section sorted by what they become.
+
+        It collects what cannot become any.
+        """
         main = next(section for section in self.system_.sections if section.type == MAIN_SECTION)
         problems += [f'{section.name}: a macro' for section in self.system_.sections if section.type != MAIN_SECTION]
         elements = [item for item in main.elements if not isinstance(item, AbstractControlElement)]
@@ -231,7 +247,10 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
         )
 
     def _check_subscripts(self, parts: _SystemPartsSpec, problems: list[str]) -> None:
-        """Collect the variables subscripted over more than one range, or over a range other than that of the stocks."""
+        """Collect the variables subscripted over another range than that of the stocks.
+
+        This includes variables subscripted over more than one range.
+        """
         for section in self.system_.sections:
             for element in section.elements:
                 for component in element.components:
@@ -242,7 +261,7 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
                         problems.append(f'{element.name}: a variable subscripted over {subscripts[0]}')
 
     def _check_names(self, parts: _SystemPartsSpec, label: str, problems: list[str]) -> None:
-        """Collect the names that collide, that clash with the module, or that are no identifiers."""
+        """Collect the names that collide, clash with the module, or are no identifiers."""
         seen: dict[str, list[str]] = {}
         for section in self.system_.sections:
             for element in section.elements:
@@ -260,7 +279,10 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
 
     @staticmethod
     def _read_settings(parts: _SystemPartsSpec, expressions: _ExpressionWriter, problems: list[str]) -> RunSettingsSpec:
-        """Return the run settings of the control section, whose length runs from its start."""
+        """Return the run settings of the control section.
+
+        Its length runs from its start.
+        """
         values = {}
         for name in CONTROL_NAMES:
             value = expressions.evaluate(parts.controls[name], 0)
@@ -271,7 +293,9 @@ class SystemDynamicsTranslator(BaseConfig[None, None]):
         return RunSettingsSpec(start, values['final_time'] - start, values['time_step'], values['saveper'])
 
     def _run(self, inputs: None) -> None:
-        """Translate the abstract system, setting the source of the module and the run settings.
+        """Translate the abstract system.
+
+        It sets the source of the module and the run settings.
 
         Args:
             inputs:

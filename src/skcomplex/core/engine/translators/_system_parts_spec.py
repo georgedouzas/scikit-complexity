@@ -1,4 +1,7 @@
-"""Define the parts of a stock-and-flow system that a file declares, sorted by what they become."""
+"""Define the parts of a stock-and-flow system that a file declares.
+
+They are sorted by what they become.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,7 +31,10 @@ DELAYS = (DelayStructure, DelayNStructure, SmoothStructure, SmoothNStructure)
 
 @dataclass(frozen=True)
 class _GoalSeekingSpec(BaseSpec):
-    """Form `(goal - stock) / time` of a net rate, or `(goal - stock) * rate` when the scale is no time."""
+    """Form `(goal - stock) / time` of a net rate.
+
+    It is `(goal - stock) * rate` when the scale is no time.
+    """
 
     goal: object
     scale: object
@@ -37,7 +43,10 @@ class _GoalSeekingSpec(BaseSpec):
 
 @dataclass(frozen=True)
 class _SystemPartsSpec(BaseSpec):
-    """Variables of a system file by snake-case name, sorted into stocks, constants, auxiliaries, and lookups."""
+    """Variables of a system file by snake-case name, sorted by kind.
+
+    The kinds are stocks, constants, auxiliaries, and lookups.
+    """
 
     originals: Mapping[str, str]
     controls: Mapping[str, object]
@@ -56,7 +65,10 @@ class _SystemPartsSpec(BaseSpec):
 
     @staticmethod
     def get_reference(ast: object) -> str:
-        """Return the snake-case name a plain reference reads, or the empty string for anything else."""
+        """Return the snake-case name a plain reference reads.
+
+        It returns the empty string for anything else.
+        """
         return _SystemPartsSpec.get_name(ast.reference) if isinstance(ast, ReferenceStructure) else ''
 
     @staticmethod
@@ -90,7 +102,10 @@ class _SystemPartsSpec(BaseSpec):
             yield from _SystemPartsSpec._split_terms(argument, sign * term_sign)
 
     def _holds(self, ast: object, is_match: Callable[[object], bool], visited: set[str]) -> bool:
-        """Check that an expression holds a match, directly or through auxiliaries, and add those it visits."""
+        """Check that an expression holds a match, directly or through auxiliaries.
+
+        It adds those it visits.
+        """
         if is_match(ast):
             return True
         name = self.get_reference(ast)
@@ -108,9 +123,10 @@ class _SystemPartsSpec(BaseSpec):
         return isinstance(ast, ReferenceStructure) and any(item in self.members for item in self.get_subscripts(ast))
 
     def _is_flow_variable(self, term: object) -> bool:
-        """Check that a term of a net rate is a plain read of an auxiliary whose amount a trajectory can record.
+        """Check that a term of a net rate is a plain read of a recordable auxiliary.
 
-        A trajectory records the amount of one member from the values of that member, so it cannot read other members.
+        The amount of the auxiliary must be one that a trajectory can record. A trajectory records the amount of one
+        member from the values of that member, so it cannot read other members.
         """
         if not isinstance(term, ReferenceStructure) or self.get_name(term.reference) not in self.auxiliaries:
             return False
@@ -119,9 +135,10 @@ class _SystemPartsSpec(BaseSpec):
         return not self._holds(term, self._is_reduction, set())
 
     def get_flows(self) -> dict[str, tuple[str | None, str | None]]:
-        """Return the stock every flow variable leaves and the stock it enters, for those that move between stocks.
+        """Return the stocks every flow variable leaves and enters.
 
-        A variable that enters or leaves more stocks than a transfer has ends stays in the remaining rates.
+        Only those that move between stocks count. A variable that enters or leaves more stocks than a transfer has ends
+        stays in the remaining rates.
         """
         visits: dict[str, list[tuple[str, int]]] = {}
         for stock, integral in sorted(self.stocks.items()):
@@ -149,7 +166,10 @@ class _SystemPartsSpec(BaseSpec):
         return self._holds(ast, lambda item: self.get_reference(item) == stock, set())
 
     def get_goal_seeking(self, stock: str, terms: Sequence[tuple[int, object]]) -> _GoalSeekingSpec | None:
-        """Return the goal-seeking form of the remaining terms of a stock, or `None` for any other form."""
+        """Return the goal-seeking form of the remaining terms of a stock.
+
+        It returns `None` for any other form.
+        """
         if len(terms) != 1 or terms[0][0] < 0 or not isinstance(terms[0][1], ArithmeticStructure):
             return None
         term = terms[0][1]
@@ -182,21 +202,30 @@ class _SystemPartsSpec(BaseSpec):
         ordered.append(name)
 
     def order_auxiliaries(self, problems: list[str]) -> list[str]:
-        """Return the auxiliaries so that each comes after those it reads, and collect those that read themselves."""
+        """Return the auxiliaries so that each comes after those it reads.
+
+        It collects those that read themselves.
+        """
         ordered: list[str] = []
         for name in sorted(self.auxiliaries):
             self._add_ordered(name, ordered, [], problems)
         return ordered
 
     def _get_read_by_laws(self) -> set[str]:
-        """Return the auxiliaries that the net rate of a stock reads, directly or through other auxiliaries."""
+        """Return the auxiliaries that the net rate of a stock reads.
+
+        It reads them directly or through other auxiliaries.
+        """
         read: set[str] = set()
         for integral in self.stocks.values():
             self._holds(integral.flow, lambda _: False, read)
         return read
 
     def is_observable(self, name: str) -> bool:
-        """Check that a run can record an auxiliary, which holds no fixed delay and no delay that no law reads."""
+        """Check that a run can record an auxiliary.
+
+        It holds no fixed delay and no delay that no law reads.
+        """
         ast = self.auxiliaries[name][0].ast
         if self._holds(ast, lambda item: isinstance(item, DelayFixedStructure), set()):
             return False
@@ -207,7 +236,10 @@ class _SystemPartsSpec(BaseSpec):
         return any(component.subscripts[0] for component in self.auxiliaries.get(name, ()))
 
     def get_covered(self, component: AbstractComponent) -> list[int] | None:
-        """Return the members a component of a variable defines, or `None` for subscripts it cannot be a group of."""
+        """Return the members a component of a variable defines.
+
+        It returns `None` for subscripts it cannot be a group of.
+        """
         subscripts, excepted = component.subscripts
         if excepted or len(subscripts) > 1:
             return None
