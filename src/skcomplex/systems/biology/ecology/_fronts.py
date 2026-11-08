@@ -1,4 +1,4 @@
-"""Ecology systems: invasion fronts of a population that grows logistically and diffuses."""
+"""Invasion fronts of a population that grows logistically and diffuses."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +19,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class FisherKPPElement(Element):
-    """Site of a line whose density `u` diffuses and grows logistically, `du/dt = D laplacian(u) + r u (1 - u)`.
+    """Site of a line whose density `u` diffuses and grows logistically.
+
+    The density follows `du/dt = D laplacian(u) + r u (1 - u)`.
 
     Args:
         label:
@@ -74,7 +76,9 @@ class FisherKPPElement(Element):
 
 
 class FisherKPPSystem(BaseSystem):
-    """The Fisher-KPP equation, whose step invades the empty line as a front of speed `2 sqrt(r D)`.
+    """The Fisher-KPP equation, whose step invades the empty line as a front.
+
+    The front has the speed `2 sqrt(r D)`.
 
     The system has the density `line.u`.
 

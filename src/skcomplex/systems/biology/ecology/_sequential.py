@@ -1,4 +1,7 @@
-"""Ecology system of a sequentially linear ecosystem, linear between extinctions that rewrite its network."""
+"""A sequentially linear ecosystem.
+
+It is linear between extinctions that rewrite its network.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +28,9 @@ HIDDEN = VisualSpec('sites', {'states': []})
 
 
 class AbundanceElement(Element):
-    """Species of an ecosystem with its relative abundance and its age, which goes extinct below a threshold.
+    """Species of an ecosystem with its relative abundance and its age.
+
+    It goes extinct below a threshold.
 
     Args:
         label:
@@ -65,7 +70,9 @@ class AbundanceElement(Element):
 
 
 class LinearGrowthInteraction(Interaction):
-    """Linear growth of every species by the abundances of the species that influence it, normalised to one.
+    """Linear growth of every species by the abundances of the species it reads.
+
+    The abundances are normalised to one.
 
     Every species grows by `rate` times the sum of the abundances of the species it reads weighted by the strengths `w`
     of the influences, its abundance stays nonnegative, and the abundances are normalised to sum to one.
@@ -122,7 +129,7 @@ class LinearGrowthInteraction(Interaction):
 
 
 class SequentiallyLinearEcosystemSystem(BaseSystem):
-    """An ecosystem whose abundances follow linear dynamics between extinctions that rewrite its network.
+    """An ecosystem with linear dynamics between extinctions that rewrite its network.
 
     Every species reads `k` random species through influences of random sign and strength, and grows linearly with their
     abundances. Between extinctions the dynamics is linear, so the abundances approach the dominant eigenvector of the

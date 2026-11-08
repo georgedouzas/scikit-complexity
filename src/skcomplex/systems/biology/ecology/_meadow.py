@@ -31,7 +31,9 @@ class CowView(AgentView):
 
 
 class CowElement(Element):
-    """Cow of the meadow, which the grazing and herding interactions feed and move every week.
+    """Cow of the meadow.
+
+    The grazing and herding interactions feed and move it every week.
 
     Args:
         label:
@@ -146,7 +148,7 @@ class PastureElement(Element):
 
 
 class GrazingInteraction(TransferInteraction):
-    """Weekly meal of every cow, which eats its bite of the grass of the patch in its cell.
+    """Weekly meal of every cow, a bite of the grass of the patch in its cell.
 
     It is a transfer of the grass of every patch, the bite of the cow in its cell or what grass is left, to the
     environment.
@@ -193,13 +195,18 @@ class GrazingInteraction(TransferInteraction):
 
     @staticmethod
     def _get_bite(patch: AgentViewProtocol, cow: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return the grass a cow eats from the patch of its cell, its bite or what grass is left."""
+        """Return the grass a cow eats from the patch of its cell.
+
+        It is its bite or what grass is left.
+        """
         del system
         return min(cast(PastureView, patch).grass, cast(CowView, cow).bite)
 
 
 class HerdingInteraction(MovementInteraction):
-    """Weekly move of every cow, in random order, to the nearest free patch with enough grass, or death.
+    """Weekly move of every cow to the nearest free patch with enough grass, or death.
+
+    The cows move in random order.
 
     It is a movement of the cows whose step leads every cow to the patch nearest to it that no other cow occupies and
     whose grass reaches `threshold`, and removes a cow that finds none. Every cow moves every week, the probability
@@ -253,7 +260,10 @@ class HerdingInteraction(MovementInteraction):
         return tuple(int(item) for item in location)
 
     def _herd(self, agent: AgentViewProtocol, system: SystemViewProtocol) -> tuple[int, ...] | None:
-        """Return the cell of the nearest free patch with enough grass, or remove the cow that finds none."""
+        """Return the cell of the nearest free patch with enough grass.
+
+        It removes the cow that finds none.
+        """
         patches = [cast(PastureView, patch) for patch in system.agents('pasture')]
         cells = [self._cell(patch) for patch in patches]
         index = {cell: number for number, cell in enumerate(cells)}
@@ -268,7 +278,9 @@ class HerdingInteraction(MovementInteraction):
 
 
 class MeadowCapacitySystem(BaseSystem):
-    """Cows that graze a summer of 25 weeks on a meadow, which shows how many cows the meadow can carry.
+    """Cows that graze a meadow for a summer of 25 weeks.
+
+    It shows how many cows the meadow can carry.
 
     Every week the grass regrows logistically, each cow eats `bite` of the grass of its patch, and each cow moves to the
     nearest patch that no other cow occupies and whose grass reaches `threshold`. A cow that finds none dies. Without

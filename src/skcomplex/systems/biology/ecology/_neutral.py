@@ -16,7 +16,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class NeutralSpeciesElement(CompartmentElement):
-    """Species of neutral theory, a compartment of `n` individuals with birth and death rates shared by every species.
+    """Species of neutral theory, a compartment of `n` individuals.
+
+    Its birth and death rates are shared by every species.
 
     The births of `NeutralMacroecologySystem` occur at the rate `b0 + b1 n`, with immigration or speciation `b0`, and
     its deaths at the rate `d0 + d1 n`, with emigration or extinction `d0` while the species has members.
@@ -69,7 +71,9 @@ class NeutralSpeciesElement(CompartmentElement):
 
 
 class NeutralMacroecologySystem(BaseSystem):
-    """Many species under neutral birth, death, and immigration, whose abundances follow a gamma-like law.
+    """Many species under neutral birth, death, and immigration.
+
+    Their abundances follow a gamma-like law.
 
     Without emigration, `d0 = 0`, the abundances settle on the negative binomial distribution of mean `b0 / (d1 - b1)`,
     the discrete form of the gamma distribution that the Fokker-Planck equation of macroecology predicts and that fits

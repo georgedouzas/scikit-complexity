@@ -29,7 +29,9 @@ CAPACITIES = (4.8, 2.85)
 
 
 class ConsumerElement(Element):
-    """Consumer species that grows on the energy it takes from resources and needs a maintenance energy to persist.
+    """Consumer species that grows on the energy it takes from resources.
+
+    It needs a maintenance energy to persist.
 
     Args:
         label:
@@ -69,7 +71,9 @@ class ConsumerElement(Element):
 
 
 class ResourceElement(Element):
-    """Resource that consumers take up, either self-renewing with logistic growth or supplied from outside.
+    """Resource that consumers take up, self-renewing or supplied from outside.
+
+    A self-renewing resource grows logistically.
 
     A self-renewing resource grows as `r R (K - R) / K`, and a supplied one flows in at `kappa` and is washed out at
     the rate `omega`. The interaction that couples the resource to its consumers chooses which supply applies.
@@ -127,7 +131,9 @@ class ResourceElement(Element):
 
 
 class ConsumptionInteraction(Interaction):
-    """Consumption of substitutable or essential resources by consumer species, the only way the consumers interact.
+    """Consumption of substitutable or essential resources by consumer species.
+
+    Consumption is the only way the consumers interact.
 
     Consumer `i` takes up resource `a` at the rate `c_ia R_a` per individual. Substitutable resources add their
     energies `w_b c_ib R_b`, and essential resources all limit the growth, `g_i = (sum_b (c_ib R_b)^n)^(1/n)` for
@@ -197,7 +203,10 @@ class ConsumptionInteraction(Interaction):
             raise ValidationError(error_msg)
 
     def _essential_growth(self, R: Expression) -> Expression:
-        """Return the growth `(sum_b (c_ib R_b)^n)^(1/n)` of a consumer on essential resources."""
+        """Return the growth of a consumer on essential resources.
+
+        The growth is `(sum_b (c_ib R_b)^n)^(1/n)`.
+        """
         uptake = np.asarray(self.c, dtype=float)
         return total(R**self.n, weights=uptake**self.n) ** (1 / self.n)
 
@@ -256,7 +265,9 @@ class ConsumerGrowthInteraction(ConsumptionInteraction):
 
 
 class ResourceTurnoverInteraction(ConsumptionInteraction):
-    """Supply of resources, by logistic renewal or a chemostat, and their depletion by the consumers.
+    """Supply of resources and their depletion by the consumers.
+
+    The supply is a logistic renewal or a chemostat.
 
     A `'logistic'` supply renews resource `a` at `r_a R_a (K_a - R_a) / K_a`, and a `'chemostat'` supply at `kappa_a -
     omega_a R_a`. Substitutable resources lose `sum_j c_ja N_j R_a`, and essential resources lose `sum_j v_ja N_j g_j`
@@ -353,7 +364,9 @@ class ResourceTurnoverInteraction(ConsumptionInteraction):
 
 
 class ConsumerResourceSystem(BaseSystem):
-    """Consumer species that compete only through the resources they take up, by MacArthur's niche theory.
+    """Consumer species that compete only through the resources they take up.
+
+    It follows MacArthur's niche theory.
 
     The `'logistic'` supply of substitutable resources is MacArthur's consumer-resource model, `dN_i/dt = e_i N_i
     (sum_b w_b c_ib R_b - m_i)` and `dR_a/dt = r_a R_a (K_a - R_a) / K_a - sum_j c_ja N_j R_a`. The `'chemostat'` supply
@@ -466,7 +479,10 @@ class ConsumerResourceSystem(BaseSystem):
         self.v = v
 
     def _build_system(self) -> System:
-        """Return the parts of consumer species that compete only through the resources they take up."""
+        """Return the parts of consumer species that compete only through resources.
+
+        They compete only through the resources they take up.
+        """
         uptake = np.atleast_2d(np.asarray(self.c, dtype=float))
         n_consumers, n_resources = uptake.shape
         sizes = np.full(n_consumers, 0.1) if self.consumers is None else np.asarray(self.consumers, dtype=float)

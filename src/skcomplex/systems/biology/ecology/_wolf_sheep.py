@@ -1,4 +1,4 @@
-"""Ecology systems: wolves and sheep that hunt, graze, and breed on a grid of regrowing grass."""
+"""Wolves and sheep that hunt, graze, and breed on a grid of regrowing grass."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -189,7 +189,7 @@ class WolfView(AgentView):
 
 
 class WolfElement(Element):
-    """Wolf that wanders, eats a sheep of its cell, reproduces, and dies without energy.
+    """Wolf that wanders, eats a sheep, reproduces, and dies without energy.
 
     In its own activation, a wolf wanders to a neighbouring cell at a cost of one unit of energy, eats and removes one
     random sheep of its cell, and dies below zero energy or gives birth with probability `reproduction`, by member
@@ -302,12 +302,18 @@ class WolfSheepSystem(BaseSystem):
 
     @staticmethod
     def _is_grown(patch: AgentViewProtocol, sheep: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-        """Return whether the grass of a patch is grown, so a sheep eats it."""
+        """Return whether the grass of a patch is grown.
+
+        A sheep eats grown grass.
+        """
         return isinstance(patch, GrassView) and bool(patch.grown)
 
     @staticmethod
     def _is_starved(animal: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-        """Return whether an animal has run out of energy, so it dies."""
+        """Return whether an animal has run out of energy.
+
+        It then dies.
+        """
         return isinstance(animal, SheepView | WolfView) and animal.energy < 0
 
     @staticmethod
@@ -321,7 +327,10 @@ class WolfSheepSystem(BaseSystem):
         food: str,
         removed: bool,
     ) -> list[MovementInteraction | TransferInteraction | LifeCycleInteraction]:
-        """Return the member interactions of an animal: wander at a unit cost of energy, eat in its cell, and live."""
+        """Return the member interactions of an animal.
+
+        An animal wanders at a unit cost of energy, eats in its cell, and lives.
+        """
         cost = TransferInteraction(
             f'{group}_cost',
             source=group,
@@ -361,7 +370,10 @@ class WolfSheepSystem(BaseSystem):
         ]
 
     def _build_system(self) -> System:
-        """Return the parts of the wolf and sheep predation system with one grass patch per cell."""
+        """Return the parts of the wolf and sheep predation system.
+
+        It has one grass patch per cell.
+        """
         rng = np.random.default_rng(self.random_state)
         cells = [(column, row) for column in range(self.width) for row in range(self.height)]
         grown = (rng.random(len(cells)) < GROWN_SHARE).astype(float)

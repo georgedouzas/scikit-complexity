@@ -1,4 +1,7 @@
-"""Ecology: population growth, predation, competition, food webs, succession, grazing, and neutral communities."""
+"""Ecology systems.
+
+They cover population growth, predation, competition, food webs, succession, grazing, and neutral communities.
+"""
 
 from ..common.populations import PredationInteraction
 from ._agent_predation import AgentBasedLotkaVolterraSystem, PredatorElement, PreyElement

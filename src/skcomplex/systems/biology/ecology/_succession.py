@@ -53,7 +53,9 @@ class StandElement(Element):
 
 
 class PioneerGrowthInteraction(RateInteraction):
-    """Michaelis-Menten regrowth of pioneer trees, whose input from seeds the other groups suppress.
+    """Michaelis-Menten regrowth of pioneer trees.
+
+    The other groups suppress their input from seeds.
 
     Alone, the volume follows `V(t) = V_mat t / (K_M + t)` after a clear cut, which is
     `dV/dt = V (V / V_mat - 2) / K_M + C V_mat / K_M` with `C = 1`. The other groups reduce the factor
@@ -140,7 +142,9 @@ class PioneerGrowthInteraction(RateInteraction):
 
 
 class SuccessionalGrowthInteraction(RateInteraction):
-    """Logistic growth of intermediate or climax trees, crowded by their own group and another, with seedling input.
+    """Logistic growth of intermediate or climax trees with seedling input.
+
+    They are crowded by their own group and another.
 
     The rate is `dV/dt = a + g V (1 - w_1 V_1 / V_mat,1 - w_2 V_2 / V_mat,2)`, with weights normalized to sum to one.
     One of the two crowding stands is usually the target itself.
@@ -214,7 +218,9 @@ class SuccessionalGrowthInteraction(RateInteraction):
 
 
 class MangroveSuccessionSystem(BaseSystem):
-    """The regrowth of a mangrove forest of the Sundarbans after a clear cut, from pioneers to climax trees.
+    """The regrowth of a mangrove forest of the Sundarbans after a clear cut.
+
+    It goes from pioneers to climax trees.
 
     Keora, the pioneer, regrows fastest, Gewa, the intermediate group, follows, and Sundari, the climax group, grows
     slowest but comes to dominate the mature forest and suppresses the others. Volumes, mature volumes, and competition
@@ -275,7 +281,10 @@ class MangroveSuccessionSystem(BaseSystem):
         self.seedlings = seedlings
 
     def _build_system(self) -> System:
-        """Return the parts of the regrowth of a mangrove forest of the Sundarbans after a clear cut."""
+        """Return the parts of the regrowth of a mangrove forest after a clear cut.
+
+        The forest is of the Sundarbans.
+        """
         return System(
             self.label,
             elements=[

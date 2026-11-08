@@ -119,7 +119,9 @@ class CompetitionInteraction(Interaction):
 
 
 class MutualismInteraction(Interaction):
-    """Mutualism with a handling time, where encounters feed both species, `a b n1 n2 / (1 + a T n)` each.
+    """Mutualism with a handling time, where encounters feed both species.
+
+    Each species gains `a b n1 n2 / (1 + a T n)`.
 
     The benefit to each species saturates with the abundance of its partner, as the handling time `T` limits how much
     of the partner's resource it can use. A handling time of 0 gives the unbounded type I mutualism `a b n1 n2`.
@@ -169,7 +171,9 @@ class MutualismInteraction(Interaction):
         self.handling = handling
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the saturating benefits `a b n1 n2 / (1 + a T n2)` and `a b n1 n2 / (1 + a T n1)`.
+        """Return the saturating benefits of both species.
+
+        They are `a b n1 n2 / (1 + a T n2)` and `a b n1 n2 / (1 + a T n1)`.
 
         Args:
             s:
@@ -188,7 +192,9 @@ class MutualismInteraction(Interaction):
 
 
 class CompetitionSystem(BaseSystem):
-    """Two species that compete for the same resources, which coexist or exclude each other.
+    """Two species that compete for the same resources.
+
+    They coexist or exclude each other.
 
     The species coexist at `n1 = (K1 - alpha12 K2) / (1 - alpha12 alpha21)` and `n2 = (K2 - alpha21 K1) / (1 - alpha12
     alpha21)` when both are positive and `alpha12 alpha21 < 1`. Otherwise one species excludes the other. The system has
@@ -258,7 +264,10 @@ class CompetitionSystem(BaseSystem):
         self.alpha21 = alpha21
 
     def _build_system(self) -> System:
-        """Return the parts of Two species that compete for the same resources, which coexist or exclude each other."""
+        """Return the parts of two species that compete for the same resources.
+
+        They coexist or exclude each other.
+        """
         return System(
             self.label,
             elements=[PopulationElement('first', n=self.first), PopulationElement('second', n=self.second)],
@@ -279,7 +288,9 @@ class CompetitionSystem(BaseSystem):
 
 
 class MutualismSystem(BaseSystem):
-    """Two species that grow logistically and feed each other, above their carrying capacities.
+    """Two species that grow logistically and feed each other.
+
+    They can grow above their carrying capacities.
 
     With a positive handling time the benefit saturates and the populations settle above their capacities. Without it,
     strong mutualism grows without bound. The system has the populations `first` and `second`.
@@ -373,7 +384,9 @@ class MutualismSystem(BaseSystem):
 
 
 class FoodWebsSystem(BaseSystem):
-    """A food web where basal species grow logistically and consumers live on Lotka-Volterra predation.
+    """A food web of logistic basal species and Lotka-Volterra consumers.
+
+    The basal species grow logistically and the consumers live on Lotka-Volterra predation.
 
     The default web has frogs and mice at its base, snakes that eat frogs and mice, and hawks that eat snakes and mice.
     Its four species coexist at a stable equilibrium. The system has one population per species.

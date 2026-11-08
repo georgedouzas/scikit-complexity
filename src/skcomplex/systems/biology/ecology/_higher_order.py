@@ -1,4 +1,4 @@
-"""Ecology systems: random Lotka-Volterra communities with interactions among three species."""
+"""Random Lotka-Volterra communities with interactions among three species."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +20,9 @@ from ..common.populations import LogisticGrowthInteraction, PopulationElement
 
 
 class TripletInteraction(RateInteraction):
-    """Interactions of every species with the pairs of other species, `dx_i/dt += x_i sum_(j<k) a_ijk x_j x_k`.
+    """Interactions of every species with the pairs of other species.
+
+    They add `dx_i/dt += x_i sum_(j<k) a_ijk x_j x_k`.
 
     The coefficient `a_ijk` is the effect of the combination of the species `j` and `k` on the growth of the species
     `i` (Sidhom and Galla 2024, Eq. 2). The tensor holds it for both orders of the pair, `a_ijk = a_ikj`, so the sum
@@ -138,7 +140,10 @@ class HigherOrderRandomLotkaVolterraSystem(BaseSystem):
         gamma: float,
         rng: np.random.Generator,
     ) -> npt.NDArray[np.float64]:
-        """Return the coupling tensor with the moments and the correlation of Sidhom and Galla, equations 4 and 5."""
+        """Return the coupling tensor with the moments and the correlation of the source.
+
+        They follow equations 4 and 5 of Sidhom and Galla.
+        """
         pairs = comb(size - 1, 2)
         correlation = (1 - gamma) * np.eye(3) + gamma * np.ones((3, 3))
         triples = np.array(list(combinations(range(size), 3)))
@@ -154,7 +159,10 @@ class HigherOrderRandomLotkaVolterraSystem(BaseSystem):
         return tensor
 
     def _build_system(self) -> System:
-        """Return the parts of a random Lotka-Volterra community with third-order interactions."""
+        """Return the parts of a random Lotka-Volterra community of third order.
+
+        Its interactions are of third order.
+        """
         rng = np.random.default_rng(self.random_state)
         tensor = self._draw_tensor(self.size, self.mu, self.sigma, self.gamma, rng)
         species = GroupElement(

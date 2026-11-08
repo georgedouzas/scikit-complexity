@@ -1,4 +1,7 @@
-"""Ecology systems: Jensen's coupled populations that lose the stability of their steady state from within."""
+"""Jensen's coupled populations that lose the stability of their steady state.
+
+They lose it from within.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,7 +20,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class UnstablePopulationsElement(Element):
-    """Resident population `x` and invading population `y`, after equations (13.3) and (13.4) of Jensen.
+    """Resident population `x` and invading population `y`.
+
+    They follow equations (13.3) and (13.4) of Jensen.
 
     The maps of `IntrinsicInstabilitySystem` step both sizes. At every step `x ← [x - eta (x - X)] exp(-alpha y) + √x
     sigma chi`, an Ornstein-Uhlenbeck step damped by the invader. With probability `p` a mutation from `x` adds `nu x`
@@ -93,7 +98,9 @@ class UnstablePopulationsElement(Element):
 
 
 class IntrinsicInstabilitySystem(BaseSystem):
-    """Jensen's coupled populations, whose steady state becomes unstable without a change of the surroundings.
+    """Jensen's coupled populations, whose steady state becomes unstable.
+
+    It becomes unstable without a change of the surroundings.
 
     The resident population fluctuates about its level `X = 1` until a rare mutation seeds the invader. The invader then
     grows by the factor `1 + beta` per step and suppresses the resident, so the trajectory leaves the fixed point `(X,
@@ -162,14 +169,20 @@ class IntrinsicInstabilitySystem(BaseSystem):
 
     @staticmethod
     def _get_resident(namespace: SimpleNamespace) -> Expression:
-        """Return the next resident population, damped towards its mean by the invader, with noise, cut at 0."""
+        """Return the next resident population.
+
+        It is damped towards its mean by the invader, with noise, and cut at 0.
+        """
         s = namespace.target
         resident = (s.x - s.eta * (s.x - s.mean)) * exp(-s.alpha * s.y) + sqrt(s.x) * s.sigma * normal('chi_x')
         return clip(resident, low=0)
 
     @staticmethod
     def _get_invader(namespace: SimpleNamespace) -> Expression:
-        """Return the next invading population, grown with noise or fed by a mutation of the resident, cut at 0."""
+        """Return the next invading population.
+
+        It grows with noise or is fed by a mutation of the resident, and is cut at 0.
+        """
         s = namespace.target
         grown = s.y * (1 + s.beta) + sqrt(s.y) * s.sigma * normal('chi_y')
         return clip(where(bernoulli('mutation', s.p) > 0, s.y + s.nu * s.x, grown), low=0)

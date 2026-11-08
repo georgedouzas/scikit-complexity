@@ -1,4 +1,7 @@
-"""Community flux balance analysis: two E. coli core members joined through a shared medium."""
+"""Community flux balance analysis of two E. coli core members.
+
+The members are joined through a shared medium.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +18,9 @@ OPEN_UPTAKE = -1000.0
 
 
 class CommunityFBASystem(BaseSystem):
-    """Two members of the E. coli core system that share a medium, which needs the extra `metabolism`.
+    """Two members of the E. coli core system that share a medium.
+
+    It needs the extra `metabolism`.
 
     The programs of the members merge through a medium whose law holds the growth weighted by the abundances (Raman
     2021, Section 11.1.3). By default one member lacks isocitrate dehydrogenase and takes up 2-oxoglutarate, and the

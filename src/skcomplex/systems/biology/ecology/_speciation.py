@@ -1,4 +1,7 @@
-"""Ecology systems: a neutral community of constant size whose species arise by speciation and vanish by drift."""
+"""A neutral community of constant size with speciation and drift.
+
+Its species arise by speciation and vanish by drift.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -81,7 +84,9 @@ class OrganismElement(Element):
 
 
 class NeutralReplacementInteraction(EvolutionInteraction):
-    """Deaths of random individuals at unit rate, each replaced by the offspring of another, a new species at rate `nu`.
+    """Deaths of random individuals at unit rate, each replaced by an offspring.
+
+    The offspring is of another individual, and of a new species at rate `nu`.
 
     One unit of time holds `N` deaths. The offspring belongs to the species of a parent drawn among the individuals, or
     with the probability `mutation` to a new species, labelled one above the largest label present. It is the neutral
@@ -129,7 +134,9 @@ def _richness(species: AnyArray) -> float:
 
 
 class NeutralBiodiversitySystem(BaseSystem):
-    """A neutral community of constant size, where species arise by speciation and vanish by drift.
+    """A neutral community of constant size with speciation and drift.
+
+    Its species arise by speciation and vanish by drift.
 
     Every species is transient, yet the number of species settles around `S_N = sum_n theta / (theta + n)` for `n` from
     0 to `N - 1`, with `theta = (N - 1) nu / (1 - nu)`, and the mean number of species of `k` individuals around `phi_k

@@ -59,7 +59,9 @@ THERMAL = (
 
 
 class ShrimpElement(Element):
-    """Penaeid shrimp, an individual whose gut, biomass, gonads, and length grow on food at the water temperature.
+    """Penaeid shrimp, an individual that grows on food at the water temperature.
+
+    Its gut, biomass, gonads, and length grow.
 
     The shrimp ingests `I = R_max (1 - exp(-k F))` of the food `F`, with the maximum ration `R_max` the product of a
     table of its biomass, a table of the water temperature, and the factor `ration`. Its gut content `G` follows
@@ -157,7 +159,9 @@ class ShrimpElement(Element):
         self.K = K
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the ingestion, assimilation, respiration, spawning, gonad growth, and length growth.
+        """Return the ingestion, assimilation, respiration, spawning, and growth laws.
+
+        The growth laws are those of the gonads and of the length.
 
         Args:
             s:
@@ -183,7 +187,9 @@ class ShrimpElement(Element):
 
 
 class RabbitsElement(Element):
-    """Pairs of rabbits of this month and of last month, the two age classes of Fibonacci's recurrence.
+    """Pairs of rabbits of this month and of last month.
+
+    They are the two age classes of Fibonacci's recurrence.
 
     Args:
         label:
@@ -218,7 +224,9 @@ class RabbitsElement(Element):
 
 
 class RickerGrowthInteraction(Interaction):
-    """Ricker growth of a population in discrete generations, `n' = r n exp(-n)`, overcompensating at high density.
+    """Ricker growth of a population in discrete generations, `n' = r n exp(-n)`.
+
+    It overcompensates at high density.
 
     The size `n` is in units of the density at which the offspring of a generation peak, so a crowded generation
     leaves fewer offspring than a sparser one.
@@ -268,7 +276,9 @@ class RickerGrowthInteraction(Interaction):
 
 
 class SeasonalLogisticGrowthInteraction(LogisticGrowthInteraction):
-    """Logistic growth under a carrying capacity that varies periodically, `K(t) = K (1 + amplitude sin(2 pi t / T))`.
+    """Logistic growth under a carrying capacity that varies periodically.
+
+    The capacity is `K(t) = K (1 + amplitude sin(2 pi t / T))`.
 
     Args:
         label:
@@ -310,7 +320,9 @@ class SeasonalLogisticGrowthInteraction(LogisticGrowthInteraction):
         self.period = period
 
     def _get_capacity(self, namespace: SimpleNamespace) -> Expression:
-        """Return the capacity `K (1 + amplitude sin(2 pi t / T))` at the time of the namespace.
+        """Return the capacity at the time of the namespace.
+
+        It is `K (1 + amplitude sin(2 pi t / T))`.
 
         Args:
             namespace:
@@ -364,7 +376,10 @@ class ExponentialGrowthSystem(BaseSystem):
         self.r = r
 
     def _build_system(self) -> System:
-        """Return the parts of a population that grows or declines at a constant per-capita rate."""
+        """Return the parts of a population that grows at a constant per-capita rate.
+
+        The population grows or declines.
+        """
         return System(
             self.label,
             elements=[PopulationElement('population', n=self.n)],
@@ -416,7 +431,10 @@ class LogisticGrowthSystem(BaseSystem):
         self.K = K
 
     def _build_system(self) -> System:
-        """Return the parts of a population that grows logistically towards its carrying capacity."""
+        """Return the parts of a population that grows logistically.
+
+        It grows towards its carrying capacity.
+        """
         return System(
             self.label,
             elements=[PopulationElement('population', n=self.n)],
@@ -425,7 +443,9 @@ class LogisticGrowthSystem(BaseSystem):
 
 
 class VaryingCapacityLogisticSystem(BaseSystem):
-    """Logistic growth under a seasonal carrying capacity, which settles on a cycle of the season's period.
+    """Logistic growth under a seasonal carrying capacity.
+
+    It settles on a cycle of the season's period.
 
     Whatever its initial size, the population tends to a unique periodic solution, which lags behind the capacity and
     varies less than it. The system has the population `population`.
@@ -497,7 +517,9 @@ class VaryingCapacityLogisticSystem(BaseSystem):
 
 
 class HutchinsonSystem(BaseSystem):
-    """Hutchinson's delayed logistic equation, which oscillates around `K` when `r * tau` exceeds π/2.
+    """Hutchinson's delayed logistic equation.
+
+    It oscillates around `K` when `r * tau` exceeds π/2.
 
     The history before the start is the initial size. The system has the population `population`.
 
@@ -617,7 +639,10 @@ class LotkaVolterraSystem(BaseSystem):
         self.K = K
 
     def _build_system(self) -> System:
-        """Return the parts of Prey and predators whose populations oscillate through predation."""
+        """Return the parts of prey and predators whose populations oscillate.
+
+        Their populations oscillate through predation.
+        """
         growth: BaseInteraction = (
             ExponentialGrowthInteraction('growth', target='prey', r=self.r)
             if self.K is None
@@ -635,7 +660,9 @@ class LotkaVolterraSystem(BaseSystem):
 
 
 class FibonacciRabbitsSystem(BaseSystem):
-    """Fibonacci's rabbits, `N_{t+1} = N_t + N_{t-1}`, where every pair older than one month breeds a new pair.
+    """Fibonacci's rabbits, `N_{t+1} = N_t + N_{t-1}`.
+
+    Every pair older than one month breeds a new pair.
 
     The previous population counts the pairs old enough to breed, so the recurrence is an age structure of two classes.
     The system has the population `rabbits.pairs` and last month's `rabbits.pairs_lag1`.
@@ -689,7 +716,9 @@ class FibonacciRabbitsSystem(BaseSystem):
 
 
 class RickerSystem(BaseSystem):
-    """Ricker's map of a population in discrete generations, `n' = r n exp(-n)`, chaotic for large `r`.
+    """Ricker's map of a population in discrete generations, `n' = r n exp(-n)`.
+
+    It is chaotic for large `r`.
 
     The positive fixed point `n = ln r` is stable while `1 < r < e^2`. Beyond `e^2`, about 7.39, it loses stability to a
     two-cycle, and further period doublings lead to chaos near `r = 14.8`. The size stays positive for every `r`. The
@@ -738,7 +767,9 @@ class RickerSystem(BaseSystem):
 
 
 class PenaeidShrimpSystem(BaseSystem):
-    """The growth of one penaeid shrimp from the juvenile stage, forced by the food and the water temperature.
+    """The growth of one penaeid shrimp from the juvenile stage.
+
+    The growth is forced by the food and the water temperature.
 
     The individual ingests food up to a maximum ration set by its biomass and the water temperature, assimilates its
     gut content, respires, and spawns, while its gonads grow and its carapace length follows von Bertalanffy's curve

@@ -16,7 +16,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class QuotaPhytoplanktonElement(Element):
-    """Phytoplankton that grows on the nutrient stored in its cells, the Droop cell-quota system.
+    """Phytoplankton that grows on the nutrient stored in its cells.
+
+    It is the phytoplankton of the Droop cell-quota system.
 
     The quota follows `dQ/dt = vmax R / (g + R) - r_inf (1 - q / Q) Q`, the Michaelis-Menten uptake from the
     external nutrient `R` less the dilution by growth, and the biomass `dP/dt = r_inf (1 - q / Q) P - d P`.
@@ -85,7 +87,7 @@ class QuotaPhytoplanktonElement(Element):
         self.d = d
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the uptake and dilution of the quota and the growth and death of the biomass.
+        """Return the uptake and dilution of the quota and the growth and death of biomass.
 
         Args:
             s:
@@ -103,7 +105,9 @@ class QuotaPhytoplanktonElement(Element):
 
 
 class DroopCellQuotaSystem(BaseSystem):
-    """The Droop system, a phytoplankton whose growth rate follows the nutrient stored in its cells.
+    """The Droop system of a phytoplankton that grows on its stored nutrient.
+
+    The growth rate of the phytoplankton follows the nutrient stored in its cells.
 
     The growth rate `r_inf (1 - q / Q)` rises with the quota `Q` and saturates at `r_inf`. Under a constant external
     nutrient the quota settles at `Q* = q + v / r_inf`, where `v = vmax R / (g + R)` is the uptake, and the biomass then

@@ -1,4 +1,4 @@
-"""Ecology systems: predators and prey that share emotions through marks they leave on the ground."""
+"""Predators and prey that share emotions through marks on the ground."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -44,7 +44,9 @@ PREDATOR_TRAITS: dict[str, float] = {'maturity': 20.0, 'reproduction': 0.1, 'sta
 
 
 class EmotionMarksElement(Element):
-    """Marks of one cell, the happiness and fear of prey and the happiness and anger of predators.
+    """Marks of one cell, the emotions of prey and predators.
+
+    They are the happiness and fear of prey and the happiness and anger of predators.
 
     Animals with emotions leave their feelings in the cell they stand on, and the marks evaporate at the rate `decay`,
     which the system adds as an evaporation of every mark.
@@ -116,7 +118,9 @@ class ForagerView(AgentView):
 
 
 class ForagerElement(Element):
-    """Animal that hunts its food guided by its emotions and those its kind left on the ground, and breeds.
+    """Animal that hunts its food guided by emotions, and breeds.
+
+    The emotions are its own and those its kind left on the ground.
 
     Every step the animal ages and grows hungry, and starves when its hunger passes `starvation`. It moves to the
     neighbouring cell, empty or holding food, of highest preference: 1 for food, plus, with emotions, the happiness
@@ -403,7 +407,9 @@ class PlantElement(Element):
 
 
 class StigmergicPredatorPreySystem(BaseSystem):
-    """Plants, prey, and predators on a grid, whose animals share emotions through decaying marks.
+    """Plants, prey, and predators on a grid.
+
+    The animals share emotions through decaying marks.
 
     Every cell holds at most one organism. Prey eat plants and fear predators, and predators eat prey and grow angry
     with hunger. Happiness draws animals of the same kind towards the cells where it was marked and distress drives them
@@ -491,13 +497,19 @@ class StigmergicPredatorPreySystem(BaseSystem):
         return [cell for cell in agent.neighbor_cells() if cell not in occupied]
 
     def _get_empty_cell(self, agent: AgentViewProtocol | None, system: SystemViewProtocol) -> object:
-        """Return a random empty neighbouring cell of a parent, or `None` when there is none."""
+        """Return a random empty neighbouring cell of a parent, or `None`.
+
+        It is `None` when there is none.
+        """
         cells = [] if agent is None else self._empty_cells(agent)
         return cells[int(system.rng.integers(len(cells)))] if cells else None
 
     @staticmethod
     def _get_one(agent: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return one, the step by which the age and the hunger of an organism grow."""
+        """Return one, the step of the age and the hunger of an organism.
+
+        The age and the hunger grow by it.
+        """
         del agent, system
         return 1.0
 
@@ -508,7 +520,10 @@ class StigmergicPredatorPreySystem(BaseSystem):
 
     @staticmethod
     def _starves(animal: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-        """Return whether the hunger of an animal passes `starvation`, so it dies."""
+        """Return whether the hunger of an animal passes `starvation`.
+
+        The animal then dies.
+        """
         del system
         return isinstance(animal, ForagerView) and animal.hunger > animal.starvation
 
@@ -519,7 +534,7 @@ class StigmergicPredatorPreySystem(BaseSystem):
 
     @staticmethod
     def _get_anger(predator: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return the hunger of a predator as a share of its starvation, its experience of anger."""
+        """Return the anger of a predator, its hunger as a share of its starvation."""
         del system
         return float(predator.hunger / predator.starvation) if isinstance(predator, ForagerView) else 0.0
 
@@ -531,7 +546,10 @@ class StigmergicPredatorPreySystem(BaseSystem):
         occupant: AgentViewProtocol | None,
         marks: tuple[str, str, str],
     ) -> float:
-        """Return the preference of an animal for a neighbouring cell, given its food and the marks it reads."""
+        """Return the preference of an animal for a neighbouring cell.
+
+        It depends on its food and the marks it reads.
+        """
         food, happiness_mark, distress_mark = marks
         meal = 1.0 if occupant is not None and self._kind(occupant) == food else 0.0
         if not animal.emotions:
@@ -546,7 +564,10 @@ class StigmergicPredatorPreySystem(BaseSystem):
         system: SystemViewProtocol,
         marks: tuple[str, str, str],
     ) -> object:
-        """Return the empty or food cell around an animal of highest preference, with a little noise, or `None`."""
+        """Return the empty or food cell around an animal of highest preference.
+
+        The choice has a little noise, and it is `None` when there is no such cell.
+        """
         if not isinstance(animal, ForagerView):
             return None
         occupants = self._occupants(animal)
@@ -563,7 +584,10 @@ class StigmergicPredatorPreySystem(BaseSystem):
 
     @staticmethod
     def _get_fed(food: AgentViewProtocol, animal: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return minus the hunger of an animal, which a meal clears."""
+        """Return minus the hunger of an animal.
+
+        A meal clears the hunger.
+        """
         del food, system
         return -float(animal.hunger) if isinstance(animal, ForagerView) else 0.0
 
@@ -573,7 +597,10 @@ class StigmergicPredatorPreySystem(BaseSystem):
         return float(np.mean([system.field(f'{MARKS}.{mark}', cell) for cell in animal.neighbor_cells()]))
 
     def _get_happiness(self, animal: AgentViewProtocol, system: SystemViewProtocol, mark: str) -> float:
-        """Return the next happiness of an animal, from a meal in the step and the happiness marked around it."""
+        """Return the next happiness of an animal.
+
+        It comes from a meal in the step and the happiness marked around it.
+        """
         if not isinstance(animal, ForagerView):
             return 0.0
         if not animal.emotions:
@@ -583,7 +610,10 @@ class StigmergicPredatorPreySystem(BaseSystem):
         return (1 - keep) * (ate + share * self._get_marked(animal, system, mark)) + keep * animal.happiness
 
     def _get_distress(self, animal: AgentViewProtocol, system: SystemViewProtocol, mark: str) -> float:
-        """Return the next distress of an animal, from its experience of the step and the distress marked around it."""
+        """Return the next distress of an animal.
+
+        It comes from its experience of the step and the distress marked around it.
+        """
         if not isinstance(animal, ForagerView):
             return 0.0
         if not animal.emotions:
@@ -595,7 +625,10 @@ class StigmergicPredatorPreySystem(BaseSystem):
 
     @staticmethod
     def _feels(animal: AgentViewProtocol, cell: object, system: SystemViewProtocol) -> bool:
-        """Return whether emotions guide an animal, so it marks its cell."""
+        """Return whether emotions guide an animal.
+
+        An animal guided by emotions marks its cell.
+        """
         del cell, system
         return isinstance(animal, ForagerView) and bool(animal.emotions)
 
@@ -612,14 +645,20 @@ class StigmergicPredatorPreySystem(BaseSystem):
         return float(animal.distress) if isinstance(animal, ForagerView) else 0.0
 
     def _get_breeding(self, animal: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return the probability that a mature animal with an empty neighbouring cell breeds, raised by happiness."""
+        """Return the probability that a mature animal breeds.
+
+        The animal needs an empty neighbouring cell, and happiness raises the probability.
+        """
         del system
         if not isinstance(animal, ForagerView) or animal.age < animal.maturity or not self._empty_cells(animal):
             return 0.0
         return float(animal.reproduction * (1 + animal.emotions * (animal.happiness - animal.distress)))
 
     def _get_growth(self, system: str, label: str, state: str) -> MapInteraction:
-        """Return the map that raises a state of every member of a group by one, in the activation of the member."""
+        """Return the map that raises a state of every member of a group by one.
+
+        It acts in the activation of the member.
+        """
         return MapInteraction(
             f'{label}_{state}',
             target=f'{system}/{label}',
@@ -631,7 +670,10 @@ class StigmergicPredatorPreySystem(BaseSystem):
         )
 
     def _get_plants(self, system: str, label: str) -> list[MapInteraction | LifeCycleInteraction]:
-        """Return the member interactions of a plant: age, and spread into an empty neighbouring cell at maturity."""
+        """Return the member interactions of a plant.
+
+        A plant ages and spreads into an empty neighbouring cell at maturity.
+        """
         return [
             self._get_growth(system, label, 'age'),
             LifeCycleInteraction(
@@ -651,7 +693,10 @@ class StigmergicPredatorPreySystem(BaseSystem):
         element: type['ForagerElement'],
         sense: Callable[[AgentViewProtocol, SystemViewProtocol], float],
     ) -> list[MapInteraction | LifeCycleInteraction | MovementInteraction | TransferInteraction]:
-        """Return the member interactions of an animal: age, starve, sense, move and eat, feel, mark, and breed."""
+        """Return the member interactions of an animal.
+
+        An animal ages, starves, senses, moves and eats, feels, marks, and breeds.
+        """
         group = f'{system}/{label}'
         marks = (element.food, element.happiness_mark, element.distress_mark)
         return [

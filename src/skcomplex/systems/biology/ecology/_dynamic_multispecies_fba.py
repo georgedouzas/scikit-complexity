@@ -1,4 +1,7 @@
-"""Dynamic flux balance analysis of two strains of the E. coli core system that compete for one medium."""
+"""Dynamic flux balance analysis of two E. coli core strains on one medium.
+
+The two strains compete for the medium.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,9 @@ ODE_STEP = 0.005
 
 
 class DynamicMultispeciesFBASystem(BaseSystem):
-    """Two E. coli core strains that differ in maximal glucose uptake on one medium, which needs the extra.
+    """Two E. coli core strains that differ in maximal glucose uptake on one medium.
+
+    It needs the extra `metabolism`.
 
     Each strain has its own program, uptake kinetics, and biomass, and they read one glucose pool (Raman 2021, Section
     11.1.3.4). The strain with the larger uptake grows faster, so its share rises until the glucose runs out. The two
@@ -82,7 +87,10 @@ class DynamicMultispeciesFBASystem(BaseSystem):
         self.km = km
 
     def _build_system(self) -> System:
-        """Return the parts of two E. coli core strains that differ in maximal glucose uptake on one medium."""
+        """Return the parts of two E. coli core strains that differ in glucose uptake.
+
+        They differ in maximal glucose uptake on one medium.
+        """
         cells = []
         interactions = []
         for name, vmax in (('fast', self.fast_vmax), ('slow', self.slow_vmax)):

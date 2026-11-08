@@ -1,4 +1,4 @@
-"""Ecology systems: predation with saturation, parasitism, harvesting, and demographic noise."""
+"""Predation with saturation, parasitism, harvesting, and demographic noise."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -92,7 +92,9 @@ class ParasitismInteraction(Interaction):
 
 
 class PredatorPreyEventsInteraction(Interaction):
-    """Births, crowding, saturating predation, and deaths of prey and predators as events of single individuals.
+    """Births, crowding, saturating predation, and deaths of prey and predators.
+
+    They are events of single individuals.
 
     Prey are born at the rate `r x` and die of crowding at the rate `r x^2 / K`. Predators kill prey at the Holling
     type II rate `a x y / (1 + a h x)`, are born at `e` times that rate, and die at the rate `m y`. In deterministic
@@ -163,7 +165,9 @@ class PredatorPreyEventsInteraction(Interaction):
         self.stochastic = stochastic
 
     def _get_change(self, member: SimpleNamespace, step: int, propensity: Expression) -> Sequence[BaseLaw]:
-        """Return the laws that change the population of a member by a step at a propensity.
+        """Return the laws that change the population of a member.
+
+        The change is a step at a propensity.
 
         In stochastic mode the change is a jump of one individual, and otherwise a rate of the step times the
         propensity.
@@ -199,7 +203,9 @@ class PredatorPreyEventsInteraction(Interaction):
 
 
 class RosenzweigMacArthurInteraction(Interaction):
-    """Rosenzweig-MacArthur predation of fast prey by slow predators, whose prey crowding grows at a constant rate.
+    """Rosenzweig-MacArthur predation of fast prey by slow predators.
+
+    The crowding of the prey grows at a constant rate.
 
     In units of the predators' time scale, `kappa dx/dt = x (1 - phi x) - x y / (1 + eta x)` and
     `dy/dt = x y / (1 + eta x) - y`. The crowding `phi`, the inverse of the prey's carrying capacity, rises at the rate
@@ -277,7 +283,9 @@ class RosenzweigMacArthurInteraction(Interaction):
 
 
 class RosenzweigMacarthurSystem(BaseSystem):
-    """Fast prey and slow predators whose carrying capacity shrinks at a rate, which tips them when it is fast.
+    """Fast prey and slow predators whose carrying capacity shrinks at a rate.
+
+    A fast shrinking tips them.
 
     By default the crowding rises from `eta (1 - eta) / (1 + eta)` to `1 - eta`, the range where the coexistence point
     at `x = 1 / (1 - eta)` is stable, and the run starts there. A slow rise lets the populations track the point, and a
@@ -348,7 +356,10 @@ class RosenzweigMacarthurSystem(BaseSystem):
         self.rate = rate
 
     def _build_system(self) -> System:
-        """Return the parts of fast prey and slow predators whose carrying capacity shrinks at a rate."""
+        """Return the parts of fast prey and slow predators.
+
+        Their carrying capacity shrinks at a rate.
+        """
         prey = self.prey
         predators = self.predators
         phi = self.phi
@@ -376,7 +387,9 @@ class RosenzweigMacarthurSystem(BaseSystem):
 
 
 class NicholsonBaileySystem(BaseSystem):
-    """Hosts and parasitoids in discrete generations, whose equilibrium is unstable to growing oscillations.
+    """Hosts and parasitoids in discrete generations.
+
+    Their equilibrium is unstable to growing oscillations.
 
     The equilibrium is `H = k ln k / ((k - 1) a c)` and `P = ln k / a`. The system has the populations `hosts` and
     `parasitoids`.
@@ -448,7 +461,9 @@ class NicholsonBaileySystem(BaseSystem):
 
 
 class LotkaVolterraWithHarvestingSystem(BaseSystem):
-    """Lotka-Volterra predation where both species are harvested with a constant effort.
+    """Lotka-Volterra predation where both species are harvested.
+
+    The harvest has a constant effort.
 
     The populations cycle around `prey = (d + predator_harvest) / b` and `predators = (r - prey_harvest) / a`, which are
     also their averages over a cycle. Harvesting raises the average prey and lowers the average predators, and a prey
@@ -519,7 +534,10 @@ class LotkaVolterraWithHarvestingSystem(BaseSystem):
         self.predator_harvest = predator_harvest
 
     def _build_system(self) -> System:
-        """Return the parts of Lotka-Volterra predation where both species are harvested with a constant effort."""
+        """Return the parts of Lotka-Volterra predation with harvesting.
+
+        Both species are harvested with a constant effort.
+        """
         return System(
             self.label,
             elements=[PopulationElement('prey', n=self.prey), PopulationElement('predators', n=self.predators)],
@@ -534,7 +552,9 @@ class LotkaVolterraWithHarvestingSystem(BaseSystem):
 
 
 class StochasticPredatorPreySystem(BaseSystem):
-    """Prey and predators born and killed one at a time, with crowding of the prey and saturating predation.
+    """Prey and predators born and killed one at a time.
+
+    The prey crowd and the predation saturates.
 
     The deterministic limit has the coexistence point `x = m / (a (e - m h))`. It is stable while `K < 2 x + 1 / (a h)`,
     and enriching the prey beyond that turns it into large cycles, which demographic noise drives to extinction. The

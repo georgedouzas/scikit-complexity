@@ -1,4 +1,4 @@
-"""Ecology systems: microbial communities of species that grow and interact in pairs."""
+"""Microbial communities of species that grow and interact in pairs."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +22,9 @@ COMMUNITY_INTERACTIONS = ((-1.0, -0.3, 0.2), (-0.2, -1.0, -0.3), (0.1, -0.2, -1.
 
 
 class MicrobeElement(Element):
-    """Species of a microbial community, with an abundance and an intrinsic growth rate.
+    """Species of a microbial community.
+
+    It has an abundance and an intrinsic growth rate.
 
     Args:
         label:
@@ -57,7 +59,9 @@ class MicrobeElement(Element):
 
 
 class GeneralizedLotkaVolterraInteraction(CouplingInteraction):
-    """Interactions of the species of a group, `dx_i/dt += x_i sum_j a_ij x_j`, through an interaction matrix `a`.
+    """Interactions of the species of a group, `dx_i/dt += x_i sum_j a_ij x_j`.
+
+    They act through an interaction matrix `a`.
 
     Every species `i` couples to every species `j` of the group, itself included, through the term `x_i x_j` weighted
     by the entry `a_ij` of the interaction matrix, a parameter with one row and one column per species, so a schedule or
@@ -108,12 +112,17 @@ class GeneralizedLotkaVolterraInteraction(CouplingInteraction):
         self.state = state
 
     def _product(self, namespace: SimpleNamespace) -> object:
-        """Return the product `x_i x_j` of the abundances of the species and the other species."""
+        """Return the product `x_i x_j` of the abundances of two species.
+
+        The species are the member `i` and the other species `j`.
+        """
         return getattr(namespace.member, self.state) * getattr(namespace.other, self.state)
 
 
 class GeneralizedLotkaVolterraSystem(BaseSystem):
-    """The generalized Lotka-Volterra system of a microbial community, `dx_i/dt = x_i (b_i + sum_j a_ij x_j)`.
+    """The generalized Lotka-Volterra system of a microbial community.
+
+    It follows `dx_i/dt = x_i (b_i + sum_j a_ij x_j)`.
 
     Every species grows at its intrinsic rate `b_i` and its growth changes with the abundance of every species through
     the pairwise interaction `a_ij`. A feasible interior fixed point solves `b + a x = 0`. The book gives no parameter
@@ -170,7 +179,7 @@ class GeneralizedLotkaVolterraSystem(BaseSystem):
         return namespace.target.b * namespace.target.x
 
     def _build_system(self) -> System:
-        """Return the parts of the generalized Lotka-Volterra system of a microbial community."""
+        """Return the parts of the generalized Lotka-Volterra microbial community."""
         size = len(self.b)
         abundances = [0.1] * size if self.x is None else [float(value) for value in self.x]
         if len(abundances) != size or len(self.a) != size or any(len(row) != size for row in self.a):

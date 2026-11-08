@@ -1,4 +1,4 @@
-"""Ecology systems: organisms that divide, die, and hop between patches of space, and gather in clusters."""
+"""Organisms that divide, die, and hop between patches, and gather in clusters."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +21,9 @@ from ....core.specs import ObservableSpec, ParameterSpec, RoleSpec, StateSpec, V
 
 
 class HabitatPatchElement(CompartmentElement):
-    """Patch of space, a compartment of `n` organisms that divide and die at the same rate `alpha`.
+    """Patch of space, a compartment of `n` organisms that divide and die.
+
+    The organisms divide and die at the same rate `alpha`.
 
     The divisions and deaths are jumps of `NeutralClusteringSystem`, so the number of organisms is a symmetric random
     walk, and an empty patch stays empty without arrivals from its neighbours.
@@ -58,7 +60,9 @@ class HabitatPatchElement(CompartmentElement):
 
 
 class HoppingInteraction(Interaction):
-    """Hops of single organisms between neighbouring patches, each organism moving to each neighbour at the rate `beta`.
+    """Hops of single organisms between neighbouring patches.
+
+    Each organism moves to each neighbour at the rate `beta`.
 
     The patches are the entries of a variadic role, and every pair `(i, j)` of `links` gives a jump that moves one
     organism from the patch of entry `i` to the patch of entry `j` at the rate `beta n_i`.
@@ -113,7 +117,9 @@ class HoppingInteraction(Interaction):
 
 
 class NeutralClusteringSystem(BaseSystem):
-    """Organisms that divide, die, and hop between patches on a periodic lattice, and gather in clusters.
+    """Organisms that divide, die, and hop between patches on a periodic lattice.
+
+    They gather in clusters.
 
     Births balance deaths, so the mean number of organisms per patch stays `n` while its variance grows. Without hops it
     grows as `2 alpha n t`, so most patches empty while a few fill. Hops at the rate `beta` slow the growth to `t^(1/2)`
@@ -171,7 +177,10 @@ class NeutralClusteringSystem(BaseSystem):
 
     @staticmethod
     def _neighbor_pairs(shape: tuple[int, ...]) -> list[tuple[int, int]]:
-        """Return the pairs of flat indices of every patch and each of its nearest neighbours on a periodic lattice."""
+        """Return the pairs of flat indices of every patch and its nearest neighbours.
+
+        The lattice is periodic.
+        """
         indices = np.arange(int(np.prod(shape))).reshape(shape)
         pairs: list[tuple[int, int]] = []
         for axis in range(len(shape)):

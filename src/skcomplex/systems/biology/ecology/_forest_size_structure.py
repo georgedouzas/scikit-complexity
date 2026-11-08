@@ -1,4 +1,7 @@
-"""Size-structured forest: a density of trees over position and height with shading, competition, and dispersal."""
+"""Size-structured forest, a density of trees over position and height.
+
+The density changes by shading, competition, and dispersal.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,7 +30,9 @@ HEIGHT_AXIS = 1
 
 
 class ForestSizeStructureSystem(BaseSystem):
-    """The McKendrick-von Foerster density of trees over position across a strip and height.
+    """The McKendrick-von Foerster density of trees over position and height.
+
+    The position runs across a strip.
 
     The density `f(x, h)` of trees of height `h` at position `x` across a forest strip grows in height at the rate `I (1
     - h / top)`, where the light `I = exp(-shading int_h^top f(x, h') h'^(2H) dh')` falls through the canopy of taller
@@ -115,7 +120,10 @@ class ForestSizeStructureSystem(BaseSystem):
         self.resources = resources
 
     def _build_system(self) -> System:
-        """Return the parts of the McKendrick-von Foerster density of trees over position across a strip and height."""
+        """Return the parts of the McKendrick-von Foerster density of trees.
+
+        The density is over position across a strip and height.
+        """
         step = (self.top - self.sapling) / self.heights
         space = PhaseSpace(
             LatticeSpace((self.positions,), spacing=self.width / self.positions, boundary='fixed'),

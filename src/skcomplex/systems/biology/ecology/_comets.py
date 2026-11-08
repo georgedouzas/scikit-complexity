@@ -1,4 +1,7 @@
-"""COMETS: growth by a linear program at every site of a lattice, alternating with diffusion."""
+"""COMETS, growth by a linear program on a lattice, alternating with diffusion.
+
+The linear program runs at every site of the lattice.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -31,7 +34,9 @@ GLUCOSE_MOLAR_MASS = 180.16
 
 
 class CometsSystem(BaseSystem):
-    """An expanding colony of the E. coli core system on a lattice, which needs the extra `metabolism`.
+    """An expanding colony of the E. coli core system on a lattice.
+
+    It needs the extra `metabolism`.
 
     Run with `IMEXEulerSolver`, every step is a growth step and then a diffusion step, the two steps that COMETS
     alternates (Raman 2021, Section 11.1.3.4). The growth step solves the program of every site that holds biomass and
