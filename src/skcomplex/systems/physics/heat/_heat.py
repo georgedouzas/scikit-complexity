@@ -1,4 +1,7 @@
-"""Heat transfer systems: diffusion of heat on lattices and meshes."""
+"""Heat transfer systems.
+
+The module covers diffusion of heat on lattices and meshes.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,7 @@ from ....core.types import Array
 
 
 class HeatElement(Element):
-    """Site of a plate, with the temperature `u` and the diffusion coefficient `D` of heat.
+    """Site of a plate with the temperature `u` and the heat diffusion coefficient `D`.
 
     Args:
         label:
@@ -56,7 +59,9 @@ class HeatElement(Element):
 
 
 class HeatDiffusionSystem(BaseSystem):
-    """Heat diffusing on a plate from a hot square in its middle, `du/dt = D laplacian(u)`.
+    """Heat diffusing on a plate from a hot square in its middle.
+
+    The temperature follows `du/dt = D laplacian(u)`.
 
     The system has the temperature `plate.u`.
 
@@ -104,7 +109,10 @@ class HeatDiffusionSystem(BaseSystem):
         self.boundary = boundary
 
     def _build_system(self) -> System:
-        """Return heat diffusing on a plate from a hot square in its middle, `du/dt = D laplacian(u)`."""
+        """Return heat diffusing on a plate from a hot square in its middle.
+
+        The temperature follows `du/dt = D laplacian(u)`.
+        """
         shape = tuple(self.shape)
         u = np.zeros(shape)
         middle = tuple(slice(size // 2 - max(size // 8, 1), size // 2 + max(size // 8, 1)) for size in shape)
@@ -129,7 +137,9 @@ class HeatDiffusionSystem(BaseSystem):
 
 
 def harmonic(x: Array, y: Array) -> Array:
-    """Return the harmonic function `exp(x) sin(y)`, a steady temperature known in closed form.
+    """Return the harmonic function `exp(x) sin(y)`.
+
+    It is a steady temperature known in closed form.
 
     Args:
         x:
@@ -151,7 +161,9 @@ def harmonic(x: Array, y: Array) -> Array:
 
 
 class HeatLShapeSystem(BaseSystem):
-    """Heat on the L-shaped domain with fixed boundary temperatures, discretised by linear finite elements.
+    """Heat on the L-shaped domain with fixed boundary temperatures.
+
+    The domain is discretised by linear finite elements.
 
     The plate starts cold inside, and its temperature relaxes to the solution of Laplace's equation with the boundary
     temperatures. The default boundary temperature is harmonic, so the steady state is known. The system has the

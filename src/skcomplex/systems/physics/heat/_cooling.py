@@ -1,4 +1,7 @@
-"""Cooling systems: a cup of coffee that relaxes to the temperature of the room."""
+"""Cooling systems.
+
+A cup of coffee relaxes to the temperature of the room.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +18,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class CoffeeCupElement(Element):
-    """Cup of coffee at the temperature `T` in a room at the temperature `room`, exchanging heat at the rate `k`.
+    """Cup of coffee at the temperature `T` in a room at the temperature `room`.
+
+    The cup exchanges heat at the rate `k`.
 
     Args:
         label:
@@ -55,7 +60,9 @@ class CoffeeCupElement(Element):
 
 
 class CoolingCoffeeSystem(BaseSystem):
-    """A cup of coffee whose temperature relaxes to that of the room, `T' = -k (T - T_room)`.
+    """A cup of coffee whose temperature relaxes to that of the room.
+
+    The temperature follows `T' = -k (T - T_room)`.
 
     The heat flow is proportional to the discrepancy between the coffee and the room, a balancing feedback loop, so hot
     coffee cools and iced coffee warms, both exponentially with the time constant `1 / k`. The system has the
@@ -100,7 +107,10 @@ class CoolingCoffeeSystem(BaseSystem):
         self.k = k
 
     def _build_system(self) -> System:
-        """Return a cup of coffee whose temperature relaxes to that of the room, `T' = -k (T - T_room)`."""
+        """Return a cup of coffee whose temperature relaxes to that of the room.
+
+        The temperature follows `T' = -k (T - T_room)`.
+        """
         cooling = RelaxationInteraction(
             'cooling',
             target='coffee',
