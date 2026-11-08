@@ -1,4 +1,4 @@
-"""Physiology systems: fractal distribution networks and the metabolic scaling they imply."""
+"""Fractal distribution networks and the metabolic scaling they imply."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +20,9 @@ from ....core.specs import ObservableSpec, ParameterSpec, StateSpec, VisualSpec
 
 
 class BranchingVesselElement(Element):
-    """Vessel of a space-filling branching network, sized by its level so that the network minimizes transport energy.
+    """Vessel of a space-filling branching network, sized by its level.
+
+    Its size makes the network minimize transport energy.
 
     Every vessel branches into `n` daughters. Area-preserving branching gives the radii the ratio `n^(-1/2)` between
     levels and space filling the lengths the ratio `n^(-1/3)`, and the capillaries at the last level `depth` have the
@@ -96,7 +98,9 @@ class BranchingVesselElement(Element):
         self.l_c = l_c
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the radius, the length, the volume, and the capillary indicator of the vessel.
+        """Return the radius, the length, the volume, and the capillary flag of the vessel.
+
+        The flag indicates whether the vessel is a capillary.
 
         Args:
             s:
@@ -116,7 +120,9 @@ class BranchingVesselElement(Element):
 
 
 class WestBrownEnquistSystem(BaseSystem):
-    """The distribution network of West, Brown, and Enquist, a space-filling tree of invariant capillaries.
+    """The distribution network of West, Brown, and Enquist.
+
+    It is a space-filling tree of invariant capillaries.
 
     The tree branches `n` ways at every level down to the capillaries at level `depth`. The metabolic rate is
     proportional to the number of capillaries, `n^depth`, and the body mass to the blood volume, which the

@@ -21,7 +21,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class BarkleyElement(Element):
-    """Excitable medium of Barkley, a fast excitation `u` and a slow recovery `w` with a polynomial nullcline.
+    """Excitable medium of Barkley, a fast excitation `u` and a slow recovery `w`.
+
+    The excitation has a polynomial nullcline.
 
     The excitation follows `u' = u (1 - u) (u - (w + b) / a)` and the recovery `w' = epsilon (u^gamma - w)`. A diffusion
     of the excitation couples the sites of the medium. The threshold `(w + b) / a` rises with the recovery, so an
@@ -99,7 +101,9 @@ class BarkleyElement(Element):
 
 
 class AlievPanfilovElement(Element):
-    """Cardiac tissue of Aliev and Panfilov, an excitable medium with the restitution of heart muscle.
+    """Cardiac tissue of Aliev and Panfilov, an excitable medium.
+
+    It has the restitution of heart muscle.
 
     The potential follows `u' = -k u (u - a) (u - 1) - u v` and the recovery `v' = (epsilon0 + mu1 v / (u + mu2))
     (-v - k u (u - a - 1))`, and a diffusion of the potential couples the cells of the tissue. The recovery rate
@@ -183,7 +187,9 @@ class AlievPanfilovElement(Element):
 
 
 class AlievPanfilovSystem(BaseSystem):
-    """The Aliev-Panfilov system of cardiac tissue, started from a broken wave that curls into a spiral.
+    """The Aliev-Panfilov system of cardiac tissue, started from a broken wave.
+
+    The broken wave curls into a spiral.
 
     A spiral wave in heart muscle is a re-entrant arrhythmia, a tachycardia, and its breakup into many waves systems
     fibrillation. The upper half of the tissue starts excited and its left half refractory, so the free end of the wave
@@ -262,7 +268,9 @@ class AlievPanfilovSystem(BaseSystem):
 
 
 class BarkleySystem(BaseSystem):
-    """Barkley's excitable medium, started from orthogonal stripes whose crossing curls into a spiral wave.
+    """Barkley's excitable medium, started from orthogonal stripes.
+
+    The crossing of the stripes curls into a spiral wave.
 
     The excitation `u` and the recovery `w` start as orthogonal stripes of zeros and ones, so the excited stripe runs
     into recovering tissue on one side only and its free end rotates. With `(a, b, d, epsilon) = (0.6, 0.05, 1, 0.02)`

@@ -1,4 +1,7 @@
-"""Intercellular exchange: substances passed between cells in a closed contour and on networks of junctions."""
+"""Intercellular exchange of substances in a closed contour and on networks.
+
+The substances pass between cells in a closed contour and on networks of junctions.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,9 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class ContourCellElement(Element):
-    """Logistic cell of a closed contour that takes up the signalling molecules of the next cell through a power map.
+    """Logistic cell of a closed contour that takes up molecules of the next cell.
+
+    It takes up the signalling molecules of the next cell through a power map.
 
     `ContourUptakeInteraction` iterates `x_i <- (1 - c_i) r x_i (1 - x_i) + c_i x_{i+1}^{p_i}`, where the logistic map
     is the intracellular dynamics, `c_i` the share of the exchange with the environment between the cells, and `p_i`
@@ -72,7 +77,9 @@ class ContourCellElement(Element):
 
 
 class ExchangingCellElement(Element):
-    """Cell that metabolizes a substance and exchanges it with its neighbours through gap junctions and nanotubes.
+    """Cell that metabolizes a substance and exchanges it with its neighbours.
+
+    The exchange runs through gap junctions and nanotubes.
 
     The concentration follows `dx_i/dt = -alpha_i x_i / (beta_i + x_i) + Σ_j [g (x_j - x_i) + xi A_ij x_j]`, where the
     first term is Michaelis-Menten metabolism, the one law of the cell, `g` the exchange coefficient of the gap
@@ -142,7 +149,9 @@ class ExchangingCellElement(Element):
 
 
 class ContourUptakeInteraction(CouplingInteraction):
-    """Uptake of every cell of a contour from the next cell, `x_i <- (1 - c_i) r x_i (1 - x_i) + c_i x_{i+1}^p_i`.
+    """Uptake of every cell of a contour from the next cell.
+
+    It is `x_i <- (1 - c_i) r x_i (1 - x_i) + c_i x_{i+1}^p_i`.
 
     It is the map form of coupling to the next member of the group, with the power `x_{i+1}^{p_i}` of the next cell
     combined with the logistic map of the cell. The last cell of the contour takes up from the first.
@@ -192,13 +201,18 @@ class ContourUptakeInteraction(CouplingInteraction):
 
 
 def _exchange(s: SimpleNamespace) -> Expression:
-    """Return the exchange of a cell with a neighbour, through their gap junction and the nanotube between them."""
+    """Return the exchange of a cell with a neighbour.
+
+    It runs through their gap junction and the nanotube between them.
+    """
     exchange: Expression = s.member.g * (s.other.x - s.member.x) + s.member.xi * s.other.x
     return exchange
 
 
 class ClosedContourCellExchangeSystem(BaseSystem):
-    """The exchange of signalling molecules between logistic cells arranged in a closed contour.
+    """The exchange of signalling molecules between logistic cells.
+
+    The cells are arranged in a closed contour.
 
     Every cell runs the logistic map on its concentration and takes up a share `c_i` of its next state from the next
     cell through the power map `x_{i+1}^{p_i}`, `x_i <- (1 - c_i) r x_i (1 - x_i) + c_i x_{i+1}^{p_i}`. Mihailović et
@@ -274,7 +288,9 @@ class ClosedContourCellExchangeSystem(BaseSystem):
 
 
 class NanotubeGapJunctionExchangeSystem(BaseSystem):
-    """The intercellular exchange of a substance through gap junctions and tunnelling nanotubes on a network.
+    """The intercellular exchange of a substance on a network.
+
+    It runs through gap junctions and tunnelling nanotubes.
 
     Every cell metabolizes the substance at the Michaelis-Menten rate `alpha x / (beta + x)` and exchanges it with its
     neighbours, by diffusion `g (x_j - x_i)` through gap junctions and by the transfer `xi x_j` through nanotubes. The

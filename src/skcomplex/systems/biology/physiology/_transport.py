@@ -1,4 +1,4 @@
-"""Physiology systems: vascular networks whose vessels adapt to the flows they carry."""
+"""Vascular networks whose vessels adapt to the flows they carry."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +22,9 @@ from ....core.specs import CallSpec, ParameterSpec, RoleSpec, StateSpec, VisualS
 
 
 class VesselSegmentElement(Element):
-    """Vessel segment on an edge of a transport network, whose conductance adapts to the flow it carries.
+    """Vessel segment on an edge of a transport network.
+
+    Its conductance adapts to the flow it carries.
 
     Args:
         label:
@@ -52,7 +54,9 @@ class VesselSegmentElement(Element):
 
 
 class FlowAdaptationInteraction(Interaction):
-    """Adaptation of the conductances of a transport network to the pressure drops of its Kirchhoff flows.
+    """Adaptation of the conductances of a transport network to its pressure drops.
+
+    The pressure drops are those of its Kirchhoff flows.
 
     The nodes accumulate no fluid, so the pressures `p` solve the mass balance `h_i = sum_j C_ij (p_i - p_j)` with
     the external flows `h`, which sum to zero, at every instant. Every conductance follows `dC_ij/dt = C_ij (alpha1
@@ -109,7 +113,9 @@ class FlowAdaptationInteraction(Interaction):
         self.gamma = gamma
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the adaptation of every conductance to the pressure drop of the current flows.
+        """Return the adaptation of every conductance to the pressure drop.
+
+        The pressure drop is that of the current flows.
 
         Args:
             s:
@@ -135,7 +141,10 @@ class FlowAdaptationInteraction(Interaction):
         return C * (alpha1 * np.abs(drops) ** gamma - alpha2)
 
     def _pressure_drops(self, C: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-        """Return the pressure drop `p_i - p_j` along every edge, solving `h = K p` with the first pressure at zero."""
+        """Return the pressure drop `p_i - p_j` along every edge.
+
+        It solves `h = K p` with the first pressure at zero.
+        """
         ends = np.asarray(self.edges, dtype=int).reshape(-1, 2)
         size = len(self.h)
         laplacian = np.zeros((size, size))
@@ -149,7 +158,9 @@ class FlowAdaptationInteraction(Interaction):
 
 
 class AdaptiveFlowNetworkSystem(BaseSystem):
-    """A square grid of vessels fed at one corner and drained at every other node, whose conductances adapt.
+    """A square grid of vessels whose conductances adapt.
+
+    It is fed at one corner and drained at every other node.
 
     The pressures balance the flows at every node, `h_i = sum_j C_ij (p_i - p_j)`, and every conductance grows with the
     dissipated power and decays, `dC_ij/dt = C_ij (alpha1 |p_i - p_j|^gamma - alpha2)`. Under a steady supply the
@@ -212,7 +223,10 @@ class AdaptiveFlowNetworkSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the parts of a square grid of vessels fed at one corner and drained at every other node."""
+        """Return the parts of a square grid of vessels.
+
+        It is fed at one corner and drained at every other node.
+        """
         graph = nx.convert_node_labels_to_integers(nx.grid_2d_graph(self.side, self.side))
         space = NetworkSpace(graph).prepare()
         sources, targets = space.edges_[None]

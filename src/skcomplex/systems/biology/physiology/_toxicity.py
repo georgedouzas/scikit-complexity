@@ -17,7 +17,9 @@ from ..common.pharmacokinetics import DosingInteraction
 
 
 class DrugToxicityElement(Element):
-    """Drug in the plasma, given in a train of infusions and eliminated, and the toxicity it accumulates.
+    """Drug in the plasma, and the toxicity it accumulates.
+
+    The drug is given in a train of infusions and eliminated.
 
     The plasma concentration follows `dc/dt = u(t) - k c`, where the infusion `u` is `dose` for `width` time units
     every `period`, and the toxicity `dT/dt = c - eta T`, which the metabolism lowers at the rate `eta`.
@@ -88,7 +90,9 @@ class DrugToxicityElement(Element):
 
 
 class DrugToxicitySystem(BaseSystem):
-    """The toxicity a weekly drug accumulates in the body, which the metabolism clears once the doses stop.
+    """The toxicity a weekly drug accumulates in the body.
+
+    The metabolism clears it once the doses stop.
 
     Every dose raises the plasma concentration, which the body eliminates within days, and the toxicity integrates the
     concentration, `dT/dt = c - eta T`. With `eta = 0` the toxicity is the cumulative exposure and never falls. The

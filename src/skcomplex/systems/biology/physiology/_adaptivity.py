@@ -1,4 +1,7 @@
-"""Adaptivity: the costs of stimulus-response, adaptive response, and anticipation to recurring demands."""
+"""Adaptivity, the costs of three responses to recurring demands.
+
+The responses are stimulus-response, adaptive response, and anticipation.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +23,9 @@ STRATEGIES = {'stimulus-response': (0.0, 0.0), 'adaptive': (0.5, 0.0), 'anticipa
 
 
 class AdaptiveResponderElement(Element):
-    """System that counters episodes of demand on a critical parameter and pays for its response in four costs.
+    """System that counters episodes of demand on a critical parameter.
+
+    It pays for its response in four costs.
 
     The excursion of the critical parameter follows `de/dt = (1 - a) s(t) - c e - k0 e`, where the stimulus `s` is a
     train of episodes of height `height` and width `width` every `period` from `start`, `c e` is the response of a
@@ -162,7 +167,9 @@ class AdaptiveResponderElement(Element):
 
 
 class AdaptiveResponseCostsSystem(BaseSystem):
-    """A system that meets recurring demands by stimulus-response, adaptive response, or anticipation.
+    """A system that meets recurring demands, by response or by anticipation.
+
+    It meets them by stimulus-response, adaptive response, or anticipation.
 
     Episodes of demand push a critical parameter away from its norm, and the system counters them, after Mobus. A
     stimulus-response keeps its baseline capacity, so large episodes overshoot the damage threshold and cost repairs. An

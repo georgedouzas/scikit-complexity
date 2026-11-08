@@ -1,4 +1,7 @@
-"""Regulation on the organism level: antagonistic hormone loops and an extracellular cascade with positive feedback."""
+"""Regulation on the organism level.
+
+It covers antagonistic hormone loops and an extracellular cascade with positive feedback.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class CoagulationElement(Element):
-    """Coagulation cascade: thrombin amplified by positive feedback, switched off by protein C, and fibrinolysis.
+    """Coagulation cascade, thrombin amplified by positive feedback.
+
+    Protein C switches it off, and fibrinolysis clears the clot.
 
     An injury of height `injury` from `injury_time` for `duration` activates thrombin, which activates more of itself
     through the feedback of the cascade, `dT/dt = j(t) + ka T^2 / (k_half^2 + T^2) - (d_t + k_c C) T`. Thrombin
@@ -137,7 +142,9 @@ class CoagulationElement(Element):
 
 
 class FeedbackLoopElement(Element):
-    """Receptor-effector negative feedback loop that holds a product at a set point an outside signal steers.
+    """Receptor-effector negative feedback loop that holds a product at a set point.
+
+    An outside signal steers the set point.
 
     The product `x` is made by the effector at the rate `v e` and consumed at the rate `d x`. The receptor reads the
     product after the transmission delay `tau` and inhibits the effector with the Hill function `1 / (1 + (x / K)^n)`,
@@ -223,7 +230,9 @@ class FeedbackLoopElement(Element):
         self.duration = duration
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the synthesis and consumption of the product and the delayed response of the effector.
+        """Return the synthesis and consumption of the product and the effector response.
+
+        The response of the effector is delayed.
 
         Args:
             s:
@@ -239,7 +248,9 @@ class FeedbackLoopElement(Element):
 
 
 class GlucoseControlElement(Element):
-    """Blood glucose held near its norm by insulin, which lowers it, and glucagon, which raises it.
+    """Blood glucose held near its norm by insulin and glucagon.
+
+    Insulin lowers it, and glucagon raises it.
 
     The glucose follows `dG/dt = R - (k0 + k_i I) G + k_n N + u(t)`, where `u` is a meal of height `meal` from
     `meal_time` and an exercise of height `-exercise` from `exercise_time`, each lasting `duration`. High glucose
@@ -363,7 +374,9 @@ class GlucoseControlElement(Element):
 
 
 class GlucoseDualHormoneControlSystem(BaseSystem):
-    """Blood glucose stabilised by antagonistic hormone loops, insulin against highs and glucagon against lows.
+    """Blood glucose stabilised by antagonistic hormone loops.
+
+    Insulin acts against highs and glucagon against lows.
 
     A meal raises the glucose and secretes insulin, which raises the uptake of glucose, and an exercise lowers it and
     secretes glucagon, which releases glucose from the liver. Each receptor acts in one direction only, so one loop
@@ -502,7 +515,9 @@ class GlucoseDualHormoneControlSystem(BaseSystem):
 
 
 class CoagulationPositiveFeedbackSystem(BaseSystem):
-    """The coagulation cascade, an all-or-nothing burst of thrombin bounded by protein C and fibrinolysis.
+    """The coagulation cascade, an all-or-nothing burst of thrombin.
+
+    Protein C and fibrinolysis bound the burst.
 
     Thrombin activates its own production through the factors of the cascade, a positive feedback that amplifies an
     injury above a threshold into a burst of thrombin and a clot of fibrin, while a weaker injury fades. With the
@@ -632,7 +647,9 @@ class CoagulationPositiveFeedbackSystem(BaseSystem):
 
 
 class SteerableFeedbackLoopSystem(BaseSystem):
-    """A receptor-effector loop that holds a product at its set point until a steering signal shifts it.
+    """A receptor-effector loop that holds a product at its set point.
+
+    It holds it until a steering signal shifts it.
 
     The loop of the negative feedback system of Konieczny et al. (2023) settles at the set point where synthesis `v / (1
     + (x / K)^n)` balances consumption `d x`. A steering signal, such as a bacterial toxin acting on the temperature

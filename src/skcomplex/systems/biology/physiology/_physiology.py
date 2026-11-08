@@ -60,7 +60,9 @@ class FitzHughNagumoElement(Element):
 
 
 class MackeyGlassElement(Element):
-    """Concentration `x` of circulating blood cells, made at a delayed Hill rate and lost at a constant rate.
+    """Concentration `x` of circulating blood cells.
+
+    The cells are made at a delayed Hill rate and lost at a constant rate.
 
     The concentration follows `x' = beta x(t - tau) / (1 + x(t - tau)^n) - gamma x`.
 
@@ -128,7 +130,9 @@ class MackeyGlassElement(Element):
 
 
 class FitzhughNagumoSystem(BaseSystem):
-    """The FitzHugh-Nagumo excitable medium, started from a broken wave that curls into a spiral.
+    """The FitzHugh-Nagumo excitable medium, started from a broken wave.
+
+    The broken wave curls into a spiral.
 
     The upper half starts excited and the left half refractory, so the free end of the wave rotates. The system has the
     potential `medium.u` and the recovery `medium.v`.
@@ -204,7 +208,9 @@ class FitzhughNagumoSystem(BaseSystem):
 
 
 class MackeyGlassSystem(BaseSystem):
-    """The Mackey-Glass equation `x' = beta x(t - tau) / (1 + x(t - tau)^n) - gamma x` of blood cell production.
+    """The Mackey-Glass equation of blood cell production.
+
+    It is `x' = beta x(t - tau) / (1 + x(t - tau)^n) - gamma x`.
 
     It is periodic for `tau = 6` and chaotic for `tau = 17`. The history before the start is the initial value. The
     system has the concentration `cells.x`.

@@ -1,4 +1,7 @@
-"""Physiology systems: the unified disease model of tissue and immune cells as adaptive networks of oscillators."""
+"""The unified disease model of tissue and immune cells.
+
+The cells form adaptive networks of oscillators.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,9 @@ from ....core.specs import LayerSpec, ParameterSpec, RoleSpec, StateSpec, Visual
 
 
 class CellOscillatorElement(Element):
-    """Functional unit of a tissue layer reduced to a phase, a cell oscillator `phi' = omega`.
+    """Functional unit of a tissue layer, a cell oscillator `phi' = omega`.
+
+    The unit is reduced to a phase.
 
     Healthy and pathological cells differ by their metabolism, which the natural frequency `omega` stands for.
     Couplings to other cells add to the rate of the phase.
@@ -74,7 +79,9 @@ class CellOscillatorElement(Element):
 
 
 class CytokineLinkElement(Element):
-    """Link between two cells of a layer, a fixed connectivity `a` and an adaptive cytokine coupling `kappa`.
+    """Link between two cells of a layer.
+
+    It has a fixed connectivity `a` and an adaptive cytokine coupling `kappa`.
 
     Args:
         label:
@@ -109,7 +116,9 @@ class CytokineLinkElement(Element):
 
 
 class AdaptivePhaseCouplingInteraction(NeighborInteraction):
-    """Phase coupling of the cells of a layer through links that adapt to the phase differences they carry.
+    """Phase coupling of the cells of a layer through adaptive links.
+
+    The links adapt to the phase differences they carry.
 
     Along the link from cell `j` to cell `i`, `dphi_i/dt += -(a_ij + kappa_ij) sin(phi_i - phi_j + alpha) / N` and
     `dkappa_ij/dt = -epsilon (kappa_ij + sin(phi_i - phi_j - beta))`. The phase lag `alpha` sets the preferred phase
@@ -184,7 +193,9 @@ class AdaptivePhaseCouplingInteraction(NeighborInteraction):
 
 
 class LayerCouplingInteraction(NeighborInteraction):
-    """Coupling of every cell to its partner in another layer, `dphi_i/dt += -sigma sin(phi_i - phi_j)`.
+    """Coupling of every cell to its partner in another layer.
+
+    It adds `dphi_i/dt += -sigma sin(phi_i - phi_j)`.
 
     It runs on the edges of the layer of the network that joins the partners, both ways.
 
@@ -236,7 +247,9 @@ class LayerCouplingInteraction(NeighborInteraction):
 
 
 class TwoLayerSepsisSystem(BaseSystem):
-    """The two-layer model of tumour disease and sepsis, parenchymal and immune cells as adaptive oscillators.
+    """The two-layer model of tumour disease and sepsis.
+
+    Its parenchymal and immune cells are adaptive oscillators.
 
     The parenchymal layer of `n_cells` phase oscillators couples through fixed links `a_ij`, drawn as 1 with the
     probability `connectivity`, and adaptive cytokine links `kappa_ij`. The immune layer couples through adaptive links

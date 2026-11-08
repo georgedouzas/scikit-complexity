@@ -19,7 +19,9 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class ChamberElement(Element):
-    """Elastic compartment of blood, a heart chamber or a vascular bed, whose pressure is elastance times volume.
+    """Elastic compartment of blood, a heart chamber or a vascular bed.
+
+    Its pressure is the elastance times the volume.
 
     The pressure is `E(t) (V - V0)`. The elastance of a heart chamber rises from `E_min` to `E_max` and back as a half
     sine during the systole that starts every `period`, and the elastance of a vessel stays at `E_min` when `E_max`
@@ -78,7 +80,9 @@ class ChamberElement(Element):
 
 
 class ResistiveFlowInteraction(TransferInteraction):
-    """Flow of blood from one chamber to another through a resistance, `Q = (P_source - P_target) / R`.
+    """Flow of blood from one chamber to another through a resistance.
+
+    The flow is `Q = (P_source - P_target) / R`.
 
     A valve lets blood pass forward only, so the flow is zero when the target pressure is higher.
 
@@ -118,19 +122,27 @@ class ResistiveFlowInteraction(TransferInteraction):
         self.valve = valve
 
     def _get_pressure(self, chamber: SimpleNamespace, t: Expression) -> Expression:
-        """Return the pressure of a chamber, its elastance times its volume above the unstressed volume."""
+        """Return the pressure of a chamber.
+
+        It is its elastance times its volume above the unstressed volume.
+        """
         phase = mod(t, chamber.period)
         activation = where(phase < chamber.systole, sin(math.pi * phase / chamber.systole), 0)
         return (chamber.E_min + (chamber.E_max - chamber.E_min) * activation) * (chamber.V - chamber.V0)
 
     def _get_flow(self, s: SimpleNamespace) -> Expression:
-        """Return the flow of the pressure drop through the resistance, zero backwards through a valve."""
+        """Return the flow of the pressure drop through the resistance.
+
+        It is zero backwards through a valve.
+        """
         drop = self._get_pressure(s.source, s.t) - self._get_pressure(s.target, s.t)
         return where(drop > 0, drop / s.R, 0) if self.valve else drop / s.R
 
 
 class CardiovascularSystem(BaseSystem):
-    """A closed lumped system of the systemic circulation driven by a left ventricle of varying elastance.
+    """A closed lumped system of the systemic circulation.
+
+    A left ventricle of varying elastance drives it.
 
     Blood leaves the ventricle through the aortic valve into the compliant arteries, flows through the systemic
     resistance into the veins, and returns through the mitral valve. The ventricle stiffens in systole, so the system

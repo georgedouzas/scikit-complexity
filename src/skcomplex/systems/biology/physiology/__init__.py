@@ -1,4 +1,7 @@
-"""Physiology: delayed feedback, excitable tissue, the circulation, cell exchange, regulation, adaptivity, tissues."""
+"""Physiology systems.
+
+They cover delayed feedback, excitable tissue, the circulation, cell exchange, regulation, adaptivity, and tissues.
+"""
 
 from ._adaptivity import AdaptiveResponderElement, AdaptiveResponseCostsSystem
 from ._cardiac import AlievPanfilovElement, AlievPanfilovSystem, BarkleyElement, BarkleySystem

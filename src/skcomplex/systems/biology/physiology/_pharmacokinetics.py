@@ -1,4 +1,4 @@
-"""Physiology systems: the distribution and elimination of a drug between two compartments."""
+"""The distribution and elimination of a drug between two compartments."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,7 +15,9 @@ from ....core.specs import StateSpec, VisualSpec
 
 
 class TwoCompartmentElement(Element):
-    """Drug concentrations of a patient in a central compartment `Uc` and a peripheral compartment `Up`.
+    """Drug concentrations of a patient in two compartments.
+
+    They are the central compartment `Uc` and the peripheral compartment `Up`.
 
     The compartments have no laws of their own. Reactions exchange the drug between them and eliminate it.
 
@@ -52,7 +54,9 @@ class TwoCompartmentElement(Element):
 
 
 class TwoCompartmentPharmacokineticsSystem(BaseSystem):
-    """The two-compartment pharmacokinetics of a bolus dose given into the central compartment.
+    """The two-compartment pharmacokinetics of a bolus dose.
+
+    The dose is given into the central compartment.
 
     The central concentration follows `dUc/dt = k21 Up - (k10 + k12) Uc` and the peripheral one `dUp/dt = k12 Uc - k21
     Up`, from `Uc = c0` and `Up = 0`. The central concentration is the bi-exponential `c0 ((alpha - k21) e^(-alpha t) +

@@ -1,4 +1,7 @@
-"""Cellular Potts model of a confluent tissue on a square, triangular, or disordered lattice."""
+"""Cellular Potts model of a confluent tissue.
+
+The tissue lies on a square, triangular, or disordered lattice.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -40,7 +43,7 @@ TILES = 3
 
 
 class TissueSiteElement(Element):
-    """Site of a lattice tissue, which holds the label of the cell that covers it.
+    """Site of a lattice tissue, holding the label of the cell that covers it.
 
     The sites of one label form a cell of the cellular Potts model, and `CellAdhesionInteraction` moves the boundaries
     between cells by copying the label of a neighbouring site.
@@ -77,7 +80,9 @@ class TissueSiteElement(Element):
 
 
 class CellAdhesionInteraction(SamplingInteraction):
-    """Cellular Potts sampling of a tissue, whose cells move their boundaries under adhesion and area constraints.
+    """Cellular Potts sampling of a tissue, whose cells move their boundaries.
+
+    The cells move under adhesion and area constraints.
 
     The energy of the Graner-Glazier model is `sum_<i,j> w_ij J(t(s_i), t(s_j)) [s_i != s_j] + lambda sum_s (a_s -
     A)^2 + mu sum_s (p_s - P)^2`, where `s_i` is the cell of site `i`, `t(s)` the kind of cell `s`, `J` the adhesion
@@ -177,12 +182,18 @@ class CellAdhesionInteraction(SamplingInteraction):
         return 1 / SR(self._get_parameter_symbol('temperature', namespace))
 
     def _get_contact(self, first: Indices, second: Indices) -> Array:
-        """Return the adhesion energy per unit contact between the cells of two arrays of labels."""
+        """Return the adhesion energy per unit contact between the cells of two arrays.
+
+        The arrays hold labels of cells.
+        """
         kinds = np.asarray(self.kinds, dtype=np.intp)
         return np.asarray(self.adhesion, dtype=float)[kinds[first], kinds[second]]
 
     def _get_area(self, labels: Indices, area_strength: float, target_area: float) -> tuple[float, float]:
-        """Return the strength and the target of the area constraint, the same for every cell."""
+        """Return the strength and the target of the area constraint.
+
+        They are the same for every cell.
+        """
         del labels
         return area_strength, target_area
 
@@ -192,12 +203,17 @@ class CellAdhesionInteraction(SamplingInteraction):
         perimeter_strength: float,
         target_perimeter: float,
     ) -> tuple[float, float]:
-        """Return the strength and the target of the perimeter constraint, the same for every cell."""
+        """Return the strength and the target of the perimeter constraint.
+
+        They are the same for every cell.
+        """
         del labels
         return perimeter_strength, target_perimeter
 
     def _check(self) -> None:
-        """Raise an error for an adhesion that is not a symmetric square matrix, or a kind that is not one of its rows.
+        """Raise an error for an invalid adhesion or kind.
+
+        The adhesion must be a symmetric square matrix, and every kind one of its rows.
 
         Raises:
             ValidationError:
@@ -219,7 +235,10 @@ class CellAdhesionInteraction(SamplingInteraction):
 
 
 def _contact_pairs(space: LatticeSpace | NetworkSpace) -> tuple[Indices, Indices, Array]:
-    """Return the two sites and the weight of every contact of the tissue, each contact in both directions."""
+    """Return the two sites and the weight of every contact of the tissue.
+
+    Each contact appears in both directions.
+    """
     space.prepare()
     if isinstance(space, NetworkSpace):
         first, second = space.edges_[None]
@@ -242,7 +261,10 @@ def _homotypic_contacts(
     t: float,
     values: Mapping[str, object],
 ) -> float:
-    """Return the share of the contact between different cells that joins cells of the same kind."""
+    """Return the share of the contact between different cells of the same kind.
+
+    It is the share of the contact between different cells that joins cells of the same kind.
+    """
     del t
     first, second, weights = pairs
     cells = np.rint(np.ravel(np.asarray(values['tissue.cell'], dtype=float))).astype(np.intp)
@@ -252,7 +274,10 @@ def _homotypic_contacts(
 
 
 def _area_deviation(sizes: Array, target_area: float, t: float, values: Mapping[str, object]) -> float:
-    """Return the mean absolute deviation of the cell areas from the target area, relative to the target area."""
+    """Return the mean absolute deviation of the cell areas from the target area.
+
+    It is relative to the target area.
+    """
     del t
     cells = np.rint(np.ravel(np.asarray(values['tissue.cell'], dtype=float))).astype(np.intp)
     areas = np.bincount(cells, weights=sizes)
@@ -260,7 +285,10 @@ def _area_deviation(sizes: Array, target_area: float, t: float, values: Mapping[
 
 
 def _cellular_potts_observables(system: System) -> list[ObservableSpec]:
-    """Return the share of homotypic contacts and the deviation of the areas from their target."""
+    """Return the share of homotypic contacts and the deviation of the areas.
+
+    The deviation is that of the areas from their target.
+    """
     tissue = next(element for element in system.elements if element.label == 'tissue')
     adhesion = next(part for part in system.interactions if isinstance(part, CellAdhesionInteraction))
     space = tissue.space.prepare()
@@ -275,7 +303,9 @@ def _cellular_potts_observables(system: System) -> list[ObservableSpec]:
 
 
 class CellularPottsSystem(BaseSystem):
-    """The cellular Potts model of a confluent tissue whose cells of several kinds sort by differential adhesion.
+    """The cellular Potts model of a confluent tissue sorting by differential adhesion.
+
+    Its cells are of several kinds.
 
     Every site of a periodic lattice belongs to one cell, and the cells start as rectangles of `cell_shape` sites, whose
     area is the target area, with kinds in equal shares at random. Label copies sample the energy `sum_<i,j> w_ij J(t_i,
@@ -370,7 +400,9 @@ class CellularPottsSystem(BaseSystem):
         self.random_state = random_state
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the homotypic contacts and the deviation of the areas of the built parts.
+        """Return the tuned run settings, with the observables of the built parts.
+
+        The observables are the homotypic contacts and the deviation of the areas.
 
         Returns:
             settings:
@@ -382,7 +414,9 @@ class CellularPottsSystem(BaseSystem):
 
     @staticmethod
     def _disordered_lattice(shape: tuple[int, int], rng: np.random.Generator) -> nx.Graph:
-        """Return the periodic Voronoi tessellation of jittered points as a graph of sites, one point per unit area.
+        """Return the periodic Voronoi tessellation of jittered points as a graph of sites.
+
+        There is one point per unit area.
 
         Every node has the position `'pos'` of its point and the area `'volume'` of its Voronoi cell, and every edge
         joins two cells that share a side, with the length of the side over the mean length as its `'weight'`.

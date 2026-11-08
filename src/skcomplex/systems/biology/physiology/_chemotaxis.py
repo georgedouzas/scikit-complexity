@@ -20,7 +20,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class ChemotacticTissueElement(Element):
-    """Site of a tissue where cells and a chemical move with finite speeds, the hyperbolic limit of velocity jumps.
+    """Site of a tissue where cells and a chemical move with finite speeds.
+
+    It is the hyperbolic limit of velocity jumps.
 
     The cell density `n` and its flux `q`, and the chemical density `c` and its flux `j`, follow Eq. (6.50) of Bellomo
     et al. (2017) in two dimensions with the cells as the only source of the chemical, `dn/dt = -div q`, `dq/dt = -(s^2
@@ -113,7 +115,9 @@ class ChemotacticTissueElement(Element):
         self.alpha = alpha
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the balance laws of the cells and the chemical with their turning relaxations.
+        """Return the balance laws of the cells and the chemical.
+
+        They include their turning relaxations.
 
         Args:
             s:
@@ -136,7 +140,9 @@ class ChemotacticTissueElement(Element):
 
 
 class HyperbolicChemotaxisSystem(BaseSystem):
-    """Cells and a chemical moving with finite speed, whose two bumps of cells spread and attract each other.
+    """Cells and a chemical moving with finite speed.
+
+    Two bumps of cells spread and attract each other.
 
     The model is the hyperbolic limit of a kinetic model of cells and a chemical that change velocity at random, with
     the speed `s` and turning rates set by the diffusions `D_n = s^2 / (2 mu1)` and `D_c = s^2 / (2 sigma)` of its
