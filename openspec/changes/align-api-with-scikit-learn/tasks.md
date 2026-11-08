@@ -59,6 +59,6 @@
 
 ## 7. Verification
 
-- [ ] 7.1 Checks, import contracts, and layout tests pass
-- [ ] 7.2 Tests and doctests pass in batches, and the inventory and gallery checks pass
-- [ ] 7.3 The full suite and the strict docs build pass in CI
+- [x] 7.1 Checks, import contracts, and layout tests pass
+- [x] 7.2 Tests and doctests pass in batches, and the inventory and gallery checks pass
+- [x] 7.3 The full suite and the strict docs build pass in CI
