@@ -15,6 +15,7 @@ import numpy as np
 
 from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.viz import RerunObserver
+from skcomplex.core.experiments import calibrate
 from skcomplex.systems.social.opinion_dynamics import DeffuantSystem
 
 SYSTEM = 'deffuant'
@@ -58,8 +59,6 @@ plt.show()
 # Lenti et al., drawn by a named draw that a run records. Replaying the recorded outcomes under another bound scores
 # them by their exact log-probability, so `calibrate` with `loss='events'` fits the bound to one run of 100 people
 # over 50 steps. The log-likelihood should peak at the true bound 0.25, and the estimate should lie within 0.02 of it.
-
-from skcomplex.core.experiments import calibrate
 
 recorded = simulate(DeffuantSystem(100, confidence=0.25, steepness=50.0), until=50, random_state=0, record_draws=True)
 fit = calibrate(
