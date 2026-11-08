@@ -1,4 +1,7 @@
-"""Network structure system: a recorded network with its centralities, mixing, communities, and motifs."""
+"""Network structure system.
+
+A recorded network has its centralities, mixing, communities, and motifs.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +22,9 @@ from ..common._network_node import NetworkNodeElement
 
 
 class NetworkMeasuresElement(Element):
-    """Measures of a whole network, held as parameters that the observables of the system report.
+    """Measures of a whole network.
+
+    The measures are held as parameters that the observables of the system report.
 
     Args:
         label:
@@ -106,7 +111,9 @@ def _triangle_zscore(s: SimpleNamespace) -> object:
 
 
 class NetworkStructureAnalysisSystem(BaseSystem):
-    """A network recorded with its centralities, degree mixing, communities, and triangle z-score.
+    """A recorded network with centralities, degree mixing, communities, and motifs.
+
+    The motifs are measured by the triangle z-score.
 
     Every node is an agent that carries its degree, clustering, betweenness, and the community found by Louvain
     modularity maximization. The observables report the clustering, the mean path length of the largest component, the
@@ -172,7 +179,10 @@ class NetworkStructureAnalysisSystem(BaseSystem):
 
     @staticmethod
     def _planted_partition(random_state: int | None) -> nx.Graph:
-        """Return a stochastic block graph of 4 blocks of 100 nodes, of mean degree 16 in a block and 2 out of it."""
+        """Return a stochastic block graph of 4 blocks of 100 nodes.
+
+        The mean degree is 16 in a block and 2 out of it.
+        """
         inside = IN_DEGREE / (BLOCK_SIZE - 1)
         outside = OUT_DEGREE / ((BLOCKS - 1) * BLOCK_SIZE)
         probabilities = [[inside if row == column else outside for column in range(BLOCKS)] for row in range(BLOCKS)]
@@ -180,14 +190,20 @@ class NetworkStructureAnalysisSystem(BaseSystem):
 
     @staticmethod
     def _reference(graph: nx.Graph, attribute: str | None) -> list[object] | None:
-        """Return the reference community of every node from an attribute, or `None` when a node lacks it."""
+        """Return the reference community of every node from an attribute.
+
+        The community is `None` when a node lacks the attribute.
+        """
         if attribute is None:
             return None
         values = nx.get_node_attributes(graph, attribute)
         return [values[node] for node in graph.nodes()] if len(values) == graph.number_of_nodes() else None
 
     def _build_system(self) -> System:
-        """Return a network recorded with its centralities, degree mixing, communities, and triangle z-score."""
+        """Return a recorded network with centralities, mixing, communities, and motifs.
+
+        The mixing is degree mixing, and the motifs are measured by the triangle z-score.
+        """
         network = self._planted_partition(self.random_state) if self.graph is None else self.graph
         found = network_measures(
             network,

@@ -1,4 +1,7 @@
-"""Davidsen-Ebel-Bornholdt network: triadic closure and node turnover at a fixed size give high clustering."""
+"""Davidsen-Ebel-Bornholdt network.
+
+Triadic closure and node turnover at a fixed size give high clustering.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -53,7 +56,9 @@ class ClosingNodeElement(Element):
 
 
 class DavidsenEbelBornholdtSystem(BaseSystem):
-    """The Davidsen-Ebel-Bornholdt network, whose triadic closure and node turnover give high clustering.
+    """The Davidsen-Ebel-Bornholdt network.
+
+    Its triadic closure and node turnover give high clustering.
 
     The network starts as an Erdős-Rényi graph of `n_nodes` nodes and `links` links, `n_nodes` by default. Every step a
     node drawn uniformly joins two of its neighbours that are not yet joined, or, without such a pair, joins a node
@@ -116,14 +121,20 @@ class DavidsenEbelBornholdtSystem(BaseSystem):
         links: int,
         changes: list[TopologyInteraction],
     ) -> System:
-        """Return the network of variable groups on its nodes and links, its changes, and the map of the degrees."""
+        """Return the network of variable groups on its nodes and links.
+
+        The network has its changes and the map of the degrees.
+        """
         nodes = GroupElement('nodes', element=ClosingNodeElement, on='sites', variable=True, capacity=capacity)
         edges = GroupElement('links', element=Element, on='edges', variable=True, capacity=links)
         degree = MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))
         return System(label, elements=[nodes, edges], interactions=[*changes, degree], space=space, time=DiscreteTime())
 
     def _build_system(self) -> System:
-        """Return the Davidsen-Ebel-Bornholdt network, whose triadic closure and node turnover give high clustering."""
+        """Return the Davidsen-Ebel-Bornholdt network.
+
+        Its triadic closure and node turnover give high clustering.
+        """
         rng = np.random.default_rng(self.random_state)
         graph = nx.gnm_random_graph(self.n_nodes, self.n_nodes if self.links is None else self.links, seed=rng)
         closure = TopologyInteraction('closure', target='nodes', action='close-triangle', one=True)

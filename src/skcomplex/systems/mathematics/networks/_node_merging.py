@@ -1,4 +1,7 @@
-"""Node-merging network of Kim et al.: linked nodes merge and newcomers arrive, which builds hubs at a fixed size."""
+"""Node-merging network of Kim and coauthors.
+
+Linked nodes merge and newcomers arrive, which builds hubs at a fixed size.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -53,7 +56,9 @@ class MergingNodeElement(Element):
 
 
 class NodeMergingSystem(BaseSystem):
-    """The node-merging network of Kim et al., whose merging of linked nodes builds hubs without growth.
+    """The node-merging network of Kim and coauthors.
+
+    Its merging of linked nodes builds hubs without growth.
 
     The network starts as a random tree of `n_nodes` nodes. Every step a node drawn uniformly merges with one of its
     neighbours drawn uniformly into one node that keeps the union of their links, and a new node joins `edges` nodes
@@ -110,14 +115,20 @@ class NodeMergingSystem(BaseSystem):
         links: int,
         changes: list[TopologyInteraction],
     ) -> System:
-        """Return the network of variable groups on its nodes and links, its changes, and the map of the degrees."""
+        """Return the network of variable groups on its nodes and links.
+
+        The network has its changes and the map of the degrees.
+        """
         nodes = GroupElement('nodes', element=MergingNodeElement, on='sites', variable=True, capacity=capacity)
         edges = GroupElement('links', element=Element, on='edges', variable=True, capacity=links)
         degree = MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))
         return System(label, elements=[nodes, edges], interactions=[*changes, degree], space=space, time=DiscreteTime())
 
     def _build_system(self) -> System:
-        """Return the node-merging network of Kim et al., whose merging of linked nodes builds hubs without growth."""
+        """Return the node-merging network of Kim and coauthors.
+
+        Its merging of linked nodes builds hubs without growth.
+        """
         graph = nx.random_labeled_tree(self.n_nodes, seed=np.random.default_rng(self.random_state))
         merging = TopologyInteraction('merging', target='nodes', action='contract-edge', one=True)
         arrival = TopologyInteraction('arrival', action='add-node', edges=self.edges)

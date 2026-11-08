@@ -1,4 +1,7 @@
-"""Random graph ensembles, Kronecker and configuration-model graphs, and the robustness of networks."""
+"""Random graph ensembles, Kronecker and configuration-model graphs, robustness.
+
+The robustness is that of networks.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -27,7 +30,9 @@ from ..common._vertex import DEGREE_VISUAL
 
 
 class DependentNodeElement(Element):
-    """Node of two interdependent networks, functional while it belongs to the giant component of both.
+    """Node of two interdependent networks.
+
+    The node is functional while it belongs to the giant component of both.
 
     The node stands for a pair of nodes, one of each network, that depend on each other, so it fails when either of
     them leaves the giant component of the functional nodes of its network.
@@ -60,7 +65,9 @@ class DependentNodeElement(Element):
 
 
 class EnsembleNodeElement(Element):
-    """Node of a random graph, with its degree and the probability that it adds an edge to a random node per step.
+    """Node of a random graph, with its degree and its probability to add an edge.
+
+    The edge goes to a random node, once per step.
 
     Args:
         label:
@@ -95,7 +102,9 @@ class EnsembleNodeElement(Element):
 
 
 class FailingElement(Element):
-    """Node of a network under failures or attacks, with its degree and the parameters of its removal.
+    """Node of a network under failures or attacks.
+
+    The node has its degree and the parameters of its removal.
 
     The removal of the system reads the parameters: every step a node fails with probability `rate` under random
     failures, and under a targeted attack the nodes of the largest degree are removed, one degree class per step.
@@ -145,7 +154,10 @@ STRATEGIES = ('random', 'targeted')
 
 
 def _get_degree() -> MapInteraction:
-    """Return the map that sets the degree of every node from its edges at the start of a step."""
+    """Return the map that sets the degree of every node from its edges.
+
+    The map runs at the start of a step.
+    """
     return MapInteraction('degree', target='nodes', state='degree', function=lambda s: neighbors(1))
 
 
@@ -170,7 +182,10 @@ def _variable_network(
 
 
 def _node_group(graph: nx.Graph) -> GroupElement:
-    """Return the group on the nodes of a static network with the degree and the clustering of every node."""
+    """Return the group on the nodes of a static network.
+
+    The group has the degree and the clustering of every node.
+    """
     clustering = nx.clustering(graph)
     nodes = list(graph.nodes())
     return GroupElement(
@@ -186,7 +201,9 @@ def _node_group(graph: nx.Graph) -> GroupElement:
 
 
 class NetworkAttackSystem(BaseSystem):
-    """Failures or attacks on a scale-free network, robust to random failures but fragile to attacks on hubs.
+    """Failures or attacks on a scale-free network.
+
+    The network is robust to random failures but fragile to attacks on hubs.
 
     The network is a Barabási-Albert graph. Under random failures every node fails with probability `rate` per step, and
     the giant component shrinks slowly. Under a targeted attack the nodes of the largest degree are removed every step,
@@ -248,7 +265,10 @@ class NetworkAttackSystem(BaseSystem):
 
     @staticmethod
     def _get_removal(s: SimpleNamespace) -> object:
-        """Return the probability that a node is removed in a step, at random or as a node of the largest degree."""
+        """Return the probability that a node is removed in a step.
+
+        The node is removed at random or as a node of the largest degree.
+        """
         degree = neighbors(1)
         hub = where(s.source.targeted * (degree - maximum(degree)) >= 0, s.source.targeted, 0)
         return (1 - s.source.targeted) * s.source.rate + hub
@@ -278,7 +298,9 @@ class NetworkAttackSystem(BaseSystem):
 
 
 class RandomGraphEnsemblesSystem(BaseSystem):
-    """The construction of an Erdős-Rényi or a Watts-Strogatz random graph, one step of new edges at a time.
+    """The construction of an Erdős-Rényi or a Watts-Strogatz random graph.
+
+    The graph is built one step of new edges at a time.
 
     The Erdős-Rényi graph starts empty and every node adds an edge to a random node with a probability that brings the
     mean degree to `mean_degree` after `steps` steps, so a giant component emerges when the mean degree passes 1. The
@@ -382,7 +404,9 @@ class RandomGraphEnsemblesSystem(BaseSystem):
 
 
 class KroneckerGraphSystem(BaseSystem):
-    """The Kronecker graph of two graphs, whose adjacency matrix is the Kronecker product of theirs.
+    """The Kronecker graph of two graphs.
+
+    Its adjacency matrix is the Kronecker product of theirs.
 
     The node `(i, j)` joins `(k, l)` when `i` joins `k` in the first graph and `j` joins `l` in the second (Gros 2015,
     exercise of chapter 1). The degree of `(i, j)` is the product of the degrees of `i` and `j`, so the mean degree is
@@ -429,7 +453,10 @@ class KroneckerGraphSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return the Kronecker graph of two graphs, whose adjacency matrix is the Kronecker product of theirs."""
+        """Return the Kronecker graph of two graphs.
+
+        Its adjacency matrix is the Kronecker product of theirs.
+        """
         rng = np.random.default_rng(self.random_state)
         first = nx.barabasi_albert_graph(30, 2, seed=int(rng.integers(2**31))) if self.first is None else self.first
         second = nx.barabasi_albert_graph(20, 1, seed=int(rng.integers(2**31))) if self.second is None else self.second
@@ -438,7 +465,9 @@ class KroneckerGraphSystem(BaseSystem):
 
 
 class ConfigurationModelSystem(BaseSystem):
-    """The configuration model, the maximally random network of a given degree sequence.
+    """The configuration model.
+
+    It is the maximally random network of a given degree sequence.
 
     Every node gets as many half-links as its degree, and pairs of half-links drawn uniformly at random become links
     (Jensen 2023, section 8.5.1, and Thurner et al. 2018, section 4.5.1). Without a degree sequence the degrees are
@@ -507,13 +536,18 @@ class ConfigurationModelSystem(BaseSystem):
 
     @staticmethod
     def _matched_stubs(degrees: npt.NDArray[np.int64], rng: np.random.Generator) -> list[tuple[int, int]]:
-        """Return the links of a uniformly random pairing of the half-links of the nodes, with loops and multilinks."""
+        """Return the links of a uniformly random pairing of the half-links of the nodes.
+
+        The links may hold loops and multilinks.
+        """
         stubs = rng.permutation(np.repeat(np.arange(degrees.size), degrees))
         return [(int(first), int(second)) for first, second in stubs.reshape(-1, 2)]
 
     @staticmethod
     def _simple(links: list[tuple[int, int]], rng: np.random.Generator) -> list[tuple[int, int]]:
-        """Return the links rewired until no self-loop or multilink is left, keeping every degree.
+        """Return the links rewired until no self-loop or multilink is left.
+
+        The rewiring keeps every degree.
 
         A self-loop or a repeated link and a link drawn at random are cut and their ends glued crosswise, as in the
         rewiring of Thurner et al. (2018, section 4.5.1.1).
@@ -538,7 +572,10 @@ class ConfigurationModelSystem(BaseSystem):
         raise ValidationError(error_msg)
 
     def _build_system(self) -> System:
-        """Return the configuration model, the maximally random network of a given degree sequence."""
+        """Return the configuration model.
+
+        It is the maximally random network of a given degree sequence.
+        """
         rng = np.random.default_rng(self.random_state)
         if self.degrees is None:
             support = np.arange(self.min_degree, max(self.min_degree, int(np.sqrt(self.n_nodes))) + 1)
@@ -559,7 +596,9 @@ class ConfigurationModelSystem(BaseSystem):
 
 
 class InterdependentNetworkCascadeSystem(BaseSystem):
-    """The cascade of failures of Buldyrev et al. between two networks whose nodes depend on each other.
+    """The cascade of failures of Buldyrev between two interdependent networks.
+
+    The cascade is that of Buldyrev et al., and the nodes of the networks depend on each other.
 
     Two Erdős-Rényi networks of the mean degree `mean_degree` share their nodes, every node of one depending on the node
     of the same index in the other, so a node is one pair of dependent nodes. An attack leaves every node functional
@@ -615,7 +654,10 @@ class InterdependentNetworkCascadeSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return the cascade of failures between two networks whose nodes depend on each other."""
+        """Return the cascade of failures between two networks.
+
+        The nodes of the networks depend on each other.
+        """
         rng = np.random.default_rng(self.random_state)
         probability = self.mean_degree / (self.n_nodes - 1)
         first = nx.gnp_random_graph(self.n_nodes, probability, seed=int(rng.integers(2**31)))

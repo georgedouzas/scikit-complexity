@@ -1,4 +1,7 @@
-"""Cascades of overload failures, where the load of a node is the number of shortest paths through it."""
+"""Cascades of overload failures.
+
+The load of a node is the number of shortest paths through it.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,9 @@ from ....core.specs import StateSpec, VisualSpec
 
 
 class LoadedNodeElement(Element):
-    """Node of a network that carries a load, the shortest paths through it, and fails above its capacity.
+    """Node of a network that carries a load and fails above its capacity.
+
+    The load is the number of shortest paths through it.
 
     Args:
         label:
@@ -129,7 +134,10 @@ class MotterLaiOverloadSystem(BaseSystem):
         return shortest_paths(1) > s.source.capacity
 
     def _build_system(self) -> System:
-        """Return the cascade of overload failures of Motter and Lai after one node is removed."""
+        """Return the cascade of overload failures of Motter and Lai.
+
+        The cascade follows the removal of one node.
+        """
         if self.attack not in ATTACKS:
             error_msg = f'Unknown attack {self.attack!r}. Use one of {", ".join(ATTACKS)}.'
             raise ValidationError(error_msg)

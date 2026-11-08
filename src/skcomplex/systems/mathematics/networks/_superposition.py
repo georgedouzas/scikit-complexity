@@ -1,4 +1,7 @@
-"""Network superposition model: a union of Erdős-Rényi subgraphs whose linking probabilities are drawn."""
+"""Network superposition model.
+
+A union of Erdős-Rényi subgraphs has drawn linking probabilities.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -56,7 +59,9 @@ class SuperposedNodeElement(Element):
 
 
 class NetworkSuperpositionSystem(BaseSystem):
-    """The network superposition model, a union of Erdős-Rényi graphs whose linking probabilities are drawn.
+    """The network superposition model.
+
+    It is a union of Erdős-Rényi graphs whose linking probabilities are drawn.
 
     Every one of `n_subgraphs` subgraphs of `n_nodes` nodes draws one linking probability `p` from `Q(p) ~ p^-exponent`
     on `[low, high]` and links each pair of its nodes with probability `p`, and the network is their union (Thurner et
@@ -131,7 +136,10 @@ class NetworkSuperpositionSystem(BaseSystem):
         bounds: tuple[float, float],
         rng: np.random.Generator,
     ) -> Array:
-        """Return linking probabilities drawn from `Q(p) ~ p^-exponent` between two bounds by inverse transform."""
+        """Return linking probabilities drawn from `Q(p) ~ p^-exponent` between two bounds.
+
+        The draw is by inverse transform.
+        """
         low, high = bounds
         uniform = rng.uniform(size=size)
         if exponent == 1:

@@ -1,4 +1,7 @@
-"""Triadic percolation: regulating nodes switch the links of a network on and off from the giant component."""
+"""Triadic percolation.
+
+Regulating nodes switch the links of a network on and off from the giant component.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -22,7 +25,9 @@ from ..common._regulated_node import RegulatedNodeElement
 
 
 class RegulatedLinkElement(Element):
-    """Link of a network with triadic regulation, with its activity and the sign of its regulating node.
+    """Link of a network with triadic regulation.
+
+    The link has its activity and the sign of its regulating node.
 
     Args:
         label:
@@ -58,7 +63,9 @@ class RegulatedLinkElement(Element):
 
 
 class GiantComponentInteraction(Interaction):
-    """Activity of every node in its phase, 1 in the giant component of the active links and 0 outside it.
+    """Activity of every node in its phase.
+
+    The activity is 1 in the giant component of the active links and 0 outside it.
 
     Args:
         label:
@@ -100,7 +107,9 @@ class GiantComponentInteraction(Interaction):
 
 
 class TriadicRegulationInteraction(HyperedgeInteraction):
-    """Regulation of every link by a third node, which lets the link be active with probability `p` in its phase.
+    """Regulation of every link by a third node.
+
+    The node lets the link be active with probability `p` in its phase.
 
     Every hyperedge `(i, j, r)` holds the two ends of the link `(i, j)` and its regulating node `r`. In every step the
     link becomes active with probability `p` when a positive regulator is active or a negative regulator is inactive,
@@ -148,14 +157,19 @@ class TriadicRegulationInteraction(HyperedgeInteraction):
         self.phase = phase
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the activity of the link from its regulating node, the third member of the hyperedge."""
+        """Return the activity of the link from its regulating node.
+
+        The regulating node is the third member of the hyperedge.
+        """
         regulator = s.others[1].active
         allowed = where(s.edge.sign > 0, regulator, 1 - regulator)
         return [UpdateLaw(s.edge.active, bernoulli('retained', s.p) * allowed, phase=self.phase)]
 
 
 class TriadicPercolationSystem(BaseSystem):
-    """Triadic percolation, where regulating nodes switch links on and off from the giant component.
+    """Triadic percolation.
+
+    Regulating nodes switch links on and off from the giant component.
 
     Every link of an Erdős-Rényi graph has one regulating node, drawn at random among the other nodes, which is
     negative with probability `negative` and positive otherwise. The link and its regulator form a hyperedge of size
@@ -230,7 +244,10 @@ class TriadicPercolationSystem(BaseSystem):
         negative: float,
         rng: np.random.Generator,
     ) -> tuple[list[tuple[int, int, int]], np.ndarray]:
-        """Return a hyperedge of every link with a regulator drawn among the other nodes, and the sign of every one."""
+        """Return a hyperedge of every link with a regulator drawn among the other nodes.
+
+        The sign of every regulator is returned too.
+        """
         size = graph.number_of_nodes()
         hyperedges = []
         for first, second in graph.edges:
@@ -242,7 +259,10 @@ class TriadicPercolationSystem(BaseSystem):
         return hyperedges, signs
 
     def _build_system(self) -> System:
-        """Return triadic percolation, where regulating nodes switch links on and off from the giant component."""
+        """Return triadic percolation.
+
+        Regulating nodes switch links on and off from the giant component.
+        """
         rng = np.random.default_rng(self.random_state)
         graph = nx.gnp_random_graph(self.n_nodes, self.mean_degree / (self.n_nodes - 1), seed=rng)
         hyperedges, signs = self._regulated_links(graph, self.negative, rng)
