@@ -8,7 +8,7 @@ from skcomplex.systems.engineering.robotics import LightEmittingRobotsSystem
 
 def _mean_light(delay):
     """Return the light the robots measure, averaged over the robots and the second half of a run of 600 steps."""
-    trajectory = simulate(LightEmittingRobotsSystem(n_robots=20, delay=delay), until=600)
+    trajectory = simulate(LightEmittingRobotsSystem(n_robots=20, delay=delay), until=600, random_state=0)
     agents = trajectory.agents
     return np.mean([agents('robots', frame).values['light'].mean() for frame in range(300, 601, 10)])
 
