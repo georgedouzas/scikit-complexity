@@ -75,6 +75,7 @@ class JaxBackend(BaseBackend):
         p: TracedArray,
         *,
         form: FormKind | str,
+        throw: bool = True,
     ) -> TracedArray:
         """Return the state after one step of a pure function, traced by JAX.
 
@@ -101,6 +102,10 @@ class JaxBackend(BaseBackend):
             form:
                 The form of the function, a discrete map or ordinary differential equations.
 
+            throw:
+                Whether a solve that fails, such as one that reaches its largest number of steps, raises an error, or
+                else returns states that are not finite, as samplers that reject such proposals need.
+
         Returns:
             state:
                 The state at `t1`.
@@ -119,14 +124,19 @@ class JaxBackend(BaseBackend):
             stepsize_controller=diffrax.PIDController(rtol=1e-10, atol=1e-10),
             adjoint=diffrax.RecursiveCheckpointAdjoint(),
             max_steps=100000,
+            throw=throw,
         )
-        return solution.ys[-1]
+        if throw:
+            return solution.ys[-1]
+        return jnp.where(solution.result == diffrax.RESULTS.successful, solution.ys[-1], jnp.nan)
 
     @staticmethod
     def unroll(
         function: TracedFunction,
         form: FormKind | str,
         times: Array,
+        *,
+        throw: bool = True,
     ) -> Callable[[TracedArray, TracedArray], TracedArray]:
         """Return the pure function from an initial state and a parameter vector to the states at given times.
 
@@ -142,6 +152,9 @@ class JaxBackend(BaseBackend):
 
             times:
                 The increasing times, at least 0, whole numbers for a map.
+
+            throw:
+                Whether a failed solve raises an error, or else gives states that are not finite.
 
         Returns:
             run:
@@ -167,7 +180,7 @@ class JaxBackend(BaseBackend):
 
         def run(x0: TracedArray, p: TracedArray) -> TracedArray:
             def body(x: TracedArray, item: tuple[TracedArray, TracedArray]) -> tuple[TracedArray, TracedArray]:
-                following = JaxBackend.advance(function, item[0], item[1], x, p, form=form)
+                following = JaxBackend.advance(function, item[0], item[1], x, p, form=form, throw=throw)
                 return following, following
 
             scanned = jax.lax.scan(body, x0, (jnp.asarray(starts), jnp.asarray(ends)))[1]

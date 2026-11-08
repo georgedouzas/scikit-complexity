@@ -4,20 +4,35 @@
 # License: MIT
 
 import logging
+import tempfile
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 
+import jax
+import jax.numpy as jnp
 import numpy as np
 import numpy.typing as npt
+import numpyro
+import numpyro.distributions as dist
+import optax
 import optuna
+import pyabc
+from numpyro.diagnostics import effective_sample_size, split_gelman_rubin
+from numpyro.infer import AIES, MCMC, NUTS, SVI, Trace_ELBO
+from numpyro.infer.autoguide import AutoMultivariateNormal
 from scipy import stats
 from scipy.optimize import least_squares, minimize
 
 from ..components.system import BaseSystem
+from ..engine.backends import JaxBackend
+from ..engine.compile._pass_compiler import PassCompiler
+from ..engine.problems import BaseProblemSpec
 from ..engine.runtime import Trajectory, simulate
 from ..engine.solvers import BaseSolver
-from ..errors import ValidationError
-from ..types import Array
+from ..engine.types import TracedArray, TracedFunction
+from ..errors import SkcomplexError, ValidationError
+from ..types import Array, FormKind
 from ._designs import _check_bounds
 from ._runs import _build, _check_count, _check_source
 from .types import Bounds, Source
@@ -32,6 +47,12 @@ LOSSES = {
 }
 BUDGETS = {'local': 0, 'global': 200, 'abc_smc': 20000, 'mcmc': 0, 'variational': 2000}
 CENTRAL = (0.0005, 0.9995)
+PRIOR_FAMILIES = ('uniform', 'norm', 'lognorm', 'truncnorm', 'beta', 'gamma', 'expon')
+PREDICTIVE_DRAWS = 200
+PREDICTIVE_QUANTILES = (0.05, 0.5, 0.95)
+RHAT_LIMIT = 1.05
+LEARNING_RATE = 0.01
+SEED_LIMIT = 2**32
 
 type Series = dict[str, tuple[Array, Array]]
 type Summary = Callable[[Mapping[str, Array]], npt.ArrayLike]
@@ -286,6 +307,111 @@ class _CalibrationObjective:
             return np.concatenate([np.asarray(simulated[path], dtype=float) for path in self.series])
         return np.atleast_1d(np.asarray(self.summary(simulated), dtype=float))
 
+    def _compiled(self, values: Sequence[float]) -> tuple[BaseProblemSpec, TracedFunction]:
+        """Return the problem of the candidate of a parameter vector compiled on JAX, and its pure function.
+
+        Raises:
+            ValidationError:
+                The candidate has no JAX form, or is neither a discrete map nor ordinary differential equations.
+        """
+        backend = JaxBackend()
+        try:
+            problem = PassCompiler(backend=backend).prepare(self.build(values).prepare().system_).run().problem_
+        except SkcomplexError as error:
+            error_msg = f'The system has no differentiable run on JAX: {error}'
+            raise ValidationError(error_msg) from error
+        if problem.form not in (FormKind.ODE, FormKind.DISCRETE):
+            error_msg = f'Differentiable runs unroll maps and ordinary differential equations, not a {problem.form}.'
+            raise ValidationError(error_msg)
+        return problem, backend.traced_
+
+    def traced(self) -> Callable[[TracedArray], TracedArray]:
+        """Return the JAX function from a parameter vector to the simulated values at the data times, concatenated.
+
+        The system is compiled on JAX at the medians of the priors and at small steps of every parameter, and the
+        initial states and the parameter vector of its problem must be affine in the model parameters, as they are
+        when model parameters set values of parts.
+
+        Raises:
+            ValidationError:
+                The problem changes its structure or is not affine in a model parameter, or a path is not a state.
+        """
+        center = np.asarray([float(prior.median()) for prior in self.priors.values()])
+        problem, function = self._compiled(center)
+        columns = []
+        for index, name in enumerate(self.names):
+            step = 1e-3 * max(1.0, abs(center[index]))
+            slopes = []
+            for factor in (1.0, 2.0):
+                shifted = center.copy()
+                shifted[index] += factor * step
+                other = self._compiled(shifted)[0]
+                if other.initial_state.size != problem.initial_state.size or (
+                    other.initial_parameters.size != problem.initial_parameters.size
+                ):
+                    error_msg = f'The model parameter {name} changes the structure of the system.'
+                    raise ValidationError(error_msg)
+                changed = np.concatenate([other.initial_state - problem.initial_state, other.initial_parameters])
+                base = np.concatenate([np.zeros(problem.initial_state.size), problem.initial_parameters])
+                slopes.append((changed - base) / (factor * step))
+            if not np.allclose(slopes[0], slopes[1], rtol=1e-6, atol=1e-9):
+                error_msg = f'Differentiable runs need values of parts that are affine in {name}.'
+                raise ValidationError(error_msg)
+            columns.append(slopes[0])
+        jacobian = np.stack(columns, axis=1)
+        start = np.concatenate([problem.initial_state, problem.initial_parameters])
+        size = problem.initial_state.size
+        times = np.unique(np.concatenate([times for times, _ in self.series.values()]))
+        run = JaxBackend.unroll(function, problem.form, times, throw=False)
+        reads = []
+        for path, (path_times, _) in self.series.items():
+            if not problem.states.has(path):
+                error_msg = f'Differentiable runs read states, and {path} is not a state of the system.'
+                raise ValidationError(error_msg)
+            indices = np.arange(problem.states.size)[problem.states.locate(path)[1]]
+            reads.append((np.searchsorted(times, path_times), indices))
+
+        def predict(theta: TracedArray) -> TracedArray:
+            vector = jnp.asarray(start) + jnp.asarray(jacobian) @ (theta - jnp.asarray(center))
+            states = run(vector[:size], vector[size:])
+            return jnp.concatenate([states[rows][:, indices].ravel() for rows, indices in reads])
+
+        return predict
+
+    def predictive(
+        self,
+        samples: Array,
+        weights: Array,
+        loss: str,
+        rng: np.random.Generator,
+    ) -> dict[str, object]:
+        """Return the quantiles of the simulated series of posterior draws at the data times and their coverage.
+
+        At most 200 draws are chosen by the weights and run with fresh streams. For the Gaussian likelihood every
+        draw also adds observation noise of the variance its residuals give.
+        """
+        if not self.series:
+            empty: dict[str, Array] = {}
+            return {'q05': empty, 'q50': empty, 'q95': empty, 'coverage': float('nan')}
+        chosen = rng.choice(len(samples), size=min(len(samples), PREDICTIVE_DRAWS), p=weights)
+        observed = self.observed
+        runs = []
+        for row in samples[chosen]:
+            seed = np.random.SeedSequence(int(rng.integers(SEED_LIMIT)))
+            simulated = self.simulate(row, [seed])
+            values = np.concatenate([simulated[path] for path in self.series])
+            if loss == 'likelihood':
+                values = values + rng.normal(0.0, np.sqrt(np.mean((values - observed) ** 2)), values.size)
+            runs.append(values)
+        quantiles = np.quantile(np.asarray(runs), PREDICTIVE_QUANTILES, axis=0)
+        cuts = np.cumsum([0, *(values.size for _, values in self.series.values())])
+        bands = {
+            key: {path: quantiles[row, cuts[index] : cuts[index + 1]] for index, path in enumerate(self.series)}
+            for row, key in enumerate(('q05', 'q50', 'q95'))
+        }
+        inside = (observed >= quantiles[0]) & (observed <= quantiles[2])
+        return {**bands, 'coverage': float(np.mean(inside))}
+
     def covariance(self, estimate: Array, loss: str) -> Array | None:
         """Return the covariance of point estimates from the Jacobian of the residuals.
 
@@ -411,6 +537,253 @@ def _fit_global(objective: _CalibrationObjective, loss: str, budget: int, random
     return np.asarray([study.best_params[name] for name in names], dtype=float)
 
 
+def _numpyro_prior(name: str, prior: stats.rv_continuous) -> dist.Distribution:
+    """Return the numpyro distribution of a SciPy prior.
+
+    The families are uniform, normal, and truncated normal with any location and scale, log-normal, gamma, and
+    exponential with a scale, and the standard beta distribution.
+
+    Raises:
+        ValidationError:
+            The family has no numpyro distribution here, or it has a location or scale numpyro does not take.
+    """
+    family = prior.dist.name
+    if family not in PRIOR_FAMILIES:
+        error_msg = (
+            f'The prior of {name} is a SciPy {family} distribution, which MCMC and variational calibration do not '
+            f'take. Use one of {", ".join(PRIOR_FAMILIES)}, or a pair (low, high).'
+        )
+        raise ValidationError(error_msg)
+    names = [item.strip() for item in (prior.dist.shapes or '').split(',') if item.strip()]
+    arguments = list(prior.args)
+    shapes = [*arguments[: len(names)], *(prior.kwds[item] for item in names[len(arguments) :])]
+    loc = arguments[len(names)] if len(arguments) > len(names) else prior.kwds.get('loc', 0.0)
+    scale = arguments[len(names) + 1] if len(arguments) > len(names) + 1 else prior.kwds.get('scale', 1.0)
+    loc, scale = float(loc), float(scale)
+    if family in {'lognorm', 'gamma', 'expon', 'beta'} and loc != 0:
+        error_msg = f'The prior of {name} is a SciPy {family} distribution with a location, which numpyro lacks.'
+        raise ValidationError(error_msg)
+    if family == 'beta' and scale != 1:
+        error_msg = f'The prior of {name} is a SciPy beta distribution with a scale, which numpyro does not take.'
+        raise ValidationError(error_msg)
+    distributions: dict[str, Callable[[], dist.Distribution]] = {
+        'uniform': lambda: dist.Uniform(loc, loc + scale),
+        'norm': lambda: dist.Normal(loc, scale),
+        'lognorm': lambda: dist.LogNormal(np.log(scale), shapes[0]),
+        'truncnorm': lambda: dist.TruncatedNormal(
+            loc,
+            scale,
+            low=loc + shapes[0] * scale,
+            high=loc + shapes[1] * scale,
+        ),
+        'beta': lambda: dist.Beta(shapes[0], shapes[1]),
+        'gamma': lambda: dist.Gamma(shapes[0], 1 / scale),
+        'expon': lambda: dist.Exponential(1 / scale),
+    }
+    return distributions[family]()
+
+
+def _weighted_median(values: Array, weights: Array) -> float:
+    """Return the weighted median of values."""
+    order = np.argsort(values)
+    cumulative = np.cumsum(weights[order])
+    return float(values[order][np.searchsorted(cumulative, 0.5 * cumulative[-1])])
+
+
+def _fit_abc(
+    objective: _CalibrationObjective,
+    n_samples: int,
+    budget: int,
+    random_state: int | None,
+) -> tuple[Array, Array, dict[str, object]]:
+    """Return the weighted samples of ABC-SMC with pyabc and the tolerance and acceptance of every generation.
+
+    pyabc draws from the global NumPy random state, which is seeded from the random state and restored after, and its
+    history lives in a temporary SQLite file.
+    """
+    names = objective.names
+    priors = pyabc.Distribution(
+        **{name: pyabc.RV(prior.dist.name, *prior.args, **prior.kwds) for name, prior in objective.priors.items()},
+    )
+    rng = np.random.default_rng(random_state)
+
+    def model(parameters: Mapping[str, float]) -> dict[str, float]:
+        seed = np.random.SeedSequence(int(rng.integers(SEED_LIMIT)))
+        summaries = objective.summaries(objective.simulate([parameters[name] for name in names], [seed]))
+        return {f's{index}': float(value) for index, value in enumerate(summaries)}
+
+    observed = objective.summaries({path: values for path, (_, values) in objective.series.items()})
+    abc = pyabc.ABCSMC(
+        model,
+        priors,
+        pyabc.AdaptivePNormDistance(p=2),
+        population_size=n_samples,
+        sampler=pyabc.sampler.SingleCoreSampler(),
+    )
+    state = np.random.get_state()
+    logger = logging.getLogger('ABC')
+    level = logger.level
+    np.random.seed(int(rng.integers(SEED_LIMIT)))
+    logger.setLevel(logging.WARNING)
+    try:
+        with tempfile.TemporaryDirectory() as directory:
+            database = f'sqlite:///{Path(directory) / "abc.db"}'
+            abc.new(database, {f's{index}': float(value) for index, value in enumerate(observed)})
+            history = abc.run(minimum_epsilon=0.0, max_total_nr_simulations=budget)
+            frame, weights = history.get_distribution(m=0, t=history.max_t)
+            populations = history.get_all_populations()
+    finally:
+        np.random.set_state(state)
+        logger.setLevel(level)
+    populations = populations[populations['t'] >= 0]
+    diagnostics: dict[str, object] = {
+        'epsilons': np.asarray(populations['epsilon'], dtype=float),
+        'acceptance_rates': np.asarray(populations['particles'] / populations['samples'], dtype=float),
+        'simulations': int(populations['samples'].sum()),
+        'summaries': observed.size,
+    }
+    samples = np.asarray(frame[names], dtype=float)
+    return samples, np.asarray(weights, dtype=float) / np.sum(weights), diagnostics
+
+
+def _chain_diagnostics(draws: Mapping[str, Array], names: list[str]) -> tuple[Array, dict[str, object], bool]:
+    """Return the samples of chains by row, the split R-hat and effective sample sizes, and their convergence."""
+    rhat = {name: float(split_gelman_rubin(np.asarray(draws[name]))) for name in names}
+    ess = {name: float(effective_sample_size(np.asarray(draws[name]))) for name in names}
+    samples = np.stack([np.asarray(draws[name], dtype=float).reshape(-1) for name in names], axis=1)
+    success = all(value < RHAT_LIMIT for value in rhat.values())
+    return samples, {'rhat': rhat, 'ess': ess}, success
+
+
+def _fit_mcmc(
+    objective: _CalibrationObjective,
+    loss: str,
+    n_samples: int,
+    chains: int,
+    random_state: int | None,
+) -> tuple[Array, dict[str, object], bool]:
+    """Return the samples of MCMC with numpyro, their diagnostics, and whether the chains converged.
+
+    A differentiable system with the Gaussian likelihood runs NUTS on its JAX run. Every other system runs the affine
+    invariant ensemble sampler, with the log-likelihood evaluated on the host, and at least two walkers per parameter
+    and two more.
+    """
+    names = objective.names
+    priors = [_numpyro_prior(name, prior) for name, prior in objective.priors.items()]
+    count = objective.observed.size if objective.series else 0
+    differentiable = loss == 'likelihood' and objective.build(
+        [float(prior.median()) for prior in objective.priors.values()],
+    ).get_tags().differentiable
+    with jax.enable_x64(True):
+        if differentiable:
+            predict, observed = objective.traced(), jnp.asarray(objective.observed)
+
+            def model() -> None:
+                theta = jnp.stack([numpyro.sample(name, prior) for name, prior in zip(names, priors, strict=True)])
+                residuals = predict(theta) - observed
+                numpyro.factor('likelihood', -0.5 * count * jnp.log(jnp.sum(residuals**2)))
+
+            sampler, walkers, method = NUTS(model), chains, 'sequential'
+        else:
+            evaluate = objective.log_likelihood if loss == 'likelihood' else objective.event_log_likelihood
+
+            def host(theta: Array) -> Array:
+                return np.asarray(evaluate(np.asarray(theta, dtype=float)), dtype=np.float64)
+
+            def model() -> None:
+                theta = jnp.stack([numpyro.sample(name, prior) for name, prior in zip(names, priors, strict=True)])
+                shape = jax.ShapeDtypeStruct((), jnp.float64)
+                numpyro.factor('likelihood', jax.pure_callback(host, shape, theta, vmap_method='sequential'))
+
+            sampler, walkers, method = AIES(model), max(chains, 2 * len(names) + 2), 'vectorized'
+        mcmc = MCMC(
+            sampler,
+            num_warmup=n_samples,
+            num_samples=n_samples,
+            num_chains=walkers,
+            chain_method=method,
+            progress_bar=False,
+        )
+        mcmc.run(jax.random.PRNGKey(0 if random_state is None else random_state))
+        draws = mcmc.get_samples(group_by_chain=True)
+    samples, diagnostics, success = _chain_diagnostics(draws, names)
+    diagnostics['sampler'] = 'nuts' if differentiable else 'aies'
+    return samples, diagnostics, success
+
+
+def _fit_variational(
+    objective: _CalibrationObjective,
+    loss: str,
+    n_samples: int,
+    budget: int,
+    random_state: int | None,
+) -> tuple[Array, dict[str, object], bool]:
+    """Return draws of a variational posterior fitted by numpyro SVI through the JAX run, and its loss history.
+
+    The guide is a multivariate normal on the unconstrained parameters, fitted by Adam. The model adds the negative
+    loss, the Gaussian log-likelihood or the negative sum of squares, so the ELBO is the expected loss plus the
+    divergence from the prior.
+    """
+    names = objective.names
+    priors = [_numpyro_prior(name, prior) for name, prior in objective.priors.items()]
+    count = objective.observed.size
+    with jax.enable_x64(True):
+        predict, observed = objective.traced(), jnp.asarray(objective.observed)
+
+        def model() -> None:
+            theta = jnp.stack([numpyro.sample(name, prior) for name, prior in zip(names, priors, strict=True)])
+            squares = jnp.sum((predict(theta) - observed) ** 2)
+            score = -0.5 * count * jnp.log(squares) if loss == 'likelihood' else -squares
+            numpyro.factor('loss', score)
+
+        guide = AutoMultivariateNormal(model)
+        optimizer = numpyro.optim.optax_to_numpyro(optax.adam(LEARNING_RATE))
+        key, drawing = jax.random.split(jax.random.PRNGKey(0 if random_state is None else random_state))
+        fit = SVI(model, guide, optimizer, Trace_ELBO()).run(key, budget, progress_bar=False)
+        draws = guide.sample_posterior(drawing, fit.params, sample_shape=(n_samples,))
+    losses = np.asarray(fit.losses, dtype=float)
+    samples = np.stack([np.asarray(draws[name], dtype=float) for name in names], axis=1)
+    return samples, {'losses': losses}, bool(np.isfinite(losses[-1]))
+
+
+def _check_differentiable(objective: _CalibrationObjective) -> None:
+    """Raise an error for variational calibration of a system without the tag `differentiable`."""
+    system = objective.build([float(prior.median()) for prior in objective.priors.values()])
+    if not system.get_tags().differentiable:
+        others = ', '.join(method for method in METHODS if method != 'variational')
+        error_msg = (
+            f'Variational calibration differentiates runs, but {type(system).__name__} does not hold the tag '
+            f'differentiable. Use one of the methods {others}, which do not need it.'
+        )
+        raise ValidationError(error_msg)
+
+
+def _posterior_result(
+    objective: _CalibrationObjective,
+    loss: str,
+    samples: Array,
+    weights: Array,
+    *,
+    diagnostics: dict[str, object],
+    success: bool,
+    random_state: int | None,
+) -> CalibrationResult:
+    """Return the result of a posterior method, with the medians, the covariance, and the predictive check."""
+    estimate = np.asarray([_weighted_median(column, weights) for column in samples.T])
+    covariance = np.atleast_2d(np.cov(samples.T, aweights=weights)) if len(samples) > 1 else None
+    predictive = objective.predictive(samples, weights, loss, np.random.default_rng(random_state))
+    return _result(
+        objective,
+        estimate,
+        covariance,
+        success,
+        samples={name: samples[:, index] for index, name in enumerate(objective.names)},
+        weights=weights,
+        diagnostics=diagnostics,
+        predictive=predictive,
+    )
+
+
 def _result(
     objective: _CalibrationObjective,
     estimate: Array,
@@ -478,6 +851,20 @@ def calibrate(
       with the covariance from the Jacobian of the residuals.
     - `'global'`: the best of `budget` evaluations, 200 by default, chosen by Optuna's seeded tree-structured Parzen
       estimator over the bounds, which copes with the rough losses of stochastic runs.
+    - `'abc_smc'`: an approximate posterior by sequential Monte Carlo approximate Bayesian computation with pyabc,
+      which compares the summaries of every simulation with the observed ones by an adaptive distance and stops after
+      `budget` simulations, 20000 by default. Its diagnostics hold the tolerance and the acceptance rate of every
+      generation.
+    - `'mcmc'`: `chains` chains of `n_samples` draws of the posterior of the Gaussian or the event likelihood with
+      numpyro, by NUTS through the JAX run of a system with the tag `differentiable` and the Gaussian likelihood, and
+      by the gradient-free affine invariant ensemble sampler otherwise. Its diagnostics hold the split R-hat and the
+      effective sample size of every parameter.
+    - `'variational'`: a multivariate normal posterior fitted by numpyro SVI over `budget` steps, 2000 by default,
+      through the JAX run of a system with the tag `differentiable`. With `'squares'` it is the generalised posterior
+      of the sum of squares. Its diagnostics hold the loss history.
+
+    A posterior method returns the samples, their weights, the posterior medians as the estimates, and a posterior
+    predictive check of at most 200 draws at the data times.
 
     A bound is a pair `(low, high)`, read as a uniform prior, or a SciPy distribution, read as the prior of that
     parameter. Point fits search the pair or the central 99.9% of the distribution. `'squares'` is least squares,
@@ -555,6 +942,11 @@ def calibrate(
         ...     budget=100, random_state=0)
         >>> bool(abs(result.estimates['r'] - 0.5) < 0.1)
         True
+        >>> noisy = {'population.n': (times, values * (1 + 0.02 * np.random.default_rng(0).standard_normal(21)))}
+        >>> posterior = calibrate(LogisticGrowthSystem(), noisy, bounds, method='variational', loss='likelihood',
+        ...     n_samples=200, random_state=0)
+        >>> round(posterior.estimates['r'], 1), posterior.samples['r'].shape
+        (0.5, (200,))
     """
     _check_source(system)
     _check_settings(method, loss, data, bounds, replicates)
@@ -571,6 +963,39 @@ def calibrate(
         summary=summary,
     )
     budget = BUDGETS[method] if budget is None else budget
+    _check_count('n_samples', n_samples)
+    _check_count('chains', chains)
+    if method == 'variational':
+        _check_differentiable(objective)
+    if method in {'mcmc', 'variational'}:
+        for name, prior in priors.items():
+            _numpyro_prior(name, prior)
+    if method == 'abc_smc':
+        samples, weights, diagnostics = _fit_abc(objective, n_samples, budget, random_state)
+        return _posterior_result(
+            objective,
+            loss,
+            samples,
+            weights,
+            diagnostics=diagnostics,
+            success=True,
+            random_state=random_state,
+        )
+    if method in {'mcmc', 'variational'}:
+        if method == 'mcmc':
+            samples, diagnostics, success = _fit_mcmc(objective, loss, n_samples, chains, random_state)
+        else:
+            samples, diagnostics, success = _fit_variational(objective, loss, n_samples, budget, random_state)
+        weights = np.full(len(samples), 1 / len(samples))
+        return _posterior_result(
+            objective,
+            loss,
+            samples,
+            weights,
+            diagnostics=diagnostics,
+            success=success,
+            random_state=random_state,
+        )
     if method == 'global':
         estimate = _fit_global(objective, loss, budget, random_state)
         return _result(objective, estimate, objective.covariance(estimate, loss), success=True)

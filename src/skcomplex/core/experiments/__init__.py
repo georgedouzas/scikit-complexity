@@ -1,12 +1,13 @@
 """Study systems through many runs.
 
-They are sweeps, ensembles, scenarios, sensitivity, basin stability, and calibration. The experiments are functions of a
-system, in the role of the model selection functions of scikit-learn, and return frozen results. Calibration returns the
-fitted system in its result.
+They are sweeps, ensembles, scenarios, sensitivity, basin stability, calibration, and posterior coverage. The
+experiments are functions of a system, in the role of the model selection functions of scikit-learn, and return frozen
+results. Calibration returns the fitted system in its result.
 """
 
 from ._basin_stability import BasinStabilityResult, basin_stability
 from ._calibration import CalibrationResult, calibrate
+from ._coverage import CoverageResult, posterior_coverage
 from ._ensemble import ensemble
 from ._orbit_diagram import OrbitDiagramResult, orbit_diagram
 from ._results import ExperimentResult
@@ -17,6 +18,7 @@ from ._sweep import sweep
 __all__: list[str] = [
     'BasinStabilityResult',
     'CalibrationResult',
+    'CoverageResult',
     'ExperimentResult',
     'OrbitDiagramResult',
     'SensitivityResult',
@@ -25,6 +27,7 @@ __all__: list[str] = [
     'compare_scenarios',
     'ensemble',
     'orbit_diagram',
+    'posterior_coverage',
     'sensitivity',
     'sweep',
 ]

@@ -1587,8 +1587,8 @@ class PassCompiler(BaseCompiler):
             )
         return (
             'Give the group a network or lattice space, or reduce over a `RadiusNeighborhood`, a '
-            '`NearestNeighborhood`, or a `ConeNeighborhood` in a continuous space, or over a layer of a network with '
-            '`AdjacencyNeighborhood(layer)`.'
+            '`NearestNeighborhood`, a `ConeNeighborhood`, or a `DelaunayNeighborhood` in a continuous space, or over a '
+            'layer of a network with `AdjacencyNeighborhood(layer)`.'
         )
 
     @staticmethod

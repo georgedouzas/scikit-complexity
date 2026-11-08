@@ -25,6 +25,7 @@ from ...components.spaces import (
     CofaceNeighborhood,
     ConeNeighborhood,
     ContinuousSpace,
+    DelaunayNeighborhood,
     LatticeNeighborhood,
     LatticeSpace,
     MemoryNeighborhood,
@@ -45,7 +46,7 @@ from ._static_search import StaticSearch
 _SPACES_OF: tuple[tuple[type | tuple[type, ...], tuple[type, ...]], ...] = (
     (AdjacencyNeighborhood, (NetworkSpace,)),
     ((LatticeNeighborhood, MemoryNeighborhood), (LatticeSpace, CayleySpace)),
-    ((RadiusNeighborhood, NearestNeighborhood, ConeNeighborhood), (ContinuousSpace,)),
+    ((RadiusNeighborhood, NearestNeighborhood, ConeNeighborhood, DelaunayNeighborhood), (ContinuousSpace,)),
     (CofaceNeighborhood, (CellComplexSpace,)),
 )
 """Spaces every kind of neighbourhood is read on."""
@@ -671,6 +672,7 @@ class NeighborhoodKernel(BaseKernel):
             | RadiusNeighborhood
             | NearestNeighborhood
             | ConeNeighborhood
+            | DelaunayNeighborhood
         ),
         space: object,
         rows: int,
