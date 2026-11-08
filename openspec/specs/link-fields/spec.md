@@ -142,7 +142,7 @@ electric field SHALL stay equal to the site charge that the initial state sets.
 - **THEN** its measured angular frequency is within 1% of `(2 / a) sin(k a / 2)`
 
 ### Requirement: Cell complexes are analysed
-`CellComplexAnalysis` SHALL give, with the kind `'hodge'`, the decomposition of an edge state into the exterior
+`cell_complex` SHALL give, with the kind `'hodge'`, the decomposition of an edge state into the exterior
 derivative of a site potential, the codifferential of a face potential, and a harmonic remainder, which are orthogonal
 and sum to the state. With the kind `'betti'` it SHALL give the Betti numbers of a complex, and with the kind
 `'curvature'` the share and the energy of the faces whose oriented sum of an angle state is not a multiple of its

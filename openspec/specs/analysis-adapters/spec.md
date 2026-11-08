@@ -8,47 +8,47 @@ trajectory or an experiment, lists the analyses that apply, and gives every data
 
 ### Requirement: Analyses are keyed by data kind
 Every analysis SHALL declare the one data kind it consumes, series, jump path, field, agent snapshot, network, or
-system, SHALL measure plain arrays or graphs of that kind once prepared, and SHALL NOT read a system, a domain, or a
+system, SHALL measure plain arrays or graphs of that kind, and SHALL NOT read a system, a domain, or a
 library system name.
 
 #### Scenario: Same function on two domains
-- **WHEN** a user prepares the same structure factor analysis on the last frame of an Ising lattice and on the last
+- **WHEN** a user runs the same structure factor analysis on the last frame of an Ising lattice and on the last
   frame of a Gray-Scott field
-- **THEN** both runs succeed with the same settings and set the same fitted attributes
+- **THEN** both runs succeed with the same settings and set the same result fields
 
 #### Scenario: Arrays without a simulation
-- **WHEN** a user prepares any analysis of a data kind on a NumPy array of measured data, with no trajectory
-- **THEN** the analysis runs and sets its fitted attributes, and no data analysis requires a trajectory or a system
+- **WHEN** a user runs any analysis of a data kind on a NumPy array of measured data, with no trajectory
+- **THEN** the analysis runs and sets its result fields, and no data analysis requires a trajectory or a system
 
 ### Requirement: Adapters extract every data kind from a trajectory
-Every analysis SHALL extract from a trajectory, while it prepares, its series of named states, reporters, or
+Every analysis SHALL extract from a trajectory, while it runs, its series of named states, reporters, or
 observables, the jump paths of discrete states with their jump times, the frames of a lattice or a field in grid
 shape, the agent snapshots of a group with positions, velocities, and states, or the network of every frame, as plain
 arrays or graphs. The extraction SHALL NOT be a public function.
 
 #### Scenario: Series of an ODE
-- **WHEN** a user prepares a series analysis with `variables=['prey.n', 'predators.n']` on a Lotka-Volterra trajectory
+- **WHEN** a user runs a series analysis with `variables=['prey.n', 'predators.n']` on a Lotka-Volterra trajectory
 - **THEN** the analysis reads the times and a two-column array equal to `trajectory.values('prey.n')` and
   `trajectory.values('predators.n')`
 
 #### Scenario: Jump path of a Gillespie run
-- **WHEN** a user prepares a path analysis on a birth-death trajectory simulated with Gillespie's algorithm
+- **WHEN** a user runs a path analysis on a birth-death trajectory simulated with Gillespie's algorithm
 - **THEN** the analysis reads the jump times and the state after each jump, with no repeated state between jumps
 
 #### Scenario: Frames of a lattice
-- **WHEN** a user prepares a field analysis on `spins.spin` of a 64 × 64 Ising trajectory of 100 frames
+- **WHEN** a user runs a field analysis on `spins.spin` of a 64 × 64 Ising trajectory of 100 frames
 - **THEN** the analysis reads frames of shape `(100, 64, 64)` equal to `trajectory.lattice('spins.spin')`
 
 #### Scenario: Unwrapped agent positions
-- **WHEN** a user prepares an agent analysis on random walkers in a periodic continuous space of side 10
+- **WHEN** a user runs an agent analysis on random walkers in a periodic continuous space of side 10
 - **THEN** the analysis reads positions unwrapped across the boundary, so no step between frames exceeds half the side
 
 #### Scenario: Missing data kind
-- **WHEN** a user prepares an agent analysis on an ODE trajectory
+- **WHEN** a user runs an agent analysis on an ODE trajectory
 - **THEN** a named error says that the trajectory has no agent group and lists the data kinds it has
 
 ### Requirement: Applicable analyses are discovered
-The analysis layer SHALL list the analysis classes that apply to a trajectory, a system, or an array, each with its data
+The analysis layer SHALL list the analysis functions that apply to a trajectory, a system, or an array, each with its data
 kind and how it reads the object.
 
 #### Scenario: Lattice system
@@ -67,7 +67,7 @@ kind and how it reads the object.
   assumes
 
 ### Requirement: Every data kind has a signature analysis
-The analysis layer SHALL hold one signature analysis that, prepared on a trajectory, runs the default analysis of each
+The analysis layer SHALL hold one signature analysis that, called on a trajectory, runs the default analysis of each
 of its data kinds and keeps their curves with axis labels, a title, and the measured values worth stating, so a gallery
 example can plot it without choosing an analysis.
 

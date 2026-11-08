@@ -21,7 +21,7 @@ the results SHALL not depend on the number of worker processes.
 
 ### Requirement: Designs sweep parameters and initial states
 An experiment SHALL run a system over grids, random samples, Latin hypercube samples, and Sobol samples of parameters and
-initial states, addressed by factory argument or by dotted path. Every design SHALL be an estimator that validates its
+initial states, addressed by model parameter or by dotted path. Every design SHALL be an estimator that validates its
 settings and prepares against the bounds of the values it samples, and runs to rows of values.
 
 #### Scenario: Orbit diagram sweep
@@ -54,14 +54,13 @@ array with one row per run aligned on common times.
 - **THEN** the result has one row per replicate and one column per common time, and the rows carry their seeds
 
 ### Requirement: Sensitivity analysis ranks parameters
-The experiments layer SHALL hold a sensitivity analysis that, prepared on the result of an experiment over a design,
-computes one-at-a-time effects, Morris elementary effects, or Sobol indices of an output with respect to the design's
-bounds, and keeps them as fitted attributes.
+The experiments layer SHALL hold `sensitivity`, a function that, called on a system with bounds,
+computes one-at-a-time effects, Morris elementary effects, or Sobol indices of an output with respect to those
+bounds, and returns them as fields of its result.
 
 #### Scenario: Sobol indices of a known function
-- **WHEN** a user runs an experiment of the Ishigami function wrapped as a system over a Sobol design and prepares a
-  sensitivity analysis with `method='sobol'` on its result
-- **THEN** the first-order indices in `first_order_` match the known values within 0.05
+- **WHEN** a user calls `sensitivity` on the Ishigami function wrapped as a system with `method='sobol'`
+- **THEN** the first-order indices in `first_order` of its result match the known values within 0.05
 
 ### Requirement: Calibration fits parameters to data
 The experiments layer SHALL hold a calibration experiment that fits system parameters within bounds to observed time
@@ -82,8 +81,8 @@ main guard that a script needs and the executors that avoid processes.
 
 ### Requirement: Basin stability is an experiment
 The experiments layer SHALL estimate the basin stability of the attractors of a system by running it from initial
-states sampled within bounds and classifying each final state, as an experiment whose fitted attributes hold the
-fraction of runs per attractor.
+states sampled within bounds and classifying each final state, as the experiment function `basin_stability` whose
+result holds the fraction of runs per attractor.
 
 #### Scenario: Bistable system
 - **WHEN** a user runs a basin stability experiment of a symmetric double-well system over symmetric bounds of the

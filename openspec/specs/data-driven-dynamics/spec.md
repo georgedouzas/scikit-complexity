@@ -6,7 +6,7 @@ Lets a user fit runnable surrogate systems to trajectories, by mode decompositio
 ## Requirements
 
 ### Requirement: Linear surrogates by mode decomposition
-`DMDSurrogate` SHALL learn dynamic mode decomposition and extended DMD from trajectories with `prepare(series)`, deriving modes, eigenvalues, and a system that `Simulation` runs, and SHALL forecast with `run(steps)`.
+`DMDSurrogate` SHALL learn dynamic mode decomposition and extended DMD from trajectories with `prepare(series)`, deriving modes, eigenvalues, and a system that `simulate` runs, and SHALL forecast with `run(steps)`.
 
 #### Scenario: Linear system recovered
 - **WHEN** DMD is prepared on a trajectory of a known linear ODE
@@ -22,7 +22,7 @@ Lets a user fit runnable surrogate systems to trajectories, by mode decompositio
 ### Requirement: Surrogates are systems
 Every prepared surrogate SHALL set `system_`, a `System` of one element with ordinary laws and a declared time, continuous
 for mode decomposition and SINDy and discrete for reservoirs, and that system SHALL validate and run through
-`Simulation` like a hand-written system.
+`simulate` like a hand-written system.
 
 #### Scenario: Surrogate validated
 - **WHEN** the `system_` of a SINDy surrogate prepared on `lorenz` is validated
@@ -40,16 +40,16 @@ for mode decomposition and SINDy and discrete for reservoirs, and that system SH
 - **THEN** its forecast from `run` stays within 10% of the attractor size for at least one Lyapunov time
 
 ### Requirement: Mode decomposition with control inputs
-`ModeDecompositionAnalysis` SHALL take `inputs`, the names of the variables that are control inputs, and SHALL then fit
+`mode_decomposition` SHALL take `inputs`, the names of the variables that are control inputs, and SHALL then fit
 dynamic mode decomposition with control, `g(t + dt) = A g(t) + B u(t)`, on the variables or on the observables of its
-dictionary. It SHALL set `operator_` and `input_matrix_`, and its `system_` SHALL take every input as a bounded adaptive
+dictionary. Its result SHALL set `operator` and `input_matrix`, and its `system` SHALL take every input as a bounded adaptive
 parameter that its rate laws read.
 
 #### Scenario: Linear system with input
-- **WHEN** the analysis with one input is prepared on runs of a known linear system driven by a random
+- **WHEN** the analysis with one input runs on runs of a known linear system driven by a random
   piecewise-constant input
-- **THEN** `operator_` and `input_matrix_` equal the matrices of the system's one-sample map within 1e-6
+- **THEN** `operator` and `input_matrix` equal the matrices of the system's one-sample map within 1e-6
 
 #### Scenario: Input as a control
-- **WHEN** the `system_` of the analysis is simulated with a schedule of its input parameter
+- **WHEN** the `system` of the analysis result is simulated with a schedule of its input parameter
 - **THEN** the trajectory records the input at every frame, and the states follow the fitted map

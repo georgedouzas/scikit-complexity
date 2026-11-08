@@ -124,7 +124,7 @@ rules from `_get_laws`. No rewriting rule SHALL be an interaction.
 ### Requirement: Rewriting parts live in the core
 `WordElement` and `PatchElement` SHALL live in `skcomplex.core.components.elements`, and `ProductionLaw` and `SubstitutionLaw` in
 `skcomplex.core.components.laws`. Their specs SHALL live in `skcomplex.core.specs`, and `RewritingError` in `skcomplex.core.errors`.
-Field-specific elements, such as `KochElement`, and their factories SHALL stay in `skcomplex.systems.mathematics.fractals`.
+Field-specific elements, such as `KochElement`, and their system classes SHALL stay in `skcomplex.systems.mathematics.fractals`.
 
 #### Scenario: A rewriting system from the core alone
 - **WHEN** a user writes an L-system from a `WordElement` and a `ProductionLaw`, and runs it with `RewritingCompiler`

@@ -157,11 +157,11 @@ implemented system has no screenshot. The page of an example SHALL show the desc
 
 #### Scenario: System page
 - **WHEN** a user opens the documentation page of a system with an example
-- **THEN** the page shows its screenshot and a link to its example above its factory and equations
+- **THEN** the page shows its screenshot and a link to its example above its class and equations
 
 #### Scenario: System page without an example in the build
 - **WHEN** a sample build leaves out the example of a system and a user opens the page of the system
-- **THEN** the page shows its factory and equations, without a screenshot or a link to an example
+- **THEN** the page shows its class and equations, without a screenshot or a link to an example
 
 #### Scenario: Example references
 - **WHEN** a user opens the gallery page of the `wolf_sheep` example

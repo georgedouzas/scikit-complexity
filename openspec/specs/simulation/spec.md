@@ -22,7 +22,7 @@ SHALL choose a method whose storage fits the size of the state.
 - **THEN** running it raises a named error that names the form and the solver
 
 #### Scenario: Stiff system built directly
-- **WHEN** `Simulation(create('nanoparticle_corona')).run(until=10800)` runs with the solver left to its default
+- **WHEN** `simulate(NanoparticleCoronaSystem(), until=10800)` runs with the solver left to its default
 - **THEN** it finishes within 5 seconds, and its final state matches the run of its registered solver within a
   relative tolerance of 1e-4
 
@@ -180,7 +180,7 @@ change.
 ### Requirement: Simulations take initial states
 A simulation SHALL take initial values that replace those of the components, by dotted state name. The whole state of
 a quantum system SHALL be named `<system label>.state` and take a vector, a density matrix, or `'ground'`. A catalog
-entry SHALL be able to declare the initial values its runs use, as a function of the factory's arguments. Limits of a
+entry SHALL be able to declare the initial values its runs use, as a function of the model parameters of its class. Limits of a
 solver, such as the largest dimension of a Hilbert space, SHALL be arguments of the solver, not of the system.
 
 #### Scenario: Ground state of a chain
@@ -218,12 +218,12 @@ SHALL not declare support for it, so validation rejects the combination before c
 - **THEN** the report holds an error that names the process's first law and lists the backends that support shared noise
 
 ### Requirement: A system package plugs in its own compiler
-A compiler defined outside the engine, on `BaseCompiler`, SHALL compile a system passed to `Simulation` with
-`compiler=`, and the simulation SHALL run the solver that compiler names, without the engine
+A compiler defined outside the engine, on `BaseCompiler`, SHALL compile a system passed to `simulate` with
+`compiler=`, and the run SHALL use the solver that compiler names, without the engine
 importing the package.
 
 #### Scenario: Rewriting from the systems library
-- **WHEN** `Simulation(create_system('koch_curve'), compiler=RewritingCompiler())` runs, with `RewritingCompiler` imported
+- **WHEN** `simulate(KochCurveSystem(), compiler=RewritingCompiler())` runs, with `RewritingCompiler` imported
   from `skcomplex.core.engine.compile`
 - **THEN** the run rewrites the word once per frame, and `skcomplex.core.engine` imports nothing from `skcomplex.systems`
 

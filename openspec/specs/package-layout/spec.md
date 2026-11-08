@@ -101,9 +101,9 @@ The package SHALL expose exactly two subpackages, `skcomplex.core` and `skcomple
 - `skcomplex.systems` holds the catalog of ready-made systems.
 
 #### Scenario: Framework imports
-- **WHEN** a user imports `Element` from `skcomplex.core.components.elements`, `Simulation` from
-  `skcomplex.core.engine.runtime`, `RK4Solver` from `skcomplex.core.engine.solvers`, `EntropyAnalysis` from
-  `skcomplex.core.analysis`, and `Experiment` from `skcomplex.core.experiments`
+- **WHEN** a user imports `Element` from `skcomplex.core.components.elements`, `simulate` from
+  `skcomplex.core.engine.runtime`, `RK4Solver` from `skcomplex.core.engine.solvers`, `entropy` from
+  `skcomplex.core.analysis`, and `sweep` from `skcomplex.core.experiments`
 - **THEN** every import succeeds
 
 #### Scenario: Old paths
@@ -144,7 +144,7 @@ compilation.
 ### Requirement: Every class derives from the base it is
 Every element and group SHALL derive from `BaseElement`, every interaction from `BaseInteraction`, every space from
 `BaseSpace`, every law from `BaseLaw`, every problem from `BaseProblem`, every solver from `BaseSolver`, every backend
-from `BaseBackend`, every analysis from `BaseAnalysis`, and every spec from `BaseSpec`, and every one of these bases
+from `BaseBackend`, and every spec from `BaseSpec`, and every one of these bases
 SHALL derive from `BaseConfig`. Validation SHALL read a domain's kind from the domain.
 
 #### Scenario: Derived classes
@@ -318,16 +318,16 @@ system, never a system, including scientific names such as "the SIR system". Ide
 - **THEN** it appears only in identifiers of other libraries and in the titles of cited references
 
 ### Requirement: A system module defines its system completely
-Every module of a subfield package of `skcomplex.systems` that registers a system SHALL hold the elements,
+Every module of a subfield package of `skcomplex.systems` that defines a system class SHALL hold the elements,
 interactions, views, and helpers that only that system uses, so the module reads as a complete example. A subfield
 package SHALL NOT hold a component module that serves a single system.
 
 #### Scenario: Reading one system
-- **WHEN** a reader opens the module that registers `active_walkers`
+- **WHEN** a reader opens the module that defines the class of `active_walkers`
 - **THEN** the element, interaction, and view classes that only `active_walkers` uses are defined in that module
 
 #### Scenario: Component module of one system
-- **WHEN** a subfield package holds a module that registers no system and is imported by the module of only one
+- **WHEN** a subfield package holds a module that defines no system class and is imported by the module of only one
   system
 - **THEN** the layout test fails and names the module and the system that should hold it
 

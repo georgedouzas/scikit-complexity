@@ -80,8 +80,8 @@ below its block, with no `print` in the source. Strings SHALL show plain, and `N
 nothing. A block that raises SHALL stop the build and name the block.
 
 #### Scenario: Shown value
-- **WHEN** a guide block ends with the expression `describe('sir').formalism`
-- **THEN** the built page shows the formalism below the block
+- **WHEN** a guide block ends with the expression `SIRSystem().get_tags()`
+- **THEN** the built page shows the tags below the block
 
 #### Scenario: Failing block
 - **WHEN** a guide block raises an error during the documentation build

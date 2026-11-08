@@ -131,7 +131,7 @@ The analysis layer SHALL derive the divergence of a system's vector field.
 - **THEN** the divergence is 0
 
 ### Requirement: Poisson brackets decide conservation
-`InvariantAnalysis` SHALL compute the Poisson brackets of expressions given as `ObservableSpec`s over the canonical
+`invariants` SHALL compute the Poisson brackets of expressions given as `ObservableSpec`s over the canonical
 pairs of a system's `HamiltonianInteraction`s, and SHALL decide whether each expression is conserved, from its Poisson
 bracket with the Hamiltonian for a Hamiltonian system and from its Lie derivative along the vector field otherwise. It
 SHALL decide symbolically, or numerically at random states when simplification does not decide, and SHALL report which
@@ -151,7 +151,7 @@ method decided.
 - **THEN** `AnalysisError` is raised that names `HamiltonianInteraction`
 
 ### Requirement: Symmetries are checked by the analysis
-`InvariantAnalysis` SHALL take a symmetry as a `SymmetrySpec` whose generator maps coordinates to their infinitesimal
+`invariants` SHALL take a symmetry as a `SymmetrySpec` whose generator maps coordinates to their infinitesimal
 variations, given to the analysis rather than declared on the system, SHALL check it against the Hamiltonian of the
 system's `HamiltonianInteraction`s or the summed Lagrangian of its `EulerLagrangeInteraction`s, and SHALL return the
 Noether charge of the symmetry.

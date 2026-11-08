@@ -20,20 +20,20 @@ NOT return a separate result object. Its settings SHALL stay readable and settab
 - **THEN** the clone has the same settings and none of the fitted attributes
 
 ### Requirement: An analysis reads trajectories, arrays, graphs, and systems
-`prepare(source)` SHALL accept a trajectory, a NumPy array, a NetworkX graph, or a system, as the analysis needs, and
+An analysis function SHALL accept as its source a trajectory, a NumPy array, a NetworkX graph, or a system, as it needs, and
 SHALL extract the data it measures from a trajectory itself. Settings SHALL select the variables to read by name.
 
 #### Scenario: Same analysis on a trajectory and an array
-- **WHEN** a user prepares a structure factor analysis once on an Ising trajectory and once on the array of its last
+- **WHEN** a user runs a structure factor analysis once on an Ising trajectory and once on the array of its last
   frame
-- **THEN** both runs give the same `structure_factor_`
+- **THEN** both runs give the same `structure_factor`
 
 #### Scenario: Named variables
-- **WHEN** a user prepares a series analysis with `variables=['prey.n']` on a Lotka-Volterra trajectory
+- **WHEN** a user runs a series analysis with `variables=['prey.n']` on a Lotka-Volterra trajectory
 - **THEN** the analysis reads only the series of `prey.n`
 
 #### Scenario: Source of the wrong kind
-- **WHEN** a user prepares an agent analysis on an ODE trajectory
+- **WHEN** a user runs an agent analysis on an ODE trajectory
 - **THEN** a named error says that the trajectory has no agent group and lists the data kinds it has
 
 ### Requirement: Analyses of a system take the system
@@ -41,32 +41,32 @@ An analysis that measures a system rather than recorded data, such as stability,
 SHALL take the system as its source and SHALL compile it itself.
 
 #### Scenario: Fixed point stability
-- **WHEN** a user prepares a stability analysis on a Lotka-Volterra system and runs it
-- **THEN** `fixed_points_` holds the coexistence point, and `eigenvalues_` holds its purely imaginary pair
+- **WHEN** a user runs `stability` on a Lotka-Volterra system
+- **THEN** `fixed_points` of its result holds the coexistence point, and `eigenvalues` holds its purely imaginary pair
 
 ### Requirement: Families share one class with a choice argument
-Analyses that compute the same kind of quantity and differ only by a formula SHALL be one class, selected by a string
-setting that `prepare` validates against the choices the class lists.
+Analyses that compute the same kind of quantity and differ only by a formula SHALL be one function, selected by a string
+setting that the function validates against the choices it lists.
 
 #### Scenario: Entropy family
-- **WHEN** a user runs `EntropyAnalysis(kind=kind)` on the same series for each of `'shannon'`, `'renyi'`,
+- **WHEN** a user calls `entropy(series, kind=kind)` on the same series for each of `'shannon'`, `'renyi'`,
   `'tsallis'`, `'permutation'`, `'sample'`, `'approximate'`, and `'spectral'`
-- **THEN** every run sets `entropy_`, and the permutation entropy of white noise is within 0.02 of 1
+- **THEN** every result sets `entropy`, and the permutation entropy of white noise is within 0.02 of 1
 
 #### Scenario: Unknown choice
-- **WHEN** a user prepares `EntropyAnalysis(kind='unknown')`
-- **THEN** a named error lists the kinds the class takes
+- **WHEN** a user calls `entropy(series, kind='unknown')`
+- **THEN** a named error lists the kinds the function takes
 
 ### Requirement: Analyses are general operations across domains
-Every analysis class SHALL compute one mathematical operation, named after it, and SHALL read every data kind on which
-the operation is defined, so the same class with the same settings applies to the data of any field. A choice SHALL be
-a variant of the operation, never a quantity of one field. The analysis SHALL check in `prepare` that the source holds
+Every analysis function SHALL compute one mathematical operation, named after it, and SHALL read every data kind on which
+the operation is defined, so the same function with the same settings applies to the data of any field. A choice SHALL be
+a variant of the operation, never a quantity of one field. The analysis SHALL check that the source holds
 a data kind it reads, and SHALL raise a named error that lists the kinds it reads otherwise.
 
 #### Scenario: Alignment on three domains
 - **WHEN** a user runs the alignment analysis of kind `mean-vector` on the headings of a Vicsek flock, on the spins of an
   XY lattice, and of kind `mean-phase` on the phases of Kuramoto oscillators
-- **THEN** each run sets the order of every frame between 0 and 1, with the same class and the same settings names
+- **THEN** each run sets the order of every frame between 0 and 1, with the same function and the same settings names
 
 #### Scenario: Moment ratio of any sample
 - **WHEN** a user runs the distribution analysis of kind `moment-ratio` on magnetisation samples of an Ising system and
@@ -74,7 +74,7 @@ a data kind it reads, and SHALL raise a named error that lists the kinds it read
 - **THEN** both runs set the fourth-to-squared-second moment ratio of every sample
 
 #### Scenario: Source without a readable kind
-- **WHEN** a user prepares the alignment analysis on a trajectory with no agents, no angle field, and no phase series
+- **WHEN** a user runs the alignment analysis on a trajectory with no agents, no angle field, and no phase series
 - **THEN** a named error lists the data kinds the analysis reads and the data kinds the trajectory holds
 
 ### Requirement: Analyses are functions of results

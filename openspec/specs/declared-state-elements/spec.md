@@ -33,7 +33,7 @@ No module of the library SHALL set `__signature__` or build a part with `type()`
 
 ### Requirement: Moved systems keep their results
 
-`SparseIdentificationAnalysis`, `next_generation_reservoir`, and the metabolism family SHALL keep their results after moving
+`sparse_identification`, `next_generation_reservoir`, and the metabolism family SHALL keep their results after moving
 to the primitive.
 
 #### Scenario: Reference values

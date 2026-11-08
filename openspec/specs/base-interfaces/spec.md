@@ -159,7 +159,7 @@ keep what it produces in an attribute ending in `_`, named once for each family:
 - market protocols keep their trades in `trades_`.
 
 Analyses, experiments, simulations, observers of a run, clocks, and visuals SHALL keep their results in the
-attributes they already document. The overrides of `run` that name their input, such as `Simulation.run(until=...)`,
+attributes they already document. The overrides of `run` that name their input, such as `BaseClock.run(elapsed=...)`,
 SHALL forward to the base verb and return the object.
 
 #### Scenario: A compiler's problem
@@ -175,16 +175,16 @@ SHALL forward to the base verb and return the object.
 - **THEN** `run()` returns the law, and `value_` is its rate at those values
 
 #### Scenario: A simulation keeps its named input
-- **WHEN** a user runs `Simulation(system).prepare().run(until=20)`
-- **THEN** the call returns the simulation, and its trajectory covers the times up to 20
+- **WHEN** a user runs `simulate(system, until=20)`
+- **THEN** the call returns the trajectory, which covers the times up to 20
 
 ### Requirement: Running needs preparing
 `run` SHALL raise `NotPreparedError` for a configurable object that was not prepared with `prepare`. A spec SHALL be exempt, since a frozen value cannot be
 marked. No verb SHALL prepare an object on its own: a simulation runs only once `prepare` compiled its system.
 
 #### Scenario: Running before preparing
-- **WHEN** a user runs `Simulation(system).run(until=20)` without preparing it
-- **THEN** the run raises `NotPreparedError`, which names the simulation and asks for `prepare`
+- **WHEN** a user runs `Calibration(system, data, bounds).run()` without preparing it
+- **THEN** the run raises `NotPreparedError`, which names the calibration and asks for `prepare`
 
 #### Scenario: A spec runs without preparing
 - **WHEN** a user runs a spec without preparing it

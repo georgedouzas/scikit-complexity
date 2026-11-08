@@ -68,17 +68,17 @@ vector, a density matrix, or the ground state. Classical and quantum elements SH
 - **THEN** creating the simulation raises a named error that names the system and the norm
 
 ### Requirement: Quantum runs use the simulation interface
-A quantum system SHALL run through `Simulation`, `create`, and `run` like any other system, with frames at
-instants of physical time separated by `dt`. Parameters SHALL change between frames through `update_parameters` and
-schedules. The trajectory SHALL record the expectation observables, the energy, and the complex state at every frame.
+A quantum system SHALL run through `simulate` like any other system, with frames at
+instants of physical time separated by `dt`. Parameters SHALL change between frames through the `schedule` of
+`simulate`. The trajectory SHALL record the expectation observables, the energy, and the complex state at every frame.
 
 #### Scenario: Run by name
-- **WHEN** a user calls `run('quantum_heisenberg', settings={'until': 2.0, 'dt': 0.1})`
+- **WHEN** a user calls `simulate(QuantumHeisenbergSystem(), until=2.0, dt=0.1)`
 - **THEN** the trajectory has 21 frames, its state at each frame is a complex vector of the system's dimension, and its
   observables hold the expectation of `S^z` of every site at every frame
 
 #### Scenario: Quench by parameter update
-- **WHEN** a user changes the anisotropy of a running spin chain through `update_parameters` at time 1
+- **WHEN** a user changes the anisotropy of a running spin chain through the `schedule` of `simulate` at time 1
 - **THEN** the frames after time 1 follow the new Hamiltonian, and the energy observable jumps at that frame
 
 ### Requirement: Unitary evolution follows the Schrödinger equation

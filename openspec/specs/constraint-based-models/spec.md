@@ -136,7 +136,7 @@ and fix.
 - **THEN** the report holds an issue with the code `linear-program-objectives` that names both paths
 
 ### Requirement: Elementary modes and extreme pathways are enumerated
-`ElementaryModeAnalysis` SHALL enumerate exactly, for the kind `'modes'`, the steady-state vectors of a program with
+`elementary_modes` SHALL enumerate exactly, for the kind `'modes'`, the steady-state vectors of a program with
 minimal support in which every irreversible variable runs in its declared direction, and, for the kind `'pathways'`,
 the generators of the cone with every reversible internal variable split and each exchange kept as one variable, of
 either sign when it is reversible, none of which is a non-negative combination of the others (Raman 2021, Section 9.8).
@@ -183,7 +183,7 @@ The default install SHALL NOT install or import COBRApy, StrainDesign, or MICOM.
 `MissingExtraError` naming the class, the extra `metabolism`, and the install command.
 
 #### Scenario: Missing extra
-- **WHEN** a user without the extra runs `CobraAnalysis(kind='variability')`
+- **WHEN** a user without the extra calls `cobra_measures(system, kind='variability')`
 - **THEN** `MissingExtraError` says that it needs `pip install 'scikit-complexity[metabolism]'`
 
 #### Scenario: Default install stays importable

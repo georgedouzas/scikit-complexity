@@ -125,9 +125,8 @@ inputs, as Elman's original training does.
 
 ### Requirement: Optimizers are configured and change while running
 `TrainingInteraction` SHALL take an optimizer by name, at least `'sgd'`, `'momentum'`, `'rmsprop'`, and `'adam'`, and
-its hyperparameters SHALL be parameters of the interaction, so `Simulation.update_parameters` and a simulation's
-`schedule` change them between epochs. The optimizer's internal state SHALL
-persist across frames and SHALL reset when the simulation is reset.
+its hyperparameters SHALL be parameters of the interaction, so the `schedule` of `simulate` changes them between
+epochs. The optimizer's internal state SHALL persist across frames and SHALL reset at the start of every `simulate` run.
 
 #### Scenario: Zero learning rate
 - **WHEN** a system holding a gradient-step law runs for 5 epochs with a learning rate of 0
@@ -166,7 +165,7 @@ shape, and changed or trained like a scalar parameter. The compiler SHALL report
 - **THEN** member `i` reads `(W x)_i` within 1e-12 on the NumPy, Numba, and JAX backends
 
 #### Scenario: Wrong shape
-- **WHEN** `Simulation.update_parameters` sets that parameter to an array of shape `(2, 4)`
+- **WHEN** the `schedule` of `simulate` sets that parameter to an array of shape `(2, 4)`
 - **THEN** it raises a named error that names the parameter, the expected shape `(4, 2)`, and the given shape
 
 #### Scenario: Unbound roles

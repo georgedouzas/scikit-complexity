@@ -96,7 +96,7 @@ computed once, and node colours from the cell states at each step.
   with the states over time
 
 ### Requirement: Injectivity and surjectivity are decided on finite universes
-`AutomatonAnalysis` SHALL prepare on a `System` with a `LocalRuleInteraction`, and SHALL decide injectivity, surjectivity,
+`automaton` SHALL take a `System` with a `LocalRuleInteraction` as its source, and SHALL decide injectivity, surjectivity,
 and pre-injectivity of the automaton on finite quotients and
 windows, find Garden of Eden patterns, and find the inverse of a reversible automaton.
 
@@ -110,7 +110,7 @@ windows, find Garden of Eden patterns, and find the inverse of a reversible auto
 
 ### Requirement: Linear automata are decided algebraically
 A linear automaton SHALL be a `LocalRuleLaw` whose rule is a `LinearRuleSpec`, a group-ring element whose invertibility and
-surjectivity `AutomatonAnalysis` decides algebraically, with its matrix and its Laurent polynomial as the kinds `'matrix'` and
+surjectivity `automaton` decides algebraically, with its matrix and its Laurent polynomial as the kinds `'matrix'` and
 `'polynomial'`.
 
 #### Scenario: Laplacian over a finite field
@@ -119,7 +119,7 @@ surjectivity `AutomatonAnalysis` decides algebraically, with its matrix and its 
 
 ### Requirement: Subshifts constrain configurations
 A subshift of finite type SHALL be a `SubshiftSpec`, the domain of a state. The kinds `'admissible'`, `'violations'`, `'count'`,
-and `'sample'` of `AutomatonAnalysis` SHALL check configurations against forbidden patterns, count admissible patterns, and
+and `'sample'` of `automaton` SHALL check configurations against forbidden patterns, count admissible patterns, and
 sample admissible configurations. A run SHALL check that every cell holds a value of the alphabet, and SHALL NOT enforce
 admissibility.
 
@@ -142,7 +142,7 @@ runs, and compute difference patterns of single-cell perturbations.
 ### Requirement: A cellular automaton is a system
 A cellular automaton SHALL be a `System` with a `LocalRuleInteraction`, and no class SHALL duplicate it. The `run` of a
 `LocalRuleLaw` SHALL be one step of the map on configurations, and several steps SHALL be a loop over that `run` or a
-`Simulation` of the system.
+`simulate` run of the system.
 
 #### Scenario: A step and a run agree
 - **WHEN** a user applies the `run` of the `LocalRuleLaw` of a shift twice to a configuration, and simulates the system

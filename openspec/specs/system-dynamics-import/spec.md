@@ -41,7 +41,7 @@ trajectory reports every flow as `<element>.<flow>`.
   `<element>.infection`, and an invariant on the total population holds
 
 #### Scenario: Loops of a translated system
-- **WHEN** a user lists with `LoopAnalysis` the feedback loops of a translated population system with births and deaths
+- **WHEN** a user lists with `loops` the feedback loops of a translated population system with births and deaths
 - **THEN** the result holds one reinforcing loop through births and one balancing loop through deaths
 
 ### Requirement: Remaining rates become relaxations or rates
