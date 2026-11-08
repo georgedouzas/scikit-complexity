@@ -89,3 +89,14 @@ def test_delaunay_neighbourhood_does_not_run_on_numba():
     positions = np.array([[0.5, 0.5], [1.5, 0.5], [1.0, 1.5]])
     with pytest.raises(BackendError, match='NumPy backend'):
         _problem(positions, 2.0, 'open', NumbaBackend())
+
+
+def test_delaunay_neighbourhood_of_a_large_group_runs_on_numpy():
+    """Test that a group of 1000 members, which defaults to Numba, runs Delaunay neighbourhoods on NumPy."""
+    rng = np.random.default_rng(0)
+    values = {'x': rng.uniform(0.0, 10.0, (1000, 2)), 'tag': np.ones(1000)}
+    group = GroupElement('cells', element=CountingElement, size=1000, values=values)
+    system = System(elements=[group], space=ContinuousSpace(extent=(10.0, 10.0), boundary='open'))
+    problem = PassCompiler().prepare(system).run().problem_
+    assert problem.backend == 'numpy'
+    assert np.all(_counts(problem) >= 2)
