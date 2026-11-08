@@ -87,6 +87,8 @@ class ExposureInteraction(CouplingInteraction):
         1.5
     """
 
+    draws = True
+
     def __init__(
         self,
         label: str,

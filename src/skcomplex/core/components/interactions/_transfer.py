@@ -210,6 +210,13 @@ class TransferInteraction(Interaction):
             return self._get_variant_tags((RuleLaw,))
         return self._get_variant_tags((TransferLaw,), stochastic=self._get_argument('rate') is not None)
 
+    def _draws(self) -> bool:
+        """Return whether the agent form draws: by its order, random pairs or partners, or a number of partners."""
+        if self._get_argument('form') != 'agent':
+            return self.draws
+        drawn = self.pairing in ('random', 'pairs', 'neighbor-pairs') or not isinstance(self.pairing, str | None)
+        return super()._draws() or drawn or self.partners is not None
+
     def __init__(
         self,
         label: str,

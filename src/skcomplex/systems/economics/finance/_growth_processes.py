@@ -58,6 +58,8 @@ class GibratFirmElement(Element):
         10
     """
 
+    draws = True
+
     def __init__(
         self,
         label: str,
@@ -138,6 +140,8 @@ class KestenFirmElement(Element):
         >>> GroupElement('firms', element=KestenFirmElement, size=10, values={'b_high': 2.0}).size
         10
     """
+
+    draws = True
 
     def __init__(
         self,

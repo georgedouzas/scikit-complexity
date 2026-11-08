@@ -267,6 +267,8 @@ class SentimentInteraction(MapInteraction):
         [(1, 0, 0.5)]
     """
 
+    draws = True
+
     def __init__(
         self,
         label: str,

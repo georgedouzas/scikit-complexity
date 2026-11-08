@@ -49,6 +49,8 @@ class KineticSolver(Solver):
         True
     """
 
+    draws = True
+
     @classmethod
     def _get_support(cls) -> SupportSpec:
         """Return the times, spaces, laws, noise, and orders the solver solves."""

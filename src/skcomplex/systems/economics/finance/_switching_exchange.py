@@ -66,6 +66,8 @@ class SwitchingExchangeElement(Element):
         1.2
     """
 
+    draws = True
+
     law_classes = (UpdateLaw,)
 
     def __init__(

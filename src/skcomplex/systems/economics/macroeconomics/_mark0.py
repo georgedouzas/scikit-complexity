@@ -215,6 +215,8 @@ class Mark0EconomyInteraction(FeedbackInteraction[SystemView]):
         ('unemployment', 'inflation')
     """
 
+    draws = True
+
     reports: ClassVar[tuple[str, ...]] = (
         'unemployment',
         'inflation',

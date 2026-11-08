@@ -356,6 +356,8 @@ class SettlerElement(Element):
         3
     """
 
+    draws = True
+
     law_classes = (RuleLaw,)
 
     def __init__(
@@ -801,6 +803,8 @@ class EstateInteraction(Interaction):
         >>> EstateInteraction('census', people='people').reports
         ('births', 'starvations', 'old_age')
     """
+
+    draws = True
 
     law_classes = (RuleLaw,)
 

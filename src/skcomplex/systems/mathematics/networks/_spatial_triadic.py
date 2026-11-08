@@ -128,6 +128,8 @@ class SignedRegulationInteraction(HyperedgeInteraction):
         0.5
     """
 
+    draws = True
+
     law_classes = (UpdateLaw,)
 
     def __init__(

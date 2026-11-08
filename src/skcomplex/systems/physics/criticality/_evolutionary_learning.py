@@ -79,6 +79,8 @@ class LearnerElement(Element):
         0.75
     """
 
+    draws = True
+
     law_classes = (UpdateLaw,)
 
     def __init__(

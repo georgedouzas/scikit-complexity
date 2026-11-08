@@ -52,6 +52,8 @@ class ContactSiteElement(Element):
         3.0
     """
 
+    draws = True
+
     law_classes = (LocalRuleLaw,)
 
     def __init__(
@@ -271,6 +273,8 @@ class WalkerElement(Element):
         >>> WalkerElement('walker').stuck
         0.0
     """
+
+    draws = True
 
     law_classes = (RuleLaw,)
 
@@ -567,6 +571,8 @@ class TASEPSystem(BaseSystem):
         >>> [interaction.label for interaction in TASEPSystem(20).prepare().system_.interactions]
         ['hops', 'entry', 'exit']
     """
+
+    draws = True
 
     field = 'physics/statistical_mechanics'
     topics = ('lattice', 'stochastic', 'exclusion', 'traffic', 'nonequilibrium')

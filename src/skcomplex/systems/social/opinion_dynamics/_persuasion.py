@@ -200,6 +200,8 @@ class DiscussionsInteraction(GroupingInteraction):
         'opinion'
     """
 
+    draws = True
+
     def __init__(self, label: str, *, target: Annotated[str, RoleSpec()], size: int = 3) -> None:
         super().__init__(
             label,

@@ -39,7 +39,10 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
     A role states what it needs in its `RoleSpec`, and the class lists the laws it may return in `law_classes`, which
     `get_requirements` reads. Its capability tags come from the laws it returns for its arguments: a class whose
     arguments choose among its laws overrides `_get_tags` and passes the chosen classes to `_get_variant_tags`. A
-    subclass that writes its laws in `_get_laws` without listing them leaves its law kinds unknown.
+    subclass that writes its laws in `_get_laws` without listing them leaves its law kinds unknown. An interaction
+    whose agents act in a new random order every step, under the schedule `'random-sequential'` or in their own
+    activations under `'member'`, which the agent stepper orders at random, or that breaks ties or picks members at
+    random, draws random numbers whatever its laws, so its randomness is stochastic.
 
     Args:
         label:
@@ -114,6 +117,14 @@ class BaseInteraction(BasePart[BaseSpace, SimpleNamespace]):
     def _get_tags(self) -> Tags:
         """Return the tags of the laws the class lists, or unknown law kinds when it writes laws it does not list."""
         return self._get_law_tags(self._get_declared_laws())
+
+    def _draws(self) -> bool:
+        """Return whether the interaction draws, by `draws`, a random order of its agents, or random ties or picks."""
+        return (
+            self.draws
+            or self._get_argument('schedule') in ('random-sequential', 'member')
+            or 'random' in (self._get_argument('ties'), self._get_argument('pick'))
+        )
 
     def _run(self, inputs: SimpleNamespace | None) -> None:
         """Set `laws_`, the laws of the interaction for a namespace of symbols.

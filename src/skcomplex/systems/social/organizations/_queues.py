@@ -99,6 +99,8 @@ class ExecutionInteraction(Interaction):
         'tasks'
     """
 
+    draws = True
+
     law_classes = (RuleLaw,)
 
     reports: ClassVar[tuple[str, ...]] = ('wait',)

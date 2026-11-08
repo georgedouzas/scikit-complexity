@@ -6,9 +6,11 @@ from typing import Annotated
 import numpy as np
 import pytest
 
-from skcomplex.core.components.elements import Element
+from skcomplex.core.components.elements import CompartmentElement, Element
 from skcomplex.core.components.laws import NoiseLaw, RateLaw
 from skcomplex.core.components.system import System
+from skcomplex.core.engine.solvers import KineticSolver, ScipyODESolver
+from skcomplex.core.errors import TagError
 from skcomplex.core.experiments import ensemble
 from skcomplex.core.specs import StateSpec, VisualSpec
 from skcomplex.systems.biology.epidemiology import SIRSystem
@@ -75,3 +77,18 @@ def test_replicates_are_independent_and_reproducible():
     second = ensemble(SIRSystem(stochastic=True), replicates=20, until=50, outputs=['I.n'], random_state=7)
     assert len({tuple(series) for series in first.series('I.n')}) == 20
     np.testing.assert_array_equal(first.series('I.n'), second.series('I.n'))
+
+
+def test_ensemble_of_a_deterministic_system_names_the_randomness():
+    """Test that an ensemble of the deterministic SIR system raises a tag error naming the randomness."""
+    with pytest.raises(TagError, match='randomness stochastic'):
+        ensemble(SIRSystem(), replicates=2, until=5)
+
+
+def test_ensemble_of_a_deterministic_system_with_a_solver_that_draws():
+    """Test that a solver decides an ensemble of a deterministic system by whether it draws, as KineticSolver does."""
+    system = System(elements=[CompartmentElement('stock', n=1.0)])
+    assert not ScipyODESolver.draws
+    assert KineticSolver.draws
+    with pytest.raises(TagError, match='randomness'):
+        ensemble(system, replicates=2, until=1, solver=ScipyODESolver())

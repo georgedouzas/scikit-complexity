@@ -110,6 +110,8 @@ class ImitationInteraction(NeighborInteraction):
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (JumpLaw, RuleLaw, UpdateLaw)
 
+    draws = True
+
     def _get_tags(self) -> Tags:
         """Return the tags of the rules, the updates that draw with a probability, or the jumps of the rate form."""
         form = self._get_argument('form')

@@ -83,6 +83,8 @@ class InvestingFirmElement(Element):
         10
     """
 
+    draws = True
+
     def __init__(
         self,
         label: str,

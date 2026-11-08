@@ -112,6 +112,8 @@ class ExplorationInteraction(Interaction):
         0.6
     """
 
+    draws = True
+
     law_classes = (RuleLaw,)
 
     def __init__(
@@ -212,6 +214,8 @@ class ContainerMobilityInteraction(Interaction):
         >>> ContainerMobilityInteraction('displacement', target='individuals').levels
         3
     """
+
+    draws = True
 
     law_classes = (RuleLaw,)
 

@@ -117,6 +117,8 @@ class CombinatorialUpdateInteraction(FeedbackInteraction[SystemView]):
         ('diversity', 'changes')
     """
 
+    draws = True
+
     reports: ClassVar[tuple[str, ...]] = ('diversity', 'changes')
 
     def __init__(

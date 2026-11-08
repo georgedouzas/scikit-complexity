@@ -169,6 +169,8 @@ class GuruMarketInteraction(FeedbackInteraction[SystemView]):
         ('price', 'log_return')
     """
 
+    draws = True
+
     reports: ClassVar[tuple[str, ...]] = ('price', 'log_return', 'volume', 'guru', 'beta', 'guru_followers')
 
     def __init__(

@@ -9,9 +9,10 @@ from concurrent.futures import Executor
 from ..components.specs import ScenarioSpec
 from ..engine.runtime import Trajectory
 from ..engine.solvers import BaseSolver
+from ..errors import TagError
 from ..specs import ObservableSpec
 from ._results import ExperimentResult
-from ._runs import _run_experiment
+from ._runs import _build, _check_source, _run_experiment
 from .types import Output, Source
 
 
@@ -32,7 +33,9 @@ def ensemble(
     """Return the runs of a system with independent random streams, in the role of repeated cross-validation.
 
     The streams are spawned from `random_state`, so the runs of a stochastic system are independent and reproducible,
-    and the result reads them as an ensemble, one row per run and one column per common time.
+    and the result reads them as an ensemble, one row per run and one column per common time. The system needs the
+    randomness `stochastic`, or a solver that draws, such as `KineticSolver`, since the runs of a deterministic system
+    by a deterministic solver repeat one another.
 
     Args:
         system:
@@ -84,13 +87,31 @@ def ensemble(
         ExperimentError:
             The system is a name, or the worker processes stop before finishing.
 
+        TagError:
+            The system has the randomness `deterministic` and the solver does not draw.
+
     Examples:
         >>> from skcomplex.core.experiments import ensemble
         >>> from skcomplex.systems.biology.epidemiology import SIRSystem
         >>> result = ensemble(SIRSystem(stochastic=True), replicates=3, until=10, random_state=0)
         >>> result.column('seed').tolist()
         [0, 1, 2]
+
+        A deterministic system has nothing to repeat:
+
+        >>> ensemble(SIRSystem(), replicates=3, until=10)
+        Traceback (most recent call last):
+        ...
+        skcomplex.core.errors.TagError: ensemble needs the randomness stochastic, but SIRSystem has the randomness ...
     """
+    built = _build(_check_source(system), {})
+    stepper = solver if solver is not None else built.get_run_settings()['solver']
+    if built.get_tags().randomness == 'deterministic' and not getattr(stepper, 'draws', False):
+        error_msg = (
+            f'ensemble needs the randomness stochastic, but {type(built).__name__} has the randomness deterministic. '
+            'Its runs repeat one another, so run it once with `simulate`, or give it a part or a solver that draws.'
+        )
+        raise TagError(error_msg)
     return _run_experiment(
         system,
         [{}],

@@ -163,6 +163,17 @@ class LifeCycleInteraction(Interaction):
         """Return the tags of the rules of births and deaths, which change the membership of groups."""
         return self._get_variant_tags((RuleLaw,), structure=frozenset({'variable membership'}))
 
+    def _draws(self) -> bool:
+        """Return whether the cycle draws: by its order or pick, events of a chance below 1, rates, or free cells."""
+        chances = (self.birth, self.death, self.cull)
+        return (
+            super()._draws()
+            or any(callable(chance) or (chance is not None and 0 < chance < 1) for chance in chances)
+            or self.rate is not None
+            or self.arrival is not None
+            or self.placement == 'neighbor'
+        )
+
     def __init__(
         self,
         label: str,

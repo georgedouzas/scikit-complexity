@@ -107,6 +107,8 @@ class BinaryCollisionsInteraction(Interaction):
         0.5
     """
 
+    draws = True
+
     law_classes = (RuleLaw,)
 
     def __init__(

@@ -173,9 +173,9 @@ def test_unknown_names_are_rejected():
 def test_invalid_settings_are_rejected():
     """Test that zero replicates and an unknown executor raise errors naming them."""
     with pytest.raises(ValidationError, match='replicates = 0'):
-        ensemble(SIRSystem(), replicates=0)
+        ensemble(SIRSystem(stochastic=True), replicates=0)
     with pytest.raises(ValidationError, match="executor = 'gpu'"):
-        ensemble(SIRSystem(), replicates=1, executor='gpu')
+        ensemble(SIRSystem(stochastic=True), replicates=1, executor='gpu')
 
 
 def test_a_system_of_the_library_runs_as_an_instance_or_its_class():

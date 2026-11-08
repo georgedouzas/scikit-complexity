@@ -3,6 +3,7 @@
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
 
+import inspect
 from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Annotated, ClassVar
@@ -75,6 +76,11 @@ class CascadeInteraction(NeighborInteraction):
     """
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (CascadeLaw, DriveLaw, LocalRuleLaw)
+
+    def _draws(self) -> bool:
+        """Return whether the cascade draws: by parcels sent at random, or by a drive that names the generator."""
+        drive = self.drive is not None and 'random' in inspect.signature(self.drive).parameters
+        return super()._draws() or self.mode == 'random' or drive
 
     def __init__(
         self,

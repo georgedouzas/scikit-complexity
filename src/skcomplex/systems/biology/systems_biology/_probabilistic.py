@@ -101,6 +101,8 @@ class ProbabilisticFunctionInteraction(MapInteraction):
         (0.7, 0.3)
     """
 
+    draws = True
+
     law_classes = (UpdateLaw,)
 
     def __init__(

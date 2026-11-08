@@ -142,6 +142,8 @@ class EvolutionInteraction(Interaction):
 
     law_classes: ClassVar[tuple[type[BaseLaw], ...]] = (RuleLaw,)
 
+    draws = True
+
     def __init__(
         self,
         label: str,

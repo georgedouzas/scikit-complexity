@@ -155,6 +155,12 @@ class TransitionInteraction(Interaction):
             return self._get_variant_tags((JumpLaw,))
         return self._get_variant_tags((UpdateLaw,), stochastic=self._get_argument('probability') is not None)
 
+    def _draws(self) -> bool:
+        """Return whether the agent form draws, by the rows of a matrix or by a probability or a rate of moving."""
+        chance = self._get_argument('rate') is not None or self._get_argument('probability') is not None
+        drawn = self._get_argument('matrix') is not None or (self._get_argument('condition') is None and chance)
+        return super()._draws() or (self._get_argument('form') == 'agent' and drawn)
+
     def __init__(
         self,
         label: str,

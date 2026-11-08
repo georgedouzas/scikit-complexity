@@ -91,6 +91,8 @@ class RandomAffineMapInteraction(MapInteraction):
         [(0.5, 0, 0, 0.5, 0, 0)]
     """
 
+    draws = True
+
     def __init__(
         self,
         label: str,

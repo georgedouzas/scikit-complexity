@@ -38,6 +38,8 @@ class PathogenElement(Element):
         0.0
     """
 
+    draws = True
+
     law_classes = (UpdateLaw,)
 
     def __init__(
