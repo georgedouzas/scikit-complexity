@@ -83,8 +83,8 @@ keeps the catalog apart from the core by three rules, which the checks of the pa
 ### Optional extras
 
 Most systems run on the default install. A few take a library from an optional extra. Without the extra they stay in
-the catalog, and preparing or simulating one raises `MissingExtraError` with the name of the system, the extra, and the install
-command.
+the catalog, and preparing or simulating one raises `MissingExtraError` with the name of the system, the extra, and
+the install command.
 
 | Extra | Library | Systems | Install notes |
 | --- | --- | --- | --- |
@@ -95,7 +95,8 @@ command.
 ### Systems as patterns
 
 The ready-made systems are examples of the core interface, not a separate one. So each is also the pattern for a system
-of your own. The page of every field, under [Systems](../../systems/index.md) in the documentation, shows for each system:
+of your own. The page of every field, under [Systems](../../systems/index.md) in the documentation, shows for each
+system:
 
 - its class, with its parameters and tags,
 - its element and interaction types, with their states, parameters, and laws as written,
