@@ -296,6 +296,10 @@ class Simulation(BaseConfig[None, float]):
     def _draw_recorder(self) -> DrawRecorder | None:
         """Return the recorder of the draws of a run that records or replays them, or `None`.
 
+        Returns:
+            recorder:
+                The prepared recorder, or `None` for a run that neither records nor replays.
+
         Raises:
             ValidationError:
                 The replayed trajectory holds no draws.

@@ -310,6 +310,14 @@ class _CalibrationObjective:
     def _compiled(self, values: Sequence[float]) -> tuple[ProblemSpec, TracedFunction]:
         """Return the problem of the candidate of a parameter vector compiled on JAX, and its pure function.
 
+        Args:
+            values:
+                The parameter vector.
+
+        Returns:
+            compiled:
+                The problem and the pure JAX function of its form.
+
         Raises:
             ValidationError:
                 The candidate has no JAX form, draws a discrete draw without a temperature, or is neither a discrete
@@ -340,6 +348,10 @@ class _CalibrationObjective:
         The system is compiled on JAX at the medians of the priors and at small steps of every parameter, and the
         initial states and the parameter vector of its problem must be affine in the model parameters, as they are
         when model parameters set values of parts.
+
+        Returns:
+            predict:
+                The function from a parameter vector, and a JAX key for a system that draws, to the simulated values.
 
         Raises:
             ValidationError:
@@ -442,6 +454,14 @@ def _check_priors(bounds: Bounds) -> dict[str, stats.rv_continuous]:
     """Return the prior of every parameter from its bounds.
 
     A pair `(low, high)` is the uniform prior on it, and a SciPy distribution is the prior itself.
+
+    Args:
+        bounds:
+            The pair or the SciPy distribution of every parameter by name.
+
+    Returns:
+        priors:
+            The SciPy distribution of every parameter by name.
 
     Raises:
         ValidationError:
@@ -551,6 +571,17 @@ def _numpyro_prior(name: str, prior: stats.rv_continuous) -> dist.Distribution:
 
     The families are uniform, normal, and truncated normal with any location and scale, log-normal, gamma, and
     exponential with a scale, and the standard beta distribution.
+
+    Args:
+        name:
+            The name of the parameter.
+
+        prior:
+            The SciPy distribution of its prior.
+
+    Returns:
+        distribution:
+            The numpyro distribution.
 
     Raises:
         ValidationError:

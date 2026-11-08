@@ -220,6 +220,17 @@ class JaxBackend(BaseBackend):
 
         It is `None` without draws. Uniform values lie in `[1e-12, 1)`, so the logits of relaxed draws stay finite.
 
+        Args:
+            draws:
+                The draw kernel of the map, or `None`.
+
+            form:
+                The form of the function.
+
+        Returns:
+            extend:
+                The function `extend(p, key)` of the extended parameter vector, or `None`.
+
         Raises:
             BackendError:
                 The draws hold draws from `scipy.stats` distributions or random orders, or ordinary differential

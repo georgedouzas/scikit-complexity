@@ -1542,6 +1542,20 @@ class MesaSolver(ExternalSolver):
         The triangulation is kept for the step while the number of agents of the group stays the same, so it is
         computed again in a step only after agents are created or removed, and an agent removed in the step is left out.
 
+        Args:
+            agent:
+                The Mesa agent.
+
+            group:
+                The path of the group.
+
+            over:
+                The Delaunay neighbourhood.
+
+        Returns:
+            agents:
+                The neighbouring Mesa agents, with the agent first for a neighbourhood with its centre.
+
         Raises:
             SpaceError:
                 The agent space is not continuous.

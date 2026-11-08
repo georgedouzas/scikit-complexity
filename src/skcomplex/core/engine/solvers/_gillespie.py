@@ -75,6 +75,20 @@ class GillespieSolver(Solver):
     def _rates(self, t: float, state: Array, p: Array) -> Array:
         """Return the propensities at a state, after checking them.
 
+        Args:
+            t:
+                The time.
+
+            state:
+                The state vector.
+
+            p:
+                The parameter vector.
+
+        Returns:
+            rates:
+                The propensity of every jump law.
+
         Raises:
             SolverError:
                 A propensity is negative or not finite.

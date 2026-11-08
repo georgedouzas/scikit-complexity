@@ -82,6 +82,17 @@ class DrawRecorder(BaseConfig[None, int]):
     def _forced(self, label: str, size: int) -> Array:
         """Return the recorded values of the next draw of a name.
 
+        Args:
+            label:
+                The name of the draw, the path of its owner and its name.
+
+            size:
+                The number of values the draw takes.
+
+        Returns:
+            values:
+                The recorded values.
+
         Raises:
             ValidationError:
                 The log has no draws of the name, or its next values do not belong to the current step.

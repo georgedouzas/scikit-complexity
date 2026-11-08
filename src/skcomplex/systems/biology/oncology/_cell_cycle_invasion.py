@@ -64,7 +64,22 @@ class CellSiteElement(Element):
             The rate per hour of moves of a cell in S/G2/M.
 
         open_0:
-            1 when the neighbour at the first offset lies inside the lattice, and likewise for `open_1` to `open_5`.
+            1 when the neighbour at the first offset lies inside the lattice.
+
+        open_1:
+            1 when the neighbour at the second offset lies inside the lattice.
+
+        open_2:
+            1 when the neighbour at the third offset lies inside the lattice.
+
+        open_3:
+            1 when the neighbour at the fourth offset lies inside the lattice.
+
+        open_4:
+            1 when the neighbour at the fifth offset lies inside the lattice.
+
+        open_5:
+            1 when the neighbour at the sixth offset lies inside the lattice.
 
     Examples:
         >>> from skcomplex.systems.biology.oncology import CellSiteElement
