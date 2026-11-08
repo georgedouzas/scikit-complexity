@@ -50,6 +50,9 @@
 - [x] 8.7 Make `simulate` defer the solver to the compiled form when a system nests subsystems, and stop `MonteCarloSolver` claiming tags its compiler rejects
 - [x] 8.8 Derive the randomness tag from draws in agent rules, random parameters, and stochastic modes, so random systems such as `GaltonWatsonSystem` and `SIRSystem(stochastic=True)` are stochastic, then make `ensemble` require it
 - [x] 8.9 Let experiments compile a system once per structure and reuse the problem across runs that change only parameters, initial states, or seeds, as before the change
+- [ ] 8.10 Make the module that `SystemDynamicsTranslator` writes define a system class on `BaseSystem` instead of the function `create_system()`
+- [ ] 8.11 Restore what `Simulation` offered and `simulate` lost: the `checked` option that raises when a state leaves its domain, and the validation of parameter values changed by a schedule, such as a transition probability above 1
+- [ ] 8.12 Decide whether `ParameterError` derives from `ValidationError`, so one except clause catches every validation failure of `simulate`
 
 ## 7. Verification
 
