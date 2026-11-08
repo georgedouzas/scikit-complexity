@@ -27,7 +27,9 @@ GROWTH_REFERENCES = ('Padmanabhan, Meskin, and Al Moustafa 2021', 'Benzekry et a
 
 
 class VasculatureElement(Element):
-    """Vasculature of a tumour, which sets its carrying capacity.
+    """Vasculature of a tumour.
+
+    It sets the carrying capacity of the tumour.
 
     Args:
         label:
@@ -57,7 +59,9 @@ class VasculatureElement(Element):
 
 
 class ExponentialLinearGrowthInteraction(RateInteraction):
-    """Growth that is exponential, `dn/dt = r0 n`, until it reaches the linear rate `r`, and linear after.
+    """Growth that is exponential until it reaches a linear rate, and linear after.
+
+    The exponential growth is `dn/dt = r0 n`, and the linear rate is `r`.
 
     The switch happens at `tau = log(r / (r0 n0)) / r0`, where the two rates meet, so the solution is continuously
     differentiable.
@@ -109,7 +113,9 @@ class ExponentialLinearGrowthInteraction(RateInteraction):
 
 
 class LogKillInteraction(RateInteraction):
-    """Cell kill proportional to the tumour and to a drug exposure given in a train of rectangular doses.
+    """Cell kill proportional to the tumour and to a drug exposure.
+
+    The exposure is given in a train of rectangular doses.
 
     The kill is `dn/dt = -a n U(t)`, where the exposure `U` is `dose` for `width` time units every `period`, from
     `start` on. Without growth, every dose lowers `log n` by `a dose width`.
@@ -176,7 +182,9 @@ class LogKillInteraction(RateInteraction):
 
 
 class VascularSupportInteraction(Interaction):
-    """Gompertz growth under a carrying capacity that the vessels on the tumour surface raise.
+    """Gompertz growth under a carrying capacity that grows with the tumour.
+
+    The vessels on the tumour surface raise the capacity.
 
     The tumour follows `dn/dt = r n log(K / n)` and the capacity `dK/dt = d n^(2/3)`.
 
@@ -235,7 +243,9 @@ class VascularSupportInteraction(Interaction):
 
 
 class GompertzGrowthInteraction(GrowthInteraction):
-    """Gompertz growth towards a capacity, `dn/dt = r n log(K / n(t - tau))`, without harvest.
+    """Gompertz growth towards a capacity, without harvest.
+
+    The growth is `dn/dt = r n log(K / n(t - tau))`.
 
     Args:
         label:
@@ -355,7 +365,9 @@ class PowerLawGrowthInteraction(GrowthInteraction):
 
 
 class ExponentialLinearGrowthSystem(BaseSystem):
-    """A tumour that grows exponentially while small and linearly once its growth reaches a limiting rate.
+    """A tumour that grows exponentially while small and linearly later.
+
+    The growth turns linear once it reaches a limiting rate.
 
     The defaults are the fit to breast cancer volumes in mm³ and days, which switches near day 15. The system has the
     volume `tumour.n`.
@@ -408,7 +420,9 @@ class ExponentialLinearGrowthSystem(BaseSystem):
 
 
 class PowerLawGrowthSystem(BaseSystem):
-    """A tumour whose proliferating part scales as a power of its size, `dn/dt = r n^p`.
+    """A tumour whose proliferating part scales as a power of its size.
+
+    The growth is `dn/dt = r n^p`.
 
     For `p < 1` the volume follows `(n0^(1-p) + (1-p) r t)^(1/(1-p))`, a growth slower than exponential. The defaults
     are the fit to breast cancer volumes in mm³ and days. The system has the volume `tumour.n`.
@@ -452,7 +466,10 @@ class PowerLawGrowthSystem(BaseSystem):
         self.p = p
 
     def _build_system(self) -> System:
-        """Return the parts of a tumour whose proliferating part scales as a power of its size, `dn/dt = r n^p`."""
+        """Return the parts of a tumour whose proliferating part scales as a power of its size.
+
+        The growth is `dn/dt = r n^p`.
+        """
         return System(
             self.label,
             elements=[PopulationElement('tumour', n=self.n)],
@@ -461,7 +478,9 @@ class PowerLawGrowthSystem(BaseSystem):
 
 
 class VonBertalanffySystem(BaseSystem):
-    """A tumour that grows by the balance of anabolism and catabolism, `dn/dt = r n^p - d n`.
+    """A tumour that grows by the balance of anabolism and catabolism.
+
+    The growth is `dn/dt = r n^p - d n`.
 
     The volume tends to `(r / d)^(1/(1-p))`. The defaults are the fit to breast cancer volumes in mm³ and days. The
     system has the volume `tumour.n`.
@@ -510,7 +529,10 @@ class VonBertalanffySystem(BaseSystem):
         self.d = d
 
     def _build_system(self) -> System:
-        """Return the parts of a tumour that grows by the balance of anabolism and catabolism, `dn/dt = r n^p - d n`."""
+        """Return the parts of a tumour that grows by the balance of anabolism and catabolism.
+
+        The growth is `dn/dt = r n^p - d n`.
+        """
         return System(
             self.label,
             elements=[PopulationElement('tumour', n=self.n)],
@@ -522,7 +544,9 @@ class VonBertalanffySystem(BaseSystem):
 
 
 class GeneralizedLogisticSystem(BaseSystem):
-    """A tumour that saturates at a carrying capacity, `dn/dt = r n (1 - (n / K)^p)`, logistic for `p = 1`.
+    """A tumour that saturates at a carrying capacity.
+
+    The growth is `dn/dt = r n (1 - (n / K)^p)`, logistic for `p = 1`.
 
     The volume follows `n0 K / (n0^p + (K^p - n0^p) exp(-r p t))^(1/p)`. The defaults are the logistic fit to breast
     cancer volumes in mm³ and days. The system has the volume `tumour.n`.
@@ -580,7 +604,9 @@ class GeneralizedLogisticSystem(BaseSystem):
 
 
 class GompertzSystem(BaseSystem):
-    """A tumour whose growth slows as the logarithm of the room left, `dn/dt = r n log(K / n)`.
+    """A tumour whose growth slows as the logarithm of the room left.
+
+    The growth is `dn/dt = r n log(K / n)`.
 
     The volume follows `K exp(log(n0 / K) exp(-r t))` and tends to `K`. The rate is the fitted decay of the
     proliferation of breast cancer, per day, and the capacity is in mm³. The system has the volume `tumour.n`.
@@ -624,7 +650,10 @@ class GompertzSystem(BaseSystem):
         self.K = K
 
     def _build_system(self) -> System:
-        """Return the parts of a tumour whose growth slows as the logarithm of the room left."""
+        """Return the parts of a tumour whose growth slows as the room left shrinks.
+
+        The growth slows as the logarithm of the room left.
+        """
         return System(
             self.label,
             elements=[PopulationElement('tumour', n=self.n)],
@@ -633,7 +662,9 @@ class GompertzSystem(BaseSystem):
 
 
 class DynamicCarryingCapacitySystem(BaseSystem):
-    """Gompertz growth under a carrying capacity that the vessels on the tumour surface keep raising.
+    """Gompertz growth under a carrying capacity that keeps rising.
+
+    The vessels on the tumour surface keep raising the capacity.
 
     The tumour follows `dn/dt = r n log(K / n)` and the capacity `dK/dt = d n^(2/3)`, so the tumour first fills its
     initial capacity and then grows as fast as its vasculature, roughly as `t^3`. The defaults are the fit to breast
@@ -694,7 +725,9 @@ class DynamicCarryingCapacitySystem(BaseSystem):
 
 
 class SkipperLogKillSystem(BaseSystem):
-    """The log-kill system, an exponentially growing tumour of which every dose kills a fixed fraction.
+    """The log-kill system of an exponentially growing tumour.
+
+    Every dose kills a fixed fraction of the tumour.
 
     The tumour follows `dn/dt = r n - a n U(t)`, where the exposure `U` is `dose` for `width` days every `period` days.
     Every dose lowers `log n` by `a dose width`, whatever the size, and the tumour regrows between doses. The growth
@@ -773,7 +806,9 @@ class SkipperLogKillSystem(BaseSystem):
 
 
 class NortonSimonSystem(BaseSystem):
-    """The Norton-Simon system, a Gompertzian tumour killed in proportion to its size by a dose schedule.
+    """The Norton-Simon system of a Gompertzian tumour under a dose schedule.
+
+    The schedule kills the tumour in proportion to its size.
 
     The tumour follows `dn/dt = r n log(K / n) - a n U(t)`. A Gompertzian tumour regrows faster the smaller it is, so a
     dose that shrinks it is followed by fast regrowth, and the schedule settles on a cycle below the capacity. The

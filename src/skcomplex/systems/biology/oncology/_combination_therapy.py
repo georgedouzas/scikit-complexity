@@ -1,4 +1,7 @@
-"""Oncology systems: chemotherapy combined with immunotherapy, viruses, antibodies, and antiangiogenic drugs."""
+"""Chemotherapy combined with other therapies.
+
+The other therapies are immunotherapy, viruses, antibodies, and antiangiogenic drugs.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -26,7 +29,9 @@ BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
 
 class AngiogenesisImmunotherapyTumourElement(Element):
-    """Tumour with its vasculature and effector cells under bevacizumab and atezolizumab, with resistance.
+    """Tumour, vasculature, and effector cells under bevacizumab and atezolizumab.
+
+    The tumour develops resistance.
 
     The tumour `A` grows by the Hahnfeldt law toward its vascular capacity `Vb` and effector cells `E` kill it. The
     capacity is stimulated and inhibited by the tumour and destroyed by the antiangiogenic effect `UAn`, and the
@@ -261,7 +266,9 @@ class AngiogenesisImmunotherapyTumourElement(Element):
 
 
 class ChemoimmunotherapyTumourElement(Element):
-    """Tumour with NK cells, CD8 T cells, and circulating lymphocytes under chemotherapy, IL-2, and TIL injection.
+    """Tumour with NK cells, CD8 T cells, and circulating lymphocytes under therapy.
+
+    The therapy is chemotherapy, IL-2, and TIL injection.
 
     The tumour `A` grows logistically and NK cells `N` and CD8 T cells `E` kill it. CD8 T cells kill at the rate
     `D = a1 (E / A)^l / (g1 + (E / A)^l)`. The circulating lymphocytes `C` feed the NK cells. The chemotherapy `M`
@@ -500,7 +507,9 @@ class ChemoimmunotherapyTumourElement(Element):
 
 
 class ChemovirotherapyTumourElement(Element):
-    """Uninfected and infected tumour cells, an oncolytic virus, and a chemotherapeutic drug.
+    """Uninfected and infected tumour cells, an oncolytic virus, and a drug.
+
+    The drug is chemotherapeutic.
 
     The uninfected cells `AU` grow logistically, the virus `V` infects them, and infected cells `AV` burst at the rate
     `a2`, releasing `beta_v` virions each. The drug `U` kills both kinds of cells and is infused at the rate `u1`,
@@ -624,7 +633,9 @@ class ChemovirotherapyTumourElement(Element):
 
 
 class ClonalTumourElement(Element):
-    """Two competing tumour clones and an immune response under chemotherapy and a dendritic-cell vaccine.
+    """Two competing tumour clones and an immune response under therapy.
+
+    The therapy is chemotherapy and a dendritic-cell vaccine.
 
     Each clone grows logistically, competes with the other clone and with the immune cells `E`, and dies at the
     chemotherapy rate `u_chemo1` or `u_chemo2` and at the rate `b UIm E` of the vaccine-recruited immune cells. The
@@ -899,7 +910,9 @@ class GliomaBrainElement(Element):
 
 
 class Her2TumourElement(Element):
-    """HER2+ breast cancer cells under trastuzumab and paclitaxel, with antibody binding and drug uptake.
+    """HER2+ breast cancer cells under trastuzumab and paclitaxel.
+
+    The model includes antibody binding and drug uptake.
 
     The tumour grows logistically, `dA/dt = r (1 - DIm) (1 - A / (kc - DCh)) A`. The bound antibody `Ab` lowers the
     proliferation by `DIm = a1 Ab` from the time `t_a` on, and the internalized paclitaxel `Pin` lowers the carrying
@@ -1018,7 +1031,7 @@ class Her2TumourElement(Element):
         self.t_p = t_p
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the growth of the tumour, the binding of the antibody, and the uptake of paclitaxel.
+        """Return the tumour growth, the antibody binding, and the paclitaxel uptake.
 
         Args:
             s:
@@ -1042,7 +1055,10 @@ class Her2TumourElement(Element):
 
 
 def _toxicity(concentration: Expression, scale: Expression) -> Expression:
-    """Return a toxicity linear in a low concentration and exponential in a high one, `exp(c / scale) - 1`."""
+    """Return a toxicity linear in a low concentration and exponential in a high one.
+
+    The toxicity is `exp(c / scale) - 1`.
+    """
     return exp(concentration / scale) - 1
 
 
@@ -1053,7 +1069,9 @@ def _total_toxicity(s: SimpleNamespace) -> Expression:
 
 
 class ChemoimmunotherapySystem(BaseSystem):
-    """A tumour with NK cells, CD8 T cells, and lymphocytes under chemotherapy, IL-2, and TIL injection.
+    """A tumour with NK cells, CD8 T cells, and lymphocytes under therapy.
+
+    The therapy is chemotherapy, IL-2, and TIL injection.
 
     The tumour, implanted in a mouse, grows toward a high equilibrium that the immune cells cannot hold back. The doses
     of chemotherapy shrink it, and the injected tumour-infiltrating lymphocytes clear what the drug leaves. The
@@ -1143,7 +1161,10 @@ class ChemoimmunotherapySystem(BaseSystem):
 
     @staticmethod
     def _effector_kill(target: SimpleNamespace) -> Expression:
-        """Return the ratio-dependent kill rate `D = a1 (E^l) / (g1 A^l + E^l)` of tumour cells by effector cells."""
+        """Return the ratio-dependent kill rate of tumour cells by effector cells.
+
+        The rate is `D = a1 (E^l) / (g1 A^l + E^l)`.
+        """
         ratio = abs(target.E) ** target.l
         kill: Expression = target.a1 * ratio / (target.g1 * abs(target.A) ** target.l + ratio)
         return kill
@@ -1325,7 +1346,9 @@ class ChemoimmunotherapySystem(BaseSystem):
 
 
 class ClonalChemoimmunotherapySystem(BaseSystem):
-    """Two competing tumour clones, sensitive and resistant to chemotherapy, under a drug and a vaccine.
+    """Two competing tumour clones under a drug and a vaccine.
+
+    One clone is sensitive and the other resistant to chemotherapy.
 
     The chemotherapy kills the sensitive first clone ten times faster than the resistant second clone. Alone, it removes
     the sensitive clone and frees the resistant clone from competition, so the tumour relapses resistant. With the
@@ -1494,7 +1517,9 @@ class ClonalChemoimmunotherapySystem(BaseSystem):
 
 
 class ChemovirotherapySystem(BaseSystem):
-    """Uninfected and infected tumour cells, an oncolytic virus, and a chemotherapeutic drug.
+    """Uninfected and infected tumour cells, an oncolytic virus, and a drug.
+
+    The drug is chemotherapeutic.
 
     The virus infects the growing tumour, and the drug kills both uninfected and infected cells. Over the default run of
     64 days, before the virus bursts through the tumour, the combination leaves the smallest tumour. Later the virus
@@ -1552,13 +1577,19 @@ class ChemovirotherapySystem(BaseSystem):
 
     @staticmethod
     def _infusion_shape(s: SimpleNamespace, infusion: str) -> Expression:
-        """Return the shape in time of a constant, exponentially decaying, or periodic infusion."""
+        """Return the shape in time of an infusion.
+
+        The infusion is constant, exponentially decaying, or periodic.
+        """
         shapes = {'constant': 1, 'exponential': exp(-s.target.d_u * s.t), 'periodic': sin(s.target.d_u * s.t) ** 2}
         shape: Expression = shapes[infusion]
         return shape
 
     def _build_system(self) -> System:
-        """Return the parts of Uninfected and infected tumour cells, an oncolytic virus, and a chemotherapeutic drug."""
+        """Return the parts of tumour cells, an oncolytic virus, and a drug.
+
+        The tumour cells are uninfected and infected, and the drug is chemotherapeutic.
+        """
         tumour = ChemovirotherapyTumourElement(
             'tumour',
             AU=self.AU,
@@ -1630,7 +1661,9 @@ class ChemovirotherapySystem(BaseSystem):
 
 
 class GliomaChemovirotherapySystem(BaseSystem):
-    """Glia, neurons, and a glioma under a constant temozolomide infusion and an oncolytic virus.
+    """Glia, neurons, and a glioma under temozolomide and an oncolytic virus.
+
+    The temozolomide infusion is constant.
 
     Untreated, the glioma grows and crowds out the glia, and the neurons die with the glia. The virus or the drug clears
     the glioma, and the neurons survive. The drug also kills some neurons. The book gives no initial virus or drug, so
@@ -1787,7 +1820,9 @@ class GliomaChemovirotherapySystem(BaseSystem):
 
 
 class HER2TargetedTherapySystem(BaseSystem):
-    """HER2+ breast cancer cells under trastuzumab and paclitaxel, with antibody binding and drug uptake.
+    """HER2+ breast cancer cells under trastuzumab and paclitaxel.
+
+    The model includes antibody binding and drug uptake.
 
     The free antibody and the free paclitaxel are drivers held at their levels from their doses on. The antibody binds
     the receptors, which are in excess, so the bound antibody rises to the free antibody, and from the time `t_a` on it
@@ -1872,7 +1907,9 @@ class HER2TargetedTherapySystem(BaseSystem):
 
 
 class AngiogenesisImmunotherapySystem(BaseSystem):
-    """The Hahnfeldt tumour with effector cells under bevacizumab and atezolizumab every three weeks.
+    """The Hahnfeldt tumour with effector cells under bevacizumab and atezolizumab.
+
+    The drugs are given every three weeks.
 
     Each drug alone holds the tumour or slows it, and together they shrink it. The drug amounts follow the
     two-compartment system whose bolus solution is the book's closed form, with the elimination rate `k10 = alpha beta /
@@ -1955,14 +1992,20 @@ class AngiogenesisImmunotherapySystem(BaseSystem):
 
     @staticmethod
     def _elimination(target: SimpleNamespace, drug: str) -> Expression:
-        """Return the elimination rate `k10 = alpha beta / k21` of a drug from its central compartment."""
+        """Return the elimination rate `k10 = alpha beta / k21` of a drug.
+
+        The drug is eliminated from its central compartment.
+        """
         alpha, beta, k21 = (getattr(target, f'{name}_{drug}') for name in ('alpha', 'beta', 'k21'))
         elimination: Expression = alpha * beta / k21
         return elimination
 
     @staticmethod
     def _drug_effect(target: SimpleNamespace, drug: str) -> Expression:
-        """Return the Emax effect of a drug, whose half-effect concentration the resistance shifts."""
+        """Return the Emax effect of a drug.
+
+        The resistance shifts its half-effect concentration.
+        """
         c, R, u50 = (getattr(target, f'{name}_{drug}') for name in ('c', 'R', 'u50'))
         effect: Expression = c**target.g / (((1 + target.delta_r * R) * u50) ** target.g + c**target.g)
         return effect

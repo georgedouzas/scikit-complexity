@@ -1,4 +1,7 @@
-"""Oncology systems: tumour, immune, and normal cells under chemotherapy, with resistance, delays, and metastasis."""
+"""Tumour, immune, and normal cells under chemotherapy.
+
+The systems cover resistance, delays, and metastasis.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -37,7 +40,9 @@ RESISTANCE_CLASSES = {
 
 
 class MetastasisChemotherapyElement(Element):
-    """Normal and tumour cells at a primary and a secondary site, each with its drug, and a delayed migration.
+    """Normal and tumour cells at a primary and a secondary site.
+
+    Each site has its drug, and the migration between them is delayed.
 
     At each site the normal and tumour cells grow logistically, compete, and a drug kills them with a saturating
     response, `a N U / (bc + N)`. The drug at a site follows `dU/dt = u - (k + g1 N / (bc + N) + g2 A / (bc + A)) U`.
@@ -236,7 +241,9 @@ class MetastasisChemotherapyElement(Element):
 
 
 class MultidrugResistanceElement(Element):
-    """Tumour cells split by their resistance to three drugs, each given by a constant infusion with its toxicity.
+    """Tumour cells split by their resistance to three drugs.
+
+    Each drug is given by a constant infusion with its toxicity.
 
     The sensitive cells `S`, the cells resistant to one drug `R1`, `R2`, `R3`, to two drugs `R12`, `R13`, `R23`, and
     to all three `R123` grow at the same rate `r`. A fraction `m_i` of the offspring of a population gains resistance
@@ -425,7 +432,9 @@ class MultidrugResistanceElement(Element):
 
 
 class ResistanceSwitchingElement(Element):
-    """Sensitive cells and cells resistant by mutation or by a reversible phenotype switch, under a constant dose.
+    """Sensitive cells and cells resistant by mutation or by a phenotype switch.
+
+    The switch is reversible, and the dose is constant.
 
     With the total `V = S + Rm + Rp`, the sensitive cells follow
     `dS/dt = r1 (1 - b V) S - (m1 + m2) S - (alpha_m + alpha_p) u S - a u S + m5 Rp`, the mutated cells
@@ -538,7 +547,9 @@ class ResistanceSwitchingElement(Element):
         self.u = u
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the growth, transitions, and kill of the sensitive, mutated, and switched cells.
+        """Return the growth, transitions, and kill of the cells.
+
+        The cells are sensitive, mutated, and switched.
 
         Args:
             s:
@@ -561,7 +572,9 @@ class ResistanceSwitchingElement(Element):
 
 
 class RestingHuntingChemotherapyElement(Element):
-    """Hunting immune cells recruited from resting cells after a delay, a tumour, and a drug that kills all three.
+    """Hunting immune cells recruited from resting cells after a delay, and a tumour.
+
+    A drug kills all three.
 
     The hunting cells follow `dE/dt = m1 E Q(t - tau) - d1 E - c1 A E - a E / (bd + E) U`, the resting cells
     `dQ/dt = r1 Q (1 - b1 Q) - m1 E Q(t - tau) - a Q / (bd + Q) U`, the tumour
@@ -685,7 +698,9 @@ class RestingHuntingChemotherapyElement(Element):
 
 
 class DePillisRadunskayaSystem(BaseSystem):
-    """The de Pillis-Radunskaya system of immune, tumour, and normal cells under a constant drug infusion.
+    """The de Pillis-Radunskaya system of immune, tumour, and normal cells.
+
+    The cells are under a constant drug infusion.
 
     The cells are normalised so that the carrying capacity of normal cells is 1, and time is in days. Untreated, a
     tumour that starts at 0.25 escapes the immune cells and settles at the high equilibrium where it outnumbers the
@@ -774,7 +789,9 @@ class DePillisRadunskayaSystem(BaseSystem):
 
 
 class MultidrugResistanceSystem(BaseSystem):
-    """A tumour of eight populations resistant to subsets of three drugs, given by constant infusions.
+    """A tumour of eight populations resistant to subsets of three drugs.
+
+    The drugs are given by constant infusions.
 
     Each drug kills the populations sensitive to it once its concentration exceeds a threshold, so the drugs clear the
     sensitive cells while the cells resistant to all three keep growing. Time is in days, the cells are counted, and the
@@ -834,7 +851,10 @@ class MultidrugResistanceSystem(BaseSystem):
         self.u3 = u3
 
     def _build_system(self) -> System:
-        """Return the parts of a tumour of eight populations resistant to subsets of three drugs."""
+        """Return the parts of a tumour of eight populations resistant to three drugs.
+
+        The populations are resistant to subsets of the drugs.
+        """
         tumour = MultidrugResistanceElement('tumour', S=self.S, r=self.r, u1=self.u1, u2=self.u2, u3=self.u3)
 
         def growth(name: str) -> RateInteraction:
@@ -847,7 +867,10 @@ class MultidrugResistanceSystem(BaseSystem):
             )
 
         def mutation(name: str, drug: int, mutant: str) -> ReactionInteraction:
-            """Return the offspring of a resistance class that gain the resistance to one more drug."""
+            """Return the offspring of a resistance class that gain one more resistance.
+
+            The resistance gained is to one more drug.
+            """
             return ReactionInteraction(
                 f'mutation_{name}_{drug}',
                 target='tumour',
@@ -857,7 +880,10 @@ class MultidrugResistanceSystem(BaseSystem):
             )
 
         def kill(name: str, drug: int) -> ReactionInteraction:
-            """Return the kill of a resistance class by a drug it is sensitive to, above the threshold."""
+            """Return the kill of a resistance class by a drug it is sensitive to.
+
+            The drug kills above the threshold.
+            """
             return ReactionInteraction(
                 f'kill_{name}_{drug}',
                 target='tumour',
@@ -869,7 +895,10 @@ class MultidrugResistanceSystem(BaseSystem):
             )
 
         def pharmacokinetics(drug: int) -> list[BaseInteraction]:
-            """Return the infusion and clearance of a drug, and the build-up and recovery of its toxicity."""
+            """Return the infusion and clearance of a drug, and its toxicity.
+
+            The toxicity builds up and recovers.
+            """
             return [
                 DosingInteraction(
                     f'infusion_{drug}',
@@ -914,7 +943,9 @@ class MultidrugResistanceSystem(BaseSystem):
 
 
 class DrugResistanceSwitchingSystem(BaseSystem):
-    """Sensitive cells and cells resistant by mutation or by a reversible phenotype switch under a dose.
+    """Sensitive cells and cells resistant by mutation or by a phenotype switch.
+
+    The switch is reversible, and the cells are under a dose.
 
     The drug kills the sensitive cells, so the resistant cells, which grow slower, take the tumour over. Resistance is
     acquired spontaneously at the rates `m1` and `m2` and induced by the drug at the rates `alpha_m` and `alpha_p` per
@@ -1010,7 +1041,9 @@ class DrugResistanceSwitchingSystem(BaseSystem):
 
 
 class DelayedRestingHuntingChemotherapySystem(BaseSystem):
-    """The tumour-immune system of resting and hunting cells with a conversion delay, under a drug infusion.
+    """The tumour-immune system of resting and hunting cells with a conversion delay.
+
+    The system is under a drug infusion.
 
     Resting immune cells become hunting cells after the delay `tau`, and hunting cells kill the tumour. Time and the
     cells are dimensionless. The parameters and initial conditions are those of Table 3.6 of Padmanabhan et al., and the
@@ -1071,7 +1104,10 @@ class DelayedRestingHuntingChemotherapySystem(BaseSystem):
         self.a = a
 
     def _build_system(self) -> System:
-        """Return the parts of the tumour-immune system of resting and hunting cells with a conversion delay."""
+        """Return the parts of the tumour-immune system of resting and hunting cells.
+
+        The conversion of the cells is delayed.
+        """
         patient = RestingHuntingChemotherapyElement(
             'patient',
             E=self.E,
@@ -1159,7 +1195,9 @@ class DelayedRestingHuntingChemotherapySystem(BaseSystem):
 
 
 class DelayedMetastasisSystem(BaseSystem):
-    """Normal and tumour cells at a primary and a secondary site, with a delayed migration of tumour cells.
+    """Normal and tumour cells at a primary and a secondary site.
+
+    The migration of tumour cells is delayed.
 
     Untreated, the faster tumour cells outcompete the normal cells at the primary site, and the cells that migrate seed
     a tumour that does the same at the secondary site. The parameters are those of Table 3.7 of Padmanabhan et al., with
@@ -1241,7 +1279,7 @@ class DelayedMetastasisSystem(BaseSystem):
         )
 
         def population(cells: str, other: str, drug: str, index: int, uptake: str) -> list[BaseInteraction]:
-            """Return the growth, the competition, the drug kill, and the drug uptake of the cells of a site."""
+            """Return the growth, competition, and drug kill and uptake of the cells of a site."""
             return [
                 RateInteraction(
                     f'growth_{cells}',

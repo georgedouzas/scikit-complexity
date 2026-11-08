@@ -1,4 +1,7 @@
-"""Oncology: tumour growth, the vessels that feed it, and the therapies that treat it."""
+"""Oncology systems.
+
+They cover tumour growth, the vessels that feed it, and the therapies that treat it.
+"""
 
 from ._angiogenesis import SproutElement, TissueElement, TumourAngiogenesisSystem, TumourCellElement, VesselElement
 from ._antiangiogenic import (

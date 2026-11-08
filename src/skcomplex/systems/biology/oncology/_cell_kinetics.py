@@ -1,4 +1,4 @@
-"""Oncology systems: cell-cycle compartments and red-cell production under chemotherapy."""
+"""Cell-cycle compartments and red-cell production under chemotherapy."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,7 +19,9 @@ BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
 
 class CellCycleElement(Element):
-    """Tumour cells in three phases of the cell cycle under a killing and a blocking agent.
+    """Tumour cells in three phases of the cell cycle.
+
+    The cells are under a killing and a blocking agent.
 
     The compartments hold the cells in G0 and G1 `A1`, in S `A2`, and in G2 and M `A3`, and follow
     `dA1/dt = -l1 A1 + 2 (1 - u1) l3 A3`, `dA2/dt = l1 A1 - (1 - u2) l2 A2`, and `dA3/dt = (1 - u2) l2 A2 - l3 A3`.
@@ -92,7 +94,9 @@ class CellCycleElement(Element):
 
 
 class DormantCellCycleElement(Element):
-    """Tumour cells in a dormant phase and two cycling phases under a killing and a recruiting agent.
+    """Tumour cells in a dormant phase and two cycling phases.
+
+    The cells are under a killing and a recruiting agent.
 
     The compartments hold the dormant cells in G0 `A0`, the cells in G1 and S `A1`, and the cells in G2 and M `A2`.
     A fraction `b0` of the daughters enters G0 and `b1` enters G1, so `dA0/dt = -l0 (1 + v) A0 + 2 b0 (1 - u) l2 A2`,
@@ -175,7 +179,9 @@ class DormantCellCycleElement(Element):
 
 
 class ErythropoiesisElement(Element):
-    """Quiescent, proliferating, and mature red cells and their mean volume under a constant 6-mercaptopurine level.
+    """Quiescent, proliferating, and mature red cells and their mean volume.
+
+    The cells are under a constant 6-mercaptopurine level.
 
     The drug sets the death rate of proliferating cells `a1 = a0 U` and the cell-cycle time
     `tau = (g1 U + MCV0) tau_h / MCV_h`. Quiescent cells enter the cycle at the rate
@@ -292,7 +298,9 @@ class ErythropoiesisElement(Element):
 
 
 class CellCycleChemotherapySystem(BaseSystem):
-    """Tumour cells in cell-cycle compartments under killing, blocking, and recruiting agents.
+    """Tumour cells in cell-cycle compartments under chemotherapy agents.
+
+    The agents kill, block, and recruit.
 
     Without a dormant phase the cells cycle through G0 and G1, S, and G2 and M, a killing agent kills a fraction `u1` of
     the dividing cells, and a blocking agent slows the transit through S by `u2`. With a dormant phase the cells rest in
@@ -427,7 +435,9 @@ class CellCycleChemotherapySystem(BaseSystem):
 
 
 class ErythropoiesisMercaptopurineSystem(BaseSystem):
-    """The production of red cells under a constant level of 6-mercaptopurine, starting from health.
+    """The production of red cells under a constant level of 6-mercaptopurine.
+
+    The production starts from health.
 
     The drug kills proliferating cells and lengthens their cycle, so fewer quiescent cells survive to mature, the mature
     red cells fall, and their mean volume rises to `MCV0 + g1 U`. The cells are in 10^12 per kg, the volume in fL, the
@@ -494,7 +504,10 @@ class ErythropoiesisMercaptopurineSystem(BaseSystem):
         self.n = n
 
     def _build_system(self) -> System:
-        """Return the parts of the production of red cells under a constant level of 6-mercaptopurine."""
+        """Return the parts of the production of red cells under 6-mercaptopurine.
+
+        The level of the drug is constant.
+        """
         Q = self.Q50 * (self.m0 / self.r1 - 1) ** (1 / self.n)
         patient = ErythropoiesisElement(
             'patient',

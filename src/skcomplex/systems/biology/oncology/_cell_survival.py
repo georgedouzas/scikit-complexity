@@ -19,7 +19,9 @@ from ....core.specs import ParameterSpec, StateSpec
 
 
 class LinearQuadraticSurvivalElement(Element):
-    """Surviving fraction of cells, Lea-Catcheside factor, and biologically effective dose of a total dose.
+    """Surviving fraction, Lea-Catcheside factor, and effective dose of cells.
+
+    The effective dose is the biologically effective dose of a total dose.
 
     The survival is `S = exp(-alpha D - beta G D^2)`, where `D` is the total dose. The Lea-Catcheside factor of `n`
     fractions, each delivered at a constant rate in a time `T` with repair at the rate `mu`, far enough apart to repair
@@ -91,7 +93,9 @@ class LinearQuadraticSurvivalElement(Element):
         self.delivery_time = delivery_time
 
     def _get_laws(self, s: SimpleNamespace) -> Sequence[BasePart]:
-        """Return the equations of the Lea-Catcheside factor, the survival, and the biologically effective dose.
+        """Return the equations of the Lea-Catcheside factor, the survival, and the dose.
+
+        The dose is the biologically effective dose.
 
         Args:
             s:
@@ -117,7 +121,9 @@ class LinearQuadraticSurvivalElement(Element):
 
 
 class LQCellSurvivalSystem(BaseSystem):
-    """The linear-quadratic survival of cells after a total dose, with its biologically effective dose.
+    """The linear-quadratic survival of cells after a total dose.
+
+    It comes with its biologically effective dose.
 
     The survival is `exp(-alpha D - beta G D^2)` (Padmanabhan et al. 2021 Eqs. 6.6-6.8), and the Lea-Catcheside factor
     `G` holds the repair between and during fractions. A `sweep` of the dose gives the survival

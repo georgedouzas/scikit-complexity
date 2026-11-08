@@ -42,7 +42,9 @@ PATIENT_FACTORS = {
 
 
 class AndrogenReceptorProstateElement(Element):
-    """Normal epithelium and prostate cancer cells driven by activated androgen receptors, with tissue and serum PSA.
+    """Normal epithelium and prostate cancer cells with tissue and serum PSA.
+
+    The cells are driven by activated androgen receptors.
 
     The normal cells follow `dN/dt = r1 N (1 - (N + c1 (AD + AI)) / b1) - d1 N`, the dependent cells
     `dAD/dt = r2 AD (1 - m1)(1 - L) - d2 AD`, and the independent cells `dAI/dt = r3 AI (1 - (c1 N + AD + AI) / b3)
@@ -270,7 +272,9 @@ class AndrogenReceptorProstateElement(Element):
 
 
 class AndrogenSuppressionElement(Element):
-    """Androgen-dependent and androgen-independent prostate cancer cells under continuous androgen suppression.
+    """Androgen-dependent and androgen-independent prostate cancer cells.
+
+    The cells are under continuous androgen suppression.
 
     The dependent cells follow `dAD/dt = r1 U (1 - b (AD + c1 AI)) AD - (d1 + m1)(1 - U / U0) AD`, the independent
     cells `dAI/dt = r2 (1 - b (AI + c2 AD)) AI + m1 (1 - U / U0) AD`, and the serum androgen
@@ -367,7 +371,9 @@ class AndrogenSuppressionElement(Element):
 
 
 class CellQuotaProstateElement(Element):
-    """Prostate cancer cells whose growth and mutation follow their androgen cell quota, with the PSA they release.
+    """Prostate cancer cells that follow their androgen cell quota.
+
+    The growth and the mutation of the cells follow the quota, and the cells release PSA.
 
     The cells grow at the Droop rate `rm (1 - q_i / Q_i)`, die at `d_i`, and switch from dependent to independent at
     `mx1 m501^n / (Q1^n + m501^n)` and back at `mx2 Q2^n / (Q2^n + m502^n)`. The quotas follow
@@ -562,7 +568,9 @@ class CellQuotaProstateElement(Element):
 
 
 class IntermittentSuppressionElement(Element):
-    """Prostate cancer cells under androgen suppression that PSA thresholds switch on and off.
+    """Prostate cancer cells under androgen suppression switched by PSA.
+
+    PSA thresholds switch the suppression on and off.
 
     The dependent cells follow `dAD/dt = r1 (k1 + (1 - k1) U / (U + k2)) AD - d1 (k3 + (1 - k3) U / (U + k4)) AD
     - m1 (1 - U / U0) AD`, the independent cells `dAI/dt = m1 (1 - U / U0) AD + r2 (1 - U / U0) AI - d2 AI`, and
@@ -680,7 +688,9 @@ class IntermittentSuppressionElement(Element):
 
 
 class PiecewiseLinearProstateElement(Element):
-    """Androgen-dependent, reversibly and irreversibly independent prostate cancer cells under intermittent therapy.
+    """Prostate cancer cells under intermittent therapy.
+
+    The cells are androgen-dependent, reversibly independent, or irreversibly independent.
 
     During therapy, `u = 1`, the cells follow `dAD/dt = w11_on AD`, `dAIR/dt = w21_on AD + w22_on AIR`, and
     `dAII/dt = w31_on AD + w32_on AIR + w33_on AII`. Off therapy they follow `dAD/dt = w11_off AD + w12_off AIR`,
@@ -796,7 +806,9 @@ class PiecewiseLinearProstateElement(Element):
         self.x3 = x3
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the linear growth and transitions of each mode and the switching of the therapy.
+        """Return the linear growth and transitions of each mode.
+
+        The switching of the therapy comes with them.
 
         Args:
             s:
@@ -815,7 +827,9 @@ class PiecewiseLinearProstateElement(Element):
 
 
 class TamoxifenTumourElement(Element):
-    """Breast tumour in three Gompertzian cell-cycle phases under tamoxifen, its metabolite, and the lymphocytes.
+    """Breast tumour in three Gompertzian cell-cycle phases under tamoxifen.
+
+    The model includes the metabolite of tamoxifen and the lymphocytes.
 
     The phases follow `dAg/dt = -mg Ag L + 2 mm Am L - a1 Ag (UX + delta1 UH)`, `dAs/dt = -ms As + mg Ag L`, and
     `dAm/dt = -mm Am L + ms As`, with `L = log(Asat / (Ag + As + Am))`. Tamoxifen passes from the gut `X0` through
@@ -975,7 +989,9 @@ class TamoxifenTumourElement(Element):
 
 
 class TherapySwitchInteraction(CrossingInteraction):
-    """Switch that sets the therapy state of a tumour to a value when a signal crosses a threshold in a direction.
+    """Switch of the therapy state of a tumour when a signal crosses a threshold.
+
+    The switch sets the state to a value when the signal crosses in a direction.
 
     A pair of switches, one that sets the therapy to 1 when the signal rises through a high threshold and one that
     sets it to 0 when the signal falls through a low one, is the relay with hysteresis of intermittent therapy. Every
@@ -1047,7 +1063,10 @@ class TherapySwitchInteraction(CrossingInteraction):
 
 
 def _get_switches(signal: Callable[[SimpleNamespace], object], h0: float, h1: float) -> list[BaseInteraction]:
-    """Return the relay with hysteresis that starts the therapy above `h1` and stops it below `h0` of a signal."""
+    """Return the relay with hysteresis of a signal that starts and stops the therapy.
+
+    The relay starts the therapy above `h1` and stops it below `h0`.
+    """
     return [
         TherapySwitchInteraction('on', target='tumour', signal=signal, threshold=h1, value=1.0, direction=1),
         TherapySwitchInteraction('off', target='tumour', signal=signal, threshold=h0, value=0.0, direction=-1),
@@ -1055,7 +1074,9 @@ def _get_switches(signal: Callable[[SimpleNamespace], object], h0: float, h1: fl
 
 
 class ContinuousAndrogenSuppressionSystem(BaseSystem):
-    """Prostate cancer under continuous androgen suppression, which androgen-independent cells survive.
+    """Prostate cancer under continuous androgen suppression.
+
+    Androgen-independent cells survive the suppression.
 
     The suppression lowers the serum androgen from `U0` to `U0 (1 - a)` at the rate `du`. The androgen-dependent cells
     grow in proportion to the androgen and die and turn independent in proportion to the deprivation `1 - U / U0`, so
@@ -1216,7 +1237,9 @@ class ContinuousAndrogenSuppressionSystem(BaseSystem):
 
 
 class IdetaIntermittentAndrogenSystem(BaseSystem):
-    """The Ideta system of intermittent androgen suppression, switched on and off by PSA thresholds.
+    """The Ideta system of intermittent androgen suppression.
+
+    PSA thresholds switch the suppression on and off.
 
     The therapy starts when the serum PSA, the number of cancer cells, rises through `h1` and stops when it falls
     through `h0`. The androgen follows with the delay `1 / du`, so the dependent cells shrink during therapy and regrow
@@ -1397,7 +1420,9 @@ class IdetaIntermittentAndrogenSystem(BaseSystem):
 
 
 class ProstateCellQuotaSystem(BaseSystem):
-    """The Portz cell-quota system of prostate cancer, whose cells grow on their internal androgen.
+    """The Portz cell-quota system of prostate cancer.
+
+    The cells grow on their internal androgen.
 
     The androgen-dependent and independent cells grow at the Droop rate `rm (1 - q_i / Q_i)` of their cell quotas, which
     take up serum androgen, and the PSA they release follows the quotas. A deprived dependent cell turns independent
@@ -1519,7 +1544,10 @@ class ProstateCellQuotaSystem(BaseSystem):
 
     @staticmethod
     def _quota_uptake(target: SimpleNamespace, Q: Expression, q: Expression) -> Expression:
-        """Return the uptake of androgen into a quota, which slows as the quota fills."""
+        """Return the uptake of androgen into a quota.
+
+        The uptake slows as the quota fills.
+        """
         uptake: Expression = target.vm * (target.qm - Q) / (target.qm - q) * target.U / (target.U + target.v50)
         return uptake
 
@@ -1656,7 +1684,9 @@ class ProstateCellQuotaSystem(BaseSystem):
 
 
 class ProstateAndrogenReceptorSystem(BaseSystem):
-    """The Jain system of prostate epithelium and cancer driven by activated androgen receptors, with PSA.
+    """The Jain system of prostate epithelium and cancer, with PSA.
+
+    The cells are driven by activated androgen receptors.
 
     The growth and death rates of the normal, androgen-dependent, and androgen-independent cells follow the receptors
     activated by testosterone, `UT`, and dihydrotestosterone, `UD`, which are parameters, so androgen ablation is a
@@ -1731,14 +1761,20 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
 
     @staticmethod
     def _prostate_volume(target: SimpleNamespace, t: Expression) -> Expression:
-        """Return the prostate volume in cm³ at the age of the patient, `v1 a^phi / (v2^phi + a^phi) + v3`."""
+        """Return the prostate volume in cm³ at the age of the patient.
+
+        The volume is `v1 a^phi / (v2^phi + a^phi) + v3`.
+        """
         age = target.age + t / 8760
         volume: Expression = target.v1 * age**target.phi / (target.v2**target.phi + age**target.phi) + target.v3
         return volume
 
     @staticmethod
     def _receptor_growth(target: SimpleNamespace, psi1: Expression, phi1: Expression) -> Expression:
-        """Return the growth rate that the receptors activated by DHT and testosterone drive."""
+        """Return the growth rate that the activated receptors drive.
+
+        The receptors are activated by DHT and testosterone.
+        """
         UD, UT = target.UD, target.UT
         growth: Expression = psi1 * UD**2 / (target.psi2**2 + UD**2) + phi1 * UT**2 / (target.phi2**2 + UT**2)
         return growth
@@ -1750,7 +1786,10 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
         return death
 
     def _dependent_division(self, target: SimpleNamespace) -> Expression:
-        """Return the division of androgen-dependent cells, crowded by the normal and the cancer cells."""
+        """Return the division of androgen-dependent cells.
+
+        The normal and the cancer cells crowd the division.
+        """
         crowding = (target.c1 * target.N + target.AD + target.AI) / target.b2
         division: Expression = self._receptor_growth(target, target.psi1_d, target.phi1_d) * target.AD * (1 - crowding)
         return division
@@ -1863,7 +1902,9 @@ class ProstateAndrogenReceptorSystem(BaseSystem):
 
 
 class PiecewiseLinearIASSystem(BaseSystem):
-    """The Hirata piecewise-linear system of intermittent androgen suppression for one of three patient types.
+    """The Hirata piecewise-linear system of intermittent androgen suppression.
+
+    The system holds for one of three patient types.
 
     The androgen-dependent, adapted, and mutated cells grow and change into each other linearly, with one set of rates
     during therapy and one off therapy, and the therapy switches on when the PSA, the sum of the cells, rises through
@@ -1951,7 +1992,9 @@ class PiecewiseLinearIASSystem(BaseSystem):
 
 
 class TamoxifenCellCycleSystem(BaseSystem):
-    """A breast tumour in Gompertzian cell-cycle phases under daily tamoxifen and its active metabolite.
+    """A breast tumour in Gompertzian cell-cycle phases under daily tamoxifen.
+
+    The active metabolite of tamoxifen also acts on the tumour.
 
     The cells pass from the growth phase through synthesis to mitosis and divide back into the growth phase, at rates
     that slow as the tumour approaches `Asat`. Tamoxifen is absorbed from the gut into the plasma, where it is
@@ -2017,7 +2060,10 @@ class TamoxifenCellCycleSystem(BaseSystem):
 
     @staticmethod
     def _room(target: SimpleNamespace) -> Expression:
-        """Return the Gompertz room `log(Asat / (Ag + As + Am))` that slows the passage through the cell cycle."""
+        """Return the Gompertz room `log(Asat / (Ag + As + Am))`.
+
+        The room slows the passage through the cell cycle.
+        """
         room: Expression = log(target.Asat / (target.Ag + target.As + target.Am))
         return room
 

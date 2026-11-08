@@ -1,4 +1,7 @@
-"""Oncology systems: a tumour that grows on oxygen and recruits blood vessels by secreting growth factor."""
+"""A tumour that grows on oxygen and recruits blood vessels.
+
+The tumour recruits the vessels by secreting growth factor.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -41,7 +44,9 @@ TISSUE = 'tissue/tissue'
 
 
 class TissueElement(Element):
-    """Tissue in which oxygen and the vascular endothelial growth factor VEGF diffuse and decay.
+    """Tissue in which oxygen and the growth factor VEGF diffuse and decay.
+
+    VEGF is the vascular endothelial growth factor.
 
     Both follow `u' = D Δu - lambda u`, and cells add or remove amounts at their sites: vessels supply oxygen, tumour
     cells consume it, and hypoxic tumour cells secrete VEGF. The system adds the diffusion and the decay as
@@ -111,7 +116,9 @@ class SproutView(AgentView):
 
 
 class SproutElement(Element):
-    """Endothelial tip cell that climbs the VEGF gradient and leaves a new vessel segment behind it.
+    """Endothelial tip cell that climbs the VEGF gradient.
+
+    It leaves a new vessel segment behind it.
 
     Every step the tip moves to a neighbouring cell with a probability that grows with `exp(chemotaxis * VEGF /
     VEGF_here)`, so it senses the relative gradient, and it leaves a vessel segment where there was none. With
@@ -178,7 +185,9 @@ class TumourCellView(AgentView):
 
 
 class TumourCellElement(Element):
-    """Tumour cell that consumes oxygen, divides when supplied, secretes VEGF when hypoxic, and dies without oxygen.
+    """Tumour cell that consumes oxygen and divides when supplied.
+
+    It secretes VEGF when hypoxic and dies without oxygen.
 
     Every step the cell takes up `consumption` oxygen at its site, or what is left. Above `proliferation` it divides
     with probability `division` into a free neighbouring cell. Below `hypoxia` it secretes `secretion` VEGF, and below
@@ -258,7 +267,9 @@ class VesselView(AgentView):
 
 
 class VesselElement(Element):
-    """Segment of a blood vessel, which supplies oxygen to its site every step, a member transfer of the system.
+    """Segment of a blood vessel that supplies oxygen to its site every step.
+
+    The supply is a member transfer of the system.
 
     Args:
         label:
@@ -294,7 +305,9 @@ class VesselElement(Element):
 
 
 class TumourAngiogenesisSystem(BaseSystem):
-    """A tumour that outgrows its oxygen supply and recruits new blood vessels from a parent vessel.
+    """A tumour that outgrows its oxygen supply and recruits new blood vessels.
+
+    The new vessels grow from a parent vessel.
 
     The scales are coupled: tumour cells and vessel tips are agents on a grid, and oxygen and VEGF are fields on a
     lattice of the same shape. The tumour starts far from the parent vessel along the left edge, so its cells become
@@ -381,7 +394,10 @@ class TumourAngiogenesisSystem(BaseSystem):
 
     @staticmethod
     def _get_uptake(cell: AgentViewProtocol, site: object, system: SystemViewProtocol) -> float:
-        """Return minus the oxygen a tumour cell takes up at its site, `consumption` or what is left."""
+        """Return minus the oxygen a tumour cell takes up at its site.
+
+        The uptake is `consumption` or what is left.
+        """
         if not isinstance(cell, TumourCellView):
             return 0.0
         return -min(cell.consumption, system.field('target.oxygen', site))
@@ -395,7 +411,10 @@ class TumourAngiogenesisSystem(BaseSystem):
 
     @staticmethod
     def _secretes(cell: AgentViewProtocol, site: object, system: SystemViewProtocol) -> bool:
-        """Return whether a living tumour cell is hypoxic, so it secretes VEGF."""
+        """Return whether a living tumour cell is hypoxic.
+
+        A hypoxic cell secretes VEGF.
+        """
         if not isinstance(cell, TumourCellView):
             return False
         return bool(cell.hypoxic) and system.field(OXYGEN, site) >= cell.necrosis
@@ -408,12 +427,18 @@ class TumourAngiogenesisSystem(BaseSystem):
 
     @staticmethod
     def _dies(cell: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-        """Return whether the oxygen at the site of a tumour cell is below `necrosis`, so it dies."""
+        """Return whether the oxygen at the site of a tumour cell is below `necrosis`.
+
+        Below it the cell dies.
+        """
         return isinstance(cell, TumourCellView) and system.field(OXYGEN, cell.location) < cell.necrosis
 
     @staticmethod
     def _get_division(cell: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return the probability `division` that a supplied tumour cell divides, above `proliferation` oxygen."""
+        """Return the probability `division` that a supplied tumour cell divides.
+
+        A cell is supplied above `proliferation` oxygen.
+        """
         if not isinstance(cell, TumourCellView) or cell.hypoxic:
             return 0.0
         return float(cell.division) if system.field(OXYGEN, cell.location) > cell.proliferation else 0.0
@@ -426,11 +451,17 @@ class TumourAngiogenesisSystem(BaseSystem):
 
     @staticmethod
     def _active(tip: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-        """Return whether the VEGF at a tip reaches `activation`, so the tip moves."""
+        """Return whether the VEGF at a tip reaches `activation`.
+
+        An activated tip moves.
+        """
         return isinstance(tip, SproutView) and system.field(VEGF, tip.location) >= tip.activation
 
     def _lays(self, tip: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-        """Return whether an active tip stands where there is no vessel segment, so it leaves one."""
+        """Return whether an active tip stands where there is no vessel segment.
+
+        There the tip leaves one.
+        """
         return self._active(tip, system) and not tip.agents_here(VESSELS)
 
     def _get_branching(self, tip: AgentViewProtocol, system: SystemViewProtocol) -> float:
@@ -439,7 +470,10 @@ class TumourAngiogenesisSystem(BaseSystem):
 
     @staticmethod
     def _get_chemotaxis(tip: AgentViewProtocol, system: SystemViewProtocol) -> object:
-        """Return a neighbouring cell drawn with a weight that grows with `exp(chemotaxis * VEGF / VEGF_here)`."""
+        """Return a neighbouring cell drawn by the VEGF gradient.
+
+        The weight of a cell grows with `exp(chemotaxis * VEGF / VEGF_here)`.
+        """
         if not isinstance(tip, SproutView):
             return None
         level = system.field(VEGF, tip.location)
@@ -463,7 +497,7 @@ class TumourAngiogenesisSystem(BaseSystem):
         ]
 
     def _get_cells(self) -> list[TransferInteraction | MapInteraction | LifeCycleInteraction | MovementInteraction]:
-        """Return the member interactions of the tumour cells, the vessel segments, and the tips."""
+        """Return the member interactions of the tumour cells, vessel segments, and tips."""
         return [
             TransferInteraction(
                 'uptake',

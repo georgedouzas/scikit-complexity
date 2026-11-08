@@ -26,7 +26,9 @@ BOOK_REFERENCE = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
 
 class AngiogenicTumourElement(Element):
-    """Tumour volume, the vascular volume that sets its carrying capacity, and an angiogenesis inhibitor.
+    """Tumour volume, its vascular volume, and an angiogenesis inhibitor.
+
+    The vascular volume sets the carrying capacity of the tumour.
 
     The tumour follows `dA/dt = -lambda1 A log(A / Vb)`, the vasculature
     `dVb/dt = -lambda2 Vb + xi_s A - xi_i Vb A^(2/3) - a Vb U`, and the inhibitor `dU/dt = -du U + u(t)`, where the
@@ -124,7 +126,9 @@ class AngiogenicTumourElement(Element):
 
 
 class VascularizedSpheroidElement(Element):
-    """Tumour spheroid with a live core, a live periphery, a necrotic core, and the vasculature of core and periphery.
+    """Tumour spheroid with a live core, a live periphery, and a necrotic core.
+
+    The core and the periphery each have their own vasculature.
 
     The radius grows as `dAr/dt = r1 g(Ap / Vp)`, with `g` a sigmoid of the peripheral cell density. The core volume
     `Vc = 4/3 pi (dc Ar)^3` and the periphery `Vp = 4/3 pi Ar^3 - Vc` follow from the radius and the core-periphery
@@ -324,7 +328,9 @@ class VascularizedSpheroidElement(Element):
         self.start = start
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the growth of the radius, the cell balances, the vascular balances, and the inhibitor kinetics.
+        """Return the growth of the radius, the balances, and the inhibitor kinetics.
+
+        The balances are the ones of the cells and of the vasculature.
 
         Args:
             s:
@@ -367,12 +373,17 @@ class VascularizedSpheroidElement(Element):
 
     @staticmethod
     def _core_ratio(radius: Expression) -> Expression:
-        """Return the core-periphery ratio `(1 / (1 + exp((0.5 - Ar) / 0.333)))^2.2 - 0.15` of a tumour radius."""
+        """Return the core-periphery ratio of a tumour radius.
+
+        The ratio is `(1 / (1 + exp((0.5 - Ar) / 0.333)))^2.2 - 0.15`.
+        """
         return logistic(radius, 0.5, 0.333) ** 2.2 - 0.15
 
 
 class HahnfeldtSystem(BaseSystem):
-    """The Hahnfeldt system, a tumour whose carrying capacity is the vasculature it stimulates and inhibits.
+    """The Hahnfeldt system, a tumour whose carrying capacity is its vasculature.
+
+    The tumour stimulates and inhibits the vasculature.
 
     The tumour follows `dA/dt = -lambda1 A log(A / Vb)` and the vasculature `dVb/dt = -lambda2 Vb + xi_s A - xi_i Vb
     A^(2/3) - a Vb U`. The inhibitor follows `dU/dt = -du U + u(t)`, the differential form of the book's convolution.
@@ -528,7 +539,9 @@ class HahnfeldtSystem(BaseSystem):
 
 
 class VascularCorePeripherySystem(BaseSystem):
-    """A tumour with a live core, a live periphery, and a necrotic core, each fed by its own vasculature.
+    """A tumour with a live core, a live periphery, and a necrotic core.
+
+    Each compartment is fed by its own vasculature.
 
     The radius grows once the periphery is dense, cells pass from the periphery to the core as it grows, and core cells
     die when the core vasculature is too sparse. Starved cells release angiogenic factor, which grows both vascular

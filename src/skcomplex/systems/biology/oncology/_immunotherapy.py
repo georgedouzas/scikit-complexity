@@ -1,4 +1,7 @@
-"""Oncology systems: tumour-immune interactions under adoptive therapy, vaccines, cytokines, and checkpoints."""
+"""Tumour-immune interactions under immunotherapy.
+
+The therapies are adoptive therapy, vaccines, cytokines, and checkpoints.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +27,9 @@ STIFF_SOLVER = ScipyODESolver(method='LSODA', rtol=1e-8, atol=1e-10)
 
 
 class CheckpointTumourElement(Element):
-    """Activated T cells, tumour cells, and an anti-PD-1 drug that frees T cells from PD-1-PD-L1 inhibition.
+    """Activated T cells, tumour cells, and an anti-PD-1 drug.
+
+    The drug frees T cells from PD-1-PD-L1 inhibition.
 
     The T cells follow `dE/dt = (r1 ENC C1 / (C1_50 + C1) + r2 E C2 / (C2_50 + C2)) / (1 + UPP / psi_pp) - d1 E`, with
     the cytokines at their steady states `C1 = C1_ss` and `C2 = C2_ss`, the tumour
@@ -173,7 +178,9 @@ class CheckpointTumourElement(Element):
 
 
 class DelayedVaccinatedTumourElement(Element):
-    """Tumour, natural killer cells, naive and mature CD8+ cells, dendritic cells, IL-2, regulatory, and helper cells.
+    """Tumour, natural killer cells, and adaptive immune cells with IL-2.
+
+    The adaptive cells are naive and mature CD8+ cells, dendritic cells, regulatory cells, and helper cells.
 
     The equations are those of Padmanabhan et al. (4.13) to (4.21), with the delays `tau1`, `tau2`, and `tau3` of one
     division of natural killer, CD8+, and helper cells. Naive CD8+ cells mature after `7 tau2` and naive helper cells
@@ -502,7 +509,9 @@ class DelayedVaccinatedTumourElement(Element):
 
 
 class KirschnerPanettaTumourElement(Element):
-    """Effector cells, tumour cells, and IL-2 under adoptive cellular therapy and IL-2 injection.
+    """Effector cells, tumour cells, and IL-2 under adoptive therapy and IL-2.
+
+    The therapy is adoptive cellular therapy and IL-2 injection.
 
     The effector cells follow `dE/dt = alpha_a A - d1 E + a1 u1 + rho1 E C / (alpha1 + C)`, the tumour
     `dA/dt = r1 A (1 - b A) - c1 E A / (alpha2 + A)`, and the IL-2 `dC/dt = a2 u2 + rho2 E A / (alpha3 + A) - du C`,
@@ -622,7 +631,9 @@ class KirschnerPanettaTumourElement(Element):
 
 
 class SuppressedTumourElement(Element):
-    """Tumour, dendritic cells, proliferating and active T cells, IL-2, IL-10, and TGF-beta.
+    """Tumour, dendritic cells, T cells, and cytokines.
+
+    The T cells are proliferating and active, and the cytokines are IL-2, IL-10, and TGF-beta.
 
     The equations are those of Padmanabhan et al. (4.22) to (4.33). The tumour grows by the smooth minimum
     `A / ((1 / r1)^p + (A^(1 - n) / r2)^p)^(1/p)` of exponential and power growth and is killed through its fraction
@@ -948,7 +959,9 @@ class SuppressedTumourElement(Element):
 
 
 class VaccinatedTumourElement(Element):
-    """Helper T cells, cytotoxic T cells, tumour cells, dendritic cells, and IL-2 under dendritic-cell vaccination.
+    """Helper and cytotoxic T cells, tumour cells, dendritic cells, and IL-2.
+
+    They are under dendritic-cell vaccination.
 
     The helper cells follow `dEH/dt = s1 + rho1 ED r1 EH (1 - b1 EH) - d1 EH`, the cytotoxic cells
     `dE/dt = s2 + rho2 C (A + ED) r2 E (1 - b2 E) - d2 E`, the tumour `dA/dt = r3 A (1 - b3 A) - c1 A E`, the
@@ -1116,7 +1129,9 @@ class VaccinatedTumourElement(Element):
 
 
 class KirschnerPanettaSystem(BaseSystem):
-    """The Kirschner-Panetta system of effector cells, tumour cells, and IL-2 under adoptive therapy and IL-2.
+    """The Kirschner-Panetta system of effector cells, tumour cells, and IL-2.
+
+    The system is under adoptive therapy and IL-2.
 
     Untreated, a tumour of antigenicity in the oscillatory range, such as the default 0.02, and the effector cells
     oscillate in long cycles in which the tumour nearly vanishes and regrows to about `4 10^5`. The adoptive therapy
@@ -1268,7 +1283,9 @@ class KirschnerPanettaSystem(BaseSystem):
 
 
 class DendriticCellVaccineSystem(BaseSystem):
-    """Helper and cytotoxic T cells, a tumour, dendritic cells, and IL-2 under a dendritic-cell vaccine.
+    """Helper and cytotoxic T cells, a tumour, dendritic cells, and IL-2.
+
+    They are under a dendritic-cell vaccine.
 
     Vaccinated dendritic cells drive the proliferation of helper cells, which secrete IL-2, and IL-2 with the antigen
     drives the proliferation of cytotoxic cells, which kill the tumour. The book gives no initial state or schedule. The
@@ -1445,7 +1462,9 @@ class DendriticCellVaccineSystem(BaseSystem):
 
 
 class AntiPD1CheckpointSystem(BaseSystem):
-    """Activated T cells, a tumour, and an anti-PD-1 drug that frees the T cells from checkpoint inhibition.
+    """Activated T cells, a tumour, and an anti-PD-1 drug.
+
+    The drug frees the T cells from checkpoint inhibition.
 
     The PD-1-PD-L1 complex inhibits the activation and proliferation of T cells, and the drug lowers the free PD-1 on T
     cells. The cytokines are at their steady states, as in the book. The book gives neither the naive T cells `ENC` nor
@@ -1535,7 +1554,10 @@ class AntiPD1CheckpointSystem(BaseSystem):
         )
 
         def free_receptor(s: SimpleNamespace) -> Expression:
-            """Return the free PD-1 on the T cells, which the drug lowers."""
+            """Return the free PD-1 on the T cells.
+
+            The drug lowers it.
+            """
             expression = s.target.rho_r - s.target.du1 * s.target.UAP
             receptor: Expression = where(expression > 0, expression, 0) * s.target.E
             return receptor
@@ -1596,7 +1618,9 @@ class AntiPD1CheckpointSystem(BaseSystem):
 
 
 class DelayedDCVaccineSystem(BaseSystem):
-    """A tumour and eight innate and adaptive immune populations, with division delays, under a vaccine.
+    """A tumour and eight innate and adaptive immune populations under a vaccine.
+
+    The populations divide with delays.
 
     Natural killer cells divide in `tau1`, CD8+ cells mature after seven divisions `7 tau2`, and naive helper cells
     become type 1 helper cells after two divisions `2 tau3`. Regulatory T cells, driven by the tumour and IL-2, inhibit
@@ -1912,7 +1936,9 @@ class DelayedDCVaccineSystem(BaseSystem):
 
 
 class TumourImmuneSuppressionSystem(BaseSystem):
-    """A tumour against dendritic, cytotoxic, helper, and regulatory T cells with IL-2, IL-10, and TGF-beta.
+    """A tumour against dendritic, cytotoxic, helper, and regulatory T cells.
+
+    The cells act with IL-2, IL-10, and TGF-beta.
 
     A tumour of one cell grows exponentially, then as a power of its size, and only its accessible fraction is killed.
     Its antigen matures dendritic cells, which recruit T cells from the memory pools, and the regulatory cells with
@@ -1999,7 +2025,10 @@ class TumourImmuneSuppressionSystem(BaseSystem):
             return fraction
 
         def maturation(s: SimpleNamespace) -> Expression:
-            """Return the maturation by IL-2 of proliferating T cells, which TGF-beta suppresses."""
+            """Return the maturation by IL-2 of proliferating T cells.
+
+            TGF-beta suppresses it.
+            """
             factor: Expression = hill(s.target.C1, s.target.EC1_50) / (1 + s.target.C3 / s.target.EC3_50)
             return factor
 

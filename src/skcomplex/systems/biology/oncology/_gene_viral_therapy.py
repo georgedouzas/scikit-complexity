@@ -21,7 +21,9 @@ BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
 
 class OncolyticVirusElement(Element):
-    """Uninfected and infected tumour cells that share a carrying capacity, with infection by mass action.
+    """Uninfected and infected tumour cells that share a carrying capacity.
+
+    The infection is by mass action.
 
     In units of the carrying capacity and of the growth time of uninfected cells, the uninfected cells follow
     `dAU/dt = AU (1 - AU - AV) - alpha AU AV` and the infected cells `dAV/dt = r AV (1 - AU - AV) + alpha AU AV - d AV`.
@@ -77,7 +79,9 @@ class OncolyticVirusElement(Element):
 
 
 class OncolyticVirusDendriticElement(Element):
-    """Tumour cells, an oncolytic adenovirus, activated and naive T cells, and injected dendritic cells.
+    """Tumour cells, an oncolytic adenovirus, T cells, and dendritic cells.
+
+    The T cells are activated and naive, and the dendritic cells are injected.
 
     The uninfected cells grow at the rate `r1` and the virus infects them at the rate `alpha AU V / Atot`, where
     `Atot = AU + AV + E + EN`. Activated T cells kill both kinds of tumour cells at the rate
@@ -220,7 +224,9 @@ class OncolyticVirusDendriticElement(Element):
 
 
 class SirnaTgfBetaElement(Element):
-    """Effector cells, tumour cells, IL-2, TGF-beta, and the siRNA that silences the production of TGF-beta.
+    """Effector cells, tumour cells, IL-2, TGF-beta, and siRNA.
+
+    The siRNA silences the production of TGF-beta.
 
     The system extends Kirschner and Panetta. TGF-beta lowers the recruitment and the IL-2 driven proliferation of
     effector cells and the production of IL-2, and raises the growth of the tumour. The siRNA, infused at the rate
@@ -397,7 +403,9 @@ class SirnaTgfBetaElement(Element):
 
 
 class TcrGeneTherapyElement(Element):
-    """Effector cells and tumour cells under a gene therapy that makes the T cells express a tumour receptor.
+    """Effector cells and tumour cells under a gene therapy.
+
+    The therapy makes the T cells express a tumour receptor.
 
     The effector cells follow `dE/dt = s + alpha A - d1 E + r1 E / (E + g1)` and the tumour cells
     `dA/dt = r2 A (1 - b A) - a E A / (A + g2)`, a predator-prey system of the immune attack.
@@ -483,7 +491,9 @@ class TcrGeneTherapyElement(Element):
 
 
 class TCRGeneTherapySystem(BaseSystem):
-    """The predator-prey system of a gene therapy that lets the T cells recognise the tumour.
+    """The predator-prey system of a gene therapy against a tumour.
+
+    The therapy lets the T cells recognise the tumour.
 
     The effector cells follow `dE/dt = s + alpha A - d1 E + r1 E / (E + g1)` and the tumour cells `dA/dt = r2 A (1 - b
     A) - a E A / (A + g2)`. The book takes the time-varying influx, antigenicity, growth, and kill as constants. Cells
@@ -569,7 +579,10 @@ class TCRGeneTherapySystem(BaseSystem):
         self.g2 = g2
 
     def _build_system(self) -> System:
-        """Return the parts of the predator-prey system of a gene therapy that lets the T cells recognise the tumour."""
+        """Return the parts of the predator-prey system of a gene therapy.
+
+        The therapy lets the T cells recognise the tumour.
+        """
         s = self.s
         site = TcrGeneTherapyElement(
             'site',
@@ -622,7 +635,9 @@ class TCRGeneTherapySystem(BaseSystem):
 
 
 class SirnaTGFBetaSystem(BaseSystem):
-    """The Kirschner-Panetta system with TGF-beta, which lets the tumour evade the immune system, and siRNA.
+    """The Kirschner-Panetta system with TGF-beta and siRNA.
+
+    TGF-beta lets the tumour evade the immune system.
 
     TGF-beta lowers the recruitment of effector cells by `1 + gamma1 C2` and the production of IL-2, and raises the
     growth of the tumour. Without TGF-beta, `rho4 = 0`, the effector cells hold the tumour near `1e4` cells. With the
@@ -796,7 +811,9 @@ class SirnaTGFBetaSystem(BaseSystem):
 
 
 class OncolyticVirusSystem(BaseSystem):
-    """Uninfected and infected tumour cells that share a carrying capacity, with infection by mass action.
+    """Uninfected and infected tumour cells that share a carrying capacity.
+
+    The infection is by mass action.
 
     The uninfected cells follow `dAU/dt = AU (1 - AU - AV) - alpha AU AV` and the infected cells `dAV/dt = r AV (1 - AU
     - AV) + alpha AU AV - d AV`, in units of the carrying capacity and of the growth time of uninfected cells. The
@@ -853,7 +870,10 @@ class OncolyticVirusSystem(BaseSystem):
         self.d = d
 
     def _build_system(self) -> System:
-        """Return the parts of uninfected and infected tumour cells that share a carrying capacity."""
+        """Return the parts of uninfected and infected tumour cells.
+
+        The cells share a carrying capacity.
+        """
         tumour = OncolyticVirusElement('tumour', AU=self.AU, AV=self.AV, alpha=self.alpha, r=self.r, d=self.d)
         interactions = [
             RateInteraction(
@@ -887,7 +907,9 @@ class OncolyticVirusSystem(BaseSystem):
 
 
 class OncolyticVirusDendriticSystem(BaseSystem):
-    """A tumour treated with an oncolytic adenovirus that expresses immune signals and with dendritic cells.
+    """A tumour treated with an oncolytic adenovirus and with dendritic cells.
+
+    The adenovirus expresses immune signals.
 
     The virus infects the uninfected cells at the rate `alpha AU V / Atot`, where `Atot = AU + AV + E + EN`, the
     infected cells lyse and release virions, and the T cells that the infected and the dendritic cells activate kill

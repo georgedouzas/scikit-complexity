@@ -1,4 +1,7 @@
-"""Oncology systems: the kinetic theory of active particles for the competition between tumour and immune cells."""
+"""Kinetic theory of active particles for tumour and immune cells.
+
+The theory describes the competition between tumour and immune cells.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -40,7 +43,9 @@ def activity_grid(classes: int) -> npt.NDArray[np.float64]:
 
 
 def step_table(classes: int, step: int, fields: int = 1) -> npt.NDArray[np.float64]:
-    """Return the transition table that moves a candidate one class up or down, staying at the end classes.
+    """Return the transition table that moves a candidate one class up or down.
+
+    The candidate stays at the end classes.
 
     Args:
         classes:
@@ -68,7 +73,9 @@ def step_table(classes: int, step: int, fields: int = 1) -> npt.NDArray[np.float
 
 
 def cell_density(s: SimpleNamespace, activities: npt.NDArray[np.float64]) -> Expression:
-    """Return the density of a population of cells, the order-0 moment of its distribution.
+    """Return the density of a population of cells.
+
+    It is the order-0 moment of its distribution.
 
     Args:
         s:
@@ -102,12 +109,17 @@ def mean_activity(s: SimpleNamespace, activities: npt.NDArray[np.float64]) -> Ex
 
 
 def _classes_of(system: System) -> int:
-    """Return the number of activity classes of a system, the size of its tumour distribution."""
+    """Return the number of activity classes of a system.
+
+    It is the size of its tumour distribution.
+    """
     return int(next(item.size or 0 for item in system.elements if item.label == 'tumour'))
 
 
 def immune_observables(classes: int) -> list[ObservableSpec]:
-    """Return the tumour density, the mean tumour progression, and the mean immune activation of the system.
+    """Return the tumour density, mean progression, and mean immune activation.
+
+    The progression is the mean tumour progression of the system.
 
     Args:
         classes:
@@ -206,7 +218,9 @@ class ImmuneCompetitionSystem(BaseSystem):
         self.inhibition = inhibition
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the tumour and immune observables of the built parts.
+        """Return the tuned run settings.
+
+        They come with the tumour and immune observables of the built parts.
 
         Returns:
             settings:
@@ -217,7 +231,10 @@ class ImmuneCompetitionSystem(BaseSystem):
         return settings
 
     def _build_system(self) -> System:
-        """Return the parts of the kinetic system of the competition between tumour cells and immune cells."""
+        """Return the parts of the kinetic system of tumour and immune cells.
+
+        The system is the competition between tumour cells and immune cells.
+        """
         activities = activity_grid(self.classes)
         activation_rates = np.tile(activities, (self.classes, 1))
         tumour_density = np.zeros(self.classes)

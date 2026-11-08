@@ -21,7 +21,9 @@ BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
 
 class IrradiatedTumourElement(Element):
-    """Tumour in six compartments under linear-quadratic radiation fractions and a radiosensitizer.
+    """Tumour in six compartments under radiation and a radiosensitizer.
+
+    The radiation is given in linear-quadratic fractions.
 
     The proliferating cells follow `dA1/dt = r A1 exp(-a_gamma u_tot)`, where `u_tot` is the dose that the fractions of
     an irradiation accumulate. The lethally irradiated cells of `A5` divide once into `A6`, `dA5/dt = -(r + m1) A5` and
@@ -114,7 +116,9 @@ class IrradiatedTumourElement(Element):
 
 
 class RadiationCompetitionElement(Element):
-    """Normal and tumour cells in Lotka-Volterra competition under periodic irradiation.
+    """Normal and tumour cells in Lotka-Volterra competition under irradiation.
+
+    The irradiation is periodic.
 
     The normal cells follow `dN/dt = r1 N (1 - b1 N) - c1 N A - epsilon N` and the tumour cells
     `dA/dt = r2 A (1 - b2 A) - c2 N A - a2 D(t) A`, where the irradiation `D` is 1 for `width` time units every `period`
@@ -206,7 +210,9 @@ class RadiationCompetitionElement(Element):
 
 
 class IrradiationInteraction(ImpulseInteraction):
-    """Radiation fractions of a dose `d`, which move the lethally irradiated part of the proliferating cells.
+    """Radiation fractions of a dose `d`.
+
+    They move the lethally irradiated part of the proliferating cells.
 
     A fraction at the time `start + i period` moves the part `M = 1 - exp(-(1 + ap Us)(alpha d + beta d^2))` of the
     proliferating cells `A1` to the lethally irradiated cells `A5` and raises the accumulated dose `u_tot` by
@@ -276,11 +282,17 @@ class IrradiationInteraction(ImpulseInteraction):
         self.fractions = fractions
 
     def _get_damage(self, s: SimpleNamespace) -> Expression:
-        """Return the linear-quadratic damage `(1 + ap Us)(alpha d + beta d^2)` of a fraction."""
+        """Return the linear-quadratic damage of a fraction.
+
+        The damage is `(1 + ap Us)(alpha d + beta d^2)`.
+        """
         return (1 + s.ap * s.target.Us) * (s.alpha * s.dose + s.beta * s.dose**2)
 
     def _get_resets(self) -> dict[str, Callable[[SimpleNamespace], object]]:
-        """Return the surviving proliferating cells, the lethally irradiated cells, and the accumulated dose."""
+        """Return the surviving and lethally irradiated cells, and the accumulated dose.
+
+        The surviving cells are the proliferating ones.
+        """
         return {
             'A1': lambda s: s.target.A1 * exp(-self._get_damage(s)),
             'A5': lambda s: s.target.A5 + (1 - exp(-self._get_damage(s))) * s.target.A1,
@@ -289,7 +301,9 @@ class IrradiationInteraction(ImpulseInteraction):
 
 
 class RadiotherapyCompetitionSystem(BaseSystem):
-    """Normal and tumour cells in Lotka-Volterra competition, the tumour irradiated periodically.
+    """Normal and tumour cells in Lotka-Volterra competition.
+
+    The tumour is irradiated periodically.
 
     The tumour cells outcompete the normal cells without treatment. The irradiation kills tumour cells at the per capita
     rate `a2` for `width` days every `period` days, which takes the tumour below the level at which the normal cells can
@@ -431,7 +445,9 @@ class RadiotherapyCompetitionSystem(BaseSystem):
 
 
 class LQRadiosensitizerSystem(BaseSystem):
-    """A xenograft tumour irradiated in fractions scored by the linear-quadratic system, with a radiosensitizer.
+    """A xenograft tumour irradiated in fractions, with a radiosensitizer.
+
+    The linear-quadratic system scores the fractions.
 
     Every fraction kills the part `1 - exp(-(1 + ap Us)(alpha d + beta d^2))` of the proliferating cells at once, which
     divide once more and die through a chain of damaged compartments, and the accumulated dose slows the growth of the
@@ -539,7 +555,10 @@ class LQRadiosensitizerSystem(BaseSystem):
         self.fractions = fractions
 
     def _build_system(self) -> System:
-        """Return the parts of a xenograft tumour irradiated in fractions scored by the linear-quadratic system."""
+        """Return the parts of a xenograft tumour irradiated in fractions.
+
+        The linear-quadratic system scores the fractions.
+        """
         tumour = IrradiatedTumourElement(
             'tumour',
             A1=self.A1,

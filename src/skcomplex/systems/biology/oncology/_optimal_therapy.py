@@ -1,4 +1,7 @@
-"""Optimal therapy: the dosing of chemotherapy and immunotherapy that balances tumour burden against drug cost."""
+"""Optimal therapy of chemotherapy and immunotherapy.
+
+The dosing balances tumour burden against drug cost.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -24,7 +27,9 @@ MAX_DOSE = 1.0
 
 
 class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
-    """Immune, tumour, and normal cells under a chemotherapy whose infusion rate is a bounded control input.
+    """Immune, tumour, and normal cells under a chemotherapy.
+
+    The infusion rate of the chemotherapy is a bounded control input.
 
     The cells and the drug follow the system of de Pillis and Radunskaya, `TumourImmuneChemotherapyElement`, with the
     infusion rate `u` between 0 and its largest dose. The oncologist minimises the tumour burden and the toxicity of
@@ -167,7 +172,9 @@ class OptimalChemotherapyElement(TumourImmuneChemotherapyElement):
 
 
 class OptimalImmunotherapyElement(Element):
-    """Effector cells, tumour cells, and IL-2 under adoptive therapy and IL-2 injection at bounded rates.
+    """Effector and tumour cells and IL-2 under adoptive therapy and IL-2 injection.
+
+    The rates of both therapies are bounded.
 
     The Kirschner-Panetta system in scaled units, with the effector and tumour cells in units of `10^5` and IL-2 in
     units of `2 10^7`, follows `x' = alpha_a y - d1 x + a1 u1 + rho1 x z / (1 + z)` for the effector cells,
@@ -291,7 +298,10 @@ class OptimalImmunotherapyElement(Element):
 
 
 def _tumour_share(s: SimpleNamespace) -> Expression:
-    """Return the tumour cells as a share of the tumour and normal cells, `A / (A + N)`."""
+    """Return the tumour cells as a share of the tumour and normal cells.
+
+    The share is `A / (A + N)`.
+    """
     patient = s.patient
     share: Expression = patient.A / (patient.A + patient.N)
     return share
@@ -305,7 +315,10 @@ def _immune_ratio(s: SimpleNamespace) -> Expression:
 
 
 def _chemotherapy_cost(s: SimpleNamespace) -> Expression:
-    """Return the running cost of the chemotherapy, the tumour and the squared dose, `A + w u^2 / 2`."""
+    """Return the running cost of the chemotherapy, `A + w u^2 / 2`.
+
+    It sums the tumour and the squared dose.
+    """
     patient = s.patient
     cost: Expression = patient.A + patient.w * patient.u**2 / 2
     return cost
@@ -318,7 +331,10 @@ def _tumour(s: SimpleNamespace) -> Expression:
 
 
 def _immunotherapy_cost(s: SimpleNamespace) -> Expression:
-    """Return the running cost of the immunotherapy, the tumour and the squared doses of both therapies."""
+    """Return the running cost of the immunotherapy.
+
+    It sums the tumour and the squared doses of both therapies.
+    """
     site = s.site
     cost: Expression = site.y + site.w1 * site.u1**2 / 2 + site.w2 * site.u2**2 / 2
     return cost
@@ -331,7 +347,9 @@ def _tumour_site(s: SimpleNamespace) -> Expression:
 
 
 class OptimalChemotherapySystem(BaseSystem):
-    """A patient under the chemotherapy that minimises the tumour burden and the toxicity of the drug.
+    """A patient under the chemotherapy that minimises tumour and toxicity.
+
+    The chemotherapy minimises the tumour burden and the toxicity of the drug.
 
     Run with an optimal control solver, the infusion is largest at the start, when the tumour is largest, and falls as
     the tumour shrinks, so the tumour ends far below its untreated level. The system has the cells `patient.E`,
@@ -392,7 +410,9 @@ class OptimalChemotherapySystem(BaseSystem):
 
 
 class OptimalImmunotherapySystem(BaseSystem):
-    """A tumour under the adoptive therapy and IL-2 injection that minimise its burden and their cost.
+    """A tumour under the adoptive therapy and IL-2 injection that minimise it.
+
+    The therapies minimise its burden and their cost.
 
     Run with an optimal control solver, the therapies are strongest while the tumour is large, the effector cells
     expand, and the tumour shrinks. The system has the effector cells `site.x`, the tumour `site.y`, IL-2 `site.z`, the

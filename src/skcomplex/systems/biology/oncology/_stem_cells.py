@@ -1,4 +1,7 @@
-"""Oncology systems: normal, malignant, and leukaemic stem cells and the lineages they feed."""
+"""Normal, malignant, and leukaemic stem cells and their lineages.
+
+The stem cells feed the lineages.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,9 @@ BOOK = 'Padmanabhan, Meskin, and Al Moustafa 2021'
 
 
 class BoneMarrowBloodElement(Element):
-    """Normal and malignant cells in the bone marrow and the peripheral blood, and cancer stem cells.
+    """Normal and malignant cells in the bone marrow and blood, and cancer stem cells.
+
+    The blood is the peripheral blood.
 
     Normal marrow cells renew as `r1 NBM log((b1 + b2) / (theta1 + NBM))`, mutate into blasts at the rate `m1` and
     into cancer stem cells at the rate `m3`, and move to the blood, where they arrive after the maturation time
@@ -205,7 +210,9 @@ class BoneMarrowBloodElement(Element):
 
 
 class LeukaemiaStemCellsElement(Element):
-    """Normal and leukaemic stem cells that share a niche, with the progeny that feeds back on them.
+    """Normal and leukaemic stem cells that share a niche.
+
+    Their progeny feeds back on them.
 
     Stem cells renew symmetrically at the rate `r e^-psi1` and differentiate symmetrically at the rate
     `m e^-psi1 e^-psi3`, where `psi1 = beta1 (NS + AS)` counts the stem cells in the niche and
@@ -343,7 +350,9 @@ class LeukaemiaStemCellsElement(Element):
 
 
 class StemCellDifferentiationElement(Element):
-    """Normal and malignant lineages of quiescent stem cells, progenitors, basal cells, and differentiated cells.
+    """Normal and malignant lineages of stem cells and their progeny.
+
+    The stem cells are quiescent, and the progeny are progenitors, basal cells, and differentiated cells.
 
     In each lineage the quiescent stem cells become progenitors at the rate `k12` and progenitors return at the rate
     `k21 (1 - NPr / (NPr + NPinf))`. Progenitors renew logistically, become basal cells, and basal cells
@@ -593,7 +602,9 @@ class StemCellDifferentiationElement(Element):
 
 
 class StemCellDifferentiationSystem(BaseSystem):
-    """The eight-compartment system of normal and malignant stem-cell lineages with feedback and therapy.
+    """The eight-compartment system of normal and malignant stem-cell lineages.
+
+    The system includes feedback and therapy.
 
     Each lineage runs from quiescent stem cells through progenitors and basal cells to differentiated cells, and normal
     progenitors mutate into malignant ones. The mutation rate `m1 = m0 (1 + w)` carries the random factor `w`, which is
@@ -665,7 +676,10 @@ class StemCellDifferentiationSystem(BaseSystem):
 
     @staticmethod
     def _normal_renewal(target: SimpleNamespace) -> Expression:
-        """Return the renewal rate of normal progenitors, raised by the feedback of the differentiated cells."""
+        """Return the renewal rate of normal progenitors.
+
+        The feedback of the differentiated cells raises it.
+        """
         feedback = target.beta0 * (1 - target.ND / (target.ND + target.kappa0))
         renewal: Expression = (target.r1 + feedback) * (1 - target.NPr / target.NPmax)
         return renewal
@@ -677,7 +691,10 @@ class StemCellDifferentiationSystem(BaseSystem):
         start: float,
         duration: float,
     ) -> tuple[Expression, Expression]:
-        """Return the death rate of normal progenitors and the factor of the other death rates under a therapy."""
+        """Return the death rate of normal progenitors under a therapy.
+
+        The factor of the other death rates comes with it.
+        """
         target = s.target
         if therapy == 'continuous':
             return target.d2 * target.uc * (1 + target.delta * self._normal_renewal(target)), target.uc
@@ -689,7 +706,10 @@ class StemCellDifferentiationSystem(BaseSystem):
         return target.d2, SR(1)
 
     def _build_system(self) -> System:
-        """Return the parts of the eight-compartment system of normal and malignant stem-cell lineages."""
+        """Return the parts of the eight-compartment system of stem-cell lineages.
+
+        The lineages are normal and malignant.
+        """
         m1 = self.m0 * (1 + np.random.default_rng(self.seed).uniform())
         tissue = StemCellDifferentiationElement(
             'tissue',
@@ -847,7 +867,9 @@ class StemCellDifferentiationSystem(BaseSystem):
 
 
 class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
-    """The bone marrow and blood system of leukaemia, in which blasts crowd out the normal cells.
+    """The bone marrow and blood system of leukaemia.
+
+    In it, blasts crowd out the normal cells.
 
     Normal marrow cells renew, mutate into blasts and cancer stem cells, and mature into blood cells after the delay
     `tau1`. Blasts grow in the marrow, move to the blood, and inhibit the normal cells, and cancer stem cells convert
@@ -1011,7 +1033,9 @@ class BoneMarrowBloodLeukaemiaSystem(BaseSystem):
 
 
 class LeukaemiaStemCellsSystem(BaseSystem):
-    """Normal and leukaemic stem cells that compete for one niche through the feedback of their progeny.
+    """Normal and leukaemic stem cells that compete for one niche.
+
+    They compete through the feedback of their progeny.
 
     Both kinds of stem cells renew at the rate `r e^-psi1 - m e^-psi1 e^-psi3`, where `psi1` counts the stem cells in
     the niche and `psi3` their progeny, so the kind with the larger net renewal excludes the other. With the defaults
