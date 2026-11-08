@@ -1,4 +1,7 @@
-"""Fractional dynamics: relaxation, oscillators, and chaotic flows whose states have Caputo derivatives of an order."""
+"""Fractional dynamics systems.
+
+The package covers relaxation, oscillators, and chaotic flows whose states have Caputo derivatives of an order.
+"""
 
 from ._fractional import (
     FractionalLorenzSystem,
