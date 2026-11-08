@@ -11,7 +11,7 @@ from abc import abstractmethod
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from types import SimpleNamespace
-from typing import ClassVar, Self
+from typing import ClassVar
 
 from ..base import BaseConfig
 from ..errors import ValidationError
@@ -22,11 +22,12 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
     """Base of every part of a system.
 
     The parts of a system are its elements, its interactions, the laws they return, and the system itself. Every part
-    has a label, returns the laws it contributes from `_get_laws`, and implements three hooks that the main public
+    has a label, returns the laws it contributes from `_get_laws`, and implements two hooks that the main public
     methods `prepare` and `run` call:
 
-    - `_check()` validates the arguments of the part, after `check` validates the label.
-    - `_prepare(context)` prepares the part against its context and sets its attributes that end in `_`.
+    - `_prepare(context)` checks the arguments of the part, then prepares it against its context and sets its
+      attributes that end in `_`. It starts with `super()._prepare(context)`, so the `_prepare` of this base checks
+      the label and the declared specs first.
     - `_run(inputs)` sets what the part contributes: `laws_`, the laws of an element, an interaction, or a system,
       or `value_`, the value of a law.
 
@@ -34,7 +35,7 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
     is prepared against the path of its owner, an element against the space of its system.
 
     A part declares which arguments of its constructor are states, parameters, or roles by annotating them with
-    `Annotated` and a `StateSpec`, a `ParameterSpec`, or a `RoleSpec`, and `prepare` validates every declared spec.
+    `Annotated` and a `StateSpec`, a `ParameterSpec`, or a `RoleSpec`, and `prepare` checks every declared spec.
 
     A part returns its capability tags from `get_tags()`, which reads only its declarations and its arguments, so the
     tags are known before `prepare`. Each family derives them in the private hook `_get_tags()`: an element from its
@@ -53,19 +54,17 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
         ...         super().__init__(label)
         ...         self.factor = factor
         ...
-        ...     def _check(self):
-        ...         pass
-        ...
         ...     def _prepare(self, context=None):
-        ...         pass
+        ...         super()._prepare(context)
+        ...         self.factor_ = float(self.factor)
         ...
         ...     def _get_laws(self, namespace):
         ...         return []
         ...
         ...     def _run(self, value):
-        ...         self.doubled_ = self.factor * value
+        ...         self.doubled_ = self.factor_ * value
         >>> DoublingPart('doubling').prepare().run(3).doubled_
-        6
+        6.0
     """
 
     draws: ClassVar[bool] = False
@@ -218,16 +217,32 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
         """
         return {**self._get_specs(), **{name: item.spec for name, item in self._get_declared().items()}}
 
-    @abstractmethod
     def _check(self) -> None:
-        """Validate the arguments of the part.
+        """Validate the arguments of a part that still checks them in this hook.
 
-        A named error is raised for an argument the part cannot take.
+        It is a temporary bridge for the parts of the catalog that are not yet checked at the start of `_prepare`, so
+        their `super()._check()` ends here. It checks nothing.
         """
 
-    @abstractmethod
     def _prepare(self, context: ContextT | None) -> None:
-        """Prepare the part against its context and set its attributes that end in `_`."""
+        """Check the label and the declared specs of the part.
+
+        A child starts its own `_prepare` with `super()._prepare(context)`, so these checks come first, and then
+        checks its own arguments before it sets any attribute that ends in `_`. Until every part of the catalog checks
+        its arguments there, it also calls the temporary hook `_check`.
+
+        Args:
+            context:
+                The context of the part, which this base does not read.
+
+        Raises:
+            ValidationError:
+                The label or a declared spec is invalid, named in the message.
+        """
+        self._check_label()
+        for spec in [*self._get_specs().values(), *self._get_declared().values()]:
+            spec._check()
+        self._check()
 
     @abstractmethod
     def _get_laws(self, namespace: SimpleNamespace) -> Sequence[BasePart]:
@@ -255,19 +270,3 @@ class BasePart[ContextT, InputT](BaseConfig[ContextT, InputT]):
             error_msg = f'{type(self).__name__} returns its laws for a namespace of symbols, but got {inputs!r}.'
             raise ValidationError(error_msg)
         return self._get_laws(inputs)
-
-    def _validated(self) -> Self:
-        """Validate the label and the arguments of the part.
-
-        Returns:
-            part:
-                The part itself.
-
-        Raises:
-            ValidationError:
-                The label or an argument is invalid, named in the message.
-        """
-        self._check_label()
-        for spec in [*self._get_specs().values(), *self._get_declared().values()]:
-            spec._check()
-        return super()._validated()
