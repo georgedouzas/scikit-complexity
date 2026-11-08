@@ -1,4 +1,7 @@
-"""Elementary flux modes and extreme pathways of a metabolic network, Raman's toy network by default."""
+"""Elementary flux modes and extreme pathways of a metabolic network.
+
+The network is Raman's toy network by default.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -47,6 +50,9 @@ class ElementaryFluxModesSystem(BaseSystem):
         self.knockouts = knockouts
 
     def _build_system(self) -> System:
-        """Return the parts of the toy network of Raman whose steady-state cone `elementary_modes` enumerates."""
+        """Return the parts of the toy network of Raman.
+
+        Its steady-state cone is what `elementary_modes` enumerates.
+        """
         closed = {f'{bound}_{name}': 0.0 for name in self.knockouts for bound in ('lower', 'upper')}
         return System(self.label, elements=[ToyNetworkElement('cell').set_params(**closed)], time=StaticTime())

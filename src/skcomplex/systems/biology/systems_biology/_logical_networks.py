@@ -1,4 +1,7 @@
-"""Systems biology systems: multi-valued logical networks and Petri nets of regulatory and metabolic processes."""
+"""Multi-valued logical networks and Petri nets.
+
+They model regulatory and metabolic processes.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -44,7 +47,9 @@ GENE_EXPRESSION_TRANSITIONS: Transitions = (
 
 
 class LogicalVariableElement(Element):
-    """Variable of a generalised logical network, a discrete level from zero to its largest level.
+    """Variable of a generalised logical network.
+
+    It is a discrete level from zero to its largest level.
 
     The levels stand for qualitative concentrations, such as absent, basal, medium, or high, cut at the thresholds at
     which the variable acts on its targets.
@@ -77,7 +82,9 @@ class LogicalVariableElement(Element):
 
 
 class LogicalRegulationInteraction(Interaction):
-    """Regulation of a logical variable, which steps one level at a time towards the focal level its regulators set.
+    """Regulation of a logical variable.
+
+    It steps one level at a time towards the focal level its regulators set.
 
     In the formalism of Thomas, every regulator acts when its level reaches its threshold. The logical parameters map
     every combination of acting regulators, a tuple of truth values in the order of the regulators, to the focal level
@@ -145,7 +152,10 @@ class LogicalRegulationInteraction(Interaction):
         ]
 
     def _focal(self, regulators: Sequence[SimpleNamespace]) -> Expression:
-        """Return the focal level of the target, the logical parameter of the regulators that act."""
+        """Return the focal level of the target.
+
+        It is the logical parameter of the regulators that act.
+        """
         parameters = self.parameters or {}
         focal: Expression = SR(0)
         for acting in product((False, True), repeat=len(regulators)):
@@ -159,7 +169,9 @@ class LogicalRegulationInteraction(Interaction):
 
 
 class GeneralizedLogicalNetworkSystem(BaseSystem):
-    """A generalised logical network of Thomas, whose variables step asynchronously towards focal levels.
+    """A generalised logical network of Thomas.
+
+    Its variables step asynchronously towards focal levels.
 
     Every variable takes discrete levels, and each of its regulators acts once its level reaches a threshold. The
     logical parameters give the focal level of the variable for every combination of acting regulators, and the variable
@@ -223,7 +235,9 @@ class GeneralizedLogicalNetworkSystem(BaseSystem):
 
 
 class PetriNetSystem(BaseSystem):
-    """A Petri net, places that hold tokens and transitions that consume and produce them when they fire.
+    """A Petri net of places and transitions.
+
+    Places hold tokens, and transitions consume and produce them when they fire.
 
     Every transition is a pair of input and output arcs with weights and a rate. In a stochastic Petri net it fires at
     random times with the mass-action propensity of its input places, consuming the tokens of its input arcs and

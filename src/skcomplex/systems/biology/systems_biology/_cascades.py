@@ -1,4 +1,7 @@
-"""Signalling cascades: a hormone pulse amplified by a kinase cascade and switched off by the G-protein timer."""
+"""Signalling cascades of a hormone pulse.
+
+A kinase cascade amplifies the pulse, and the G-protein timer switches it off.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,9 @@ STAGES = ('adenylate_cyclase', 'camp', 'protein_kinase_a', 'phosphorylase_kinase
 
 
 class GProteinElement(Element):
-    """G protein activated by a hormone pulse and inactivated by its own GTPase, the timer that ends the signal.
+    """G protein activated by a hormone pulse and inactivated by its own GTPase.
+
+    The GTPase is the timer that ends the signal.
 
     The active fraction follows `dg/dt = k_on H(t) (1 - g) - k_gtp g`, where the hormone `H(t)` is a rectangular pulse
     of height `hormone` from `start` for `width`. Once the hormone is gone, the signal ends after the time `1 / k_gtp`.
@@ -82,7 +87,9 @@ class GProteinElement(Element):
 
 
 class HormoneCascadeAmplifierSystem(BaseSystem):
-    """The adenylate cyclase cascade, which amplifies a hormone pulse and ends it by the G-protein timer.
+    """The adenylate cyclase cascade, which amplifies a hormone pulse.
+
+    The G-protein timer ends the pulse.
 
     A hormone pulse activates the G protein, which activates adenylate cyclase, which makes cyclic AMP, which activates
     protein kinase A, phosphorylase kinase, and glycogen phosphorylase in turn (Konieczny et al. 4.4.3). Every stage is

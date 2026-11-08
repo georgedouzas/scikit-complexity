@@ -1,4 +1,7 @@
-"""Carbon-13 metabolic flux analysis of the TCA example of Antoniewicz et al. (2007)."""
+"""Carbon-13 metabolic flux analysis of the TCA example.
+
+The example is the one of Antoniewicz et al. (2007).
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -158,7 +161,9 @@ class TcaNetworkElement(MetabolicNetworkElement):
 
 @dataclass(frozen=True)
 class AtomMapSpec(BaseSpec):
-    """Atom transitions of a reaction, a string of atom letters for every occurrence of a metabolite.
+    """Atom transitions of a reaction.
+
+    They are a string of atom letters for every occurrence of a metabolite.
 
     Args:
         reaction:
@@ -186,7 +191,9 @@ class AtomMapSpec(BaseSpec):
     products: Sequence[tuple[str, str]]
 
     def _check(self) -> None:
-        """Raise an error for a product letter that no reactant carries, or a letter two reactant atoms share.
+        """Raise an error for an inconsistent atom map.
+
+        It is inconsistent when a product letter has no reactant carrying it, or two reactant atoms share a letter.
 
         Raises:
             ValidationError:
@@ -208,7 +215,10 @@ class AtomMapSpec(BaseSpec):
 
     @property
     def origins(self) -> dict[tuple[str, int], tuple[str, int]]:
-        """Reactant atom of every product atom, as pairs of a metabolite and an atom counted from 1."""
+        """Reactant atom of every product atom.
+
+        The atoms are pairs of a metabolite and an atom counted from 1.
+        """
         places = {
             letter: (metabolite, position + 1)
             for metabolite, atoms in self.reactants
@@ -234,7 +244,9 @@ TCA_ATOMS = (
 
 @dataclass(frozen=True)
 class TracerSpec(BaseSpec):
-    """Labelling of a substrate, the fraction of every isotopomer as a bit string with atom 1 first.
+    """Labelling of a substrate.
+
+    It is the fraction of every isotopomer as a bit string with atom 1 first.
 
     Args:
         metabolite:
@@ -258,7 +270,9 @@ class TracerSpec(BaseSpec):
     fractions: Mapping[str, float]
 
     def _check(self) -> None:
-        """Raise an error for fractions that do not sum to 1, or isotopomers of different lengths.
+        """Raise an error for an inconsistent labelling.
+
+        It is inconsistent when the fractions do not sum to 1, or the isotopomers have different lengths.
 
         Raises:
             ValidationError:
@@ -289,7 +303,9 @@ PARALLEL_TRACERS = {
 
 @dataclass(frozen=True)
 class FragmentSpec(BaseSpec):
-    """Fragment of a metabolite whose mass isotopomer distribution a simulation gives or an experiment measures.
+    """Fragment of a metabolite with a mass isotopomer distribution.
+
+    A simulation gives the distribution or an experiment measures it.
 
     Args:
         metabolite:
@@ -312,7 +328,10 @@ class FragmentSpec(BaseSpec):
     name: str = ''
 
     def _check(self) -> None:
-        """Accept the spec, which has nothing to check."""
+        """Accept the spec.
+
+        The spec has nothing to check.
+        """
 
     @property
     def label(self) -> str:
@@ -370,7 +389,10 @@ class LabelMeasurementSpec(BaseSpec):
 
 @dataclass(frozen=True)
 class _TermSpec(BaseSpec):
-    """Inflow to an elementary metabolite unit: its directed flux, its weight, and the units it combines."""
+    """Inflow to an elementary metabolite unit.
+
+    It holds its directed flux, its weight, and the units it combines.
+    """
 
     flux: int
     weight: float
@@ -379,7 +401,10 @@ class _TermSpec(BaseSpec):
 
 @dataclass(frozen=True)
 class _LabellingSpec(BaseSpec):
-    """Units of a labelling problem: the network, the settings that read it, and the units of its fragments."""
+    """Units of a labelling problem.
+
+    They are the network, the settings that read it, and the units of its fragments.
+    """
 
     network: MetabolicNetworkElement
     reactions: list[str]
@@ -392,7 +417,9 @@ class _LabellingSpec(BaseSpec):
 
 @dataclass(frozen=True)
 class _FitSpec(BaseSpec):
-    """Parametrization of the net fluxes over a null space basis of the balances, with one exchange per reversible one.
+    """Parametrization of the net fluxes over a null space basis of the balances.
+
+    It has one exchange per reversible flux.
 
     It also holds the data the residuals read.
     """
@@ -410,7 +437,9 @@ class _FitSpec(BaseSpec):
 
 @dataclass(frozen=True)
 class LabellingResult:
-    """Isotope labelling of a metabolic network: simulated distributions, or estimated fluxes with their test.
+    """Isotope labelling of a metabolic network.
+
+    It holds simulated distributions, or estimated fluxes with their test.
 
     Args:
         network:
@@ -465,7 +494,9 @@ def labelling(
     intervals: str = 'linear',
     random_state: int | np.random.Generator | None = None,
 ) -> LabellingResult:
-    """Return the isotope labelling of a metabolic network at metabolic and isotopic steady state, of one kind.
+    """Return the isotope labelling of a metabolic network, of one kind.
+
+    The network is at metabolic and isotopic steady state.
 
     The function takes a system that holds a metabolic network. It walks the atom maps backward from the fragments to
     collect the elementary metabolite units (Antoniewicz et al. 2007), and solves per unit size one sparse linear system
@@ -586,7 +617,9 @@ def _check_choice(name: str, value: object, choices: tuple[object, ...]) -> None
 
 
 def _atom_counts(atoms: Sequence[AtomMapSpec]) -> dict[str, int]:
-    """Return the number of atoms of every metabolite, after checking that every atom map agrees on it.
+    """Return the number of atoms of every metabolite.
+
+    It first checks that every atom map agrees on it.
 
     Args:
         atoms:
@@ -689,7 +722,10 @@ def _collect_units(
     symmetric: Sequence[str],
     atom_counts: Mapping[str, int],
 ) -> _LabellingSpec:
-    """Walk the atom maps backward from the fragments, and return the terms and the sizes of the units."""
+    """Walk the atom maps backward from the fragments.
+
+    It returns the terms and the sizes of the units.
+    """
     maps = _directed_maps(network, atoms)
     sources = {item.metabolite for found in tracers.values() for item in found}
     terms: dict[_Unit, list[_TermSpec]] = {}
@@ -735,7 +771,10 @@ def _source_units(units: _LabellingSpec, tracers: Sequence[TracerSpec]) -> dict[
 
 
 def _solve_size(units: _LabellingSpec, size: int, flows: Array, known: dict[_Unit, Array]) -> None:
-    """Solve the units of one size, `A X = B`, and add their distributions to the known ones."""
+    """Solve the units of one size, `A X = B`.
+
+    It adds their distributions to the known ones.
+    """
     chosen = [unit for unit in units.terms if len(unit[1]) == size]
     positions = {unit: position for position, unit in enumerate(chosen)}
     rows, columns, values = [], [], []
@@ -798,7 +837,10 @@ def _parametrization(
     measurements: Sequence[LabelMeasurementSpec],
     measured_fluxes: Mapping[str, tuple[float, float]],
 ) -> _FitSpec:
-    """Return a particular solution, the null space basis of the net fluxes, and the exchanges."""
+    """Return the parametrization of the net fluxes.
+
+    It is a particular solution, the null space basis of the net fluxes, and the exchanges.
+    """
     balances = _balances(units)
     reactions = units.reactions
     network = units.network
@@ -828,7 +870,10 @@ def _net_of(fit: _FitSpec, parameters: Array) -> Array:
 
 
 def _flows_of(fit: _FitSpec, parameters: Array) -> Array:
-    """Return the directed fluxes of parameters, the exchanges added in both directions."""
+    """Return the directed fluxes of parameters.
+
+    The exchanges are added in both directions.
+    """
     net = _net_of(fit, parameters)
     reactions = fit.units.reactions
     count = len(reactions)
@@ -842,7 +887,10 @@ def _flows_of(fit: _FitSpec, parameters: Array) -> Array:
 
 
 def _residuals(fit: _FitSpec, parameters: Array) -> Array:
-    """Return the weighted residuals of the measurements and the measured fluxes, and the penalties of bounds."""
+    """Return the weighted residuals of the fit.
+
+    They are the residuals of the measurements and the measured fluxes, and the penalties of bounds.
+    """
     flows = _flows_of(fit, parameters)
     units = fit.units
     simulated = {experiment: _simulated(units, flows, tracers) for experiment, tracers in units.tracers.items()}
@@ -860,7 +908,10 @@ def _residuals(fit: _FitSpec, parameters: Array) -> Array:
 
 
 def _drawn_vertices(fit: _FitSpec, rng: np.random.Generator) -> Array:
-    """Return a feasible net flux, a random combination of vertices that the core solve finds."""
+    """Return a feasible net flux.
+
+    It is a random combination of vertices that the core solve finds.
+    """
     network = fit.units.network
     reactions = fit.units.reactions
     fixed = {name: value for name, (value, deviation) in fit.measured_fluxes.items() if deviation == 0}
@@ -894,14 +945,20 @@ def _drawn_vertices(fit: _FitSpec, rng: np.random.Generator) -> Array:
 
 
 def _start(fit: _FitSpec, rng: np.random.Generator) -> Array:
-    """Return a feasible start: the coordinates of a drawn flux and random exchanges."""
+    """Return a feasible start.
+
+    It holds the coordinates of a drawn flux and random exchanges.
+    """
     net = _drawn_vertices(fit, rng)
     coordinates = fit.basis.T @ (net - fit.particular)
     return np.concatenate([coordinates, rng.uniform(0.0, fit.exchange_limit / 2.0)])
 
 
 def _fit(fit: _FitSpec, start: Array, extra: tuple[int, float] | None = None) -> tuple[Array, float]:
-    """Return the parameters that minimise the residuals from a start, and the sum of squares of the residuals."""
+    """Return the parameters that minimise the residuals from a start.
+
+    It also returns the sum of squares of the residuals.
+    """
     count = fit.basis.shape[1]
     lower = np.concatenate([np.full(count, -np.inf), np.zeros(len(fit.exchanges))])
     upper = np.concatenate([np.full(count, np.inf), fit.exchange_limit])
@@ -966,7 +1023,10 @@ def _linear_intervals(fit: _FitSpec, parameters: Array) -> tuple[Array, Array]:
 
 
 def _profile_side(fit: _FitSpec, parameters: Array, position: int, best: float, limit: float) -> float:
-    """Return where the sum of squares rises by the threshold on the way from the optimum to a bound."""
+    """Return where the sum of squares rises by the threshold.
+
+    It searches on the way from the optimum to a bound.
+    """
     estimate = float(_estimate_of(fit, parameters)[position])
     step = max(PROFILE_RELATIVE_STEP * abs(estimate), 1.0)
     direction = 1.0 if limit > estimate else -1.0
@@ -994,7 +1054,10 @@ def _profile_side(fit: _FitSpec, parameters: Array, position: int, best: float, 
 
 
 def _profile_intervals(fit: _FitSpec, parameters: Array, best: float) -> tuple[Array, Array]:
-    """Return the intervals where the sum of squares stays within the threshold of its optimum."""
+    """Return the intervals where the sum of squares stays near its optimum.
+
+    It stays within the threshold of the optimum.
+    """
     lower, upper = _bounds_of_estimate(fit)
     low = np.empty_like(lower)
     high = np.empty_like(upper)
@@ -1005,7 +1068,10 @@ def _profile_intervals(fit: _FitSpec, parameters: Array, best: float) -> tuple[A
 
 
 def _estimates(fit: _FitSpec, parameters: Array, best: float, intervals: str) -> LabellingResult:
-    """Return the estimates, their intervals, the test of the fit, and the distributions at the optimum."""
+    """Return the estimates, their intervals, and the test of the fit.
+
+    It also returns the distributions at the optimum.
+    """
     names = _estimate_names(fit)
     low, high = (
         _profile_intervals(fit, parameters, best) if intervals == 'profile' else _linear_intervals(fit, parameters)
@@ -1042,7 +1108,9 @@ def tca_labelling_analysis(
     starts: int = 5,
     intervals: str = 'linear',
 ) -> partial[LabellingResult]:
-    """Return the labelling of the TCA example bound to its settings, with data simulated from its known fluxes.
+    """Return the labelling of the TCA example bound to its settings.
+
+    The data are simulated from its known fluxes.
 
     The data of the estimation are simulated from the known fluxes plus seeded noise.
 
@@ -1114,7 +1182,9 @@ def tca_labelling_analysis(
 
 
 class Carbon13MFASystem(BaseSystem):
-    """A metabolic network that `labelling` fits to labelling data, the TCA example by default.
+    """A metabolic network that `labelling` fits to labelling data.
+
+    The network is the TCA example by default.
 
     Labelled atoms of a tracer spread through the network along its atom transitions, so the measured mass isotopomer
     distributions of its products carry the fluxes (Raman 2021, Section 9.7). `tca_labelling_analysis` gives the

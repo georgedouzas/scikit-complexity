@@ -1,4 +1,7 @@
-"""Systems biology: gene circuits, Boolean networks, circadian clocks, signalling cascades, and Min-protein waves."""
+"""Systems biology of cells and their molecular networks.
+
+The package covers gene circuits, Boolean networks, circadian clocks, signalling cascades, and Min-protein waves.
+"""
 
 from ..common.kinetics import RepressionInteraction, SpeciesElement
 from ..common.metabolism import ToyNetworkElement

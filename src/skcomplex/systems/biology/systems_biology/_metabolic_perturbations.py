@@ -1,4 +1,7 @@
-"""Knock-outs of the E. coli core system, whose analyses COBRApy and StrainDesign run."""
+"""Knock-outs of the E. coli core system.
+
+COBRApy and StrainDesign run their analyses.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -11,7 +14,9 @@ from ..common.metabolism import load_network
 
 
 class MetabolicPerturbationsSystem(BaseSystem):
-    """The E. coli core system with some genes knocked out, which needs the extra `metabolism`.
+    """The E. coli core system with some genes knocked out.
+
+    It needs the extra `metabolism`.
 
     A gene that is off closes the reactions whose rules need it (Raman 2021, Section 9.1). `cobra_measures` scans the
     deletions and adjusts the fluxes by MoMA and ROOM, `strain_design` finds OptKnock designs, and

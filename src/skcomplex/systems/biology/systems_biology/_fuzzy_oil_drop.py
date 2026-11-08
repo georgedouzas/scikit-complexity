@@ -1,4 +1,7 @@
-"""Systems biology system: the fuzzy oil drop of a protein, replayed from an ensemble or folded by Monte Carlo moves."""
+"""The fuzzy oil drop of a protein.
+
+The protein is replayed from an ensemble or folded by Monte Carlo moves.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -106,7 +109,9 @@ class DihedralAngleElement(Element):
 
 
 class EnsembleReplayInteraction(Interaction):
-    """Drive that sets a lattice state to one member of an ensemble per unit of time, holding the last after the end.
+    """Drive that sets a lattice state to one member of an ensemble per unit of time.
+
+    It holds the last member after the end.
 
     Args:
         label:
@@ -153,7 +158,9 @@ class EnsembleReplayInteraction(Interaction):
 
 
 class BackboneVisual(PointsVisual):
-    """Visual that logs the effective atoms of a chain as points in three dimensions, joined by a line strip in order.
+    """Visual that logs the effective atoms of a chain as points in three dimensions.
+
+    A line strip joins the points in order.
 
     A state of coordinates holds one row of three values per residue. With a structure, the state holds the angles of a
     `BackboneGeometry` instead, and the visual rebuilds the chain from them at every frame.
@@ -214,7 +221,10 @@ class BackboneVisual(PointsVisual):
         super()._prepare(context)
 
     def _read_points(self, element: CompiledElementSpec, frame: FrameSpec) -> npt.NDArray[np.float64]:
-        """Return the effective atoms at a frame, rebuilt from the angles when the visual holds a structure."""
+        """Return the effective atoms at a frame.
+
+        They are rebuilt from the angles when the visual holds a structure.
+        """
         values = np.asarray(frame.value(element.states[self.position]), dtype=float)
         if self.geometry_ is None:
             return values.reshape(-1, CHAIN_DIMENSIONS)
@@ -227,7 +237,9 @@ class BackboneVisual(PointsVisual):
 
 @dataclass(frozen=True)
 class FuzzyOilDropMeasuresResult:
-    """Distributions of hydrophobicity of a structure, their divergences, and the values of a kind.
+    """Distributions of hydrophobicity of a structure, with their divergences.
+
+    It also holds the values of a kind.
 
     Args:
         hydrophobicity:
@@ -272,7 +284,9 @@ def fuzzy_oil_drop_measures(
     observed: npt.ArrayLike | None = None,
     state: str | None = None,
 ) -> FuzzyOilDropMeasuresResult:
-    """Return the distributions of hydrophobicity of a structure and their relative distance, after the fuzzy oil drop.
+    """Return the distributions of hydrophobicity of a structure and their relative distance.
+
+    They follow the fuzzy oil drop.
 
     The theoretical distribution `T` is a three-dimensional Gaussian over the effective atoms along the principal axes
     of the chain (Eq. 1.1). The observed distribution `O` is Levitt's sum over the pairs of residues within a cutoff
@@ -367,7 +381,10 @@ def fuzzy_oil_drop_measures(
 
 
 def _read_hydrophobicity(structure: StructureSpec, scale: Mapping[str, float] | None) -> Array:
-    """Return the hydrophobicity of every residue, or raise an error that names one the scale does not cover."""
+    """Return the hydrophobicity of every residue.
+
+    It raises an error that names a residue the scale does not cover.
+    """
     chosen = read_kyte_doolittle_scale() if scale is None else scale
     name = 'Kyte-Doolittle' if scale is None else 'given'
     for chain, number, residue in structure.residues:
@@ -381,7 +398,10 @@ def _read_hydrophobicity(structure: StructureSpec, scale: Mapping[str, float] | 
 
 
 def _read_positions(source: object, structure: StructureSpec, state: str | None) -> Array:
-    """Return the effective atoms of the systems, of a lattice state of a trajectory, or of an array."""
+    """Return the effective atoms of the systems.
+
+    They come from the systems, from a lattice state of a trajectory, or from an array.
+    """
     if source is None:
         return structure.effective_atoms
     if isinstance(source, Trajectory):
@@ -428,7 +448,9 @@ def _read_environment_factor(observed: Array, theoretical: Array) -> float:
 
 
 def read_kyte_doolittle_scale() -> dict[str, float]:
-    """Return the Kyte-Doolittle hydrophobicity of the twenty amino acids of Biopython, rescaled to `[0, 1]`.
+    """Return the Kyte-Doolittle hydrophobicity of the twenty amino acids of Biopython.
+
+    It is rescaled to `[0, 1]`.
 
     Returns:
         scale:
@@ -453,7 +475,10 @@ def read_kyte_doolittle_scale() -> dict[str, float]:
 
 @lru_cache(maxsize=4)
 def _read_chain(entry: str) -> tuple[StructureSpec, BackboneGeometry]:
-    """Return a bundled entry and its chain, which rebuilds from angles."""
+    """Return a bundled entry and its chain.
+
+    The chain rebuilds from angles.
+    """
     structure = read_structure(entry)
     return structure, BackboneGeometry(structure).prepare()
 
@@ -468,7 +493,10 @@ def _read_value(structure: StructureSpec, kind: str, positions: Array) -> float:
 
 
 def _read_observed_value(kind: str, entry: str, state: str, t: float, values: Mapping[str, object]) -> float:
-    """Return a value of the fuzzy oil drop of the coordinates or the angles that a frame holds."""
+    """Return a value of the fuzzy oil drop of a frame.
+
+    The frame holds the coordinates or the angles.
+    """
     del t
     structure, geometry = _read_chain(entry)
     numbers = np.asarray(values[state], dtype=float).ravel()
@@ -479,7 +507,9 @@ def _read_observed_value(kind: str, entry: str, state: str, t: float, values: Ma
 
 
 class FuzzyOilDropSystem(BaseSystem):
-    """The fuzzy oil drop of a protein, an ensemble replayed one member per frame or a chain folded by moves.
+    """The fuzzy oil drop of a protein.
+
+    It is an ensemble replayed one member per frame or a chain folded by moves.
 
     The default replays the systems of an entry, which sets the effective atoms of the chain, the mean atom of each
     residue, to one system per unit of time. With `dynamics='folding'`, the chain starts extended, with all `phi =
@@ -545,7 +575,9 @@ class FuzzyOilDropSystem(BaseSystem):
         self.temperature = temperature
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the relative distance and the environment factor of the chain.
+        """Return the tuned run settings.
+
+        They hold the relative distance and the environment factor of the chain.
 
         Returns:
             settings:
@@ -561,19 +593,28 @@ class FuzzyOilDropSystem(BaseSystem):
 
     @staticmethod
     def _rotate_dihedral(width: float, row: Array, rng: np.random.Generator) -> Array:
-        """Return a row of angles with one random angle rotated by up to a width and wrapped to `[-180, 180)`."""
+        """Return a row of angles with one random angle rotated by up to a width.
+
+        The rotated angle is wrapped to `[-180, 180)`.
+        """
         site = rng.integers(row.size)
         row[site] = (row[site] + rng.uniform(-width, width) + 180.0) % 360.0 - 180.0
         return row
 
     @staticmethod
     def _read_clashes(positions: Array) -> int:
-        """Return the number of pairs of effective atoms apart along the chain and closer than the clash distance."""
+        """Return the number of clashes of effective atoms.
+
+        A clash is a pair of atoms apart along the chain and closer than the clash distance.
+        """
         rows, columns = np.triu_indices(len(positions), NEAREST_SEPARATED_RESIDUES)
         return int(np.sum(np.linalg.norm(positions[rows] - positions[columns], axis=1) < CLASH_DISTANCE))
 
     def _score_angles(self, entry: str, row: Array) -> float:
-        """Return the relative distance of a chain rebuilt from a row of angles, plus one for every clash."""
+        """Return the relative distance of a chain rebuilt from a row of angles.
+
+        It adds one for every clash.
+        """
         structure, geometry = _read_chain(entry)
         positions = geometry.run(row).read_effective_atoms()
         return _read_value(structure, 'relative-distance', positions) + self._read_clashes(positions)

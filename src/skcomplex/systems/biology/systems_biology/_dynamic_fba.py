@@ -24,7 +24,9 @@ ODE_STEP = 0.005
 
 
 class DynamicFBASystem(BaseSystem):
-    """A batch culture of the E. coli core system, which needs the extra `metabolism`.
+    """A batch culture of the E. coli core system.
+
+    It needs the extra `metabolism`.
 
     The program solves for the fluxes with Michaelis-Menten glucose uptake and then the smallest total flux. By the
     static optimisation approach it solves in a discrete partition at every synchronisation point, and the biomass and
@@ -93,7 +95,9 @@ class DynamicFBASystem(BaseSystem):
         self.interval = interval
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the solver of the approach and the synchronisation interval.
+        """Return the tuned run settings.
+
+        They hold the solver of the approach and the synchronisation interval.
 
         Returns:
             settings:
@@ -108,7 +112,10 @@ class DynamicFBASystem(BaseSystem):
         return settings
 
     def _build_system(self) -> System:
-        """Return the parts of a batch culture of the E. coli core system, which needs the extra `metabolism`."""
+        """Return the parts of a batch culture of the E. coli core system.
+
+        It needs the extra `metabolism`.
+        """
         if self.approach not in APPROACHES:
             error_msg = f'Unknown approach {self.approach!r}. Use one of {", ".join(APPROACHES)}.'
             raise ValidationError(error_msg)

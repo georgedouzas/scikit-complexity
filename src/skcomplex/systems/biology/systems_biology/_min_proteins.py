@@ -1,4 +1,7 @@
-"""Min-protein patterns: the skeleton system of MinD and MinE cycling between the membrane and the cytosol."""
+"""Min-protein patterns.
+
+The skeleton system has MinD and MinE cycling between the membrane and the cytosol.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +23,9 @@ from ....core.types import Array
 
 
 class MinSkeletonElement(Element):
-    """Site of the Min skeleton system, with membrane MinD and MinDE and cytosolic MinD-ATP, MinD-ADP, and MinE.
+    """Site of the Min skeleton system.
+
+    It holds membrane MinD and MinDE and cytosolic MinD-ATP, MinD-ADP, and MinE.
 
     The reactions are the attachment and self-recruitment of MinD-ATP to the membrane, `(k_d + k_dd md) cdt`, the
     recruitment of MinE by membrane MinD, `k_de md ce`, the dissociation of MinDE complexes, `k_off mde`, which releases
@@ -113,7 +118,9 @@ class MinSkeletonElement(Element):
 
 
 class MinProteinSkeletonSystem(BaseSystem):
-    """The skeleton system of the Min proteins on a periodic line, a mass-conserving reaction-diffusion system.
+    """The skeleton system of the Min proteins on a periodic line.
+
+    It is a mass-conserving reaction-diffusion system.
 
     MinD and MinE cycle between the membrane, where they diffuse slowly, and the cytosol, where they diffuse fast, with
     the reactions of `MinSkeletonElement`. The reactions conserve the totals of MinD and MinE, so only diffusion moves
@@ -176,7 +183,10 @@ class MinProteinSkeletonSystem(BaseSystem):
 
     @staticmethod
     def _uniform_state(element: MinSkeletonElement, total_D: float, total_E: float) -> dict[str, float]:
-        """Return the uniform steady state of the skeleton system with the totals of MinD and MinE."""
+        """Return the uniform steady state of the skeleton system.
+
+        It has the totals of MinD and MinE.
+        """
 
         def others(md: float) -> tuple[float, float, float, float]:
             mde = total_E * element.k_de * md / (element.k_off + element.k_de * md)

@@ -1,4 +1,7 @@
-"""Regulatory flux balance analysis: Boolean rules alternate with the program in a culture on glucose and acetate."""
+"""Regulatory flux balance analysis of a culture on glucose and acetate.
+
+Boolean rules alternate with the program.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -33,7 +36,9 @@ ODE_STEP = 0.005
 
 
 class GlucoseSensorInteraction(Interaction):
-    """Boolean node that reads whether a substrate lies above a threshold, or the previous node of a chain.
+    """Boolean node that reads whether a substrate lies above a threshold.
+
+    It reads the previous node instead when it belongs to a chain.
 
     Args:
         label:
@@ -86,7 +91,9 @@ class GlucoseSensorInteraction(Interaction):
 
 
 class RegulatoryFBASystem(BaseSystem):
-    """A batch culture on glucose and acetate with Boolean catabolite repression, which needs the extra.
+    """A batch culture on glucose and acetate with Boolean catabolite repression.
+
+    It needs the extra.
 
     Boolean rules alternate with the program (Raman 2021, Eq. 9.7). A node reads whether glucose lies above a threshold,
     a chain of nodes delays it, and while the last node is on it holds the genes of acetate kinase off through update
@@ -161,7 +168,10 @@ class RegulatoryFBASystem(BaseSystem):
         self.km = km
 
     def _build_system(self) -> System:
-        """Return the parts of a batch culture on glucose and acetate with Boolean catabolite repression."""
+        """Return the parts of a batch culture with Boolean catabolite repression.
+
+        The culture grows on glucose and acetate.
+        """
         cell = load_network('textbook', 'cell', needed_by='regulatory_fba')
         cell.parsimonious, cell.infeasible = True, 'zero'
         identifier = cell._identifier(ACETATE_EXCHANGE)

@@ -1,4 +1,4 @@
-"""Systems biology systems: cell fate decisions as landscapes and as lateral inhibition between cells."""
+"""Cell fate decisions as landscapes and as lateral inhibition between cells."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +20,9 @@ from ....core.specs import ParameterSpec, RoleSpec, StateSpec, VisualSpec
 
 
 class FateLandscapeElement(Element):
-    """Cell state in the compactified elliptic umbilic, the minimal landscape of a decision among three fates.
+    """Cell state in the compactified elliptic umbilic.
+
+    It is the minimal landscape of a decision among three fates.
 
     The state `(x, y)` descends the potential `f = x^4 + y^4 + x^3 - 2 x y^2 + a (x^2 + y^2) + theta1 x + theta2 y` of
     Rand et al. (2021, figure 5D), `dx/dt = -df/dx` and `dy/dt = -df/dy`. The signals `theta1` and `theta2` change
@@ -103,7 +105,9 @@ class FateLandscapeElement(Element):
 
 
 class ProneuralCellElement(Element):
-    """Cell of an epithelium that adopts the neural fate when the inhibition from its neighbours is weak.
+    """Cell of an epithelium that may adopt the neural fate.
+
+    It adopts the neural fate when the inhibition from its neighbours is weak.
 
     The state `a` runs from 0, the epidermal fate, to 1, the neural fate of a sensory bristle. The sigmoids of the
     lateral inhibition share the width `width`.
@@ -141,7 +145,9 @@ class ProneuralCellElement(Element):
 
 
 class LateralInhibitionInteraction(Interaction):
-    """Lateral inhibition of the neural fate of cells by their neighbours, through a kernel of the distance.
+    """Lateral inhibition of the neural fate of cells by their neighbours.
+
+    It acts through a kernel of the distance.
 
     Following Eq. (2) of Rand et al. (2021), `da_i/dt = sigma(a_i - h_i) - a_i` with the inhibition `h_i = sum_{j != i}
     K_ij d(a_j)`, where `sigma(u) = 1 / (1 + exp(-u / width))` and `d(a) = sigma(a - 1 / 2)`. A cell under an
@@ -197,7 +203,9 @@ class LateralInhibitionInteraction(Interaction):
 
 
 class ThreeWayFateDecisionSystem(BaseSystem):
-    """Cells that choose among three fates on the compactified elliptic umbilic landscape of Rand et al.
+    """Cells that choose among three fates on a compactified elliptic umbilic.
+
+    The landscape is the one of Rand et al.
 
     Every cell descends the potential `x^4 + y^4 + x^3 - 2 x y^2 + a (x^2 + y^2) + theta1 x + theta2 y`. With `a < 0`
     and no signal the centre is a repellor and three attractors, the fates, lie around it, separated by three saddles,
@@ -288,7 +296,9 @@ class ThreeWayFateDecisionSystem(BaseSystem):
 
 
 class BristleLateralInhibitionSystem(BaseSystem):
-    """A ring of cells that inhibit the neural fate of their neighbours, leaving sparse, evenly spaced bristles.
+    """A ring of cells that inhibit the neural fate of their neighbours.
+
+    The inhibition leaves sparse, evenly spaced bristles.
 
     Following Eq. (2) of Rand et al. (2021), every cell relaxes to `sigma(a_i - h_i)` under the inhibition `h_i = sum_j
     K_ij d(a_j)`, with the Gaussian kernel `K_ij = strength exp(-d_ij^2 / (2 length^2))` of the distance `d_ij` along
@@ -350,7 +360,7 @@ class BristleLateralInhibitionSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the parts of a ring of cells that inhibit the neural fate of their neighbours."""
+        """Return the parts of a ring of cells that inhibit the neural fate of neighbours."""
         index = np.arange(self.cells)
         distance = np.abs(index[:, None] - index[None, :])
         distance = np.minimum(distance, self.cells - distance)

@@ -1,4 +1,7 @@
-"""Define the types of systems biology: the rules of Boolean networks and their candidates."""
+"""Define the types of systems biology.
+
+They are the rules of Boolean networks and their candidates.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,7 +17,10 @@ type Candidates = Sequence[tuple[Sequence[int], float]]
 
 
 class InternalCoordinatesProtocol(Protocol):
-    """Internal coordinates of a residue in Biopython, which the extra `structures` holds."""
+    """Internal coordinates of a residue in Biopython.
+
+    The extra `structures` holds Biopython.
+    """
 
     def get_angle(self, name: str) -> float | None:
         """Return the angle of a name in degrees, or `None` when the residue has none.
@@ -41,19 +47,28 @@ class InternalCoordinatesProtocol(Protocol):
 
 
 class ResidueProtocol(Protocol):
-    """Residue of a chain in Biopython, which the extra `structures` holds."""
+    """Residue of a chain in Biopython.
+
+    The extra `structures` holds Biopython.
+    """
 
     internal_coord: InternalCoordinatesProtocol
 
 
 class AtomProtocol(Protocol):
-    """Atom of a chain in Biopython, which the extra `structures` holds."""
+    """Atom of a chain in Biopython.
+
+    The extra `structures` holds Biopython.
+    """
 
     coord: npt.NDArray[np.floating]
 
 
 class ChainProtocol(Protocol):
-    """Chain of a structure in Biopython, which the extra `structures` holds."""
+    """Chain of a structure in Biopython.
+
+    The extra `structures` holds Biopython.
+    """
 
     def atom_to_internal_coordinates(self) -> None:
         """Read the internal coordinates of the positions of the atoms."""
@@ -69,7 +84,10 @@ class ChainProtocol(Protocol):
 
 
 class BiopythonStructureProtocol(Protocol):
-    """Structure in Biopython, which the extra `structures` holds."""
+    """Structure in Biopython.
+
+    The extra `structures` holds Biopython.
+    """
 
     def get_chains(self) -> Iterator[ChainProtocol]:
         """Return the chains of the systems of the structure."""

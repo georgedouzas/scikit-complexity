@@ -1,4 +1,7 @@
-"""Flux balance analysis of Raman's toy network, or of the Escherichia coli core system with the extra."""
+"""Flux balance analysis of Raman's toy network, or of the Escherichia coli core system.
+
+The Escherichia coli core system needs the extra.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +16,9 @@ OXYGEN_EXCHANGE = 'EX_o2_e'
 
 
 class FluxBalanceSystem(BaseSystem):
-    """Flux balance analysis of a metabolic network, which sets its fluxes to maximise growth.
+    """Flux balance analysis of a metabolic network.
+
+    It sets the fluxes of the network to maximise growth.
 
     The steady-state balances of the metabolites and the bounds of the reactions confine the fluxes, and the optimum of
     the growth flux sets them (Raman 2021, Section 8.6). The toy network of Table 8.2 reaches growth 50, set by the

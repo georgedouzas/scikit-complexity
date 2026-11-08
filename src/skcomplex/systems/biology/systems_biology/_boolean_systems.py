@@ -1,4 +1,4 @@
-"""Systems biology systems: Boolean networks of gene circuits, the mammalian cell cycle, and noisy majorities."""
+"""Boolean networks of gene circuits, the mammalian cell cycle, and noisy majorities."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -71,7 +71,9 @@ REPRESSILATOR_GENES = ('LacI', 'TetR', 'cI')
 
 
 class MajorityNodeElement(Element):
-    """Node of a noisy Boolean network, a state of plus or minus one that follows the majority of its inputs.
+    """Node of a noisy Boolean network, a state of plus or minus one.
+
+    The node follows the majority of its inputs.
 
     Args:
         label:
@@ -106,7 +108,9 @@ class MajorityNodeElement(Element):
 
 
 class NoisyMajorityInteraction(Interaction):
-    """Update of every node of a Boolean network to the sign of the sum of its inputs, flipped with a probability.
+    """Update of every node of a Boolean network to the sign of the sum of its inputs.
+
+    The sign is flipped with a probability.
 
     Node `i` takes `sign(sum_j sigma_ij)` over its inputs with the probability `1 - eta` and the opposite sign with
     the probability `eta`, all nodes at once, the network of Huepe and Aldana-González (2002).
@@ -160,7 +164,10 @@ class NoisyMajorityInteraction(Interaction):
 
 
 def _truth_table(rule: Rule, arity: int) -> tuple[int, ...]:
-    """Return the next value of a rule for every pattern of its inputs, read as bits from the most significant."""
+    """Return the next value of a rule for every pattern of its inputs.
+
+    The patterns are read as bits from the most significant.
+    """
     return tuple(int(bool(rule(*pattern))) for pattern in itertools.product((0, 1), repeat=arity))
 
 
@@ -170,7 +177,10 @@ def _rule_network(
     active: Sequence[str],
     knockouts: Sequence[str] = (),
 ) -> System:
-    """Return the labelled Boolean network of rules, with the active nodes on and the knocked-out nodes kept off."""
+    """Return the labelled Boolean network of rules.
+
+    The active nodes are on and the knocked-out nodes kept off.
+    """
     unknown = sorted((set(active) | set(knockouts)) - set(rules))
     if unknown:
         error_msg = f'Unknown nodes {unknown}. Use names among {list(rules)}.'
@@ -224,13 +234,18 @@ class ThreeGeneBooleanNetworkSystem(BaseSystem):
         self.x = x
 
     def _build_system(self) -> System:
-        """Return the parts of the three-gene Boolean network of Raman, updated synchronously."""
+        """Return the parts of the three-gene Boolean network of Raman.
+
+        The network is updated synchronously.
+        """
         active = [name for name, value in zip(THREE_GENE_RULES, self.x, strict=True) if value]
         return _rule_network(self.label, THREE_GENE_RULES, active)
 
 
 class MammalianCellCycleSystem(BaseSystem):
-    """The Boolean system of the mammalian cell cycle of Faure et al., ten proteins updated synchronously.
+    """The Boolean system of the mammalian cell cycle of Faure et al.
+
+    It holds ten proteins updated synchronously.
 
     The rules are those printed by Raman for CycD, Rb, E2F, CycE, CycA, p27, Cdc20, Cdh1, UbcH10 (`Ubc`), and CycB. The
     growth signal CycD keeps its value. Without it the network rests in the quiescent state with Rb, p27, and Cdh1 on.
@@ -275,12 +290,17 @@ class MammalianCellCycleSystem(BaseSystem):
         self.knockouts = knockouts
 
     def _build_system(self) -> System:
-        """Return the parts of the Boolean system of the mammalian cell cycle of Faure et al."""
+        """Return the parts of the Boolean system of the mammalian cell cycle.
+
+        The system is the one of Faure et al.
+        """
         return _rule_network(self.label, CELL_CYCLE_RULES, self.active, self.knockouts)
 
 
 class BooleanRepressilatorSystem(BaseSystem):
-    """The Boolean repressilator, where LacI represses TetR, TetR represses cI, and cI represses LacI.
+    """The Boolean repressilator of LacI, TetR, and cI.
+
+    LacI represses TetR, TetR represses cI, and cI represses LacI.
 
     The transfer functions are `TetR* = NOT LacI`, `cI* = NOT TetR`, and `LacI* = NOT cI`. From a state with one or two
     genes on, the genes switch on and off in turn with period 6, and the states `000` and `111` alternate with period
@@ -354,7 +374,9 @@ class BooleanRepressilatorSystem(BaseSystem):
 
 
 class NoisyBooleanNetworkSystem(BaseSystem):
-    """The Boolean network of Huepe and Aldana-González, nodes that follow the noisy majority of `k` inputs.
+    """The Boolean network of Huepe and Aldana-González.
+
+    Its nodes follow the noisy majority of `k` inputs.
 
     Every node takes the sign of the sum of its `k` random inputs, flipped with the probability `eta`. The order
     parameter `Psi`, the time average of the absolute mean state, undergoes a continuous phase transition at the noise

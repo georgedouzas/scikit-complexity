@@ -1,4 +1,7 @@
-"""Systems biology systems: probabilistic Boolean networks, which draw the function of every node at every step."""
+"""Probabilistic Boolean networks.
+
+They draw the function of every node at every step.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -31,7 +34,9 @@ SHMULEVICH_NETWORK: dict[str, tuple[tuple[tuple[int, ...], float], ...]] = {
 
 
 class ProbabilisticNodeElement(Element):
-    """Node of a probabilistic Boolean network, on or off, with the index of the function that set it last.
+    """Node of a probabilistic Boolean network, on or off.
+
+    It holds the index of the function that set it last.
 
     Args:
         label:
@@ -66,7 +71,9 @@ class ProbabilisticNodeElement(Element):
 
 
 class ProbabilisticFunctionInteraction(MapInteraction):
-    """Synchronous map of a node by one of several truth tables, drawn with given probabilities at every step.
+    """Synchronous map of a node by one of several truth tables.
+
+    The table is drawn with given probabilities at every step.
 
     Each table of `2^k` entries reads the `k` inputs as the bits of a binary number, from the most significant, and
     gives the next value `x` of the target. A second update of the same step records the index of the drawn table in
@@ -120,7 +127,10 @@ class ProbabilisticFunctionInteraction(MapInteraction):
         self.probabilities = probabilities
 
     def _get_pattern(self, inputs: Sequence[Expression], index: int) -> Expression:
-        """Return the product that is 1 when the inputs, read as bits from the most significant, spell an index."""
+        """Return the product that is 1 when the inputs spell an index.
+
+        The inputs are read as bits from the most significant.
+        """
         bits = [(index >> (len(inputs) - 1 - position)) & 1 for position in range(len(inputs))]
         return prod((value if bit else 1 - value for value, bit in zip(inputs, bits, strict=True)), start=SR(1))
 
@@ -129,7 +139,9 @@ class ProbabilisticFunctionInteraction(MapInteraction):
         return sum((self._get_pattern(inputs, index) for index, entry in enumerate(table) if entry), start=SR(0))
 
     def _check(self) -> None:
-        """Raise an error for tables and probabilities that differ in number, or a table of the wrong size.
+        """Raise an error for invalid tables and probabilities.
+
+        They are invalid when they differ in number, or a table has the wrong size.
 
         Raises:
             ValidationError:
@@ -151,7 +163,10 @@ class ProbabilisticFunctionInteraction(MapInteraction):
             raise ValidationError(error_msg)
 
     def _get_draw(self) -> Expression:
-        """Return the index of the table drawn in a step, one draw for the value and its record."""
+        """Return the index of the table drawn in a step.
+
+        One draw serves the value and its record.
+        """
         return categorical('function', list(self.probabilities))
 
     def _get_drawn_value(self, namespace: SimpleNamespace) -> Expression:
@@ -165,7 +180,9 @@ class ProbabilisticFunctionInteraction(MapInteraction):
         return value
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BasePart]:
-        """Return the map of the target by the drawn table and the record of the drawn index.
+        """Return the map of the target by the drawn table.
+
+        It also returns the record of the drawn index.
 
         Args:
             namespace:
@@ -179,7 +196,9 @@ class ProbabilisticFunctionInteraction(MapInteraction):
 
 
 class ProbabilisticBooleanNetworkSystem(BaseSystem):
-    """A probabilistic Boolean network, whose nodes draw one of their candidate functions at every step.
+    """A probabilistic Boolean network.
+
+    Its nodes draw one of their candidate functions at every step.
 
     Every node has candidate truth tables of the inputs, each with a probability, and at every step every node draws one
     of its tables independently and takes its value, all nodes together. The default network follows the three-gene

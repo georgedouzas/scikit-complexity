@@ -1,4 +1,7 @@
-"""Rebuild a protein chain from its backbone dihedral angles through the internal coordinates of Biopython."""
+"""Rebuild a protein chain from its backbone dihedral angles.
+
+The rebuild goes through the internal coordinates of Biopython.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +21,9 @@ VECTOR_MODULE = r'Bio\.PDB\.vectors'
 
 
 class BackboneGeometry(BaseConfig[None, Array]):
-    """Chain of a structure rebuilt from the angles `phi` and `psi` of its backbone, with all other geometry kept.
+    """Chain of a structure rebuilt from the angles `phi` and `psi` of its backbone.
+
+    All other geometry of the chain is kept.
 
     The angles of a chain of `n` residues are one array of `2 (n - 1)` values in degrees: `phi` of the residues from the
     second to the last, then `psi` of the residues from the first to the one before the last. The bond lengths, the
@@ -65,7 +70,10 @@ class BackboneGeometry(BaseConfig[None, Array]):
             raise ValidationError(error_msg)
 
     def _rebuild(self) -> None:
-        """Rebuild the atoms from the internal coordinates, filtering the one warning of Biopython's vectors."""
+        """Rebuild the atoms from the internal coordinates.
+
+        The rebuild filters the one warning of Biopython's vectors.
+        """
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', message=VECTOR_WARNING, category=UserWarning, module=VECTOR_MODULE)
             self._chain.internal_to_atom_coordinates()

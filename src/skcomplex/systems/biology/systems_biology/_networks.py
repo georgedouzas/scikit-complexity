@@ -1,4 +1,4 @@
-"""Systems biology systems: cellular oscillators, glycolytic oscillations, and power-law rate equations."""
+"""Cellular oscillators, glycolytic oscillations, and power-law rate equations."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -92,7 +92,9 @@ MIN_GOODWIN_STAGES = 2
 
 
 class GlycolysisElement(DeclaredElement):
-    """Yeast glycolysis in a flow reactor, the fifteen metabolites of the model of Nielsen and coworkers.
+    """Yeast glycolysis in a flow reactor.
+
+    It has the fifteen metabolites of the model of Nielsen and coworkers.
 
     The model of Nielsen, Sørensen, Hynne, and Busse (1998), BioModels BIOMD0000000042, follows glucose `GLC` through
     hexokinase, phosphofructokinase with its inhibition by the ratio of `ATP` to `AMP`, aldolase, glyceraldehyde
@@ -120,7 +122,10 @@ class GlycolysisElement(DeclaredElement):
     law_classes = (RateLaw,)
 
     def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the concentrations and the rate constants of the source, updated by `variables`."""
+        """Return the concentrations and the rate constants of the source.
+
+        They are updated by `variables`.
+        """
         nonnegative = RealSet.closed_open(0, oo)
         declared = {
             name: DeclaredVariableSpec(value, StateSpec(domain=nonnegative)) for name, value in CONCENTRATIONS.items()
@@ -131,7 +136,9 @@ class GlycolysisElement(DeclaredElement):
         return {**declared, **(self.variables or {})}
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the rates of the metabolites, the reactions of glycolysis and the exchange with the feed.
+        """Return the rates of the metabolites.
+
+        They are the reactions of glycolysis and the exchange with the feed.
 
         Args:
             s:
@@ -178,7 +185,9 @@ class GlycolysisElement(DeclaredElement):
 
 
 class PhosphorylationLoopElement(Element):
-    """Three proteins, each phosphorylated and dephosphorylated by Michaelis-Menten kinetics, that regulate each other.
+    """Three proteins that regulate each other.
+
+    Each is phosphorylated and dephosphorylated by Michaelis-Menten kinetics.
 
     The states are the unphosphorylated amounts, and each total is conserved. With `u_T = A_T - A`, and so on:
 
@@ -287,7 +296,9 @@ class PhosphorylationLoopElement(Element):
 
 
 class GeneralizedMassActionInteraction(Interaction):
-    """Rates of a biochemical system in the generalized mass action form of biochemical systems theory.
+    """Rates of a biochemical system in the generalized mass action form.
+
+    The form is that of biochemical systems theory.
 
     Flux `j` is the power law `v_j = gamma_j prod_k x_k^f_jk`, and species `i` changes as `dx_i/dt = sum_j s_ij v_j`.
     The kinetic orders `f_jk` are real numbers, negative for inhibition.
@@ -339,11 +350,17 @@ class GeneralizedMassActionInteraction(Interaction):
         self.orders = orders
 
     def _get_power_product(self, values: Sequence[Expression], orders: Sequence[float]) -> Expression:
-        """Return the product `prod_k x_k^f_k` of the values raised to their kinetic orders, leaving out zero orders."""
+        """Return the product `prod_k x_k^f_k` of the values raised to their kinetic orders.
+
+        Zero orders are left out.
+        """
         return prod((value**order for value, order in zip(values, orders, strict=True) if order), start=SR(1))
 
     def _check_shape(self, name: str, rows: int, columns: int) -> None:
-        """Raise an error unless a matrix argument has the given numbers of rows and columns."""
+        """Raise an error unless a matrix argument has the given shape.
+
+        The shape is the given numbers of rows and columns.
+        """
         matrix = getattr(self, name)
         if len(matrix) == rows and all(len(row) == columns for row in matrix):
             return
@@ -354,7 +371,10 @@ class GeneralizedMassActionInteraction(Interaction):
         raise ValidationError(error_msg)
 
     def _check_matrices(self) -> None:
-        """Raise an error for a stoichiometry or kinetic orders that do not match the species and the fluxes."""
+        """Raise an error for a stoichiometry or kinetic orders of the wrong shape.
+
+        They must match the species and the fluxes.
+        """
         self._check_shape('stoichiometry', len(self.species), len(self.gamma))
         self._check_shape('orders', len(self.gamma), len(self.species))
 
@@ -363,7 +383,10 @@ class GeneralizedMassActionInteraction(Interaction):
         return [rate * self._get_power_product(values, row) for rate, row in zip(self.gamma, self.orders, strict=True)]
 
     def _get_stoichiometry(self) -> Sequence[Sequence[float]]:
-        """Return the stoichiometric coefficient of every species in every flux, one row per species."""
+        """Return the stoichiometric coefficient of every species in every flux.
+
+        There is one row per species.
+        """
         return self.stoichiometry
 
     def _check(self) -> None:
@@ -396,7 +419,9 @@ class GeneralizedMassActionInteraction(Interaction):
 
 
 class SSystemInteraction(GeneralizedMassActionInteraction):
-    """Rates of a biochemical system in the S-system form of biochemical systems theory.
+    """Rates of a biochemical system in the S-system form.
+
+    The form is that of biochemical systems theory.
 
     Every species has one aggregated production and one aggregated degradation, both power laws:
     `dx_i/dt = alpha_i prod_j x_j^g_ij - beta_i prod_j x_j^h_ij`. It is the generalized mass action form with two
@@ -461,7 +486,10 @@ class SSystemInteraction(GeneralizedMassActionInteraction):
         ]
 
     def _get_stoichiometry(self) -> Sequence[Sequence[float]]:
-        """Return the coefficient 1 of every species in its production and -1 in its degradation."""
+        """Return the coefficients of every species in its production and degradation.
+
+        The coefficient is 1 in its production and -1 in its degradation.
+        """
         size = len(self.species)
         return [
             [1.0 if flux == 2 * row else -1.0 if flux == 2 * row + 1 else 0.0 for flux in range(2 * size)]
@@ -470,7 +498,9 @@ class SSystemInteraction(GeneralizedMassActionInteraction):
 
 
 class PhosphorylationOscillatorSystem(BaseSystem):
-    """Three proteins whose phosphorylation cycles regulate each other in a loop that oscillates.
+    """Three proteins whose phosphorylation cycles regulate each other in a loop.
+
+    The loop oscillates.
 
     C converts A, A converts B, and B converts C, each reaction with Michaelis-Menten kinetics and each total conserved,
     so the loop is a negative feedback of three steps. The book prints the equations and no parameter values. The
@@ -627,7 +657,9 @@ class PhosphorylationOscillatorSystem(BaseSystem):
 
 
 class BiochemicalSystemsTheorySystem(BaseSystem):
-    """A biochemical system of power-law rates, in the S-system or the generalized mass action form.
+    """A biochemical system of power-law rates.
+
+    It takes the S-system or the generalized mass action form.
 
     The S-system form gives every species one production and one degradation, `dx_i/dt = alpha_i prod_j x_j^g_ij -
     beta_i prod_j x_j^h_ij`. The generalized mass action form sums power-law fluxes, `dx_i/dt = sum_j s_ij gamma_j
@@ -737,7 +769,9 @@ class BiochemicalSystemsTheorySystem(BaseSystem):
 
 
 class GoodwinOscillatorSystem(BaseSystem):
-    """The Goodwin oscillator, a chain of stages whose last one represses the synthesis of the first.
+    """The Goodwin oscillator, a chain of stages.
+
+    The last stage represses the synthesis of the first.
 
     The first stage, an mRNA, is synthesized at `a / (1 + (x_N / K)^n)` and every later stage at `k` times the stage
     before it, and every stage decays at rate `b`: `dx_1/dt = a / (1 + (x_N / K)^n) - b x_1` and `dx_i/dt = k x_(i-1) -
@@ -844,7 +878,9 @@ class GoodwinOscillatorSystem(BaseSystem):
 
 
 class GlycolysisOscillationsSystem(BaseSystem):
-    """The glycolysis of a yeast extract in a flow reactor, whose NADH oscillates with a period of minutes.
+    """The glycolysis of a yeast extract in a flow reactor.
+
+    Its NADH oscillates with a period of minutes.
 
     The model of Nielsen et al. (1998), BioModels BIOMD0000000042, has fifteen metabolites, the inhibition of
     phosphofructokinase by `ATP` and its activation by `AMP`, and the exchange with the feed of the reactor at the rate

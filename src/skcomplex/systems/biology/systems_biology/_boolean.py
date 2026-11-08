@@ -39,7 +39,9 @@ YEAST_START = ('Cln3', 'Cdh1', 'Sic1')
 
 
 class ThresholdFunctionInteraction(MapInteraction):
-    """Synchronous update of a node by the sign of the weighted sum of its active inputs, after Li et al.
+    """Synchronous update of a node by the sign of the weighted sum of its active inputs.
+
+    The update follows Li et al.
 
     The node turns on when the sum `w_0 x_0 + w_1 x_1 + ...` over its inputs is positive and off when it is negative.
     When the sum is zero, a node that decays turns off and any other node keeps its value.
@@ -81,14 +83,19 @@ class ThresholdFunctionInteraction(MapInteraction):
         self.decays = decays
 
     def _get_next(self, s: SimpleNamespace) -> Expression:
-        """Return 1 for a positive weighted input, 0 for a negative one, and the held or decayed value for none."""
+        """Return the next value of a node from its weighted input.
+
+        The value is 1 for a positive weighted input, 0 for a negative one, and the held or decayed value for none.
+        """
         total = sum((weight * item.x for weight, item in zip(s.weights, s.inputs, strict=True)), start=SR(0))
         unchanged = 0 if self.decays else s.target.x
         return where(total > 0, 1, where(total < 0, 0, unchanged))
 
 
 class RandomBooleanNetworkSystem(BaseSystem):
-    """A Kauffman random Boolean network, nodes updated together by random functions of `k` random inputs.
+    """A Kauffman random Boolean network.
+
+    Its nodes are updated together by random functions of `k` random inputs.
 
     Each node reads `k` distinct nodes, possibly itself, through a truth table whose entries are 1 with probability
     `bias`. The finite state space makes every run end on a cycle. With `k = 2` and `bias = 0.5` the network is
@@ -163,7 +170,9 @@ class RandomBooleanNetworkSystem(BaseSystem):
 
 
 class YeastCellCycleSystem(BaseSystem):
-    """The Boolean network of the budding yeast cell cycle of Li et al., eleven proteins and their regulation.
+    """The Boolean network of the budding yeast cell cycle of Li et al.
+
+    It holds eleven proteins and their regulation.
 
     Every protein turns on or off with the sign of the summed activations and inhibitions by the active proteins, and
     the proteins Cln3, Cln1,2, Swi5, Cdc20, and Mcm1 decay without input. Started from the G1 state with Cln3 on, the
@@ -200,7 +209,10 @@ class YeastCellCycleSystem(BaseSystem):
         self.active = active
 
     def _build_system(self) -> System:
-        """Return the parts of the Boolean network of the budding yeast cell cycle of Li et al."""
+        """Return the parts of the Boolean network of the yeast cell cycle of Li et al.
+
+        The yeast is the budding yeast.
+        """
         nodes = [BooleanNodeElement(name, x=int(name in self.active)) for name in YEAST_NODES]
         functions = [
             ThresholdFunctionInteraction(

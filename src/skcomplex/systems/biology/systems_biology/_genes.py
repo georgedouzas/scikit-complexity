@@ -54,7 +54,10 @@ class GeneElement(Element):
 
 
 def _express(gene: str, b: float, beta: float, delta: float, mode: str) -> list[BaseInteraction]:
-    """Return the decay of the mRNA, the translation, and the decay of the protein of a gene."""
+    """Return the decay of the mRNA, the translation, and the decay of the protein.
+
+    They are those of a gene.
+    """
     return [
         ReactionInteraction(f'mrna_decay_{gene}', reactants={(gene, 'm'): 1}, k=delta, mode=mode),
         ReactionInteraction(
@@ -69,7 +72,10 @@ def _express(gene: str, b: float, beta: float, delta: float, mode: str) -> list[
 
 
 def _repress(label: str, repressor: str, target: str, parameters: dict[str, float], mode: str) -> RepressionInteraction:
-    """Return the transcription of the mRNA of a target gene repressed by the protein of a repressor gene."""
+    """Return the transcription of the mRNA of a target gene.
+
+    The protein of a repressor gene represses it.
+    """
     return RepressionInteraction(
         label,
         products={(target, 'm'): 1},
@@ -91,7 +97,10 @@ def _circuit(
     *,
     label: str,
 ) -> System:
-    """Return labelled genes with initial protein counts, where the first gene of each edge represses the second."""
+    """Return labelled genes with initial protein counts.
+
+    The first gene of each edge represses the second.
+    """
     genes = [GeneElement(f'gene_{index}', p=float(p)) for index, p in enumerate(proteins)]
     repressions: list[BaseInteraction] = [
         _repress(f'repression_{source}_{target}', f'gene_{source}', f'gene_{target}', repression, mode)
@@ -102,7 +111,9 @@ def _circuit(
 
 
 class RepressilatorSystem(BaseSystem):
-    """The repressilator of Elowitz and Leibler, three genes in a ring that each repress the next.
+    """The repressilator of Elowitz and Leibler.
+
+    Three genes in a ring each repress the next.
 
     Gene `i` is repressed by gene `i - 1`, so the ring has an odd number of repressions and oscillates when
     transcription is strong and repression steep. Counts are molecule numbers, so the same rates run as differential
@@ -186,7 +197,9 @@ class RepressilatorSystem(BaseSystem):
 
 
 class ToggleSwitchSystem(BaseSystem):
-    """The genetic toggle switch of Gardner, Cantor, and Collins, two genes that repress each other.
+    """The genetic toggle switch of Gardner, Cantor, and Collins.
+
+    Two genes repress each other.
 
     With steep and strong repression the switch is bistable: one gene is expressed and silences the other, and the
     initial protein counts decide which. The stochastic mode lets noise flip the switch. The system has the counts
@@ -339,7 +352,10 @@ class NegativeAutoregulationSystem(BaseSystem):
         self.stochastic = stochastic
 
     def _build_system(self) -> System:
-        """Return the parts of a gene that represses its own transcription and makes its protein in bursts."""
+        """Return the parts of a gene that represses its own transcription.
+
+        The gene makes its protein in bursts.
+        """
         mode = 'jump' if self.stochastic else 'rate'
         feedback = _repress(
             'autoregulation',

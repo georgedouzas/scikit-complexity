@@ -1,4 +1,7 @@
-"""Systems biology system: the early-stage folding intermediate, residues sampled on the cells of an ellipse path."""
+"""The early-stage folding intermediate of a protein.
+
+Its residues are sampled on the cells of an ellipse path.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -61,7 +64,7 @@ CELLS = 72
 
 
 class PathCellElement(Element):
-    """Residue of a protein chain whose dihedral angles lie in one cell of an ellipse path.
+    """Residue of a protein chain with dihedral angles in one cell of an ellipse path.
 
     Args:
         label:
@@ -91,7 +94,9 @@ class PathCellElement(Element):
 
 
 class EllipsePath(BaseConfig[None, Array]):
-    """Ellipse path on the Ramachandran map, with the projection of dihedral angles by the shortest periodic distance.
+    """Ellipse path on the Ramachandran map.
+
+    It projects dihedral angles on it by the shortest periodic distance.
 
     The path is `phi = A cos(t) - B sin(t)`, `psi = -A cos(t) - B sin(t)`, a centred ellipse whose long diagonal runs
     from the upper left to the lower right of the map, with `t = 0` in the lower right and `t` growing clockwise.
@@ -181,13 +186,19 @@ class EllipsePath(BaseConfig[None, Array]):
         return np.column_stack([along - across, -along - across])
 
     def _read_distance(self, parameter: float, pair: Array) -> float:
-        """Return the shortest periodic distance between a pair of angles and a point of the path."""
+        """Return the shortest periodic distance between a pair of angles and the path.
+
+        The distance is to a point of the path.
+        """
         point = self.read_points(np.array([parameter]))[0]
         difference = (pair - point + np.pi) % TURN - np.pi
         return float(np.hypot(*difference))
 
     def _project(self, pair: Array) -> float:
-        """Return the parameter of the point of the path closest to a pair, refining the best points of the grid."""
+        """Return the parameter of the point of the path closest to a pair.
+
+        It refines the best points of the grid.
+        """
         differences = (pair - self.grid_points_ + np.pi) % TURN - np.pi
         distances = np.hypot(differences[:, 0], differences[:, 1])
         best = float(self.grid_[np.argmin(distances)])
@@ -213,7 +224,9 @@ class EllipsePath(BaseConfig[None, Array]):
 
 
 def read_native_pairs(structure: StructureSpec) -> tuple[list[str], Array]:
-    """Return the residues with both a `phi` and a `psi` in the first system of a structure, and these angles.
+    """Return the residues with both a `phi` and a `psi`, and these angles.
+
+    The residues are those of the first system of a structure.
 
     Args:
         structure:
@@ -242,7 +255,9 @@ def read_native_pairs(structure: StructureSpec) -> tuple[list[str], Array]:
 
 @lru_cache(maxsize=4)
 def read_cell_probabilities(cells: int = CELLS) -> Array:
-    """Return the probability of every cell of the ellipse path per amino acid, from the native bundled structures.
+    """Return the probability of every cell of the ellipse path per amino acid.
+
+    It reads the native bundled structures.
 
     The projected native angles of the bundled entries are counted per amino acid and cell, with one added to every
     count. The bundled entries and the added one are choices of this function, since Konieczny et al. (2023 §3.7.1)
@@ -275,7 +290,9 @@ def read_cell_probabilities(cells: int = CELLS) -> Array:
 
 
 class EarlyStageFoldingIntermediateSystem(BaseSystem):
-    """The residues of a protein sampling the cells of an ellipse path of the Ramachandran map by heat bath.
+    """The residues of a protein sampling the cells of an ellipse path by heat bath.
+
+    The path lies on the Ramachandran map.
 
     Each residue takes a cell of `EllipsePath`, the limited conformational space of the early stage after Konieczny et
     al. (2023 §3.7.1), with the local energy `-log p(cell | amino acid)` of the probabilities of

@@ -17,7 +17,9 @@ from ..common.kinetics import MichaelisMentenInteraction
 
 
 class PerClockElement(Element):
-    """PER protein clock of Drosophila, after Goldbeter: per mRNA, three phosphorylation forms, and nuclear PER.
+    """PER protein clock of Drosophila, after Goldbeter.
+
+    It holds per mRNA, three phosphorylation forms, and nuclear PER.
 
     The mRNA `M` is transcribed under repression by nuclear PER and degraded. Cytosolic PER is translated as `P0`,
     phosphorylated reversibly to `P1` and `P2`, and `P2` is degraded or enters the nucleus as `PN`. Concentrations are
@@ -149,7 +151,9 @@ class PerClockElement(Element):
 
 
 class CircadianClockSystem(BaseSystem):
-    """Goldbeter's system of the Drosophila circadian clock, PER that represses its own transcription.
+    """Goldbeter's system of the Drosophila circadian clock.
+
+    In it, PER represses its own transcription.
 
     Multiple phosphorylation and nuclear entry delay the negative feedback, which yields a limit cycle with a period
     near 24 hours for the published parameters. Larger degradation `v_d` lengthens the period, from 22.6 hours at `v_d =

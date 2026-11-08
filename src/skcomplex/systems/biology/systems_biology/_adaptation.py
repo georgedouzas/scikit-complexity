@@ -1,4 +1,4 @@
-"""Systems biology systems: three-enzyme circuits that adapt to a step of their input."""
+"""Three-enzyme circuits that adapt to a step of their input."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -33,7 +33,9 @@ BASAL_CONSTANTS = (0.143, 0.0031, 0.1074)
 
 
 class EnzymeNodeElement(Element):
-    """Enzyme of a signalling circuit, the active fraction `X` of a pool that other enzymes activate and deactivate.
+    """Enzyme of a signalling circuit, the active fraction `X` of a pool.
+
+    Other enzymes activate and deactivate the pool.
 
     Args:
         label:
@@ -63,7 +65,9 @@ class EnzymeNodeElement(Element):
 
 
 class EnzymeRegulationInteraction(Interaction):
-    """Michaelis-Menten activation or deactivation of an enzyme by another enzyme of a circuit.
+    """Michaelis-Menten activation or deactivation of an enzyme by another enzyme.
+
+    Both enzymes belong to one circuit.
 
     An activating source converts the inactive fraction of the target at the rate `k X_s (1 - X) / (1 - X + K)`, and a
     deactivating source the active fraction at the rate `k X_s X / (X + K)`, the kinetics of Ma et al. (2009).
@@ -142,14 +146,19 @@ class EnzymeRegulationInteraction(Interaction):
         return [RateLaw(s.target.X, self._conversion(s.source.X, s.target.X, s.k, s.K))]
 
     def _conversion(self, regulator: Expression, X: Expression, k: Expression, K: Expression) -> Expression:
-        """Return the Michaelis-Menten conversion of the target by a regulator of the sign of the interaction."""
+        """Return the Michaelis-Menten conversion of the target by a regulator.
+
+        The conversion follows the sign of the interaction.
+        """
         if self.sign > 0:
             return k * regulator * (1 - X) / (1 - X + K)
         return -k * regulator * X / (X + K)
 
 
 class EnzymeStimulusInteraction(Interaction):
-    """Activation or deactivation of an enzyme by an outside stimulus or a basal enzyme of fixed concentration.
+    """Activation or deactivation of an enzyme by an outside stimulus or a basal enzyme.
+
+    A basal enzyme has a fixed concentration.
 
     The regulator has the concentration `level`, which rises by `change` at the time `at`, as the input `I` of a
     circuit, and stays fixed for a basal enzyme `F` with no change. It activates the target at the rate `k I (1 - X) /
@@ -224,14 +233,19 @@ class EnzymeStimulusInteraction(Interaction):
         return [RateLaw(s.target.X, self._conversion(regulator, s.target.X, s.k, s.K))]
 
     def _conversion(self, regulator: Expression, X: Expression, k: Expression, K: Expression) -> Expression:
-        """Return the Michaelis-Menten conversion of the target by the stimulus of the sign of the interaction."""
+        """Return the Michaelis-Menten conversion of the target by the stimulus.
+
+        The conversion follows the sign of the interaction.
+        """
         if self.sign > 0:
             return k * regulator * (1 - X) / (1 - X + K)
         return -k * regulator * X / (X + K)
 
 
 class EnzymeAdaptationCircuitSystem(BaseSystem):
-    """A circuit of three enzymes A, B, and C of Ma et al., whose output C may adapt to a step of the input.
+    """A circuit of three enzymes A, B, and C of Ma et al.
+
+    The output C of the circuit may adapt to a step of the input.
 
     The input `I` activates A, and `links[i][j]`, 1, -1, or 0, says whether enzyme `j` activates, deactivates, or leaves
     enzyme `i`, with Michaelis-Menten kinetics of the rate `k[j][i]` and the constant `K[j][i]`, the last row of `k` and
