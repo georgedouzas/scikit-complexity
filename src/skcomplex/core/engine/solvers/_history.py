@@ -1,4 +1,7 @@
-"""Past states of a run, as interpolants over time segments, and the declared history before the start."""
+"""Past states of a run and the declared history before the start.
+
+Past states are interpolants over time segments.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,7 +20,9 @@ _RESTART = 1e-12
 
 
 class History:
-    """Past states of a run, as interpolants over time segments, and the declared history before the start.
+    """Past states of a run and the declared history before the start.
+
+    Past states are interpolants over time segments.
 
     Args:
         problem:
@@ -52,7 +57,9 @@ class History:
         self.span = max((delay.minimum for delay in problem.delays), default=0.0)
 
     def add(self, first: float, last: float, interpolant: Interpolant) -> None:
-        """Add the states between two times, and drop segments older than any delay can reach.
+        """Add the states between two times.
+
+        Segments older than any delay can reach are dropped.
 
         Args:
             first:
@@ -68,7 +75,9 @@ class History:
         self.segments.append((first, last, interpolant))
 
     def truncate(self, time: float) -> None:
-        """End the last segment at a time, such as the time of an event that changed the state.
+        """End the last segment at a time.
+
+        An example is the time of an event that changed the state.
 
         Args:
             time:
@@ -88,7 +97,9 @@ class History:
         return float(value)
 
     def value(self, time: float, indices: Indices) -> Array:
-        """Return state components at a past time, from the run or from the declared history before the start.
+        """Return state components at a past time.
+
+        They come from the run or from the declared history before the start.
 
         Args:
             time:
@@ -160,7 +171,9 @@ class History:
 
     @staticmethod
     def _open_history(problem: ProblemSpec, history: 'History | None', t: float, x: Array) -> 'History | None':
-        """Return the history of a run, started at a time and state when the problem has delays and none is kept yet.
+        """Return the history of a run.
+
+        When the problem has delays and none is kept yet, it is started at a time and state.
 
         Args:
             problem:

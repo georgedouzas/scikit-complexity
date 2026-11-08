@@ -1,4 +1,7 @@
-"""Fourth-order exponential time differencing Runge-Kutta of Cox and Matthews, for spectral fields."""
+"""Fourth-order exponential time differencing Runge-Kutta of Cox and Matthews.
+
+It is for spectral fields.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,11 +16,11 @@ _CONTOUR_POINTS = 64
 
 
 class ETDRK4Solver(SplitSolver):
-    """Fourth-order exponential time differencing Runge-Kutta of Cox and Matthews, for spectral fields.
+    """Fourth-order exponential time differencing Runge-Kutta of Cox and Matthews.
 
-    The linear part is integrated exactly per Fourier mode and the remainder by a fourth-order scheme, with the
-    coefficients computed by contour integrals as Kassam and Trefethen propose. Coupled states of a field use a small
-    matrix exponential per mode. States outside spectral fields follow classical RK4.
+    It is for spectral fields. The linear part is integrated exactly per Fourier mode and the remainder by a
+    fourth-order scheme, with the coefficients computed by contour integrals as Kassam and Trefethen propose. Coupled
+    states of a field use a small matrix exponential per mode. States outside spectral fields follow classical RK4.
 
     Args:
         dt:
@@ -50,7 +53,10 @@ class ETDRK4Solver(SplitSolver):
         return self._coefficients[h]
 
     def _map(self, index: int, h: float, x: Array) -> Array:
-        """Return one of the six ETDRK4 maps applied to a state vector, with its L = 0 limit outside blocks."""
+        """Return one of the six ETDRK4 maps applied to a state vector.
+
+        Outside blocks, the map takes its L = 0 limit.
+        """
         scalars = [1.0, 1.0, h / 2, h / 6, h / 6, h / 6]
         out = scalars[index] * x
         for block, matrices in zip(self.blocks_, self._matrices(h), strict=True):
@@ -71,10 +77,11 @@ class ETDRK4Solver(SplitSolver):
 
     @staticmethod
     def _phi(z: ComplexArray, h: float) -> list[ComplexArray]:
-        """Return `e^z`, `e^(z/2)`, and the coefficients `Q`, `f1`, `f2`, `f3` of ETDRK4 by contour integrals.
+        """Return `e^z`, `e^(z/2)`, and the coefficients `Q`, `f1`, `f2`, `f3` of ETDRK4.
 
-        The integrals average over a full circle of radius 1 around every eigenvalue, which avoids the cancellation of
-        the formulas near zero for complex eigenvalues as well as real ones.
+        They are computed by contour integrals. The integrals average over a full circle of radius 1 around every
+        eigenvalue, which avoids the cancellation of the formulas near zero for complex eigenvalues as well as real
+        ones.
         """
         roots = np.exp(2j * np.pi * (np.arange(1, _CONTOUR_POINTS + 1) - 0.5) / _CONTOUR_POINTS)
         points = z[..., None] + roots

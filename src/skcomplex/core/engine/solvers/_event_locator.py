@@ -41,7 +41,10 @@ class EventLocator:
 
     @staticmethod
     def _member_event(event: EventKernel, member: int) -> EventKernel:
-        """Return the event of one member of a group, whose guard and reset are those of the member."""
+        """Return the event of one member of a group.
+
+        Its guard and reset are those of the member.
+        """
         reset = event.reset
 
         def guard(t: float, x: Array, p: Array) -> float:
@@ -54,7 +57,10 @@ class EventLocator:
 
     @staticmethod
     def _crossed(direction: int, g0: Array, g1: Array) -> Array:
-        """Return whether guards cross zero in their direction between two values, one per member."""
+        """Return whether guards cross zero in their direction between two values.
+
+        There is one result per member.
+        """
         upwards = (g0 < 0) & (g1 >= 0)
         downwards = (g0 > 0) & (g1 <= 0)
         return np.asarray((direction >= 0) & upwards | (direction <= 0) & downwards)
@@ -70,11 +76,11 @@ class EventLocator:
         interpolant: Interpolant,
         include_hidden: bool = True,
     ) -> tuple[float, int] | None:
-        """Return the earliest event crossing in a step, with its time and the index of its event.
+        """Return the earliest event crossing in a step.
 
-        An event of the members of a group crosses once per member, and each member has its own index. The events
-        that cross with the earliest one, within the minimum separation, are kept for `apply`, since their guards
-        have changed sign by the time the run restarts.
+        It comes with its time and the index of its event. An event of the members of a group crosses once per member,
+        and each member has its own index. The events that cross with the earliest one, within the minimum separation,
+        are kept for `apply`, since their guards have changed sign by the time the run restarts.
 
         Args:
             t0:
@@ -135,7 +141,10 @@ class EventLocator:
         p: Array,
         interpolant: Interpolant,
     ) -> float:
-        """Return the root of a guard in a step, moved just past it so the guard has already changed sign there."""
+        """Return the root of a guard in a step, moved just past it.
+
+        The guard has already changed sign there.
+        """
 
         def guard(s: float) -> float:
             return float(event.guard(s, interpolant(s), p))
@@ -147,7 +156,10 @@ class EventLocator:
         return time
 
     def _fire(self, time: float, index: int, state: Array, p: Array) -> Array:
-        """Apply the reset of one event at its time, record it, and stop the run when it is terminal."""
+        """Apply the reset of one event at its time and record it.
+
+        A terminal event stops the run.
+        """
         position, member = self._slots[index]
         event = self.problem.events[position]
         if event.hidden:
@@ -168,10 +180,10 @@ class EventLocator:
         return after
 
     def apply(self, time: float, index: int, state: Array, p: Array) -> Array:
-        """Apply the resets of an event and the events tied with it, in the order the system declares them.
+        """Apply the resets of an event and the events tied with it.
 
-        Every reset reads the state the one before it left. A terminal event stops the run after the resets of its
-        step.
+        They apply in the order the system declares them. Every reset reads the state the one before it left. A terminal
+        event stops the run after the resets of its step.
 
         Args:
             time:
@@ -222,7 +234,9 @@ class EventLocator:
 
     @staticmethod
     def _find_left_limit(bound: float) -> float:
-        """Return the last time before a bound, where inputs that jump at the bound still take their earlier value.
+        """Return the last time before a bound.
+
+        Inputs that jump at the bound still take their earlier value there.
 
         Args:
             bound:

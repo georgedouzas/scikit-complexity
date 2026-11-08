@@ -1,4 +1,7 @@
-"""Define the gradient descent solver, which trains the parameters of a nested system epoch by epoch."""
+"""Define the gradient descent solver.
+
+The solver trains the parameters of a nested system epoch by epoch.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -29,19 +32,20 @@ type Unroll = Callable[[TracedArray, tuple[TracedArray, ...]], TracedArray]
 
 
 class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
-    """Solver of the learning form, which trains the parameters of a nested system by gradient steps on JAX and Optax.
+    """Solver of the learning form.
 
-    Every unit of time is one epoch. The solver shuffles the sequences of the dataset with its random number generator,
-    splits them into batches, and for every batch unrolls the nested system from its initial states over each
-    sequence, writing the values of the dataset into its parameters before every inner step. A discrete map unrolls
-    with `jax.lax.scan`, and ordinary differential equations with one `diffrax.diffeqsolve` per inner step, with
-    `Tsit5`, a PID step size controller, and recursive checkpointing. The loss is the weighted mean of the loss
-    observable over the steps and sequences, its gradient comes from `jax.value_and_grad`, and an Optax optimizer
-    updates the trained parameters. Truncated backpropagation through time stops the gradient of the carried inner
-    states every `truncation` steps. The optimizer reads its hyperparameters from the parameter vector before every
-    frame, so a schedule takes effect at the next frame, and its state persists across frames until the solver is
-    prepared again. The solver records the mean batch loss of every epoch and every metric over the whole dataset at the
-    end of the epoch as reporters `<interaction path>/loss` and `<interaction path>/<metric>`.
+    It trains the parameters of a nested system by gradient steps on JAX and Optax. Every unit of time is one epoch. The
+    solver shuffles the sequences of the dataset with its random number generator, splits them into batches, and for
+    every batch unrolls the nested system from its initial states over each sequence, writing the values of the dataset
+    into its parameters before every inner step. A discrete map unrolls with `jax.lax.scan`, and ordinary differential
+    equations with one `diffrax.diffeqsolve` per inner step, with `Tsit5`, a PID step size controller, and recursive
+    checkpointing. The loss is the weighted mean of the loss observable over the steps and sequences, its gradient comes
+    from `jax.value_and_grad`, and an Optax optimizer updates the trained parameters. Truncated backpropagation through
+    time stops the gradient of the carried inner states every `truncation` steps. The optimizer reads its
+    hyperparameters from the parameter vector before every frame, so a schedule takes effect at the next frame, and its
+    state persists across frames until the solver is prepared again. The solver records the mean batch loss of every
+    epoch and every metric over the whole dataset at the end of the epoch as reporters `<interaction path>/loss` and
+    `<interaction path>/<metric>`.
 
     Args:
         precision:
@@ -126,9 +130,10 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
         return law
 
     def _optimizer(self) -> tuple[optax.GradientTransformation, dict[str, str]]:
-        """Return the Optax optimizer of the law, which reads its hyperparameters from its state, and their names.
+        """Return the Optax optimizer of the law and the names of its hyperparameters.
 
-        The names map every hyperparameter of the Optax optimizer to the parameter of the training that sets it.
+        The optimizer reads its hyperparameters from the state of the law. The names map every hyperparameter of the
+        Optax optimizer to the parameter of the training that sets it.
         """
         name = self._law().optimizer
         names = {'learning_rate': 'learning_rate'}
@@ -161,7 +166,10 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
         return jnp.asarray(np.concatenate(indices))
 
     def _data(self) -> tuple[tuple[slice, ...], tuple[Array, ...], dict[str, Array]]:
-        """Return the slices of the parameters the dataset sets, its values flattened per step, and the step weights."""
+        """Return the parameter slices the dataset sets, its values, and the step weights.
+
+        The values are flattened per step.
+        """
         law, inner = self._law(), self.problem_.inner
         if inner is None:
             error_msg = 'The learning problem holds no inner problem. Compile a system that trains.'
@@ -180,13 +188,19 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
         return slices, values, weights
 
     def _inputs_of(self, p: TracedArray, slices: tuple[slice, ...], step: tuple[TracedArray, ...]) -> TracedArray:
-        """Return a parameter vector with the values of the dataset at one inner step written into it."""
+        """Return a parameter vector with the values of the dataset at one inner step.
+
+        The values are written into the vector.
+        """
         for where, value in zip(slices, step, strict=True):
             p = p.at[where].set(value)
         return p
 
     def _advanced(self, t: TracedArray, t1: TracedArray, x: TracedArray, p: TracedArray) -> TracedArray:
-        """Return the inner state after one inner step, an update or the solution of the ODE over the step."""
+        """Return the inner state after one inner step.
+
+        The step is an update or the solution of the ODE over the step.
+        """
         function = self.problem_.step
         if function is None:
             error_msg = 'The learning problem holds no JAX function of its inner problem.'
@@ -210,9 +224,10 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
         return solution.ys[-1]
 
     def _unroll(self) -> Unroll:
-        """Return the function of the trained parameters and the values of one sequence that gives every measure.
+        """Return the function that gives every measure of one sequence.
 
-        The function returns one row per inner step and one column per measure, the loss first.
+        It takes the trained parameters and the values of the sequence. The function returns one row per inner step and
+        one column per measure, the loss first.
         """
         law, problem = self._law(), self.problem_
         inner = problem.inner
@@ -243,7 +258,10 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
         return unroll
 
     def _prepare_functions(self) -> None:
-        """Set the compiled functions of the loss, its gradient, and the measures over many sequences."""
+        """Set the compiled functions of the loss, its gradient, and the measures.
+
+        They run over many sequences.
+        """
         unroll = jax.vmap(self._unroll(), in_axes=(None, 0))
 
         def loss(theta: TracedArray, batch: Batch) -> TracedArray:
@@ -267,7 +285,10 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
         self._measures = jax.jit(unroll)
 
     def _reporters(self, theta: TracedArray, loss: float | None) -> StructureStateSpec:
-        """Return the loss and the metrics over the whole dataset, the loss of the epoch when one is given."""
+        """Return the loss and the metrics over the whole dataset.
+
+        When given, the loss of the epoch is used.
+        """
         law, path = self._law(), self.problem_.training
         _, values, weights = self._data()
         measured = np.asarray(self._measures(theta, tuple(jnp.asarray(item) for item in values)))
@@ -281,7 +302,9 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
         return StructureStateSpec(reporters={f'{path}/{label}': value for label, value in means.items()})
 
     def _prepare(self, context: LearningProblemSpec | None) -> None:
-        """Prepare the solver for a learning problem, with a new optimizer state and the measures of frame 0.
+        """Prepare the solver for a learning problem.
+
+        It gets a new optimizer state and the measures of frame 0.
 
         Args:
             context:
@@ -305,7 +328,10 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
             self.snapshot_ = self._reporters(self.theta_, None)
 
     def _epoch(self, values: tuple[Array, ...], weights: Array) -> float:
-        """Run one epoch of shuffled batches, update the trained parameters, and return the mean batch loss."""
+        """Run one epoch of shuffled batches and update the trained parameters.
+
+        The mean batch loss is returned.
+        """
         law = self._law()
         order = self.rng_.permutation(law.data.sequences)
         losses = []
@@ -317,7 +343,9 @@ class GradientDescentSolver(BaseSolver[LearningProblemSpec]):
         return float(np.mean(losses))
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
-        """Train for the whole epochs from time `t` to time `until`, with the hyperparameters of the parameter vector.
+        """Train for the whole epochs from time `t` to time `until`.
+
+        Training uses the hyperparameters of the parameter vector.
 
         Args:
             t:

@@ -1,4 +1,7 @@
-"""Explicit Euler integrator of ordinary differential equations with a fixed internal step."""
+"""Explicit Euler integrator of ordinary differential equations.
+
+It takes a fixed internal step.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,10 +23,10 @@ from ._solver import Solver
 
 
 class EulerSolver(Solver):
-    """Explicit Euler integrator of ordinary differential equations with a fixed internal step.
+    """Explicit Euler integrator of ordinary differential equations.
 
-    Every step is `x + h f(t, x)`, the integration Vensim and Stella use by default, so a run with the time step of a
-    system file reproduces the run of those tools step by step.
+    It takes a fixed internal step. Every step is `x + h f(t, x)`, the integration Vensim and Stella use by default, so
+    a run with the time step of a system file reproduces the run of those tools step by step.
 
     Args:
         dt:
@@ -79,7 +82,10 @@ class EulerSolver(Solver):
         self.until = until
 
     def _advance_hybrid(self, t: float, x: Array, p: Array, until: float) -> Array:
-        """Integrate with fixed Euler steps, interpolating every step for delays and locating events in it."""
+        """Integrate with fixed Euler steps.
+
+        Every step is interpolated for delays, and events are located in it.
+        """
         problem = self.problem_
         drift = self._drift()
         history = self.history_ = History._open_history(problem, self.history_, t, x)
@@ -109,7 +115,9 @@ class EulerSolver(Solver):
         )
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:
-        """Integrate the drift from time `t` to time `until` in equal steps no longer than `dt`.
+        """Integrate the drift from time `t` to time `until` in equal steps.
+
+        The steps are no longer than `dt`.
 
         Args:
             t:

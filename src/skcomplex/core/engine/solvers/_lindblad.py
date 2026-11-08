@@ -1,4 +1,7 @@
-"""Solver of the Lindblad master equation with QuTiP's `MESolver`, and of pure closed systems with `SESolver`."""
+"""Solver of the Lindblad master equation with QuTiP's `MESolver`.
+
+Pure closed systems are solved with `SESolver`.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -12,10 +15,11 @@ from ._operator import OperatorSolver
 
 
 class LindbladSolver(OperatorSolver):
-    """Solver of the Lindblad master equation with QuTiP's `MESolver`, and of pure closed systems with `SESolver`.
+    """Solver of the Lindblad master equation with QuTiP's `MESolver`.
 
-    It is the default solver of the operator form. A system without dissipators that starts in a pure state follows the
-    linear evolution `dx/dt = -i H x`, which is the master equation without dissipators.
+    Pure closed systems are solved with `SESolver`. It is the default solver of the operator form. A system without
+    dissipators that starts in a pure state follows the linear evolution `dx/dt = -i H x`, which is the master equation
+    without dissipators.
 
     Args:
         atol:
@@ -57,7 +61,10 @@ class LindbladSolver(OperatorSolver):
     """
 
     def _create(self, p: Array) -> solver_base.Solver:
-        """Return QuTiP's master equation solver, or its Schrödinger solver for a pure closed problem."""
+        """Return QuTiP's master equation solver.
+
+        A pure closed problem gets its Schrödinger solver.
+        """
         problem = self.operator_
         generator = self._operator(problem.generator, p)
         if problem.pure:

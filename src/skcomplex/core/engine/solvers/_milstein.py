@@ -1,4 +1,7 @@
-"""Derivative-free Milstein scheme of Platen for SDEs with diagonal noise, of strong order 1."""
+"""Derivative-free Milstein scheme of Platen for SDEs with diagonal noise.
+
+It is of strong order 1.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,10 +17,10 @@ from ._sde import SDESolver
 
 
 class MilsteinSolver(SDESolver):
-    """Derivative-free Milstein scheme of Platen for SDEs with diagonal noise, of strong order 1.
+    """Derivative-free Milstein scheme of Platen for SDEs with diagonal noise.
 
-    It takes a supporting value `Y = X + f h + g sqrt(h)` and corrects the noise with
-    `(g(Y) - g(X)) (dW^2 - h) / (2 sqrt(h))`, which needs no derivative of the noise.
+    It is of strong order 1. It takes a supporting value `Y = X + f h + g sqrt(h)` and corrects the noise with `(g(Y) -
+    g(X)) (dW^2 - h) / (2 sqrt(h))`, which needs no derivative of the noise.
 
     Args:
         dt:
@@ -56,7 +59,9 @@ class MilsteinSolver(SDESolver):
         noise: Array,
         end: float,
     ) -> Array:
-        """Return the state after one derivative-free Milstein step with given Wiener increments.
+        """Return the state after one derivative-free Milstein step.
+
+        The step takes given Wiener increments.
 
         Args:
             time:

@@ -1,4 +1,7 @@
-"""Solver of the linear evolution `dx/dt = -i H x` of a pure state with QuTiP's `SESolver`."""
+"""Solver of the linear evolution `dx/dt = -i H x` of a pure state.
+
+It uses QuTiP's `SESolver`.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,7 +16,9 @@ from ._operator import OperatorSolver
 
 
 class UnitarySolver(OperatorSolver):
-    """Solver of the linear evolution `dx/dt = -i H x` of a pure state with QuTiP's `SESolver`.
+    """Solver of the linear evolution `dx/dt = -i H x` of a pure state.
+
+    It uses QuTiP's `SESolver`.
 
     Args:
         atol:
@@ -55,7 +60,10 @@ class UnitarySolver(OperatorSolver):
     """
 
     def _unsupported(self, problem: OperatorProblemSpec) -> list[str]:
-        """Return the dissipators or the density matrix of a problem, which unitary evolution does not run."""
+        """Return the dissipators or the density matrix of a problem.
+
+        Unitary evolution does not run them.
+        """
         if problem.dissipators:
             return ['dissipators, which need the lindblad or jump_trajectories solver']
         return [] if problem.pure else ['a density matrix, which needs the lindblad solver']

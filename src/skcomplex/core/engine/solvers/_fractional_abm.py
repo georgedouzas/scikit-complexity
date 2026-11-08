@@ -1,4 +1,7 @@
-"""Fractional Adams-Bashforth-Moulton predictor-corrector of Diethelm, Ford, and Freed, of order `1 + alpha`."""
+"""Fractional Adams-Bashforth-Moulton predictor-corrector.
+
+It is the scheme of Diethelm, Ford, and Freed. It is of order `1 + alpha`.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,11 +17,12 @@ from ._rows import _INITIAL_ROWS, _Rows
 
 
 class FractionalABMSolver(CaputoSolver):
-    """Fractional Adams-Bashforth-Moulton predictor-corrector of Diethelm, Ford, and Freed, of order `1 + alpha`.
+    """Fractional Adams-Bashforth-Moulton predictor-corrector.
 
-    The scheme solves the equivalent Volterra equation `x(t) = x_0 + (1 / Gamma(alpha)) int_0^t (t - s)^(alpha - 1)
-    f(s, x(s)) ds`. A rectangle rule over the drifts of the whole run predicts the next state, and a trapezoidal rule
-    with the drift at the prediction corrects it. States of order 1 take Heun steps.
+    It is the scheme of Diethelm, Ford, and Freed. It is of order `1 + alpha`. The scheme solves the equivalent Volterra
+    equation `x(t) = x_0 + (1 / Gamma(alpha)) int_0^t (t - s)^(alpha - 1) f(s, x(s)) ds`. A rectangle rule over the
+    drifts of the whole run predicts the next state, and a trapezoidal rule with the drift at the prediction corrects
+    it. States of order 1 take Heun steps.
 
     Args:
         dt:
@@ -84,7 +88,10 @@ class FractionalABMSolver(CaputoSolver):
         self._corrector = self._corrector_weights(self._unique, count)
 
     def _carry(self, x: Array) -> None:
-        """Take the states of order 1 that changed between frames, which the Heun steps start from."""
+        """Take the states of order 1 that changed between frames.
+
+        The Heun steps start from them.
+        """
         ordinary = ~self._fractional
         self._state[ordinary] = x[ordinary]
 
@@ -114,13 +121,19 @@ class FractionalABMSolver(CaputoSolver):
 
     @staticmethod
     def _predictor_weights(alpha: Array, count: int) -> Array:
-        """Return the weights `(m + 1)^alpha - m^alpha` of the predictor at lags 0 to `count`, one column per order."""
+        """Return the weights `(m + 1)^alpha - m^alpha` of the predictor.
+
+        They cover lags 0 to `count`, with one column per order.
+        """
         lags = np.arange(count + 1, dtype=float)[:, None]
         return (lags + 1) ** alpha[None, :] - lags ** alpha[None, :]
 
     @staticmethod
     def _corrector_weights(alpha: Array, count: int) -> Array:
-        """Return the corrector weights at lags 0 to `count` for every value but the first, one column per order."""
+        """Return the corrector weights at lags 0 to `count`.
+
+        They cover every value but the first, with one column per order.
+        """
         lags = np.arange(count + 1, dtype=float)[:, None]
         power = alpha[None, :] + 1
         return (lags + 2) ** power + lags**power - 2 * (lags + 1) ** power

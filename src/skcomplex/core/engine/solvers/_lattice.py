@@ -1,4 +1,7 @@
-"""Solver of lattice dynamics that applies every local rule, drive, cascade, and extremal law once per step."""
+"""Solver of lattice dynamics that applies every lattice law once per step.
+
+The laws are local rules, drives, cascades, and extremal laws.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -13,10 +16,11 @@ from ._solver import Solver
 
 
 class LatticeSolver(Solver):
-    """Solver of lattice dynamics that applies every local rule, drive, cascade, and extremal law once per step.
+    """Solver of lattice dynamics that applies every lattice law once per step.
 
-    Steps apply in the order the laws are declared, and the boundary laws apply after every step. Cascades record
-    their size, duration, and area as events, and extremal laws record the site and the value of every application.
+    The laws are local rules, drives, cascades, and extremal laws. Steps apply in the order the laws are declared, and
+    the boundary laws apply after every step. Cascades record their size, duration, and area as events, and extremal
+    laws record the site and the value of every application.
 
     Examples:
         >>> import numpy as np

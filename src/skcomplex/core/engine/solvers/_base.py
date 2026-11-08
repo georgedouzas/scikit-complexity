@@ -1,4 +1,7 @@
-"""Define the base of the solvers, which advance a compiled problem through time."""
+"""Define the base of the solvers.
+
+Solvers advance a compiled problem through time.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,12 +24,13 @@ from ._history import _RESTART, History
 
 
 class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
-    """Base of the solvers, which advance a problem of one form through time.
+    """Base of the solvers.
 
-    A solver stores its settings in its constructor, among them the random state of stochastic solvers and the end
-    time of the run it prepares for. `prepare(problem)` prepares it for a problem and `run(step)` advances the state
-    of a `StepSpec` from its time to its end time and keeps the state vector there in `state_`. The last call
-    `run(step, final=True)` releases what preparing acquired, such as an external process.
+    A solver advances a problem of one form through time. A solver stores its settings in its constructor, among them
+    the random state of stochastic solvers and the end time of the run it prepares for. `prepare(problem)` prepares it
+    for a problem and `run(step)` advances the state of a `StepSpec` from its time to its end time and keeps the state
+    vector there in `state_`. The last call `run(step, final=True)` releases what preparing acquired, such as an
+    external process.
 
     Subclasses implement the hooks `_get_form`, the form they solve, `_get_support`, what they solve, and `_advance`,
     and solvers that keep events, agents, or other state outside the state vector also implement `_collect`. Solvers
@@ -87,7 +91,10 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
     state_: Array
 
     def _check(self) -> None:
-        """Accept every setting, since a solver has none to validate. A solver with settings validates them."""
+        """Accept every setting, since a solver has none to validate.
+
+        A solver with settings validates them.
+        """
 
     def __init__(self, *, random_state: int | np.random.Generator | None = None, until: float = math.inf) -> None:
         self.random_state = random_state
@@ -128,7 +135,9 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
 
     @classmethod
     def get_supported_tags(cls) -> Tags:
-        """Return the capability tags the solver supports, from the classes of time, space, and laws it supports.
+        """Return the capability tags the solver supports.
+
+        They come from the classes of time, space, and laws it supports.
 
         Returns:
             tags:
@@ -143,16 +152,20 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
 
     @classmethod
     def _is_stepwise(cls) -> bool:
-        """Return whether the solver advances in whole steps, so frames are a positive integer number of steps apart.
+        """Return whether the solver advances in whole steps.
 
-        The solvers of discrete maps, agents, lattices, and Monte Carlo sampling are stepwise through their forms. A
-        solver of a form defined outside the engine, such as rewriting, says so here.
+        Frames of a stepwise solver are a positive integer number of steps apart. The solvers of discrete maps, agents,
+        lattices, and Monte Carlo sampling are stepwise through their forms. A solver of a form defined outside the
+        engine, such as rewriting, says so here.
         """
         return False
 
     @classmethod
     def _is_implicit(cls) -> bool:
-        """Return whether the solver treats diffusion implicitly, so explicit stability limits do not apply."""
+        """Return whether the solver treats diffusion implicitly.
+
+        Explicit stability limits then do not apply.
+        """
         return False
 
     @classmethod
@@ -171,7 +184,9 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
         return False
 
     def _prepare(self, context: P | None) -> None:
-        """Prepare the solver for a problem, with the random number generator of its random state.
+        """Prepare the solver for a problem.
+
+        The random number generator comes from its random state.
 
         Args:
             context:
@@ -203,7 +218,10 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
         self.agents_ = {}
 
     def _generator(self) -> np.random.Generator:
-        """Return the generator of the random state, spawned from its seed sequence for a seed."""
+        """Return the generator of the random state.
+
+        For a seed, it is spawned from its seed sequence.
+        """
         if isinstance(self.random_state, np.random.Generator):
             return self.random_state
         return np.random.default_rng(np.random.SeedSequence(self.random_state).spawn(1)[0])
@@ -235,14 +253,17 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
         raise NotImplementedError
 
     def _collect(self) -> None:
-        """Set the events, the stop time, the snapshot, and the agents after a run. The base keeps none."""
+        """Set the events, the stop time, the snapshot, and the agents after a run.
+
+        The base keeps none.
+        """
         self.events_ = []
 
     def _run(self, inputs: StepSpec | None) -> None:
-        """Advance the state of the step to its end time, keep it in `state_`, and collect what the run produced.
+        """Advance the state of the step to its end time and keep it in `state_`.
 
-        A step that does not go forward in time keeps its state unchanged, so a final run of no length releases the
-        solver.
+        What the run produced is collected too. A step that does not go forward in time keeps its state unchanged, so a
+        final run of no length releases the solver.
 
         Args:
             inputs:
@@ -261,7 +282,9 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
 
     @staticmethod
     def _is_hybrid(problem: ProblemSpec, t: float, until: float) -> bool:
-        """Check whether a problem needs the hybrid path between two times: delays, events, or breakpoints.
+        """Check whether a problem needs the hybrid path between two times.
+
+        It needs it for delays, events, or breakpoints.
 
         Args:
             problem:
@@ -314,7 +337,9 @@ class BaseSolver[P: BaseProblemSpec](BaseConfig[P, StepSpec]):
         bounded: BoundaryFunction,
         take: InterpolatingStepFunction,
     ) -> Array:
-        """Integrate with fixed steps that stop at breakpoints, record every step for delays, and locate events in it.
+        """Integrate with fixed steps that stop at breakpoints.
+
+        Every step is recorded for delays, and events are located in it.
 
         Args:
             t:

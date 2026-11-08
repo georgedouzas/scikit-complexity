@@ -1,4 +1,7 @@
-"""Keep the next renewal times of every member and fire renewals, alone or between the steps of other solvers."""
+"""Keep the next renewal times of every member and fire renewals.
+
+Renewals fire alone or between the steps of other solvers.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -15,10 +18,11 @@ from ._event_locator import EventLocator
 
 
 class RenewalClock:
-    """Next renewal time of every member of every renewal law, with the renewals that fire as time passes.
+    """Next renewal time of every member of every renewal law.
 
-    Members of one component renew in time order across its renewal laws. Every firing pass draws for all the members
-    it renews at once, so the stream of random values depends only on the random state.
+    It holds the renewals that fire as time passes. Members of one component renew in time order across its renewal
+    laws. Every firing pass draws for all the members it renews at once, so the stream of random values depends only on
+    the random state.
 
     Args:
         problem:
@@ -72,7 +76,10 @@ class RenewalClock:
         return min((float(np.min(times)) for times in self.following if times.size), default=math.inf)
 
     def _fire_pass(self, limits: list[Array], x: Array, p: Array) -> tuple[Array, bool]:
-        """Fire once every member whose next renewal is at most its limit and comes first among its laws."""
+        """Fire once every member whose next renewal is due first.
+
+        A member is due when its next renewal is at most its limit and comes first among its laws.
+        """
         state, fired = x, False
         for index, law in enumerate(self.problem.renewals):
             times = self.following[index]
@@ -87,7 +94,9 @@ class RenewalClock:
         return state, fired
 
     def fire_until(self, until: float, x: Array, p: Array) -> Array:
-        """Fire every renewal up to a time, each member in time order, and return the state after them.
+        """Fire every renewal up to a time and return the state after them.
+
+        Each member fires in time order.
 
         Args:
             until:
@@ -110,7 +119,10 @@ class RenewalClock:
         return state
 
     def _member_stops(self, end: float, size: int) -> Array:
-        """Return the time every state component advances to: its member's next renewal, or the end."""
+        """Return the time every state component advances to.
+
+        It is the next renewal of its member, or the end.
+        """
         stops = np.full(size, end)
         for law, times in zip(self.problem.renewals, self.following, strict=True):
             if law.states.size:
@@ -118,7 +130,9 @@ class RenewalClock:
         return stops
 
     def advance_members(self, t: float, end: float, x: Array, p: Array, step: StepFunction) -> Array:
-        """Advance members that do not interact, each with its own steps that end at its renewals.
+        """Advance members that do not interact.
+
+        Each takes its own steps that end at its renewals.
 
         Args:
             t:
@@ -157,7 +171,9 @@ class RenewalClock:
             state, _ = self._fire_pass(limits, state, p)
 
     def advance_split(self, t: float, end: float, x: Array, p: Array, step: StepFunction) -> Array:
-        """Advance interacting members together, splitting the step at every renewal time inside it.
+        """Advance interacting members together.
+
+        The step is split at every renewal time inside it.
 
         Args:
             t:
