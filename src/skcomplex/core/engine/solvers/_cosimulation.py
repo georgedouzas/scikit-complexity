@@ -291,7 +291,8 @@ class CoSimulationSolver(Solver):
         interval = duration if self.sync_dt is None else self.sync_dt
         count = round(duration / interval) if interval > 0 else 0
         stepwise = any(
-            partition.problem.form in STEPWISE_FORMS and not partition.problem.programs
+            partition.problem.form in STEPWISE_FORMS
+            and not (isinstance(partition.problem, ProblemSpec) and partition.problem.programs)
             for partition in self.problem_.partitions
         )
         if count < 1 or abs(count * interval - duration) > TOLERANCE * max(1.0, duration):
@@ -340,15 +341,21 @@ class CoSimulationSolver(Solver):
         """
         stepper = self.steppers_[partition.name]
         problem = partition.problem
-        if problem.programs and problem.form in STEPWISE_FORMS and problem.update is not None:
+        boundary = problem.boundary if isinstance(problem, ProblemSpec) else None
+        if (
+            isinstance(problem, ProblemSpec)
+            and problem.programs
+            and problem.form in STEPWISE_FORMS
+            and problem.update is not None
+        ):
             drawn = (stepper.rng_,) if problem.stochastic else ()
             state = problem.update(start, source.copy(), p, *drawn)
-            return state if problem.boundary is None else problem.boundary(end, state, p)
+            return state if boundary is None else boundary(end, state, p)
         if stepper._reads_inputs():
             stepper.inputs_ = self.problem_.states.values(source)
         state = stepper.run(StepSpec(start, source.copy(), p, end)).state_
-        if partition.problem.boundary is not None:
-            state = partition.problem.boundary(end, state, p)
+        if boundary is not None:
+            state = boundary(end, state, p)
         return state
 
     def _add_deposits(self, partition: PartitionSpec, state: Array) -> None:

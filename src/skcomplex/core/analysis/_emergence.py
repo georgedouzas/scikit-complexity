@@ -277,7 +277,7 @@ def emergence(
             'array.'
         )
         raise AnalysisError(error_msg)
-    matrix = _square(source)
+    matrix = _square(np.asarray(source))
     if kind == 'effective-information':
         information, determinism, degeneracy, states = _effective_information(matrix)
         return EmergenceResult(

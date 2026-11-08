@@ -11,6 +11,7 @@ from typing import Annotated
 
 from ...errors import RewritingError
 from ...specs import AffineSpec, PrototileSpec, StateSpec, VisualSpec
+from ..spaces import BaseSpace
 from ._element import Element
 
 
@@ -67,7 +68,7 @@ class PatchElement(Element):
         self.max_size = max_size
         self.bounds = bounds
 
-    def _prepare(self, context: object = None) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Set `default_visual_`, the geometry of the tiles.
 
         It first raises an error for no prototiles, an invalid prototile, or an unknown one. An unknown prototile is one

@@ -5,7 +5,7 @@
 
 import math
 from collections.abc import Callable, Mapping, Sequence
-from typing import Self
+from typing import Self, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -303,7 +303,10 @@ class Simulation(BaseConfig[None, float]):
         structures = external.structures if isinstance(external, StructureStateSpec) else {}
         reporters = external.reporters if isinstance(external, StructureStateSpec) else reporters
         state = self._get_frame_state()
-        observables = self.observables_.evaluate(self.time_, state, self.parameters_, self.stepper_.agents_.get)
+        observables = cast(
+            dict[str, npt.ArrayLike],
+            self.observables_.evaluate(self.time_, state, self.parameters_, self.stepper_.agents_.get),
+        )
         frame = FrameSpec(
             step,
             self.time_,

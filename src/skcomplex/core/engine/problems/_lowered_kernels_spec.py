@@ -12,6 +12,7 @@ from ...components.laws import BaseLaw
 from ...specs._base_spec import BaseSpec
 from ...types import FormKind
 from ._draw_kernel import DrawKernel
+from ._kernel_spec import KernelSpec
 from ._law_kernel import LawKernel
 from ._random_stream import RandomStream
 from ._reduction_schedule_spec import ReductionScheduleSpec
@@ -53,7 +54,7 @@ class LoweredKernelsSpec(BaseSpec):
 
     kernels: defaultdict[type, list[LawKernel]]
     jump_changes: dict[int, list[tuple[ReferenceSpec, object]]]
-    laws: dict[int, tuple[object, BaseLaw]]
+    laws: dict[int, tuple[KernelSpec, BaseLaw]]
     form: FormKind | None = None
     size: int = 0
     reductions: ReductionScheduleSpec | None = None

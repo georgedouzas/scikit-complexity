@@ -152,14 +152,15 @@ class BaseVisual(BaseConfig[BaseProblemSpec, FrameSpec]):
             error_msg = 'A visual prepares on a compiled problem. Pass the problem to `prepare`.'
             raise ValidationError(error_msg)
         problem = context
-        elements = {item.path: item for item in (*problem.elements, *problem.agents)}
+        items: list[CompiledElementSpec | CompiledAgentsSpec] = [*problem.elements, *problem.agents]
+        elements = {item.path: item for item in items}
         if self.path not in elements:
             error_msg = (
                 f'No element or agent group of the problem has the path {self.path!r}. The paths are: '
                 f'{", ".join(elements)}.'
             )
             raise ValidationError(error_msg)
-        self.element_ = elements[self.path]
+        self.element_: CompiledElementSpec | CompiledAgentsSpec = elements[self.path]
         self.recording_ = self.recording if self.recording is not None else rr.get_data_recording()
         self.space_: BaseSpace | None = problem.agent_space
         self.layouts_: dict[int, dict[str, npt.NDArray[np.float64]]] = {}

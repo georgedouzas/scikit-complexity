@@ -72,7 +72,7 @@ class ModuleSpec(BaseSpec):
             >>> [module.name for module in ModuleSpec.parse_word(['F', ModuleSpec('A', (1.0,)), '+-'])]
             ['F', 'A', '+', '-']
         """
-        if isinstance(value, cls):
+        if isinstance(value, ModuleSpec):
             return [value]
         if isinstance(value, str):
             return [cls(value)] if value in names else [cls(item) for item in value]

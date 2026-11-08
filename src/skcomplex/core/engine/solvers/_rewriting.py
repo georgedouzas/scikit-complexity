@@ -10,7 +10,9 @@ from ...components.spaces import CayleySpace, ContinuousSpace, DiscreteTime, Lat
 from ...errors import SolverError
 from ...specs import PatchStructureSpec, RunStateSpec, StructureStateSpec, SupportSpec, WordStructureSpec
 from ...types import Array, FormKind, OrderKind
+from ..problems._patch_kernel import PatchKernel
 from ..problems._rewriting_problem_spec import RewritingProblemSpec
+from ..problems._word_kernel import WordKernel
 from ._base import BaseSolver
 
 
@@ -80,7 +82,13 @@ class RewritingSolver(BaseSolver[RewritingProblemSpec]):
 
     def _state(self) -> Array:
         """Return the state vector of the counts and sizes of the current structures."""
-        counts = [value for item in self.systems_ for value in item.counts(self.structures_[item.path])]
+        counts: list[float] = []
+        for item in self.systems_:
+            structure = self.structures_[item.path]
+            if isinstance(item, WordKernel) and isinstance(structure, WordStructureSpec):
+                counts += item.counts(structure)
+            if isinstance(item, PatchKernel) and isinstance(structure, PatchStructureSpec):
+                counts += item.counts(structure)
         return np.asarray(counts, dtype=float)
 
     def _advance(self, t: float, x: Array, p: Array, until: float) -> Array:

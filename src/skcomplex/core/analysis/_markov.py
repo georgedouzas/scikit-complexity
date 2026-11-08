@@ -203,7 +203,7 @@ def markov(
         name = variables[0] if variables else None
         path = _paths(_read_path(source, name).states)
     else:
-        path = _paths(source)
+        path = _paths(np.asarray(source))
     if kind == 'state-system':
         return _state_system(path, lag, n_metastable, dt, reversible=reversible)
     if kind == 'transition-matrix':

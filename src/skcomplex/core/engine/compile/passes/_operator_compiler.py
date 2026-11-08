@@ -323,8 +323,8 @@ class OperatorCompiler(BaseCompiler):
     @staticmethod
     def _members_of(node: NodeSpec) -> list[tuple[str, OperatorViewSpec]]:
         """Return the key and the element of every member of an operator element or group."""
-        component = node.component
-        if not isinstance(component, GroupElement):
+        component = node.as_element
+        if isinstance(component, Element):
             return [(node.path, OperatorCompiler._view_of(component))]
         size = node.members or 0
         members = []
@@ -707,7 +707,7 @@ class OperatorCompiler(BaseCompiler):
 
         It has no states in the state vector.
         """
-        component = node.component
+        component = node.as_element
         visual = component.visual if component.visual is not None else component.default_visual_
         parameters = {
             name: f'{node.path}.{name}' for name in declarations_of(node.component_type, VariableKind.PARAMETER)
@@ -720,7 +720,7 @@ class OperatorCompiler(BaseCompiler):
 
         It holds the paths its roles bind to.
         """
-        component = node.component
+        component = node.as_interaction
         roles = {
             name: f'{node.scope}{getattr(component, name)}' for name in declarations_of(component, VariableKind.ROLE)
         }

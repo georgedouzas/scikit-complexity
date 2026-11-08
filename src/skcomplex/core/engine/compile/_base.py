@@ -530,12 +530,13 @@ class BasePass(BaseConfig[Compilation, None]):
         return found
 
 
-class BaseLowering[LoweredT](BaseConfig[Compilation, LoweredT]):
+class BaseLowering[LoweredT, InputT](BaseConfig[Compilation, InputT]):
     """Lowering of one family of laws.
 
     One pass creates the lowering, later passes finish it, and the compilation keeps it. The constructor stores what the
     lowering reads, `prepare(compilation)` sets the prepared attributes the lowering gathers, and `run(laws)` sets
-    `lowered_`, the laws lowered. A subclass implements the hooks `_prepare` and `_run`.
+    `lowered_`, the laws lowered. A subclass implements the hooks `_prepare` and `_run`, and names the type of the laws
+    it lowers and of the laws it runs on, which are the same for most lowerings.
 
     A lowering that reads new symbols into laws notes their references with `_add_reference`, reads them back with
     `_reference_of`, and `_apply_references` replaces every spec it noted references for by a copy that holds them, in
@@ -610,7 +611,7 @@ class BaseLowering[LoweredT](BaseConfig[Compilation, LoweredT]):
         """
         del specs
 
-    def _run(self, inputs: LoweredT | None) -> None:
+    def _run(self, inputs: InputT | None) -> None:
         """Lower laws into `lowered_`, in the shape of the input.
 
         Args:

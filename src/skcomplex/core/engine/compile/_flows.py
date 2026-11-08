@@ -54,7 +54,7 @@ _BOUNDARY_PREFIX = '__boundary'
 _SHIFT = 'shift_member'
 
 
-class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
+class TransferLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tuple[KernelSpec, list[BaseLaw]]]]):
     """Lowering of flows and delays.
 
     It checks that conserved quantities change only through flows. `prepare(compilation)` reads the quantity of every

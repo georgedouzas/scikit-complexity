@@ -23,7 +23,7 @@ from ..components.laws import RateLaw
 from ..components.spaces import LatticeSpace
 from ..components.system import System
 from ..engine._utils import bound_labels, components_of, declarations_of, default_of, symbol
-from ..engine.problems import ProblemSpec
+from ..engine.problems import BaseProblemSpec, ProblemSpec
 from ..engine.problems._dynamics_spec import _DynamicsSpec
 from ..errors import AnalysisError
 from ..specs import AnalysisTags
@@ -339,7 +339,7 @@ def _expand_groups(
     return names, symbols, rates, expansion.values_
 
 
-def _dynamics_of(system: System | ProblemSpec, parameters: Mapping[str, float] | None = None) -> _DynamicsSpec:
+def _dynamics_of(system: System | BaseProblemSpec, parameters: Mapping[str, float] | None = None) -> _DynamicsSpec:
     """Return the first-order equations of a system.
 
     The parameters are at their current values.

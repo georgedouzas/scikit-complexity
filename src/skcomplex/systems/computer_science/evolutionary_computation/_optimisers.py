@@ -153,7 +153,10 @@ class RunningBestInteraction(Interaction):
         return [UpdateLaw(s.target.best, where(s.source.value < s.target.best, s.source.value, s.target.best))]
 
 
-ALGORITHMS = {
+ALGORITHMS: dict[
+    str,
+    DifferentialEvolutionSpec | ParticleSwarmSpec | EvolutionStrategySpec | CovarianceAdaptationSpec,
+] = {
     'differential-evolution': DifferentialEvolutionSpec(),
     'particle-swarm': ParticleSwarmSpec(),
     'evolution-strategy': EvolutionStrategySpec(),

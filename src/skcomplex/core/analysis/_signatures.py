@@ -285,8 +285,8 @@ def _get_network_signature(graphs: list[nx.Graph]) -> SignatureSpec:
     stated = {
         'mean degree': float(values.mean()),
         'second moment': float(np.mean(values**2)),
-        'clustering': summary['clustering'],
-        'mean path length': summary['path_length'],
+        'clustering': float(np.mean(summary['clustering'])),
+        'mean path length': float(np.mean(summary['path_length'])),
     }
     positive = values[values > 0]
     curves = {'P(degree >= k)': _ccdf(positive)} if positive.size else {}

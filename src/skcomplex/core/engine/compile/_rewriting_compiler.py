@@ -114,7 +114,7 @@ class RewritingCompiler(BaseCompiler):
     @staticmethod
     def _productions(node: NodeSpec, namespace: SimpleNamespace) -> list[Production]:
         """Return the checked productions or substitutions of a word or a patch."""
-        laws = node.component._get_laws(namespace)
+        laws = node.as_element._get_laws(namespace)
         productions = [law for law in laws if isinstance(law, _PRODUCTION_LAWS)]
         wrong = [law for law in laws if not isinstance(law, _PRODUCTION_LAWS)]
         if wrong:
@@ -177,7 +177,7 @@ class RewritingCompiler(BaseCompiler):
             )
             raise RewritingError(error_msg)
         kernel: WordKernel | PatchKernel
-        if kind == 'sequence':
+        if isinstance(element, WordElement):
             kernel = WordKernel(
                 node.path,
                 element,
@@ -185,13 +185,16 @@ class RewritingCompiler(BaseCompiler):
                 parameters,
                 values,
             )
-        else:
+        elif isinstance(element, PatchElement):
             kernel = PatchKernel(
                 node.path,
                 element,
                 [law for law in laws if isinstance(law, SubstitutionLaw)],
                 parameters,
             )
+        else:
+            error_msg = f'{node.path} holds no sequence or tiling that rewriting laws rewrite.'
+            raise ValidationError(error_msg)
         kernel._compile()
         return kernel
 
@@ -286,7 +289,10 @@ class RewritingCompiler(BaseCompiler):
             )
             for name in names:
                 states.append(EntrySpec(f'{item.path}.{name}', len(states), (), NN))
-            initial += item.counts(item._initial(initial_parameters))
+            if isinstance(item, WordKernel):
+                initial += item.counts(item._initial(initial_parameters))
+            else:
+                initial += item.counts(item._initial(initial_parameters))
         return RewritingProblemSpec(
             form=FormKind.REWRITING,
             states=LayoutSpec(tuple(states)),

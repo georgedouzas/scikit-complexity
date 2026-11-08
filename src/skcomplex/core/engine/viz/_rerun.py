@@ -301,7 +301,7 @@ class RerunObserver(BaseObserver):
         """
         groups: dict[str, list[tuple[CompiledElementSpec, rrb.View]]] = {}
         for visual in self.visuals_:
-            if isinstance(visual, ScalarsVisual):
+            if isinstance(visual, ScalarsVisual) and isinstance(visual.element_, CompiledElementSpec):
                 element = visual.element_
                 groups.setdefault(self._type_name(element), []).extend((element, view) for view in visual.views_)
         views: list[rrb.View] = []

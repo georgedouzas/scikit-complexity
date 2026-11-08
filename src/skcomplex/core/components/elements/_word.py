@@ -11,6 +11,7 @@ from typing import Annotated
 
 from ...errors import RewritingError
 from ...specs import GeometrySpec, Letters, StateSpec, VisualSpec
+from ..spaces import BaseSpace
 from ._element import Element
 
 
@@ -77,7 +78,7 @@ class WordElement(Element):
         self.max_size = max_size
         self.bounds = bounds
 
-    def _prepare(self, context: object = None) -> None:
+    def _prepare(self, context: BaseSpace | None = None) -> None:
         """Set `default_visual_`, the geometry of the word.
 
         It first raises an error for an invalid geometry or a maximum size that is not positive. The maximum size must

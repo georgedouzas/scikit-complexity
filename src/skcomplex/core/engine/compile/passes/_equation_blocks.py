@@ -54,7 +54,7 @@ class _NumericBlockSpec(BaseSpec):
     linear: bool
 
 
-class EquationBlocksLowering(BaseLowering[Laws]):
+class EquationBlocksLowering(BaseLowering[Laws, Sequence[tuple[KernelSpec, list[BaseLaw | _RelationSpec]]]]):
     """Lowering of equations into rate and algebraic laws.
 
     The equations are in highest derivatives and algebraic states. `run(specs)` matches the relations of the specs to

@@ -42,6 +42,11 @@ class ReadSpec(BaseSpec):
     stride: int = 1
 
     @property
+    def shape(self) -> tuple[int, ...]:
+        """The shape of the entry the values belong to, or `()` for an element set."""
+        return self.entry.shape if self.entry is not None else ()
+
+    @property
     def per_member(self) -> bool:
         """Whether the symbol has one value per reduced member."""
         return np.ndim(self.index) > 0

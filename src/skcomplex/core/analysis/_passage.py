@@ -200,7 +200,7 @@ def passage(
         values = _rows(path.states)
         times = np.asarray(path.times, dtype=float)
     else:
-        values = _rows(source)
+        values = _rows(np.asarray(source))
         times = np.arange(values.shape[1], dtype=float) * dt
     if kind == 'first-passage':
         return _first_passage(values, times, threshold, target, direction)

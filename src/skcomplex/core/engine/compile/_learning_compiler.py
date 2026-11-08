@@ -455,10 +455,12 @@ class _LearningCompiler(BaseCompiler):
             entry = problem.states.entry(name)
             states.append(dataclasses.replace(entry, name=f'{training.system}/{name}', start=start))
             start += entry.size
-        hyperparameters = [name for name, spec in training._get_specs().items() if isinstance(spec, ParameterSpec)]
+        hyperparameters = {
+            name: spec for name, spec in training._get_specs().items() if isinstance(spec, ParameterSpec)
+        }
         parameters = tuple(
-            EntrySpec(f'{training.label}.{name}', index, (), training._get_specs()[name].domain)
-            for index, name in enumerate(hyperparameters)
+            EntrySpec(f'{training.label}.{name}', index, (), spec.domain)
+            for index, (name, spec) in enumerate(hyperparameters.items())
         )
         return LayoutSpec(tuple(states)), LayoutSpec(parameters), trained
 

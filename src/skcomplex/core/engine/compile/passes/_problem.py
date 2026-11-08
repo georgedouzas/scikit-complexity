@@ -98,7 +98,7 @@ class ProblemPass(BasePass):
         return tuple(
             CompiledElementSpec(
                 path=block.node.path,
-                element=block.node.component,
+                element=block.node.as_element,
                 states={
                     name: f'{block.node.path}.{name}'
                     for name in declarations_of(block.node.component_type, VariableKind.STATE)
@@ -143,7 +143,7 @@ class ProblemPass(BasePass):
         return tuple(
             CompiledInteractionSpec(
                 path=block.node.path,
-                interaction=block.node.component,
+                interaction=block.node.as_interaction,
                 roles=next(spec.roles for spec, _ in specs if spec.owner == block.node.path),
             )
             for block in blocks
@@ -844,7 +844,7 @@ class ProblemPass(BasePass):
 
         It is its own visual when it sets one, and its default otherwise.
         """
-        element = node.component
+        element = node.as_element
         if element.visual is not None:
             return element.visual
         prepared = 'default_visual_' in vars(element)

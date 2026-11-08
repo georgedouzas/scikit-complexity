@@ -321,9 +321,10 @@ class HyperedgeTables:
                 f'Bind the variable group on its hyperedges, {growing.node.path}.'
             )
             raise RoleError(error_msg)
-        if getattr(node.component, 'size', None) not in {None, size}:
+        given = getattr(node.component, 'size', None)
+        if given not in {None, size}:
             error_msg = (
-                f'Hyperedge interaction {node.path} runs on hyperedges of size {node.component.size}, but the '
+                f'Hyperedge interaction {node.path} runs on hyperedges of size {given}, but the '
                 f'hyperedges of {growing.node.path} have size {size}. Give the size {size}.'
             )
             raise RoleError(error_msg)

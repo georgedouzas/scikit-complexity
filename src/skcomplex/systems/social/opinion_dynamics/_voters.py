@@ -8,6 +8,7 @@ from typing import Annotated
 
 import networkx as nx
 import numpy as np
+import numpy.typing as npt
 from sage.all__sagemath_symbolics import NN, oo
 from sage.sets.finite_enumerated_set import FiniteEnumeratedSet
 from sage.sets.real_set import RealSet
@@ -19,7 +20,7 @@ from ....core.components.system import BaseSystem, System
 from ....core.components.types import SystemViewProtocol
 from ....core.engine.solvers import AgentView
 from ....core.specs import ParameterSpec, RoleSpec, StateSpec, TotalisticSpec, VisualSpec
-from ....core.types import Array
+from ....core.types import Array, IntArray
 
 
 class MajorityVoterElement(Element):
@@ -316,7 +317,7 @@ class MajorityRuleSystem(BaseSystem):
         self.random_state = random_state
 
     @staticmethod
-    def _is_majority(total: float) -> bool:
+    def _is_majority(total: IntArray) -> npt.NDArray[np.bool_]:
         """Return whether the opinions 1 of a Moore neighbourhood are a majority.
 
         The neighbourhood has nine cells.

@@ -523,7 +523,7 @@ class JacobianKernel(BaseKernel):
             return scipy.sparse.csr_array((1, self.size), dtype=bool)
         if reduction.weights is not None:
             weights = reduction.weights
-            pattern = np.ones(weights.entry.shape) if isinstance(weights, ReadSpec) and weights.entry else weights
+            pattern = np.ones(weights.shape) if isinstance(weights, ReadSpec) else weights
             return scipy.sparse.csr_array((abs(pattern) != 0).astype(float) @ support.astype(float) != 0)
         return scipy.sparse.csr_array(np.asarray(support.astype(float).sum(axis=0)).reshape(1, -1) != 0)
 

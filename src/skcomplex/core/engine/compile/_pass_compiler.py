@@ -82,6 +82,7 @@ from ...specs import (
     IssueSpec,
     NeighborReductionSpec,
     ObservableSpec,
+    ReductionSpec,
     RoleSpec,
     TopologyRequestSpec,
     WienerProcessSpec,
@@ -407,23 +408,22 @@ class PassCompiler(BaseCompiler):
         Each partition is compiled with the laws of its owners.
         """
         partitions = []
+        problems = []
         for name, owners in plan:
             problem = self._compiled(self._fork(compilation, owners))
             owned = [entry.indices for entry in problem.states.entries if entry.name.rpartition('.')[0] in owners]
             indices = np.concatenate([np.arange(item.start, item.stop) for item in owned]) if owned else np.zeros(0)
             partitions.append(PartitionSpec(name, problem, indices.astype(np.intp), owners))
-        first = partitions[0].problem
+            problems.append(problem)
+        first = problems[0]
         equations = {
             key: value
-            for item in partitions
-            for key, value in item.problem.equations.items()
+            for item, problem in zip(partitions, problems, strict=True)
+            for key, value in problem.equations.items()
             if key.partition('.')[0] in item.owners
         }
         symbols = {
-            key: item.problem.equation_symbols[key]
-            for item in partitions
-            for key in item.problem.equations
-            if key in equations
+            key: problem.equation_symbols[key] for problem in problems for key in problem.equations if key in equations
         }
         return ProblemSpec(
             form=FormKind.COUPLED,
@@ -435,25 +435,25 @@ class PassCompiler(BaseCompiler):
             symbols=first.symbols,
             equations=equations,
             equation_symbols=symbols,
-            has_callables=any(item.problem.has_callables for item in partitions),
-            has_group_sums=any(item.problem.has_group_sums for item in partitions),
+            has_callables=any(problem.has_callables for problem in problems),
+            has_group_sums=any(problem.has_group_sums for problem in problems),
             elements=first.elements,
             interactions=first.interactions,
             system=compilation.system,
             agents=tuple(agents for item in partitions for agents in item.problem.agents),
             agent_space=next((item.problem.agent_space for item in partitions if item.problem.agents), None),
             partitions=tuple(partitions),
-            algebraic=self._partition_algebraic(partitions),
-            programs=tuple(kernel for item in partitions for kernel in item.problem.programs),
+            algebraic=self._partition_algebraic(problems),
+            programs=tuple(kernel for problem in problems for kernel in problem.programs),
         )
 
     @staticmethod
-    def _partition_algebraic(partitions: Sequence[PartitionSpec]) -> VectorFunction | None:
+    def _partition_algebraic(problems: Sequence[ProblemSpec]) -> VectorFunction | None:
         """Return the function that sets the algebraic states of every partition.
 
         It is `None` without algebraic states.
         """
-        functions = [item.problem.algebraic for item in partitions if item.problem.algebraic is not None]
+        functions = [problem.algebraic for problem in problems if problem.algebraic is not None]
         if not functions:
             return None
 
@@ -1268,7 +1268,8 @@ class PassCompiler(BaseCompiler):
         """
         expression = SR(value)
         reached: set[int] = set()
-        for reduction in [*neighborhoods_in(expression), *reductions_in(expression)]:
+        found: list[NeighborReductionSpec | ReductionSpec] = [*neighborhoods_in(expression), *reductions_in(expression)]
+        for reduction in found:
             problem = PassCompiler._degree_of(reduction.argument, degrees, top)[1]
             if problem is not None:
                 return reached, problem
@@ -2049,8 +2050,8 @@ class PassCompiler(BaseCompiler):
         groups: list[NodeSpec],
     ) -> tuple[list[str], bool]:
         """Return the fixed groups a request changes and if its layer lacks an edge group."""
-        edges = [node for node in groups if node.component.on == 'edges' and node.component.layer == request.layer]
-        sites = [node for node in groups if node.component.on == 'sites']
+        edges = [node for node in groups if node.as_group.on == 'edges' and node.as_group.layer == request.layer]
+        sites = [node for node in groups if node.as_group.on == 'sites']
         changed = []
         if TopologyKernel._changes_edges(request):
             changed += edges
@@ -2058,7 +2059,7 @@ class PassCompiler(BaseCompiler):
             changed += sites
         if owner is not None:
             changed.append(owner)
-        fixed = list(dict.fromkeys(node.path for node in changed if not node.component.variable))
+        fixed = list(dict.fromkeys(node.path for node in changed if not node.as_group.variable))
         return fixed, TopologyKernel._changes_edges(request) and not edges
 
     @staticmethod
@@ -2086,7 +2087,7 @@ class PassCompiler(BaseCompiler):
             groups = [node for node in nodes if isinstance(node.component, GroupElement) and node.space is space]
             owner = by_path.get(record.owner)
             owner = owner if owner is not None and isinstance(owner.component, GroupElement) else None
-            fixed, missing = PassCompiler._fixed_groups(request, owner, [node for node in groups if node.component.on])
+            fixed, missing = PassCompiler._fixed_groups(request, owner, [node for node in groups if node.as_group.on])
             if not fixed and not missing:
                 continue
             listed = ', '.join(fixed) or 'none'

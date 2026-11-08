@@ -134,7 +134,9 @@ class GeometryVisual(BaseVisual):
         geometry = getattr(component, 'geometry', None)
         if geometry is not None and geometry.dimension == SPACE_DIMENSION:
             return [rrb.Spatial3DView(origin=path, name=path), series]
-        bounds = self._bounds_of(element) if isinstance(element, CompiledElementSpec) else None
+        if not isinstance(element, CompiledElementSpec):
+            return [rrb.Spatial2DView(origin=path, name=path), series]
+        bounds = self._bounds_of(element)
         if bounds is None or self._is_filled(element):
             return [rrb.Spatial2DView(origin=path, name=path), series]
         xmin, ymin, xmax, ymax = bounds

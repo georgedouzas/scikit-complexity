@@ -792,13 +792,14 @@ def _read_networks(source: Source) -> list[nx.Graph]:
     if not isinstance(source, Trajectory):
         error_msg = f'Networks are read from a trajectory or a graph, not from {type(source).__name__}.'
         raise AnalysisError(error_msg)
-    recorded = _get_graph_observables(source)
+    trajectory: Trajectory = source
+    recorded = _get_graph_observables(trajectory)
     if recorded:
-        return [frame[recorded[0]] for frame in source.observables]
-    space = _get_network_space(source.problem)
+        return [frame[recorded[0]] for frame in trajectory.observables]
+    space = _get_network_space(trajectory.problem)
     if space is None:
-        raise _get_missing_error(source, 'network')
-    return [space.graph] * len(source.times)
+        raise _get_missing_error(trajectory, 'network')
+    return [space.graph] * len(trajectory.times)
 
 
 @cache

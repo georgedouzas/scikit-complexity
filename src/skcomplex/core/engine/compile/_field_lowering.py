@@ -83,7 +83,7 @@ SHIFTED_MODES = {'periodic': 'grid-wrap', 'zero-flux': 'reflect', 'fixed': 'grid
 FILTER_MODES = {'periodic': 'wrap', 'zero-flux': 'reflect', 'fixed': 'constant'}
 
 
-class FieldLowering(BaseLowering[list[BaseLaw]]):
+class FieldLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
     """Lowering of the differential operators in the laws of one component to stencils.
 
     The lowering also returns the symbols the stencils read. `prepare(compilation)` reads the fields and the initial

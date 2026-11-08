@@ -236,7 +236,7 @@ class TransferInteraction(Interaction):
         into: str | Sink | None = None,
         amount: Amount,
         flow: str = '',
-        pairing: str | Pairing = 'members',
+        pairing: str | Pairing | PartnerSpec = 'members',
         legs: Sequence[Leg] = (),
         fallback: Annotated[str | None, RoleSpec(elements=(ElementKind.ANY,))] = None,
         guard: Callable[..., object] | None = None,

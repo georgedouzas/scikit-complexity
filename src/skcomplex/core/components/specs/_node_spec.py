@@ -61,6 +61,45 @@ class NodeSpec(BaseSpec):
     active: int | None = None
 
     @property
+    def as_element(self) -> Element | GroupElement:
+        """The component of a node of an element or a group.
+
+        Raises:
+            TypeError:
+                The component is an interaction or a Wiener process.
+        """
+        if not isinstance(self.component, Element | GroupElement):
+            error_msg = f'The node {self.path} holds a {type(self.component).__name__}, not an element or a group.'
+            raise TypeError(error_msg)
+        return self.component
+
+    @property
+    def as_group(self) -> GroupElement:
+        """The component of a node of a group.
+
+        Raises:
+            TypeError:
+                The component is not a group.
+        """
+        if not isinstance(self.component, GroupElement):
+            error_msg = f'The node {self.path} holds a {type(self.component).__name__}, not a group.'
+            raise TypeError(error_msg)
+        return self.component
+
+    @property
+    def as_interaction(self) -> BaseInteraction:
+        """The component of a node of an interaction.
+
+        Raises:
+            TypeError:
+                The component is an element, a group, or a Wiener process.
+        """
+        if not isinstance(self.component, BaseInteraction):
+            error_msg = f'The node {self.path} holds a {type(self.component).__name__}, not an interaction.'
+            raise TypeError(error_msg)
+        return self.component
+
+    @property
     def is_agent(self) -> bool:
         """Whether the node is an agent element or an agent group.
 

@@ -116,7 +116,7 @@ def displacement(
             raise AnalysisError(error_msg)
         positions = _particle_axes(read)
     else:
-        positions = _particle_axes(source)
+        positions = _particle_axes(np.asarray(source))
     msd = np.mean([_get_msd(positions[:, particle]) for particle in range(positions.shape[1])], axis=0)
     all_lags = np.arange(1, positions.shape[0], dtype=np.float64) * dt
     chosen = _fit_lags(all_lags, fit_range)

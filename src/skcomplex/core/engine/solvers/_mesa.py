@@ -7,7 +7,7 @@ import math
 import numbers
 from collections import deque
 from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
-from typing import overload
+from typing import cast, overload
 
 import mesa
 import networkx as nx
@@ -1722,7 +1722,7 @@ class MesaSolver(ExternalSolver):
             )
         reporters = {f'{path}.count': float(len(snapshot.ids)) for path, snapshot in groups.items()}
         super()._collect()
-        self.snapshot_ = AgentStateSpec(groups, {**reporters, **self.reports_})
+        self.snapshot_ = AgentStateSpec(groups, {**reporters, **cast(dict[str, float], self.reports_)})
         self.agents_ = {path: [self._view_of(agent) for agent in members] for path, members in agents.items()}
 
     @staticmethod

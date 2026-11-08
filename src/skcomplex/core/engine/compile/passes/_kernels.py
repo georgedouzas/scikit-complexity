@@ -341,7 +341,7 @@ class KernelsPass(BasePass):
             return NoiseProcessSpec(key)
         wiener = wieners[owner]
         factor = None if wiener.covariance is None else KernelsPass._covariance_factor(wiener.covariance)
-        return NoiseProcessSpec(owner, item, wiener.dimension, factor)
+        return NoiseProcessSpec(owner, int(item), wiener.dimension, factor)
 
     @staticmethod
     def _kind_of(law: BaseLaw) -> type:

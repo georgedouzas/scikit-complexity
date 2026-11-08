@@ -41,7 +41,7 @@ DISTRIBUTIONS = tuple(
 )
 
 
-class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
+class DrawLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tuple[KernelSpec, list[BaseLaw]]]]):
     """Lowering of the draws of every component to values in a parameter vector.
 
     The parameter vector is extended with the drawn values. `prepare(compilation)` reads where the parameters end and

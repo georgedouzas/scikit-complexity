@@ -6,9 +6,9 @@
 
 ## 2. Estimators
 
-- [ ] 2.1 Move every estimator's `_check` body to the start of its `_prepare`, in the core, family base by family base
+- [x] 2.1 Move every estimator's `_check` body to the start of its `_prepare`, in the core, family base by family base
 - [ ] 2.2 Do the same in every system module of `skcomplex.systems`, by field
-- [ ] 2.3 Make owners prepare the parts they own and call `_check` on the specs they read, instead of `_validated`
+- [x] 2.3 Make owners prepare the parts they own and call `_check` on the specs they read, instead of `_validated`
 
 - [x] 2.4 Replace `Calibration` with `calibrate` returning a frozen `CalibrationResult`, and migrate its users
 

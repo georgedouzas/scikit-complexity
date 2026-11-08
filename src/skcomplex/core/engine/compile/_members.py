@@ -28,7 +28,7 @@ from ._compilation import Compilation
 _SHIFT = 'shift_member'
 
 
-class MemberLowering(BaseLowering[list[BaseLaw]]):
+class MemberLowering(BaseLowering[list[BaseLaw], list[BaseLaw]]):
     """Lowering of the member offset reads of the laws of one component.
 
     They are lowered to neighbour reads of the index table of its group. `prepare(compilation)` reads the time of the

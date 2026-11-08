@@ -125,8 +125,6 @@ class ReductionKernel(BaseKernel):
     @property
     def readers(self) -> int:
         """Number of reading members of a weighted reduction, 1 without weights."""
-        if isinstance(self.weights, ReadSpec) and self.weights.entry is not None:
-            return self.weights.entry.shape[0]
         return 1 if self.weights is None else int(self.weights.shape[0])
 
     def weight_matrix(self, x: Array, q: Array) -> scipy.sparse.csr_array | Array:

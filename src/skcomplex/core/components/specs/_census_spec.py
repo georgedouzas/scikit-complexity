@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from sage.all__sagemath_symbolics import Expression
@@ -39,4 +40,4 @@ class CensusSpec(BaseSpec):
     system: System
     records: list[CensusRecordSpec]
     errors: list[tuple[str, SkcomplexError]]
-    agents: dict[Expression, tuple[str, str]] = field(default_factory=dict)
+    agents: Mapping[Expression, tuple[str, str]] = field(default_factory=dict)

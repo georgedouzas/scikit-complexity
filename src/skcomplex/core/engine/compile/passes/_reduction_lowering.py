@@ -73,7 +73,7 @@ from ._specs import SpecsPass
 PAIRWISE_KINDS = ('sum', 'mean', 'count', 'max', 'min')
 
 
-class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
+class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]], list[tuple[KernelSpec, list[BaseLaw]]]]):
     """Lowering of the reductions of laws to placeholders compiled once each.
 
     Neighbourhood reductions are lowered too. `prepare(compilation)` reads the layout and the drawn values of the
@@ -749,11 +749,7 @@ class ReductionLowering(BaseLowering[list[tuple[KernelSpec, list[BaseLaw]]]]):
         key = (reduction.kind, str(argument_key), str(condition_key), str(reduction.call.operands()[2]), group)
         if key not in self.found_:
             index = len(self.found_)
-            readers = (
-                (weights.entry.shape[0] if isinstance(weights, ReadSpec) and weights.entry else weights.shape[0])
-                if weights is not None
-                else None
-            )
+            readers = weights.shape[0] if weights is not None else None
             shape = (readers,) if readers is not None else ()
             members_of = readers if readers is not None and not spec.sets else None
             entry = EntrySpec(f'__reduced_{index}', self.extent_, shape, RR, members_of)

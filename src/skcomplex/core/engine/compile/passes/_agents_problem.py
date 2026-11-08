@@ -147,7 +147,7 @@ class AgentsProblemPass(BasePass):
             agents.append(
                 CompiledAgentsSpec(
                     path=node.path,
-                    element=node.component,
+                    element=node.as_element,
                     size=node.members or 1,
                     states=states,
                     values={name: LayoutPass._value_of(node, name) for name in states},

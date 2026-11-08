@@ -17,7 +17,6 @@ from sage.modules.free_module_element import FreeModuleElement
 
 from ....components.elements import FieldElement
 from ....components.interactions import (
-    BaseInteraction,
     GroupingInteraction,
     HyperedgeInteraction,
     NeighborInteraction,
@@ -254,7 +253,7 @@ class SpecsPass(BasePass):
         Each end, such as `'source'`, `'target'`, `'edge'`, `'first'`, or `'second'`, takes the name the interaction's
         `_get_role` returns for it, the end itself by default.
         """
-        component: BaseInteraction = node.component
+        component = node.as_interaction
         return tuple(component._get_role(end) for end in ends)
 
     @staticmethod
@@ -1171,7 +1170,7 @@ class SpecsPass(BasePass):
         It is evaluated once per pair within its cutoff.
         """
         node = block.node
-        interaction: BaseInteraction = node.component
+        interaction = node.as_interaction
         names = SpecsPass._end_names(node, ('first', 'second'))
         first, second = (SpecsPass._resolve_role(node, name, elements) for name in names)
         position = getattr(interaction, 'position', 'x')
@@ -1429,7 +1428,9 @@ class SpecsPass(BasePass):
         if isinstance(component, NeighborInteraction) and bound:
             return SpecsPass._edge_specs(block, elements, declarations)
         grouped = isinstance(component, GroupingInteraction) and component.form == 'symbolic'
-        if (isinstance(component, HyperedgeInteraction) and bound) or (grouped and component.groups != 'state'):
+        if (isinstance(component, HyperedgeInteraction) and bound) or (
+            isinstance(component, GroupingInteraction) and grouped and component.groups != 'state'
+        ):
             gathered = SpecsPass._grouping_specs if grouped else SpecsPass._hyperedge_specs
             return gathered(block, elements, time), declarations
         if isinstance(block.node.component, PairInteraction):
