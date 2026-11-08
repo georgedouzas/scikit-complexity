@@ -1,4 +1,7 @@
-"""Billiard systems: free particles reflecting off the walls of Sinai and mushroom tables and off three open discs."""
+"""Billiard systems.
+
+Free particles reflect off the walls of Sinai and mushroom tables and off three open discs.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -21,7 +24,9 @@ from ..common.mechanics import ReflectionInteraction
 
 
 class MushroomBilliardElement(Element):
-    """Free particle in a mushroom table: a half disc cap of radius `radius` on a stem of half width `width`.
+    """Free particle in a mushroom table.
+
+    The table is a half disc cap of radius `radius` on a stem of half width `width`.
 
     The particle flies straight, and reflects specularly off the cap, the floor of the cap beside the stem, the walls of
     the stem, and its floor at depth `height`. Its phase space mixes regular orbits that stay in the cap with chaotic
@@ -103,14 +108,16 @@ class MushroomBilliardElement(Element):
 
 
 def _sinai_walls(size: float, radius: float, **_: float) -> list[np.ndarray]:
-    """Return the square wall and the central disc of a Sinai table as closed polylines."""
+    """Return the square wall and central disc of a Sinai table as closed polylines."""
     square = size * np.array([[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0], [-1.0, -1.0]])
     angles = np.linspace(0.0, 2 * np.pi, 100)
     return [square, radius * np.column_stack([np.cos(angles), np.sin(angles)])]
 
 
 class SinaiBilliardElement(Element):
-    """Free particle in a square table of half side `size` with a central disc of radius `radius`, the Sinai billiard.
+    """Free particle in the Sinai billiard.
+
+    The table is a square of half side `size` with a central disc of radius `radius`.
 
     The particle flies straight, and its specular reflections off the four walls and the disc make its motion ergodic
     and chaotic.
@@ -203,7 +210,9 @@ def _three_disk_walls(spacing: float, radius: float, **_: float) -> list[np.ndar
 
 
 class ThreeDiskBilliardElement(Element):
-    """Free particle scattered by three discs of radius `radius` at the corners of a triangle of side `spacing`.
+    """Free particle scattered by three discs of radius `radius`.
+
+    The discs sit at the corners of a triangle of side `spacing`.
 
     The centers of the discs lie at the distance `spacing / √3` from the origin, at the polar angles `-π / 2`,
     `π / 6`, and `5 π / 6`. The particle flies straight and reflects specularly off the discs. The billiard is open,
@@ -301,7 +310,9 @@ def _wall(
 
 
 class BilliardsSystem(BaseSystem):
-    """A particle moving freely on a billiard table and reflecting specularly off its walls.
+    """A particle moving freely on a billiard table.
+
+    The particle reflects specularly off the walls of the table.
 
     The Sinai table is the square `[-size, size]²` with a disc of radius `disc_radius` at its center, and its motion is
     chaotic. The mushroom table is the upper half of a disc of radius `cap_radius` on a stem of half width `width` and
@@ -397,7 +408,10 @@ class BilliardsSystem(BaseSystem):
 
     @staticmethod
     def _disc(label: str, angle: float) -> ReflectionInteraction:
-        """Return the reflection off the disc of the three-disk table whose center lies at a polar angle."""
+        """Return the reflection off a disc of the three-disk table.
+
+        The center of the disc lies at a polar angle.
+        """
         cosine, sine = math.cos(angle), math.sin(angle)
 
         def guard(s: SimpleNamespace) -> object:
@@ -407,7 +421,10 @@ class BilliardsSystem(BaseSystem):
         return _wall(label, guard, -1)
 
     def _build_system(self) -> System:
-        """Return a particle moving freely on a billiard table and reflecting specularly off its walls."""
+        """Return a particle moving freely on a billiard table.
+
+        The particle reflects specularly off the walls of the table.
+        """
         if self.shape == 'sinai':
             table = SinaiBilliardElement(
                 'particle',
