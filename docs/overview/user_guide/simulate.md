@@ -5,79 +5,88 @@ simulators together.
 
 ## Simulating
 
-Run any system, ready-made or your own, for as long as you want, change its parameters on the way, and continue a run
-where it stopped. `Simulation` compiles the system, picks the solver of its form, and advances it in frames of `dt`.
+Run any system, ready-made or your own, for as long as you want. `simulate` compiles the system, picks the solver of
+its form, advances it in frames of `dt`, and returns its `Trajectory`, as `cross_validate` fits a model and returns its
+scores.
 
 ```python
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems import create_system
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems import all_systems
 
-system = create_system('lotka_volterra')
-trajectory = Simulation(system, dt=0.1).prepare().run(until=10).trajectory_
+LotkaVolterraSystem = dict(all_systems(field='biology/ecology'))['LotkaVolterraSystem']
+trajectory = simulate(LotkaVolterraSystem(), until=10, dt=0.1)
 trajectory.values('prey.n')[-1].round(3)
 ```
 
-`prepare` validates the system, compiles it, and chooses the solver. `run(until)` runs from time 0 to `until`, and
-`trajectory_` holds the recorded frames. States and parameters are named by their dotted path, such as `prey.n` and
-`predation.a`.
+`simulate` validates the system, compiles it, chooses the solver, and runs from time 0 to `until`. The trajectory holds
+the recorded frames, its `times` and the `values` of every state, observable, and parameter. States and parameters are
+named by their dotted path, such as `prey.n` and `predation.a`. The system itself never changes, so the same instance
+runs again with other settings.
 
-The default ODE solver is `ScipyODESolver` with SciPy's `LSODA`. It starts with Adams methods and switches to BDF
-methods while the system is stiff, so stiff systems also run with the default solver.
+The tags of the system choose the default solver before anything compiles, and a solver or a backend that does not
+support them raises a `TagError` that names the tag. The default ODE solver is `ScipyODESolver` with SciPy's `LSODA`.
+It starts with Adams methods and switches to BDF methods while the system is stiff, so stiff systems also run with the
+default solver.
 
 ### Changing a run
 
-Change a parameter between frames with `update_parameters`, and continue a finished run with `extend`.
+Change a parameter while the system runs with a schedule, and continue a run from where it stopped by starting the
+next one from its last frame.
 
 ```python
-from sklearn.base import clone
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems import all_systems
 
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems import create_system
-
-simulation = Simulation(create_system('lotka_volterra'), dt=0.1).prepare().run(until=10)
-simulation.update_parameters({'predation.a': 0.0})
-len(simulation.extend(until=20).trajectory_.times)
-clone(simulation).prepare().run(until=5).time_
+LotkaVolterraSystem = dict(all_systems(field='biology/ecology'))['LotkaVolterraSystem']
+first = simulate(LotkaVolterraSystem(), until=10, dt=0.1)
+last = {name: first.values(name)[-1] for name in ('prey.n', 'predators.n')}
+second = simulate(LotkaVolterraSystem(), until=10, dt=0.1, initial_state=last, schedule={'predation.a': lambda t: 0.0})
+second.values('prey.n')[0] == first.values('prey.n')[-1], second.values('predation.a')[-1]
 ```
 
-- `update_parameters({'predation.a': 0.05})` changes parameters before the next frame. Values set between runs stay in
-  force for the later runs of the same simulation, and `clone(simulation).prepare().run(until)` starts afresh.
-- `extend(until)` continues a finished run from its last frame, with the same stepper, clock, and observers, and
-  appends the new frames to the trajectory. `run` starts again from time 0.
+- `schedule={'predation.a': lambda t: 0.0}` sets a parameter from a function of time at every frame, here switching
+  predation off for the whole second run.
+- `initial_state` starts the second run from the last frame of the first. Its times start again from 0.
+- A changed model parameter, such as `LotkaVolterraSystem(a=0.2)` or `set_params(a=0.2)`, builds a new system, which
+  compiles again.
 
 ### Run settings
 
-Set how a run starts and evolves with the arguments of `Simulation`.
+Set how a run starts and evolves with the arguments of `simulate`.
 
 ```python
-from skcomplex.core.engine.runtime import RealTimeClock, Simulation
-from skcomplex.systems import create_system
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems import all_systems
 
-simulation = Simulation(
-    create_system('lotka_volterra'),
+LotkaVolterraSystem = dict(all_systems(field='biology/ecology'))['LotkaVolterraSystem']
+trajectory = simulate(
+    LotkaVolterraSystem(),
+    until=10,
     dt=0.1,
     schedule={'predation.a': lambda t: 0.4 + 0.001 * t},
     initial_state={'prey.n': 20},
-    clock=RealTimeClock(speed=1000.0),
-).prepare()
-simulation.run(until=10).trajectory_.values('prey.n')[0]
-simulation.start(until=20)
-simulation.wait()
-simulation.time_
+    random_state=0,
+)
+trajectory.values('prey.n')[0], trajectory.times[-1]
 ```
 
-- `dt` defaults to 1 for discrete maps and agents. For other forms it defaults to 0.01, raised to the smallest of 0.02,
-  0.05, 0.1, and so on, in steps of 1, 2, and 5 times a power of ten, that keeps the run at most 1000 frames long. So
-  `run(until=1000)` takes frames of 1.
-- `until` sets the end time that `run` uses when it is given none.
-- `clock=RealTimeClock(speed)` paces frames so that simulated time advances `speed` times faster than wall time.
-- `start(until)` runs in a background thread, and `pause`, `resume`, `stop`, and `wait` control it.
+- `until` sets the end time. Without it, `simulate` uses the tuned end time of the class of the system, and a system
+  without one raises an error that asks for it.
+- `dt` defaults to the tuned time of the class, or else to 1 for discrete maps and agents. For other forms it defaults
+  to 0.01, raised to the smallest of 0.02, 0.05, 0.1, and so on, in steps of 1, 2, and 5 times a power of ten, that
+  keeps the run at most 1000 frames long. So `until=1000` takes frames of 1.
+- `solver` and `backend` choose how the run steps and evaluates its laws, as the next sections show.
 - `random_state` makes stochastic runs reproducible. A fixed-step solver splits every frame into
   `step_count(t, until, dt)` equal steps on every backend, so the same `random_state` gives the same path on the NumPy
   and Numba backends.
 - `schedule={'predation.a': lambda t: 0.4 + 0.001 * t}` sets parameters from functions of time at every frame, such as
   a slow ramp of a control parameter.
-- `initial_state={'prey.n': 20}` replaces initial values of the elements for one simulation.
+- `initial_state={'prey.n': 20}` replaces initial values of the elements for one run.
+- `observables` and `observers` record more quantities and stream the run, as the page [Observe](observe.md) shows.
+- `invariants` names observables that must stay constant, with their tolerances, and the run raises a
+  `ConservationError` at the first frame that leaves them.
+
+Every argument left out comes from `get_run_settings()` of the system, the settings its class tuned.
 
 ## Backends and speed
 
@@ -86,13 +95,14 @@ produces these functions with a backend.
 
 ```python
 from skcomplex.core.engine.backends import NumbaBackend
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import RK4Solver
-from skcomplex.systems import create_system
+from skcomplex.systems import all_systems
 
-gas = create_system('ideal_gas', n_molecules=50_000, random_state=0)
-simulation = Simulation(gas, solver=RK4Solver(dt=0.01), backend=NumbaBackend(), dt=0.01).prepare()
-simulation.run(until=0.5).problem_.backend
+IdealGasSystem = dict(all_systems(field='physics/statistical_mechanics'))['IdealGasSystem']
+gas = IdealGasSystem(n_molecules=50_000, random_state=0)
+trajectory = simulate(gas, until=0.5, dt=0.01, solver=RK4Solver(dt=0.01), backend=NumbaBackend())
+trajectory.values('gas.x').shape
 ```
 
 The library has three backends:
@@ -104,8 +114,8 @@ The library has three backends:
   compiles, and differentiates. It is the backend of the inner system of a system that trains, and a forward backend
   that agrees with NumPy within 1e-10 in double precision.
 
-Without a backend, `Simulation` picks Numba when the groups of a system hold at least 1000 members in total. Compiling
-takes a second or two, which small systems do not win back. `problem_.backend` names the backend a run used.
+Without a backend, `simulate` picks Numba when the groups of a system hold at least 1000 members in total. Compiling
+takes a second or two, which small systems do not win back.
 
 Compiled kernels are cached on disk, under `~/.cache/skcomplex` or the `cache_dir` of `NumbaBackend(cache_dir=...)`.
 So running the same system again skips compilation.
@@ -124,7 +134,7 @@ from skcomplex.core.components.elements import Element, GroupElement
 from skcomplex.core.components.interactions import Interaction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import CallSpec, ParameterSpec, RoleSpec, StateSpec
 
 
@@ -153,7 +163,7 @@ herds = System(
     elements=[GroupElement('herds', element=PopulationElement, size=2000, values={'n': 1.0})],
     interactions=[SaturationInteraction('growth', target='herds')],
 )
-round(float(Simulation(herds, dt=0.1).prepare().run(until=1).trajectory_.values('herds.n')[-1, 0]), 4)
+round(float(simulate(herds, until=1, dt=0.1).values('herds.n')[-1, 0]), 4)
 ```
 
 A Numba-compiled function runs inside the compiled kernels, and the NumPy backend calls it from Python. The group above
@@ -178,7 +188,7 @@ from skcomplex.core.components.interactions import PairCouplingInteraction, Rate
 from skcomplex.core.components.laws.utils import derivative
 from skcomplex.core.components.spaces import ContinuousSpace
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.engine.solvers import LammpsSolver
 from skcomplex.core.specs import ParameterSpec
 
@@ -235,7 +245,7 @@ atoms = System(
 pairs = {LennardJonesInteraction: ('lj/cut', get_pair_coefficients)}
 fixes = {DragInteraction: get_drag_fix}
 solver = LammpsSolver(dt=0.005, pairs=pairs, fixes=fixes)
-trajectory = Simulation(atoms, solver=solver, dt=0.05, random_state=0).prepare().run(until=1).trajectory_
+trajectory = simulate(atoms, until=1, dt=0.05, solver=solver, random_state=0)
 trajectory.values('atoms.x').shape
 ```
 
@@ -245,7 +255,7 @@ Two maps tell the solver how to write your interactions in LAMMPS:
 - `fixes` maps interaction classes to native fixes, with a function that writes the fix.
 
 You write both maps for your own classes, as above, and the prebuilt particle systems come with theirs. A function in
-`fixes` reads a seed from the random state of the simulation with `fix.seed()`, for a stochastic fix such as
+`fixes` reads a seed from the random state of the run with `fix.seed()`, for a stochastic fix such as
 `fix langevin`.
 
 Before the first frame the backend checks the system. It raises one error that lists every element, interaction, and
@@ -271,17 +281,16 @@ equation of the land they harvest. A system whose laws do not fit one form is sp
 boundaries, and each partition runs with its own solver.
 
 ```python
-from skcomplex.core.engine.compile import PassCompiler
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems import create_system
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems import all_systems
 
-farming = create_system('harvesting', farmers=10, effort=0.05)
-partitions = PassCompiler().prepare(farming).run().problem_.partitions
-[(partition.name, partition.problem.form.value) for partition in partitions]
-trajectory = Simulation(farming, random_state=0).prepare().run(until=50).trajectory_
+HarvestingSystem = dict(all_systems(field='economics/resources'))['HarvestingSystem']
+trajectory = simulate(HarvestingSystem(farmers=10, effort=0.05), until=50, random_state=0)
 round(trajectory.values('land/stock.n')[-1]), trajectory.agents('village/farmers', 50).values['wealth'].size
 trajectory.values('village/farmers_count.value')[-1]
 ```
+
+Here the land is a differential equation and the village holds agents, so each runs as its own partition.
 
 Every subsystem whose laws fit one form becomes a partition. A law joins the partition that owns its target, so an
 interaction of the parent system may contribute to several partitions. A subsystem whose own elements mix law kinds

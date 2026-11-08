@@ -1,54 +1,65 @@
 # Select a ready-made system
 
-Pick a system from the catalog by its name, read what it is, and simulate it with the settings it was tuned for.
+Find a system of the catalog, read what it is, and simulate it with the settings it was tuned for.
 
 ## The catalog
 
-Pick a ready-made system by name, read what it is, and simulate it with the settings it was tuned for.
-`create_simulation` returns a simulation that is ready to prepare and run.
+Every ready-made system is a class, named after the system with the suffix `System`, such as `SIRSystem`.
+`all_systems` returns the name and the class of every system, and `simulate` runs one with its tuned settings.
 
 ```python
-from skcomplex.systems import create_simulation, describe
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.systems import all_systems
 
-entry = describe('sir')
-entry.description, entry.parameters, entry.formalism
-trajectory = create_simulation('sir').prepare().run().trajectory_
+SIRSystem = dict(all_systems(field='biology/epidemiology'))['SIRSystem']
+trajectory = simulate(SIRSystem())
 trajectory.values('I.n').max().round()
 ```
 
-`describe` tells you what a system is: its field, description, tags, references, the parameters of its factory with
-their defaults, its default run settings, and the formalism the compiler infers for it. `create_simulation` builds the
-system and wraps it in a simulation that holds the system as `system`, the default end time as `until`, and the tuned
-time step, solver, observables, initial state, and seed `random_state=0`. Every object has the same two verbs, so you
-call `prepare` and then `run`.
+A system class tells you what it is through plain attributes and methods:
 
-You import four functions from `skcomplex.systems` and nothing else.
+- the first line of its docstring describes it,
+- `field`, `topics`, and `references` are class attributes,
+- `get_params()` gives the parameters of its model with their defaults, as for any scikit-learn estimator,
+- `get_tags()` gives its capability tags, such as its time, its space, the kinds of its laws, and its randomness,
+- `get_run_settings()` gives the tuned run settings that `simulate` uses for every argument a call leaves out, such as
+  the end time `until` and the time between frames `dt`.
 
-- `catalog` lists the systems, filtered by a field, a field path, or a tag.
-- `describe` gives one system by name.
-- `create_system` builds the system by name and returns it.
-- `create_simulation` returns a simulation of it with its default run settings.
-
-### The system catalog
-
-Every ready-made system is a factory registered with its field path, description, tags, references, and default run
-settings. `catalog` filters by a field, such as `biology`, by a field path, such as `biology/ecology`, or by a tag.
-
-```python
-from skcomplex.systems import catalog, create_system, describe
-
-[entry.name for entry in catalog(field='biology/ecology')]
-sorted({entry.field for entry in catalog(field='chemistry')})
-[entry.name for entry in catalog(tag='oscillation')]
-describe('lotka_volterra').formalism
-predation = create_system('lotka_volterra', a=0.2)
-predation
+```python continuation
+SIRSystem.__doc__.splitlines()[0], SIRSystem.field, SIRSystem.topics, SIRSystem.references
 ```
 
-The catalog belongs to the catalog alone. The engine and the experiments take a system or a factory, never a system
-name. So you create a system of the library with `create_system`, or you pass its factory.
+```python continuation
+system = SIRSystem()
+system.get_params(), system.get_tags().laws, system.get_run_settings()['until']
+```
 
-Each system has a field path `<field>/<subfield>`, which `catalog` takes as a filter.
+`simulate` returns a `Trajectory`. Its `values` method returns the recorded values of a state, an observable, or a
+parameter by its dotted path, such as `I.n`, and `names` lists every path.
+
+### Finding a system
+
+`all_systems` filters by a field, such as `biology`, by a field path, such as `biology/ecology`, by topics, and by
+capability tags. Listing by field and topics reads the sources of the catalog, so it imports only the modules of the
+systems it returns. Filtering by tags builds every selected class with its default parameters.
+
+```python
+from skcomplex.systems import all_systems
+
+[name for name, _ in all_systems(field='biology/ecology')][:5]
+sorted({cls.field for _, cls in all_systems(field='chemistry')})
+[name for name, _ in all_systems(topics='oscillation')][:5]
+[name for name, _ in all_systems(field='chemistry', tags={'randomness': 'stochastic'})]
+```
+
+The tags describe a system with its default parameters. `SIRSystem` runs as differential equations by default, so it
+is deterministic, and `SIRSystem(stochastic=True)` is stochastic.
+
+The catalog belongs to the catalog alone. `simulate`, the analyses, and the experiments take a system instance, or a
+class or a factory where a function builds several systems, never a name.
+
+Each system has a field path `<field>/<subfield>`, which `all_systems` takes as a filter. Every class can also be
+imported from its subfield package, as the page of the system under [Systems](../../systems/index.md) shows.
 
 | Field | Subfields |
 | --- | --- |
@@ -61,8 +72,8 @@ Each system has a field path `<field>/<subfield>`, which `catalog` takes as a fi
 | `mathematics` | `dynamical_systems`, `stochastic_processes`, `networks`, `fractals`, `fractional_dynamics` |
 | `computer_science` | `automata`, `evolutionary_computation`, `neural_networks` |
 
-A system lives where the science that poses it lives, and its tags carry its reach into other fields. The library keeps
-the catalog apart from the core by three rules, which the checks of the package layout enforce.
+A system lives where the science that poses it lives, and its topics carry its reach into other fields. The library
+keeps the catalog apart from the core by three rules, which the checks of the package layout enforce.
 
 - The core never imports the systems.
 - Every system is built only from the public names of the core.
@@ -72,8 +83,8 @@ the catalog apart from the core by three rules, which the checks of the package 
 ### Optional extras
 
 Most systems run on the default install. A few take a library from an optional extra. Without the extra they stay in
-the catalog, and building one raises `MissingExtraError` with the name of the system, the extra, and the install
-command.
+the catalog, and preparing or simulating one raises `MissingExtraError` with the name of the system, the extra, and
+the install command.
 
 | Extra | Library | Systems | Install notes |
 | --- | --- | --- | --- |
@@ -84,14 +95,15 @@ command.
 ### Systems as patterns
 
 The ready-made systems are examples of the core interface, not a separate one. So each is also the pattern for a system
-of your own. The page of every field, under [Systems](../../systems/index.md) in the documentation, shows for each system:
+of your own. The page of every field, under [Systems](../../systems/index.md) in the documentation, shows for each
+system:
 
-- its factory,
+- its class, with its parameters and tags,
 - its element and interaction types, with their states, parameters, and laws as written,
-- for differential equations and maps, its equations as `SymbolicAnalysis('equations')` returns them.
+- for differential equations and maps, its equations as `symbolic(system).equations` returns them.
 
-A system of your own follows the same steps. Declare the element and interaction types, and write a function that
-returns the system. The section [Choosing compatible components](build_a_custom_system/choosing_compatible_components.md) shows how to find
+A system of your own follows the same steps. Declare the element and interaction types, and write a class that builds
+the system from its parameters, as the page [System classes](system_classes.md) shows. The section [Choosing compatible components](build_a_custom_system/choosing_compatible_components.md) shows how to find
 which parts fit together, and the
 [contributing guide](../../development/contributing.md#adding-a-system-to-the-catalog) covers adding a system to the
 catalog.
@@ -104,7 +116,7 @@ core. A system the core cannot express is recorded as blocked on the OpenSpec ch
 feature. It is never worked around inside the system package. A test checks the inventory against the catalog and the
 changes. An entry writes the components and the bindings of its system by hand, while the time, the space, the laws,
 and the domains of an implemented system are read from `get_tags()` of its class, so they cannot drift from the code.
-Every registered system has its own page under Systems in the documentation, by field and subfield.
+Every system class has its own page under Systems in the documentation, by field and subfield.
 
 Systems exist first to exercise the core, and ready-made systems are a by-product. Every entry lists the core primitives
 it exercises, such as `rates`, `jumps`, `groups`, `reductions`, `member-offsets`, `lattices`, `fields`, `agents`, or

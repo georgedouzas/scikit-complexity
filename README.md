@@ -138,62 +138,49 @@ pdm install
 
 ## Usage
 
-There are two ways to use the library. Select a prebuilt system from the catalog by its name, or build a custom system
-from the general classes of `skcomplex.core.components`.
+The library speaks scikit-learn. What you define is an estimator, a class with `get_params`, `set_params`, and
+`clone`: elements, interactions, and systems. What you do to them is a function: `simulate` runs a system as
+`cross_validate` runs a model, analyses measure the run as `sklearn.metrics` scores one, and experiments run many as
+the model selection functions do.
 
-### Select a prebuilt system
+There are two ways in. Select a ready-made system from the catalog, or build a custom system from the general classes
+of `skcomplex.core.components`.
 
-Every prebuilt system has a description, tags, parameters, and references, so you can browse
-the catalog from Python.
+### Select a ready-made system
 
-First, list the fields. Each system belongs to one:
+Every ready-made system is a class with a field, topics, references, and parameters, and `all_systems` finds them, as
+`all_estimators` does in scikit-learn.
 
-```python
-from skcomplex.systems import catalog
-
-fields = {system.field for system in catalog()}
-```
-
-Next, list the systems of a field:
-
-```python continuation
-bio_eco_systems = {system.name for system in catalog(field='biology/ecology')}
-```
-
-You can also search every field by tag:
-
-```python continuation
-oscillation_systems = [system.name for system in catalog() if 'oscillation' in system.tags]
-```
-
-Finally, read the details of the system you chose:
-
-```python continuation
-from skcomplex.systems import describe
-
-entry = describe('lotka_volterra')
-entry.description, entry.formalism, entry.parameters, entry.references
-```
-
-Simulate any of them with its tuned settings in one line:
+List the systems of a field:
 
 ```python
-from skcomplex.systems import create_simulation
+from skcomplex.systems import all_systems
 
-trajectory = create_simulation('sir').prepare().run().trajectory_
-round(float(trajectory.values('I.n').max()))
+ecology = [name for name, _ in all_systems(field='biology/ecology')]
 ```
 
-`create_system` returns a ready-made system with the arguments you choose, so you can simulate it with settings of
-your own:
+Search every field by topic, or by the capability tags of a system:
 
-```python
-from skcomplex.core.engine.runtime import Simulation
-from skcomplex.systems import create_system
+```python continuation
+oscillators = [name for name, _ in all_systems(topics='oscillation')]
+stochastic = [name for name, _ in all_systems(field='chemistry', tags={'randomness': 'stochastic'})]
+```
 
-system = create_system('lotka_volterra', r=1.5)
-trajectory = Simulation(system, dt=0.1).prepare().run(until=50).trajectory_
-round(float(trajectory.values('prey.n').max()))
+Take the class you chose and read what it is:
+
+```python continuation
+LotkaVolterraSystem = dict(all_systems(field='biology/ecology'))['LotkaVolterraSystem']
+LotkaVolterraSystem.topics, LotkaVolterraSystem.references, LotkaVolterraSystem().get_params()
+```
+
+Simulate it with its tuned settings, or with parameters and settings of your own:
+
+```python continuation
+from skcomplex.core.engine.runtime import simulate
+
+trajectory = simulate(LotkaVolterraSystem())
+fast_prey = simulate(LotkaVolterraSystem(r=1.5), until=50, dt=0.1)
+round(float(fast_prey.values('prey.n').max()))
 ```
 
 Each run can stream to the Rerun viewer:
@@ -204,10 +191,9 @@ Each run can stream to the Rerun viewer:
     <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/sir.png" alt="An epidemic rises and fades" width="100%"><br><code>sir</code><br><sub>An epidemic rises and fades</sub></td>
     <td align="center" valign="top" width="33%"><img src="https://raw.githubusercontent.com/georgedouzas/scikit-complexity/main/docs/assets/readme/wolf_sheep.png" alt="Wolves, sheep and grass on a grid" width="100%"><br><code>wolf_sheep</code><br><sub>Wolves, sheep and grass on a grid</sub></td>
   </tr>
-</table>
 
-The [catalog](https://georgedouzas.github.io/scikit-complexity/systems/catalog/) lists every system by field and tag, and the page of each system shows the classes
-it is built from.
+The [catalog](https://georgedouzas.github.io/scikit-complexity/systems/catalog/) lists every system by field and topic,
+and the page of each system shows the classes it is built from.
 
 ### Build a custom system
 
@@ -222,7 +208,7 @@ from skcomplex.core.components.elements import Element
 from skcomplex.core.components.interactions import Interaction, RateInteraction
 from skcomplex.core.components.laws import RateLaw
 from skcomplex.core.components.system import System
-from skcomplex.core.engine.runtime import Simulation
+from skcomplex.core.engine.runtime import simulate
 from skcomplex.core.specs import ParameterSpec, RoleSpec, StateSpec
 
 
@@ -261,45 +247,37 @@ system = System(
         RateInteraction('death', target='foxes', state='n', rate=lambda s: -0.4 * s.target.n),
     ],
 )
-trajectory = Simulation(system, dt=0.05).prepare().run(until=30).trajectory_
+trajectory = simulate(system, until=30, dt=0.05)
 round(float(trajectory.values('rabbits.n').max()))
 ```
 
 A `RerunObserver` records the run for the Rerun viewer, and `RerunObserver('predators', spawn=True)` opens the viewer
-during the run. A `RealTimeClock` paces the run against wall time:
+during the run. A schedule changes a parameter while the system runs, here halving the hunting rate at time 15:
 
 ```python continuation
 import tempfile
 from pathlib import Path
 
-from skcomplex.core.engine.runtime import RealTimeClock
 from skcomplex.core.engine.viz import RerunObserver
 
 recording = Path(tempfile.mkdtemp()) / 'predators.rrd'
-simulation = Simulation(
+trajectory = simulate(
     system,
+    until=30,
     dt=0.05,
-    clock=RealTimeClock(speed=20.0),
     observers=[RerunObserver('predators', save_path=recording)],
-).prepare()
-float(simulation.run(until=30).trajectory_.times[-1])
+    schedule={'hunt.a': lambda t: 0.4 if t < 15 else 0.2},
+)
+float(trajectory.times[-1])
 ```
 
-A simulation started with `start` runs in the background, and its parameters can change while it runs:
-
-```python continuation
-simulation = Simulation(system, dt=0.05, clock=RealTimeClock(speed=20.0)).prepare().start(until=30)
-simulation.update_parameters({'hunt.a': 0.2})
-simulation.wait()
-```
-
-Adding a process takes one more interaction, and `SymbolicAnalysis` shows the equations of the system:
+Adding a process takes one more interaction, and the analysis `symbolic` shows the equations of the system:
 
 ```python continuation
 from sage.all__sagemath_symbolics import oo
 from sage.sets.real_set import RealSet
 
-from skcomplex.core.analysis import SymbolicAnalysis
+from skcomplex.core.analysis import symbolic
 
 
 class HarvestInteraction(Interaction):
@@ -325,7 +303,7 @@ harvested = System(
         HarvestInteraction('fishing', target='fish', h=0.1),
     ],
 )
-SymbolicAnalysis().prepare(harvested).run().equations_['fish.n']
+symbolic(harvested).equations['fish.n']
 ```
 
 ### Find out which components fit
@@ -337,10 +315,11 @@ hunt = PredationInteraction('hunt', predator='foxes', prey='rabbits')
 hunt.get_requirements().roles['prey'].states, list(PopulationElement('rabbits').get_states())
 ```
 
-When a role is bound to an element without the state it reads, validation names the role, the state, and the fix:
+When a role is bound to an element without the state it reads, `simulate` raises an error that names the role, the
+state, and the fix:
 
 ```python continuation
-from skcomplex.core.engine.compile import PassCompiler
+from skcomplex.core.errors import RoleElementError
 
 
 class TankElement(Element):
@@ -353,11 +332,17 @@ wrong = System(
     elements=[TankElement('tank'), PopulationElement('foxes')],
     interactions=[PredationInteraction('hunt', predator='foxes', prey='tank')],
 )
-PassCompiler().prepare(wrong).report_.issues[0].text
+try:
+    simulate(wrong, until=1)
+except RoleElementError as error:
+    message = str(error)
+message
 ```
 
-The [compatibility page](https://georgedouzas.github.io/scikit-complexity/overview/compatibility/) lists every element, interaction, law, solver, and backend, and
-the [user guide](https://georgedouzas.github.io/scikit-complexity/overview/user_guide/build_a_custom_system/choosing_compatible_components/) walks through the choices in order.
+The [parts pages](https://georgedouzas.github.io/scikit-complexity/parts/elements/) list every element, interaction, law,
+solver, and backend with the tags they accept, and the
+[user guide](https://georgedouzas.github.io/scikit-complexity/overview/user_guide/build_a_custom_system/choosing_compatible_components/)
+walks through the choices in order.
 
 ## Spec-driven development
 
