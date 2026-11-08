@@ -67,3 +67,8 @@ only a clock, not a background thread.
 schedule, like any other parameter.
 **Migration**: Schedule the group parameter with one value for every member or one value per member, such as
 `schedule={'gas.m': lambda t: 1.0 if t < 0.2 else 2.0}`.
+
+### Requirement: Runs extend from their last frame
+**Reason**: Runs are calls of `simulate`, which keeps no simulation object to extend. Continuing a run is a new call.
+**Migration**: Pass the states of the last frame as the `initial_state` of the next `simulate` call, with the changed
+parameters set on the system, and join the two trajectories.
