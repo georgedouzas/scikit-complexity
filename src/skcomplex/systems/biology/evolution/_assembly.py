@@ -1,4 +1,7 @@
-"""Evolution systems: assembly theory, the discovery of new objects by recursive joining of existing ones."""
+"""Evolution systems: assembly theory.
+
+Assembly theory is the discovery of new objects by recursive joining of existing ones.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,9 @@ MODES = ('undirected', 'directed')
 
 
 class AssemblyLevelElement(Element):
-    """Objects of one assembly index, discovered from the objects one assembly step below them.
+    """Objects of one assembly index.
+
+    They are discovered from the objects one assembly step below them.
 
     In a group ordered by assembly index, the objects of index `a + 1` grow as `dN_{a+1}/dt = k (N_a)^alpha`, Eq. (3)
     of Sharma et al. (2022), where the first member reads the constant pool `N_0` of building blocks. The selectivity
@@ -138,7 +143,9 @@ class PolymerElement(Element):
 
 
 class PolymerJoiningInteraction(Interaction):
-    """Joining of two polymers of an assembly pool into a new one, at random or by reuse of the newest polymer.
+    """Joining of two polymers of an assembly pool into a new one.
+
+    The polymers are joined at random or by reuse of the newest polymer.
 
     At every step, undirected exploration joins two polymers drawn at random from the pool, and directed exploration
     joins the polymer made most recently with one drawn at random. The joined polymer, of the summed length, is added
@@ -216,7 +223,9 @@ class PolymerJoiningInteraction(Interaction):
 
 
 class AssemblyGrowthSystem(BaseSystem):
-    """The numbers of objects at successive assembly indices, each discovered from the level below.
+    """The numbers of objects at successive assembly indices.
+
+    Each level is discovered from the level below.
 
     The objects of assembly index `a + 1` grow as `dN_{a+1}/dt = k (N_a)^alpha` from a constant pool of building blocks.
     Without selection, `alpha = 1`, every object built before is reused and `N_a(t) = (k t)^a / a!`, the exponential
@@ -274,7 +283,9 @@ class AssemblyGrowthSystem(BaseSystem):
 
 
 class PolymerAssemblyPoolSystem(BaseSystem):
-    """An assembly pool of linear polymers grown from one monomer by joining pairs of its polymers.
+    """An assembly pool of linear polymers grown from one monomer.
+
+    The pool grows by joining pairs of its polymers.
 
     Undirected exploration joins two random polymers of the pool, and directed exploration, a model of selection, joins
     the newest polymer with a random one. Undirected joining fills the pool with many short polymers, while directed

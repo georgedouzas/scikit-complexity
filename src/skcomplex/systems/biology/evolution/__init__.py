@@ -1,4 +1,7 @@
-"""Evolution: evolutionary games, quasispecies, hypercycles, finite populations, landscapes, and coevolution."""
+"""Evolution systems.
+
+They cover evolutionary games, quasispecies, hypercycles, finite populations, landscapes, and coevolution.
+"""
 
 from ..common.populations import ReplicatorInteraction
 from ._assembly import (

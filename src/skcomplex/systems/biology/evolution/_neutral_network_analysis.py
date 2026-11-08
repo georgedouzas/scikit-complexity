@@ -1,4 +1,7 @@
-"""Measure the neutral networks, robustness, and evolvability of a map from sequences to phenotypes."""
+"""Measure the neutral networks of a map from sequences to phenotypes.
+
+The measures also cover the robustness and the evolvability of the map.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -52,7 +55,9 @@ def neutral_network(
     alphabet: Sequence[str] = 'ACGU',
     state: str | None = None,
 ) -> NeutralNetworkResult:
-    """Return the neutral networks of a map from sequences to phenotypes, or their robustness and evolvability.
+    """Return the neutral networks of a map from sequences to phenotypes.
+
+    It returns their robustness and evolvability instead on request.
 
     The neighbours of a genotype are the sequences one point mutation away. Its robustness is the number of its
     neighbours of the same phenotype, and its evolvability the number of different phenotypes among its neighbours. The
@@ -135,7 +140,10 @@ def neutral_network(
 
 
 def _read_sequences(source: object, state: str | None) -> np.ndarray:
-    """Return the sequences of a trajectory, of an array of strings, or of an array of letters on its last axis."""
+    """Return the sequences of a trajectory or an array.
+
+    The array holds strings, or letters on its last axis.
+    """
     if isinstance(source, Trajectory):
         name = state if state is not None else source.problem.states.names[0]
         source = source.lattice(name)

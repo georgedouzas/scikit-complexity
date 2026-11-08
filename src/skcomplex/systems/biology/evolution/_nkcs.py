@@ -33,7 +33,9 @@ class CoevolvingSpeciesView(AgentView):
 
 
 class CoevolvingSpeciesElement(Element):
-    """Species of an NKCS ecosystem, a genome whose fitness depends on its own genes and on genes of other species.
+    """Species of an NKCS ecosystem, a genome with a fitness.
+
+    The fitness depends on its own genes and on genes of other species.
 
     A `CoevolutionaryClimbingInteraction` mutates the genome and sets the fitness and the number of accepted moves of
     the last step.
@@ -81,7 +83,9 @@ class CoevolvingSpeciesElement(Element):
 
 
 class CoevolutionaryClimbingInteraction(Interaction):
-    """Hill climbing of species on coupled NK landscapes, one point mutation per species and step, the NKCS model.
+    """Hill climbing of species on coupled NK landscapes, the NKCS model.
+
+    Each species takes one point mutation per step.
 
     Every gene of a species contributes to its fitness through a random table of its own state, the states of the next
     `k` genes of the species, and the states of `c` random genes in each of `s` other species. The fitness of a species
@@ -174,7 +178,10 @@ class CoevolutionaryClimbingInteraction(Interaction):
             item.fitness = self._fitness(index, genomes)
 
     def _fitness(self, index: int, genomes: list[int]) -> float:
-        """Return the fitness of a species, the mean contribution of its genes at the current genomes."""
+        """Return the fitness of a species.
+
+        It is the mean contribution of its genes at the current genomes.
+        """
         partners, genes, tables = self._landscape(len(genomes), (self.n, self.k, self.c, self.s, self.seed))
         own = genomes[index]
         total = 0.0
@@ -189,7 +196,10 @@ class CoevolutionaryClimbingInteraction(Interaction):
     @staticmethod
     @lru_cache(maxsize=8)
     def _landscape(size: int, settings: tuple[int, int, int, int, int]) -> tuple[Array, Array, Array]:
-        """Return the partner species, the coupled genes of every gene, and the tables, from `(n, k, c, s, seed)`."""
+        """Return the partner species, the coupled genes, and the tables.
+
+        The coupled genes are those of every gene, and everything derives from `(n, k, c, s, seed)`.
+        """
         n, k, c, s, seed = settings
         rng = np.random.default_rng(seed)
         others = [np.delete(np.arange(size), index) for index in range(size)]
@@ -200,7 +210,9 @@ class CoevolutionaryClimbingInteraction(Interaction):
 
 
 class NKCSSystem(BaseSystem):
-    """The NKCS model of Kauffman and Johnsen, species climbing NK landscapes coupled to each other's genes.
+    """The NKCS model of Kauffman and Johnsen.
+
+    Species climb NK landscapes coupled to each other's genes.
 
     Every gene of a species depends on `k` genes of its own species and on `c` genes in each of `s` partner species. A
     species keeps a point mutation when it raises its fitness, which changes the landscapes of the species that depend

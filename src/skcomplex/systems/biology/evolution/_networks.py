@@ -1,4 +1,7 @@
-"""Evolution systems on changing networks: autocatalytic sets and the extinctions of Solé and Manrubia."""
+"""Evolution systems on changing networks.
+
+They cover autocatalytic sets and the extinctions of Solé and Manrubia.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,7 +31,9 @@ HIDDEN = VisualSpec('sites', {'states': []})
 
 
 class ChemicalElement(Element):
-    """Molecular species of a pool whose relative population grows with the populations of its catalysts.
+    """Molecular species of a pool whose population grows with its catalysts.
+
+    The relative population grows with the populations of its catalysts.
 
     The populations follow the catalytic network: every species gains `h` times the populations of the species that
     catalyse it, and the populations are normalised, so they approach the Perron eigenvector of the network. Every
@@ -96,7 +101,9 @@ class ChemicalElement(Element):
         self.k = k
 
     def _get_laws(self, s: SimpleNamespace) -> list[BaseLaw]:
-        """Return the catalytic growth, and the replacement of the least populated species at every graph update.
+        """Return the catalytic growth and the replacement of the least populated species.
+
+        The replacement happens at every graph update.
 
         Args:
             s:
@@ -113,7 +120,10 @@ class ChemicalElement(Element):
         newcomer = where(total(s.fresh) > 1 / 2, 1, 0) * (1 - s.fresh)
 
         def fresh(node: SimpleNamespace) -> object:
-            """Return the weight of a candidate catalysed species, 1 for the new species and 0 otherwise."""
+            """Return the weight of a candidate catalysed species.
+
+            The weight is 1 for the new species and 0 otherwise.
+            """
             return node.fresh
 
         return [
@@ -127,7 +137,9 @@ class ChemicalElement(Element):
 
 
 class TaxonElement(Element):
-    """Species of an ecosystem with its field, the sum of the couplings of the species it depends on, and its age.
+    """Species of an ecosystem with its field and its age.
+
+    The field is the sum of the couplings of the species it depends on.
 
     A species whose field is negative goes extinct, and a new species takes its niche.
 
@@ -174,7 +186,9 @@ class CompetingSpeciesView(AgentView):
 
 
 class CompetingSpeciesElement(Element):
-    """Species of the competitive Jain-Krishna model, a relative population and the signed effects of all species on it.
+    """Species of the competitive Jain-Krishna model.
+
+    It holds a relative population and the signed effects of all species on it.
 
     The links are the row of the interaction matrix of the species, `M_ij` for every species `j`, between -1 and 1, with
     the degradation `M_ii` between -1 and 0 on the diagonal.
@@ -217,7 +231,9 @@ class CompetingSpeciesElement(Element):
 
 
 class CompetitiveSelectionInteraction(Interaction):
-    """Population dynamics of signed catalytic interactions, with the least populated species replaced at every step.
+    """Population dynamics of signed catalytic interactions.
+
+    The least populated species is replaced at every step.
 
     Between replacements the relative populations follow Eq. (5.37) of Thurner et al. (2018), `dx_i/dt = f_i` with
     `f_i = sum_j M_ij x_j - x_i phi`, where `phi = sum_jk M_jk x_k` keeps the total at one, except that a species at
@@ -319,7 +335,9 @@ class CompetitiveSelectionInteraction(Interaction):
 
 
 class DependencyFieldInteraction(Interaction):
-    """Field of every species, the sum of the couplings `w` of its edges to the species it depends on.
+    """Field of every species.
+
+    The field is the sum of the couplings `w` of its edges to the species it depends on.
 
     Args:
         label:
@@ -365,7 +383,9 @@ class DependencyFieldInteraction(Interaction):
 
 
 class SoleManrubiaSystem(BaseSystem):
-    """The ecosystem of Solé and Manrubia, whose species go extinct when their dependencies turn against them.
+    """The ecosystem of Solé and Manrubia.
+
+    Its species go extinct when their dependencies turn against them.
 
     Every species depends on `k` species through couplings drawn from `[-1, 1]`, and its field is the sum of these
     couplings. The couplings drift at random. A species whose field turns negative goes extinct, the species that depend
@@ -470,7 +490,9 @@ class SoleManrubiaSystem(BaseSystem):
 
 
 class JainKrishnaSystem(BaseSystem):
-    """The system of Jain and Krishna, where selection of the fittest builds autocatalytic sets of molecules.
+    """The system of Jain and Krishna.
+
+    Selection of the fittest builds autocatalytic sets of molecules.
 
     The populations of `n` molecular species approach the Perron eigenvector of their catalytic network between graph
     updates, every `period` steps. At every graph update the least populated species is replaced by a new one, linked to
@@ -563,7 +585,9 @@ class JainKrishnaSystem(BaseSystem):
 
 
 class CompetitiveJainKrishnaSystem(BaseSystem):
-    """The Jain-Krishna model with signed interactions, whose surviving species come to cooperate.
+    """The Jain-Krishna model with signed interactions.
+
+    Its surviving species come to cooperate.
 
     Every link of the interaction matrix is present with the probability `p` and drawn from `[-1, 1]`, and every species
     degrades at a rate drawn from `[-1, 0]`. The populations follow the linear catalytic dynamics with a floor at zero,

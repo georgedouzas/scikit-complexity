@@ -1,4 +1,7 @@
-"""Evolution systems: allele frequencies under selection and genetic drift in the diffusion limit."""
+"""Evolution systems: allele frequencies under selection and genetic drift.
+
+The frequencies are in the diffusion limit.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -18,7 +21,9 @@ from ....core.specs import ParameterSpec, StateSpec, VisualSpec
 
 
 class AlleleFrequencyElement(Element):
-    """Frequency of an allele in a large population under selection and genetic drift, Kimura's diffusion.
+    """Frequency of an allele under selection and genetic drift, Kimura's diffusion.
+
+    The population is large.
 
     The frequency follows the Itô equation `dx = N s x (1 - x) dt + sqrt(2 x (1 - x)) dW`, the continuum limit of the
     Moran process with the scaled selection `N s`, in units of `N` generations. The frequencies 0 and 1, loss and
@@ -81,7 +86,9 @@ class AlleleFrequencyElement(Element):
 
 
 class KimuraDiffusionSystem(BaseSystem):
-    """Replicate populations whose allele frequencies diffuse by drift until the allele is lost or fixed.
+    """Replicate populations whose allele frequencies diffuse by drift.
+
+    The frequencies diffuse until the allele is lost or fixed.
 
     Each replicate follows `dx = N s x (1 - x) dt + sqrt(2 x (1 - x)) dW`, whose density obeys Kimura's diffusion
     equation `dp/dt = -N s d/dx [x (1 - x) p] + d^2/dx^2 [x (1 - x) p]`. Every replicate ends at loss or fixation, and

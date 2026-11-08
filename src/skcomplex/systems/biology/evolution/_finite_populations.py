@@ -1,4 +1,7 @@
-"""Evolution systems: finite populations of individuals that reproduce, mutate, and climb fitness landscapes."""
+"""Evolution systems: finite populations of individuals.
+
+The individuals reproduce, mutate, and climb fitness landscapes.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -40,7 +43,9 @@ class ClimberView(AgentView):
 
 
 class ClimberElement(Element):
-    """Agent that walks an NK fitness landscape, flipping one random bit of its genome when that raises its fitness.
+    """Agent that walks an NK fitness landscape.
+
+    It flips one random bit of its genome when that raises its fitness.
 
     The fitness of a genome of `n` bits is the mean of the contributions of its bits, each a random function of the bit
     and the next `k` bits, fixed by `seed`.
@@ -134,12 +139,18 @@ class ClimberElement(Element):
     @staticmethod
     @lru_cache(maxsize=16)
     def _nk_tables(seed: int, n: int, k: int) -> Array:
-        """Return the fitness contributions of every locus for every configuration of itself and its `k` neighbours."""
+        """Return the fitness contributions of every locus.
+
+        There is one contribution for every configuration of the locus and its `k` neighbours.
+        """
         return np.random.default_rng(seed).random((n, 2 ** (k + 1)))
 
     @staticmethod
     def _nk_fitness(genome: int, n: int, k: int, seed: int) -> float:
-        """Return the NK fitness of a genome, the mean contribution of its loci, each read with the next `k` loci."""
+        """Return the NK fitness of a genome.
+
+        It is the mean contribution of its loci, each read with the next `k` loci.
+        """
         tables = ClimberElement._nk_tables(seed, n, k)
         bits = [(genome >> locus) & 1 for locus in range(n)]
         total = 0.0
@@ -201,7 +212,9 @@ class IndividualElement(Element):
 
 
 class AdaptiveClimbingInteraction(EvolutionInteraction):
-    """One generation of a population that climbs a random fitness landscape as a whole, under strong selection.
+    """One generation of a population that climbs a random fitness landscape.
+
+    The population climbs as a whole, under strong selection.
 
     All individuals share one genome. Each mutates one random locus with probability `u`, to a genome of random fitness
     in [0, 1], with probability `mutation`. If a mutant is fitter, the whole population takes the fittest mutant. If
@@ -263,7 +276,9 @@ class AdaptiveClimbingInteraction(EvolutionInteraction):
         )
 
     def _mutate(self, children: Array, probability: float, rng: np.random.Generator, population: Array) -> Array:
-        """Return the genomes, each with one random locus flipped with the probability of mutation.
+        """Return the genomes, each with one random locus flipped.
+
+        Each locus flips with the probability of mutation.
 
         Args:
             children:
@@ -288,12 +303,17 @@ class AdaptiveClimbingInteraction(EvolutionInteraction):
 
     @staticmethod
     def _random_fitness(genome: int, seed: int) -> float:
-        """Return the fitness of a genome in the random energy system, uniform in [0, 1] and fixed by the seed."""
+        """Return the fitness of a genome in the random energy system.
+
+        The fitness is uniform in [0, 1] and fixed by the seed.
+        """
         return float(np.random.default_rng([seed, genome]).random())
 
 
 class MoranStepInteraction(EvolutionInteraction):
-    """One generation of the Moran process: as many birth and death events as there are individuals.
+    """One generation of the Moran process.
+
+    A generation is as many birth and death events as there are individuals.
 
     At every event an individual reproduces with probability proportional to its fitness `(1 + advantage)^trait`,
     its offspring mutates to the trait one above or one below with probability `mutation / 2` each, and it replaces an
@@ -362,7 +382,9 @@ class MoranStepInteraction(EvolutionInteraction):
 
 
 class TangledNatureLifeCycleInteraction(LifeCycleInteraction):
-    """Life cycle of the organisms of the Tangled Nature system, run by the visits of a phase drawn with replacement.
+    """Life cycle of the organisms of the Tangled Nature system.
+
+    The cycle is run by the visits of a phase drawn with replacement.
 
     A visited organism of type `S` reproduces with probability `1 / (1 + exp(-H(S)))`, where
     `H(S) = k / N sum_S' J(S, S') n(S') - mu N` reads the composition `n` of the population of `N` organisms, and is
@@ -447,7 +469,9 @@ class TangledNatureLifeCycleInteraction(LifeCycleInteraction):
         return couplings
 
     def compute_birth(self, agent: IndividualView, system: SystemView) -> float:
-        """Return the probability `1 / (1 + exp(-H(S)))` that an organism of type `S` reproduces.
+        """Return the probability that an organism of type `S` reproduces.
+
+        The probability is `1 / (1 + exp(-H(S)))`.
 
         Args:
             agent:
@@ -483,7 +507,9 @@ class TangledNatureLifeCycleInteraction(LifeCycleInteraction):
         return system.parameter('p_kill')
 
     def mutate_genome(self, values: dict[str, object], system: SystemViewProtocol) -> dict[str, object]:
-        """Return the values of an offspring whose every genome bit flips with probability `p_mut`.
+        """Return the values of an offspring with mutated genome bits.
+
+        Every genome bit flips with probability `p_mut`.
 
         Args:
             values:
@@ -502,7 +528,9 @@ class TangledNatureLifeCycleInteraction(LifeCycleInteraction):
 
 
 class MoranProcessSystem(BaseSystem):
-    """The Moran process, a population of constant size where fitter traits fix by selection and drift.
+    """The Moran process, a population of constant size.
+
+    Fitter traits fix by selection and drift.
 
     The population starts with `mutants` individuals of trait 1 among individuals of trait 0. Without mutation one trait
     eventually fixes, the mutant with probability `(1 - 1 / r^m) / (1 - 1 / r^N)` for the relative fitness `r = 1 +
@@ -573,7 +601,9 @@ class MoranProcessSystem(BaseSystem):
 
 
 class TangledNatureSystem(BaseSystem):
-    """The Tangled Nature system, where organisms whose types interact through random couplings coevolve.
+    """The Tangled Nature system of coevolving organisms.
+
+    The types of the organisms interact through random couplings.
 
     Organisms of one random type start the run. Mutants spread through the space of genomes, and the population settles
     into quasi-stable configurations of a few dominant types, the q-ESS, that end in abrupt transitions, a punctuated
@@ -676,7 +706,9 @@ class TangledNatureSystem(BaseSystem):
 
 
 class AdaptiveClimbingSystem(BaseSystem):
-    """A finite population that climbs a random fitness landscape by mutation and strong selection.
+    """A finite population that climbs a random fitness landscape.
+
+    It climbs by mutation and strong selection.
 
     The population climbs to a local optimum in an adaptive walk, ever slower near the top. When every individual
     mutates in the same generation, which is likely only in small populations with a large `u`, it escapes to a lower
@@ -752,7 +784,9 @@ class AdaptiveClimbingSystem(BaseSystem):
 
 
 class NKLandscapeSystem(BaseSystem):
-    """Agents that climb Kauffman's NK fitness landscape from random genomes until they reach local peaks.
+    """Agents that climb Kauffman's NK fitness landscape until they reach local peaks.
+
+    The agents start from random genomes.
 
     The landscape grows more rugged with `k`, from a single peak at `k = 0` to a random landscape at `k = n - 1`, so the
     climbers end on more peaks of lower fitness. The system has the group `climbers`.

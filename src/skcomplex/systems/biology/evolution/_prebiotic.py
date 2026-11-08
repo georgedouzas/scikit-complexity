@@ -1,4 +1,7 @@
-"""Evolution systems: quasispecies under mutation and selection, and hypercycles of catalytic molecules."""
+"""Evolution systems: quasispecies and hypercycles.
+
+Quasispecies evolve under mutation and selection, and hypercycles are made of catalytic molecules.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,7 @@ from ..common.populations import ReplicatorInteraction
 
 
 class GenotypeClassElement(Element):
-    """Share of a population whose genomes lie a given number of point mutations away from the master sequence.
+    """Share of a population some number of point mutations from the master sequence.
 
     Args:
         label:
@@ -53,7 +56,9 @@ class GenotypeClassElement(Element):
 
 
 class MasterSequenceElement(GenotypeClassElement):
-    """Share of the population with the fittest genome, in a sharp-peak landscape where every other genome is less fit.
+    """Share of the population with the fittest genome, in a sharp-peak landscape.
+
+    In the landscape every other genome is less fit.
 
     The master sequence has fitness 1 and every other genome `1 - sigma`. A genome mutates at one locus with
     probability `u` per generation. The master sequence holds the parameters of the landscape that the maps of every
@@ -96,7 +101,9 @@ class MasterSequenceElement(GenotypeClassElement):
 
 
 class MoleculeElement(Element):
-    """Self-replicating molecule of a prebiotic soup, with its concentration `x` and its own growth rate.
+    """Self-replicating molecule of a prebiotic soup.
+
+    It has its concentration `x` and its own growth rate.
 
     Args:
         label:
@@ -131,7 +138,9 @@ class MoleculeElement(Element):
 
 
 class CatalysisInteraction(ReplicatorInteraction):
-    """Catalysed replication of the molecules of a group, with a common outflow that keeps the total at 1.
+    """Catalysed replication of the molecules of a group.
+
+    A common outflow keeps the total at 1.
 
     Molecule `i` replicates at the rate `f_i = lambda_i + omega sum_j T_ij x_j`, with its own growth `lambda_i` and the
     0 or 1 topology `T` of the catalytic links read as the weights of a total over the molecules. The outflow is the
@@ -191,7 +200,9 @@ class CatalysisInteraction(ReplicatorInteraction):
 
 
 class EigenQuasispeciesSystem(BaseSystem):
-    """The shares of a population at every number of mutations from the master sequence, the linear chain system.
+    """The linear chain system of a population around a master sequence.
+
+    It holds the shares of a population at every number of mutations from the master sequence.
 
     Below the error threshold, `u < sigma`, a quasispecies forms around the master sequence, whose share settles at `x0
     = 1 - u / sigma`. Above it the master sequence is lost, the error catastrophe. Back mutations and multiple mutations
@@ -238,16 +249,24 @@ class EigenQuasispeciesSystem(BaseSystem):
 
     @staticmethod
     def _mean_fitness(master: SimpleNamespace) -> Expression:
-        """Return the mean fitness `x0 + (1 - sigma) (1 - x0)` of a population around a master sequence."""
+        """Return the mean fitness of a population around a master sequence.
+
+        The mean fitness is `x0 + (1 - sigma) (1 - x0)`.
+        """
         return master.x + (1 - master.sigma) * (1 - master.x)
 
     def _replicate_master(self, s: SimpleNamespace) -> Expression:
-        """Return the next share of the master sequence, replicated without mutation, `x0 (1 - u) / <W>`."""
+        """Return the next share of the master sequence, replicated without mutation.
+
+        The share is `x0 (1 - u) / <W>`.
+        """
         master = s.target
         return master.x * (1 - master.u) / self._mean_fitness(master)
 
     def _replicate_mutants(self, s: SimpleNamespace, *, first: bool, last: bool) -> Expression:
-        """Return the next share of a class of mutants, `(u W_{k-1} x_{k-1} + kept (1 - sigma) x_k) / <W>`.
+        """Return the next share of a class of mutants.
+
+        The share is `(u W_{k-1} x_{k-1} + kept (1 - sigma) x_k) / <W>`.
 
         The sources are the class one mutation closer to the master sequence and the master sequence. The fitness of the
         source is 1 for the first class, whose source is the master sequence, and the last class keeps its own mutants.
@@ -260,7 +279,10 @@ class EigenQuasispeciesSystem(BaseSystem):
         return gained / self._mean_fitness(master)
 
     def _build_system(self) -> System:
-        """Return the parts of the shares of a population at every number of mutations from the master sequence."""
+        """Return the parts of the shares of a population around a master sequence.
+
+        The shares are at every number of mutations from the master sequence.
+        """
         labels = ['master', *(f'k{k}' for k in range(1, self.classes + 1))]
         elements = [
             MasterSequenceElement('master', x=1.0, u=self.u, sigma=self.sigma),
@@ -282,7 +304,9 @@ class EigenQuasispeciesSystem(BaseSystem):
 
 
 class HypercyclesSystem(BaseSystem):
-    """A network of self-replicating molecules whose catalysis keeps a set of them alive, a hypercycle.
+    """A hypercycle of self-replicating molecules.
+
+    The catalysis of the network keeps a set of them alive.
 
     The growth rates rise as `lambda_i = alpha i`. In a `'cycle'`, every molecule catalyses the next one. Up to four
     molecules the hypercycle keeps all of them at a fixed point, and from five some members die out and the others
@@ -338,7 +362,10 @@ class HypercyclesSystem(BaseSystem):
         self.topology = topology
 
     def _build_system(self) -> System:
-        """Return the parts of a network of self-replicating molecules whose catalysis keeps a set of them alive."""
+        """Return the parts of a hypercycle of self-replicating molecules.
+
+        The catalysis of the network keeps a set of them alive.
+        """
         if self.topology == 'cycle':
             links = np.roll(np.eye(self.molecules), 1, axis=0)
         elif self.topology == 'complete':

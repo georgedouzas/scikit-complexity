@@ -1,4 +1,7 @@
-"""Coevolution of species whose fitnesses depend on each other: the Bak-Sneppen system of punctuated equilibrium."""
+"""Coevolution of species whose fitnesses depend on each other.
+
+The module holds the Bak-Sneppen system of punctuated equilibrium.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,12 +31,17 @@ FITNESS_SITES = VisualSpec('sites', {'states': ('fitness',), 'low': 0.0, 'high':
 
 
 def _renew(fitness: Array, random: Array) -> Array:
-    """Return new fitnesses drawn uniformly from the unit interval for the least fit species and its neighbours."""
+    """Return new fitnesses for the least fit species and its neighbours.
+
+    The fitnesses are drawn uniformly from the unit interval.
+    """
     return random
 
 
 class SpeciesElement(Element):
-    """Species of the Bak-Sneppen system, with a fitness in the unit interval that depends on its neighbours.
+    """Species of the Bak-Sneppen system, with a fitness in the unit interval.
+
+    The fitness depends on the neighbours of the species.
 
     Every update replaces the fitness of the least fit species and of its neighbours by new uniform random numbers, and
     is recorded as an `extinction` event with the replaced species and its fitness. One step holds `updates` updates.
@@ -92,7 +100,9 @@ class SpeciesElement(Element):
 
 
 class BakSneppenSystem(BaseSystem):
-    """The Bak-Sneppen system, whose fitnesses self-organise above a critical value in avalanches of extinction.
+    """The Bak-Sneppen system of punctuated equilibrium.
+
+    Its fitnesses self-organise above a critical value in avalanches of extinction.
 
     On a ring the fitnesses gather above the critical value 0.667, and the minimum fitness rises towards it through
     avalanches of every size. The system has the fitnesses `species.fitness`, and `extinction` events with the site and

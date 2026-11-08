@@ -1,4 +1,7 @@
-"""Evolution system: walks of RNA sequences through point mutations that keep or approach a secondary structure."""
+"""Evolution system: walks of RNA sequences through point mutations.
+
+The mutations keep or approach a secondary structure.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -62,7 +65,9 @@ class NucleotideElement(Element):
 
 @lru_cache(maxsize=FOLD_CACHE)
 def fold_sequence(sequence: str) -> tuple[str, float]:
-    """Return the minimum free energy secondary structure of an RNA sequence at 37 °C and its energy, memoised.
+    """Return the minimum free energy secondary structure of an RNA sequence.
+
+    It also returns its energy, at 37 °C, memoised.
 
     Args:
         sequence:
@@ -87,7 +92,9 @@ def fold_sequence(sequence: str) -> tuple[str, float]:
 
 
 def read_base_pair_distance(first: str, second: str) -> int:
-    """Return the number of base pairs that one of two secondary structures of one length holds and the other does not.
+    """Return the number of base pairs that only one of two secondary structures holds.
+
+    The structures have one length.
 
     Args:
         first:
@@ -113,7 +120,9 @@ def read_base_pair_distance(first: str, second: str) -> int:
 
 
 def read_plane_layout(structure: str) -> npt.NDArray[np.float64]:
-    """Return the positions in a plane of the bases of a secondary structure, in the simple layout of ViennaRNA.
+    """Return the positions in a plane of the bases of a secondary structure.
+
+    The positions follow the simple layout of ViennaRNA.
 
     Args:
         structure:
@@ -157,7 +166,9 @@ def read_sequence(row: np.ndarray) -> str:
 
 
 def mutate_point(row: np.ndarray, random: np.random.Generator) -> np.ndarray:
-    """Return a row of indices of bases with the base at one random site replaced by one of the other three.
+    """Return a row of indices of bases with one random site mutated.
+
+    The base at the site is replaced by one of the other three.
 
     Args:
         row:
@@ -183,7 +194,9 @@ def mutate_point(row: np.ndarray, random: np.random.Generator) -> np.ndarray:
 
 
 class RNANeutralNetworksSystem(BaseSystem):
-    """Walkers of RNA sequences that take one proposed point mutation per unit of time at temperature zero.
+    """Walkers of RNA sequences at temperature zero.
+
+    They take one proposed point mutation per unit of time.
 
     In the `'neutral'` regime a mutation is accepted when the minimum free energy fold of the sequence stays on the
     target. In the `'adaptive'` regime a mutation is accepted when the base-pair distance between the fold and the
@@ -252,7 +265,10 @@ class RNANeutralNetworksSystem(BaseSystem):
 
     @staticmethod
     def _score_row(target: str, regime: str, row: np.ndarray) -> float:
-        """Return the score of a sequence: off the target in the neutral regime, the distance in the adaptive one."""
+        """Return the score of a sequence.
+
+        The score is off the target in the neutral regime and the distance in the adaptive one.
+        """
         fold = fold_sequence(read_sequence(row))[0]
         return float(fold != target) if regime == 'neutral' else float(read_base_pair_distance(fold, target))
 

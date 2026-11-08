@@ -1,4 +1,7 @@
-"""Evolution systems: monomorphic populations that walk a fitness landscape by the origin and fixation of mutants."""
+"""Evolution systems: monomorphic populations that walk a fitness landscape.
+
+They walk by the origin and fixation of mutants.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,7 @@ from ....core.types import Array
 
 
 class LocusElement(Element):
-    """Locus of the genome shared by a monomorphic population, with an allele of `-1` or `1`.
+    """Locus of the genome of a monomorphic population, with an allele of `-1` or `1`.
 
     Args:
         label:
@@ -59,7 +62,9 @@ class LocusElement(Element):
 
 
 class SubstitutionInteraction(TransitionInteraction):
-    """Origin and fixation of mutants that flip one locus of the genome of a monomorphic population.
+    """Origin and fixation of mutants that flip one locus of a genome.
+
+    The genome is the one of a monomorphic population.
 
     Every locus of each of the `N` individuals mutates at the rate `mu`, so mutants of a given locus arise at the rate
     `N mu`. A mutant from the fitness `f` to `f'` fixes with the Moran probability
@@ -120,10 +125,13 @@ class SubstitutionInteraction(TransitionInteraction):
         self.couplings = couplings
 
     def _check_transition(self) -> None:
-        """Leave the transition unchecked, since its rates derive from the parameters of the population."""
+        """Leave the transition unchecked.
+
+        Its rates derive from the parameters of the population.
+        """
 
     def _get_fitness(self, namespace: SimpleNamespace) -> tuple[Expression, Expression]:
-        """Return the local field `h_i + sum_j J_ij s_j` of a locus and the fitness of the genome."""
+        """Return the local field `h_i + sum_j J_ij s_j` of a locus and the genome fitness."""
         genome = namespace.target
         alleles = getattr(genome, self.state)
         if self.couplings is None:
@@ -136,7 +144,9 @@ class SubstitutionInteraction(TransitionInteraction):
         )
 
     def _get_laws(self, namespace: SimpleNamespace) -> list[BaseLaw]:
-        """Return the substitutions of the allele of every locus, from `-1` to `1` and back.
+        """Return the substitutions of the allele of every locus.
+
+        They go from `-1` to `1` and back.
 
         Args:
             namespace:
@@ -155,7 +165,10 @@ class SubstitutionInteraction(TransitionInteraction):
 
     @staticmethod
     def _fitness_of(genome: SimpleNamespace, F0: Expression, couplings: Array) -> Expression:
-        """Return the fitness `F0 + sum_i h_i s_i + sum_ij J_ij s_i s_j / 2` of the genome of a group of loci."""
+        """Return the fitness of the genome of a group of loci.
+
+        The fitness is `F0 + sum_i h_i s_i + sum_ij J_ij s_i s_j / 2`.
+        """
         return F0 + total(genome.h * genome.s) + total(genome.s * total(genome.s, weights=couplings)) / 2
 
 
@@ -165,17 +178,26 @@ def _field_share(member: SimpleNamespace) -> Expression:
 
 
 def _coupling_share(alleles: Array, couplings: Array) -> float:
-    """Return the share `sum_ij J_ij s_i s_j / 2` of the couplings between loci in the fitness of the genome."""
+    """Return the share `sum_ij J_ij s_i s_j / 2` of the couplings in the fitness.
+
+    The couplings are between loci, in the fitness of the genome.
+    """
     return float(alleles @ couplings @ alleles / 2)
 
 
 def _genome_fitness(s: SimpleNamespace) -> Expression:
-    """Return the fitness of the genome, the base fitness of the interaction `substitution` and the shares of loci."""
+    """Return the fitness of the genome.
+
+    It is the base fitness of the interaction `substitution` and the shares of loci.
+    """
     return s.substitution.F0 + s.field_share + s.coupling_share
 
 
 def _walk_observables(system: System) -> list[ObservableSpec]:
-    """Return the shares of the fields and the couplings in the fitness, and the fitness of the genome."""
+    """Return the shares of the fields and the couplings, and the genome fitness.
+
+    The shares are those in the fitness of the genome.
+    """
     couplings = system.interactions[0].couplings
     loci = system.elements[0].prepare().size_
     matrix = np.zeros((loci, loci)) if couplings is None else np.asarray(couplings)
@@ -192,7 +214,9 @@ def _walk_observables(system: System) -> list[ObservableSpec]:
 
 
 class OriginFixationWalkSystem(BaseSystem):
-    """A monomorphic population that climbs a fitness landscape as mutants arise and fix one at a time.
+    """A monomorphic population that climbs a fitness landscape.
+
+    Mutants arise and fix one at a time.
 
     Under strong selection and weak mutation the population carries one genome of `loci` alleles `-1` or `1`, and every
     substitution of a mutant moves it to a neighbouring genome. The walk climbs the landscape and settles on the
@@ -262,7 +286,9 @@ class OriginFixationWalkSystem(BaseSystem):
         self.random_state = random_state
 
     def get_run_settings(self) -> RunSettings:
-        """Return the tuned run settings, with the shares and the fitness of the genome of the built parts.
+        """Return the tuned run settings.
+
+        They include the shares and the fitness of the genome of the built parts.
 
         Returns:
             settings:

@@ -1,4 +1,7 @@
-"""Evolution systems: evolutionary games of strategies that spread with their payoff."""
+"""Evolution systems: evolutionary games.
+
+The strategies spread with their payoff.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +28,9 @@ STRATEGIES = 3
 
 
 class CyclicSpeciesElement(Element):
-    """Site of a lattice of rock, paper, and scissors, 0, 1, and 2, where each strategy beats the one before it.
+    """Site of a lattice of rock, paper, and scissors, 0, 1, and 2.
+
+    Each strategy beats the one before it.
 
     The sites update one at a time in random order by a `LocalRuleInteraction`, and a site adopts the strategy of a
     random neighbour that beats it.
@@ -58,7 +63,9 @@ class CyclicSpeciesElement(Element):
 
 
 class StrategyElement(Element):
-    """Strategy of an evolutionary game, with the share `x` of the population that plays it.
+    """Strategy of an evolutionary game, with the share `x` of players.
+
+    The share is the one of the population that plays the strategy.
 
     Args:
         label:
@@ -88,7 +95,9 @@ class StrategyElement(Element):
 
 
 class ReplicatorDynamicsSystem(BaseSystem):
-    """The replicator dynamics of a game, by default hawks and doves, which settle at a share `V / C` of hawks.
+    """The replicator dynamics of a game, by default hawks and doves.
+
+    Hawks and doves settle at a share `V / C` of hawks.
 
     Every strategy is a member of the group `population`, and it grows with its payoff above the mean payoff. The hawks
     and doves game has the payoff matrix `((V - C) / 2, V), (0, V / 2)` with hawks first. When the cost of a fight `C`
@@ -160,7 +169,9 @@ class ReplicatorDynamicsSystem(BaseSystem):
 
 
 class RockPaperScissorsSystem(BaseSystem):
-    """Rock, paper, and scissors on a lattice, whose cyclic invasions keep the three strategies coexisting.
+    """Rock, paper, and scissors on a lattice.
+
+    Cyclic invasions keep the three strategies coexisting.
 
     Starting from random strategies, the strategies chase each other in domains and fronts, and each keeps about a third
     of the lattice. The system has the strategies `lattice.strategy`.
@@ -200,7 +211,10 @@ class RockPaperScissorsSystem(BaseSystem):
 
     @staticmethod
     def _invade(strategy: Array, *around: Array, random: Array) -> Array:
-        """Return the strategy of every site after a random neighbour that beats it invades it."""
+        """Return the strategy of every site after invasion.
+
+        A random neighbour that beats a site invades it.
+        """
         choice = np.minimum((random * len(around)).astype(int), len(around) - 1)
         neighbor = np.choose(choice, np.stack(around))
         beaten = neighbor == np.mod(strategy + 1, STRATEGIES)
