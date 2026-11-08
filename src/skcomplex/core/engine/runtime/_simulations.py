@@ -25,7 +25,7 @@ from ..compile._pass_compiler import PassCompiler
 from ..compile._rewriting_compiler import RewritingCompiler
 from ..compile.passes._operator_compiler import OperatorCompiler
 from ..problems import BaseProblemSpec, FrameSpec, ProblemSpec
-from ..solvers import BaseSolver, CoSimulationSolver
+from ..solvers import BaseSolver, CoSimulationSolver, FractionalEulerMaruyamaSolver
 from ..solvers._defaults import DEFAULT_SOLVERS
 from ._as_fast_as_possible import AsFastAsPossibleClock
 from ._base import BaseClock, BaseObserver
@@ -67,7 +67,8 @@ class Simulation(BaseConfig[None, float]):
 
         solver:
             The solver, or `None` for the solver the compiler names, or else the default solver of the system's form,
-            `CoSimulationSolver` for a system that runs as partitions. The default ODE solver is `ScipyODESolver` with
+            `CoSimulationSolver` for a system that runs as partitions, and `FractionalEulerMaruyamaSolver` for a
+            stochastic system driven by fractional noise. The default ODE solver is `ScipyODESolver` with
             `LSODA`, which switches to BDF methods while the system is stiff.
 
         backend:
@@ -249,7 +250,7 @@ class Simulation(BaseConfig[None, float]):
         if self.solver is not None:
             self.stepper_ = self.solver
         else:
-            self.stepper_ = named if named is not None else self._default_solver(self.problem_.form)
+            self.stepper_ = named if named is not None else self._default_solver(self.problem_)
         self.observables_ = ObservableEvaluator(self.problem_).prepare()
         self.clock_ = self.clock if self.clock is not None else AsFastAsPossibleClock()
         self.recorder_ = RecorderObserver() if self.record else None
@@ -454,12 +455,34 @@ class Simulation(BaseConfig[None, float]):
             return RewritingCompiler()
         return None
 
-    def _default_solver(self, form: FormKind | str) -> BaseSolver:
-        """Return the default solver of a form, `CoSimulationSolver` for a problem that runs as partitions."""
+    def _default_solver(self, problem: BaseProblemSpec) -> BaseSolver:
+        """Return the default solver of the form of a problem.
+
+        A problem that runs as partitions takes `CoSimulationSolver`, and a stochastic problem driven by fractional
+        noise takes `FractionalEulerMaruyamaSolver`, which draws the correlated increments that the default
+        `EulerMaruyamaSolver` does not.
+
+        Args:
+            problem:
+                The compiled problem.
+
+        Returns:
+            solver:
+                The default solver.
+
+        Raises:
+            ValidationError:
+                The form of the problem has no default solver.
+        """
+        form = problem.form
         if not isinstance(form, FormKind):
             error_msg = f'The {form} form has no default solver. Give a solver, or a compiler that names one.'
             raise ValidationError(error_msg)
-        return CoSimulationSolver() if form == FormKind.COUPLED else DEFAULT_SOLVERS[form]()
+        if form == FormKind.COUPLED:
+            return CoSimulationSolver()
+        if form == FormKind.SDE and isinstance(problem, ProblemSpec) and problem.fractional:
+            return FractionalEulerMaruyamaSolver()
+        return DEFAULT_SOLVERS[form]()
 
     def prepare(self, context: None = None) -> Self:
         """Compile the system of the checked simulation and choose the solver.

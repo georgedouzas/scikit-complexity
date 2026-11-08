@@ -108,6 +108,31 @@ def test_fractional_euler_maruyama_takes_the_horizon_from_the_run():
     assert np.array_equal(*runs)
 
 
+class TaggedWalkerElement(Element):
+    """Walker element that declares its fractional noise law, so its tags name the noise."""
+
+    law_classes = (FractionalNoiseLaw,)
+
+    def __init__(self, label: str, visual: VisualSpec | None = None, *, x: Annotated[object, StateSpec()] = 0.0):
+        super().__init__(label, visual=visual)
+        self.x = x
+
+    def _get_laws(self, s):
+        """Return the fractional noise of the walker."""
+        return [FractionalNoiseLaw(s.x, 1, hurst=0.75)]
+
+
+@pytest.mark.parametrize(
+    'system',
+    [_walkers(0.75, members=2), System(elements=[GroupElement('w', element=TaggedWalkerElement, size=2)])],
+)
+def test_fractional_noise_runs_with_the_fractional_euler_maruyama_by_default(system):
+    """Test that a system of fractional noise runs without a solver, whether or not its tags name its laws."""
+    trajectory = simulate(system, until=1, dt=0.5, random_state=0)
+    assert trajectory.values('w.x').shape == (3, 2)
+    assert np.all(trajectory.values('w.x')[-1] != 0.0)
+
+
 def test_euler_maruyama_rejects_fractional_noise():
     """Test that the Euler-Maruyama stepper names the fractional Euler-Maruyama stepper for fractional noise."""
     problem = PassCompiler().prepare(_walkers(0.7, members=2)).run().problem_

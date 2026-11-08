@@ -74,7 +74,9 @@ def _choose_solver(tags: Tags) -> BaseSolver | None:
 
     The tags choose the default solver when it is the only default solver of a form that supports them. When law
     kinds are unknown, or the tags fit the default solvers of several forms, such as an update law that a map, a
-    lattice, or an agent-based solver runs, the form the compiler infers from the law classes chooses.
+    lattice, or an agent-based solver runs, the form the compiler infers from the law classes chooses. The compiled
+    problem also chooses for noise laws, whose tags do not tell fractional noise, which `FractionalEulerMaruyamaSolver`
+    runs, from ordinary noise.
 
     Args:
         tags:
@@ -84,7 +86,7 @@ def _choose_solver(tags: Tags) -> BaseSolver | None:
         solver:
             The default solver, or `None`.
     """
-    if tags.laws is None:
+    if tags.laws is None or 'noise' in tags.laws:
         return None
     fitting = {solver for solver in DEFAULT_SOLVERS.values() if not solver.get_supported_tags().missing(tags)}
     return fitting.pop()() if len(fitting) == 1 else None
