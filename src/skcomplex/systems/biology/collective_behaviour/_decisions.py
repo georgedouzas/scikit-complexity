@@ -1,4 +1,4 @@
-"""Collective behaviour systems: collective decisions through stigmergy and contagion."""
+"""Collective decisions through stigmergy and contagion."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -20,7 +20,9 @@ MODES = {False: 'rate', True: 'jump'}
 
 
 class BranchElement(CompartmentElement):
-    """Branch of a path that ants can take, holding the number `n` of pheromone marks left by the ants that took it.
+    """Branch of a path that ants can take, holding its number `n` of pheromone marks.
+
+    The marks are the ones left by the ants that took the branch.
 
     Args:
         label:
@@ -78,7 +80,9 @@ class RatsElement(CompartmentElement):
 
 
 class TrailChoiceInteraction(ReactionInteraction):
-    """Choice of a branch by arriving ants, with Deneubourg's probability `(k + n)^h / ((k + n)^h + (k + n')^h)`.
+    """Choice of a branch by arriving ants, with Deneubourg's probability.
+
+    The probability is `(k + n)^h / ((k + n)^h + (k + n')^h)`.
 
     Ants arrive at the fork at rate `flux`, and each takes the chosen branch with a probability that grows with its
     marks `n` against the marks `n'` of the other branch, and marks it. It is a `ReactionInteraction` that produces one
@@ -138,19 +142,30 @@ class TrailChoiceInteraction(ReactionInteraction):
         self.stochastic = stochastic
 
     def _get_products(self) -> Stoichiometry:
-        """Return the marks `n` of the chosen branch, which every choice adds one to."""
+        """Return the marks `n` of the chosen branch.
+
+        Every choice adds one to them.
+        """
         return {(self.chosen, 'n'): 1}
 
     def _get_modifiers(self) -> Stoichiometry:
-        """Return the marks `n` of the other branch, which the choice reads."""
+        """Return the marks `n` of the other branch.
+
+        The choice reads them.
+        """
         return {(self.other, 'n'): 1}
 
     def _get_mode(self) -> str:
-        """Return the mode of the reaction, random events when stochastic and a rate equation otherwise."""
+        """Return the mode of the reaction.
+
+        The mode is random events when stochastic and a rate equation otherwise.
+        """
         return MODES[self.stochastic]
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
-        """Return the rate of ants that choose the branch, `flux` times Deneubourg's probability.
+        """Return the rate of ants that choose the branch.
+
+        The rate is `flux` times Deneubourg's probability.
 
         Args:
             namespace:
@@ -167,7 +182,9 @@ class TrailChoiceInteraction(ReactionInteraction):
 
 
 class AlarmInteraction(ReactionInteraction):
-    """Calm rats that turn nervous on their own or by meeting nervous rats, at the alarm propensity.
+    """Calm rats that turn nervous on their own or by meeting nervous rats.
+
+    They turn nervous at the alarm propensity.
 
     A calm rat turns nervous at rate `spontaneous + contagion * nervous / N`, where `N` is the total number of rats, so
     the propensity of the reaction calm to nervous is that rate times the calm rats. It is a `ReactionInteraction` that
@@ -222,19 +239,30 @@ class AlarmInteraction(ReactionInteraction):
         self.stochastic = stochastic
 
     def _get_reactants(self) -> Stoichiometry:
-        """Return the calm rats `n`, which every alarm takes one from."""
+        """Return the calm rats `n`.
+
+        Every alarm takes one from them.
+        """
         return {(self.calm, 'n'): 1}
 
     def _get_products(self) -> Stoichiometry:
-        """Return the nervous rats `n`, which every alarm adds one to."""
+        """Return the nervous rats `n`.
+
+        Every alarm adds one to them.
+        """
         return {(self.nervous, 'n'): 1}
 
     def _get_mode(self) -> str:
-        """Return the mode of the reaction, random events when stochastic and a rate equation otherwise."""
+        """Return the mode of the reaction.
+
+        The mode is random events when stochastic and a rate equation otherwise.
+        """
         return MODES[self.stochastic]
 
     def _get_rate(self, namespace: SimpleNamespace) -> Expression:
-        """Return the alarm propensity, the rate at which a calm rat turns nervous times the calm rats.
+        """Return the alarm propensity.
+
+        The propensity is the rate at which a calm rat turns nervous times the calm rats.
 
         Args:
             namespace:
@@ -251,7 +279,9 @@ class AlarmInteraction(ReactionInteraction):
 
 
 class BinaryAntDecisionSystem(BaseSystem):
-    """Ants that choose between two equal branches to a food source, following the marks of earlier ants.
+    """Ants that choose between two equal branches to a food source.
+
+    The ants follow the marks of earlier ants.
 
     Every ant reinforces the branch it takes, so the first random fluctuations grow and most ants end up on one branch,
     the symmetry breaking of the double bridge experiment. The deterministic mode stays symmetric. The system has the
@@ -306,7 +336,10 @@ class BinaryAntDecisionSystem(BaseSystem):
         self.stochastic = stochastic
 
     def _build_system(self) -> System:
-        """Return the parts of ants that choose between two equal branches to a food source."""
+        """Return the parts of ants that choose between two equal branches to food.
+
+        The branches lead to a food source.
+        """
         branches = [BranchElement(label) for label in ('left', 'right')]
         evaporations = [
             ReactionInteraction(
@@ -333,7 +366,9 @@ class BinaryAntDecisionSystem(BaseSystem):
 
 
 class RatsSystem(BaseSystem):
-    """A colony of calm and nervous rats, in which nervousness spreads by contact and fades on its own.
+    """A colony of calm and nervous rats.
+
+    Nervousness spreads by contact and fades on its own.
 
     Without spontaneous alarm the colony has a phase transition at `contagion = calming`: below it every rat calms down,
     and above it a share `1 - calming / contagion` of the rats stays nervous. The system has the numbers `calm.n` and

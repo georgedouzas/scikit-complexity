@@ -1,4 +1,4 @@
-"""Collective behaviour systems: ant colonies that find and repair shortest paths on road networks."""
+"""Ant colonies that find and repair shortest paths on road networks."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -39,7 +39,9 @@ class TrailSegmentView(AgentView):
 
 
 class TrailSegmentElement(Element):
-    """Segment of a road network between two points, with the pheromone ants left on it and whether it is open.
+    """Segment of a road network between two points.
+
+    The segment holds the pheromone ants left on it and whether it is open.
 
     Args:
         label:
@@ -79,7 +81,9 @@ class TrailSegmentElement(Element):
 
 
 class ColonySearchInteraction(Interaction):
-    """Rounds of ants that walk a road network by pheromone and length, mark the paths they find, and let it fade.
+    """Rounds of ants that walk a road network by pheromone and length.
+
+    The ants mark the paths they find, and the pheromone fades.
 
     In every round, following Argun et al. (2021, section 15.2), `ants` ants start at the vertex `start` and take up to
     `steps` steps. At vertex `i` an ant moves to the neighbour `j` with the probability `tau_ij^alpha w_ij^beta / sum_k
@@ -187,7 +191,9 @@ class ColonySearchInteraction(Interaction):
         return [RuleLaw(self.search)]
 
     def search(self, system: SystemView) -> None:
-        """Run one round of ants, cut the best path at the round `cut`, and update the pheromone.
+        """Run one round of ants and update the pheromone.
+
+        At the round `cut`, the round also cuts the best path.
 
         Args:
             system:
@@ -224,7 +230,10 @@ class ColonySearchInteraction(Interaction):
         system.report('shortest', shortest if np.isfinite(shortest) else float('nan'))
 
     def _walk(self, tau: Array, is_open: npt.NDArray[np.bool_], rng: np.random.Generator) -> list[int]:
-        """Return the segments of the loop-free path of one ant to the target, or no segment if it does not arrive."""
+        """Return the segments of the loop-free path of one ant to the target.
+
+        The path has no segment if the ant does not arrive.
+        """
         neighbours = self._neighbours()
         lengths = np.asarray(self.lengths, dtype=float)
         vertex, visited = self.start, [self.start]
@@ -245,7 +254,10 @@ class ColonySearchInteraction(Interaction):
         return []
 
     def _disrupt(self, is_open: npt.NDArray[np.bool_], best: list[int]) -> npt.NDArray[np.bool_]:
-        """Return the open segments after cutting two segments of the middle of the best path, keeping it connected."""
+        """Return the open segments after cutting two segments of the best path.
+
+        The two segments lie in the middle of the best path, and the cut keeps the network connected.
+        """
         cut = is_open.copy()
         middle = len(best) // 2
         removed = 0
@@ -265,7 +277,7 @@ class ColonySearchInteraction(Interaction):
         return cut
 
     def _neighbours(self) -> dict[int, list[tuple[int, int]]]:
-        """Return the neighbours of every vertex with the index of the segment that joins them."""
+        """Return the neighbours of every vertex with the index of the joining segment."""
         neighbours: dict[int, list[tuple[int, int]]] = {}
         for index, (first, second) in enumerate(self.edges):
             neighbours.setdefault(first, []).append((second, index))
@@ -278,7 +290,9 @@ class ColonySearchInteraction(Interaction):
 
 
 class AntColonyOptimizationSystem(BaseSystem):
-    """Ants that find the shortest path between two points of a Delaunay road network, round after round.
+    """Ants that find the shortest path between two points of a Delaunay road network.
+
+    The ants search round after round.
 
     Every round the ants walk from the point nearest one corner of the unit square towards the point nearest the
     opposite corner, choosing segments by their pheromone and length, and mark the paths they find with pheromone in
@@ -356,7 +370,10 @@ class AntColonyOptimizationSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the parts of ants that find the shortest path between two points of a Delaunay road network."""
+        """Return the parts of ants that find the shortest path on a Delaunay road network.
+
+        The path joins two points of the network.
+        """
         points = np.random.default_rng(self.seed).random((self.n_points, 2))
         triangles = Delaunay(points).simplices
         pairs = {

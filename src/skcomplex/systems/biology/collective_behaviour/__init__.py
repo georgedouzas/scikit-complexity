@@ -1,4 +1,7 @@
-"""Collective behaviour: animals and people that coordinate through signals, trails, and contact."""
+"""Collective behaviour of animals and people.
+
+Animals and people coordinate through signals, trails, and contact.
+"""
 
 from ._colony_optimization import AntColonyOptimizationSystem, ColonySearchInteraction, TrailSegmentElement
 from ._decisions import (

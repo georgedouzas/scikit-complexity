@@ -1,4 +1,4 @@
-"""Collective behaviour systems: animals that coordinate through signals."""
+"""Animals that coordinate through signals."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -30,7 +30,9 @@ PHEROMONE = 'ground/pheromone.level'
 
 
 class PheromoneElement(Element):
-    """Pheromone of one cell of the ground, a level that diffuses to the neighbouring cells and evaporates.
+    """Pheromone of one cell of the ground.
+
+    It is a level that diffuses to the neighbouring cells and evaporates.
 
     The element holds the level and its parameters. The system adds the diffusion `D laplacian(level)` and the
     evaporation `-evaporation level` as interactions.
@@ -91,7 +93,9 @@ class AntView(AgentView):
 
 
 class AntElement(Element):
-    """Ant that searches for food guided by pheromone and carries food home, marking the way with pheromone.
+    """Ant that searches for food guided by pheromone and carries food home.
+
+    It marks the way home with pheromone.
 
     A searching ant moves to a neighbouring cell with a probability that grows with its pheromone and, by `outward`,
     with its distance from the nest, as a scent of the nest would, and picks up food within a radius of the food. A
@@ -178,7 +182,9 @@ class AntElement(Element):
 
 
 class PheromoneForagingSystem(BaseSystem):
-    """Ants that find food and lay a pheromone trail home, which other ants follow: stigmergy.
+    """Ants that find food and lay a pheromone trail home, which other ants follow.
+
+    It is stigmergy.
 
     The ants live on a grid and the pheromone on a lattice of the same shape, as two partitions of a co-simulation that
     exchange the field and the deposits at every step. The nest is near the left edge and the food near the right. The
@@ -249,13 +255,19 @@ class PheromoneForagingSystem(BaseSystem):
         return round(ant.nest_x), round(ant.nest_y)
 
     def _homes(self, ant: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-        """Return whether an ant carries food away from the nest, so it walks home."""
+        """Return whether an ant carries food away from the nest.
+
+        Such an ant walks home.
+        """
         del system
         return isinstance(ant, AntView) and bool(ant.carrying) and ant.location != self._get_nest(ant)
 
     @staticmethod
     def _searches(ant: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-        """Return whether an ant without food stands farther than `food_radius` from the food, so it searches."""
+        """Return whether an ant without food stands farther than `food_radius` from the food.
+
+        Such an ant searches.
+        """
         del system
         if not isinstance(ant, AntView) or ant.carrying:
             return False
@@ -272,7 +284,10 @@ class PheromoneForagingSystem(BaseSystem):
         return x + int(np.sign(nest[0] - x)), y + int(np.sign(nest[1] - y))
 
     def _get_search_step(self, ant: AgentViewProtocol, system: SystemViewProtocol) -> object:
-        """Return a neighbouring cell drawn with a weight growing with its pheromone and its distance from the nest."""
+        """Return a neighbouring cell drawn with a weight growing with its pheromone.
+
+        The weight also grows with the distance of the cell from the nest.
+        """
         if not isinstance(ant, AntView):
             return None
         x, y = cast('tuple[int, int]', ant.location)
@@ -290,7 +305,10 @@ class PheromoneForagingSystem(BaseSystem):
 
     @staticmethod
     def _carries(ant: AgentViewProtocol, cell: object, system: SystemViewProtocol) -> bool:
-        """Return whether an ant carries food and walked home in its activation, so it marks its cell with pheromone."""
+        """Return whether an ant carries food and walked home in its activation.
+
+        Such an ant marks its cell with pheromone.
+        """
         del cell, system
         return isinstance(ant, AntView) and bool(ant.carrying) and not ant.arrived
 
@@ -302,13 +320,19 @@ class PheromoneForagingSystem(BaseSystem):
 
     @staticmethod
     def _get_carrying(ant: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return whether an ant carries food next: the step after arriving, it takes food or drops it at the nest."""
+        """Return whether an ant carries food next.
+
+        The step after arriving, it takes food or drops it at the nest.
+        """
         if not isinstance(ant, AntView):
             return 0.0
         return float(not ant.carrying) if ant.arrived else float(ant.carrying)
 
     def _get_arrived(self, ant: AgentViewProtocol, system: SystemViewProtocol) -> float:
-        """Return whether an ant stands at the nest with food, or near the food without it, at the end of its turn."""
+        """Return whether an ant arrived at the end of its turn.
+
+        It arrived when it stands at the nest with food, or near the food without it.
+        """
         if not isinstance(ant, AntView):
             return 0.0
         return float(not self._homes(ant, system) and not self._searches(ant, system))

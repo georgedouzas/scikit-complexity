@@ -1,4 +1,4 @@
-"""Collective behaviour systems: active walkers that form trails by changing the ground they walk on."""
+"""Active walkers that form trails by changing the ground they walk on."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -31,7 +31,9 @@ TRAIL = 'land/ground.V'
 
 
 class GroundElement(Element):
-    """Ground whose structure `G` is raised by footprints and recovers, with a trail potential `V` that smooths it.
+    """Ground whose structure `G` is raised by footprints and recovers.
+
+    A trail potential `V` smooths the structure.
 
     The structure relaxes back to bare ground as `G' = -G / T`, and walkers add footprints. The trail potential
     follows `V' = D ΔV + (G - V) / tau`, so it settles to the structure smoothed over a length `sqrt(D tau)`, the
@@ -103,7 +105,9 @@ class WalkerView(AgentView):
 
 
 class WalkerElement(Element):
-    """Pedestrian who walks toward a goal, drawn to existing trails, and leaves footprints that build them.
+    """Pedestrian who walks toward a goal, drawn to existing trails.
+
+    The walker leaves footprints that build the trails.
 
     The walker heads along the unit vector toward its goal plus `attraction` times the gradient of the trail potential
     `V`, after Helbing, Keltsch, and Molnár. Every step it moves to a neighbouring cell with a probability that grows
@@ -186,7 +190,9 @@ class WalkerElement(Element):
 
 
 class ActiveWalkersSystem(BaseSystem):
-    """Active walkers who walk between the corners of a green and wear a system of trails into it.
+    """Active walkers who wear a system of trails into a green.
+
+    They walk between the corners of the green.
 
     Walkers prefer existing trails to the direct way, and trails fade unless they are used, so a few shared trails
     emerge that bundle the ways between the corners, a compromise between short and comfortable routes. The system has
@@ -247,7 +253,10 @@ class ActiveWalkersSystem(BaseSystem):
 
     @staticmethod
     def _get_durability(namespace: SimpleNamespace) -> Expression:
-        """Return the durability `T` of trails, the time over which the structure fades to bare ground."""
+        """Return the durability `T` of trails.
+
+        It is the time over which the structure fades to bare ground.
+        """
         durability: Expression = namespace.target.T
         return durability
 
@@ -270,7 +279,7 @@ class ActiveWalkersSystem(BaseSystem):
         return time
 
     def _get_goal(self, walker: AgentViewProtocol | None, system: SystemViewProtocol) -> dict[str, object]:
-        """Return another entry point than the cell of a walker as its goal, drawn at random."""
+        """Return a random entry point other than the cell of a walker as its goal."""
         if not isinstance(walker, WalkerView):
             return {}
         here = cast('tuple[int, int]', walker.location)
@@ -285,11 +294,17 @@ class ActiveWalkersSystem(BaseSystem):
         return isinstance(walker, WalkerView) and walker.location == (round(walker.goal_x), round(walker.goal_y))
 
     def _waits(self, walker: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-        """Return whether a walker arrived at its goal in the previous step, so it leaves the green now."""
+        """Return whether a walker arrived at its goal in the previous step.
+
+        Such a walker leaves the green now.
+        """
         return self._arrived(walker, system) and isinstance(walker, WalkerView) and bool(walker.arrived)
 
     def _walks(self, walker: AgentViewProtocol, system: SystemViewProtocol) -> bool:
-        """Return whether a walker is away from its goal, so it steps."""
+        """Return whether a walker is away from its goal.
+
+        Such a walker steps.
+        """
         return not self._arrived(walker, system)
 
     def _get_arrived(self, walker: AgentViewProtocol, system: SystemViewProtocol) -> float:
@@ -298,7 +313,9 @@ class ActiveWalkersSystem(BaseSystem):
 
     @staticmethod
     def _get_step(walker: AgentViewProtocol, system: SystemViewProtocol) -> object:
-        """Return a neighbouring cell drawn with a weight that grows with the alignment of the step with the heading.
+        """Return a neighbouring cell drawn with a weight growing with its alignment.
+
+        The alignment is that of the step with the heading.
 
         The heading is the unit vector toward the goal plus `attraction` times the gradient of the trail potential, and
         the weight of a step is `exp(directedness * cos angle)`, where the angle is between the step and the heading.
@@ -319,13 +336,19 @@ class ActiveWalkersSystem(BaseSystem):
 
     @staticmethod
     def _steps(walker: AgentViewProtocol, cell: object, system: SystemViewProtocol) -> bool:
-        """Return whether a walker stepped in its activation, since it had not arrived at its goal before."""
+        """Return whether a walker stepped in its activation.
+
+        It steps since it had not arrived at its goal before.
+        """
         del cell, system
         return isinstance(walker, WalkerView) and not walker.arrived
 
     @staticmethod
     def _get_footprint(walker: AgentViewProtocol, cell: object, system: SystemViewProtocol) -> float:
-        """Return the footprint `intensity (1 - G / G_max)` a walker leaves on the ground of its cell."""
+        """Return the footprint a walker leaves on the ground of its cell.
+
+        The footprint is `intensity (1 - G / G_max)`.
+        """
         if not isinstance(walker, WalkerView):
             return 0.0
         return walker.intensity * (1 - system.field('target.G', cell) / walker.G_max)

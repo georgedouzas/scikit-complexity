@@ -1,4 +1,4 @@
-"""Collective behaviour systems: flocks and swarms that move together."""
+"""Flocks and swarms that move together."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -48,7 +48,9 @@ class BoidView(AgentView):
 
 
 class BoidElement(Element):
-    """Boid of Reynolds, a bird that steers by three rules toward, away from, and along its neighbours.
+    """Boid of Reynolds, a bird that steers by three rules.
+
+    The rules steer it toward, away from, and along its neighbours.
 
     Every step a boid sees the boids within `radius`. `FlockingInteraction` steers it by cohesion toward their center,
     by separation away from those closer than `separation_radius`, and by alignment toward their mean velocity, with
@@ -139,7 +141,9 @@ class BoidElement(Element):
 
 
 class SpatialBoidView(AgentView):
-    """View of a boid in three dimensions, with its states and parameters as attributes.
+    """View of a boid in three dimensions.
+
+    The view has the states and parameters of the boid as attributes.
 
     `SpatialBoidElement` names this class with `_get_view`, so its rules read them with checked types.
     """
@@ -155,7 +159,9 @@ class SpatialBoidView(AgentView):
 
 
 class SpatialBoidElement(Element):
-    """Boid in three dimensions, a bird that steers by the velocity and the position of the boids it sees.
+    """Boid in three dimensions, a bird that steers by the boids it sees.
+
+    It steers by the velocity and the position of those boids.
 
     Every step `HeadingInteraction` steers a boid by cohesion, separation, and alignment with the boids within `radius`,
     with its speed between `min_speed` and `max_speed`, and `SpatialFlightInteraction` moves it along its velocity.
@@ -229,7 +235,9 @@ class SpatialBoidElement(Element):
 
 
 class FlightInteraction(MovementInteraction):
-    """Flight of every boid by its velocity `(vx, vy)` in one step, on the torus of side `width` by `height`.
+    """Flight of every boid by its velocity `(vx, vy)` in one step.
+
+    The boids fly on the torus of side `width` by `height`.
 
     Every boid moves in its own activation, after the rules and member interactions listed before it.
 
@@ -267,7 +275,9 @@ class FlightInteraction(MovementInteraction):
 
 
 class FlockingInteraction(CouplingInteraction):
-    """Reynolds' steering of every boid toward, away from, and along the boids it sees, with a bounded speed.
+    """Reynolds' steering of every boid by the boids it sees, with a bounded speed.
+
+    It steers a boid toward, away from, and along those boids.
 
     The velocity of a boid gains the mean offset to the boids within `radius` weighted by `cohesion`, loses the summed
     offset to the boids within `separation_radius` weighted by `separation`, and gains the mean difference of their
@@ -328,7 +338,9 @@ class FlockingInteraction(CouplingInteraction):
 
 
 class HeadingInteraction(MapInteraction):
-    """Steering of the velocity of every boid by cohesion, separation, and alignment, with a bounded speed.
+    """Steering of the velocity of every boid by cohesion, separation, and alignment.
+
+    The speed stays bounded.
 
     The velocity of a boid gains the mean offset to the boids within `radius` weighted by `cohesion`, loses the summed
     offset to the boids within `separation_radius` weighted by `separation`, and gains the mean difference of their
@@ -377,7 +389,10 @@ class HeadingInteraction(MapInteraction):
 
     @staticmethod
     def _steer(agent: AgentViewProtocol, system: SystemViewProtocol) -> Array:
-        """Return the velocity of a boid after one step of steering, with its speed clipped."""
+        """Return the velocity of a boid after one step of steering.
+
+        Its speed is clipped.
+        """
         boid = cast(SpatialBoidView, agent)
         others = [cast(SpatialBoidView, other) for other in boid.neighbors(boid.radius)]
         velocity = np.asarray(boid.velocity, dtype=float)
@@ -388,7 +403,9 @@ class HeadingInteraction(MapInteraction):
 
 
 class MorsePotentialInteraction(PairCouplingInteraction):
-    """Attraction at long range and repulsion at short range, `C_r exp(-r / l_r) - C_a exp(-r / l_a)`.
+    """Attraction at long range and repulsion at short range.
+
+    The potential is `C_r exp(-r / l_r) - C_a exp(-r / l_a)`.
 
     Args:
         label:
@@ -462,7 +479,9 @@ class MorsePotentialInteraction(PairCouplingInteraction):
 
 
 class SelfPropulsionInteraction(RateInteraction):
-    """Rayleigh self-propulsion, `v' = (alpha - beta |v|²) v`, which drives points to the speed `sqrt(alpha / beta)`.
+    """Rayleigh self-propulsion, `v' = (alpha - beta |v|²) v`.
+
+    It drives points to the speed `sqrt(alpha / beta)`.
 
     It is a rate on the position `x`, a state of order 2, whose velocity `v` is the first derivative `x_d1`.
 
@@ -513,7 +532,9 @@ class SelfPropulsionInteraction(RateInteraction):
 
 
 class SpatialFlightInteraction(MovementInteraction):
-    """Flight of every boid by its velocity in one step, with the boundary of its space acting on the new position.
+    """Flight of every boid by its velocity in one step.
+
+    The boundary of its space acts on the new position.
 
     Every boid moves in its own activation, after the rules and member interactions listed before it.
 
@@ -550,7 +571,9 @@ class SpatialFlightInteraction(MovementInteraction):
 
 
 class BoidsSystem(BaseSystem):
-    """Reynolds' boids in two dimensions, birds that flock by local rules without a leader.
+    """Reynolds' boids in two dimensions.
+
+    They are birds that flock by local rules without a leader.
 
     The boids start at random positions with random headings on a torus. Alignment makes neighbours fly in the same
     direction and cohesion pulls them together, so the flock becomes polarized while separation keeps the birds apart.
@@ -615,7 +638,10 @@ class BoidsSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return the parts of Reynolds' boids in two dimensions, birds that flock by local rules without a leader."""
+        """Return the parts of Reynolds' boids in two dimensions.
+
+        The boids are birds that flock by local rules without a leader.
+        """
         rng = np.random.default_rng(self.random_state)
         headings = rng.uniform(0.0, 2 * math.pi, self.n_boids)
         flock = GroupElement(
@@ -709,7 +735,10 @@ class Boids3dSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return the parts of Boids in three dimensions, birds that flock by local rules in a periodic cube."""
+        """Return the parts of Boids in three dimensions.
+
+        The boids are birds that flock by local rules in a periodic cube.
+        """
         rng = np.random.default_rng(self.random_state)
         headings = rng.normal(size=(self.n_boids, 3))
         flock = GroupElement(
@@ -738,7 +767,9 @@ class Boids3dSystem(BaseSystem):
 
 
 class BirdSwarmSystem(BaseSystem):
-    """A swarm of self-propelled birds held together by a pair potential that attracts far and repels near.
+    """A swarm of self-propelled birds held together by a pair potential.
+
+    The potential attracts far and repels near.
 
     Every bird is driven to the speed `sqrt(alpha / beta)` and feels the Morse-type potential of every other bird, so
     the swarm stays together and organizes into a flock or a rotating mill. The system has the positions `birds.x` and
@@ -808,7 +839,10 @@ class BirdSwarmSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return the parts of a swarm of self-propelled birds held together by a pair potential."""
+        """Return the parts of a swarm of self-propelled birds.
+
+        A pair potential holds the birds together.
+        """
         rng = np.random.default_rng(self.random_state)
         positions, velocities = rng.uniform(-3.0, 3.0, (self.n_birds, 2)), rng.normal(0.0, 1.0, (self.n_birds, 2))
         birds = GroupElement(

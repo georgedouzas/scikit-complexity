@@ -1,4 +1,4 @@
-"""Collective behaviour systems: a shepherd that herds a flock of sheep to a goal."""
+"""A shepherd that herds a flock of sheep to a goal."""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -31,7 +31,9 @@ class HerdedSheepView(AgentView):
 
 
 class HerdedSheepElement(Element):
-    """Sheep of a herded flock, an agent with a heading that a shepherding interaction moves.
+    """Sheep of a herded flock, an agent with a heading.
+
+    A shepherding interaction moves it.
 
     Args:
         label:
@@ -80,7 +82,9 @@ class ShepherdView(AgentView):
 
 
 class ShepherdElement(Element):
-    """Shepherd of a flock, an agent whose mode records whether it collects stray sheep or drives the flock.
+    """Shepherd of a flock, an agent with a mode.
+
+    The mode records whether it collects stray sheep or drives the flock.
 
     Args:
         label:
@@ -115,7 +119,9 @@ class ShepherdElement(Element):
 
 
 class ShepherdingInteraction(Interaction):
-    """Herding of a flock towards a goal by a shepherd that collects stray sheep and drives the flock from behind.
+    """Herding of a flock towards a goal by a shepherd.
+
+    The shepherd collects stray sheep and drives the flock from behind.
 
     Following Strömbom et al. (2014), a sheep within `rs` of the shepherd moves the distance `delta` along `h H + c C +
     rho_a R_a + rho_s R_s + e E`, of unit vectors: its last heading `H`, the attraction `C` to the centre of its `n`
@@ -274,7 +280,10 @@ class ShepherdingInteraction(Interaction):
         return np.broadcast_to(target, shepherds.shape), np.ones(len(shepherds), dtype=bool)
 
     def _unit(self, vectors: Array) -> Array:
-        """Return the vectors scaled to unit length, and zero vectors unchanged."""
+        """Return the vectors scaled to unit length.
+
+        Zero vectors stay unchanged.
+        """
         lengths = np.linalg.norm(vectors, axis=-1, keepdims=True)
         return vectors / np.where(lengths > 0, lengths, 1.0)
 
@@ -285,7 +294,9 @@ class ShepherdingInteraction(Interaction):
 
 
 class ShepherdingSystem(BaseSystem):
-    """A shepherd that collects a scattered flock and drives it to a goal, the heuristic of Strömbom et al.
+    """A shepherd that collects a scattered flock and drives it to a goal.
+
+    It is the heuristic of Strömbom et al.
 
     The sheep start scattered in the middle of a square field and the shepherd behind them, opposite the goal. Sheep
     flee a near shepherd while they keep together and apart, and graze otherwise. The shepherd alternates between
@@ -336,7 +347,10 @@ class ShepherdingSystem(BaseSystem):
         self.seed = seed
 
     def _build_system(self) -> System:
-        """Return the parts of a shepherd that collects a scattered flock and drives it to a goal."""
+        """Return the parts of a shepherd that drives a scattered flock to a goal.
+
+        The shepherd collects the flock first.
+        """
         rng = np.random.default_rng(self.seed)
         positions = rng.uniform(0.4 * self.size, 0.7 * self.size, (self.n_sheep, 2))
         sheep = GroupElement(
