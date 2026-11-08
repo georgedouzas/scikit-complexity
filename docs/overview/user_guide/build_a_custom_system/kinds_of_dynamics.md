@@ -76,9 +76,6 @@ class DecayLaw(BaseLaw):
         self.target = target
         self.rate = rate
 
-    def _check(self):
-        pass
-
     def _get_targets(self):
         return (self.target,)
 
