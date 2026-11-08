@@ -36,10 +36,12 @@ from ...components.laws import (
     NoiseLaw,
     RateLaw,
     SampleLaw,
+    UpdateLaw,
 )
 from ...components.laws.utils import (
     COORDINATE_PREFIX,
     cell_operations_in,
+    draws_in,
     hyperedges_in,
     neighborhoods_in,
     reductions_in,
@@ -88,8 +90,9 @@ from ...specs import (
     TopologyRequestSpec,
     WienerProcessSpec,
 )
+from ...specs._draw_spec import RELAXED_KINDS
 from ...specs._held_reduction_spec import _HeldReductionSpec
-from ...specs._issue_spec import _ERROR
+from ...specs._issue_spec import _ERROR, _WARNING
 from ...types import Array, DomainKind, ElementKind, FormKind, NoiseKind, ProcessKey, VariableKind, VectorFunction
 from .._utils import bound_labels, declarations_of, default_of, symbol
 from ..backends import BaseBackend
@@ -709,6 +712,7 @@ class PassCompiler(BaseCompiler):
         issues += PassCompiler._satisfiability_issues(nodes)
         issues += PassCompiler._neighborhood_issues(records, nodes)
         issues += PassCompiler._around_issues(records, compilation.backend)
+        issues += PassCompiler._draw_issues(records, compilation.backend)
         issues += PassCompiler._degree_issues(records)
         issues += PassCompiler._nonlocal_issues(records, nodes)
         issues += PassCompiler._coordinate_issues(records, nodes)
@@ -1355,6 +1359,30 @@ class PassCompiler(BaseCompiler):
                     fix = 'Apply `exterior_derivative` or `codifferential` until the value has the degree of the state.'
                     issues.append(IssueSpec('law-degree', record.path, message, fix))
                     break
+        return issues
+
+    @staticmethod
+    def _draw_issues(records: list[CensusRecordSpec], backend: BaseBackend | None) -> list[IssueSpec]:
+        """Return a warning for every Bernoulli or categorical draw without a temperature on JAX.
+
+        The JAX backend runs such a draw exactly, so runs have no gradient through it, and differentiable runs stop at
+        the warning.
+        """
+        if backend is None or backend._get_name() != 'jax':
+            return []
+        issues = []
+        for record in records:
+            if not isinstance(record.law, UpdateLaw):
+                continue
+            found = {item.name: item for item in draws_in(record.law._get_values(include=('value',)))}
+            for draw in found.values():
+                if draw.kind in RELAXED_KINDS and draw.temperature is None:
+                    message = (
+                        f'The {type(record.law).__name__} of {record.path} draws the {draw.kind} draw {draw.name!r} '
+                        'without a temperature, which has no gradient on JAX.'
+                    )
+                    fix = f'Give the draw {draw.name!r} a temperature, such as `temperature=0.1`, to relax it.'
+                    issues.append(IssueSpec('not-differentiable', record.path, message, fix, severity=_WARNING))
         return issues
 
     @staticmethod

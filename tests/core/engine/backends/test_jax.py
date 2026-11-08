@@ -136,3 +136,25 @@ def test_jax_run_of_a_drawing_map_needs_a_key():
     """Test that the run of a map that draws raises an error without a key."""
     with pytest.raises(ValidationError, match='JAX key'):
         _relaxed_run(2, temperature=0.5, key=None)(0.3)
+
+
+def test_jax_reports_discrete_draws_without_a_temperature():
+    """Test that a Bernoulli draw without a temperature gives a `not-differentiable` issue naming it on JAX."""
+
+    class FlipElement(Element):
+        """Element whose state is an exact Bernoulli draw."""
+
+        def __init__(self, label: str, *, b: Annotated[float, StateSpec()] = 0.0) -> None:
+            super().__init__(label)
+            self.b = b
+
+        def _get_laws(self, s):
+            """Return the drawn update."""
+            return [UpdateLaw(s.b, bernoulli('flip', 0.4))]
+
+    system = System(elements=[FlipElement('a')], time=DiscreteTime())
+    (issue,) = PassCompiler(backend=JaxBackend()).prepare(system).report_.issues
+    assert issue.code == 'not-differentiable'
+    assert "'flip'" in issue.message
+    assert 'temperature' in issue.fix
+    assert not PassCompiler(backend=NumpyBackend()).prepare(system).report_.issues

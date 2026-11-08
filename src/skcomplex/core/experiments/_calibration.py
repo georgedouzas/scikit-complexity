@@ -312,14 +312,20 @@ class _CalibrationObjective:
 
         Raises:
             ValidationError:
-                The candidate has no JAX form, or is neither a discrete map nor ordinary differential equations.
+                The candidate has no JAX form, draws a discrete draw without a temperature, or is neither a discrete
+                map nor ordinary differential equations.
         """
         backend = JaxBackend()
         try:
-            problem = PassCompiler(backend=backend).prepare(self.build(values).prepare().system_).run().problem_
+            compiler = PassCompiler(backend=backend).prepare(self.build(values).prepare().system_)
+            problem = compiler.run().problem_
         except SkcomplexError as error:
             error_msg = f'The system has no differentiable run on JAX: {error}'
             raise ValidationError(error_msg) from error
+        stops = [issue.text for issue in compiler.report_.issues if issue.code == 'not-differentiable']
+        if stops:
+            error_msg = f'The system has no differentiable run on JAX: {" ".join(stops)}'
+            raise ValidationError(error_msg)
         if not isinstance(problem, ProblemSpec) or problem.form not in (FormKind.ODE, FormKind.DISCRETE):
             error_msg = f'Differentiable runs unroll maps and ordinary differential equations, not a {problem.form}.'
             raise ValidationError(error_msg)
