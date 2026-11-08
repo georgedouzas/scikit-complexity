@@ -1,6 +1,6 @@
-"""Automata on groups: majority and parity rules, a Laplacian, and the golden mean shift.
+"""Automata on groups: majority, parity, and linear rules, and a golden mean shift.
 
-The Laplacian is linear. The majority and parity rules run on Cayley balls.
+The linear rule is the discrete Laplacian. The majority and parity rules run on Cayley balls.
 """
 
 # Author: Georgios Douzas <gdouzas@icloud.com>

@@ -1,4 +1,4 @@
-"""Automata systems: life-like, noisy, and diffusion rules, and an unbounded alphabet.
+"""Automata systems: life-like, noisy, diffusion, and unbounded-alphabet rules.
 
 The diffusion is discrete.
 """
