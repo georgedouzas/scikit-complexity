@@ -1,6 +1,9 @@
 """Test the entry spec."""
 
-from sage.all__sagemath_symbolics import RR
+import numpy as np
+import pytest
+from sage.all__sagemath_symbolics import RR, ZZ, oo
+from sage.sets.real_set import RealSet
 
 from skcomplex.core.components.spaces import LatticeNeighborhood
 from skcomplex.core.specs import EntrySpec, SubshiftSpec, TensorSpec
@@ -30,3 +33,27 @@ def test_subshift_domain_reads_as_its_alphabet():
     assert EntrySpec('cells.alive', 0, (3,), SubshiftSpec(domain.neighborhood, ((1, 2),), 3), 3).kind == (
         DomainKind.INTEGER
     )
+
+
+@pytest.mark.parametrize(
+    'domain',
+    [
+        RR,
+        RealSet.closed_open(0, oo),
+        RealSet.open(0, oo),
+        RealSet.closed(0, 1),
+        RealSet.open(-3, -1) + RealSet.point(0),
+    ],
+)
+def test_contains_checks_arrays_of_numbers_as_sage_checks_every_component(domain):
+    """Test that an array of numbers is in a real domain exactly when Sage finds every component in it."""
+    values = [0.0, 1.0, 1, True, -1.5, -3.0, -1.0, np.nan, np.inf, -np.inf]
+    for value in values:
+        assert EntrySpec('x', 0, (), domain).contains(np.full((3, 3), value)) == (value in domain)
+    assert EntrySpec('x', 0, (), domain).contains(np.zeros(2)) == (0 in domain)
+
+
+def test_contains_checks_other_domains_component_by_component():
+    """Test that an integer domain still rejects a fraction among whole numbers."""
+    assert EntrySpec('x', 0, (), ZZ).contains([1, 2, 3])
+    assert not EntrySpec('x', 0, (), ZZ).contains([1, 2.5])
