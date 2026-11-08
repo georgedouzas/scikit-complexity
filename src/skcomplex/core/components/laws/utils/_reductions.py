@@ -754,7 +754,7 @@ def hyperedges(
     reduce: str = 'sum',
     size: int | None = None,
     weight: object = None,
-    over: RadiusNeighborhood | NearestNeighborhood | ConeNeighborhood | None = None,
+    over: BaseNeighborhood | None = None,
 ) -> Expression | FreeModuleElement:
     """Return the reduction of an expression over the hyperedges around group members.
 

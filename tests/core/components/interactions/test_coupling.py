@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 import scipy.integrate
 import scipy.optimize
-from sage.all__sagemath_symbolics import SR, I, atan2, cos, exp, pi, sin, vector
+from sage.all__sagemath_symbolics import SR, I, atan2, cos, exp, pi, sin, sqrt, vector
 
 from skcomplex.core.components.elements import Element, GroupElement, LatticeElement
 from skcomplex.core.components.interactions import CouplingInteraction
@@ -745,6 +745,55 @@ def test_coupling_over_hyperedges_needs_a_network_with_hyperedges():
     coupling = CouplingInteraction('pull', target='oscillators', read='theta', write='theta', mode='hyperedges')
     with pytest.raises(ValidationError, match='network with hyperedges'):
         _hyperedge_drift(coupling, np.zeros(4), NumpyBackend(), LatticeSpace(4))
+
+
+class GliderElement(Element):
+    """Particle with a position and a velocity that does not change on its own."""
+
+    def __init__(
+        self,
+        label: str,
+        visual: VisualSpec | None = None,
+        *,
+        x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
+        u: Annotated[object, StateSpec(vector=True)] = 0.0,
+    ) -> None:
+        super().__init__(label, visual=visual)
+        self.x = x
+        self.u = u
+
+    def _get_laws(self, s):
+        """Return the motion at the velocity."""
+        return [RateLaw(s.x, s.u)]
+
+
+def _flank(s):
+    """Return the flanking alignment of one pair of neighbours, weighted by half of one minus their cosine."""
+    first, second = s.others[0].x - s.member.x, s.others[1].x - s.member.x
+    cosine = first * second / sqrt((first * first) * (second * second))
+    return (1 - cosine) / 2 * ((s.others[0].u - s.member.u) + (s.others[1].u - s.member.u)) / 2
+
+
+@BACKENDS
+@pytest.mark.parametrize(('sides', 'factor'), [((4.5, 5.5), 1.0), ((5.5, 5.8), 0.0)], ids=['opposite', 'same'])
+def test_coupling_over_neighbour_hyperedges_aligns_flanked_members(sides, factor, backend):
+    """Test that a member flanked on opposite sides gains the mean relative velocity, and nothing on one side."""
+    x = np.array([[5.0, 5.0], [sides[0], 5.0], [sides[1], 5.0]])
+    u = np.array([[0.0, 0.0], [1.0, 0.5], [0.2, -0.3]])
+    gliders = GroupElement('gliders', element=GliderElement, size=3, values={'x': x, 'u': u})
+    coupling = CouplingInteraction(
+        'flank',
+        target='gliders',
+        write='u',
+        mode='hyperedges',
+        size=3,
+        neighborhood=RadiusNeighborhood(1.0),
+        function=_flank,
+    )
+    system = System(elements=[gliders], interactions=[coupling], space=ContinuousSpace(extent=(10.0, 10.0)))
+    problem = PassCompiler(backend=backend).prepare(system).run().problem_
+    drift = problem.states.read(problem.drift(0.0, problem.initial_state, problem.initial_parameters), 'gliders.u')
+    np.testing.assert_allclose(drift[0], factor * (u[1] + u[2]) / 2, rtol=0.0, atol=1e-12)
 
 
 def _bonded_drift(case: str, renamed: bool) -> np.ndarray:

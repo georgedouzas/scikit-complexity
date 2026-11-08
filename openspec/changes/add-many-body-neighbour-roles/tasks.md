@@ -8,8 +8,8 @@
 
 ## 2. Coupling over neighbour hyperedges
 
-- [ ] 2.1 Pass `neighborhood` of `CouplingInteraction` to `hyperedges` in the mode `'hyperedges'` and update its docstring, and verify the flanking-alignment scenario with a test
-- [ ] 2.2 Document neighbour hyperedges beside the hyperedge section of `docs/overview/user_guide/build_a_custom_system/networks.md`, with a runnable example and the cost, and verify the page builds
+- [x] 2.1 Pass `neighborhood` of `CouplingInteraction` to `hyperedges` in the mode `'hyperedges'` and update its docstring, and verify the flanking-alignment scenario with a test
+- [x] 2.2 Document neighbour hyperedges beside the hyperedge section of `docs/overview/user_guide/build_a_custom_system/networks.md`, with a runnable example and the cost, and verify the page builds
 
 ## 3. Many-body alignment swarm
 

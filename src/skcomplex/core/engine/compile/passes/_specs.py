@@ -832,6 +832,7 @@ class SpecsPass(BasePass):
             if place is not None and isinstance(place.space, LatticeSpace) and 'degree' not in vars(namespaces[end]):
                 degree = SR(2 * place.space.prepare().n_dim_)
                 namespaces[end] = SimpleNamespace(**vars(namespaces[end]), degree=degree)
+            namespaces[end] = SpecsPass._with_hyperedges(group, namespaces[end], references)
         namespace = SimpleNamespace(t=time, **vars(parameters), **namespaces)
         paths: dict[str, str | tuple[str, ...]] = {names[0]: ends[0].node.path, names[1]: nodes.node.path}
         edge = KernelSpec(block.node.path, namespace, references, 0, roles=paths, place=place)

@@ -347,9 +347,10 @@ run = simulate(System(elements=[players], interactions=[goods]), until=1)
 run.values('players.payoff')[-1].round(2).tolist()
 ```
 
-The reduction `hyperedges(expression, reduce='sum', size=None, weight=None)` of `skcomplex.core.components.laws.utils`
-does the work. It reduces an expression written for one hyperedge over the hyperedges around every member of a group on
-the nodes of a network with hyperedges, as `neighbors` does for one neighbour. Inside the expression:
+The reduction `hyperedges(expression, reduce='sum', size=None, weight=None, over=None)` of
+`skcomplex.core.components.laws.utils` does the work. It reduces an expression written for one hyperedge over the
+hyperedges around every member of a group on the nodes of a network with hyperedges, as `neighbors` does for one
+neighbour. Inside the expression:
 
 - `s.others` holds the other members of the hyperedge in its order,
 - `s.members` holds all its members, which `total`, `mean`, `count`, `maximum`, and `minimum` reduce with
@@ -363,6 +364,81 @@ issue code `law-space`, and a size the network lacks gets the code `binding`.
 `CouplingInteraction(mode='hyperedges', size=...)` couples every member through this reduction. The function reads
 `s.member`, `s.others`, cut to `size - 1` members when the size is given, and `s.members`. The default term is the sum
 over the other members of the difference of `read`. In the map form it sets the next value of `write` in discrete time.
+
+### Hyperedges of current neighbours
+
+In a continuous space the hyperedges around a member need not be fixed. With `over`, a neighbourhood of the space,
+`hyperedges(expression, size=k, over=RadiusNeighborhood(r))` reduces over the hyperedges that every member forms with
+each set of `k - 1` of its current neighbours, the other members of a set in increasing member order. The sets are
+found again from the positions at every evaluation, so a member that enters or leaves the neighbourhood joins or leaves
+every set at once. `NearestNeighborhood(k)` and `ConeNeighborhood(r, angle)` work too. Such sets carry the many-body
+terms of flocks and schools, three-body potentials such as Axilrod-Teller and Stillinger-Weber, and group interactions
+in crowds and social models. `CouplingInteraction(mode='hyperedges', size=k, neighborhood=...)` couples every member
+through them. A three-body alignment that acts only on a member whose two neighbours flank it:
+
+```python
+from typing import Annotated
+
+import numpy as np
+from sage.all__sagemath_symbolics import sqrt
+
+from skcomplex.core.components.elements import Element, GroupElement
+from skcomplex.core.components.interactions import CouplingInteraction
+from skcomplex.core.components.laws import RateLaw
+from skcomplex.core.components.spaces import ContinuousSpace, RadiusNeighborhood
+from skcomplex.core.components.system import System
+from skcomplex.core.engine.runtime import simulate
+from skcomplex.core.specs import StateSpec
+
+
+class GliderElement(Element):
+    def __init__(
+        self,
+        label,
+        *,
+        x: Annotated[object, StateSpec(vector=True, role='position')] = 0.0,
+        u: Annotated[object, StateSpec(vector=True)] = 0.0,
+    ):
+        super().__init__(label)
+        self.x = x
+        self.u = u
+
+    def _get_laws(self, s):
+        return [RateLaw(s.x, s.u)]
+
+
+def flank(s):
+    first, second = s.others[0].x - s.member.x, s.others[1].x - s.member.x
+    cosine = first * second / sqrt((first * first) * (second * second))
+    return (1 - cosine) / 2 * ((s.others[0].u - s.member.u) + (s.others[1].u - s.member.u)) / 2
+
+
+x = np.array([[5.0, 5.0], [4.5, 5.0], [5.5, 5.0], [8.0, 8.0]])
+u = np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 0.0]])
+gliders = GroupElement('gliders', element=GliderElement, size=4, values={'x': x, 'u': u})
+alignment = CouplingInteraction(
+    'alignment',
+    target='gliders',
+    write='u',
+    mode='hyperedges',
+    size=3,
+    neighborhood=RadiusNeighborhood(1.0),
+    function=flank,
+)
+system = System(elements=[gliders], interactions=[alignment], space=ContinuousSpace(extent=(10.0, 10.0)))
+problem = simulate(system, until=0.0).problem
+drift = problem.drift(0.0, problem.initial_state, problem.initial_parameters)
+problem.states.read(drift, 'gliders.u').round(3).tolist()
+```
+
+The first glider sits between the second and the third, so it gains the mean of their relative velocities. The second
+and the third have their neighbours on one side, and the last has none, so they gain nothing.
+
+The number of sets is `C(d, k - 1)` for `d` neighbours, so the cost grows as `N d^(k - 1)` for `N` members. Hyperedges
+of four members at ten neighbours are 84 sets per member, so keep the neighbourhood to a few neighbours. The size is
+required, between 2 and 5. The NumPy and Numba backends run these reductions, and the Numba backend reduces every set as
+it visits it, without storing the sets. A neighbourhood outside a continuous space gets the issue code `law-space`, and
+another backend the code `backend-unsupported`.
 
 ### Ordered phases of update laws
 

@@ -56,10 +56,10 @@ class CouplingInteraction(NeighborInteraction):
     reduction over separate elements is written out term by term.
     - `'next'`: the next member of the group in member order, the first after the last.
     - `'hyperedges'`: the other members of every hyperedge around `i` of `size` members, or of every size, on a network
-      with hyperedges. The function then reads `namespace.member`, `namespace.others`, the other members of one
-      hyperedge in its order, and `namespace.members`, all its members, which reductions over them read, and the
-      reduction runs over the hyperedges around `i`. The default function is the sum over the other members of the
-      difference of `read`.
+      with hyperedges, or with a `neighborhood` in a continuous space, every set of `size - 1` current neighbours of
+      `i`. The function then reads `namespace.member`, `namespace.others`, the other members of one hyperedge in its
+      order, and `namespace.members`, all its members, which reductions over them read, and the reduction runs over the
+      hyperedges around `i`. The default function is the sum over the other members of the difference of `read`.
 
     With `include_self`, the reduction also runs over `j = i`. Every term `f_ij` has a weight `w_ij`: on edges, the
     state `weights` of the edge group, which a subclass binds with a second role, over the group, the entry `W_ij` of
@@ -143,7 +143,8 @@ class CouplingInteraction(NeighborInteraction):
 
         neighborhood:
             The neighbourhood of the mode `'edges'`, such as `RadiusNeighborhood(1.0)` in a continuous space, or `None`
-            for the edges of the lattice or network.
+            for the edges of the lattice or network. In the mode `'hyperedges'`, the neighbourhood of a continuous
+            space whose current neighbours form the hyperedges, or `None` for the hyperedges of the network.
 
         layer:
             The layer of the network whose edges the interaction runs on, or `None` for the graph of the network.
@@ -278,9 +279,12 @@ class CouplingInteraction(NeighborInteraction):
         They must also suit the form.
         """
         if self.neighborhood is not None and (
-            self.mode != 'edges' or not isinstance(self.neighborhood, BaseNeighborhood)
+            self.mode not in {'edges', 'hyperedges'} or not isinstance(self.neighborhood, BaseNeighborhood)
         ):
-            error_msg = f'The neighbourhood {self.neighborhood!r} of coupling needs a neighbourhood in the mode edges.'
+            error_msg = (
+                f'The neighbourhood {self.neighborhood!r} of coupling needs a neighbourhood in the mode edges or '
+                'hyperedges.'
+            )
             raise ValidationError(error_msg)
         if isinstance(self.weights, str) and not self._is_per_edge() and not self._names_matrix():
             error_msg = (
@@ -651,14 +655,15 @@ class CouplingInteraction(NeighborInteraction):
 
         Raises:
             ValidationError:
-                The members live on no network with hyperedges.
+                The members live on no network with hyperedges and in no continuous space.
         """
         target = self._get_member(namespace, 'target')
         others, members = getattr(target, 'others', None), getattr(target, 'members', None)
         if others is None or members is None:
             error_msg = (
                 f'The coupling {self.label!r} over hyperedges binds {self.target!r}, whose members live on no network '
-                'with hyperedges. Give the group a network space with hyperedges.'
+                'with hyperedges and in no continuous space. Give the group a network space with hyperedges, or a '
+                'continuous space and a neighbourhood.'
             )
             raise ValidationError(error_msg)
         if self.size is not None:
@@ -668,7 +673,10 @@ class CouplingInteraction(NeighborInteraction):
         weight = None
         if callable(self.weights):
             weight = self.weights(SimpleNamespace(**self._parameters(namespace), **vars(around)))
-        return self._map(term, lambda item: hyperedges(item, reduce=self.reduce, size=self.size, weight=weight))
+        return self._map(
+            term,
+            lambda item: hyperedges(item, reduce=self.reduce, size=self.size, weight=weight, over=self.neighborhood),
+        )
 
     def _get_reduction(self, namespace: SimpleNamespace) -> Target:
         """Return the reduction that one member gets, by mode."""
