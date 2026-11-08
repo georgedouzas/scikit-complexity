@@ -1,4 +1,7 @@
-"""Automata on free groups beyond the Garden of Eden theorem: Muller's automaton, a linear one, and Life in a tree."""
+"""Automata on free groups beyond the Garden of Eden theorem.
+
+They are Muller's automaton, a linear one, and Life in a tree.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -23,7 +26,9 @@ from ._groups import free_group
 
 
 class PairCellElement(Element):
-    """Cell of an automaton over the product `H x H` of the integers modulo `n` with itself, or `K^2` for a prime `n`.
+    """Cell of an automaton over the product `H x H` of the integers modulo `n`.
+
+    For a prime `n` the product is `K^2`.
 
     Args:
         label:
@@ -73,7 +78,10 @@ def _pair_cells(
     initial: npt.ArrayLike | None,
     random_state: int | np.random.Generator | None,
 ) -> Array:
-    """Return the initial pairs, one row of two coordinates per site, random modulo the modulus by default."""
+    """Return the initial pairs, one row of two coordinates per site.
+
+    By default they are random modulo the modulus.
+    """
     if modulus < MIN_MODULUS:
         error_msg = f'The order of the cyclic group H is at least 2, but it is {modulus}.'
         raise ParameterError(error_msg)
@@ -92,7 +100,10 @@ def _pair_system(
     initial: npt.ArrayLike | None,
     random_state: int | np.random.Generator | None,
 ) -> System:
-    """Return an automaton of pairs on a ball of the free group of rank 2 that reads `a`, `a^-1`, `b`, and `b^-1`."""
+    """Return an automaton of pairs on a ball of the free group of rank 2.
+
+    It reads `a`, `a^-1`, `b`, and `b^-1`.
+    """
     space = CayleySpace(free_group(2), ball=radius)
     pairs = _pair_cells(space, modulus, initial, random_state)
     values = {'first': pairs[:, 0], 'second': pairs[:, 1], 'modulus': modulus}
@@ -183,7 +194,10 @@ class MullerAutomatonSystem(BaseSystem):
         return total % modulus, np.zeros_like(total)
 
     def _build_system(self) -> System:
-        """Return Muller's automaton on the free group F2, pre-injective but not surjective."""
+        """Return Muller's automaton on the free group F2.
+
+        It is pre-injective but not surjective.
+        """
         return _pair_system(
             self.label,
             self._muller,
@@ -195,14 +209,15 @@ class MullerAutomatonSystem(BaseSystem):
 
 
 class SurjectiveLinearAutomatonSystem(BaseSystem):
-    """A linear automaton over `K^2` on the free group F2, surjective but not pre-injective.
+    """A linear automaton over `K^2` on the free group F2.
 
-    Every cell becomes `q1(x(ga)) + q1(x(ga^-1)) + q2(x(gb)) + q2(x(gb^-1))`, where `q1(h, k) = (h, 0)` and `q2(h, k) =
-    (0, h)`, over the field of a prime number `modulus` of elements (Ceccherini-Silberstein and Coornaert 2023, Section
-    8.11). The configuration `(0, 1)` at the identity and 0 elsewhere maps to 0, so the automaton is not pre-injective,
-    while a preimage of every configuration is built by induction on the word length, so it is surjective, which the
-    Garden of Eden theorem forbids on amenable groups. Cells on the boundary of the ball read 0 outside it. The system
-    has the coordinates `cells.first` and `cells.second`.
+    It is surjective but not pre-injective. Every cell becomes `q1(x(ga)) + q1(x(ga^-1)) + q2(x(gb)) + q2(x(gb^-1))`,
+    where `q1(h, k) = (h, 0)` and `q2(h, k) = (0, h)`, over the field of a prime number `modulus` of elements
+    (Ceccherini-Silberstein and Coornaert 2023, Section 8.11). The configuration `(0, 1)` at the identity and 0
+    elsewhere maps to 0, so the automaton is not pre-injective, while a preimage of every configuration is built by
+    induction on the word length, so it is surjective, which the Garden of Eden theorem forbids on amenable groups.
+    Cells on the boundary of the ball read 0 outside it. The system has the coordinates `cells.first` and
+    `cells.second`.
 
     Args:
         radius:
@@ -265,7 +280,10 @@ class SurjectiveLinearAutomatonSystem(BaseSystem):
         return (first[0] + first[1]) % modulus, (first[2] + first[3]) % modulus
 
     def _build_system(self) -> System:
-        """Return a linear automaton over `K^2` on the free group F2, surjective but not pre-injective."""
+        """Return a linear automaton over `K^2` on the free group F2.
+
+        It is surjective but not pre-injective.
+        """
         return _pair_system(
             self.label,
             self._surjective_linear,
@@ -277,13 +295,13 @@ class SurjectiveLinearAutomatonSystem(BaseSystem):
 
 
 class LifeInATreeSystem(BaseSystem):
-    """The Game of Life on the free group F4, a tree of degree 8, surjective but not pre-injective.
+    """The Game of Life on the free group F4, surjective but not pre-injective.
 
-    The memory set is the identity and the generators `a`, `b`, `c`, `d` with their inverses, and a cell is alive after
-    a step when the sum over the memory set is 3, or 4 with the cell alive, Conway's rule on the Cayley graph of F4
-    (Ceccherini-Silberstein and Coornaert 2023, Exercise 5.14). On the tree the automaton is surjective but not
-    pre-injective, unlike Life on the plane, which is neither. Cells on the boundary of the ball read 0 outside it. The
-    system has the cells `cells.alive`.
+    The free group F4 is a tree of degree 8. The memory set is the identity and the generators `a`, `b`, `c`, `d` with
+    their inverses, and a cell is alive after a step when the sum over the memory set is 3, or 4 with the cell alive,
+    Conway's rule on the Cayley graph of F4 (Ceccherini-Silberstein and Coornaert 2023, Exercise 5.14). On the tree the
+    automaton is surjective but not pre-injective, unlike Life on the plane, which is neither. Cells on the boundary of
+    the ball read 0 outside it. The system has the cells `cells.alive`.
 
     Args:
         radius:
@@ -330,7 +348,10 @@ class LifeInATreeSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return the Game of Life on the free group F4, a tree of degree 8, surjective but not pre-injective."""
+        """Return the Game of Life on the free group F4, surjective but not pre-injective.
+
+        The free group F4 is a tree of degree 8.
+        """
         space = CayleySpace(free_group(TREE_RANK), ball=self.radius)
         size = space.prepare().size_
         if self.initial is None:

@@ -1,4 +1,7 @@
-"""Automata systems: life-like rules, noisy rules, discrete diffusion, and an unbounded alphabet."""
+"""Automata systems: life-like, noisy, and diffusion rules, and an unbounded alphabet.
+
+The diffusion is discrete.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -32,7 +35,9 @@ from ._pascal_cell import PascalCellElement
 
 
 class DiffusionCellElement(Element):
-    """Cell of a lattice with a content and the share of the difference it exchanges with each neighbour in a step.
+    """Cell of a lattice with a content and the share of the difference it exchanges.
+
+    The share of the difference is exchanged with each neighbour in a step.
 
     Args:
         label:
@@ -67,7 +72,7 @@ class DiffusionCellElement(Element):
 
 
 class NoisyElementaryCellElement(BinaryCellElement):
-    """Binary cell that holds the probability that the output of its local rule is flipped.
+    """Binary cell that holds the probability that its local rule output is flipped.
 
     Args:
         label:
@@ -112,11 +117,11 @@ def _random_cells(shape: Sequence[int], density: float, random_state: int | np.r
 
 
 class HighlifeSystem(BaseSystem):
-    """HighLife, `B36/S23`, or any other life-like automaton of the planar zoo by its rule, on a torus.
+    """HighLife, `B36/S23`, or any other life-like automaton of the planar zoo.
 
-    HighLife adds birth on six neighbours to Conway's rule, which gives it a small self-replicating pattern. Other
-    members of the zoo are Seeds, `B2/S`, Day and Night, `B3678/S34678`, and Life without death, `B3/S012345678`. The
-    system has the cells `cells.alive`.
+    The automaton is given by its rule. It runs on a torus. HighLife adds birth on six neighbours to Conway's rule,
+    which gives it a small self-replicating pattern. Other members of the zoo are Seeds, `B2/S`, Day and Night,
+    `B3678/S34678`, and Life without death, `B3/S012345678`. The system has the cells `cells.alive`.
 
     Args:
         shape:
@@ -172,7 +177,10 @@ class HighlifeSystem(BaseSystem):
 
     @staticmethod
     def _parse_life_rule(rule: str) -> tuple[tuple[int, ...], tuple[int, ...]]:
-        """Return the birth and survival counts of a life-like rule in the notation `B36/S23`."""
+        """Return the birth and survival counts of a life-like rule.
+
+        The rule is in the notation `B36/S23`.
+        """
         match = LIFE_RULE.match(rule.upper())
         if match is None:
             error_msg = f'A life-like rule reads like `B36/S23`, with digits 0 to 8, but it is {rule!r}.'
@@ -180,7 +188,10 @@ class HighlifeSystem(BaseSystem):
         return tuple(int(digit) for digit in match['born']), tuple(int(digit) for digit in match['survive'])
 
     def _build_system(self) -> System:
-        """Return HighLife, `B36/S23`, or any other life-like automaton of the planar zoo by its rule, on a torus."""
+        """Return HighLife, `B36/S23`, or any other life-like automaton of the planar zoo.
+
+        The automaton is given by its rule and runs on a torus.
+        """
         born, survive = self._parse_life_rule(self.rule)
         values = (
             _random_cells(self.shape, self.density, self.random_state)
@@ -204,9 +215,9 @@ class HighlifeSystem(BaseSystem):
 
 
 class NoisyAutomataSystem(BaseSystem):
-    """An elementary cellular automaton whose outputs are flipped at random with a small probability.
+    """An elementary cellular automaton whose outputs are flipped at random.
 
-    The system has the cells `cells.alive`.
+    The outputs are flipped with a small probability. The system has the cells `cells.alive`.
 
     Args:
         rule:
@@ -258,7 +269,10 @@ class NoisyAutomataSystem(BaseSystem):
 
     @staticmethod
     def _noisy_rule(number: int) -> Callable[..., Array]:
-        """Return the elementary rule of a Wolfram number whose output a uniform draw below the noise flips."""
+        """Return the elementary rule of a Wolfram number with noisy outputs.
+
+        A uniform draw below the noise flips its output.
+        """
         mapping = Wolfram(number).table().mapping
         outputs = np.array(
             [mapping[(left, center, right)] for left, center, right in itertools.product((0, 1), repeat=3)],
@@ -271,7 +285,10 @@ class NoisyAutomataSystem(BaseSystem):
         return noisy
 
     def _build_system(self) -> System:
-        """Return an elementary cellular automaton whose outputs are flipped at random with a small probability."""
+        """Return an elementary cellular automaton whose outputs are flipped at random.
+
+        The outputs are flipped with a small probability.
+        """
         values = _random_cells((self.size,), self.density, self.random_state)
         space = LatticeSpace(self.size)
         return System(
@@ -298,10 +315,10 @@ class NoisyAutomataSystem(BaseSystem):
 
 
 class DiffusionAutomatonSystem(BaseSystem):
-    """A cellular automaton of diffusion, `c' = c + r Σ (c_neighbour - c)`, started from a square of ones.
+    """A cellular automaton of diffusion, `c' = c + r Σ (c_neighbour - c)`.
 
-    The total content is conserved on the torus, and the square spreads into a Gaussian bump. The system has the
-    contents `cells.level`.
+    It starts from a square of ones. The total content is conserved on the torus, and the square spreads into a Gaussian
+    bump. The system has the contents `cells.level`.
 
     Args:
         shape:
@@ -343,11 +360,17 @@ class DiffusionAutomatonSystem(BaseSystem):
 
     @staticmethod
     def _diffuse(level: Array, *around: Array, r: Array | float) -> Array:
-        """Return the content after the exchange of a share of the difference with every neighbour."""
+        """Return the content after the exchange of a share of the difference.
+
+        The share of the difference is exchanged with every neighbour.
+        """
         return level + r * (sum(around) - len(around) * level)
 
     def _build_system(self) -> System:
-        """Return a cellular automaton of diffusion, `c' = c + r Σ (c_neighbour - c)`, started from a square of ones."""
+        """Return a cellular automaton of diffusion, `c' = c + r Σ (c_neighbour - c)`.
+
+        It starts from a square of ones.
+        """
         level = np.zeros(tuple(self.shape))
         rows, columns = (self.shape[0] - self.width) // 2, (self.shape[1] - self.width) // 2
         level[rows : rows + self.width, columns : columns + self.width] = 1.0
@@ -374,7 +397,9 @@ class DiffusionAutomatonSystem(BaseSystem):
 
 
 class UnboundedAlphabetAutomatonSystem(BaseSystem):
-    """An additive automaton over the nonnegative integers, `x'(n) = x(n - 1) + x(n)`, from a single 1.
+    """An additive automaton over the nonnegative integers, `x'(n) = x(n - 1) + x(n)`.
+
+    It starts from a single 1.
 
     Its alphabet has no bound: from a single 1 the cells after `t` steps hold the binomial coefficients `C(t, k)`, so
     every row of Pascal's triangle appears. Reduced modulo 2, the rule is the mirror image of the additive automaton
@@ -415,7 +440,10 @@ class UnboundedAlphabetAutomatonSystem(BaseSystem):
         return left + center
 
     def _build_system(self) -> System:
-        """Return an additive automaton over the nonnegative integers, `x'(n) = x(n - 1) + x(n)`, from a single 1."""
+        """Return an additive automaton over the nonnegative integers.
+
+        Its rule is `x'(n) = x(n - 1) + x(n)`. It starts from a single 1.
+        """
         value = np.zeros(self.size)
         value[self.size // 2] = 1.0
         return System(

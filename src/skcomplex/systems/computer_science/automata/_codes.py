@@ -1,4 +1,7 @@
-"""Rule codes of cellular automata: Wolfram numbers of elementary rules and the life-like rules."""
+"""Rule codes of cellular automata: Wolfram numbers and life-like rules.
+
+The Wolfram numbers code the elementary rules.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -14,9 +17,9 @@ ELEMENTARY_RULES = 256
 
 @dataclass(frozen=True)
 class Wolfram:
-    """Elementary cellular automaton by its Wolfram number, on the left, centre, and right cells.
+    """Elementary cellular automaton by its Wolfram number.
 
-    A local rule takes it as its rule and reads it through `table()`.
+    The rule reads the left, centre, and right cells. A local rule takes it as its rule and reads it through `table()`.
 
     Args:
         number:

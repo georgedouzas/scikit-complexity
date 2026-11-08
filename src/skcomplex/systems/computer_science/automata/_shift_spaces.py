@@ -1,4 +1,7 @@
-"""Subshifts beyond finite type, the S-gap, even, context-free, and Morse subshifts, and the adding machine."""
+"""Subshifts beyond finite type, and the adding machine.
+
+The subshifts are the S-gap, even, context-free, and Morse subshifts.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -28,7 +31,9 @@ from ._binary_cell import BinaryCellElement
 
 
 class DigitCellElement(Element):
-    """Cell holding a digit of a q-adic integer, from 0 to `base - 1`, the label of a vertex of the q-ary tree.
+    """Cell holding a digit of a q-adic integer, from 0 to `base - 1`.
+
+    The digit is the label of a vertex of the q-ary tree.
 
     Args:
         label:
@@ -99,7 +104,9 @@ class MorseElement(WordElement):
 
 
 class TernaryCellElement(Element):
-    """Cell of a subshift over the alphabet `{0, 1, 2}`, such as the context-free subshift.
+    """Cell of a subshift over the alphabet `{0, 1, 2}`.
+
+    An example is the context-free subshift.
 
     Args:
         label:
@@ -137,7 +144,9 @@ BALANCED_BLOCK = 0.5
 
 
 class GapSubshiftSystem(BaseSystem):
-    """The shift on the S-gap subshift, the binary sequences whose runs of zeros between ones lie in `S`.
+    """The shift on the S-gap subshift.
+
+    The S-gap subshift holds the binary sequences whose runs of zeros between ones lie in `S`.
 
     With `S` the even numbers it is the even subshift, strictly sofic and not of finite type (Ceccherini-Silberstein and
     Coornaert 2023, Exercises 1.85 and 1.92). The cells are a window of a configuration drawn from the measure of
@@ -194,7 +203,10 @@ class GapSubshiftSystem(BaseSystem):
 
     @staticmethod
     def _gap_lengths(size: int, gaps: Sequence[int] | None) -> npt.NDArray[np.bool_]:
-        """Return whether every gap length below the cap is allowed, the even lengths by default."""
+        """Return whether every gap length below the cap is allowed.
+
+        By default the even lengths are allowed.
+        """
         lengths = np.arange(GAP_CAP * size)
         if gaps is None:
             return lengths % 2 == 0
@@ -208,7 +220,10 @@ class GapSubshiftSystem(BaseSystem):
 
     @staticmethod
     def _gap_law(allowed: npt.NDArray[np.bool_]) -> tuple[float, Array, Array]:
-        """Return the growth `λ`, the gap probabilities `λ^-(h + 1)`, and the hazards of the maximal entropy measure."""
+        """Return the growth and the gap law of the maximal entropy measure.
+
+        The law is given by the growth `λ`, the gap probabilities `λ^-(h + 1)`, and the hazards.
+        """
         lengths = np.flatnonzero(allowed)
 
         def excess(growth: float) -> float:
@@ -223,7 +238,10 @@ class GapSubshiftSystem(BaseSystem):
 
     @staticmethod
     def _renewal_cells(size: int, probabilities: Array, random_state: int | np.random.Generator | None) -> Array:
-        """Return a window of a configuration whose gaps between ones are drawn independently, after a burn-in."""
+        """Return a window of a configuration whose gaps between ones are independent.
+
+        The gaps are drawn independently, after a burn-in.
+        """
         generator = np.random.default_rng(random_state)
         cells: list[float] = []
         while len(cells) < BURN_IN * size:
@@ -232,7 +250,10 @@ class GapSubshiftSystem(BaseSystem):
 
     @staticmethod
     def _gap_shift(*values: Array, random: Array, hazards: Array) -> Array:
-        """Return the cell to the right, or at the right end a new cell drawn from the gap since the last one."""
+        """Return the cell to the right, or at the right end a new cell.
+
+        The new cell is drawn from the gap since the last one.
+        """
         window = np.stack(values)
         right, inside = window[-1], window[1:-1]
         ones = inside[::-1] == 1
@@ -241,7 +262,10 @@ class GapSubshiftSystem(BaseSystem):
         return np.where(right == OUTSIDE, drawn, right)
 
     def _build_system(self) -> System:
-        """Return the shift on the S-gap subshift, the binary sequences whose runs of zeros between ones lie in `S`."""
+        """Return the shift on the S-gap subshift.
+
+        The S-gap subshift holds the binary sequences whose runs of zeros between ones lie in `S`.
+        """
         _, probabilities, hazards = self._gap_law(self._gap_lengths(self.size, self.gaps))
         cells = self._renewal_cells(self.size, probabilities, self.random_state)
         neighborhood = LatticeNeighborhood(tuple((offset,) for offset in range(1 - self.size, 2)))
@@ -269,7 +293,9 @@ class GapSubshiftSystem(BaseSystem):
 
 
 class ContextFreeSubshiftSystem(BaseSystem):
-    """A Markov chain on the context-free subshift, ternary rings where every block `0 1^h 2^k 0` has `h = k`.
+    """A Markov chain on the context-free subshift.
+
+    The subshift holds the ternary rings where every block `0 1^h 2^k 0` has `h = k`.
 
     The subshift is not sofic, since a finite graph cannot match the counts of ones and twos (Ceccherini-Silberstein and
     Coornaert 2023, Exercise 6.80). Every step proposes to change every cell of the ring, in a random order, to one of
@@ -321,7 +347,10 @@ class ContextFreeSubshiftSystem(BaseSystem):
 
     @staticmethod
     def _is_balanced(word: Array) -> bool:
-        """Return whether a word over `{1, 2}` between two zeros is no block `1^h 2^k` with `h != k`."""
+        """Return whether a word over `{1, 2}` is no block `1^h 2^k` with `h != k`.
+
+        The word lies between two zeros.
+        """
         if np.any(np.diff(word) < 0):
             return True
         ones = int(np.sum(word == 1))
@@ -329,7 +358,10 @@ class ContextFreeSubshiftSystem(BaseSystem):
 
     @staticmethod
     def _is_context_free(ring: Array) -> bool:
-        """Return whether a ring of symbols holds no block `0 1^h 2^k 0` with `h != k` between consecutive zeros."""
+        """Return whether a ring of symbols holds no block `0 1^h 2^k 0` with `h != k`.
+
+        The blocks lie between consecutive zeros.
+        """
         zeros = np.flatnonzero(ring == 0)
         if zeros.size == 0:
             return True
@@ -341,7 +373,10 @@ class ContextFreeSubshiftSystem(BaseSystem):
 
     @staticmethod
     def _context_free_move(*values: Array, random: Array) -> Array:
-        """Return the cell changed to another random symbol, unless the ring would leave the context-free subshift."""
+        """Return the cell changed to another random symbol.
+
+        The change is refused when the ring would leave the context-free subshift.
+        """
         window = np.stack(values)
         size = (window.shape[0] + 1) // 2
         center = window[size - 1]
@@ -356,7 +391,10 @@ class ContextFreeSubshiftSystem(BaseSystem):
 
     @staticmethod
     def _whole_ring(size: int) -> LatticeNeighborhood:
-        """Return the offsets from `-(size - 1)` to `size - 1`, which read every cell of a ring from both sides."""
+        """Return the offsets from `-(size - 1)` to `size - 1`.
+
+        They read every cell of a ring from both sides.
+        """
         return LatticeNeighborhood(tuple((offset,) for offset in range(1 - size, size)))
 
     def _build_system(self) -> System:
@@ -400,13 +438,14 @@ class ContextFreeSubshiftSystem(BaseSystem):
 
 
 class MorseSubshiftSystem(BaseSystem):
-    """The Thue-Morse substitution `0 → 01`, `1 → 10`, whose words make the language of the Morse subshift.
+    """The Thue-Morse substitution `0 → 01`, `1 → 10`.
 
-    Generation `n` from `0` is the prefix `T(0) ... T(2^n - 1)` of the Thue-Morse sequence, and the Morse subshift is
-    the orbit closure under the shift of the configuration `x(n) = T(n)` for `n >= 0` and `T(-n - 1)` for `n < 0`, an
-    infinite minimal subshift that is not sofic, with zero entropy (Ceccherini-Silberstein and Coornaert 2023,
-    Exercises 3.51 and 3.52). Its words of every length are the factors of the generations, which number at most a
-    multiple of their length. The system has the word `morse` and its length `morse.size`.
+    Its words make the language of the Morse subshift. Generation `n` from `0` is the prefix `T(0) ... T(2^n - 1)` of
+    the Thue-Morse sequence, and the Morse subshift is the orbit closure under the shift of the configuration
+    `x(n) = T(n)` for `n >= 0` and `T(-n - 1)` for `n < 0`, an infinite minimal subshift that is not sofic, with zero
+    entropy (Ceccherini-Silberstein and Coornaert 2023, Exercises 3.51 and 3.52). Its words of every length are the
+    factors of the generations, which number at most a multiple of their length. The system has the word `morse` and its
+    length `morse.size`.
 
     Args:
         axiom:
@@ -438,7 +477,9 @@ class MorseSubshiftSystem(BaseSystem):
 
 
 class AddingMachineSystem(BaseSystem):
-    """The adding machine `r → r + 1` on the q-adic integers, the odometer acting on the q-ary tree.
+    """The adding machine `r → r + 1` on the q-adic integers.
+
+    It is the odometer acting on the q-ary tree.
 
     The cells hold the digits of `r`, the lowest first, the first `digits` letters of its infinite word, a vertex of the
     q-ary tree. Every step adds 1: the lowest digit turns by the cycle `0 → 1 → ... → q - 1 → 0`, and a digit turns when
@@ -491,13 +532,19 @@ class AddingMachineSystem(BaseSystem):
 
     @staticmethod
     def _carry(*digits: Array, base: Array | float) -> Array:
-        """Return the digit plus 1 modulo the base when every lower digit is `base - 1`, and the digit otherwise."""
+        """Return the digit of the adding machine after a carry.
+
+        It is the digit plus 1 modulo the base when every lower digit is `base - 1`, and the digit otherwise.
+        """
         window = np.stack(digits)
         carried = np.all(window[:-1] == base - 1, axis=0)
         return np.where(carried, (window[-1] + 1) % base, window[-1])
 
     def _build_system(self) -> System:
-        """Return the adding machine `r → r + 1` on the q-adic integers, the odometer acting on the q-ary tree."""
+        """Return the adding machine `r → r + 1` on the q-adic integers.
+
+        It is the odometer acting on the q-ary tree.
+        """
         if self.base < MIN_BASE:
             error_msg = f'The base of the adding machine is at least 2, but it is {self.base}.'
             raise ParameterError(error_msg)

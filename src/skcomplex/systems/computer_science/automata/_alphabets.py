@@ -1,4 +1,7 @@
-"""Automata over infinite or group alphabets: a self-indexed shift, power series, naturals, reals, and group values."""
+"""Automata over infinite or group alphabets.
+
+They are a self-indexed shift, power series, naturals, reals, and group values.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,10 +28,10 @@ from ._pascal_cell import PascalCellElement
 
 
 class GroupCellElement(Element):
-    """Cell of an automaton whose alphabet is a group, holding a group element by its number.
+    """Cell of an automaton whose alphabet is a group.
 
-    The number is the site of the element in a group space, or its position in the list of a finite group, and a
-    negative number names no element, the fill value read outside a ball.
+    It holds a group element by its number. The number is the site of the element in a group space, or its position in
+    the list of a finite group, and a negative number names no element, the fill value read outside a ball.
 
     Args:
         label:
@@ -61,10 +64,10 @@ RATIONAL_SERIES = PowerSeriesSpec()
 
 
 class PowerSeriesCellElement(DeclaredElement):
-    """Cell of an automaton over a ring `K[[t]]` of formal power series truncated at an order.
+    """Cell of an automaton over a ring `K[[t]]` of truncated formal power series.
 
-    The cell declares the state `value` in the ring it is given, so it holds the coefficients `a_0, ..., a_{order - 1}`
-    of a series, which a local rule reads as one row per cell.
+    The series are truncated at an order. The cell declares the state `value` in the ring it is given, so it holds the
+    coefficients `a_0, ..., a_{order - 1}` of a series, which a local rule reads as one row per cell.
 
     Args:
         label:
@@ -98,7 +101,10 @@ class PowerSeriesCellElement(DeclaredElement):
         self.ring = ring
 
     def _declare_variables(self) -> Mapping[str, DeclaredVariableSpec]:
-        """Return the state `value` in the ring, with the zero series as its default, and the given variables."""
+        """Return the state `value` in the ring and the given variables.
+
+        The state has the zero series as its default.
+        """
         value = DeclaredVariableSpec(np.zeros(self.ring.order), StateSpec(domain=self.ring))
         return {'value': value, **(self.variables or {})}
 
@@ -138,14 +144,14 @@ NO_ELEMENT = -1
 
 
 class SelfIndexedShiftSystem(BaseSystem):
-    """The map `τ(x)(g) = x(g · x(g))` over the group as alphabet, continuous and equivariant but no automaton.
+    """The map `τ(x)(g) = x(g · x(g))` over the group as alphabet.
 
-    Every cell holds a group element, the number of its site, and takes the value of the cell at the product of its site
-    and its value, so the cell it reads moves with the configuration. On an infinite group no finite memory set
-    describes the map, which is continuous and commutes with the shifts but is no cellular automaton
-    (Ceccherini-Silberstein and Coornaert 2023, Example 1.8.2). The simulation truncates the group: on a ball, a product
-    outside it reads `-1`, a value that names no element and stays, and a finite group, without a radius, keeps every
-    product. The system has the group elements `cells.value`.
+    It is continuous and equivariant but no automaton. Every cell holds a group element, the number of its site, and
+    takes the value of the cell at the product of its site and its value, so the cell it reads moves with the
+    configuration. On an infinite group no finite memory set describes the map, which is continuous and commutes with
+    the shifts but is no cellular automaton (Ceccherini-Silberstein and Coornaert 2023, Example 1.8.2). The simulation
+    truncates the group: on a ball, a product outside it reads `-1`, a value that names no element and stays, and a
+    finite group, without a radius, keeps every product. The system has the group elements `cells.value`.
 
     Args:
         group:
@@ -219,14 +225,14 @@ class SelfIndexedShiftSystem(BaseSystem):
 
 
 class PowerSeriesAutomatonSystem(BaseSystem):
-    """The automaton `τ(x)(n) = x(n) - t x(n + 1)` over the ring `K[[t]]` of formal power series on a ring.
+    """The automaton `τ(x)(n) = x(n) - t x(n + 1)` over the power series `K[[t]]`.
 
-    The alphabet `K[[t]]` has infinite dimension, and the automaton is bijective with the inverse `sigma(y)(n) = sum_j
-    t^j y(n + j)`, which is not continuous, so it is no cellular automaton (Ceccherini-Silberstein and Coornaert 2023,
-    Exercise 1.37). The cells hold the series truncated at the order, which keeps every coefficient below it exact,
-    since the coefficient of `t^i` of the image reads coefficients of `t^i` and `t^(i - 1)` alone. From the constant
-    series 1 at one cell, the cells at step `s` hold `C(s, k) (-t)^k` at the `k`-th cell to the left, as long as `k`
-    stays below the order. The system has the coefficients `cells.value`.
+    The power series are formal, on a ring. The alphabet `K[[t]]` has infinite dimension, and the automaton is bijective
+    with the inverse `sigma(y)(n) = sum_j t^j y(n + j)`, which is not continuous, so it is no cellular automaton
+    (Ceccherini-Silberstein and Coornaert 2023, Exercise 1.37). The cells hold the series truncated at the order, which
+    keeps every coefficient below it exact, since the coefficient of `t^i` of the image reads coefficients of `t^i` and
+    `t^(i - 1)` alone. From the constant series 1 at one cell, the cells at step `s` hold `C(s, k) (-t)^k` at the `k`-th
+    cell to the left, as long as `k` stays below the order. The system has the coefficients `cells.value`.
 
     Args:
         size:
@@ -273,7 +279,10 @@ class PowerSeriesAutomatonSystem(BaseSystem):
 
     @staticmethod
     def _power_series_difference(here: Array, right: Array, *, ring: PowerSeriesSpec, variable: Array) -> Array:
-        """Return `x(n) - t x(n + 1)` in a truncated power series ring, coefficients on the last axis."""
+        """Return `x(n) - t x(n + 1)` in a truncated power series ring.
+
+        The coefficients are on the last axis.
+        """
         return ring.reduce(here - ring.multiply(variable, right))
 
     def _build_system(self) -> System:
@@ -306,13 +315,13 @@ class PowerSeriesAutomatonSystem(BaseSystem):
 
 
 class SubtractionAutomatonSystem(BaseSystem):
-    """The automaton `τ(x)(n) = max(0, x(n) - x(n + 1))` over the naturals, whose image is not closed.
+    """The automaton `τ(x)(n) = max(0, x(n) - x(n + 1))` over the naturals.
 
-    The image of the configurations `x_M`, equal to `M` left of the origin and to `max(0, M - n)` from it, is the block
-    of `M` ones from the origin. These blocks converge to the configuration of ones on the half line, which is no image,
-    so the image of the automaton over the infinite alphabet `N` is not closed (Ceccherini-Silberstein and Coornaert
-    2023, Example 3.3.3). The cells sit on a segment with fixed ends that read 0, and start at `x_M` with `M = height`,
-    its origin a quarter of the way along. The system has the cells `cells.value`.
+    Its image is not closed. The image of the configurations `x_M`, equal to `M` left of the origin and to
+    `max(0, M - n)` from it, is the block of `M` ones from the origin. These blocks converge to the configuration of
+    ones on the half line, which is no image, so the image of the automaton over the infinite alphabet `N` is not closed
+    (Ceccherini-Silberstein and Coornaert 2023, Example 3.3.3). The cells sit on a segment with fixed ends that read 0,
+    and start at `x_M` with `M = height`, its origin a quarter of the way along. The system has the cells `cells.value`.
 
     Args:
         size:
@@ -362,7 +371,10 @@ class SubtractionAutomatonSystem(BaseSystem):
         return np.maximum(0.0, here - right)
 
     def _build_system(self) -> System:
-        """Return the automaton `τ(x)(n) = max(0, x(n) - x(n + 1))` over the naturals, whose image is not closed."""
+        """Return the automaton `τ(x)(n) = max(0, x(n) - x(n + 1))` over the naturals.
+
+        Its image is not closed.
+        """
         if self.height < 0:
             error_msg = f'The height of the staircase is a natural number, but it is {self.height}.'
             raise ParameterError(error_msg)
@@ -479,13 +491,13 @@ class RealQuadraticAutomatonSystem(BaseSystem):
 
 
 class GroupDifferenceAutomatonSystem(BaseSystem):
-    """The automaton `τ(x)(n) = x(n)^-1 x(n + 1)` whose alphabet is a finite group, on a ring.
+    """The automaton `τ(x)(n) = x(n)^-1 x(n + 1)` whose alphabet is a finite group.
 
-    Over the integers, with the generator `s0 = 1` of infinite order and a nontrivial group alphabet, the automaton is
-    surjective but not injective (Ceccherini-Silberstein and Coornaert 2023, Exercise 3.24): every constant
-    configuration maps to the identity. The ring is the finite quotient of order `size`, where the product of the image
-    around the ring is the identity. Cells hold group elements by their number in the Cayley table of Sage, the identity
-    first. The system has the group elements `cells.value`.
+    It runs on a ring. Over the integers, with the generator `s0 = 1` of infinite order and a nontrivial group alphabet,
+    the automaton is surjective but not injective (Ceccherini-Silberstein and Coornaert 2023, Exercise 3.24): every
+    constant configuration maps to the identity. The ring is the finite quotient of order `size`, where the product of
+    the image around the ring is the identity. Cells hold group elements by their number in the Cayley table of Sage,
+    the identity first. The system has the group elements `cells.value`.
 
     Args:
         size:
@@ -532,11 +544,17 @@ class GroupDifferenceAutomatonSystem(BaseSystem):
 
     @staticmethod
     def _group_difference(here: Array, right: Array, *, product: Indices, inverse: Indices) -> Array:
-        """Return the number of the group element `x(n)^-1 x(n + 1)` from a Cayley table and the inverses."""
+        """Return the number of the group element `x(n)^-1 x(n + 1)`.
+
+        It is read from a Cayley table and the inverses.
+        """
         return product[inverse[here.astype(np.intp)], right.astype(np.intp)].astype(float)
 
     def _build_system(self) -> System:
-        """Return the automaton `τ(x)(n) = x(n)^-1 x(n + 1)` whose alphabet is a finite group, on a ring."""
+        """Return the automaton `τ(x)(n) = x(n)^-1 x(n + 1)` over a finite group.
+
+        The finite group is its alphabet. It runs on a ring.
+        """
         alphabet = SymmetricGroup(3) if self.group is None else self.group
         product = np.asarray(alphabet.cayley_table().table(), dtype=np.intp)
         inverse = np.argmin(product, axis=1).astype(np.intp)

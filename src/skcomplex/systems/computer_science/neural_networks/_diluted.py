@@ -1,4 +1,7 @@
-"""Neural network systems: the asymmetric diluted Hopfield network with parallel stochastic updates."""
+"""Neural network systems: the asymmetric diluted Hopfield network.
+
+Its updates are parallel and stochastic.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -25,7 +28,9 @@ def _overlap(member: SimpleNamespace) -> Expression:
 
 
 class DilutedNeuronElement(Element):
-    """Binary neuron of an asymmetric diluted Hopfield network, updated in parallel with the others at every step.
+    """Binary neuron of an asymmetric diluted Hopfield network.
+
+    It is updated in parallel with the others at every step.
 
     The logit choice of `DilutedHopfieldSystem` draws the value `s = ±1` of the neuron with probability
     `1 / (1 + exp(-2 s β h))`, where `h = Σ_j J_ij s_j` is its local field, so its mean is `tanh(β h)`.
@@ -68,13 +73,14 @@ class DilutedNeuronElement(Element):
 
 
 class DilutedHopfieldSystem(BaseSystem):
-    """The asymmetric diluted Hopfield network, which recalls a stored pattern below its memory capacity.
+    """The asymmetric diluted Hopfield network.
 
-    The network stores `p = load K` random patterns in the couplings `J_ij = C_ij Σ_μ ξ_i ξ_j`, where every `C_ij` is 1
-    with probability `K / N` independently of `C_ji`, so the couplings are sparse and asymmetric. All neurons update
-    together at the inverse temperature `β = temperature_scale / K`. Started with an overlap `m` with the first pattern,
-    the overlap follows `m(t + 1) = f(m(t))` for large `K`, which keeps a nonzero fixed point below the critical load `2
-    / π`. The system has the values `neurons.spin` and the observable `overlap`.
+    It recalls a stored pattern below its memory capacity. The network stores `p = load K` random patterns in the
+    couplings `J_ij = C_ij Σ_μ ξ_i ξ_j`, where every `C_ij` is 1 with probability `K / N` independently of `C_ji`, so
+    the couplings are sparse and asymmetric. All neurons update together at the inverse temperature
+    `β = temperature_scale / K`. Started with an overlap `m` with the first pattern, the overlap follows
+    `m(t + 1) = f(m(t))` for large `K`, which keeps a nonzero fixed point below the critical load `2 / π`. The system
+    has the values `neurons.spin` and the observable `overlap`.
 
     Args:
         n_neurons:
@@ -132,7 +138,10 @@ class DilutedHopfieldSystem(BaseSystem):
 
     @staticmethod
     def _couplings(patterns: np.ndarray, connectivity: float, rng: np.random.Generator) -> scipy.sparse.csr_array:
-        """Return the couplings `J_ij = C_ij Σ_μ ξ_i ξ_j` on a random digraph of mean in-degree `connectivity`."""
+        """Return the couplings `J_ij = C_ij Σ_μ ξ_i ξ_j` on a random digraph.
+
+        The digraph has the mean in-degree `connectivity`.
+        """
         size = patterns.shape[1]
         count = rng.binomial(size * (size - 1), min(connectivity / size, 1.0))
         pairs = np.unique(rng.integers(size, size=(count, 2)), axis=0)
@@ -142,11 +151,17 @@ class DilutedHopfieldSystem(BaseSystem):
 
     @staticmethod
     def _alignment(s: SimpleNamespace, option: float, *, couplings: scipy.sparse.csr_array) -> Expression:
-        """Return the utility `β s h` of a value `s` of a neuron in its local field `h = Σ_j J_ij s_j`."""
+        """Return the utility `β s h` of a value `s` of a neuron in its local field.
+
+        The local field is `h = Σ_j J_ij s_j`.
+        """
         return s.target.beta * option * total(s.target.spin, weights=couplings)
 
     def _build_system(self) -> System:
-        """Return the asymmetric diluted Hopfield network, which recalls a stored pattern below its memory capacity."""
+        """Return the asymmetric diluted Hopfield network.
+
+        It recalls a stored pattern below its memory capacity.
+        """
         rng = np.random.default_rng(self.random_state)
         n_patterns = max(1, round(self.load * self.connectivity))
         patterns = rng.choice([-1.0, 1.0], size=(n_patterns, self.n_neurons))

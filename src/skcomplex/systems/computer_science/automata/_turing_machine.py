@@ -1,4 +1,7 @@
-"""Turing machine: a head with an internal state that reads, writes, and moves on a tape, as a local rule."""
+"""Turing machine: a head that reads, writes, and moves on a tape, as a local rule.
+
+The head has an internal state.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -19,10 +22,11 @@ from ....core.types import Array
 
 
 class TapeCellElement(Element):
-    """Cell of the tape of a Turing machine: a symbol, and the internal state of the head on it or -1.
+    """Cell of the tape of a Turing machine.
 
-    The local rule of `TuringMachineSystem` lets the head on a cell write the symbol of its action table, move one cell
-    left or right, or stay, and take its next internal state. A halted head keeps its cell and the tape stays unchanged.
+    It holds a symbol, and the internal state of the head on it or -1. The local rule of `TuringMachineSystem` lets the
+    head on a cell write the symbol of its action table, move one cell left or right, or stay, and take its next
+    internal state. A halted head keeps its cell and the tape stays unchanged.
 
     Args:
         label:
@@ -73,7 +77,9 @@ MOVES = {'L': -1, 'N': 0, 'R': 1}
 
 
 class TuringMachineSystem(BaseSystem):
-    """A Turing machine, a head with an internal state that reads, writes, and moves on a tape of symbols.
+    """A Turing machine, a head that reads, writes, and moves on a tape of symbols.
+
+    The head has an internal state.
 
     The action table maps the internal state of the head and the symbol under it to the symbol it writes, its move
     `'L'`, `'R'`, or `'N'`, and its next internal state, `'H'` to halt. Every step is a local rule on the cells of a
@@ -127,7 +133,10 @@ class TuringMachineSystem(BaseSystem):
 
     @staticmethod
     def _turing_rule(table: Mapping[tuple[str, int], tuple[int, str, str]]) -> Callable[..., tuple[Array, Array]]:
-        """Return the local rule of a Turing machine of an action table, on the symbols and heads of three cells."""
+        """Return the local rule of a Turing machine of an action table.
+
+        The rule reads the symbols and heads of three cells.
+        """
         states = sorted({state for state, _ in table})
         halted = len(states)
         symbols = 1 + max(max(symbol, write) for (_, symbol), (write, _, _) in table.items())
@@ -160,7 +169,10 @@ class TuringMachineSystem(BaseSystem):
         return rule
 
     def _build_system(self) -> System:
-        """Return a Turing machine, a head with an internal state that reads, writes, and moves on a tape of symbols."""
+        """Return a Turing machine, a head that reads, writes, and moves on a tape.
+
+        The tape holds symbols. The head has an internal state.
+        """
         actions = BUSY_BEAVER if self.table is None else self.table
         states = sorted({state for state, _ in actions})
         if self.start not in states or any(move not in MOVES for _, move, _ in actions.values()):

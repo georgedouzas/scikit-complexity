@@ -1,4 +1,7 @@
-"""The binary perceptron as a constraint satisfaction problem, whose satisfiability collapses at a critical load."""
+"""The binary perceptron as a constraint satisfaction problem.
+
+Its satisfiability collapses at a critical load.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -17,7 +20,9 @@ from ....core.specs import CardinalitySpec, StateSpec
 
 
 class BinaryWeightElement(Element):
-    """Weight of a binary perceptron, where the state 1 stands for `+1` and the state 0 for `-1`.
+    """Weight of a binary perceptron.
+
+    The state 1 stands for `+1` and the state 0 for `-1`.
 
     Args:
         label:
@@ -38,13 +43,14 @@ class BinaryWeightElement(Element):
 
 
 class PerceptronSatisfiabilitySystem(BaseSystem):
-    """A binary perceptron that must store random patterns, revealed one per step, as cardinality constraints.
+    """A binary perceptron that must store random patterns.
 
-    A pattern `xi` of output `sigma` holds when `sigma sum_i w_i xi_i > 0`, so with an odd number `N` of weights `w_i =
-    +-1`, when at least `(N + 1) / 2` of the literals `w_i = sigma xi_i` hold. The patterns are satisfiable up to the
-    critical load `p / N` of about 0.83 in the limit of many weights (Bertin 2021 §6.3.3, Ex. 6.4). The patterns are
-    drawn from `random_state`, so a disorder average sweeps it with `sweep`. The system has the group `weights`
-    and the reports `decide.satisfiable` and `decide.revealed`.
+    The patterns are revealed one per step, as cardinality constraints. A pattern `xi` of output `sigma` holds when
+    `sigma sum_i w_i xi_i > 0`, so with an odd number `N` of weights `w_i = +-1`, when at least `(N + 1) / 2` of the
+    literals `w_i = sigma xi_i` hold. The patterns are satisfiable up to the critical load `p / N` of about 0.83 in the
+    limit of many weights (Bertin 2021 §6.3.3, Ex. 6.4). The patterns are drawn from `random_state`, so a disorder
+    average sweeps it with `sweep`. The system has the group `weights` and the reports `decide.satisfiable` and
+    `decide.revealed`.
 
     Args:
         n_weights:

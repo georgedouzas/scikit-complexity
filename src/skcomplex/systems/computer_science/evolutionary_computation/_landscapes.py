@@ -27,7 +27,9 @@ class BitStringView(AgentView):
 
 
 class BitStringElement(Element):
-    """Agent whose genome is a string of bits, stored as the integer it spells, with the fitness of that genome.
+    """Agent whose genome is a string of bits, with the fitness of that genome.
+
+    The genome is stored as the integer it spells.
 
     Args:
         label:
@@ -64,17 +66,20 @@ class BitStringElement(Element):
 
     @classmethod
     def _get_view(cls) -> type[BitStringView]:
-        """Return the view of the individuals, which types their states."""
+        """Return the view of the individuals.
+
+        It types their states.
+        """
         return BitStringView
 
 
 class ReproductionInteraction(EvolutionInteraction):
-    """Death at a constant rate and replacement by mutated copies of parents chosen in proportion to their fitness.
+    """Death at a constant rate and replacement by mutated copies of fit parents.
 
-    It is the death-birth replacement of `EvolutionInteraction`, with parents drawn among all agents, on genomes stored
-    as the integers their bits spell. A newborn has one random bit flipped with probability `mutation`. The fitness of
-    a genome is the mean over its loci of a value given to each allele of each locus, an additive landscape with one
-    value for a 0 and one for a 1 at every locus.
+    The parents are chosen in proportion to their fitness. It is the death-birth replacement of `EvolutionInteraction`,
+    with parents drawn among all agents, on genomes stored as the integers their bits spell. A newborn has one random
+    bit flipped with probability `mutation`. The fitness of a genome is the mean over its loci of a value given to each
+    allele of each locus, an additive landscape with one value for a 0 and one for a 1 at every locus.
 
     Args:
         label:
@@ -147,7 +152,9 @@ class ReproductionInteraction(EvolutionInteraction):
         )
 
     def _mutate(self, children: Array, probability: float, rng: np.random.Generator, population: Array) -> Array:
-        """Return the genomes of the newborns, each with one random bit flipped with the probability of mutation.
+        """Return the genomes of the newborns, each with one random bit flipped.
+
+        The bit is flipped with the probability of mutation.
 
         Args:
             children:
@@ -237,7 +244,10 @@ class BitStringEvolutionSystem(BaseSystem):
         self.random_state = random_state
 
     def _build_system(self) -> System:
-        """Return a population of bit strings that evolves on a random additive fitness landscape."""
+        """Return a population of bit strings on a random additive fitness landscape.
+
+        The population evolves on the landscape.
+        """
         rng = np.random.default_rng(self.random_state)
         zero_values, one_values = rng.random(self.n_bits), rng.random(self.n_bits)
         genomes = rng.integers(0, 2**self.n_bits, size=self.n_agents).astype(float)
