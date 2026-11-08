@@ -31,13 +31,13 @@
 
 ## 6. Posterior methods
 
-- [ ] 6.1 Map the supported SciPy prior families to numpyro distributions, and test that an unsupported family raises `ValidationError` for `'mcmc'`
-- [ ] 6.2 Add `method='abc_smc'` on pyabc with summaries, a temporary database, and restored global random state, and test the stochastic SIR interval scenario and the per-generation diagnostics
+- [x] 6.1 Map the supported SciPy prior families to numpyro distributions, and test that an unsupported family raises `ValidationError` for `'mcmc'`
+- [x] 6.2 Add `method='abc_smc'` on pyabc with summaries, a temporary database, and restored global random state, and test the stochastic SIR interval scenario and the per-generation diagnostics
 - [x] 6.3 Move the unroll of `GradientDescentSolver` to a method of `JaxBackend` that both callers use, and verify the learning-dynamics tests pass unchanged
-- [ ] 6.4 Add `method='mcmc'` with NUTS on differentiable systems and AIES with a host callback otherwise, and test R-hat and effective sample size on the logistic posterior
-- [ ] 6.5 Add `method='variational'` with numpyro SVI and the tag check, and test the error on a system without `differentiable`
-- [ ] 6.6 Add posterior predictive quantiles and the share inside the band to every posterior method, and test the well-specified logistic case
-- [ ] 6.7 Add the user guide section on Bayesian calibration in `docs/overview/user_guide/run_experiments.md`, covering methods, priors, summaries, events, and diagnostics, and verify its examples run
+- [x] 6.4 Add `method='mcmc'` with NUTS on differentiable systems and AIES with a host callback otherwise, and test R-hat and effective sample size on the logistic posterior
+- [x] 6.5 Add `method='variational'` with numpyro SVI and the tag check, and test the error on a system without `differentiable`
+- [x] 6.6 Add posterior predictive quantiles and the share inside the band to every posterior method, and test the well-specified logistic case
+- [x] 6.7 Add the user guide section on Bayesian calibration in `docs/overview/user_guide/run_experiments.md`, covering methods, priors, summaries, events, and diagnostics, and verify its examples run
 
 ## 7. Coverage
 
