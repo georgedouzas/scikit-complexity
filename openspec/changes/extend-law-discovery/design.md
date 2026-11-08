@@ -101,13 +101,17 @@
   with its body order and degree), `alpha` and `lambda_` of the ridge, `contributions` (one array per body order),
   `training_error`, `validation_error`, and `predictive_std`.
 
-### New system
+### Probes instead of new systems
 
-- `online_offline_activity_network` lives in a new module `_online_offline.py` of `social/spreading`. It defines one
-  `BaseSystem` with `form='stochastic'` or `form='mean_field'`. The stochastic form is a site group of individuals with
-  a categorical state of the five compartments `S1` to `S5`, jump laws read from neighbour counts on a `NetworkSpace`,
-  and a complete graph when `network=None`. The mean-field form is one element with the rates of equation (1) of the
-  paper. Primitives: `jumps`, `discrete-states`, `networks`, `groups`, `interactions`, `rates`.
+- A change adds a system only when supporting it needs a change to the core. The multi-trajectory weak form of
+  2605.30432 needs none for its online and offline activity model, which uses jumps, categorical states, and networks
+  that the core has. So the model is not added, and the option is probed on catalog systems:
+  - `sir` from five initial states with noise, for several trajectories pooled in one weak fit
+  - `maki_thompson`, a jump process whose replicate means follow its mean-field rates, for experiment results as sources
+  - `lorenz` for the weak, ensemble, parametric, and control options, and `duffing` for spurious eigenfunctions
+  - `bird_swarm` for the pairwise cluster expansion
+- `many_body_alignment_swarm` is added by `add-many-body-neighbour-roles` because it drives the k-body neighbour roles.
+  This change only uses it.
 
 ## Risks / Trade-offs
 

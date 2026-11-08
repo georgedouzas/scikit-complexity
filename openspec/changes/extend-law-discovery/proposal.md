@@ -26,8 +26,9 @@ few runs.
   trajectories. The law is permutation invariant and rotation equivariant, split by body order, and fitted by Bayesian
   ridge regression with scikit-learn. Its result holds the contribution of every body order and a runnable group system
   with the learned law.
-- New system `online_offline_activity_network` in `social/spreading`, a stochastic process of online engagement and
-  offline participation on a network with its mean-field limit, the probe of the multi-trajectory weak form.
+- No new system. The methods are tested and shown on catalog systems: `lorenz`, `sir` from several initial states,
+  the stochastic `maki_thompson` through the means of its replicates, `duffing`, and `bird_swarm`. The many-body probe
+  `many_body_alignment_swarm` comes with `add-many-body-neighbour-roles`, which needs it for its own core primitive.
 - **BREAKING:** `SparseIdentificationResult` gains fields and its `features` now name the terms of the chosen library,
   which may not be monomials.
 
@@ -42,14 +43,14 @@ None.
 - `data-driven-dynamics`: weak, ensemble, parametric, control, and multi-trajectory options of sparse identification,
   Koopman eigenfunctions and dictionary choice in mode decomposition, and many-body interaction laws by cluster
   expansion.
-- `model-library`: the system `online_offline_activity_network`.
 
 ## Impact
 
-- Code: `src/skcomplex/core/analysis/_sparse_identification.py`, `_mode_decomposition.py`, a new
-  `_cluster_expansion.py`, and `src/skcomplex/systems/social/spreading/` with a new module.
+- Code: `src/skcomplex/core/analysis/_sparse_identification.py`, `_mode_decomposition.py`, and a new
+  `_cluster_expansion.py`. No module of `skcomplex.systems` changes.
 - Dependencies: none new. PySINDy, PyDMD, and scikit-learn are already runtime dependencies.
 - Depends on `add-many-body-neighbour-roles` (change 9): the system of a `cluster_expansion` above body order 2 holds
   its k-body neighbour interactions, and its probe is `many_body_alignment_swarm`. The 2-body part and the pairwise
   probe `bird_swarm` do not depend on it.
-- Docs: the learned surrogates section of the user guide, gallery examples, and the inventory.
+- Docs: the learned surrogates section of the user guide, gallery examples of the probe systems, and the primitive
+  `learned-interaction-laws` of the inventory.

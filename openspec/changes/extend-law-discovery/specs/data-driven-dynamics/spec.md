@@ -12,6 +12,12 @@ fitted system SHALL be the same kind of system as without the weak form.
   of the standard deviation of every variable
 - **THEN** it keeps exactly the seven terms of the Lorenz system, with coefficients within 5% of their true values
 
+#### Scenario: Several noisy runs pooled
+- **WHEN** the weak form of degree 2 runs on five runs of `sir` from different initial infected fractions, each with
+  Gaussian noise of 5%
+- **THEN** it keeps only the terms `S I` and `I` of the true rates, with coefficients within 5% of the rates of the
+  system, and its error is smaller than that of a fit on any single run
+
 #### Scenario: Same system without noise
 - **WHEN** it runs with and without the weak form on a noise-free Lorenz trajectory
 - **THEN** both results keep the same terms, and their coefficients agree within 1%
@@ -67,6 +73,12 @@ every replicate is a run.
 - **WHEN** the result of `ensemble` over five initial states with 20 replicates each of a stochastic system is given
   with `replicates='mean'`
 - **THEN** the fit uses five runs, each the mean over its 20 replicates at every frame
+
+#### Scenario: Mean-field rates of a jump process
+- **WHEN** the result of `ensemble` of `maki_thompson` with 10000 people from five initial spreader counts and 20
+  replicates each is given with `replicates='mean'` and the weak form, on the fractions of the three groups
+- **THEN** the fitted rates keep the terms of the mean-field rumour equations, with coefficients within 5% of the
+  contact rates of the system
 
 #### Scenario: Unknown replicates option
 - **WHEN** `replicates='median'` is given
