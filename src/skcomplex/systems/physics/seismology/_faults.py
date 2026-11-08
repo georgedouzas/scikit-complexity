@@ -1,4 +1,7 @@
-"""Seismology systems: earthquakes on loaded faults."""
+"""Seismology systems.
+
+The module covers earthquakes on loaded faults.
+"""
 
 # Author: Georgios Douzas <gdouzas@icloud.com>
 # License: MIT
@@ -54,7 +57,9 @@ class FaultElement(Element):
 
 
 class EarthquakesSystem(BaseSystem):
-    """The Olami-Feder-Christensen earthquake system with open edges, started from random forces.
+    """The Olami-Feder-Christensen earthquake system with open edges.
+
+    The system starts from random forces.
 
     The fault is a cascade that resets a slipping block to zero and passes the fraction `alpha` of its force to each of
     its four neighbours. With `alpha` below 1/4 the system is dissipative and its earthquake sizes still follow a power
@@ -101,13 +106,19 @@ class EarthquakesSystem(BaseSystem):
 
     @staticmethod
     def _load(force: Array, *, random: np.random.Generator) -> Array:
-        """Return the forces after the uniform loading that brings the most loaded block to the threshold."""
+        """Return the forces after the uniform loading.
+
+        The loading brings the most loaded block to the threshold.
+        """
         following = force + (THRESHOLD - force.max())
         following[np.unravel_index(np.argmax(force), force.shape)] = THRESHOLD
         return following
 
     def _build_system(self) -> System:
-        """Return the Olami-Feder-Christensen earthquake system with open edges, started from random forces."""
+        """Return the Olami-Feder-Christensen earthquake system with open edges.
+
+        The system starts from random forces.
+        """
         forces = np.random.default_rng(self.random_state).random(tuple(self.shape))
         space = LatticeSpace(tuple(self.shape), boundary='fixed')
         return System(
